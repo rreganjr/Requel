@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<project id="POD_1" revision="20"
+	dateCreated="2009-01-04T04:14:06"
+	createdBy="USR_5"
+	xmlns="http://www.people.fas.harvard.edu/~rregan/requel"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://www.people.fas.harvard.edu/~rregan/requel project.xsd">
+    <actors>
+        <actor id="ACT_1" revision="10" dateCreated="2009-01-05T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>The automated assistant is part of the system, but interacts with the requirements part of the system like a project user adding issues and notes during analysis. The automated assistant will be a stakeholder on all projects.</text>
+            <goals/>
+            <name>Automated Assistant</name>
+        </actor>
+        <actor id="ACT_2" revision="2" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text></text>
+            <goals/>
+            <name>Interactive User</name>
+        </actor>
+        <actor id="ACT_3" revision="8" dateCreated="2009-01-05T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>Project users use the system to create requirments in projects.</text>
+            <goals/>
+            <name>Project User</name>
+        </actor>
+        <actor id="ACT_4" revision="8" dateCreated="2009-01-05T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>System administrator users create other users and manage the system level user permissions.</text>
+            <goals/>
+            <name>System Admin</name>
+        </actor>
+    </actors>
+    <scenarios>
+        <scenario id="SCN_1" scenarioType="Primary" revision="9" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>A user creates a new project</name>
+            <steps>
+                <stepRef>SCN_2</stepRef>
+                <stepRef>SCN_3</stepRef>
+                <stepRef>SCN_4</stepRef>
+                <stepRef>SCN_5</stepRef>
+            </steps>
+        </scenario>
+        <step id="SCN_2" scenarioType="Primary" revision="9" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>The system verifies that the user is authorized to create a new project and displays the option to the user in the interface.</name>
+        </step>
+        <step id="SCN_3" scenarioType="Primary" revision="9" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>The user chooses to create a new project.</name>
+        </step>
+        <step id="SCN_4" scenarioType="Primary" revision="7" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>The system displays an interface prompting the user for a project name, a short description, and the customer name, defaulted to the user's company name.</name>
+        </step>
+        <scenario id="SCN_5" scenarioType="Primary" revision="7" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>The system verifies the project name and customer name are unique, creates the new project, adds the creating user as a stakeholder, and adds the project to the user's list of open projects.</name>
+            <steps>
+                <stepRef>SCN_6</stepRef>
+            </steps>
+        </scenario>
+        <step id="SCN_6" scenarioType="Exception" revision="2" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>The system informs the user the project name and customer name combination is not unique and prompts the user to change either.</name>
+        </step>
+        <scenario id="SCN_7" scenarioType="Primary" revision="7" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>A user logs in to the system</name>
+            <steps>
+                <stepRef>SCN_8</stepRef>
+                <stepRef>SCN_9</stepRef>
+                <stepRef>SCN_10</stepRef>
+                <stepRef>SCN_13</stepRef>
+            </steps>
+        </scenario>
+        <step id="SCN_8" scenarioType="Primary" revision="7" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>The user access the system.</name>
+        </step>
+        <step id="SCN_9" scenarioType="Primary" revision="7" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>The system determines the user doesn't have an active session and displays a login interface prompting the user for a username and password. The system interface includes a help option that the user can choose if they need help.</name>
+        </step>
+        <scenario id="SCN_10" scenarioType="Primary" revision="7" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>The user enters her username and password and submits them.</name>
+            <steps>
+                <stepRef>SCN_11</stepRef>
+            </steps>
+        </scenario>
+        <scenario id="SCN_11" scenarioType="Alternative" revision="2" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>The user chooses the help option.</name>
+            <steps>
+                <stepRef>SCN_12</stepRef>
+            </steps>
+        </scenario>
+        <step id="SCN_12" scenarioType="Primary" revision="2" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>The system displays a helpful message of whom to contact to get a user account and instructions of what to do if they forgot their password.</name>
+        </step>
+        <scenario id="SCN_13" scenarioType="Primary" revision="7" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>The system verifies the user supplied a correct username and password combination, logs the successful login and presents the user with an interface to use the system.</name>
+            <steps>
+                <stepRef>SCN_14</stepRef>
+            </steps>
+        </scenario>
+        <step id="SCN_14" scenarioType="Exception" revision="2" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <name>The system informs the user that the username and password combination supplied is not valid and displays the login interface.</name>
+        </step>
+    </scenarios>
+    <glossary/>
+    <goals>
+        <goal id="GOL_1" revision="7" dateCreated="2009-01-04T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>The system analyzes the requirements as they are added to a project and makes suggestions by adding issues to the elements.</text>
+            <name>Automatted Assistance</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_2" revision="8" dateCreated="2009-01-04T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>A team of technical and business stakeholders can use the system to create accurate, precise and unambiguous system requirements.</text>
+            <name>Collaborative Elicitation of Requirements</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_3" revision="5" dateCreated="2009-01-04T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>The system supports integrated discussion of the requirements such that stakeholders can identify issues with the project elements, state multiple solutions to each issue, and pros and cons of each solution.</text>
+            <name>Discussion of Requirements</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_4" revision="7" dateCreated="2009-01-04T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>The system is easy to use so that non-technical users can contribute to the requirements without the need for specialized skills or training.</text>
+            <name>Easy to Use</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_6" revision="6" dateCreated="2009-01-04T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>The system does not force a specific requirements elicitation process on the stakeholders. The system does not require the stakeholders to use all the features of the system.</text>
+            <name>Flexible Process and Deliverables</name>
+            <goalRelations>
+                <goalRelation toGoal="GOL_4" relationType="Supports" id="GLR_2" dateCreated="2009-01-04T00:00:00" createdBy="USR_5">
+                    <annotations/>
+                </goalRelation>
+            </goalRelations>
+        </goal>
+        <goal id="GOL_7" revision="6" dateCreated="2009-01-04T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>Using the system improves understanding of the requirements by all the stakeholders compared to non-integrated tools such as emails and spreadsheets.</text>
+            <name>Improved Understanding</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_8" revision="4" dateCreated="2009-01-04T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>The system notifies the stakeholders of changes to the project. The user can customize how the notifications occur: every time a change is made, or a periodic summary.</text>
+            <name>Notification of Project Changes</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_5" revision="7" dateCreated="2009-01-04T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>The requirements are defined in natural language such that non-technical users do not need specialized skills to understand the requirements.</text>
+            <name>Requirements defined in Natural Language</name>
+            <goalRelations>
+                <goalRelation toGoal="GOL_4" relationType="Supports" id="GLR_1" dateCreated="2009-01-04T00:00:00" createdBy="USR_5">
+                    <annotations/>
+                </goalRelation>
+            </goalRelations>
+        </goal>
+        <goal id="GOL_9" revision="12" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>The system secures project content from unauthorized access by users not assigned to a project or non-users of the system.</text>
+            <name>Secure data access</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_10" revision="13" dateCreated="2009-01-05T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>The work done on the thesis is exclusively done by the student.</text>
+            <name>Work is your own</name>
+            <goalRelations/>
+        </goal>
+    </goals>
+    <name>Requel</name>
+    <reports/>
+    <stakeholders>
+        <stakeholder id="STK_5" revision="2" dateCreated="2009-02-11T04:07:01" createdBy="USR_1">
+            <annotations/>
+            <goals/>
+            <projectPermissions>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Stakeholder"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.UseCase"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Actor"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Actor"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Goal"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Stakeholder"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.UseCase"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.ReportGenerator"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.annotation.Annotation"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Story"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.GlossaryTerm"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.annotation.Annotation"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Story"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Scenario"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Goal"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Scenario"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.GlossaryTerm"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.ReportGenerator"/>
+            </projectPermissions>
+            <user id="USR_1">
+                <username>admin</username>
+                <password>21232f297a57a5a743894a0e4a801fc3</password>
+                <name></name>
+                <emailAddress>rreganjr@acm.org</emailAddress>
+                <phoneNumber></phoneNumber>
+                <organization name="Requel"/>
+                <userRoles>
+                    <systemAdminUserRole>
+                        <userPermissions/>
+                    </systemAdminUserRole>
+                    <projectUserRole>
+                        <userPermissions>
+                            <userPermission userRoleType="edu.harvard.fas.rregan.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
+                        </userPermissions>
+                    </projectUserRole>
+                </userRoles>
+                <editable>true</editable>
+            </user>
+        </stakeholder>
+        <stakeholder id="STK_1" revision="1" dateCreated="2009-01-04T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <goals/>
+            <projectPermissions/>
+            <user id="USR_4">
+                <username>assistant</username>
+                <password>f549cd73f694aa6f5541b4ae30894eea</password>
+                <name>Analysis Assistant</name>
+                <emailAddress>rreganjr@acm.org</emailAddress>
+                <organization name="Requel"/>
+                <userRoles>
+                    <projectUserRole>
+                        <userPermissions/>
+                    </projectUserRole>
+                </userRoles>
+                <editable>false</editable>
+            </user>
+        </stakeholder>
+        <stakeholder id="STK_2" revision="2" dateCreated="2009-01-05T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <goals>
+                <goalRef>GOL_10</goalRef>
+            </goals>
+            <name>Harvard University</name>
+            <projectPermissions/>
+            <user xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+        </stakeholder>
+        <stakeholder id="STK_3" revision="1" dateCreated="2009-01-05T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <goals/>
+            <projectPermissions/>
+            <user id="USR_3">
+                <username>project</username>
+                <password>46f86faa6bbf9ac94a7e459509a20ed0</password>
+                <name></name>
+                <emailAddress>rreganjr@acm.org</emailAddress>
+                <organization name="Requel"/>
+                <userRoles>
+                    <projectUserRole>
+                        <userPermissions>
+                            <userPermission userRoleType="edu.harvard.fas.rregan.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
+                        </userPermissions>
+                    </projectUserRole>
+                </userRoles>
+                <editable>true</editable>
+            </user>
+        </stakeholder>
+        <stakeholder id="STK_4" revision="2" dateCreated="2009-01-04T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <goals/>
+            <projectPermissions>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Stakeholder"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.UseCase"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Actor"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Actor"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Goal"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Stakeholder"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.UseCase"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.ReportGenerator"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.annotation.Annotation"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Story"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.GlossaryTerm"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.annotation.Annotation"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Story"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Scenario"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Goal"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Scenario"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.GlossaryTerm"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.ReportGenerator"/>
+            </projectPermissions>
+            <user id="USR_5">
+                <username>rreganjr</username>
+                <password>44e5a3ef99e2dbc4152fde7fa539e854</password>
+                <name>Ron Regan</name>
+                <emailAddress>rreganjr@acm.org</emailAddress>
+                <phoneNumber>781 645 1574</phoneNumber>
+                <organization name="Nellymoser"/>
+                <userRoles>
+                    <projectUserRole>
+                        <userPermissions>
+                            <userPermission userRoleType="edu.harvard.fas.rregan.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
+                        </userPermissions>
+                    </projectUserRole>
+                </userRoles>
+                <editable>true</editable>
+            </user>
+        </stakeholder>
+    </stakeholders>
+    <stories>
+        <story id="STRY_1" storyType="Success" revision="64" dateCreated="2009-01-05T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>Buddy the controller of Bailey Pet Supply has a problem; it takes over a month to close the books each quarter. Due to new disclosure requirements, Alex the CFO needs to submit quarterly results to the board of directors one week after the end of the quarter. Buddy tells Theresa, the accounting manager, that they need to close the books each quarter in less than a week. Theresa tells Buddy that the problem stems from the order processing system not being integrated with the accounting package and at the end of each month data must be entered into both systems to reconcile them manually.
+Buddy decides that the systems must be integrated before the end of the next quarter so that the one week turn-around for reporting can be met. Buddy meets with Dave the IT manager to discuss the work. Dave assigns Tim, one of the IT project managers, to work with Buddy to determine the requirements and estimate the work. Tim meets with Buddy and they generate a list of high level requirements. Tim gives the requirements and a rough estimate of two months to Dave, who in turn gives them to Ron, an MIS programmer, to design and develop. Ron reviews the requirements and goes back to Dave and tells him there are a lot of vague areas and he needs to get clarification from Tim and Buddy.
+Ron and Tim have a meeting to discuss the requirements. Ron asks Tim &quot;What is a purchase order?&quot; Tim response &quot;It’s a record in the purchase system that Linda enters based on information from a sales person.&quot; Ron asks &quot;What information is in the purchase order?&quot; Tim doesn’t know and tells Ron he will ask Buddy and get back to him. Tim sends an email to Buddy and calls it a day.
+Buddy replies to Tim’s email that he should talk to Linda to get the details of a purchase order. Tim has a meeting with Linda and gets the details on the data for a purchase order. Tim sends Ron an email with the information. Ron replies to Tim’s email &quot;Is there a database with data that I can look at for a sample?&quot;</text>
+            <actors/>
+            <goals/>
+            <name>Poor Communication in Requirements</name>
+        </story>
+        <story id="STRY_2" storyType="Success" revision="24" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>Rich logs in to the system and it displays a list of his active projects and the option to create a new project. Rich chooses to create a new project and the system displays the new project interface. Rich enters &quot;Mobile Media Portal&quot; for the project name and enters a short description. Rich looks over the list of existing customers and doesn't see what he's looking for and enters &quot;Virile Mobile&quot;.
+
+The system creates the new project and adds Rich as a stakeholder with permission to edit all project entities and grant permission to other users to edit entities. The system closes the new project interface and adds the new project in the project navigation interface.</text>
+            <actors/>
+            <goals/>
+            <name>Rich creates a new project</name>
+        </story>
+        <story id="STRY_3" storyType="Success" revision="20" dateCreated="2009-01-05T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>Rich opens a web browser to the Requel system address. The system doesn’t detect an existing user session and presents the login screen. Rich enters his username and password. The system verifies the username and password combination is correct. The system logs that Rich has successfully logged into the system and shows him a list of his open projects and an overview of recent project changes.</text>
+            <actors/>
+            <goals/>
+            <name>Rich logs in to the system</name>
+        </story>
+        <story id="STRY_4" storyType="Exception" revision="20" dateCreated="2009-01-05T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>Ron opens a web browser to the Requel system address. The system doesn’t detect an existing user session and presents the login screen. Ron doesn’t have a username and password yet so he chooses the help option. The system displays a message that the system requires a distinct username and password and that the user should contact Dave at extension 500 or via email to dave@requel if they need a new account or are having a problem connecting. The system also displays a help message describing what to do if the user forgot their account information. Ron sends Dave an email to create him a new account.</text>
+            <actors/>
+            <goals/>
+            <name>Ron fails to log in to the system</name>
+        </story>
+        <story id="STRY_5" storyType="Success" revision="24" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>When Theresa logs in, the system determines that she has permission to create projects and displays the &quot;Create Project&quot; option in the system interface. Theresa chooses to create a new project and the system displays the new project interface. Theresa enters &quot;Purchase Order System&quot; for the project name, leaves the description blank, and leaves &quot;Bailey Pet Supply&quot;, her default automatically supplied, as the customer.
+
+The system creates the new project and adds Theresa as a stakeholder with permission to edit all project entities and grant permission to other users to edit entities. The system closes the new project interface and displays the project navigation interface to add and edit the project's entities.</text>
+            <actors/>
+            <goals/>
+            <name>Theresa creates a new project</name>
+        </story>
+        <story id="STRY_6" storyType="Success" revision="30" dateCreated="2009-01-05T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <text>Theresa connects to the Requel system via a web browser from a link in an email message sent by the Requel system when Dave the system administrator created an account for her. The system displays the new user setup interface, prompting Theresa to confirm the personal information Dave entered about her and filling in any missing information, such as name, phone number, email address, a username and a password. When Theresa completes entering the information the system forwards her to the login screen.
+
+Theresa enters her username and password, and the system verifies it as correct. The system logs that Theresa has successfully logged into the system, and because Theresa is a novice user, the system displays the novice user interface to help her get started.</text>
+            <actors/>
+            <goals/>
+            <name>Theresa logs in to the system</name>
+        </story>
+    </stories>
+    <teams/>
+    <description>A collaborative system for the elicitation and analysis of requirements  facilitated by automated assistants.</description>
+    <usecases>
+        <usecase id="UC_1" revision="8" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <actors/>
+            <goals/>
+            <name>A user creates a new project</name>
+            <primaryActorRef>ACT_4</primaryActorRef>
+            <scenarioRef>SCN_1</scenarioRef>
+            <stories>
+                <storyRef>STRY_2</storyRef>
+                <storyRef>STRY_5</storyRef>
+            </stories>
+        </usecase>
+        <usecase id="UC_2" revision="10" dateCreated="2009-01-20T00:00:00" createdBy="USR_5">
+            <annotations/>
+            <actors/>
+            <goals>
+                <goalRef>GOL_9</goalRef>
+                <goalRef>GOL_10</goalRef>
+            </goals>
+            <name>A user logs in to the system</name>
+            <primaryActorRef>ACT_2</primaryActorRef>
+            <scenarioRef>SCN_7</scenarioRef>
+            <stories>
+                <storyRef>STRY_3</storyRef>
+                <storyRef>STRY_4</storyRef>
+                <storyRef>STRY_6</storyRef>
+            </stories>
+        </usecase>
+    </usecases>
+    <annotations/>
+    <positions/>
+    <annotations/>
+    <organization name="Harvard University"/>
+    <status>New</status>
+</project>
