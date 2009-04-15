@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  - Spring config for Main UI Panels. This collects panels defined in the other
+  - config files and assigns them to the navigation
+  -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xmlns:context="http://www.springframework.org/schema/context"
+		xmlns:tx="http://www.springframework.org/schema/tx"
+		xmlns:util="http://www.springframework.org/schema/util"
+		xsi:schemaLocation="
+			http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+			http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd
+			http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
+			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.5.xsd
+			">
+
+		<bean id="mainNavigationPanelManager" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.DefaultPanelManager">
+			<constructor-arg><ref bean="eventDispatcher"/></constructor-arg>
+			<constructor-arg>
+				<util:set scope="prototype" value-type="edu.harvard.fas.rregan.uiframework.panel.Panel">
+					<ref bean="userAdminNavigatorPanel"/>
+					<ref bean="projectNavigatorPanel"/>
+					<!-- 
+					<ref bean="nlpNavigatorPanel"/>
+					 -->
+				</util:set>
+			</constructor-arg>
+		</bean>
+
+		<bean id="mainNavigationPanelContainer" scope="prototype" class="edu.harvard.fas.rregan.requel.ui.MainScreenTabbedNavigation">
+			<constructor-arg><ref local="mainNavigationPanelManager"/></constructor-arg>
+		</bean>
+		
+		<bean id="mainContentPanelManager" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.DefaultPanelManager">
+			<constructor-arg><ref bean="eventDispatcher"/></constructor-arg>
+			<constructor-arg>
+				<util:set scope="prototype" value-type="edu.harvard.fas.rregan.uiframework.panel.PanelDescriptor">
+					<!-- user panels -->
+					<ref bean="userEditorPanelFactory"/>
+					
+					<!-- annotation panels -->
+					<ref bean="noteEditorPanelFactory"/>
+					<ref bean="issueEditorPanelFactory"/>
+					<ref bean="positionEditorPanelFactory"/>
+					<ref bean="argumentEditorPanelFactory"/>
+					
+					<!-- project panels -->
+					<ref bean="projectOverviewPanelFactory"/>
+					<ref bean="projectOpenIssuesPanelFactory"/>
+					<ref bean="projectStakeholdersNavigatorPanelFactory"/>
+					<ref bean="stakeholderEditorPanelFactory"/>
+					
+					<ref bean="projectGoalsNavigatorPanelFactory"/>
+					<ref bean="projectGoalsSelectorPanelFactory"/>
+					<ref bean="goalEditorPanelFactory"/>
+					<ref bean="goalRelationEditorPanelFactory"/>
+					
+					<ref bean="storyEditorPanelFactory"/>
+					<ref bean="projectStoriesNavigatorPanelFactory"/>
+					<ref bean="projectStoriesSelectorPanelFactory"/>
+					
+					<ref bean="actorEditorPanelFactory"/>
+					<ref bean="projectActorsNavigatorPanelFactory"/>
+					<ref bean="projectActorsSelectorPanelFactory"/>
+					
+					<ref bean="useCaseEditorPanelFactory"/>
+					<ref bean="projectUseCasesNavigatorPanelFactory"/>
+					<ref bean="projectUseCasesSelectorPanelFactory"/>
+
+					<ref bean="scenarioEditorPanelFactory"/>
+					<ref bean="projectScenariosNavigatorPanelFactory"/>
+					<ref bean="projectScenarioSelectorPanelFactory"/>
+					
+					<ref bean="projectGlossaryTermsNavigatorPanelFactory"/>
+					<ref bean="projectGlossaryTermsSelectorPanelFactory"/>
+					<ref bean="glossaryTermEditorPanelFactory"/>
+
+					<ref bean="projectReportsNavigatorPanelFactory"/>
+					<ref bean="reportEditorPanelFactory"/>
+					
+					<!-- NLP panels
+					<ref bean="parserPanelFactory" />
+					 -->
+				</util:set>
+			</constructor-arg>
+		</bean>
+
+		<bean id="mainContentPanelContainer" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.TabbedPanelContainer">
+			<constructor-arg><ref local="mainContentPanelManager"/></constructor-arg>
+		</bean>
+</beans>
