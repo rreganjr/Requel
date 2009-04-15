@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xs:schema version="1.0" targetNamespace="http://www.people.fas.harvard.edu/~rregan/requel" xmlns:tns="http://www.people.fas.harvard.edu/~rregan/requel" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:element name="actor" type="tns:actor"/>
+
+  <xs:element name="argument" type="tns:argument"/>
+
+  <xs:element name="changeSpellingPosition" type="tns:changeSpellingPosition"/>
+
+  <xs:element name="domainAdminUserRole" type="tns:domainAdminUserRole"/>
+
+  <xs:element name="goal" type="tns:goal"/>
+
+  <xs:element name="goalRelation" type="tns:goalRelation"/>
+
+  <xs:element name="issue" type="tns:issue"/>
+
+  <xs:element name="note" type="tns:note"/>
+
+  <xs:element name="organization" type="tns:organization"/>
+
+  <xs:element name="position" type="tns:position"/>
+
+  <xs:element name="project" type="tns:project"/>
+
+  <xs:element name="projectPermission" type="tns:projectPermission"/>
+
+  <xs:element name="projectUserRole" type="tns:projectUserRole"/>
+
+  <xs:element name="stakeholder" type="tns:stakeholder"/>
+
+  <xs:element name="systemAdminUserRole" type="tns:systemAdminUserRole"/>
+
+  <xs:element name="team" type="tns:team"/>
+
+  <xs:element name="user" type="tns:user"/>
+
+  <xs:element name="userPermission" type="tns:userPermission"/>
+
+  <xs:complexType name="abstractAnnotation" abstract="true">
+    <xs:sequence>
+      <xs:element name="annotations" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+              <xs:element ref="tns:issue"/>
+              <xs:element ref="tns:note"/>
+            </xs:choice>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="text" type="xs:string" form="qualified" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="createdBy" type="xs:IDREF"/>
+    <xs:attribute name="dateCreated" type="xs:string"/>
+    <xs:attribute name="id" type="xs:ID"/>
+  </xs:complexType>
+
+  <xs:complexType name="user">
+    <xs:sequence>
+      <xs:element name="username" type="xs:string" form="qualified"/>
+      <xs:element name="password" type="xs:string" form="qualified"/>
+      <xs:element name="name" type="xs:string" form="qualified" default=""/>
+      <xs:element name="emailAddress" type="xs:string" form="qualified" minOccurs="0"/>
+      <xs:element name="phoneNumber" type="xs:string" form="qualified" minOccurs="0"/>
+      <xs:element ref="tns:organization"/>
+      <xs:element name="userRoles" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+              <xs:element ref="tns:domainAdminUserRole"/>
+              <xs:element ref="tns:projectUserRole"/>
+              <xs:element ref="tns:systemAdminUserRole"/>
+            </xs:choice>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="editable" type="xs:boolean" form="qualified"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:ID"/>
+  </xs:complexType>
+
+  <xs:complexType name="organization">
+    <xs:sequence/>
+    <xs:attribute name="name" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:complexType name="abstractUserRole" abstract="true">
+    <xs:sequence>
+      <xs:element name="userPermissions" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="tns:userPermission" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="userPermission">
+    <xs:sequence/>
+    <xs:attribute name="id" type="xs:string"/>
+    <xs:attribute name="name" type="xs:string"/>
+    <xs:attribute name="userRoleType" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:complexType name="argument">
+    <xs:sequence>
+      <xs:element name="text" type="xs:string" form="qualified" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="createdBy" type="xs:IDREF"/>
+    <xs:attribute name="dateCreated" type="xs:string"/>
+    <xs:attribute name="id" type="xs:ID"/>
+    <xs:attribute name="supportLevel" type="tns:argumentPositionSupportLevel"/>
+  </xs:complexType>
+
+  <xs:complexType name="changeSpellingPosition">
+    <xs:complexContent>
+      <xs:extension base="tns:position">
+        <xs:sequence/>
+        <xs:attribute name="propertyName" type="xs:string"/>
+        <xs:attribute name="correctWord" type="xs:string"/>
+        <xs:attribute name="misspelledWord" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="position">
+    <xs:sequence>
+      <xs:element name="arguments" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="tns:argument" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="text" type="xs:string" form="qualified" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="createdBy" type="xs:IDREF"/>
+    <xs:attribute name="dateCreated" type="xs:string"/>
+    <xs:attribute name="id" type="xs:ID"/>
+  </xs:complexType>
+
+  <xs:complexType name="issue">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractAnnotation">
+        <xs:sequence>
+          <xs:element name="positions" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:choice minOccurs="0" maxOccurs="unbounded">
+                  <xs:element ref="tns:position"/>
+                  <xs:element ref="tns:changeSpellingPosition"/>
+                </xs:choice>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+        <xs:attribute name="mustBeResolved" type="xs:boolean" use="required"/>
+        <xs:attribute name="resolvedByPosition" type="xs:IDREF"/>
+        <xs:attribute name="resolvedByUser" type="xs:IDREF"/>
+        <xs:attribute name="dateResolved" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="note">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractAnnotation">
+        <xs:sequence/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="domainAdminUserRole">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractUserRole">
+        <xs:sequence/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="projectUserRole">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractUserRole">
+        <xs:sequence/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="abstractProjectOrDomain" abstract="true">
+    <xs:sequence>
+      <xs:element name="goals" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="tns:goal" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+      <xs:element name="stakeholders" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="tns:stakeholder" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="teams" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="tns:team" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+    <xs:attribute name="createdBy" type="xs:IDREF"/>
+    <xs:attribute name="dateCreated" type="xs:string"/>
+    <xs:attribute name="id" type="xs:ID"/>
+  </xs:complexType>
+
+  <xs:complexType name="goal">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractTextEntity">
+        <xs:sequence>
+          <xs:element name="goalRelations" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element ref="tns:goalRelation" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+        <xs:attribute name="id" type="xs:ID"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="abstractTextEntity" abstract="true">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractProjectOrDomainEntity">
+        <xs:sequence>
+          <xs:element name="text" type="xs:string" form="qualified" minOccurs="0"/>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="abstractProjectOrDomainEntity" abstract="true">
+    <xs:sequence>
+      <xs:element name="annotations" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+              <xs:element ref="tns:issue"/>
+              <xs:element ref="tns:note"/>
+            </xs:choice>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="createdBy" type="xs:IDREF"/>
+    <xs:attribute name="dateCreated" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:complexType name="goalRelation">
+    <xs:sequence/>
+    <xs:attribute name="createdBy" type="xs:IDREF"/>
+    <xs:attribute name="dateCreated" type="xs:string"/>
+    <xs:attribute name="id" type="xs:ID"/>
+    <xs:attribute name="relationType" type="xs:string"/>
+    <xs:attribute name="toGoal" type="xs:IDREF"/>
+  </xs:complexType>
+
+  <xs:complexType name="stakeholder">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractProjectOrDomainEntity">
+        <xs:sequence>
+          <xs:element name="goals" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="goalRef" type="xs:IDREF" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="projectPermissions" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element ref="tns:projectPermission" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+          <xs:element ref="tns:user"/>
+        </xs:sequence>
+        <xs:attribute name="team" type="xs:IDREF"/>
+        <xs:attribute name="id" type="xs:ID"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="projectPermission">
+    <xs:sequence/>
+    <xs:attribute name="entityType" type="xs:string"/>
+    <xs:attribute name="permissionType" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:complexType name="team">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractProjectOrDomainEntity">
+        <xs:sequence>
+          <xs:element name="members" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="stakeholderRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+        <xs:attribute name="id" type="xs:ID"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="actor">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractProjectOrDomainEntity">
+        <xs:sequence>
+          <xs:element name="goals" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element ref="tns:goal" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+        <xs:attribute name="id" type="xs:ID"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="project">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractProjectOrDomain">
+        <xs:sequence>
+          <xs:element name="annotations" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:choice minOccurs="0" maxOccurs="unbounded">
+                  <xs:element ref="tns:issue"/>
+                  <xs:element ref="tns:note"/>
+                </xs:choice>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+          <xs:element ref="tns:organization"/>
+          <xs:element name="status" type="xs:string" form="qualified" minOccurs="0"/>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="systemAdminUserRole">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractUserRole">
+        <xs:sequence/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:simpleType name="argumentPositionSupportLevel">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="StronglyFor"/>
+      <xs:enumeration value="For"/>
+      <xs:enumeration value="Neutral"/>
+      <xs:enumeration value="Against"/>
+      <xs:enumeration value="StronglyAgainst"/>
+    </xs:restriction>
+  </xs:simpleType>
+</xs:schema>
+

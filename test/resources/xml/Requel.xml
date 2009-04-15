@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<project id="POD_1" revision="19"
+	dateCreated="2009-01-04T04:14:06"
+	createdBy="USR_5"
+	xmlns="http://www.people.fas.harvard.edu/~rregan/requel"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://www.people.fas.harvard.edu/~rregan/requel project.xsd">
+
+    <actors>
+        <actor id="ACT_3" revision="10" dateCreated="2009-01-05T03:12:23" createdBy="USR_5">
+            <text>The automated assistant is part of the system, but interacts with parts of the system like a project user. The automated assistant will be a stakeholder on all projects.</text>
+            <goals/>
+            <name>Automated Assistant</name>
+        </actor>
+        <actor id="ACT_1" revision="8" dateCreated="2009-01-05T03:09:06" createdBy="USR_5">
+            <text>Project users use the system to create requirments in projects.</text>
+            <goals/>
+            <name>Project User</name>
+        </actor>
+        <actor id="ACT_2" revision="8" dateCreated="2009-01-05T03:09:50" createdBy="USR_5">
+            <text>System administrator users create other users and manage the system level user permissions.</text>
+            <goals/>
+            <name>System Admin</name>
+        </actor>
+    </actors>
+    <glossary/>
+    <goals>
+        <goal id="GOL_9" revision="7" dateCreated="2009-01-04T05:52:58" createdBy="USR_5">
+            <text>The system analyzes the requirement elements as they are added to a project and makes suggestions by adding issues to the elements.</text>
+            <name>Automatted Assistance</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_1" revision="8" dateCreated="2009-01-04T04:18:02" createdBy="USR_5">
+            <text>A team of technical and business stakeholders can use the system to create accurate, precise and unambiguous system requirements.</text>
+            <name>Collaborative Elicitation of Requirements</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_7" revision="5" dateCreated="2009-01-04T05:35:43" createdBy="USR_5">
+            <text>The system supports integrated discussion of the requirements such that stakeholders can identify issues with the project elements, state multiple solutions to each issue, and pros and cons of each solution.</text>
+            <name>Discussion of Requirements</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_6" revision="7" dateCreated="2009-01-04T04:49:52" createdBy="USR_5">
+            <text>The system is easy to use so that non-technical users can contribute to the requirements without the need for specialized skills or training.</text>
+            <name>Easy to Use</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_4" revision="6" dateCreated="2009-01-04T04:39:54" createdBy="USR_5">
+            <text>The system does not force a specific requirements elicitation process on the stakeholders. The system does not require the stakeholders to use all the features of the system.</text>
+            <name>Flexible Process and Deliverables</name>
+            <goalRelations>
+                <goalRelation toGoal="GOL_6" relationType="Supports" id="GLR_1" dateCreated="2009-01-04T04:50:17" createdBy="USR_5">
+                    <annotations/>
+                </goalRelation>
+            </goalRelations>
+        </goal>
+        <goal id="GOL_2" revision="6" dateCreated="2009-01-04T04:22:52" createdBy="USR_5">
+            <text>Using the system improves understanding of the requirements by all the stakeholders compared to non-integrated tools such as emails and spreadsheets.</text>
+            <name>Improved Understanding</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_8" revision="4" dateCreated="2009-01-04T05:39:55" createdBy="USR_5">
+            <text>The system notifies the stakeholders of changes to the project. The user can customize how the notifications occur: every time a change is made, or a periodic summary.</text>
+            <name>Notification of Project Changes</name>
+            <goalRelations/>
+        </goal>
+        <goal id="GOL_5" revision="7" dateCreated="2009-01-04T04:48:15" createdBy="USR_5">
+            <text>The requirements are defined in natural language such that non-technical users do not need specialized skills to understand the requirements.</text>
+            <name>Requirements defined in Natural Language</name>
+            <goalRelations>
+                <goalRelation toGoal="GOL_6" relationType="Supports" id="GLR_2" dateCreated="2009-01-04T04:50:51" createdBy="USR_5">
+                    <annotations/>
+                </goalRelation>
+            </goalRelations>
+        </goal>
+        <goal id="GOL_10" revision="13" dateCreated="2009-01-05T02:19:00" createdBy="USR_5">
+            <text>The work done on the thesis is exclusively done by the student.</text>
+            <name>Work is your own</name>
+            <goalRelations/>
+        </goal>
+    </goals>
+    <name>Requel</name>
+    <reports/>
+    <scenarios/>
+    <stakeholders>
+        <stakeholder id="STK_2" revision="1" dateCreated="2009-01-04T04:14:07" createdBy="USR_5">
+            <annotations/>
+            <goals/>
+            <projectPermissions/>
+            <user id="USR_4">
+                <username>assistant</username>
+                <password>f549cd73f694aa6f5541b4ae30894eea</password>
+                <name>Analysis Assistant</name>
+                <emailAddress>rreganjr@acm.org</emailAddress>
+                <organization name="Requel"/>
+                <userRoles>
+                    <projectUserRole>
+                        <userPermissions/>
+                    </projectUserRole>
+                </userRoles>
+                <editable>false</editable>
+            </user>
+        </stakeholder>
+        <stakeholder id="STK_3" revision="2" dateCreated="2009-01-05T02:17:44" createdBy="USR_5">
+            <annotations/>
+            <goals>
+                <goalRef>GOL_10</goalRef>
+            </goals>
+            <name>Harvard University</name>
+            <projectPermissions/>
+        </stakeholder>
+        <stakeholder id="STK_4" revision="1" dateCreated="2009-01-05T03:00:34" createdBy="USR_5">
+            <annotations/>
+            <goals/>
+            <projectPermissions/>
+            <user id="USR_3">
+                <username>project</username>
+                <password>46f86faa6bbf9ac94a7e459509a20ed0</password>
+                <name>Builtin Project User</name>
+                <emailAddress>rreganjr@acm.org</emailAddress>
+                <organization name="Requel"/>
+                <userRoles>
+                    <projectUserRole>
+                        <userPermissions>
+                            <userPermission userRoleType="edu.harvard.fas.rregan.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
+                        </userPermissions>
+                    </projectUserRole>
+                </userRoles>
+                <editable>true</editable>
+            </user>
+        </stakeholder>
+        <stakeholder id="STK_1" revision="2" dateCreated="2009-01-04T04:14:07" createdBy="USR_5">
+            <annotations/>
+            <goals/>
+            <projectPermissions>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Stakeholder"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.annotation.Annotation"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Scenario"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.ReportGenerator"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.ProjectTeam"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.ReportGenerator"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.UseCase"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.GlossaryTerm"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Goal"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.annotation.Annotation"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Goal"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Scenario"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.ProjectTeam"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Story"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Story"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.GlossaryTerm"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Actor"/>
+                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Actor"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.UseCase"/>
+                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Stakeholder"/>
+            </projectPermissions>
+            <user id="USR_5">
+                <username>rreganjr</username>
+                <password>44e5a3ef99e2dbc4152fde7fa539e854</password>
+                <name>Ron Regan</name>
+                <emailAddress>rreganjr@acm.org</emailAddress>
+                <phoneNumber>781 645 1574</phoneNumber>
+                <organization name="Nellymoser"/>
+                <userRoles>
+                    <projectUserRole>
+                        <userPermissions>
+                            <userPermission userRoleType="edu.harvard.fas.rregan.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
+                        </userPermissions>
+                    </projectUserRole>
+                </userRoles>
+                <editable>true</editable>
+            </user>
+        </stakeholder>
+    </stakeholders>
+    <stories>
+        <story id="STRY_1" storyType="Success" revision="64" dateCreated="2009-01-05T02:53:03" createdBy="USR_5">
+            <text>Buddy the controller of Bailey Pet Supply has a problem; it takes over a month to close the books each quarter. Due to new disclosure requirements, Alex the CFO needs to submit quarterly results to the board of directors one week after the end of the quarter. Buddy tells Theresa, the accounting manager, that they need to close the books each quarter in less than a week. Theresa tells Buddy that the problem stems from the order processing system not being integrated with the accounting package and at the end of each month data must be entered into both systems to reconcile them manually.
+Buddy decides that the systems must be integrated before the end of the next quarter so that the one week turn-around for reporting can be met. Buddy meets with Dave the IT manager to discuss the work. Dave assigns Tim, one of the IT project managers, to work with Buddy to determine the requirements and estimate the work. Tim meets with Buddy and they generate a list of high level requirements. Tim gives the requirements and a rough estimate of two months to Dave, who in turn gives them to Ron, an MIS programmer, to design and develop. Ron reviews the requirements and goes back to Dave and tells him there are a lot of vague areas and he needs to get clarification from Tim and Buddy.
+Ron and Tim have a meeting to discuss the requirements. Ron asks Tim “What is a purchase order?” Tim response “It’s a record in the purchase system that Linda enters based on information from a sales person.” Ron asks “What information is in the purchase order?” Tim doesn’t know and tells Ron he will ask Buddy and get back to him. Tim sends an email to Buddy and calls it a day.
+Buddy replies to Tim’s email that he should talk to Linda to get the details of a purchase order. Tim has a meeting with Linda and gets the details on the data for a purchase order. Tim sends Ron an email with the information. Ron replies to Tim’s email “Is there a database with data that I can look at for a sample?”
+</text>
+            <actors/>
+            <goals/>
+            <name>Poor Communication in Requirements</name>
+        </story>
+        <story id="STRY_3" storyType="Success" revision="20" dateCreated="2009-01-05T03:15:42" createdBy="USR_5">
+            <text>Rich opens a web browser to the Requel system address. The system doesn’t detect an existing user session and presents the login screen. Rich enters his username and password. The system verifies the username and password combination is correct. The system logs that Rich has successfully logged into the system and shows him a list of his open projects and an overview of recent project changes.</text>
+            <actors/>
+            <goals/>
+            <name>Rich logs in to the system</name>
+        </story>
+        <story id="STRY_4" storyType="Exception" revision="20" dateCreated="2009-01-05T03:16:33" createdBy="USR_5">
+            <text>Ron opens a web browser to the Requel system address. The system doesn’t detect an existing user session and presents the login screen. Ron doesn’t have a username and password yet so he chooses the help option. The system displays a message that the system requires a distinct username and password and that the user should contact Dave at extension 500 or via email to dave@requel if they need a new account or are having a problem connecting. The system also displays a help message describing what to do if the user forgot their account information. Ron sends Dave an email to create him a new account.</text>
+            <actors/>
+            <goals/>
+            <name>Ron fails to log in to the system</name>
+        </story>
+        <story id="STRY_2" storyType="Success" revision="30" dateCreated="2009-01-05T03:14:12" createdBy="USR_5">
+            <text>Theresa connects to the Requel system via a web browser from a link in an email message sent by the Requel system when Dave the system administrator created an account for her. The system displays the new user setup interface, prompting Theresa to confirm the personal information Dave entered about her and filling in any missing information, such as name, phone number, email address, a username and a password. When Theresa completes entering the information the system forwards her to the login screen.
+
+Theresa enters her username and password, and the system verifies it as correct. The system logs that Theresa has successfully logged into the system, and because Theresa is a novice user, the system displays the novice user interface to help her get started.</text>
+            <actors/>
+            <goals/>
+            <name>Theresa logs in to the system</name>
+        </story>
+    </stories>
+    <teams/>
+    <description>A collaborative system for the elicitation and analysis of requirements  facilitated by automated assistants.</description>
+    <usecases/>
+    <annotations/>
+    <organization name="Harvard University"/>
+    <status>New</status>
+</project>
