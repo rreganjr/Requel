@@ -1,0 +1,19 @@
+#![Database Initialization]
+
+tomcat:Tomcat[a]
+/dil:DatabaseInitializationListener[a]
+wacu:WebApplicationContextUtils[a]
+ctx:WebApplicationContext[a]
+beanFactory:AutowireCapableBeanFactory[a]
+dbInitializer:DatabaseInitializer[a]
+initializer:EntityInitializer[a]
+
+tomcat:dil.new
+tomcat:dil.contextInitialized()
+dil:wacu.getWebApplicationContext()
+dil:ctx.getAutowireCapableBeanFactory()
+dil:beanFactory.get("databaseInitializer")
+dil:dbInitializer.initialize()
+[c:loop for each initializer]
+dbInitializer:initializer.initialize()
+[/c]

@@ -1,0 +1,20 @@
+#![Database Initialization]
+
+dbInitializer:DatabaseInitializer[a]
+dicSqlInit:DictionarySQLInitializer[a]
+dicInit:DictionaryInitializer[a]
+stakeholderPermInit:StakeholderPermissionsInitializer[a]
+userRolePermInit:UserRolePermissionsInitializer[a]
+adminUserInit:AdminUserInitializer[a]
+assistUserInit:AssistantUserInitializer[a]
+domainUserInit:DomainUserInitializer[a]
+prjUserInit:ProjectUserInitializer[a]
+
+dbInitializer:dicSqlInit.initialize()
+dbInitializer:dicInit.initialize()
+dbInitializer:stakeholderPermInit.initialize()
+dbInitializer:userRolePermInit.initialize()
+dbInitializer:adminUserInit.initialize()
+dbInitializer:assistUserInit.initialize()
+dbInitializer:domainUserInit.initialize()
+dbInitializer:prjUserInit.initialize()
