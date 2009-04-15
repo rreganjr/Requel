@@ -1,0 +1,259 @@
+/*
+ * $Id: NoteEditorPanel.java,v 1.24 2009/03/23 11:02:58 rregan Exp $
+ * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ */
+package edu.harvard.fas.rregan.requel.ui.annotation;
+
+import java.text.MessageFormat;
+
+import nextapp.echo2.app.TextArea;
+import nextapp.echo2.app.event.ActionEvent;
+import nextapp.echo2.app.event.ActionListener;
+
+import org.apache.log4j.Logger;
+import org.hibernate.validator.InvalidStateException;
+import org.hibernate.validator.InvalidValue;
+
+import echopointng.text.StringDocumentEx;
+import edu.harvard.fas.rregan.command.CommandHandler;
+import edu.harvard.fas.rregan.repository.EntityException;
+import edu.harvard.fas.rregan.requel.annotation.Annotatable;
+import edu.harvard.fas.rregan.requel.annotation.AnnotationRepository;
+import edu.harvard.fas.rregan.requel.annotation.Note;
+import edu.harvard.fas.rregan.requel.annotation.command.AnnotationCommandFactory;
+import edu.harvard.fas.rregan.requel.annotation.command.DeleteNoteCommand;
+import edu.harvard.fas.rregan.requel.annotation.command.EditNoteCommand;
+import edu.harvard.fas.rregan.uiframework.navigation.event.DeletedEntityEvent;
+import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
+
+/**
+ * @author ron
+ */
+public class NoteEditorPanel extends AbstractRequelAnnotationEditorPanel {
+	private static final Logger log = Logger.getLogger(NoteEditorPanel.class);
+
+	static final long serialVersionUID = 0L;
+
+	/**
+	 * The name to use in the NoteEditorPanel.properties file to set the label
+	 * of the note text field. If the property is undefined "Note" is used.
+	 */
+	public static final String PROP_LABEL_TEXT = "Text.Label";
+
+	private final AnnotationCommandFactory annotationCommandFactory;
+	private UpdateListener updateListener;
+
+	// this is set by the DeleteListener so that the UpdateListener can ignore
+	// events between when the object was deleted and the panel goes away.
+	private boolean deleted = false;
+
+	/**
+	 * @param commandHandler
+	 * @param annotationCommandFactory
+	 * @param annotationRepository
+	 */
+	public NoteEditorPanel(CommandHandler commandHandler,
+			AnnotationCommandFactory annotationCommandFactory,
+			AnnotationRepository annotationRepository) {
+		this(NoteEditorPanel.class.getName(), commandHandler, annotationCommandFactory,
+				annotationRepository);
+	}
+
+	/**
+	 * @param resourceBundleName
+	 * @param commandHandler
+	 * @param annotationCommandFactory
+	 * @param annotationRepository
+	 */
+	public NoteEditorPanel(String resourceBundleName, CommandHandler commandHandler,
+			AnnotationCommandFactory annotationCommandFactory,
+			AnnotationRepository annotationRepository) {
+		super(resourceBundleName, Note.class, commandHandler, annotationRepository);
+		this.annotationCommandFactory = annotationCommandFactory;
+	}
+
+	/**
+	 * If the editor is editing an existing note the title specified in the
+	 * properties file as PROP_EXISTING_OBJECT_PANEL_TITLE If that property is
+	 * not set it then tries the standard PROP_PANEL_TITLE and if that does not
+	 * exist it defaults to:<br>
+	 * "Edit Note"<br>
+	 * For a new note it first tries PROP_NEW_OBJECT_PANEL_TITLE, then
+	 * PROP_PANEL_TITLE and finally defaults to:<br>
+	 * "New Note"<br>
+	 * 
+	 * @see AbstractEditorPanel.PROP_EXISTING_OBJECT_PANEL_TITLE
+	 * @see AbstractEditorPanel.PROP_NEW_OBJECT_PANEL_TITLE
+	 * @see Panel.PROP_PANEL_TITLE
+	 * @see edu.harvard.fas.rregan.uiframework.panel.AbstractPanel#getTitle()
+	 */
+	@Override
+	public String getTitle() {
+		if (getNote() != null) {
+			String msgPattern = getResourceBundleHelper(getLocale()).getString(
+					PROP_EXISTING_OBJECT_PANEL_TITLE,
+					getResourceBundleHelper(getLocale()).getString(PROP_PANEL_TITLE, "Edit Note"));
+			return MessageFormat.format(msgPattern, getNote().toString());
+		} else {
+			String msg = getResourceBundleHelper(getLocale()).getString(
+					PROP_NEW_OBJECT_PANEL_TITLE,
+					getResourceBundleHelper(getLocale()).getString(PROP_PANEL_TITLE, "New Note"));
+			return msg;
+		}
+	}
+
+	@Override
+	public void setup() {
+		super.setup();
+		Note note = getNote();
+		if (note != null) {
+			addInput("text", PROP_LABEL_TEXT, "Note", new TextArea(), new StringDocumentEx(note
+					.getText()));
+			addMultiRowInput("annotatables", AnnotationRefererTable.PROP_ANNOTATABLES_LABEL,
+					"Referring Entities", new AnnotationRefererTable(this,
+							getResourceBundleHelper(getLocale())), note);
+		} else {
+			addInput("text", PROP_LABEL_TEXT, "Note", new TextArea(), new StringDocumentEx(""));
+			addMultiRowInput("annotatables", AnnotationRefererTable.PROP_ANNOTATABLES_LABEL,
+					"Referring Entities", new AnnotationRefererTable(this,
+							getResourceBundleHelper(getLocale())), null);
+		}
+
+		if (updateListener != null) {
+			getEventDispatcher().removeEventTypeActionListener(UpdateEntityEvent.class,
+					updateListener);
+		}
+		updateListener = new UpdateListener(this);
+		getEventDispatcher().addEventTypeActionListener(UpdateEntityEvent.class, updateListener);
+
+	}
+
+	@Override
+	public void dispose() {
+		super.dispose();
+		removeAll();
+		if (updateListener != null) {
+			getEventDispatcher().removeEventTypeActionListener(UpdateEntityEvent.class,
+					updateListener);
+			updateListener = null;
+		}
+	}
+
+	@Override
+	public void cancel() {
+		super.cancel();
+		if (updateListener != null) {
+			getEventDispatcher().removeEventTypeActionListener(UpdateEntityEvent.class,
+					updateListener);
+		}
+	}
+
+	@Override
+	public void save() {
+		try {
+			super.save();
+			EditNoteCommand command = getAnnotationCommandFactory().newEditNoteCommand();
+			command.setGroupingObject(getGroupingObject());
+			command.setNote(getNote());
+			command.setAnnotatable(getAnnotatable());
+			command.setEditedBy(getCurrentUser());
+			command.setText(getInputValue("text", String.class));
+			command = getCommandHandler().execute(command);
+			setValid(true);
+			if (updateListener != null) {
+				getEventDispatcher().removeEventTypeActionListener(UpdateEntityEvent.class,
+						updateListener);
+			}
+			Note note = command.getNote();
+			getEventDispatcher().dispatchEvent(new UpdateEntityEvent(this, note));
+		} catch (EntityException e) {
+			if ((e.getEntityPropertyNames() != null) && (e.getEntityPropertyNames().length > 0)) {
+				for (String propertyName : e.getEntityPropertyNames()) {
+					setValidationMessage(propertyName, e.getMessage());
+				}
+			} else if ((e.getCause() != null) && (e.getCause() instanceof InvalidStateException)) {
+				InvalidStateException ise = (InvalidStateException) e.getCause();
+				for (InvalidValue invalidValue : ise.getInvalidValues()) {
+					String propertyName = invalidValue.getPropertyName();
+					setValidationMessage(propertyName, invalidValue.getMessage());
+				}
+			} else {
+				setGeneralMessage(e.toString());
+			}
+		} catch (Exception e) {
+			log.error("could not save the goal: " + e, e);
+			setGeneralMessage("Could not save: " + e);
+		}
+	}
+
+	@Override
+	public void delete() {
+		try {
+			Note note = getNote();
+			DeleteNoteCommand deleteNoteCommand = getAnnotationCommandFactory()
+					.newDeleteNoteCommand();
+			deleteNoteCommand.setNote(note);
+			deleteNoteCommand.setEditedBy(getCurrentUser());
+			deleteNoteCommand = getCommandHandler().execute(deleteNoteCommand);
+			deleted = true;
+			getEventDispatcher().dispatchEvent(new DeletedEntityEvent(this, note));
+		} catch (Exception e) {
+			setGeneralMessage("Could not delete entity: " + e);
+		}
+	}
+
+	private Note getNote() {
+		if (getTargetObject() instanceof Note) {
+			return (Note) getTargetObject();
+		}
+		return null;
+	}
+
+	private AnnotationCommandFactory getAnnotationCommandFactory() {
+		return annotationCommandFactory;
+	}
+
+	// TODO: it may be better to have different standardized update listeners
+	// for different types of updated or deleted objects associated with the
+	// input controls like an annotatables table.
+	private static class UpdateListener implements ActionListener {
+		static final long serialVersionUID = 0L;
+
+		private final NoteEditorPanel panel;
+
+		private UpdateListener(NoteEditorPanel panel) {
+			this.panel = panel;
+		}
+
+		public void actionPerformed(ActionEvent e) {
+			if (panel.deleted) {
+				return;
+			}
+			Note existingNote = panel.getNote();
+			if ((e instanceof UpdateEntityEvent) && (existingNote != null)) {
+				UpdateEntityEvent event = (UpdateEntityEvent) e;
+				Note updatedNote = null;
+				if (event.getObject() instanceof Note) {
+					updatedNote = (Note) event.getObject();
+					if ((event instanceof DeletedEntityEvent) && existingNote.equals(updatedNote)) {
+						panel.deleted = true;
+						panel.getEventDispatcher().dispatchEvent(
+								new DeletedEntityEvent(this, panel, existingNote));
+					}
+				} else if ((event instanceof DeletedEntityEvent)
+						&& (event.getObject() instanceof Annotatable)) {
+					Annotatable annotatable = (Annotatable) event.getObject();
+					if (existingNote.getAnnotatables().contains(annotatable)) {
+						existingNote.getAnnotatables().remove(annotatable);
+					}
+					updatedNote = existingNote;
+				}
+				if ((updatedNote != null) && updatedNote.equals(existingNote)) {
+					panel.setInputValue("text", updatedNote.getText());
+					panel.setInputValue("annotatables", updatedNote);
+					panel.setTargetObject(updatedNote);
+				}
+			}
+		}
+	}
+}
