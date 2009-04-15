@@ -1,0 +1,203 @@
+/*
+ * $Id: GlossaryTermsTable.java,v 1.1 2009/03/05 08:50:45 rregan Exp $
+ * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ */
+package edu.harvard.fas.rregan.requel.ui.project;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Collection;
+import java.util.Collections;
+
+import nextapp.echo2.app.Alignment;
+import nextapp.echo2.app.Component;
+import nextapp.echo2.app.layout.ColumnLayoutData;
+import nextapp.echo2.app.layout.RowLayoutData;
+import edu.harvard.fas.rregan.ResourceBundleHelper;
+import edu.harvard.fas.rregan.requel.project.GlossaryTerm;
+import edu.harvard.fas.rregan.requel.project.ProjectOrDomainEntity;
+import edu.harvard.fas.rregan.requel.ui.AbstractRequelNavigatorTable;
+import edu.harvard.fas.rregan.uiframework.navigation.NavigatorButton;
+import edu.harvard.fas.rregan.uiframework.navigation.WorkflowDisposition;
+import edu.harvard.fas.rregan.uiframework.navigation.event.NavigationEvent;
+import edu.harvard.fas.rregan.uiframework.navigation.event.OpenPanelEvent;
+import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTable;
+import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableCellValueFactory;
+import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableColumnConfig;
+import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableConfig;
+import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableModel;
+import edu.harvard.fas.rregan.uiframework.panel.Panel;
+import edu.harvard.fas.rregan.uiframework.panel.PanelActionType;
+import edu.harvard.fas.rregan.uiframework.panel.editor.EditMode;
+import edu.harvard.fas.rregan.uiframework.panel.editor.manipulators.AbstractComponentManipulator;
+import edu.harvard.fas.rregan.uiframework.panel.editor.manipulators.ComponentManipulators;
+
+/**
+ * A table of domain entities that refer to glossary terms.
+ * 
+ * @author ron
+ */
+public class GlossaryTermsTable extends AbstractRequelNavigatorTable {
+	static final long serialVersionUID = 0L;
+
+	static {
+		ComponentManipulators.setManipulator(GlossaryTermsTable.class,
+				new GlossaryTermsTableManipulator());
+	}
+
+	/**
+	 * The name to use in the properties file of the panel that includes the
+	 * GlossaryTermsTable to define the label of the glossary term field. If the
+	 * property is undefined the panel should use a sensible default such as
+	 * "Glossary Terms".
+	 */
+	public static final String PROP_LABEL_GLOSSARY_TERM = "GlossaryTerms.Label";
+
+	/**
+	 * The name to use in the containing panels properties file to set the label
+	 * of the view button in the glossary term edit table column. If the
+	 * property is undefined "View" is used.
+	 */
+	public static final String PROP_VIEW_GLOSSARY_TERM_BUTTON_LABEL = "ViewGlossaryTerm.Label";
+
+	/**
+	 * The name to use in the containing panels properties file to set the label
+	 * of the edit button in the glossary term edit table column. If the
+	 * property is undefined "Edit" is used.
+	 */
+	public static final String PROP_EDIT_GLOSSARY_TERM_BUTTON_LABEL = "EditGlossaryTerm.Label";
+
+	private ProjectOrDomainEntity entity;
+	private final NavigatorTable table;
+
+	/**
+	 * @param editMode
+	 * @param resourceBundleHelper
+	 */
+	public GlossaryTermsTable(EditMode editMode, ResourceBundleHelper resourceBundleHelper) {
+		super(editMode, resourceBundleHelper);
+		ColumnLayoutData layoutData = new ColumnLayoutData();
+		layoutData.setAlignment(Alignment.ALIGN_CENTER);
+		table = new NavigatorTable(getTableConfig());
+		table.setLayoutData(layoutData);
+		add(table);
+	}
+
+	protected ProjectOrDomainEntity getProjectOrDomainEntity() {
+		return entity;
+	}
+
+	protected void setProjectOrDomainEntity(ProjectOrDomainEntity entity) {
+		this.entity = entity;
+		if (entity != null) {
+			table.setModel(new NavigatorTableModel((Collection) entity.getGlossaryTerms()));
+		} else {
+			table.setModel(new NavigatorTableModel(Collections.EMPTY_SET));
+		}
+	}
+
+	private NavigatorTableConfig getTableConfig() {
+		NavigatorTableConfig tableConfig = new NavigatorTableConfig();
+
+		tableConfig.addColumnConfig(new NavigatorTableColumnConfig("",
+				new NavigatorTableCellValueFactory() {
+					@Override
+					public Object getValueAt(NavigatorTableModel model, int column, int row) {
+						GlossaryTerm glossaryTerm = (GlossaryTerm) model.getBackingObject(row);
+						String buttonLabel = null;
+						if (isReadOnlyMode()) {
+							buttonLabel = getResourceBundleHelper(getLocale()).getString(
+									PROP_VIEW_GLOSSARY_TERM_BUTTON_LABEL, "View");
+						} else {
+							buttonLabel = getResourceBundleHelper(getLocale()).getString(
+									PROP_EDIT_GLOSSARY_TERM_BUTTON_LABEL, "Edit");
+						}
+						NavigationEvent openEditorEvent = new OpenPanelEvent(this,
+								PanelActionType.Editor, glossaryTerm, glossaryTerm.getClass(),
+								null, WorkflowDisposition.NewFlow);
+						NavigatorButton openEditorButton = new NavigatorButton(buttonLabel,
+								getEventDispatcher(), openEditorEvent);
+						openEditorButton.setStyleName(Panel.STYLE_NAME_PLAIN);
+						RowLayoutData rld = new RowLayoutData();
+						rld.setAlignment(Alignment.ALIGN_CENTER);
+						openEditorButton.setLayoutData(rld);
+						return openEditorButton;
+					}
+				}));
+
+		tableConfig.addColumnConfig(new NavigatorTableColumnConfig("Term",
+				new NavigatorTableCellValueFactory() {
+					@Override
+					public Object getValueAt(NavigatorTableModel model, int column, int row) {
+						GlossaryTerm glossaryTerm = (GlossaryTerm) model.getBackingObject(row);
+						return glossaryTerm.getName();
+					}
+				}));
+
+		tableConfig.addColumnConfig(new NavigatorTableColumnConfig("Definition",
+				new NavigatorTableCellValueFactory() {
+					@Override
+					public Object getValueAt(NavigatorTableModel model, int column, int row) {
+						GlossaryTerm glossaryTerm = (GlossaryTerm) model.getBackingObject(row);
+						return glossaryTerm.getText();
+					}
+				}));
+
+		tableConfig.addColumnConfig(new NavigatorTableColumnConfig("Created By",
+				new NavigatorTableCellValueFactory() {
+					@Override
+					public Object getValueAt(NavigatorTableModel model, int column, int row) {
+						GlossaryTerm glossaryTerm = (GlossaryTerm) model.getBackingObject(row);
+						return glossaryTerm.getCreatedBy().getUsername();
+					}
+				}));
+
+		tableConfig.addColumnConfig(new NavigatorTableColumnConfig("Date Created",
+				new NavigatorTableCellValueFactory() {
+					@Override
+					public Object getValueAt(NavigatorTableModel model, int column, int row) {
+						GlossaryTerm glossaryTerm = (GlossaryTerm) model.getBackingObject(row);
+						DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+						return formatter.format(glossaryTerm.getDateCreated());
+					}
+				}));
+		return tableConfig;
+	}
+
+	private static class GlossaryTermsTableManipulator extends
+			AbstractComponentManipulator {
+
+		protected GlossaryTermsTableManipulator() {
+			super();
+		}
+
+		@Override
+		public Object getModel(Component component) {
+			return getValue(component, ProjectOrDomainEntity.class);
+		}
+
+		@Override
+		public void setModel(Component component, Object valueModel) {
+			setValue(component, valueModel);
+		}
+
+		@Override
+		public void addListenerToDetectChangesToInput(EditMode editMode, Component component) {
+			// nothing to do.
+		}
+
+		@Override
+		public <T> T getValue(Component component, Class<T> type) {
+			return type.cast(getComponent(component).getProjectOrDomainEntity());
+		}
+
+		@Override
+		public void setValue(Component component, Object value) {
+			getComponent(component).setProjectOrDomainEntity((ProjectOrDomainEntity) value);
+		}
+
+		private GlossaryTermsTable getComponent(Component component) {
+			return (GlossaryTermsTable) component;
+		}
+	}
+}
