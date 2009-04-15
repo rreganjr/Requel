@@ -1,0 +1,30 @@
+(bank#n#1 [sloping land (especially the slope beside a body of water)], [put, fix, force, or implant] deposit#v#1) -> 0.10722938149139212
+(bank#n#1 [sloping land (especially the slope beside a body of water)], [put into a bank account] deposit#v#2) -> 0.00494236165117223
+(bank#n#1 [sloping land (especially the slope beside a body of water)], [put (something somewhere) firmly] deposit#v#3) -> 0.09445660718701551
+(bank#n#2 [a financial institution that accepts deposits and channels the money into lending activities], [put, fix, force, or implant] deposit#v#1) -> 0.08285817481576552
+(bank#n#2 [a financial institution that accepts deposits and channels the money into lending activities], [put into a bank account] deposit#v#2) -> 0.08357592174434014
+(bank#n#2 [a financial institution that accepts deposits and channels the money into lending activities], [put (something somewhere) firmly] deposit#v#3) -> 0.07533783339244435
+(bank#n#3 [a long ridge or pile], [put, fix, force, or implant] deposit#v#1) -> 0.10888072685562669
+(bank#n#3 [a long ridge or pile], [put into a bank account] deposit#v#2) -> 0.005016033266835941
+(bank#n#3 [a long ridge or pile], [put (something somewhere) firmly] deposit#v#3) -> 0.09573563223878312
+(bank#n#4 [an arrangement of similar objects in a row or in tiers], [put, fix, force, or implant] deposit#v#1) -> 0.07136628351874817
+(bank#n#4 [an arrangement of similar objects in a row or in tiers], [put into a bank account] deposit#v#2) -> 0.07189810432733577
+(bank#n#4 [an arrangement of similar objects in a row or in tiers], [put (something somewhere) firmly] deposit#v#3) -> 0.06571620329194938
+(bank#n#5 [a supply or stock held in reserve for future use (especially in emergencies)], [put, fix, force, or implant] deposit#v#1) -> 0.07733904950755999
+(bank#n#5 [a supply or stock held in reserve for future use (especially in emergencies)], [put into a bank account] deposit#v#2) -> 0.077964003095183
+(bank#n#5 [a supply or stock held in reserve for future use (especially in emergencies)], [put (something somewhere) firmly] deposit#v#3) -> 0.07074734062402853
+(bank#n#6 [the funds held by a gambling house or the dealer in some gambling games], [put, fix, force, or implant] deposit#v#1) -> 0.07136628351874817
+(bank#n#6 [the funds held by a gambling house or the dealer in some gambling games], [put into a bank account] deposit#v#2) -> 0.07189810432733577
+(bank#n#6 [the funds held by a gambling house or the dealer in some gambling games], [put (something somewhere) firmly] deposit#v#3) -> 0.06571620329194938
+(bank#n#7 [a slope in the turn of a road or track; the outside is higher than the inside in order to reduce the effects of centrifugal force], [put, fix, force, or implant] deposit#v#1) -> 0.10135881414125136
+(bank#n#7 [a slope in the turn of a road or track; the outside is higher than the inside in order to reduce the effects of centrifugal force], [put into a bank account] deposit#v#2) -> 0.0046798758749979205
+(bank#n#7 [a slope in the turn of a road or track; the outside is higher than the inside in order to reduce the effects of centrifugal force], [put (something somewhere) firmly] deposit#v#3) -> 0.08987140363938284
+(bank#n#8 [a container (usually with a slot in the top) for keeping money at home], [put, fix, force, or implant] deposit#v#1) -> 0.27202243889233335
+(bank#n#8 [a container (usually with a slot in the top) for keeping money at home], [put into a bank account] deposit#v#2) -> 0.004842127278682942
+(bank#n#8 [a container (usually with a slot in the top) for keeping money at home], [put (something somewhere) firmly] deposit#v#3) -> 0.09271087819376482
+(bank#n#9 [a building in which the business of banking transacted], [put, fix, force, or implant] deposit#v#1) -> 0.1980781015883443
+(bank#n#9 [a building in which the business of banking transacted], [put into a bank account] deposit#v#2) -> 0.0046798758749979205
+(bank#n#9 [a building in which the business of banking transacted], [put (something somewhere) firmly] deposit#v#3) -> 0.08987140363938284
+(bank#n#10 [a flight maneuver; aircraft tips laterally about its longitudinal axis (especially in turning)], [put, fix, force, or implant] deposit#v#1) -> 0.22849776122292362
+(bank#n#10 [a flight maneuver; aircraft tips laterally about its longitudinal axis (especially in turning)], [put into a bank account] deposit#v#2) -> 0.07439081324975085
+(bank#n#10 [a flight maneuver; aircraft tips laterally about its longitudinal axis (especially in turning)], [put (something somewhere) firmly] deposit#v#3) -> 0.06779249763588586

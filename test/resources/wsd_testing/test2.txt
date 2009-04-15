@@ -1,0 +1,35 @@
+(deposit#n#1 [the phenomenon of sediment or gravel accumulating], [put, fix, force, or implant] deposit#v#1) -> 0.05593605042465164
+(deposit#n#1 [the phenomenon of sediment or gravel accumulating], [put into a bank account] deposit#v#2) -> 0.00494236165117223
+(deposit#n#1 [the phenomenon of sediment or gravel accumulating], [put (something somewhere) firmly] deposit#v#3) -> 0.04927315134218646
+(deposit#n#2 [matter that has been deposited by some natural process], [put, fix, force, or implant] deposit#v#1) -> 0.05972712556970016
+(deposit#n#2 [matter that has been deposited by some natural process], [put into a bank account] deposit#v#2) -> 0.005266051251260882
+(deposit#n#2 [matter that has been deposited by some natural process], [put (something somewhere) firmly] deposit#v#3) -> 0.052191300156220435
+(deposit#n#3 [the natural process of laying down a deposit of something], [put, fix, force, or implant] deposit#v#1) -> 0.05748413533928284
+(deposit#n#3 [the natural process of laying down a deposit of something], [put into a bank account] deposit#v#2) -> 0.005074707610402032
+(deposit#n#3 [the natural process of laying down a deposit of something], [put (something somewhere) firmly] deposit#v#3) -> 0.050470449993785936
+(deposit#n#4 [money deposited in a bank or some similar institution], [put, fix, force, or implant] deposit#v#1) -> 0.07382162267645628
+(deposit#n#4 [money deposited in a bank or some similar institution], [put into a bank account] deposit#v#2) -> 0.07439081324975085
+(deposit#n#4 [money deposited in a bank or some similar institution], [put (something somewhere) firmly] deposit#v#3) -> 0.06779249763588586
+(deposit#n#5 [a partial payment made at the time of purchase; the balance to be paid later], [put, fix, force, or implant] deposit#v#1) -> 0.07382162267645628
+(deposit#n#5 [a partial payment made at the time of purchase; the balance to be paid later], [put into a bank account] deposit#v#2) -> 0.07439081324975085
+(deposit#n#5 [a partial payment made at the time of purchase; the balance to be paid later], [put (something somewhere) firmly] deposit#v#3) -> 0.06779249763588586
+(deposit#n#6 [money given as security for an article acquired for temporary use], [put, fix, force, or implant] deposit#v#1) -> 0.07136628351874817
+(deposit#n#6 [money given as security for an article acquired for temporary use], [put into a bank account] deposit#v#2) -> 0.07189810432733577
+(deposit#n#6 [money given as security for an article acquired for temporary use], [put (something somewhere) firmly] deposit#v#3) -> 0.06571620329194938
+(deposit#n#7 [a payment given as a guarantee that an obligation will be met], [put, fix, force, or implant] deposit#v#1) -> 0.07136628351874817
+(deposit#n#7 [a payment given as a guarantee that an obligation will be met], [put into a bank account] deposit#v#2) -> 0.2526788396972174
+(deposit#n#7 [a payment given as a guarantee that an obligation will be met], [put (something somewhere) firmly] deposit#v#3) -> 0.2526788396972174
+(deposit#n#8 [a facility where things can be deposited for storage or safekeeping], [put, fix, force, or implant] deposit#v#1) -> 0.23700448898922558
+(deposit#n#8 [a facility where things can be deposited for storage or safekeeping], [put into a bank account] deposit#v#2) -> 0.005566828321593597
+(deposit#n#8 [a facility where things can be deposited for storage or safekeeping], [put (something somewhere) firmly] deposit#v#3) -> 0.10519012446482211
+(deposit#n#9 [the act of putting something somewhere], [put, fix, force, or implant] deposit#v#1) -> 0.2328003325546938
+(deposit#n#9 [the act of putting something somewhere], [put into a bank account] deposit#v#2) -> 0.07593073900054291
+(deposit#n#9 [the act of putting something somewhere], [put (something somewhere) firmly] deposit#v#3) -> 0.06906901805024868
+
+
+(deposit#n#4 [money deposited in a bank or some similar institution], [put into a bank account] deposit#v#2) -> 0.07439081324975085
+
+(deposit#n#7 [a payment given as a guarantee that an obligation will be met], [put into a bank account] deposit#v#2) -> 0.2526788396972174
+(deposit#n#7 [a payment given as a guarantee that an obligation will be met], [put (something somewhere) firmly] deposit#v#3) -> 0.2526788396972174
+(deposit#n#8 [a facility where things can be deposited for storage or safekeeping], [put, fix, force, or implant] deposit#v#1) -> 0.23700448898922558
+(deposit#n#9 [the act of putting something somewhere], [put, fix, force, or implant] deposit#v#1) -> 0.2328003325546938
