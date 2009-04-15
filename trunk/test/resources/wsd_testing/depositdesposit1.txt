@@ -1,0 +1,88 @@
+relatedness(): sense1: deposit#n#4 NOUN[113381145]: money deposited in a bank or some similar institution
+relatedness(): sense2: deposit#v#2 VERB[202310855]: put into a bank account
+
+getLowestCommonHypernyms(): synset1: NOUN[113381145]: money deposited in a bank or some similar institution synset2: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date -> [NOUN[100002137]: a general concept formed by extracting common features from specific examples]
+infoContent(): synset: NOUN[113381145]: money deposited in a bank or some similar institution conceptCount: 82115 ic: 0.9387456011699619
+infoContent(): synset: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date conceptCount: 82115 ic: 1.0
+infoContent(): synset: NOUN[100002137]: a general concept formed by extracting common features from specific examples conceptCount: 82115 ic: 0.06571620329194938
+similarity(): synset1: NOUN[113381145]: money deposited in a bank or some similar institution synset2: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date maxSimilarity: 0.06779249763588586
+relatedness(): sense1: deposit#n#4 sense2 word: put#n#1 similiarity: 0.06779249763588586
+
+getLowestCommonHypernyms(): synset1: NOUN[113384557]: the most common medium of exchange; functions as legal tender synset2: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date -> [NOUN[100002137]: a general concept formed by extracting common features from specific examples]
+infoContent(): synset: NOUN[113384557]: the most common medium of exchange; functions as legal tender conceptCount: 82115 ic: 0.7191508783600572
+infoContent(): synset: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date conceptCount: 82115 ic: 1.0
+infoContent(): synset: NOUN[100002137]: a general concept formed by extracting common features from specific examples conceptCount: 82115 ic: 0.06571620329194938
+similarity(): synset1: NOUN[113384557]: the most common medium of exchange; functions as legal tender synset2: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date maxSimilarity: 0.07645193231048782
+relatedness(): sense1 word: money#n#1 sense2 word: put#n#1 similiarity: 0.07645193231048782
+
+getLowestCommonHypernyms(): synset1: NOUN[113381145]: money deposited in a bank or some similar institution synset2: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals -> [NOUN[100002137]: a general concept formed by extracting common features from specific examples]
+infoContent(): synset: NOUN[113381145]: money deposited in a bank or some similar institution conceptCount: 82115 ic: 0.9387456011699619
+infoContent(): synset: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals conceptCount: 82115 ic: 0.8280371619468129
+infoContent(): synset: NOUN[100002137]: a general concept formed by extracting common features from specific examples conceptCount: 82115 ic: 0.06571620329194938
+similarity(): synset1: NOUN[113381145]: money deposited in a bank or some similar institution synset2: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals maxSimilarity: 0.07439081324975085
+relatedness(): sense1: deposit#n#4 sense2 word: bank account#n#1 similiarity: 0.07439081324975085
+
+getLowestCommonHypernyms(): synset1: NOUN[113384557]: the most common medium of exchange; functions as legal tender synset2: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals -> [NOUN[100002137]: a general concept formed by extracting common features from specific examples]
+infoContent(): synset: NOUN[113384557]: the most common medium of exchange; functions as legal tender conceptCount: 82115 ic: 0.7191508783600572
+infoContent(): synset: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals conceptCount: 82115 ic: 0.8280371619468129
+infoContent(): synset: NOUN[100002137]: a general concept formed by extracting common features from specific examples conceptCount: 82115 ic: 0.06571620329194938
+similarity(): synset1: NOUN[113384557]: the most common medium of exchange; functions as legal tender synset2: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals maxSimilarity: 0.08494921312721006
+relatedness(): sense1 word: money#n#1 sense2 word: bank account#n#1 similiarity: 0.08494921312721006
+
+getLowestCommonHypernyms(): synset1: NOUN[113381145]: money deposited in a bank or some similar institution synset2: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date -> [NOUN[100002137]: a general concept formed by extracting common features from specific examples]
+infoContent(): synset: NOUN[113381145]: money deposited in a bank or some similar institution conceptCount: 82115 ic: 0.9387456011699619
+infoContent(): synset: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date conceptCount: 82115 ic: 1.0
+infoContent(): synset: NOUN[100002137]: a general concept formed by extracting common features from specific examples conceptCount: 82115 ic: 0.06571620329194938
+similarity(): synset1: NOUN[113381145]: money deposited in a bank or some similar institution synset2: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date maxSimilarity: 0.06779249763588586
+relatedness(): sense1: deposit#n#4 sense2 word: put#n#1 similiarity: 0.06779249763588586
+
+getLowestCommonHypernyms(): synset1: NOUN[109428967]: matter that has been deposited by some natural process synset2: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date -> [NOUN[100001740]: that which is perceived or known or inferred to have its own distinct existence (living or nonliving)]
+infoContent(): synset: NOUN[109428967]: matter that has been deposited by some natural process conceptCount: 82115 ic: 0.7965172915910607
+infoContent(): synset: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date conceptCount: 82115 ic: 1.0
+infoContent(): synset: NOUN[100001740]: that which is perceived or known or inferred to have its own distinct existence (living or nonliving) conceptCount: 82115 ic: 0.0042774935063972785
+similarity(): synset1: NOUN[109428967]: matter that has been deposited by some natural process synset2: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date maxSimilarity: 0.004761984230732314
+relatedness(): sense1 word: deposit#n#2 sense2 word: put#n#1 similiarity: 0.004761984230732314
+
+getLowestCommonHypernyms(): synset1: NOUN[113381145]: money deposited in a bank or some similar institution synset2: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals -> [NOUN[100002137]: a general concept formed by extracting common features from specific examples]
+infoContent(): synset: NOUN[113381145]: money deposited in a bank or some similar institution conceptCount: 82115 ic: 0.9387456011699619
+infoContent(): synset: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals conceptCount: 82115 ic: 0.8280371619468129
+infoContent(): synset: NOUN[100002137]: a general concept formed by extracting common features from specific examples conceptCount: 82115 ic: 0.06571620329194938
+similarity(): synset1: NOUN[113381145]: money deposited in a bank or some similar institution synset2: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals maxSimilarity: 0.07439081324975085
+relatedness(): sense1: deposit#n#4 sense2 word: bank account#n#1 similiarity: 0.07439081324975085
+
+getLowestCommonHypernyms(): synset1: NOUN[109428967]: matter that has been deposited by some natural process synset2: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals -> [NOUN[100001740]: that which is perceived or known or inferred to have its own distinct existence (living or nonliving)]
+infoContent(): synset: NOUN[109428967]: matter that has been deposited by some natural process conceptCount: 82115 ic: 0.7965172915910607
+infoContent(): synset: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals conceptCount: 82115 ic: 0.8280371619468129
+infoContent(): synset: NOUN[100001740]: that which is perceived or known or inferred to have its own distinct existence (living or nonliving) conceptCount: 82115 ic: 0.0042774935063972785
+similarity(): synset1: NOUN[109428967]: matter that has been deposited by some natural process synset2: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals maxSimilarity: 0.005266051251260882
+relatedness(): sense1 word: deposit#n#2 sense2 word: bank account#n#1 similiarity: 0.005266051251260882
+
+getLowestCommonHypernyms(): synset1: NOUN[113381145]: money deposited in a bank or some similar institution synset2: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date -> [NOUN[100002137]: a general concept formed by extracting common features from specific examples]
+infoContent(): synset: NOUN[113381145]: money deposited in a bank or some similar institution conceptCount: 82115 ic: 0.9387456011699619
+infoContent(): synset: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date conceptCount: 82115 ic: 1.0
+infoContent(): synset: NOUN[100002137]: a general concept formed by extracting common features from specific examples conceptCount: 82115 ic: 0.06571620329194938
+similarity(): synset1: NOUN[113381145]: money deposited in a bank or some similar institution synset2: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date maxSimilarity: 0.06779249763588586
+relatedness(): sense1: deposit#n#4 sense2 word: put#n#1 similiarity: 0.06779249763588586
+
+getLowestCommonHypernyms(): synset1: NOUN[108420278]: a financial institution that accepts deposits and channels the money into lending activities synset2: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date -> [NOUN[100002137]: a general concept formed by extracting common features from specific examples]
+infoContent(): synset: NOUN[108420278]: a financial institution that accepts deposits and channels the money into lending activities conceptCount: 82115 ic: 0.7445737508703052
+infoContent(): synset: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date conceptCount: 82115 ic: 1.0
+infoContent(): synset: NOUN[100002137]: a general concept formed by extracting common features from specific examples conceptCount: 82115 ic: 0.06571620329194938
+similarity(): synset1: NOUN[108420278]: a financial institution that accepts deposits and channels the money into lending activities synset2: NOUN[100080968]: the option to sell a given stock (or stock index or commodity future) at a given price before a given date maxSimilarity: 0.07533783339244435
+relatedness(): sense1 word: bank#n#2 sense2 word: put#n#1 similiarity: 0.07533783339244435
+
+getLowestCommonHypernyms(): synset1: NOUN[113381145]: money deposited in a bank or some similar institution synset2: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals -> [NOUN[100002137]: a general concept formed by extracting common features from specific examples]
+infoContent(): synset: NOUN[113381145]: money deposited in a bank or some similar institution conceptCount: 82115 ic: 0.9387456011699619
+infoContent(): synset: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals conceptCount: 82115 ic: 0.8280371619468129
+infoContent(): synset: NOUN[100002137]: a general concept formed by extracting common features from specific examples conceptCount: 82115 ic: 0.06571620329194938
+similarity(): synset1: NOUN[113381145]: money deposited in a bank or some similar institution synset2: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals maxSimilarity: 0.07439081324975085
+relatedness(): sense1: deposit#n#4 sense2 word: bank account#n#1 similiarity: 0.07439081324975085
+
+getLowestCommonHypernyms(): synset1: NOUN[108420278]: a financial institution that accepts deposits and channels the money into lending activities synset2: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals -> [NOUN[100002137]: a general concept formed by extracting common features from specific examples]
+infoContent(): synset: NOUN[108420278]: a financial institution that accepts deposits and channels the money into lending activities conceptCount: 82115 ic: 0.7445737508703052
+infoContent(): synset: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals conceptCount: 82115 ic: 0.8280371619468129
+infoContent(): synset: NOUN[100002137]: a general concept formed by extracting common features from specific examples conceptCount: 82115 ic: 0.06571620329194938
+similarity(): synset1: NOUN[108420278]: a financial institution that accepts deposits and channels the money into lending activities synset2: NOUN[113359690]: a fund that a customer has entrusted to a bank and from which the customer can make withdrawals maxSimilarity: 0.08357592174434014
+relatedness(): sense1 word: bank#n#2 sense2 word: bank account#n#1 similiarity: 0.08357592174434014
+
+(deposit#n#4 [money deposited in a bank or some similar institution], [put into a bank account] deposit#v#2) -> 0.08357592174434014

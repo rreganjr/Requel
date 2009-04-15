@@ -1,0 +1,81 @@
+Streaming---------------------------
+WAP---------------------------
+XL---------------------------
+access---------------------------
+   access#v#1 -> most common usage.
+service---------------------------
+   service#n#15 -> similarity with link#n#7 0.23595265261217532
+   service#n#2 -> similarity with user#n#1 0.005904538842388549
+   service#n#3 -> similarity with environment#n#2 0.005425115463600046
+   service#n#15 -> similarity with link#n#8 0.004710281718915731
+   service#n#1 -> similarity with environment#n#2 0.005358111950202377
+   service#n#15 -> similarity with user#n#1 0.00570965394031668
+   service#n#2 -> similarity with link#n#7 0.24233589922009285
+   service#n#13 -> similarity with user#n#2 0.0042774935063972785
+   service#n#9 -> similarity with user#n#2 0.04927315134218646
+   service#n#9 -> similarity with environment#n#2 0.10677879218872428
+   service#n#1 -> similarity with user#n#1 0.0059530229476277225
+   service#n#9 -> similarity with link#n#8 0.19072915531325946
+   service#n#2 -> similarity with link#n#8 0.004842127278682942
+   service#n#1 -> most common usage.
+   service#n#9 -> similarity with user#n#1 0.12529087540538886
+   service#n#1 -> similarity with link#n#8 0.004874685347261473
+   service#n#1 -> similarity with link#n#7 0.2439103913058197
+   service#n#2 -> similarity with environment#n#2 0.005318802093648543
+   service#n#3 -> similarity with link#n#8 0.004930081227739787
+   service#n#15 -> similarity with environment#n#2 0.005160145472544659
+   service#n#13 -> similarity with environment#n#2 0.004805078440508989
+   service#n#13 -> similarity with link#n#8 0.004412640321469685
+   service#n#13 -> similarity with link#n#7 0.2214995147240637
+   service#n#13 -> similarity with user#n#1 0.005278099781803628
+   service#n#8 -> similarity with environment#n#1 0.24797999139858576
+   service#n#3 -> similarity with link#n#7 0.2465876791287611
+   service#n#3 -> similarity with user#n#1 0.0060358462479011546
+environment---------------------------
+   environment#n#2 -> similarity with service#n#13 0.004805078440508989
+   environment#n#2 -> similarity with user#n#2 0.05266361226992596
+   environment#n#1 -> similarity with service#n#8 0.24797999139858576
+   environment#n#2 -> similarity with service#n#3 0.005425115463600046
+   environment#n#2 -> similarity with service#n#9 0.10677879218872428
+   environment#n#1 -> most common usage.
+   environment#n#2 -> similarity with link#n#8 0.10455324750217795
+   environment#n#1 -> similarity with link#n#4 0.2669160607175827
+   environment#n#2 -> similarity with service#n#2 0.005318802093648543
+   environment#n#2 -> similarity with service#n#1 0.005358111950202377
+   environment#n#2 -> similarity with service#n#15 0.005160145472544659
+   environment#n#2 -> similarity with user#n#1 0.0669134605175225
+   environment#n#1 -> similarity with link#n#3 0.3568988385109992
+Virgin---------------------------
+link---------------------------
+   link#n#8 -> similarity with service#n#9 0.19072915531325946
+   link#n#7 -> similarity with service#n#2 0.24233589922009285
+   link#n#8 -> similarity with service#n#13 0.004412640321469685
+   link#n#1 -> most common usage.
+   link#n#8 -> similarity with service#n#3 0.004930081227739787
+   link#n#4 -> similarity with environment#n#1 0.2669160607175827
+   link#n#7 -> similarity with service#n#1 0.2439103913058197
+   link#n#8 -> similarity with service#n#2 0.004842127278682942
+   link#n#7 -> similarity with service#n#15 0.23595265261217532
+   link#n#7 -> similarity with service#n#3 0.2465876791287611
+   link#n#8 -> similarity with service#n#1 0.004874685347261473
+   link#n#3 -> similarity with environment#n#1 0.3568988385109992
+   link#n#8 -> similarity with user#n#1 0.12241232486359162
+   link#n#8 -> similarity with environment#n#2 0.10455324750217795
+   link#n#7 -> similarity with service#n#13 0.2214995147240637
+   link#n#8 -> similarity with service#n#15 0.004710281718915731
+   link#n#8 -> similarity with user#n#2 0.04836249435959363
+Users---------------------------
+   user#n#1 -> similarity with service#n#13 0.005278099781803628
+   user#n#1 -> similarity with service#n#9 0.12529087540538886
+   user#n#1 -> similarity with service#n#2 0.005904538842388549
+   user#n#1 -> similarity with service#n#3 0.0060358462479011546
+   user#n#1 -> most common usage.
+   user#n#1 -> similarity with link#n#8 0.12241232486359162
+   user#n#2 -> similarity with link#n#8 0.04836249435959363
+   user#n#1 -> similarity with service#n#1 0.0059530229476277225
+   user#n#2 -> similarity with environment#n#2 0.05266361226992596
+   user#n#2 -> similarity with service#n#9 0.04927315134218646
+   user#n#2 -> similarity with service#n#13 0.0042774935063972785
+   user#n#1 -> similarity with environment#n#2 0.0669134605175225
+   user#n#1 -> similarity with service#n#15 0.00570965394031668
+Video---------------------------
