@@ -1,0 +1,139 @@
+<!-- $Id: build.xml,v 1.13 2009/03/05 11:05:45 rregan Exp $ -->
+<project name="Requel" default="usage" basedir=".">
+	<target name="usage" description="message on how to use the build.xml file">
+		<echo>
+			Usage:
+				This build.xml file contains build tasks for the Requel System. The
+				tasks in this build utilize generic tasks in the build-utils.xml that
+				are configured through properties files. While this may seem complicated,
+				having multiple properties files allows multiple configurations to be
+				managed independently and stored in source control without conflicts.
+			
+				Properties common to all users and deployments should go in the
+				build.properties file.
+			
+				Properties for a user's specific development environment should go in the
+				env-{hostname}-{username}.build.properties file.
+			
+				To override the user's personal environment properties use 
+				-Denv.properties.file={properties file}
+			
+				For example to build for the eatj deployment use
+				-Denv.properties.file=env-eatj.build.properties			
+			
+				Properties for a specific deployment environment should go in the
+				deployment-{deployment-name}.build.properties file.
+		</echo>
+	</target>
+
+	<!-- 
+		automatically figure out the user's environment properties file from
+		their name and the hostname of the computer the build is run on:
+		env-${hostname}-${username}.build.properties
+	-->
+	
+	<property environment="env"/>
+	<exec executable="hostname" outputproperty="hostname"/>
+	<condition property="username" value="${env.USERNAME}">
+		<os family="windows" />
+	</condition>
+
+	<condition property="username" value="${env.USER}">
+		<os family="unix" />
+	</condition>
+
+	<fail message="the hostname = '${hostname}' or username = '${username}' is invalid.">
+		<condition>
+			<and>
+				<not><isset property="env.properties.file"/></not>
+				<and>
+					<not><isset property="hostname"/></not>
+			        <equals arg1="${hostname}" arg2=""/>
+			        <not><isset property="username"/></not>
+			        <equals arg1="${username}" arg2=""/>
+			 	</and>
+			</and>
+	     </condition>
+	</fail>	
+
+	<fail message="the user environment property file 'conf/build/env-${hostname}-${username}.build.properties' is missing.">
+		<condition>
+			<and>
+				<not><isset property="env.properties.file"/></not>
+				<not><available type="file" file="conf/build/env-${hostname}-${username}.build.properties" /></not>
+			</and>
+		</condition>
+	</fail>
+
+	<target name="loadCustomEnvProperties" if="env.properties.file">
+		<echo>loading environment properties from: ${env.properties.file}</echo>
+		<property file="conf/build/${env.properties.file}" />
+		<echo message="db.username = ${db.username}"/>
+	</target>
+
+	<target name="loadDefaultEnvProperties" unless="env.properties.file">
+		<echo>loading environment properties from: conf/build/env-${hostname}-${username}.build.properties</echo>
+		<property file="conf/build/env-${hostname}-${username}.build.properties" />
+		<echo message="db.username = ${db.username}"/>
+	</target>
+
+	<target name="loadProperties" depends="loadCustomEnvProperties, loadDefaultEnvProperties">
+		<echo>loading shared properties from conf/build/build.properties</echo>
+		<property file="conf/build/build.properties" />
+		<echo message="db.username = ${db.username}"/>
+	</target>
+
+	<target name="build-deployment-hibernate" depends="init-deployment-hibernate,clean,war"/>
+	
+	<target name="init-deployment-hibernate" depends="loadProperties">
+		<echo>loading deployment properties from: conf/build/deployment-hibernate.build.properties</echo>
+		<echo message="db.username = ${db.username}"/>
+		<property file="conf/build/deployment-hibernate.build.properties"/>
+		<echo message="db.username = ${db.username}"/>
+	</target>
+
+	<target name="clean">
+        <ant target="clean" antfile="build-utils.xml" inheritall="true"/>
+	</target>
+
+	<target name="war">
+        <ant target="war" antfile="build-utils.xml" inheritall="true"/>
+	</target>
+		
+	<target name="compile" depends="init-deployment-hibernate">
+		<property name="subproject.name" value="${subproject.name}"/>
+		<property name="deployment.name" value="${deployment.name}"/>
+		<property name="context.name" value="${context.name}"/>
+		<property name="src.dir" value="src/java"/>
+		<property name="classes.dir" value="${build.dir}/${context.name}/war/WEB-INF/classes"/>
+		<ant target="compile" antfile="build-utils.xml" inheritall="true"/>
+	</target>
+
+	<target name="gen-project-xml-schema">
+		<ant target="gen-project-xml-schema" antfile="build-utils.xml" inheritall="true"/>
+	</target>
+
+	<target name="gen-verbnet-jars">
+		<ant target="gen-verbnet-jars" antfile="build-utils.xml" inheritall="true"/>
+	</target>
+
+    <target name="gen-project-html">
+        <delete file="build/project.html"/>
+        <xslt style="src/resources/xslt/project2html.xslt" in="doc/samples/Requel.xml" out="build/project.html" reloadstylesheet="true">
+            <param name="cssFileCopyParam" expression="${basedir}/src/resources/css/project.css"/>
+        </xslt>
+    </target>
+    <target name="gen-project-html2">
+        <delete file="build/project.html"/>
+        <xslt style="src/resources/xslt/project2html.xslt" in="doc/samples/Requel2.xml" out="build/project.html" reloadstylesheet="true">
+            <param name="cssFileCopyParam" expression="${basedir}/src/resources/css/project.css"/>
+        </xslt>
+    </target>
+
+    <target name="gen-dev-doc" depends="loadProperties">
+    	<property name="doxygen.doxyfile" value="conf/Doxyfile"/>
+    	<!-- set to yes to use graphviz if it's in the path -->
+    	<property name="doxygen.have.dot" value="YES"/>
+		<ant target="gen-dev-doc" antfile="build-utils.xml" inheritall="true"/>
+    </target>
+</project>
