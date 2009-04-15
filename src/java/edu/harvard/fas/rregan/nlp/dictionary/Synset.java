@@ -1,0 +1,313 @@
+/*
+ * $Id: Synset.java,v 1.4 2009/03/27 07:16:07 rregan Exp $
+ * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ */
+package edu.harvard.fas.rregan.nlp.dictionary;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.Table;
+import javax.persistence.Transient;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlElementRef;
+import javax.xml.bind.annotation.XmlElementWrapper;
+import javax.xml.bind.annotation.XmlID;
+import javax.xml.bind.annotation.XmlIDREF;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlTransient;
+import javax.xml.bind.annotation.adapters.XmlAdapter;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+
+import org.hibernate.annotations.CollectionOfElements;
+import org.hibernate.annotations.IndexColumn;
+import org.hibernate.annotations.Sort;
+import org.hibernate.annotations.SortType;
+
+import edu.harvard.fas.rregan.nlp.PartOfSpeech;
+
+/**
+ * Wordnet Synset (synonym set)
+ */
+@Entity
+@Table(name = "synset")
+@XmlRootElement(name = "synset")
+public class Synset implements Comparable<Synset>, Serializable {
+	static final long serialVersionUID = 0;
+
+	private Long id;
+	private String pos;
+	private Category category;
+	private String definition;
+	private Map<Linkdef, Integer> subsumerCounts = new HashMap<Linkdef, Integer>();
+	private Set<Sense> senses = new TreeSet<Sense>();
+	private Set<Semlinkref> semlinks = new TreeSet<Semlinkref>();
+	private List<SynsetDefinitionWord> words = new ArrayList<SynsetDefinitionWord>();
+
+	// private List<SynsetDefinitionWordEntry> parsedDefinitionWordEntries;
+
+	protected Synset() {
+	}
+
+	@Id
+	@Column(name = "synsetid", unique = true, nullable = false)
+	@XmlID
+	@XmlAttribute(name = "id")
+	@XmlJavaTypeAdapter(IdAdapter.class)
+	public Long getId() {
+		return this.id;
+	}
+
+	protected void setId(Long id) {
+		this.id = id;
+	}
+
+	@Transient
+	public PartOfSpeech getPartOfSpeech() {
+		return PartOfSpeech.fromWordNetPOS(getPos());
+	}
+
+	public boolean isPartOfSpeech(PartOfSpeech pos) {
+		return getPartOfSpeech().equals(pos);
+	}
+
+	@Column(name = "pos", length = 2)
+	@XmlAttribute(name = "pos")
+	public String getPos() {
+		return this.pos;
+	}
+
+	public void setPos(String pos) {
+		this.pos = pos;
+	}
+
+	@ManyToOne(targetEntity = Category.class, cascade = CascadeType.ALL, optional = false)
+	@JoinColumn(name = "categoryid")
+	@XmlIDREF
+	@XmlAttribute(name = "category")
+	public Category getCategory() {
+		return this.category;
+	}
+
+	public void setCategory(Category category) {
+		this.category = category;
+	}
+
+	@Column(name = "definition", length = 1000)
+	@XmlElement(name = "definition")
+	public String getDefinition() {
+		return this.definition;
+	}
+
+	public void setDefinition(String definition) {
+		this.definition = definition;
+	}
+
+	@Transient
+	public Integer getSubsumerCount(Linkdef linkType) {
+		if (getSubsumerCounts().containsKey(linkType)) {
+			return getSubsumerCounts().get(linkType);
+		}
+		return 0;
+	}
+
+	public void setSubsumerCount(Linkdef linkType, Integer count) {
+		getSubsumerCounts().put(linkType, count);
+	}
+
+	/**
+	 * @return a map of the relation type to count of all synsets subsumed by
+	 *         this synset in that particular relation.
+	 */
+	@CollectionOfElements(targetElement = Integer.class, fetch = FetchType.LAZY)
+	@org.hibernate.annotations.MapKey()
+	@JoinTable(name = "synset_subsumer_counts", joinColumns = { @JoinColumn(name = "synsetid") })
+	public Map<Linkdef, Integer> getSubsumerCounts() {
+		return subsumerCounts;
+	}
+
+	public void setSubsumerCounts(Map<Linkdef, Integer> subsumerCounts) {
+		this.subsumerCounts = subsumerCounts;
+	}
+
+	@OneToMany(targetEntity = Sense.class, cascade = { CascadeType.ALL }, fetch = FetchType.LAZY)
+	@JoinColumn(name = "synsetid")
+	@Sort(type = SortType.NATURAL)
+	@XmlElementWrapper(name = "senses")
+	@XmlElementRef(name = "sense")
+	public Set<Sense> getSenses() {
+		return senses;
+	}
+
+	public void setSenses(Set<Sense> senses) {
+		this.senses = senses;
+	}
+
+	@OneToMany(targetEntity = Semlinkref.class, cascade = { CascadeType.ALL }, fetch = FetchType.LAZY)
+	@JoinColumn(name = "synset1id", referencedColumnName = "synsetid")
+	@Sort(type = SortType.NATURAL)
+	@XmlElementWrapper(name = "semlinks")
+	@XmlElementRef(name = "semlink")
+	public Set<Semlinkref> getSemlinks() {
+		return semlinks;
+	}
+
+	public void setSemlinks(Set<Semlinkref> semlinks) {
+		this.semlinks = semlinks;
+	}
+
+	@Transient
+	@XmlTransient
+	public Set<Synset> getHyponyms() {
+		Set<Synset> hyponyms = new HashSet<Synset>();
+		for (Semlinkref semlinkref : getSemlinks()) {
+			if ("hyponym".equals(semlinkref.getLinkType().getName())) {
+				hyponyms.add(semlinkref.getToSynset());
+			}
+		}
+		return hyponyms;
+	}
+
+	@Transient
+	@XmlTransient
+	public Set<Synset> getHypernyms() {
+		Set<Synset> hypernyms = new HashSet<Synset>();
+		for (Semlinkref semlinkref : getSemlinks()) {
+			if ("hypernym".equals(semlinkref.getLinkType().getName())) {
+				hypernyms.add(semlinkref.getToSynset());
+			}
+		}
+		return hypernyms;
+	}
+
+	/**
+	 * @return The list of words in the sentence.
+	 */
+	@OneToMany(mappedBy = "synset", targetEntity = SynsetDefinitionWord.class, fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+	@IndexColumn(name = "word_index", base = 0)
+	public List<SynsetDefinitionWord> getWords() {
+		return words;
+	}
+
+	protected void setWords(List<SynsetDefinitionWord> words) {
+		this.words = words;
+	}
+
+	/*
+	 * @OneToMany(targetEntity = SynsetDefinitionWordEntry.class, cascade = {
+	 * CascadeType.ALL }, fetch = FetchType.LAZY) @JoinColumn(name =
+	 * "synset_defword_entry_id") @Sort(type = SortType.NATURAL)
+	 * @XmlElementWrapper(name = "definitionWordEntries") @XmlElementRef(name =
+	 * "definitionWordEntry") public List<SynsetDefinitionWordEntry>
+	 * getParsedDefinitionWordEntries() { return parsedDefinitionWordEntries; }
+	 * public void setParsedDefinitionWordEntries( List<SynsetDefinitionWordEntry>
+	 * parsedDefinitionWordEntries) { this.parsedDefinitionWordEntries =
+	 * parsedDefinitionWordEntries; }
+	 */
+	@Override
+	public int compareTo(Synset o) {
+		return getId().compareTo(o.getId());
+	}
+
+	private Integer tmpHashCode = null;
+
+	@Override
+	public int hashCode() {
+		if (tmpHashCode == null) {
+			if (getId() != null) {
+				tmpHashCode = new Integer(getId().hashCode());
+			}
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((getCategory() == null) ? 0 : getCategory().hashCode());
+			result = prime * result + ((getDefinition() == null) ? 0 : getDefinition().hashCode());
+			result = prime * result + ((getPos() == null) ? 0 : getPos().hashCode());
+			tmpHashCode = new Integer(result);
+		}
+		return tmpHashCode.intValue();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null) {
+			return false;
+		}
+		if (!getClass().isAssignableFrom(obj.getClass())) {
+			return false;
+		}
+		final Synset other = (Synset) obj;
+		if ((getId() != null) && getId().equals(other.getId())) {
+			return true;
+		}
+		if (getDefinition() == null) {
+			if (other.getDefinition() != null) {
+				return false;
+			}
+		} else if (!getDefinition().equals(other.getDefinition())) {
+			return false;
+		}
+		if (getCategory() == null) {
+			if (other.getCategory() != null) {
+				return false;
+			}
+		} else if (!getCategory().equals(other.getCategory())) {
+			return false;
+		}
+		if (getPos() == null) {
+			if (other.getPos() != null) {
+				return false;
+			}
+		} else if (!getPos().equals(other.getPos())) {
+			return false;
+		}
+		return true;
+	}
+
+	@Override
+	public String toString() {
+		return getPartOfSpeech() + "[" + getId() + "]: " + getDefinition();
+	}
+
+	/**
+	 * This class is used by JAXB to convert the id of an entity into an xml id
+	 * string that will be distinct from other entity xml id strings by the use
+	 * of a prefix.
+	 * 
+	 * @author ron
+	 */
+	public static class IdAdapter extends XmlAdapter<String, Long> {
+		private static final String prefix = "SYNSET_";
+
+		@Override
+		public Long unmarshal(String id) throws Exception {
+			return new Long(id.substring(prefix.length()));
+		}
+
+		@Override
+		public String marshal(Long id) throws Exception {
+			if (id != null) {
+				return prefix + id.toString();
+			}
+			return "";
+		}
+	}
+}
