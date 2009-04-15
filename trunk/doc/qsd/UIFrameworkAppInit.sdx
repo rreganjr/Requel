@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram>
+<source><![CDATA[#![Initial Web Request]
+
+uifs:UIFrameworkServlet[a]
+beanFactory:AutowireCapableBeanFactory[a]
+/mainWindow:Window[a]
+/eventDispatcher:DefaultEventDispatcher[a]
+/controllers:Set<Controller>[a]
+/controller:Controller[a]
+/screens:Map<String, Screen>[a]
+/screen:Screen[a]
+/app:UIFrameworkApp[a]
+
+uifs:beanFactory.createBean(UIFrameworkApp.class)
+beanFactory:eventDispatcher.new()
+beanFactory:controllers.new()
+[c:loop]
+*1 beanFactory
+ Spring collects all the annotated implementors of
+ edu.harvard.fas.rregan.uiframework.controller.Controller
+*1
+beanFactory:controller.new()
+beanFactory:controllers.add(controller)
+[/c]
+beanFactory:screens.new()
+[c:loop]
+*2 beanFactory
+ Spring collects all the annotated implementors of 
+ edu.harvard.fas.rregan.uiframework.screen.Screen
+*2
+beanFactory:screen.new()
+[/c]
+beanFactory:app.new(eventDispatcher, controllers, screens)
+[c:for each controller]
+app:controller.addActionListener(eventDispatcher)
+[c:for each eventType the controller supports]
+app:eventDispatcher.addEventTypeActionListener(eventType, controller)
+[/c]
+[/c]]]></source>
+<configuration>
+<property name="actorWidth" value="25"/>
+<property name="arrowSize" value="6"/>
+<property name="colorizeThreads" value="true"/>
+<property name="destructorWidth" value="30"/>
+<property family="Dialog" name="font" size="12" style="0"/>
+<property name="fragmentMargin" value="8"/>
+<property name="fragmentPadding" value="10"/>
+<property name="fragmentTextPadding" value="3"/>
+<property name="glue" value="10"/>
+<property name="headHeight" value="35"/>
+<property name="headLabelPadding" value="5"/>
+<property name="headWidth" value="100"/>
+<property name="initialSpace" value="10"/>
+<property name="leftMargin" value="5"/>
+<property name="lineWrap" value="false"/>
+<property name="lowerMargin" value="5"/>
+<property name="mainLifelineWidth" value="8"/>
+<property name="messageLabelSpace" value="3"/>
+<property name="messagePadding" value="6"/>
+<property name="noteMargin" value="6"/>
+<property name="notePadding" value="6"/>
+<property name="opaqueMessageText" value="false"/>
+<property name="rightMargin" value="5"/>
+<property name="selfMessageHorizontalSpace" value="15"/>
+<property name="separatorBottomMargin" value="8"/>
+<property name="separatorTopMargin" value="15"/>
+<property name="spaceBeforeActivation" value="2"/>
+<property name="spaceBeforeAnswerToSelf" value="10"/>
+<property name="spaceBeforeConstruction" value="6"/>
+<property name="spaceBeforeSelfMessage" value="7"/>
+<property name="subLifelineWidth" value="6"/>
+<property name="threadNumbersVisible" value="false"/>
+<property name="threaded" value="true"/>
+<property name="upperMargin" value="5"/>
+<property name="verticallySplit" value="true"/>
+</configuration>
+</diagram>

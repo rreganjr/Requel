@@ -1,0 +1,12 @@
+panel:Panel[a]
+int:AOPInterceptor[a]
+adv:DomainObjectAdvice[a]
+/pxy:DomainObjectWrapper[a]
+/epi:EntityProxyInterceptor[a]
+rep:Repository[a]
+
+panel:int.get(object)
+int:adv.get(object)
+adv:rep.get(object)
+adv:pxy.new(object)
+adv:epi.new(wrapper)
