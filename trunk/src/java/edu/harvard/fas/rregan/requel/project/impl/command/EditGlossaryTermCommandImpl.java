@@ -1,0 +1,192 @@
+/*
+ * $Id: EditGlossaryTermCommandImpl.java,v 1.22 2009/03/30 11:54:27 rregan Exp $
+ * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ */
+package edu.harvard.fas.rregan.requel.project.impl.command;
+
+import java.util.Set;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Controller;
+
+import edu.harvard.fas.rregan.command.CommandHandler;
+import edu.harvard.fas.rregan.repository.EntityException;
+import edu.harvard.fas.rregan.repository.EntityExceptionActionType;
+import edu.harvard.fas.rregan.requel.EntityValidationException;
+import edu.harvard.fas.rregan.requel.NoSuchEntityException;
+import edu.harvard.fas.rregan.requel.annotation.command.AnnotationCommandFactory;
+import edu.harvard.fas.rregan.requel.project.GlossaryTerm;
+import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
+import edu.harvard.fas.rregan.requel.project.ProjectOrDomainEntity;
+import edu.harvard.fas.rregan.requel.project.ProjectRepository;
+import edu.harvard.fas.rregan.requel.project.command.EditGlossaryTermCommand;
+import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
+import edu.harvard.fas.rregan.requel.project.impl.GlossaryTermImpl;
+import edu.harvard.fas.rregan.requel.project.impl.assistant.AssistantFacade;
+import edu.harvard.fas.rregan.requel.user.User;
+import edu.harvard.fas.rregan.requel.user.UserRepository;
+
+/**
+ * @author ron
+ */
+@Controller("editGlossaryTermCommand")
+@Scope("prototype")
+public class EditGlossaryTermCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
+		EditGlossaryTermCommand {
+
+	private Set<ProjectOrDomainEntity> referers;
+	private Set<ProjectOrDomainEntity> addReferers;
+	private GlossaryTerm glossaryTerm;
+	private GlossaryTerm canonicalTerm;
+	private String definition;
+
+	/**
+	 * @param assistantManager
+	 * @param userRepository
+	 * @param projectRepository
+	 * @param projectCommandFactory
+	 * @param annotationCommandFactory
+	 * @param commandHandler
+	 */
+	@Autowired
+	public EditGlossaryTermCommandImpl(AssistantFacade assistantManager,
+			UserRepository userRepository, ProjectRepository projectRepository,
+			ProjectCommandFactory projectCommandFactory,
+			AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler) {
+		super(assistantManager, userRepository, projectRepository, projectCommandFactory,
+				annotationCommandFactory, commandHandler);
+	}
+
+	@Override
+	public void setReferers(Set<ProjectOrDomainEntity> referers) {
+		this.referers = referers;
+	}
+
+	protected Set<ProjectOrDomainEntity> getReferers() {
+		return referers;
+	}
+
+	@Override
+	public void setAddReferers(Set<ProjectOrDomainEntity> addReferers) {
+		this.addReferers = addReferers;
+	}
+
+	protected Set<ProjectOrDomainEntity> getAddReferers() {
+		return addReferers;
+	}
+
+	@Override
+	public GlossaryTerm getGlossaryTerm() {
+		return glossaryTerm;
+	}
+
+	@Override
+	public void setGlossaryTerm(GlossaryTerm glossaryTerm) {
+		this.glossaryTerm = glossaryTerm;
+	}
+
+	/**
+	 * @return the primary/prefered term the term being edited is an alternative
+	 *         to.
+	 */
+	public GlossaryTerm getCanonicalTerm() {
+		return canonicalTerm;
+	}
+
+	@Override
+	public void setCanonicalTerm(GlossaryTerm canonicalTerm) {
+		this.canonicalTerm = canonicalTerm;
+	}
+
+	/**
+	 * @return the definition of the term.
+	 */
+	public String getDefinition() {
+		return definition;
+	}
+
+	@Override
+	public void setText(String definition) {
+		this.definition = definition;
+	}
+
+	@Override
+	public void execute() {
+		ProjectOrDomain projectOrDomain = getProjectRepository().get(getProjectOrDomain());
+		GlossaryTerm canonicalTerm = getProjectRepository().get(getCanonicalTerm());
+		User editedBy = getProjectRepository().get(getEditedBy());
+		GlossaryTermImpl glossaryTermImpl = (GlossaryTermImpl) getGlossaryTerm();
+		// check for uniqueness
+		try {
+			String name = getName();
+			if (name == null) {
+				if (glossaryTermImpl == null) {
+					throw EntityValidationException.emptyRequiredProperty(GlossaryTerm.class, null,
+							"name", EntityExceptionActionType.Updating);
+				}
+				name = glossaryTermImpl.getName();
+			}
+			GlossaryTerm existing = getProjectRepository().findGlossaryTermForProjectOrDomain(
+					projectOrDomain, name);
+			if (glossaryTermImpl == null) {
+				throw EntityException.uniquenessConflict(GlossaryTerm.class, existing, FIELD_NAME,
+						EntityExceptionActionType.Creating);
+			} else if (!existing.equals(glossaryTermImpl)) {
+				throw EntityException.uniquenessConflict(GlossaryTerm.class, existing, FIELD_NAME,
+						EntityExceptionActionType.Updating);
+			}
+		} catch (NoSuchEntityException e) {
+		}
+
+		if (glossaryTermImpl == null) {
+			glossaryTermImpl = getProjectRepository().persist(
+					new GlossaryTermImpl(projectOrDomain, getName(), editedBy));
+			projectOrDomain.getGlossaryTerms().add(glossaryTermImpl);
+		} else if (getName() != null) {
+			glossaryTermImpl.setName(getName());
+		}
+		if (getDefinition() != null) {
+			glossaryTermImpl.setText(getDefinition());
+		}
+		if (canonicalTerm != null) {
+			glossaryTermImpl.setCanonicalTerm(canonicalTerm);
+		}
+
+		glossaryTermImpl = getProjectRepository().merge(glossaryTermImpl);
+
+		if (getReferers() != null) {
+			// remove the term for all its referers
+			for (ProjectOrDomainEntity entity : glossaryTermImpl.getReferers()) {
+				if (entity != null) {
+					entity.getGlossaryTerms().remove(glossaryTermImpl);
+				}
+			}
+			// add the referers to the term and the term to the referers
+			glossaryTermImpl.getReferers().clear();
+			for (ProjectOrDomainEntity entity : getReferers()) {
+				entity = getProjectRepository().get(entity);
+				glossaryTermImpl.getReferers().add(entity);
+				entity.getGlossaryTerms().add(glossaryTermImpl);
+			}
+		} else if (getAddReferers() != null) {
+			for (ProjectOrDomainEntity entity : getAddReferers()) {
+				entity = getProjectRepository().get(entity);
+				glossaryTermImpl.getReferers().add(entity);
+				entity.getGlossaryTerms().add(glossaryTermImpl);
+			}
+		}
+		if (canonicalTerm != null) {
+			canonicalTerm.getAlternateTerms().add(glossaryTermImpl);
+		}
+		setCanonicalTerm(canonicalTerm);
+		setGlossaryTerm(glossaryTermImpl);
+	}
+
+	@Override
+	public void invokeAnalysis() {
+		if (isAnalysisEnabled()) {
+			// TODO: analyze the glossary term?
+		}
+	}
+}
