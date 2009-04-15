@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- $Id: web.xml,v 1.19 2009/03/29 11:59:30 rregan Exp $ -->
+<web-app xmlns="http://java.sun.com/xml/ns/j2ee"
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	 xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd"
+	 version="2.4">
+
+	<display-name>@context.name@</display-name>
+
+	<!-- spring configuration -->
+	<context-param>
+		<param-name>contextConfigLocation</param-name>
+		<param-value>
+			/WEB-INF/@spring.dbConfig@ 
+			/WEB-INF/lemmatizerConfig.xml 
+			/WEB-INF/commandHandlerConfig.xml 
+			/WEB-INF/uiFrameworkConfig.xml 
+			/WEB-INF/uiAnnotationConfig.xml  
+			/WEB-INF/uiNLPConfig.xml 
+			/WEB-INF/uiProjectConfig.xml 
+			/WEB-INF/uiUserConfig.xml  
+			/WEB-INF/uiMainConfig.xml 
+			/WEB-INF/assistantConfig.xml
+		</param-value>
+	</context-param>
+
+	<!-- documentation extractor - this extracts the javaDoc documentation archives 
+	<listener>
+		<listener-class>edu.harvard.fas.rregan.requel.DocumentationInitializationListener</listener-class>
+	</listener>
+	-->
+	
+	<!-- db creator - this should only be used if a database is in use  -->
+	<listener>
+		<listener-class>edu.harvard.fas.rregan.requel.DatabaseCreationListener</listener-class>
+	</listener>
+
+	<!-- spring loader -->
+	<listener>
+		<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+	</listener>
+
+	<!-- spring listener for using request and session scope -->
+	<listener>
+		<listener-class>org.springframework.web.context.request.RequestContextListener</listener-class>
+	</listener>
+
+	<!-- db initializer - this should only be used if a database is in use  -->
+	<context-param>
+		<param-name>initializeTestUsers</param-name>
+		<param-value>@initializeTestUsers@</param-value>
+	</context-param>
+	<listener>
+		<listener-class>edu.harvard.fas.rregan.requel.DatabaseInitializationListener</listener-class>
+	</listener>
+		
+	<servlet>
+		<description>Echo2 based (AJAX framework) User Interface</description>
+		<display-name>UI Framework Servlet</display-name>
+		<servlet-name>UIFrameworkServlet</servlet-name>
+		<servlet-class>edu.harvard.fas.rregan.uiframework.UIFrameworkServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+	</servlet>
+
+	<servlet>
+		<description>clear the session and redirect back to the UIFrameworkServlet</description>
+		<display-name>UI Framework LogoutServlet</display-name>
+		<servlet-name>UIFrameworkLogoutServlet</servlet-name>
+		<servlet-class>edu.harvard.fas.rregan.uiframework.UIFrameworkLogoutServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+	</servlet>
+
+	<servlet-mapping>
+		<servlet-name>UIFrameworkServlet</servlet-name>
+		<url-pattern>/</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>UIFrameworkLogoutServlet</servlet-name>
+		<url-pattern>/logout</url-pattern>
+	</servlet-mapping>
+</web-app>
+

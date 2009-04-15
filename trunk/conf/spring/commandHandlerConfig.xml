@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  - Spring config for navigation setup.
+  -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xmlns:context="http://www.springframework.org/schema/context"
+		xmlns:tx="http://www.springframework.org/schema/tx"
+		xmlns:util="http://www.springframework.org/schema/util"
+		xsi:schemaLocation="
+			http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+			http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd
+			http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
+			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.5.xsd
+			">
+	<!-- create these nested so that only one CommandHandler class is exposed -->
+	<bean id="commandHandler" class="edu.harvard.fas.rregan.command.RetryOnLockFailuresCommandHandler" scope="singleton">
+		<constructor-arg index="0">
+			<bean class="edu.harvard.fas.rregan.command.ExceptionMappingCommandHandler" scope="singleton">
+				<constructor-arg index="0">
+					<bean class="edu.harvard.fas.rregan.repository.jpa.ExceptionMapper"/>
+				</constructor-arg>
+				<constructor-arg index="1">
+					<bean class="edu.harvard.fas.rregan.requel.command.AnalysisInvokingCommandHandler" scope="singleton">
+						<constructor-arg index="0">
+							<bean class="edu.harvard.fas.rregan.command.DefaultCommandHandler" scope="singleton"/>
+						</constructor-arg>
+					</bean>
+				</constructor-arg>
+			</bean>
+		</constructor-arg>
+		<constructor-arg index="1">
+			<ref bean="projectRepository"/>			
+		</constructor-arg>
+	</bean>
+</beans>
