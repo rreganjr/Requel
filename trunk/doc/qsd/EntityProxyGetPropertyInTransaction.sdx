@@ -1,0 +1,17 @@
+panel:Panel[a]
+pxy:Proxy[a]
+wrp:DomainObjectWrapper[a]
+epi:EntityProxyInterceptor[a]
+pch:PersistenceContextHelper[a]
+ent:Entity[a]
+rep:Repository[a]
+
+panel:pxy.getPropery()
+pxy:epi.intercept(proxy,method,args)
+epi:epi.isStale()
+epi:pch.invokeInTransaction(interceptor,wrapper,method,args)
+pch:epi.getEntity()
+pch:rep.refresh(entity)
+pch:epi.setEntity()
+pch:ent.getProperty()
+pch:wrp.wrapPersistentEntities(property)
