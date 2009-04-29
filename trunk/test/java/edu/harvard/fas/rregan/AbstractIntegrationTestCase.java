@@ -472,7 +472,7 @@ public abstract class AbstractIntegrationTestCase extends AbstractJpaTests {
 				command.setUsername("admin");
 				command.setPassword("admin");
 				command.setRepassword("admin");
-				command.setEmailAddress("rreganjr@acm.org");
+				command.setEmailAddress("rreganjr@users.sourceforge.net");
 				command.setOrganizationName("Requel");
 				command.addUserRoleName(SystemAdminUserRole.getRoleName(SystemAdminUserRole.class));
 				commandHandler.execute(command);
@@ -500,7 +500,7 @@ public abstract class AbstractIntegrationTestCase extends AbstractJpaTests {
 				command.setUsername("project");
 				command.setPassword("project");
 				command.setRepassword("project");
-				command.setEmailAddress("rreganjr@acm.org");
+				command.setEmailAddress("rreganjr@users.sourceforge.net");
 				command.setOrganizationName("Requel");
 				command.addUserRoleName(ProjectUserRole.getRoleName(ProjectUserRole.class));
 				command.addUserRolePermissionName(ProjectUserRole
@@ -519,7 +519,7 @@ public abstract class AbstractIntegrationTestCase extends AbstractJpaTests {
 				command.setUsername("domain");
 				command.setPassword("domain");
 				command.setRepassword("domain");
-				command.setEmailAddress("rreganjr@acm.org");
+				command.setEmailAddress("rreganjr@users.sourceforge.net");
 				command.setOrganizationName("Requel");
 				command.addUserRoleName(DomainAdminUserRole.getRoleName(DomainAdminUserRole.class));
 				commandHandler.execute(command);

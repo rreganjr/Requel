@@ -4,21 +4,20 @@
  */
 package edu.harvard.fas.rregan.uiframework.reflect.table;
 
-import org.apache.log4j.Logger;
-
-import edu.harvard.fas.rregan.uiframework.reflect.ReflectUtils;
-
 import nextapp.echo2.app.Component;
 import nextapp.echo2.app.Label;
 import nextapp.echo2.app.Table;
 import nextapp.echo2.app.table.TableCellRenderer;
 
+import org.apache.log4j.Logger;
+
+import edu.harvard.fas.rregan.uiframework.reflect.ReflectUtils;
+
 /**
- *
- * @author rreganjr@acm.org 
+ * @author rreganjr@users.sourceforge.net
  */
 public class ReflectiveTableCellRenderer implements TableCellRenderer {
-    private static final Logger log = Logger.getLogger(ReflectiveTableCellRenderer.class);
+	private static final Logger log = Logger.getLogger(ReflectiveTableCellRenderer.class);
 	private static final long serialVersionUID = 0;
 
 	public Component getTableCellRendererComponent(Table table, Object value, int column, int row) {
@@ -28,13 +27,12 @@ public class ReflectiveTableCellRenderer implements TableCellRenderer {
 		}
 		Label label = new Label(labelString);
 
-        if (row % 2 == 0) {
-            label.setStyleName("Table.EvenRowLabel");
-        } else {
-            label.setStyleName("Table.OddRowLabel");
-        }
+		if (row % 2 == 0) {
+			label.setStyleName("Table.EvenRowLabel");
+		} else {
+			label.setStyleName("Table.OddRowLabel");
+		}
 		return label;
 	}
-
 
 }

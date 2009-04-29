@@ -56,7 +56,7 @@ public class AssistantUserInitializer extends AbstractSystemInitializer {
 				command.setPassword("assistant");
 				command.setRepassword("assistant");
 				command.setName("Analysis Assistant");
-				command.setEmailAddress("rreganjr@acm.org");
+				command.setEmailAddress("rreganjr@users.sourceforge.net");
 				command.setOrganizationName("Requel");
 				command.addUserRoleName(SystemAdminUserRole.getRoleName(ProjectUserRole.class));
 				command.setEditable(Boolean.FALSE);

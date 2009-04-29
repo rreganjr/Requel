@@ -214,7 +214,7 @@
                 <username>admin</username>
                 <password>21232f297a57a5a743894a0e4a801fc3</password>
                 <name></name>
-                <emailAddress>rreganjr@acm.org</emailAddress>
+                <emailAddress>rreganjr@users.sourceforge.net</emailAddress>
                 <phoneNumber></phoneNumber>
                 <organization name="Requel"/>
                 <userRoles>
@@ -238,7 +238,7 @@
                 <username>assistant</username>
                 <password>f549cd73f694aa6f5541b4ae30894eea</password>
                 <name>Analysis Assistant</name>
-                <emailAddress>rreganjr@acm.org</emailAddress>
+                <emailAddress>rreganjr@users.sourceforge.net</emailAddress>
                 <organization name="Requel"/>
                 <userRoles>
                     <projectUserRole>
@@ -265,7 +265,7 @@
                 <username>project</username>
                 <password>46f86faa6bbf9ac94a7e459509a20ed0</password>
                 <name></name>
-                <emailAddress>rreganjr@acm.org</emailAddress>
+                <emailAddress>rreganjr@users.sourceforge.net</emailAddress>
                 <organization name="Requel"/>
                 <userRoles>
                     <projectUserRole>
@@ -304,7 +304,7 @@
                 <username>rreganjr</username>
                 <password>44e5a3ef99e2dbc4152fde7fa539e854</password>
                 <name>Ron Regan</name>
-                <emailAddress>rreganjr@acm.org</emailAddress>
+                <emailAddress>rreganjr@users.sourceforge.net</emailAddress>
                 <phoneNumber>781 645 1574</phoneNumber>
                 <organization name="Nellymoser"/>
                 <userRoles>
