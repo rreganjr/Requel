@@ -12,7 +12,7 @@ import java.util.Map;
  * http://bulba.sdsu.edu/jeanette/thesis/PennTags.html by JEANETTE PETTIBONE
  * pettibon@stanford.edu
  * 
- * @author rreganjr@acm.org
+ * @author rreganjr@users.sourceforge.net
  */
 public enum ParseTag {
 

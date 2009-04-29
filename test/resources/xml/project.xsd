@@ -3,6 +3,12 @@
 
   <xs:element name="actor" type="tns:actor"/>
 
+  <xs:element name="addActorPosition" type="tns:addActorPosition"/>
+
+  <xs:element name="addGlossaryTermPosition" type="tns:addGlossaryTermPosition"/>
+
+  <xs:element name="addWordToDictionaryPosition" type="tns:addWordToDictionaryPosition"/>
+
   <xs:element name="argument" type="tns:argument"/>
 
   <xs:element name="changeSpellingPosition" type="tns:changeSpellingPosition"/>
@@ -14,6 +20,8 @@
   <xs:element name="goalRelation" type="tns:goalRelation"/>
 
   <xs:element name="issue" type="tns:issue"/>
+
+  <xs:element name="lexicalIssue" type="tns:lexicalIssue"/>
 
   <xs:element name="note" type="tns:note"/>
 
@@ -27,11 +35,23 @@
 
   <xs:element name="projectUserRole" type="tns:projectUserRole"/>
 
+  <xs:element name="report" type="tns:report"/>
+
+  <xs:element name="scenario" type="tns:scenario"/>
+
   <xs:element name="stakeholder" type="tns:stakeholder"/>
+
+  <xs:element name="step" type="tns:step"/>
+
+  <xs:element name="story" type="tns:story"/>
 
   <xs:element name="systemAdminUserRole" type="tns:systemAdminUserRole"/>
 
   <xs:element name="team" type="tns:team"/>
+
+  <xs:element name="term" type="tns:term"/>
+
+  <xs:element name="usecase" type="tns:usecase"/>
 
   <xs:element name="user" type="tns:user"/>
 
@@ -39,16 +59,6 @@
 
   <xs:complexType name="abstractAnnotation" abstract="true">
     <xs:sequence>
-      <xs:element name="annotations" form="qualified" minOccurs="0">
-        <xs:complexType>
-          <xs:sequence>
-            <xs:choice minOccurs="0" maxOccurs="unbounded">
-              <xs:element ref="tns:issue"/>
-              <xs:element ref="tns:note"/>
-            </xs:choice>
-          </xs:sequence>
-        </xs:complexType>
-      </xs:element>
       <xs:element name="text" type="xs:string" form="qualified" minOccurs="0"/>
     </xs:sequence>
     <xs:attribute name="createdBy" type="xs:IDREF"/>
@@ -104,23 +114,10 @@
     <xs:attribute name="userRoleType" type="xs:string"/>
   </xs:complexType>
 
-  <xs:complexType name="argument">
-    <xs:sequence>
-      <xs:element name="text" type="xs:string" form="qualified" minOccurs="0"/>
-    </xs:sequence>
-    <xs:attribute name="createdBy" type="xs:IDREF"/>
-    <xs:attribute name="dateCreated" type="xs:string"/>
-    <xs:attribute name="id" type="xs:ID"/>
-    <xs:attribute name="supportLevel" type="tns:argumentPositionSupportLevel"/>
-  </xs:complexType>
-
-  <xs:complexType name="changeSpellingPosition">
+  <xs:complexType name="addWordToDictionaryPosition">
     <xs:complexContent>
       <xs:extension base="tns:position">
         <xs:sequence/>
-        <xs:attribute name="propertyName" type="xs:string"/>
-        <xs:attribute name="correctWord" type="xs:string"/>
-        <xs:attribute name="misspelledWord" type="xs:string"/>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
@@ -141,6 +138,25 @@
     <xs:attribute name="id" type="xs:ID"/>
   </xs:complexType>
 
+  <xs:complexType name="argument">
+    <xs:sequence>
+      <xs:element name="text" type="xs:string" form="qualified" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="createdBy" type="xs:IDREF"/>
+    <xs:attribute name="dateCreated" type="xs:string"/>
+    <xs:attribute name="id" type="xs:ID"/>
+    <xs:attribute name="supportLevel" type="tns:argumentPositionSupportLevel"/>
+  </xs:complexType>
+
+  <xs:complexType name="changeSpellingPosition">
+    <xs:complexContent>
+      <xs:extension base="tns:position">
+        <xs:sequence/>
+        <xs:attribute name="proposedWord" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
   <xs:complexType name="issue">
     <xs:complexContent>
       <xs:extension base="tns:abstractAnnotation">
@@ -148,10 +164,7 @@
           <xs:element name="positions" form="qualified" minOccurs="0">
             <xs:complexType>
               <xs:sequence>
-                <xs:choice minOccurs="0" maxOccurs="unbounded">
-                  <xs:element ref="tns:position"/>
-                  <xs:element ref="tns:changeSpellingPosition"/>
-                </xs:choice>
+                <xs:element name="positionRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
               </xs:sequence>
             </xs:complexType>
           </xs:element>
@@ -160,6 +173,16 @@
         <xs:attribute name="resolvedByPosition" type="xs:IDREF"/>
         <xs:attribute name="resolvedByUser" type="xs:IDREF"/>
         <xs:attribute name="dateResolved" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="lexicalIssue">
+    <xs:complexContent>
+      <xs:extension base="tns:issue">
+        <xs:sequence/>
+        <xs:attribute name="propertyName" type="xs:string"/>
+        <xs:attribute name="word" type="xs:string"/>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
@@ -190,6 +213,30 @@
 
   <xs:complexType name="abstractProjectOrDomain" abstract="true">
     <xs:sequence>
+      <xs:element name="actors" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="tns:actor" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="scenarios" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+              <xs:element ref="tns:step"/>
+              <xs:element ref="tns:scenario"/>
+            </xs:choice>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="glossary" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="tns:term" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
       <xs:element name="goals" form="qualified" minOccurs="0">
         <xs:complexType>
           <xs:sequence>
@@ -198,10 +245,24 @@
         </xs:complexType>
       </xs:element>
       <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+      <xs:element name="reports" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="tns:report" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
       <xs:element name="stakeholders" form="qualified" minOccurs="0">
         <xs:complexType>
           <xs:sequence>
             <xs:element ref="tns:stakeholder" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="stories" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="tns:story" minOccurs="0" maxOccurs="unbounded"/>
           </xs:sequence>
         </xs:complexType>
       </xs:element>
@@ -212,23 +273,33 @@
           </xs:sequence>
         </xs:complexType>
       </xs:element>
+      <xs:element name="description" type="xs:string" form="qualified" minOccurs="0"/>
+      <xs:element name="usecases" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="tns:usecase" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
     </xs:sequence>
     <xs:attribute name="createdBy" type="xs:IDREF"/>
     <xs:attribute name="dateCreated" type="xs:string"/>
     <xs:attribute name="id" type="xs:ID"/>
+    <xs:attribute name="revision" type="xs:int" use="required"/>
   </xs:complexType>
 
-  <xs:complexType name="goal">
+  <xs:complexType name="actor">
     <xs:complexContent>
       <xs:extension base="tns:abstractTextEntity">
         <xs:sequence>
-          <xs:element name="goalRelations" form="qualified" minOccurs="0">
+          <xs:element name="goals" form="qualified" minOccurs="0">
             <xs:complexType>
               <xs:sequence>
-                <xs:element ref="tns:goalRelation" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="goalRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
               </xs:sequence>
             </xs:complexType>
           </xs:element>
+          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="id" type="xs:ID"/>
       </xs:extension>
@@ -250,26 +321,91 @@
       <xs:element name="annotations" form="qualified" minOccurs="0">
         <xs:complexType>
           <xs:sequence>
-            <xs:choice minOccurs="0" maxOccurs="unbounded">
-              <xs:element ref="tns:issue"/>
-              <xs:element ref="tns:note"/>
-            </xs:choice>
+            <xs:element name="annotationRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
           </xs:sequence>
         </xs:complexType>
       </xs:element>
-      <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+      <xs:element name="glossaryTerms" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="glossaryTermRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
     </xs:sequence>
     <xs:attribute name="createdBy" type="xs:IDREF"/>
     <xs:attribute name="dateCreated" type="xs:string"/>
+    <xs:attribute name="revision" type="xs:int" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="goal">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractTextEntity">
+        <xs:sequence>
+          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="goalRelations" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element ref="tns:goalRelation" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+        <xs:attribute name="id" type="xs:ID"/>
+      </xs:extension>
+    </xs:complexContent>
   </xs:complexType>
 
   <xs:complexType name="goalRelation">
-    <xs:sequence/>
+    <xs:sequence>
+      <xs:element name="annotations" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="annotationRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
     <xs:attribute name="createdBy" type="xs:IDREF"/>
     <xs:attribute name="dateCreated" type="xs:string"/>
     <xs:attribute name="id" type="xs:ID"/>
     <xs:attribute name="relationType" type="xs:string"/>
     <xs:attribute name="toGoal" type="xs:IDREF"/>
+  </xs:complexType>
+
+  <xs:complexType name="term">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractTextEntity">
+        <xs:sequence>
+          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+        </xs:sequence>
+        <xs:attribute name="canonicalTerm" type="xs:IDREF"/>
+        <xs:attribute name="id" type="xs:ID"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="step">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractTextEntity">
+        <xs:sequence>
+          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+        </xs:sequence>
+        <xs:attribute name="scenarioType" type="xs:string"/>
+        <xs:attribute name="id" type="xs:ID"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="report">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractTextEntity">
+        <xs:sequence>
+          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+        </xs:sequence>
+        <xs:attribute name="id" type="xs:ID"/>
+      </xs:extension>
+    </xs:complexContent>
   </xs:complexType>
 
   <xs:complexType name="stakeholder">
@@ -279,10 +415,11 @@
           <xs:element name="goals" form="qualified" minOccurs="0">
             <xs:complexType>
               <xs:sequence>
-                <xs:element name="goalRef" type="xs:IDREF" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="goalRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
               </xs:sequence>
             </xs:complexType>
           </xs:element>
+          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
           <xs:element name="projectPermissions" form="qualified" minOccurs="0">
             <xs:complexType>
               <xs:sequence>
@@ -290,7 +427,7 @@
               </xs:sequence>
             </xs:complexType>
           </xs:element>
-          <xs:element ref="tns:user"/>
+          <xs:element name="user" type="tns:user" form="qualified" nillable="true" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="team" type="xs:IDREF"/>
         <xs:attribute name="id" type="xs:ID"/>
@@ -315,25 +452,101 @@
               </xs:sequence>
             </xs:complexType>
           </xs:element>
+          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="id" type="xs:ID"/>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
 
-  <xs:complexType name="actor">
+  <xs:complexType name="story">
     <xs:complexContent>
-      <xs:extension base="tns:abstractProjectOrDomainEntity">
+      <xs:extension base="tns:abstractTextEntity">
         <xs:sequence>
+          <xs:element name="actors" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="actorRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
           <xs:element name="goals" form="qualified" minOccurs="0">
             <xs:complexType>
               <xs:sequence>
-                <xs:element ref="tns:goal" minOccurs="0" maxOccurs="unbounded"/>
+                <xs:element name="goalRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+        </xs:sequence>
+        <xs:attribute name="storyType" type="xs:string"/>
+        <xs:attribute name="id" type="xs:ID"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="usecase">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractTextEntity">
+        <xs:sequence>
+          <xs:element name="actors" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="actorRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="goals" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="goalRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="primaryActorRef" type="xs:IDREF" form="qualified" minOccurs="0"/>
+          <xs:element name="scenarioRef" type="xs:IDREF" form="qualified" minOccurs="0"/>
+          <xs:element name="stories" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="storyRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
               </xs:sequence>
             </xs:complexType>
           </xs:element>
         </xs:sequence>
         <xs:attribute name="id" type="xs:ID"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="scenario">
+    <xs:complexContent>
+      <xs:extension base="tns:step">
+        <xs:sequence>
+          <xs:element name="steps" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="stepRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="addActorPosition">
+    <xs:complexContent>
+      <xs:extension base="tns:position">
+        <xs:sequence/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="addGlossaryTermPosition">
+    <xs:complexContent>
+      <xs:extension base="tns:position">
+        <xs:sequence/>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
@@ -347,8 +560,29 @@
               <xs:sequence>
                 <xs:choice minOccurs="0" maxOccurs="unbounded">
                   <xs:element ref="tns:issue"/>
+                  <xs:element ref="tns:lexicalIssue"/>
                   <xs:element ref="tns:note"/>
                 </xs:choice>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="positions" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:choice minOccurs="0" maxOccurs="unbounded">
+                  <xs:element ref="tns:position"/>
+                  <xs:element ref="tns:addWordToDictionaryPosition"/>
+                  <xs:element ref="tns:changeSpellingPosition"/>
+                  <xs:element ref="tns:addActorPosition"/>
+                  <xs:element ref="tns:addGlossaryTermPosition"/>
+                </xs:choice>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="annotations" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="annotationRef" type="xs:IDREF" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
               </xs:sequence>
             </xs:complexType>
           </xs:element>
