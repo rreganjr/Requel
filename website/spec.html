@@ -1,0 +1,702 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Sample Requel Requirements</title>
+<style type="text/css">
+			html {
+				height: 100%;
+			}
+			
+			body {
+				height: 100%;
+				font-family: Arial;
+				font-size: 10pt;
+				margin-top: .5in;
+				margin-left: .5in;
+				margin-right: .5in;
+				margin-bottom: .5in;
+			}
+			
+			h1 {
+				text-align: center;
+				font-family: Arial;
+				font-size: 14pt;
+			}
+			
+			h2 {
+				text-align: left;
+				font-family: Arial;
+				font-size: 12pt;
+			}
+			
+			h3, h4, h5, h6 {
+				text-align: left;
+				font-family: Arial;
+				font-size: 11pt;
+			}
+			
+			
+			table {
+				border: solid 1pt black;
+				border-collapse: collapse;
+				empty-cells: show;
+			}
+			
+			
+			td {
+				padding: 5pt;
+				border: solid 1pt black;
+				border-collapse: collapse;
+				font-family: Arial;
+				font-size: 10pt;
+				vertical-align: top;
+				text-align: left;
+				font-weight: normal;
+			}
+			
+			div .project .body {
+				margin: 0;
+			}
+			
+			div .body {
+				margin-top: .25in;
+				margin-left: .25in;
+				margin-right: .25in;
+				margin-bottom: .25in;
+			}
+			
+			.stakeholders table {
+				margin-top: .25in;
+				margin-left: .25in;
+				margin-right: .25in;
+				margin-bottom: .25in;
+			}
+			
+			th {
+				padding: 4pt;
+				border: solid 1pt black;
+				border-collapse: collapse;
+				font-family: Arial;
+				font-size: 10pt;
+				vertical-align: bottom;
+				text-align: left;
+				font-weight: bold;
+			}
+			
+			.issue {
+			}
+			
+			.note {
+			}
+			
+			.p {
+				padding-bottom: 10pt;
+			}
+			
+		#ft {
+			text-align: center;
+		}
+			
+		</style>
+</head>
+<body>
+<div class="project">
+<div><a href="index.html">back</a></div>
+<h1>Requirments for "Requel"</h1>
+<h5>Client: Harvard University</h5>
+<h5>Revision: 22</h5>
+<h4>Table of Contents</h4>
+<div class="toc">
+<ul>
+<li>
+<a href="#stakeholders">Stakeholders</a>
+<ol>
+<li>
+<a href="#N106A1">System Administrator [admin]
+			</a>
+</li>
+<li>
+<a href="#N10724">Analysis Assistant [assistant]
+			</a>
+</li>
+<li>
+<a href="#N10751">Harvard University</a>
+</li>
+<li>
+<a href="#N1076B">Builtin Project User [project]
+			</a>
+</li>
+<li>
+<a href="#N1079E">Ron Regan [rreganjr]
+			</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#actors">Actors</a>
+<ol>
+<li>
+<a href="#N1000B">Automated Assistant</a>
+</li>
+<li>
+<a href="#N10043">Interactive User</a>
+</li>
+<li>
+<a href="#N10065">Project User</a>
+</li>
+<li>
+<a href="#N10094">System Admin</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#goals">Goals</a>
+<ol>
+<li>
+<a href="#N103E0">Automated Assistance</a>
+</li>
+<li>
+<a href="#N10430">Collaborative Elicitation of Requirements</a>
+</li>
+<li>
+<a href="#N10465">Discussion of Requirements</a>
+</li>
+<li>
+<a href="#N104A9">Easy to Use</a>
+</li>
+<li>
+<a href="#N104E8">Flexible Process and Deliverables</a>
+</li>
+<li>
+<a href="#N10525">Improved Understanding</a>
+</li>
+<li>
+<a href="#N10566">Manage Users</a>
+</li>
+<li>
+<a href="#N1058F">Notification of Project Changes</a>
+</li>
+<li>
+<a href="#N105D6">Requirements defined in Natural Language</a>
+</li>
+<li>
+<a href="#N1061D">Secure data access</a>
+</li>
+<li>
+<a href="#N10652">Work is your own</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#stories">Stories</a>
+<ol>
+<li>
+<a href="#N10820">Poor Communication in Requirements</a>
+</li>
+<li>
+<a href="#N1090F">Rich creates a new project</a>
+</li>
+<li>
+<a href="#N1096E">Rich logs in to the system</a>
+</li>
+<li>
+<a href="#N109C1">Ron fails to log in to the system</a>
+</li>
+<li>
+<a href="#N10A20">Theresa creates a new project</a>
+</li>
+<li>
+<a href="#N10A7C">Theresa logs in to the system</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#usecases">Use Cases</a>
+<ol>
+<li>
+<a href="#N10AF5">A user creates a new project</a>
+</li>
+<li>
+<a href="#N10B2F">A user logs in to the system</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#scenarios">Scenarios</a>
+<ol>
+<li>
+<a href="#N100CA">A user creates a new project</a>
+</li>
+<li>
+<a href="#N101A0">The system verifies the project name and customer name</a>
+</li>
+<li>
+<a href="#N1022C">A user logs in to the system</a>
+</li>
+<li>
+<a href="#N102CE">The user enters her username and password and submits them.</a>
+</li>
+<li>
+<a href="#N102FC">The user chooses the help option.</a>
+</li>
+<li>
+<a href="#N10361">The system verifies the user supplied a correct username and password combination, logs the successful login and presents the user with an interface to use the system.</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#glossary">Glossary</a>
+<ol>
+<li>
+<a href="#N103CC">non-technical users</a>
+</li>
+</ol>
+</li>
+</ul>
+</div>
+<div class="body">
+<div class="stakeholders">
+<a name="stakeholders"/>
+<h2>Stakeholders</h2>
+<table class="stakeholders">
+<thead>
+<tr>
+<th>User?</th>
+<th>Name</th>
+<th>Organization</th>
+<th>Email</th>
+<th>Phone</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+				Yes
+			</td>
+<td>
+<a name="N106A1">System Administrator
+					(admin)
+				</a>
+</td>
+<td>Requel</td>
+<td>rreganjr@...</td>
+<td/>
+</tr>
+<tr>
+<td>
+				Yes
+			</td>
+<td>
+<a name="N10724">Analysis Assistant
+					(assistant)
+				</a>
+</td>
+<td>Requel</td>
+<td>rreganjr@...</td>
+<td/>
+</tr>
+<tr>
+<td>
+				No
+			</td>
+<td>
+<a name="N10751">Harvard University</a>
+</td>
+<td/>
+<td/>
+<td/>
+</tr>
+<tr>
+<td/>
+<td colspan="4">
+<h4>Goals</h4>
+<ul class="goals">
+<li class="goal">
+<span class="body">
+<a href="#N10652">Work is your own</a>
+</span>
+</li>
+</ul>
+</td>
+</tr>
+<tr>
+<td>
+				Yes
+			</td>
+<td>
+<a name="N1076B">Builtin Project User
+					(project)
+				</a>
+</td>
+<td>Requel</td>
+<td>rreganjr@...</td>
+<td/>
+</tr>
+<tr>
+<td>
+				Yes
+			</td>
+<td>
+<a name="N1079E">R Regan
+					(rreganjr)
+				</a>
+</td>
+<td>Nellymoser</td>
+<td>rreganjr@...</td>
+<td>781 645 1515</td>
+</tr>
+</tbody>
+</table>
+</div>
+<a name="actors"/>
+<h2>Actors</h2>
+<div class="body">
+<div class="actor">
+<h4>
+<a name="N1000B">Automated Assistant</a>
+</h4>
+<div class="body">The automated assistant is part of the system, but interacts with the requirements part of the system like a project user adding issues and notes during analysis. The automated assistant will be a stakeholder on all projects.</div>
+</div>
+<div class="actor">
+<h4>
+<a name="N10043">Interactive User</a>
+</h4>
+<div class="body"/>
+</div>
+<div class="actor">
+<h4>
+<a name="N10065">Project User</a>
+</h4>
+<div class="body">Project users use the system to create requirments in projects.</div>
+</div>
+<div class="actor">
+<h4>
+<a name="N10094">System Admin</a>
+</h4>
+<div class="body">System administrator users create other users and manage the system level user permissions.<h4>Goals</h4>
+<ul class="goals">
+<li class="goal">
+<span class="body">
+<a href="#N10566">Manage Users</a>
+</span>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="goals">
+<a name="goals"/>
+<h2>Goals</h2>
+<ul class="goals">
+<li class="goal">
+<div class="goal">
+<h4>
+<a name="N103E0">Automated Assistance</a>
+</h4>
+<div class="body">
+<div>The system analyzes the requirements as they are added to a project and makes suggestions by adding issues to the elements.</div>
+</div>
+</div>
+</li>
+<li class="goal">
+<div class="goal">
+<h4>
+<a name="N10430">Collaborative Elicitation of Requirements</a>
+</h4>
+<div class="body">
+<div>A team of technical and business stakeholders can use the system to create accurate, precise and unambiguous system requirements.</div>
+</div>
+</div>
+</li>
+<li class="goal">
+<div class="goal">
+<h4>
+<a name="N10465">Discussion of Requirements</a>
+</h4>
+<div class="body">
+<div>The system supports integrated discussion of the requirements such that stakeholders can identify issues with the project elements, state multiple solutions to each issue, and pros and cons of each solution.</div>
+</div>
+</div>
+</li>
+<li class="goal">
+<div class="goal">
+<h4>
+<a name="N104A9">Easy to Use</a>
+</h4>
+<div class="body">
+<div>The system is easy to use so that non-technical users can contribute to the requirements without the need for specialized skills or training.</div>
+</div>
+</div>
+</li>
+<li class="goal">
+<div class="goal">
+<h4>
+<a name="N104E8">Flexible Process and Deliverables</a>
+</h4>
+<div class="body">
+<div>The system does not force a specific requirements elicitation process on the stakeholders. The system does not require the stakeholders to use all the features of the system.</div>
+<h4>Goal Relations</h4>
+<ul>
+<li class="goal">
+<div>Supports -
+				<a href="#N104A9">Easy to Use</a>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</li>
+<li class="goal">
+<div class="goal">
+<h4>
+<a name="N10525">Improved Understanding</a>
+</h4>
+<div class="body">
+<div>Using the system improves understanding of the requirements by all the stakeholders compared to non-integrated tools such as emails and spreadsheets.</div>
+</div>
+</div>
+</li>
+<li class="goal">
+<div class="goal">
+<h4>
+<a name="N10566">Manage Users</a>
+</h4>
+<div class="body">
+<div>Create and edit user accounts.</div>
+</div>
+</div>
+</li>
+<li class="goal">
+<div class="goal">
+<h4>
+<a name="N1058F">Notification of Project Changes</a>
+</h4>
+<div class="body">
+<div>The system notifies the stakeholders of changes to the project. The user can customize how the notifications occur: every time a change is made, or a periodic summary.</div>
+</div>
+</div>
+</li>
+<li class="goal">
+<div class="goal">
+<h4>
+<a name="N105D6">Requirements defined in Natural Language</a>
+</h4>
+<div class="body">
+<div>The requirements are defined in natural language such that non-technical users do not need specialized skills to understand the requirements.</div>
+<h4>Goal Relations</h4>
+<ul>
+<li class="goal">
+<div>Supports -
+				<a href="#N104A9">Easy to Use</a>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</li>
+<li class="goal">
+<div class="goal">
+<h4>
+<a name="N1061D">Secure data access</a>
+</h4>
+<div class="body">
+<div>The system secures project content from unauthorized access by users not assigned to a project or non-users of the system.</div>
+</div>
+</div>
+</li>
+<li class="goal">
+<div class="goal">
+<h4>
+<a name="N10652">Work is your own</a>
+</h4>
+<div class="body">
+<div>The work done on the thesis is exclusively done by the student.</div>
+</div>
+</div>
+</li>
+</ul>
+</div>
+<a name="stories"/>
+<h2>Stories</h2>
+<div class="body">
+<div class="story">
+<h4>
+<a name="N10820">Success
+					Story -
+					Poor Communication in Requirements</a>
+</h4>
+<div class="body">Buddy the controller of Bailey Pet Supply has a problem; it takes over a month to close the books each quarter. Due to new disclosure requirements, Alex the CFO needs to submit quarterly results to the board of directors one week after the end of the quarter. Buddy tells Theresa, the accounting manager, that they need to close the books each quarter in less than a week. Theresa tells Buddy that the problem stems from the order processing system not being integrated with the accounting package and at the end of each month data must be entered into both systems to reconcile them manually.
+Buddy decides that the systems must be integrated before the end of the next quarter so that the one week turn-around for reporting can be met. Buddy meets with Dave the IT manager to discuss the work. Dave assigns Tim, one of the IT project managers, to work with Buddy to determine the requirements and estimate the work. Tim meets with Buddy and they generate a list of high level requirements. Tim gives the requirements and a rough estimate of two months to Dave, who in turn gives them to Ron, an MIS programmer, to design and develop. Ron reviews the requirements and goes back to Dave and tells him there are a lot of vague areas and he needs to get clarification from Tim and Buddy.
+Ron and Tim have a meeting to discuss the requirements. Ron asks Tim "What is a purchase order?" Tim response "It's a record in the purchase system that Linda enters based on information from a sales person." Ron asks "What information is in the purchase order?" Tim doesn't know and tells Ron he will ask Buddy and get back to him. Tim sends an email to Buddy and calls it a day.
+Buddy replies to Tim's email that he should talk to Linda to get the details of a purchase order. Tim has a meeting with Linda and gets the details on the data for a purchase order. Tim sends Ron an email with the information. Ron replies to Tim's email "Is there a database with data that I can look at for a sample?"</div>
+</div>
+<div class="story">
+<h4>
+<a name="N1090F">Success
+					Story -
+					Rich creates a new project</a>
+</h4>
+<div class="body">Rich logs in to the system and it displays a list of his active projects and the option to create a new project. Rich chooses to create a new project and the system displays the new project interface. Rich enters "Mobile Media Portal" for the project name and enters a short description. Rich looks over the list of existing customers and doesn't see what he's looking for and enters "Virile Mobile".
+
+The system creates the new project and adds Rich as a stakeholder with permission to edit all project entities and grant permission to other users to edit entities. The system closes the new project interface and adds the new project in the project navigation interface.</div>
+</div>
+<div class="story">
+<h4>
+<a name="N1096E">Success
+					Story -
+					Rich logs in to the system</a>
+</h4>
+<div class="body">Rich opens a web browser to the Requel system address. The system doesn't detect an existing user session and presents the login screen. Rich enters his username and password. The system verifies the username and password combination is correct. The system logs that Rich has successfully logged into the system and shows him a list of his open projects and an overview of recent project changes.</div>
+</div>
+<div class="story">
+<h4>
+<a name="N109C1">Exception
+					Story -
+					Ron fails to log in to the system</a>
+</h4>
+<div class="body">Ron opens a web browser to the Requel system address. The system doesn't detect an existing user session and presents the login screen. Ron doesn't have a username and password yet so he chooses the help option. The system displays a message that the system requires a distinct username and password and that the user should contact Dave at extension 500 or via email to dave@requel if they need a new account or are having a problem connecting. The system also displays a help message describing what to do if the user forgot their account information. Ron sends Dave an email to create him a new account.</div>
+</div>
+<div class="story">
+<h4>
+<a name="N10A20">Success
+					Story -
+					Theresa creates a new project</a>
+</h4>
+<div class="body">When Theresa logs in, the system determines that she has permission to create projects and displays the "Create Project" option in the system interface. Theresa chooses to create a new project and the system displays the new project interface. Theresa enters "Purchase Order System" for the project name, leaves the description blank, and leaves "Bailey Pet Supply", her default automatically supplied, as the customer.
+
+The system creates the new project and adds Theresa as a stakeholder with permission to edit all project entities and grant permission to other users to edit entities. The system closes the new project interface and displays the project navigation interface to add and edit the project's entities.</div>
+</div>
+<div class="story">
+<h4>
+<a name="N10A7C">Success
+					Story -
+					Theresa logs in to the system</a>
+</h4>
+<div class="body">Theresa connects to the Requel system via a web browser from a link in an email message sent by the Requel system when Dave the system administrator created an account for her. The system displays the new user setup interface, prompting Theresa to confirm the personal information Dave entered about her and filling in any missing information, such as name, phone number, email address, a username and a password. When Theresa completes entering the information the system forwards her to the login screen.
+
+Theresa enters her username and password, and the system verifies it as correct. The system logs that Theresa has successfully logged into the system, and because Theresa is a novice user, the system displays the novice user interface to help her get started.</div>
+</div>
+</div>
+<a name="usecases"/>
+<h2>Use Cases</h2>
+<div class="body">
+<div class="usecase">
+<h4>
+<a name="N10AF5">A user creates a new project</a>
+</h4>
+<div class="body">
+<h4>Stories</h4>
+<div class="body">
+<ul>
+<li>
+<a href="#N1090F">Rich creates a new project</a>
+</li>
+<li>
+<a href="#N10A20">Theresa creates a new project</a>
+</li>
+</ul>
+</div>
+<h4>Primary Actor: <a href="#N10094">System Admin</a>
+</h4>
+<h4>Scenario</h4>
+<div class="scenario">
+<ol class="scenario">
+<li class="step">Primary - The system verifies that the user is authorized to create a new project and displays the option to the user in the interface.</li>
+<li class="step">Primary - The user chooses to create a new project.</li>
+<li class="step">Primary - The system displays an interface prompting the user for a project name, a short description, and the customer name, defaulted to the user's company name.</li>
+<li class="step">Primary - The system verifies the project name and customer name<ol class="scenario">
+<li class="step">Exception - The system informs the user the project name and customer name combination is not unique and prompts the user to change either.</li>
+</ol>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="usecase">
+<h4>
+<a name="N10B2F">A user logs in to the system</a>
+</h4>
+<div class="body">
+<h4>Goals</h4>
+<ul class="goals">
+<li class="goal">
+<span class="body">
+<a href="#N1061D">Secure data access</a>
+</span>
+</li>
+<li class="goal">
+<span class="body">
+<a href="#N10652">Work is your own</a>
+</span>
+</li>
+</ul>
+<h4>Stories</h4>
+<div class="body">
+<ul>
+<li>
+<a href="#N1096E">Rich logs in to the system</a>
+</li>
+<li>
+<a href="#N109C1">Ron fails to log in to the system</a>
+</li>
+<li>
+<a href="#N10A7C">Theresa logs in to the system</a>
+</li>
+</ul>
+</div>
+<h4>Primary Actor: <a href="#N10043">Interactive User</a>
+</h4>
+<h4>Scenario</h4>
+<div class="scenario">
+<ol class="scenario">
+<li class="step">Primary - The user access the system.</li>
+<li class="step">Primary - The system determines the user doesn't have an active session and displays a login interface prompting the user for a username and password. The system interface includes a help option that the user can choose if they need help.</li>
+<li class="step">Primary - The user enters her username and password and submits them.<ol class="scenario">
+<li class="step">Alternative - The user chooses the help option.<ol class="scenario">
+<li class="step">Primary - The system displays a helpful message of whom to contact to get a user account and instructions of what to do if they forgot their password.</li>
+</ol>
+</li>
+</ol>
+</li>
+<li class="step">Primary - The system verifies the user supplied a correct username and password combination, logs the successful login and presents the user with an interface to use the system.<ol class="scenario">
+<li class="step">Exception - The system informs the user that the username and password combination supplied is not valid and displays the login interface.</li>
+</ol>
+</li>
+</ol>
+</div>
+</div>
+</div>
+</div>
+<!---->
+<a name="glossary"/>
+<h2>Glossary</h2>
+<div class="body">
+<table class="stakeholders">
+<thead>
+<tr>
+<th>Term</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>non-technical users</td>
+<td>users of the system that are not information technology specialists or software developers.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="ft">
+	<p>
+		<a href="http://sourceforge.net/">Project Web Hosted by <img src="http://sflogo.sourceforge.net/sflogo.php?group_id=259442&amp;type=3" alt="SourceForge.net" /></a>
+          </p>
+          <p>
+		<a href="http://sourceforge.net/about">About</a> - 
+              <a href="http://sourceforge.net/tos/tos.php">Legal</a> - 
+		<a href="http://sourceforge.net/support">Help</a>
+          </p>
+      </div>
+</body>
+</html>
