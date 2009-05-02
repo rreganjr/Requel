@@ -1,5 +1,24 @@
+/*
+ * $Id: Repository.java,v 1.5 2009/02/11 09:02:56 rregan Exp $
+ * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * This file is part of Requel - the Collaborative Requirments
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 package edu.harvard.fas.rregan.repository;
-
 
 /**
  * A generic set of methods common to all repositories.
@@ -31,8 +50,8 @@ public interface Repository {
 	public <T> T merge(T entity) throws EntityException;
 
 	/**
-	 * takes a previously persisted object and returns the latest
-	 * version from the database.
+	 * takes a previously persisted object and returns the latest version from
+	 * the database.
 	 * 
 	 * @param <T>
 	 * @param entity
@@ -43,6 +62,7 @@ public interface Repository {
 
 	/**
 	 * takes a persistent object and initializes any lazy loaded properties.
+	 * 
 	 * @param <T>
 	 * @param entity
 	 * @return
@@ -57,11 +77,13 @@ public interface Repository {
 	 * @throws EntityException
 	 */
 	public void delete(Object entity) throws EntityException;
-	
+
 	/**
-	 * force the repository to sync up any pending work, without actually ending a transaction.
+	 * force the repository to sync up any pending work, without actually ending
+	 * a transaction.
+	 * 
 	 * @throws EntityException
 	 */
 	public void flush() throws EntityException;
-	
+
 }
