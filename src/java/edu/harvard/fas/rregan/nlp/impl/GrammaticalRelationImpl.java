@@ -1,6 +1,22 @@
 /*
  * $Id: GrammaticalRelationImpl.java,v 1.3 2009/02/10 03:30:46 rregan Exp $
- * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * This file is part of Requel - the Collaborative Requirments
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 package edu.harvard.fas.rregan.nlp.impl;
 
@@ -63,7 +79,7 @@ public class GrammaticalRelationImpl implements GrammaticalRelation {
 		}
 		return (getDependent().getWordIndex().compareTo(o.getDependent().getWordIndex()));
 	}
-	
+
 	@Override
 	public int hashCode() {
 		final int prime = 31;
@@ -76,28 +92,37 @@ public class GrammaticalRelationImpl implements GrammaticalRelation {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		}
+		if (obj == null) {
 			return false;
-		if (getClass() != obj.getClass())
+		}
+		if (getClass() != obj.getClass()) {
 			return false;
+		}
 		final GrammaticalRelationImpl other = (GrammaticalRelationImpl) obj;
 		if (dependent == null) {
-			if (other.dependent != null)
+			if (other.dependent != null) {
 				return false;
-		} else if (!dependent.equals(other.dependent))
+			}
+		} else if (!dependent.equals(other.dependent)) {
 			return false;
+		}
 		if (governor == null) {
-			if (other.governor != null)
+			if (other.governor != null) {
 				return false;
-		} else if (!governor.equals(other.governor))
+			}
+		} else if (!governor.equals(other.governor)) {
 			return false;
+		}
 		if (type == null) {
-			if (other.type != null)
+			if (other.type != null) {
 				return false;
-		} else if (!type.equals(other.type))
+			}
+		} else if (!type.equals(other.type)) {
 			return false;
+		}
 		return true;
 	}
 
