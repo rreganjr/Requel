@@ -1,6 +1,22 @@
 /*
  * $Id: EventDispatcher.java,v 1.6 2008/09/12 00:15:11 rregan Exp $
- * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * This file is part of Requel - the Collaborative Requirments
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 package edu.harvard.fas.rregan.uiframework.navigation.event;
 
@@ -27,10 +43,9 @@ public interface EventDispatcher extends ActionListener {
 	/**
 	 * Add a listener for a specific type of event or any sub class of that
 	 * event.<br>
-	 * This method is most often used by Controllers such as the
-	 * LoginController or simple Listeners such as
-	 * NavigatorTreeNodeUpdateListener that listens for entity changes and
-	 * updates a navigation tree.
+	 * This method is most often used by Controllers such as the LoginController
+	 * or simple Listeners such as NavigatorTreeNodeUpdateListener that listens
+	 * for entity changes and updates a navigation tree.
 	 * 
 	 * @param eventType -
 	 *            the class of an ActionEvent or sub class to listen for.
@@ -52,8 +67,9 @@ public interface EventDispatcher extends ActionListener {
 	 *            a Controller or simple listener that will receive the event
 	 *            when dispatched through the dispatchEvent() method.
 	 * @param destinationObject -
-	 *            the destination object. Events will only get fired to the listener
-	 *            if the destination of the event matches the registered destination.
+	 *            the destination object. Events will only get fired to the
+	 *            listener if the destination of the event matches the
+	 *            registered destination.
 	 * @return the supplied listener
 	 */
 	public ActionListener addEventTypeActionListener(Class<? extends ActionEvent> eventType,
@@ -72,9 +88,9 @@ public interface EventDispatcher extends ActionListener {
 			ActionListener listener);
 
 	/**
-	 * Remove a listener for a specific type of event and destination. Listeners registered
-	 * with the addEventTypeActionListener() that takes a destinationObject should be
-	 * removed with this method.
+	 * Remove a listener for a specific type of event and destination. Listeners
+	 * registered with the addEventTypeActionListener() that takes a
+	 * destinationObject should be removed with this method.
 	 * 
 	 * @param eventType -
 	 *            the class of an ActionEvent or sub class to listen for.

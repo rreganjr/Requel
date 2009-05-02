@@ -1,6 +1,22 @@
 /*
  * $Id: DefaultPanelManager.java,v 1.14 2008/12/17 02:00:42 rregan Exp $
- * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * This file is part of Requel - the Collaborative Requirments
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 package edu.harvard.fas.rregan.uiframework.panel;
 
@@ -94,8 +110,7 @@ public class DefaultPanelManager implements PanelManager {
 				Panel panelToClose = event.getPanelToClose();
 				if (panelToClose != null) {
 					getPanelContainer().undisplayPanel(panelToClose);
-					unregister(panelToClose, getEventDispatcher(),
-							panelToClose.getTargetObject());
+					unregister(panelToClose, getEventDispatcher(), panelToClose.getTargetObject());
 				}
 			}
 		}
@@ -164,7 +179,8 @@ public class DefaultPanelManager implements PanelManager {
 						if (targetType.getInterfaces() != null) {
 							for (Class<?> face : targetType.getInterfaces()) {
 								panel = getPanel(openEvent.getPanelActionType(), face, openEvent
-										.getPanelName(), openEvent.getTargetObject(), openEvent.getSource());
+										.getPanelName(), openEvent.getTargetObject(), openEvent
+										.getSource());
 								if (panel != null) {
 									break;
 								}
@@ -177,8 +193,9 @@ public class DefaultPanelManager implements PanelManager {
 					}
 				} else {
 					// panel with no content type
-					panel = getPanel(openEvent.getPanelActionType(), null, openEvent
-							.getPanelName(), openEvent.getTargetObject(), openEvent.getSource());					
+					panel = getPanel(openEvent.getPanelActionType(), null,
+							openEvent.getPanelName(), openEvent.getTargetObject(), openEvent
+									.getSource());
 				}
 			}
 		} else if (e instanceof ClosePanelEvent) {
@@ -265,9 +282,13 @@ public class DefaultPanelManager implements PanelManager {
 		}
 		if (panel != null) {
 			if (destinationObject != null) {
-				if (panel.getDestinationObject() != null && !destinationObject.equals(panel.getDestinationObject())) {
-					// the panel is already configured 
-					log.warn("the panel " + panel + " is already configured to send events to destination " + panel.getDestinationObject() + ", not changing destination to " + destinationObject);
+				if ((panel.getDestinationObject() != null)
+						&& !destinationObject.equals(panel.getDestinationObject())) {
+					// the panel is already configured
+					log.warn("the panel " + panel
+							+ " is already configured to send events to destination "
+							+ panel.getDestinationObject() + ", not changing destination to "
+							+ destinationObject);
 				} else {
 					panel.setDestinationObject(destinationObject);
 				}
@@ -300,8 +321,8 @@ public class DefaultPanelManager implements PanelManager {
 			}
 			// actionType, panelName
 			if (panelDescriptor == null) {
-				panelDescriptor = panelDescriptors.get(new PanelRegistryKey(
-						actionType, null, panelName, targetObject));
+				panelDescriptor = panelDescriptors.get(new PanelRegistryKey(actionType, null,
+						panelName, targetObject));
 			}
 
 			// panelName

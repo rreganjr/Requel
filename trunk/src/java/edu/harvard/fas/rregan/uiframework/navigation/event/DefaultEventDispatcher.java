@@ -1,6 +1,22 @@
 /*
  * $Id: DefaultEventDispatcher.java,v 1.23 2008/12/17 02:00:43 rregan Exp $
- * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * This file is part of Requel - the Collaborative Requirments
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 package edu.harvard.fas.rregan.uiframework.navigation.event;
 
@@ -162,7 +178,8 @@ public class DefaultEventDispatcher implements EventDispatcher {
 						.cast(eventType))));
 				if (NavigationEvent.class.isAssignableFrom(eventType)) {
 					distinctListeners.addAll(getEventListenersByKey(new PanelListenerKey(
-							Class.class.cast(eventType), (Object) ((NavigationEvent)event).getDestinationObject())));
+							Class.class.cast(eventType), ((NavigationEvent) event)
+									.getDestinationObject())));
 				}
 				eventType = eventType.getSuperclass();
 			} while (ActionEvent.class.isAssignableFrom(eventType));
@@ -177,15 +194,15 @@ public class DefaultEventDispatcher implements EventDispatcher {
 		if (targetType != null) {
 			do {
 				while (targetType != null) {
-					distinctListeners.addAll(getEventListenersByKey(new PanelListenerKey(Class.class
-							.cast(eventType), openEvent.getPanelActionType(), targetType, openEvent
-							.getPanelName(), openEvent.getPanel(), null)));
-	
+					distinctListeners.addAll(getEventListenersByKey(new PanelListenerKey(
+							Class.class.cast(eventType), openEvent.getPanelActionType(),
+							targetType, openEvent.getPanelName(), openEvent.getPanel(), null)));
+
 					if (targetType.getInterfaces() != null) {
 						for (Class<?> face : targetType.getInterfaces()) {
 							distinctListeners.addAll(getEventListenersByKey(new PanelListenerKey(
-									Class.class.cast(eventType), openEvent.getPanelActionType(), face,
-									openEvent.getPanelName(), openEvent.getPanel(), null)));
+									Class.class.cast(eventType), openEvent.getPanelActionType(),
+									face, openEvent.getPanelName(), openEvent.getPanel(), null)));
 						}
 					}
 					targetType = targetType.getSuperclass();
@@ -197,7 +214,7 @@ public class DefaultEventDispatcher implements EventDispatcher {
 			distinctListeners.addAll(getEventListenersByKey(new PanelListenerKey(Class.class
 					.cast(eventType), openEvent.getPanelActionType(), null, openEvent
 					.getPanelName(), openEvent.getPanel(), null)));
-			
+
 		}
 	}
 
@@ -224,14 +241,14 @@ public class DefaultEventDispatcher implements EventDispatcher {
 	public ActionListener addEventTypeActionListener(Class<? extends ActionEvent> eventType,
 			ActionListener listener) {
 		log.debug("eventType = " + eventType + " listener = " + listener);
-		getEventListenersByKey(new PanelListenerKey(Class.class.cast(eventType)))
-				.add(listener);
+		getEventListenersByKey(new PanelListenerKey(Class.class.cast(eventType))).add(listener);
 		return listener;
 	}
 
 	public ActionListener addEventTypeActionListener(Class<? extends ActionEvent> eventType,
 			ActionListener listener, Object destinationObject) {
-		log.debug("eventType = " + eventType + " listener = " + listener + " destinationObject = " + destinationObject);
+		log.debug("eventType = " + eventType + " listener = " + listener + " destinationObject = "
+				+ destinationObject);
 		getEventListenersByKey(new PanelListenerKey(Class.class.cast(eventType), destinationObject))
 				.add(listener);
 		return listener;
@@ -240,8 +257,7 @@ public class DefaultEventDispatcher implements EventDispatcher {
 	public void removeEventTypeActionListener(Class<? extends ActionEvent> eventType,
 			ActionListener listener) {
 		log.debug("eventType = " + eventType + " listener = " + listener);
-		getEventListenersByKey(new PanelListenerKey(Class.class.cast(eventType)))
-				.remove(listener);
+		getEventListenersByKey(new PanelListenerKey(Class.class.cast(eventType))).remove(listener);
 	}
 
 	public void removeEventTypeActionListener(Class<? extends ActionEvent> eventType,
