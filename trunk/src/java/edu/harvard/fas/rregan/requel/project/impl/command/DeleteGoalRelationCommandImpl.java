@@ -1,6 +1,22 @@
 /*
  * $Id: DeleteGoalRelationCommandImpl.java,v 1.4 2009/03/30 11:54:27 rregan Exp $
- * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * This file is part of Requel - the Collaborative Requirments
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 package edu.harvard.fas.rregan.requel.project.impl.command;
 
@@ -24,19 +40,22 @@ import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.requel.user.UserRepository;
 
 /**
- * 
  * @author ron
  */
 @Controller("deleteGoalRelationCommand")
 @Scope("prototype")
-public class DeleteGoalRelationCommandImpl extends AbstractEditProjectCommand implements DeleteGoalRelationCommand {
+public class DeleteGoalRelationCommandImpl extends AbstractEditProjectCommand implements
+		DeleteGoalRelationCommand {
 
 	private GoalRelation goalRelation;
-	
+
 	@Autowired
-	public DeleteGoalRelationCommandImpl(AssistantFacade assistantManager, UserRepository userRepository, ProjectRepository projectRepository, ProjectCommandFactory projectCommandFactory,
+	public DeleteGoalRelationCommandImpl(AssistantFacade assistantManager,
+			UserRepository userRepository, ProjectRepository projectRepository,
+			ProjectCommandFactory projectCommandFactory,
 			AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler) {
-		super(assistantManager, userRepository, projectRepository, projectCommandFactory, annotationCommandFactory, commandHandler);
+		super(assistantManager, userRepository, projectRepository, projectCommandFactory,
+				annotationCommandFactory, commandHandler);
 	}
 
 	@Override
@@ -54,7 +73,8 @@ public class DeleteGoalRelationCommandImpl extends AbstractEditProjectCommand im
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(goalRelation.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
+					.newRemoveAnnotationFromAnnotatableCommand();
 			removeAnnotationFromAnnotatableCommand.setEditedBy(editedBy);
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(goalRelation);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
