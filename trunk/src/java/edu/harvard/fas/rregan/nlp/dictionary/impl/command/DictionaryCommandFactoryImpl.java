@@ -37,7 +37,6 @@ import edu.harvard.fas.rregan.nlp.dictionary.command.EditVerbNetSelectionRestric
 import edu.harvard.fas.rregan.nlp.dictionary.command.ExportDictionaryCommand;
 import edu.harvard.fas.rregan.nlp.dictionary.command.ImportDictionaryCommand;
 import edu.harvard.fas.rregan.nlp.dictionary.command.ImportSemcorCommand;
-import edu.harvard.fas.rregan.nlp.dictionary.command.ImportSemcorFileCommand;
 import edu.harvard.fas.rregan.nlp.dictionary.command.SynsetHypernymWalkCommand;
 
 /**
@@ -89,14 +88,7 @@ public class DictionaryCommandFactoryImpl extends AbstractCommandFactory impleme
 
 	@Override
 	public ImportSemcorCommand newImportSemcorCommand() {
-		return (ImportSemcorCommand) getCreationStrategy().newInstance(
-				ImportSemcorCommandImpl.class);
-	}
-
-	@Override
-	public ImportSemcorFileCommand newImportSemcorFileCommand() {
-		return (ImportSemcorFileCommand) getCreationStrategy().newInstance(
-				ImportSemcorFileCommandImpl.class);
+		throw new RuntimeException("ImportSemcorCommand is no longer supported.");
 	}
 
 	@Override

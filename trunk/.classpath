@@ -51,9 +51,7 @@
 	<classpathentry kind="lib" path="lib/jaxb/jaxb-xjc.jar" sourcepath="src/lib/jaxb/jaxb-xjc-src.jar"/>
 	<classpathentry kind="lib" path="lib/jaxb/jsr173_1.0_api.jar"/>
 	<classpathentry kind="lib" path="lib/mysql/mysql-connector-java-5.0.4-bin.jar"/>
-	<classpathentry kind="lib" path="lib/nlp/jawbone.jar" sourcepath="src/lib/nlp/jawbone-src.jar"/>
 	<classpathentry kind="lib" path="lib/nlp/jwnl-1.4rc2.jar" sourcepath="src/lib/nlp/jwnl-1.4rc2-src.jar"/>
-	<classpathentry kind="lib" path="lib/nlp/jsemcor_1.0.0_jdk.jar"  sourcepath="lib/nlp/jsemcor_1.0.0_jdk.jar"/>
 	<classpathentry kind="lib" path="lib/nlp/maxent-2.4.0.jar" sourcepath="src/lib/nlp/maxent-2.4.0-src.jar"/>
 	<classpathentry kind="lib" path="lib/nlp/opennlp-tools-1.3.0.jar" sourcepath="src/lib/nlp/opennlp-tools-1.3.0-src.jar"/>
 	<classpathentry kind="lib" path="lib/nlp/stanford-ner.jar" sourcepath="src/lib/nlp/stanford-ner.src.jar"/>

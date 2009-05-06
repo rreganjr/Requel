@@ -68,12 +68,6 @@ public interface DictionaryCommandFactory extends CommandFactory {
 	public ImportSemcorCommand newImportSemcorCommand();
 
 	/**
-	 * @return a new ImportSemcorFileCommand for importing a single file of the
-	 *         SemCor semantically annotated corpus into the database.
-	 */
-	public ImportSemcorFileCommand newImportSemcorFileCommand();
-
-	/**
 	 * @return a new CalculateWordFrequenceCommand for calculating the word
 	 *         frequency of Semcor words tagged with a sense and setting the
 	 *         frequency on the Sense.
