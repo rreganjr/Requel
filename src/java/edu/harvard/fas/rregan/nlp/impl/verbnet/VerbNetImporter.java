@@ -1,6 +1,7 @@
 /*
  * $Id: VerbNetImporter.java,v 1.1 2008/06/18 07:55:26 rregan Exp $
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -33,15 +34,31 @@ import org.apache.log4j.Logger;
 import edu.harvard.fas.rregan.nlp.verbnet.VNCLASS;
 
 /**
+ * This class is used to load the VerbNet 2.1 data from the source files into
+ * the jaxb generated class in the verbnet-2.1.jar generated via the
+ * gen-verbnet-jars ant task using the jaxb xjc on the vn_schema-3.xsd schema
+ * file. Only the {@link edu.harvard.fas.rregan.nlp.VerbNetImporterTests} uses
+ * this class, development of this was abandoned and the WordNet SQL Builder
+ * database is used instead.
+ * 
  * @author ron
+ * @see {@link edu.harvard.fas.rregan.nlp.VerbNetImporterTests}
+ * @deprecated this effort was abandoned and the WordNet SQL Builder database is
+ *             used instead.
  */
+@Deprecated
 public class VerbNetImporter {
 	protected static final Logger log = Logger.getLogger(VerbNetImporter.class);
 
 	/**
-	 * @param verbNetSchemaFile
-	 * @param verbNetDataFile
-	 * @return
+	 * Load a single VerbNet class from XML to a VNCLASS object.
+	 * 
+	 * @param verbNetSchemaFile -
+	 *            the schema used to generate the Java classes.
+	 * @param verbNetDataFile -
+	 *            the VerbNet XML class file.
+	 * @return The VNCLASS object containing the verbnet objects loaded from the
+	 *         specified VerbNet file.
 	 * @throws Exception
 	 */
 	public VNCLASS loadVerbNetClass(File verbNetSchemaFile, File verbNetDataFile) throws Exception {
