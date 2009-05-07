@@ -40,6 +40,17 @@ prior written permission. For written permission, please contact
 rod.johnson@interface21.com or juergen.hoeller@interface21.com.
 
 =========================================================================
+==  Hibernate Notice                                                   ==
+=========================================================================
+
+Copyright (c) 2004 Red Hat Middleware, LLC
+Copyright (c) 2007 by Red Hat, Inc. 
+This copyrighted material is made available to anyone wishing to use,
+modify, copy, or redistribute it subject to the terms and conditions of
+the GNU Lesser General Public License, as published by the Free Software
+Foundation. 
+
+=========================================================================
 ==  ASM Notice                                                         ==
 =========================================================================
 
