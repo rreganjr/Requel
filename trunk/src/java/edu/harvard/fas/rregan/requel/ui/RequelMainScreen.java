@@ -100,6 +100,18 @@ public class RequelMainScreen extends AbstractScreen {
 	 */
 	public static final String PROP_LABEL_EDIT_ACCOUNT_BUTTON = "EditAccountButton.Label";
 
+	/**
+	 * The name of the property to use for the user guide button label from the
+	 * specified resource (property) file.
+	 */
+	public static final String PROP_LABEL_USER_GUIDE_BUTTON = "UserGuideButton.Label";
+
+	/**
+	 * The name of the property to use for the user guide path from the
+	 * specified resource (property) file.
+	 */
+	public static final String PROP_USER_GUIDE_PATH = "UserGuidePath";
+
 	private final PanelContainer mainNavigationPanelContainer;
 	private final PanelContainer mainContentPanelContainer;
 
@@ -175,6 +187,8 @@ public class RequelMainScreen extends AbstractScreen {
 		editAccountButton.setStyleName(Panel.STYLE_NAME_DEFAULT);
 		logoutPaneRow.add(editAccountButton);
 
+		logoutPaneRow.add(getUserGuideButton());
+
 		NavigatorButton logoutButton = new NavigatorButton(getResourceBundleHelper(getLocale())
 				.getString(PROP_LABEL_LOGOUT_BUTTON, "Logout"), getEventDispatcher(),
 				new LogoutEvent(this));
@@ -218,6 +232,48 @@ public class RequelMainScreen extends AbstractScreen {
 					getApp().enqueueCommand(
 							new BrowserOpenWindowCommand("doc/html/index.html", "Dev Docs",
 									features));
+				} catch (Exception ex) {
+					// TODO: should this be propogated up?
+					log.error("Unexpected exception opening browser window: " + ex, ex);
+				}
+			}
+		});
+		return docsButton;
+	}
+
+	private Component getUserGuideButton() {
+		Button docsButton = new Button(getResourceBundleHelper(getLocale()).getString(
+				PROP_LABEL_USER_GUIDE_BUTTON, "User Guide"));
+		docsButton.setStyleName("Default");
+		docsButton.addActionListener(new ActionListener() {
+			static final long serialVersionUID = 0;
+
+			public void actionPerformed(ActionEvent e) {
+				try {
+					/*
+					 * open window features width - Defines the width of the new
+					 * window (in pixels). height - Defines the height of the
+					 * new window (in pixels). directories - Defines whether the
+					 * directories (Links) toolbar is shown (yes | no) location -
+					 * Defines whether the location toolbar is shown (yes | no).
+					 * menubar - Defines whether the menu toolbar (File, Edit
+					 * etc.) is shown (yes | no). resizable - Defines whether
+					 * the user can resize the new window (yes | no). scrollbars -
+					 * Defines whether the new window has scrollbars (yes | no).
+					 * status - Defines whether the new window has a status bar
+					 * (yes | no). toolbar - Defines whether the general toolbar
+					 * (Back, Forward etc.) is shown (yes | no). left - Defines
+					 * how many pixels from the left that the new window
+					 * appears. top - Defines how many pixels from the top that
+					 * the new window appears. fullscreen - Opens popup in IE
+					 * fullscreen mode (fullscreen=yes).
+					 */
+					String features = "height=440,width=350,resizable=yes,status=yes,location=yes,scrollbars=yes";
+					getApp().enqueueCommand(
+							new BrowserOpenWindowCommand(getResourceBundleHelper(getLocale())
+									.getString(PROP_USER_GUIDE_PATH, "doc/UserGuide.pdf"),
+									getResourceBundleHelper(getLocale()).getString(
+											PROP_LABEL_USER_GUIDE_BUTTON, "User Guide"), features));
 				} catch (Exception ex) {
 					// TODO: should this be propogated up?
 					log.error("Unexpected exception opening browser window: " + ex, ex);

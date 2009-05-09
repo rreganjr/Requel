@@ -35,6 +35,7 @@
 	<target name="prepare-war" description="build directories if they do not exist">
 		<mkdir dir="${build.dir}/${context.name}/"/>
 		<mkdir dir="${build.dir}/${context.name}/war"/>
+		<mkdir dir="${build.dir}/${context.name}/war/doc"/>
 		<mkdir dir="${build.dir}/${context.name}/war/META-INF"/>
 		<mkdir dir="${build.dir}/${context.name}/war/WEB-INF"/>
 		<mkdir dir="${build.dir}/${context.name}/war/WEB-INF/classes"/>
@@ -107,6 +108,10 @@
 			<param name="src.dir" value="src/java"/>
 			<param name="classes.dir" value="${build.dir}/${context.name}/war/WEB-INF/classes"/>
 		</antcall>
+
+		<copy todir="${build.dir}/${context.name}/war" file="COPYING.txt" description="copy license." failonerror="false"/>
+		<copy todir="${build.dir}/${context.name}/war" file="NOTICE.txt" description="copy acknowledgement and disclaimer notice." failonerror="false"/>
+		<copy todir="${build.dir}/${context.name}/war/doc" file="doc/UserGuide.pdf" description="copy acknowledgement and disclaimer notice." failonerror="false"/>
     	
 		<copy todir="${build.dir}/${context.name}/war/WEB-INF/lib" flatten="true">
 			<fileset dir="lib/">
@@ -114,6 +119,7 @@
 				<exclude name="build/**/*.jar"/>
 				<exclude name="test/**/*.jar"/>
 				<exclude name="nlp/**/*.jar"/>
+				<exclude name="jaxb/**/*.jar"/>
 			</fileset>
 			<fileset dir="lib/">
 				<include name="nlp/stanford-ner.jar"/>
@@ -122,6 +128,8 @@
 				<include name="nlp/maxent-2.4.0.jar"/>
 				<include name="nlp/opennlp-tools-1.3.0.jar"/>
 				<include name="nlp/trove-2.0.3.jar"/>
+				<include name="jaxb/activation.jar"/>
+				<include name="jaxb/jaxb-impl.jar"/>
 			</fileset>
 		</copy>
 
