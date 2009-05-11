@@ -20,6 +20,13 @@
  */
 package edu.harvard.fas.rregan.requel.ui;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URL;
+
 import nextapp.echo2.app.Alignment;
 import nextapp.echo2.app.Button;
 import nextapp.echo2.app.Component;
@@ -30,8 +37,10 @@ import nextapp.echo2.app.Row;
 import nextapp.echo2.app.SplitPane;
 import nextapp.echo2.app.event.ActionEvent;
 import nextapp.echo2.app.event.ActionListener;
+import nextapp.echo2.app.filetransfer.DownloadProvider;
 import nextapp.echo2.webcontainer.command.BrowserOpenWindowCommand;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -40,6 +49,7 @@ import org.springframework.context.annotation.Scope;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.uiframework.PanelContainer;
 import edu.harvard.fas.rregan.uiframework.login.LogoutEvent;
+import edu.harvard.fas.rregan.uiframework.navigation.DownloadButton;
 import edu.harvard.fas.rregan.uiframework.navigation.NavigatorButton;
 import edu.harvard.fas.rregan.uiframework.navigation.WorkflowDisposition;
 import edu.harvard.fas.rregan.uiframework.navigation.event.NavigationEvent;
@@ -108,9 +118,11 @@ public class RequelMainScreen extends AbstractScreen {
 
 	/**
 	 * The name of the property to use for the user guide path from the
-	 * specified resource (property) file.
+	 * specified resource (property) file. The path is relative to the class
+	 * path in the war file.
 	 */
 	public static final String PROP_USER_GUIDE_PATH = "UserGuidePath";
+	public static final String PROP_USER_GUIDE_PATH_DEFAULT = "../../doc/UserGuide.pdf";
 
 	private final PanelContainer mainNavigationPanelContainer;
 	private final PanelContainer mainContentPanelContainer;
@@ -242,44 +254,63 @@ public class RequelMainScreen extends AbstractScreen {
 	}
 
 	private Component getUserGuideButton() {
-		Button docsButton = new Button(getResourceBundleHelper(getLocale()).getString(
-				PROP_LABEL_USER_GUIDE_BUTTON, "User Guide"));
+		String userGuidePath = getResourceBundleHelper(getLocale()).getString(PROP_USER_GUIDE_PATH,
+				PROP_USER_GUIDE_PATH_DEFAULT);
+		Button docsButton = new DownloadButton(getResourceBundleHelper(getLocale()).getString(
+				PROP_LABEL_USER_GUIDE_BUTTON, "User Guide"), new UserGuideDownloadProvider(
+				userGuidePath));
 		docsButton.setStyleName("Default");
-		docsButton.addActionListener(new ActionListener() {
-			static final long serialVersionUID = 0;
-
-			public void actionPerformed(ActionEvent e) {
-				try {
-					/*
-					 * open window features width - Defines the width of the new
-					 * window (in pixels). height - Defines the height of the
-					 * new window (in pixels). directories - Defines whether the
-					 * directories (Links) toolbar is shown (yes | no) location -
-					 * Defines whether the location toolbar is shown (yes | no).
-					 * menubar - Defines whether the menu toolbar (File, Edit
-					 * etc.) is shown (yes | no). resizable - Defines whether
-					 * the user can resize the new window (yes | no). scrollbars -
-					 * Defines whether the new window has scrollbars (yes | no).
-					 * status - Defines whether the new window has a status bar
-					 * (yes | no). toolbar - Defines whether the general toolbar
-					 * (Back, Forward etc.) is shown (yes | no). left - Defines
-					 * how many pixels from the left that the new window
-					 * appears. top - Defines how many pixels from the top that
-					 * the new window appears. fullscreen - Opens popup in IE
-					 * fullscreen mode (fullscreen=yes).
-					 */
-					String features = "height=440,width=350,resizable=yes,status=yes,location=yes,scrollbars=yes";
-					getApp().enqueueCommand(
-							new BrowserOpenWindowCommand(getResourceBundleHelper(getLocale())
-									.getString(PROP_USER_GUIDE_PATH, "doc/UserGuide.pdf"),
-									getResourceBundleHelper(getLocale()).getString(
-											PROP_LABEL_USER_GUIDE_BUTTON, "User Guide"), features));
-				} catch (Exception ex) {
-					// TODO: should this be propogated up?
-					log.error("Unexpected exception opening browser window: " + ex, ex);
-				}
-			}
-		});
 		return docsButton;
 	}
+
+	private static class UserGuideDownloadProvider implements DownloadProvider {
+		private final String userGuidePath;
+		private File file;
+
+		private UserGuideDownloadProvider(String userGuidePath) {
+			this.userGuidePath = userGuidePath;
+			try {
+				URL url = UserGuideDownloadProvider.class.getClassLoader().getResource(
+						userGuidePath);
+				if (url != null) {
+					file = new File(url.toURI());
+				}
+			} catch (Exception e) {
+				file = null;
+			}
+		}
+
+		public String getContentType() {
+			return "application/pdf";
+		}
+
+		public String getFileName() {
+			if (file != null) {
+				return file.getName();
+			}
+			return "";
+		}
+
+		public int getSize() {
+			if (file != null) {
+				return (int) file.length();
+			}
+			return 0;
+		}
+
+		public void writeFile(OutputStream outputStream) throws IOException {
+			InputStream inputStream = null;
+			if (file != null) {
+				try {
+					inputStream = new FileInputStream(file);
+					IOUtils.copy(inputStream, outputStream);
+				} finally {
+					if (inputStream != null) {
+						IOUtils.closeQuietly(inputStream);
+					}
+				}
+			}
+		}
+	}
+
 }
