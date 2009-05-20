@@ -23,6 +23,7 @@ package edu.harvard.fas.rregan.requel.ui.project;
 import java.util.Set;
 
 import nextapp.echo2.app.Alignment;
+import nextapp.echo2.app.Component;
 import nextapp.echo2.app.Insets;
 import nextapp.echo2.app.Row;
 
@@ -52,6 +53,13 @@ public class ProjectNavigatorPanel extends NavigatorTreePanel {
 	 */
 	public static final String PROP_NEW_PROJECT_BUTTON_LABEL = "NewProjectButton.Label";
 
+
+	/**
+	 * Property name to use in the ProjectNavigatorPanel.properties to set the
+	 * lable on the import project button.
+	 */
+	public static final String PROP_IMPORT_PROJECT_BUTTON_LABEL = "ImportProjectButton.Label";
+
 	/**
 	 * Property name to use in the ProjectNavigatorPanel.properties to set the
 	 * lable on the find/open projects button.
@@ -77,41 +85,22 @@ public class ProjectNavigatorPanel extends NavigatorTreePanel {
 				.getRoleForType(ProjectUserRole.class);
 
 		if (projectUserRole.canCreateProjects()) {
-			String newProjectButtonLabel = getResourceBundleHelper(getLocale()).getString(
-					PROP_NEW_PROJECT_BUTTON_LABEL, "New Project");
-
-			NavigationEvent openProjectOverview = new OpenPanelEvent(this, PanelActionType.Editor,
-					null, Project.class, "projectOverview", WorkflowDisposition.NewFlow);
-
-			NavigatorButton newProjectButton = new NavigatorButton(newProjectButtonLabel,
-					getEventDispatcher(), openProjectOverview);
-
-			newProjectButton.setStyleName(STYLE_NAME_DEFAULT);
-			Row newProjectButtonWrapper = new Row();
-			newProjectButtonWrapper.setInsets(new Insets(5));
-			newProjectButtonWrapper
-					.setAlignment(new Alignment(Alignment.CENTER, Alignment.DEFAULT));
-			newProjectButtonWrapper.add(newProjectButton);
-			add(newProjectButtonWrapper);
+			add(createButton(PROP_NEW_PROJECT_BUTTON_LABEL, "New Project", ProjectManagementPanelNames.PROJECT_OVERVIEW_PANEL_NAME, null));
+			add(createButton(PROP_IMPORT_PROJECT_BUTTON_LABEL, "Import Project", ProjectManagementPanelNames.PROJECT_IMPORT_PANEL_NAME, null));
 		}
-
-		String findProjectButtonLabel = getResourceBundleHelper(getLocale()).getString(
-				PROP_FIND_PROJECT_BUTTON_LABEL, "Find Project");
-
-		NavigationEvent openProjectSearch = new OpenPanelEvent(this, PanelActionType.Selector,
-				getApp().getUser(), Project.class, "projectSearch", WorkflowDisposition.NewFlow);
-
-		NavigatorButton findProjectButton = new NavigatorButton(findProjectButtonLabel,
-				getEventDispatcher(), openProjectSearch);
-
-		findProjectButton.setStyleName(STYLE_NAME_DEFAULT);
-		Row findProjectButtonWrapper = new Row();
-		findProjectButtonWrapper.setInsets(new Insets(5));
-		findProjectButtonWrapper.setAlignment(new Alignment(Alignment.CENTER, Alignment.DEFAULT));
-		findProjectButtonWrapper.add(findProjectButton);
-		// TODO: project search is not implemented.
-		// add(findProjectButtonWrapper);
-
+//		add(createButton(PROP_FIND_PROJECT_BUTTON_LABEL, "Find Project", ProjectManagementPanelNames.PROJECT_SEARCH_PANEL_NAME, getApp().getUser()));
 		super.setup();
+	}
+	
+	private Component createButton(String labelResourceName, String labelDefault, String panelName, Object target) {
+		String buttonLabel = getResourceBundleHelper(getLocale()).getString(labelResourceName, labelDefault);
+		NavigationEvent event = new OpenPanelEvent(this, PanelActionType.Editor, target, Project.class, panelName, WorkflowDisposition.NewFlow);
+		NavigatorButton button = new NavigatorButton(buttonLabel, getEventDispatcher(), event);
+		button.setStyleName(STYLE_NAME_DEFAULT);
+		Row wrapper = new Row();
+		wrapper.setInsets(new Insets(5));
+		wrapper.setAlignment(new Alignment(Alignment.CENTER, Alignment.DEFAULT));
+		wrapper.add(button);
+		return wrapper;
 	}
 }

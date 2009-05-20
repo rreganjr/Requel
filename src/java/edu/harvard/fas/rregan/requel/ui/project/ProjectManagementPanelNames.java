@@ -39,6 +39,16 @@ public interface ProjectManagementPanelNames {
 	public static final String PROJECT_OVERVIEW_PANEL_NAME = "projectOverview";
 
 	/**
+	 * The name of the panel to use for importing a project.
+	 */
+	public static final String PROJECT_IMPORT_PANEL_NAME = "projectImport";
+
+	/**
+	 * The name of the panel to use for searching for projects.
+	 */
+	public static final String PROJECT_SEARCH_PANEL_NAME = "projectSearch";
+
+	/**
 	 * The name of the panel for navigating project stakeholders.
 	 */
 	public static final String PROJECT_STAKEHOLDERS_NAVIGATOR_PANEL_NAME = "projectStakeholdersNavigator";
