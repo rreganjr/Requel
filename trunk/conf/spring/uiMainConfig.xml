@@ -47,6 +47,7 @@
 					
 					<!-- project panels -->
 					<ref bean="projectOverviewPanelFactory"/>
+					<ref bean="projectImportPanelFactory"/>
 					<ref bean="projectOpenIssuesPanelFactory"/>
 					<ref bean="projectStakeholdersNavigatorPanelFactory"/>
 					<ref bean="stakeholderEditorPanelFactory"/>

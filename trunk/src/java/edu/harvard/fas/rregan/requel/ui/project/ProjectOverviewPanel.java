@@ -1,6 +1,7 @@
 /*
  * $Id: ProjectOverviewPanel.java,v 1.18 2009/03/22 11:08:24 rregan Exp $
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -20,28 +21,17 @@
  */
 package edu.harvard.fas.rregan.requel.ui.project;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.MessageFormat;
 
-import nextapp.echo2.app.Button;
-import nextapp.echo2.app.CheckBox;
 import nextapp.echo2.app.Label;
 import nextapp.echo2.app.TextArea;
 import nextapp.echo2.app.TextField;
 import nextapp.echo2.app.event.ActionEvent;
 import nextapp.echo2.app.event.ActionListener;
 import nextapp.echo2.app.filetransfer.DownloadProvider;
-import nextapp.echo2.app.filetransfer.UploadEvent;
-import nextapp.echo2.app.filetransfer.UploadListener;
-import nextapp.echo2.app.filetransfer.UploadSelect;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
 import org.hibernate.validator.InvalidStateException;
 import org.hibernate.validator.InvalidValue;
@@ -57,7 +47,6 @@ import edu.harvard.fas.rregan.requel.project.ProjectRepository;
 import edu.harvard.fas.rregan.requel.project.ProjectUserRole;
 import edu.harvard.fas.rregan.requel.project.command.EditProjectCommand;
 import edu.harvard.fas.rregan.requel.project.command.ExportProjectCommand;
-import edu.harvard.fas.rregan.requel.project.command.ImportProjectCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.ui.annotation.AnnotationsTable;
 import edu.harvard.fas.rregan.requel.user.User;
@@ -66,9 +55,11 @@ import edu.harvard.fas.rregan.uiframework.navigation.DownloadButton;
 import edu.harvard.fas.rregan.uiframework.navigation.event.DeletedEntityEvent;
 import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
 import edu.harvard.fas.rregan.uiframework.panel.editor.CombinedTextListModel;
-import edu.harvard.fas.rregan.uiframework.panel.editor.ToggleButtonModelEx;
 
 /**
+ * Create or Update a project's name, description, organization, or project
+ * general annotations.
+ * 
  * @author ron
  */
 public class ProjectOverviewPanel extends AbstractRequelProjectEditorPanel {
@@ -110,31 +101,8 @@ public class ProjectOverviewPanel extends AbstractRequelProjectEditorPanel {
 	 */
 	public static final String PROP_LABEL_EXPORT_BUTTON = "ExportButton.Label";
 
-	/**
-	 * The name to use in the ProjectOverviewPanel.properties file to set the
-	 * label of the import button. If the property is undefined "Import" is
-	 * used.
-	 */
-	public static final String PROP_LABEL_IMPORT_BUTTON = "ImportButton.Label";
-
-	/**
-	 * The name to use in the ProjectOverviewPanel.properties file to set the
-	 * label of the upload button for the project import function. If the
-	 * property is undefined "Upload" is used.
-	 */
-	public static final String PROP_LABEL_UPLOAD_BUTTON = "UploadButton.Label";
-
-	/**
-	 * The name to use in the ProjectOverviewPanel.properties file to set the
-	 * label of the upload button for the project import function. If the
-	 * property is undefined "Upload" is used.
-	 */
-	public static final String PROP_LABEL_ENABLE_ANALYSIS_BUTTON = "EnableAnalysisButton.Label";
-
 	private final UserRepository userRepository;
 	private UpdateListener updateListener;
-	private File tmpUpload;
-	private Button importButton;
 
 	/**
 	 * @param commandHandler
@@ -248,25 +216,6 @@ public class ProjectOverviewPanel extends AbstractRequelProjectEditorPanel {
 					new StringDocumentEx());
 			addInput("organizationName", PROP_LABEL_ORGANIZATION, "Organization", new ComboBox(),
 					new CombinedTextListModel(getUserRepository().getOrganizationNames(), ""));
-			try {
-				UploadSelect importXml = addInput("importXml", PROP_LABEL_IMPORT_BUTTON, "Import",
-						new UploadSelect(), null);
-				importXml.addUploadListener(new ProjectImportUploadListener(this));
-				importXml.setEnabledSendButtonText(getResourceBundleHelper(getLocale()).getString(
-						PROP_LABEL_UPLOAD_BUTTON, "Upload"));
-			} catch (Exception e) {
-				log.error(e, e);
-			}
-			addInput("enableAnalysis", PROP_LABEL_ENABLE_ANALYSIS_BUTTON, "Enable Analysis",
-					new CheckBox(), new ToggleButtonModelEx(true));
-
-			addMultiRowInput("annotations", AnnotationsTable.PROP_LABEL_ANNOTATIONS, "Annotations",
-					new AnnotationsTable(this, getResourceBundleHelper(getLocale())), null);
-
-			importButton = addActionButton(new Button(getResourceBundleHelper(getLocale())
-					.getString(PROP_LABEL_IMPORT_BUTTON, "Import")));
-			importButton.addActionListener(new ImportListener(this));
-			importButton.setEnabled(false);
 		}
 
 		if (updateListener != null) {
@@ -337,23 +286,6 @@ public class ProjectOverviewPanel extends AbstractRequelProjectEditorPanel {
 		}
 	}
 
-	private void importProject(InputStream inputStream) {
-		try {
-			ImportProjectCommand command = getProjectCommandFactory().newImportProjectCommand();
-			command.setProject(getProject());
-			command.setName(getInputValue(EditProjectCommand.FIELD_NAME, String.class));
-			command.setEditedBy(getCurrentUser());
-			command.setInputStream(inputStream);
-			command.setAnalysisEnabled(getInputValue("enableAnalysis", Boolean.class));
-			command = getCommandHandler().execute(command);
-			setTargetObject(command.getProject());
-			getEventDispatcher().dispatchEvent(new UpdateEntityEvent(this, command.getProject()));
-		} catch (Exception e) {
-			log.error("could not import the project: " + e, e);
-			setGeneralMessage("Could not import: " + e);
-		}
-	}
-
 	private Project getProject() {
 		return (Project) getTargetObject();
 	}
@@ -384,64 +316,6 @@ public class ProjectOverviewPanel extends AbstractRequelProjectEditorPanel {
 		public void writeFile(OutputStream outputStream) throws IOException {
 			panel.exportProject(outputStream);
 		}
-	}
-
-	private class ProjectImportUploadListener implements UploadListener {
-		static final long serialVersionUID = 0L;
-
-		private final ProjectOverviewPanel panel;
-
-		private ProjectImportUploadListener(ProjectOverviewPanel panel) {
-			this.panel = panel;
-		}
-
-		@Override
-		public void fileUpload(UploadEvent uploadEvent) {
-			FileOutputStream tmpOutStream = null;
-			try {
-				tmpUpload = File.createTempFile("projectImport", ".xml");
-				tmpOutStream = new FileOutputStream(tmpUpload);
-				IOUtils.copy(uploadEvent.getInputStream(), tmpOutStream);
-				panel.setGeneralMessage("Project file " + uploadEvent.getFileName()
-						+ " uploaded and ready for import.");
-				panel.importButton.setEnabled(true);
-			} catch (Exception e) {
-				panel.setGeneralMessage("Could not upload file: " + e);
-			} finally {
-				if (tmpOutStream != null) {
-					IOUtils.closeQuietly(tmpOutStream);
-				}
-			}
-		}
-
-		@Override
-		public void invalidFileUpload(UploadEvent uploadEvent) {
-			panel.setGeneralMessage("Could not upload file.");
-		}
-	}
-
-	private static class ImportListener implements ActionListener {
-		static final long serialVersionUID = 0L;
-
-		private final ProjectOverviewPanel panel;
-
-		private ImportListener(ProjectOverviewPanel panel) {
-			this.panel = panel;
-		}
-
-		@Override
-		public void actionPerformed(ActionEvent event) {
-			if (panel.tmpUpload != null) {
-				try {
-					panel.importProject(new FileInputStream(panel.tmpUpload));
-				} catch (FileNotFoundException e) {
-					panel.setGeneralMessage("Could not import file: " + e);
-				}
-			} else {
-				panel.setGeneralMessage("A file must be uploaded before importing.");
-			}
-		}
-
 	}
 
 	private static class UpdateListener implements ActionListener {

@@ -42,7 +42,7 @@ public class ResourceBundleHelper {
 		try {
 			setLocale(null);
 		} catch (ApplicationException e) {
-			log.warn("no default resource file with bundle name " + resourceBundleName);
+			log.warn("no resource file with bundle name " + resourceBundleName);
 		}
 	}
 
