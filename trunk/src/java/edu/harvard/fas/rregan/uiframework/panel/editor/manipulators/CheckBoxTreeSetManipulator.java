@@ -1,5 +1,5 @@
 /*
- * $Id: CheckBoxTreeSetManipulator.java,v 1.5 2008/10/13 22:58:58 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

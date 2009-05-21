@@ -1,5 +1,5 @@
 /*
- * $Id: EditVerbNetSelectionRestrictionCommandImpl.java,v 1.1 2009/02/09 10:12:31 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

@@ -1,5 +1,5 @@
 /*
- * $Id: DateAdapter.java,v 1.5 2008/06/20 08:23:07 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

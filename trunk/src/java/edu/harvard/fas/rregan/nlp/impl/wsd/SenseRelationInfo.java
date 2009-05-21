@@ -1,5 +1,5 @@
 /*
- * $Id: SenseRelationInfo.java,v 1.1 2008/12/14 11:36:11 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

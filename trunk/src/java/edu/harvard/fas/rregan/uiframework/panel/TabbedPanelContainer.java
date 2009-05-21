@@ -1,5 +1,5 @@
 /*
- * $Id: TabbedPanelContainer.java,v 1.15 2008/03/10 23:57:20 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

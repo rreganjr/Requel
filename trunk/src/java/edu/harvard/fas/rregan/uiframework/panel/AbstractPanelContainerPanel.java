@@ -1,5 +1,5 @@
 /*
- * $Id: AbstractPanelContainerPanel.java,v 1.4 2008/02/29 19:36:12 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

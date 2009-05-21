@@ -1,5 +1,5 @@
 /*
- * $Id: StanfordLexicalizedParser.java,v 1.3 2009/01/28 10:18:45 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

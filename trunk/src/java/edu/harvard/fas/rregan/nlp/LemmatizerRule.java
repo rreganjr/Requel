@@ -1,5 +1,5 @@
 /*
- * $Id: LemmatizerRule.java,v 1.1 2008/10/02 09:38:37 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

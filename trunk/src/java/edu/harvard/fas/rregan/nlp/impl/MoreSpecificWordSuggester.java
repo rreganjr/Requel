@@ -1,5 +1,5 @@
 /*
- * $Id: MoreSpecificWordSuggester.java,v 1.1 2009/03/27 07:16:08 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

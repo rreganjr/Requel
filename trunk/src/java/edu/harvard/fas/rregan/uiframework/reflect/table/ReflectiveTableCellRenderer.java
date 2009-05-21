@@ -1,5 +1,5 @@
 /*
- * $Id: ReflectiveTableCellRenderer.java,v 1.1 2008/02/15 21:40:31 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

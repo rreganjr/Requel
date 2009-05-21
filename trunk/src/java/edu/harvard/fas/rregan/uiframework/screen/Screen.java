@@ -1,5 +1,5 @@
 /*
- * $Id: Screen.java,v 1.2 2008/02/27 08:04:16 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

@@ -1,5 +1,5 @@
 /*
- * $Id: Position.java,v 1.9 2008/08/08 08:01:11 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

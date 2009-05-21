@@ -1,5 +1,5 @@
 /*
- * $Id: Goal.java,v 1.11 2008/09/07 03:46:36 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

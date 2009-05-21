@@ -1,5 +1,5 @@
 /*
- * $Id: EditChangeSpellingPositionCommand.java,v 1.4 2008/07/30 08:06:48 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

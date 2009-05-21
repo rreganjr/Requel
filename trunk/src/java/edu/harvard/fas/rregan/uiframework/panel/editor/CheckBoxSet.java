@@ -1,5 +1,5 @@
 /*
- * $Id: CheckBoxSet.java,v 1.5 2008/10/11 08:22:31 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

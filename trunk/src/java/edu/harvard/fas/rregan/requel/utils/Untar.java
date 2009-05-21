@@ -1,5 +1,5 @@
 /*
- * $Id: Untar.java,v 1.1 2008/10/20 02:07:50 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

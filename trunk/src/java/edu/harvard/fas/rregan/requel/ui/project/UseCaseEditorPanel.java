@@ -1,5 +1,5 @@
 /*
- * $Id: UseCaseEditorPanel.java,v 1.27 2009/03/05 08:50:46 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

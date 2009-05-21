@@ -1,5 +1,5 @@
 /*
- * $Id: GrammaticalRelationImpl.java,v 1.3 2009/02/10 03:30:46 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
