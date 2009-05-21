@@ -1,5 +1,5 @@
 /*
- * $Id: ReportGeneratorEditorPanel.java,v 1.13 2009/03/27 13:43:14 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

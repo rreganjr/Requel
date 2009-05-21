@@ -1,5 +1,5 @@
 /*
- * $Id: GoalRelationType.java,v 1.2 2008/04/09 10:33:27 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

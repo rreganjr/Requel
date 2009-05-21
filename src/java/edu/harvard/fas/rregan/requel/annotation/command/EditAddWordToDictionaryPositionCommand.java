@@ -1,5 +1,5 @@
 /*
- * $Id: EditAddWordToDictionaryPositionCommand.java,v 1.3 2008/08/13 10:16:57 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

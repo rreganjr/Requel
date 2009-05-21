@@ -1,5 +1,5 @@
 /*
- * $Id: SelectorTablePanel.java,v 1.5 2008/09/11 09:47:00 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

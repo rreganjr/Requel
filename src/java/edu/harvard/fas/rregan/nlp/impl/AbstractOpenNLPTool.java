@@ -1,5 +1,5 @@
 /*
- * $Id: AbstractOpenNLPTool.java,v 1.2 2009/01/24 11:08:38 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

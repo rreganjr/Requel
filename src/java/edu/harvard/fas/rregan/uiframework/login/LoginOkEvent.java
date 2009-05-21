@@ -1,5 +1,5 @@
 /*
- * $Id: LoginOkEvent.java,v 1.3 2008/02/27 02:35:48 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

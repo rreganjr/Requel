@@ -1,5 +1,5 @@
 /*
- * $Id: RemoveActorFromActorContainerCommandImpl.java,v 1.5 2009/03/30 11:54:29 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

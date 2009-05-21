@@ -1,5 +1,5 @@
 /*
- * $Id: NLPText.java,v 1.29 2009/03/22 11:08:24 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

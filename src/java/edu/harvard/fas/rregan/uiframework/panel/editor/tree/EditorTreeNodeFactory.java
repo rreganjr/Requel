@@ -1,5 +1,5 @@
 /*
- * $Id: EditorTreeNodeFactory.java,v 1.2 2008/10/29 07:42:41 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

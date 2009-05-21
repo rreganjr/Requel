@@ -1,5 +1,5 @@
 /*
- * $Id: CreatedEntity.java,v 1.1 2008/04/09 10:33:30 rregan Exp $
+ * $Id$
  * 
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * 

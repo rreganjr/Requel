@@ -1,5 +1,5 @@
 /*
- * $Id: UserRepository.java,v 1.16 2008/12/13 00:41:59 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

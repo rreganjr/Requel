@@ -1,5 +1,5 @@
 /*
- * $Id: SyntaxMatchingContext.java,v 1.7 2009/02/11 09:02:54 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

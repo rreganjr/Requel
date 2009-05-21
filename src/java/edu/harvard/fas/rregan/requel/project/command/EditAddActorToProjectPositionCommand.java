@@ -1,5 +1,5 @@
 /*
- * $Id: EditAddActorToProjectPositionCommand.java,v 1.1 2008/09/19 21:56:41 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

@@ -1,5 +1,5 @@
 /*
- * $Id: TypedAssistant.java,v 1.1 2009/01/20 10:26:01 rregan Exp $
+ * $Id$
  * Copyright (c) 2009 Ron Regan 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

@@ -1,5 +1,5 @@
 /*
- * $Id: UserRole.java,v 1.8 2008/03/26 10:39:53 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

@@ -1,5 +1,5 @@
 /*
- * $Id: SimpleLeskWSD.java,v 1.4 2009/01/26 10:19:05 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

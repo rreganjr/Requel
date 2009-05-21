@@ -1,5 +1,5 @@
 /*
- * $Id: User.java,v 1.13 2008/08/17 03:29:07 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

@@ -1,5 +1,5 @@
 /*
- * $Id: StorySelectorPanel.java,v 1.4 2009/02/23 07:37:23 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

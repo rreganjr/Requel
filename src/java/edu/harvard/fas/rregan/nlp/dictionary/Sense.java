@@ -1,5 +1,5 @@
 /*
- * $Id: Sense.java,v 1.7 2009/02/08 13:25:14 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

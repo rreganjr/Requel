@@ -1,5 +1,5 @@
 /*
- * $Id: DependencySubjectFinder.java,v 1.8 2009/02/08 13:25:15 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

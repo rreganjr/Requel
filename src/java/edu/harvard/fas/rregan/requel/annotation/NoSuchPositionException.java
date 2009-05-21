@@ -1,5 +1,5 @@
 /*
- * $Id: NoSuchPositionException.java,v 1.11 2009/01/09 09:56:16 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

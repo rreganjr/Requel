@@ -1,5 +1,5 @@
 /*
- * $Id: EditCommand.java,v 1.4 2008/12/13 00:40:51 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

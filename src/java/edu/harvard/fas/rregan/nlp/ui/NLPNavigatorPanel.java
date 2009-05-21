@@ -1,5 +1,5 @@
 /*
- * $Id: NLPNavigatorPanel.java,v 1.3 2008/12/19 09:20:37 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.

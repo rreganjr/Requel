@@ -1,5 +1,5 @@
 /*
- * $Id: VerbNetSelectionalRestrictionsParser.java,v 1.2 2009/02/09 10:12:28 rregan Exp $
+ * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
