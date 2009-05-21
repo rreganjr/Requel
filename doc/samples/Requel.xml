@@ -4,7 +4,7 @@
 	createdBy="USR_1"
 	xmlns="http://www.people.fas.harvard.edu/~rregan/requel"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-	xsi:schemaLocation="http://www.people.fas.harvard.edu/~rregan/requel project.xsd">
+	xsi:schemaLocation="http://www.people.fas.harvard.edu/~rregan/requel http://requel.sourceforge.net/integration/1.0/project.xsd">
     <actors>
         <actor id="ACT_1" revision="10" dateCreated="2009-01-05T00:00:00" createdBy="USR_1">
             <annotations/>
