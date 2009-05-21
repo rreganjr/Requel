@@ -70,6 +70,15 @@
         <load-on-startup>1</load-on-startup>
 	</servlet>
 
+	<servlet>
+		<description>Servlet for getting a Project in XML format.</description>
+		<display-name>ProjectXML Servlet</display-name>
+		<servlet-name>ProjectXMLServlet</servlet-name>
+		<!-- uses edu.harvard.fas.rregan.requel.service.ProjectXmlRequestHandler  -->
+        <servlet-class>org.springframework.web.context.support.HttpRequestHandlerServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+	</servlet>
+
 	<servlet-mapping>
 		<servlet-name>UIFrameworkServlet</servlet-name>
 		<url-pattern>/</url-pattern>
@@ -77,6 +86,10 @@
 	<servlet-mapping>
 		<servlet-name>UIFrameworkLogoutServlet</servlet-name>
 		<url-pattern>/logout</url-pattern>
+	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>ProjectXMLServlet</servlet-name>
+		<url-pattern>/projectxml</url-pattern>
 	</servlet-mapping>
 </web-app>
 
