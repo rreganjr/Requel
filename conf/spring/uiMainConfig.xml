@@ -50,7 +50,8 @@
 					<ref bean="projectImportPanelFactory"/>
 					<ref bean="projectOpenIssuesPanelFactory"/>
 					<ref bean="projectStakeholdersNavigatorPanelFactory"/>
-					<ref bean="stakeholderEditorPanelFactory"/>
+					<ref bean="userStakeholderEditorPanelFactory"/>
+					<ref bean="nonUserStakeholderEditorPanelFactory"/>
 					
 					<ref bean="projectGoalsNavigatorPanelFactory"/>
 					<ref bean="projectGoalsSelectorPanelFactory"/>

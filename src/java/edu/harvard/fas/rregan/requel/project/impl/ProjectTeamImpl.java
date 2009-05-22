@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -50,6 +51,7 @@ import org.hibernate.validator.NotEmpty;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
 import edu.harvard.fas.rregan.requel.project.ProjectTeam;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.requel.utils.jaxb.UnmarshallerListener;
 
@@ -64,7 +66,7 @@ import edu.harvard.fas.rregan.requel.utils.jaxb.UnmarshallerListener;
 public class ProjectTeamImpl extends AbstractProjectOrDomainEntity implements ProjectTeam {
 	static final long serialVersionUID = 0L;
 
-	private Set<Stakeholder> members = new TreeSet<Stakeholder>();
+	private Set<UserStakeholder> members = new TreeSet<UserStakeholder>();
 
 	/**
 	 * @param projectOrDomain
@@ -109,16 +111,16 @@ public class ProjectTeamImpl extends AbstractProjectOrDomainEntity implements Pr
 
 	@XmlElementWrapper(name = "members", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
 	@XmlIDREF
-	@XmlElement(name = "stakeholderRef", type = StakeholderImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-	@ManyToMany(targetEntity = StakeholderImpl.class, cascade = { CascadeType.PERSIST,
+	@XmlElement(name = "stakeholderRef", type = UserStakeholderImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@ManyToMany(targetEntity = AbstractStakeholder.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@JoinTable(name = "team_stakeholders", joinColumns = { @JoinColumn(name = "team_id") }, inverseJoinColumns = { @JoinColumn(name = "stakeholder_id") })
 	@Sort(type = SortType.NATURAL)
-	public Set<Stakeholder> getMembers() {
+	public Set<UserStakeholder> getMembers() {
 		return members;
 	}
 
-	protected void setMembers(Set<Stakeholder> members) {
+	protected void setMembers(Set<UserStakeholder> members) {
 		this.members = members;
 	}
 
@@ -130,7 +132,9 @@ public class ProjectTeamImpl extends AbstractProjectOrDomainEntity implements Pr
 	 */
 	public void afterUnmarshal() {
 		for (Stakeholder stakeholder : getMembers()) {
-			((StakeholderImpl) stakeholder).setTeam(this);
+			if (stakeholder.isUserStakeholder()) {
+				((UserStakeholderImpl) stakeholder).setTeam(this);
+			}
 		}
 	}
 

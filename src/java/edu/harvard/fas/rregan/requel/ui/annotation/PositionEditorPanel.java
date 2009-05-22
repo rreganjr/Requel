@@ -52,8 +52,8 @@ import edu.harvard.fas.rregan.requel.annotation.command.AnnotationCommandFactory
 import edu.harvard.fas.rregan.requel.annotation.command.DeletePositionCommand;
 import edu.harvard.fas.rregan.requel.annotation.command.EditPositionCommand;
 import edu.harvard.fas.rregan.requel.project.Project;
-import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.uiframework.navigation.NavigatorButton;
 import edu.harvard.fas.rregan.uiframework.navigation.WorkflowDisposition;
@@ -310,7 +310,7 @@ public class PositionEditorPanel extends AbstractRequelAnnotationEditorPanel {
 		User user = (User) getApp().getUser();
 		Project project = getProject();
 		if (project != null) {
-			Stakeholder stakeholder = project.getUserStakeholder(user);
+			UserStakeholder stakeholder = project.getUserStakeholder(user);
 			if (stakeholder != null) {
 				return !stakeholder.hasPermission(Annotation.class, StakeholderPermissionType.Edit);
 			}

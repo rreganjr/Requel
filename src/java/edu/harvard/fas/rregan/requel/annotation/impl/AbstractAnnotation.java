@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -70,7 +71,7 @@ import edu.harvard.fas.rregan.requel.project.impl.GoalRelationImpl;
 import edu.harvard.fas.rregan.requel.project.impl.ProjectImpl;
 import edu.harvard.fas.rregan.requel.project.impl.ProjectTeamImpl;
 import edu.harvard.fas.rregan.requel.project.impl.ScenarioImpl;
-import edu.harvard.fas.rregan.requel.project.impl.StakeholderImpl;
+import edu.harvard.fas.rregan.requel.project.impl.AbstractStakeholder;
 import edu.harvard.fas.rregan.requel.project.impl.StepImpl;
 import edu.harvard.fas.rregan.requel.project.impl.StoryImpl;
 import edu.harvard.fas.rregan.requel.project.impl.UseCaseImpl;
@@ -157,6 +158,11 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 		return groupingObject;
 	}
 
+	/**
+	 * Set the object used as the "owner" of a group of annotations.
+	 * 
+	 * @param groupingObject
+	 */
 	// this needs to be public for JAXB import
 	public void setGroupingObject(Object groupingObject) {
 		this.groupingObject = groupingObject;
@@ -189,7 +195,7 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Story", targetEntity = StoryImpl.class),
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Actor", targetEntity = ActorImpl.class),
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.GlossaryTerm", targetEntity = GlossaryTermImpl.class),
-			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Stakeholder", targetEntity = StakeholderImpl.class) })
+			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Stakeholder", targetEntity = AbstractStakeholder.class) })
 	@JoinTable(name = "annotation_annotatable", joinColumns = { @JoinColumn(name = "annotation_id") }, inverseJoinColumns = { @JoinColumn(name = "annotatable_id") })
 	public Set<Annotatable> getAnnotatables() {
 		return annotatables;

@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -23,12 +24,14 @@ package edu.harvard.fas.rregan.requel.project.command;
 import java.util.Set;
 
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
-import edu.harvard.fas.rregan.requel.project.Stakeholder;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 
 /**
+ * Create or edit a stakeholder that is a system user.
+ * 
  * @author ron
  */
-public interface EditStakeholderCommand extends EditProjectOrDomainEntityCommand {
+public interface EditUserStakeholderCommand extends EditProjectOrDomainEntityCommand {
 
 	/**
 	 * The name of the "user" field used to correlate to the field in an editor
@@ -53,15 +56,6 @@ public interface EditStakeholderCommand extends EditProjectOrDomainEntityCommand
 	public void setUsername(String username);
 
 	/**
-	 * For non-user stakeholders set the name.<br>
-	 * NOTE: if a user is passed through setStakeholderUser, then the name set
-	 * here is ignored.
-	 * 
-	 * @param name
-	 */
-	public void setName(String name);
-
-	/**
 	 * Supply a role (by name) for this stakeholder. If the supplied name does
 	 * not match an existing role for the project a new role will be created.
 	 * 
@@ -82,15 +76,15 @@ public interface EditStakeholderCommand extends EditProjectOrDomainEntityCommand
 	 * 
 	 * @param stakeholder
 	 */
-	public void setStakeholder(Stakeholder stakeholder);
+	public void setStakeholder(UserStakeholder stakeholder);
 
 	/**
 	 * Get the stakeholder created or edited via the command. If a stakeholder
 	 * was supplied via setStakeholder the returned stakeholder will represent
-	 * the same entity although it may not be equal (for example the user or
-	 * name has changed.)
+	 * the same entity although it may not be equal (for example the user has
+	 * changed.)
 	 * 
 	 * @return
 	 */
-	public Stakeholder getStakeholder();
+	public UserStakeholder getStakeholder();
 }

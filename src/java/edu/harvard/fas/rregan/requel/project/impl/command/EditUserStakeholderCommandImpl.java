@@ -38,23 +38,26 @@ import edu.harvard.fas.rregan.requel.project.ProjectTeam;
 import edu.harvard.fas.rregan.requel.project.ProjectUserRole;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermission;
-import edu.harvard.fas.rregan.requel.project.command.EditStakeholderCommand;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
+import edu.harvard.fas.rregan.requel.project.command.EditUserStakeholderCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.project.impl.ProjectTeamImpl;
-import edu.harvard.fas.rregan.requel.project.impl.StakeholderImpl;
+import edu.harvard.fas.rregan.requel.project.impl.UserStakeholderImpl;
 import edu.harvard.fas.rregan.requel.project.impl.assistant.AssistantFacade;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.requel.user.UserRepository;
 
 /**
+ * Create or edit a stakeholder for a system user.
+ * 
  * @author ron
  */
-@Controller("editStakeholderCommand")
+@Controller("editUserStakeholderCommand")
 @Scope("prototype")
-public class EditStakeholderCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditStakeholderCommand {
+public class EditUserStakeholderCommandImpl extends AbstractEditProjectOrDomainEntityCommand
+		implements EditUserStakeholderCommand {
 
-	private Stakeholder stakeholder;
+	private UserStakeholder stakeholder;
 	private String username;
 	private Set<String> permissionKeys;
 	private String teamName;
@@ -68,7 +71,7 @@ public class EditStakeholderCommandImpl extends AbstractEditProjectOrDomainEntit
 	 * @param commandHandler
 	 */
 	@Autowired
-	public EditStakeholderCommandImpl(AssistantFacade assistantManager,
+	public EditUserStakeholderCommandImpl(AssistantFacade assistantManager,
 			UserRepository userRepository, ProjectRepository projectRepository,
 			ProjectCommandFactory projectCommandFactory,
 			AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler) {
@@ -76,11 +79,11 @@ public class EditStakeholderCommandImpl extends AbstractEditProjectOrDomainEntit
 				annotationCommandFactory, commandHandler);
 	}
 
-	public Stakeholder getStakeholder() {
+	public UserStakeholder getStakeholder() {
 		return stakeholder;
 	}
 
-	public void setStakeholder(Stakeholder stakeholder) {
+	public void setStakeholder(UserStakeholder stakeholder) {
 		this.stakeholder = stakeholder;
 	}
 
@@ -112,24 +115,14 @@ public class EditStakeholderCommandImpl extends AbstractEditProjectOrDomainEntit
 	public void execute() {
 		ProjectOrDomain projectOrDomain = getProjectRepository().get(getProjectOrDomain());
 		User editedBy = getProjectRepository().get(getEditedBy());
-		User user = null;
-		String username = getUsername();
-		if ((username != null) && (username.length() > 0)) {
-			user = getUserRepository().findUserByUsername(username);
-		}
+		User user = getUserRepository().findUserByUsername(getUsername());
 
-		StakeholderImpl stakeholderImpl = (StakeholderImpl) getStakeholder();
+		UserStakeholderImpl stakeholderImpl = (UserStakeholderImpl) getStakeholder();
 
 		// check for uniqueness
 		try {
-			Stakeholder existing;
-			if (user != null) {
-				existing = getProjectRepository().findStakeholderByProjectOrDomainAndUser(
-						projectOrDomain, user);
-			} else {
-				existing = getProjectRepository().findStakeholderByProjectOrDomainAndName(
-						projectOrDomain, getName());
-			}
+			UserStakeholder existing = getProjectRepository()
+					.findStakeholderByProjectOrDomainAndUser(projectOrDomain, user);
 			if (stakeholderImpl == null) {
 				throw EntityException.uniquenessConflict(Stakeholder.class, existing,
 						(user == null ? FIELD_NAME : FIELD_USER),
@@ -164,7 +157,8 @@ public class EditStakeholderCommandImpl extends AbstractEditProjectOrDomainEntit
 		}
 
 		if (stakeholderImpl == null) {
-			stakeholderImpl = createStakeholder(projectOrDomain, user, editedBy, getName());
+			stakeholderImpl = getProjectRepository().persist(
+					new UserStakeholderImpl(projectOrDomain, editedBy, user));
 		} else {
 			stakeholderImpl.setName(getName());
 			stakeholderImpl.setUser(user);
@@ -195,17 +189,6 @@ public class EditStakeholderCommandImpl extends AbstractEditProjectOrDomainEntit
 			projectRole.getActiveProjects().add((Project) projectOrDomain);
 		}
 		setStakeholder(stakeholderImpl);
-	}
-
-	private StakeholderImpl createStakeholder(ProjectOrDomain projectOrDomain,
-			User stakeholderUser, User createdBy, String name) {
-		StakeholderImpl stakeholderImpl = null;
-		if (stakeholderUser != null) {
-			stakeholderImpl = new StakeholderImpl(projectOrDomain, createdBy, stakeholderUser);
-		} else {
-			stakeholderImpl = new StakeholderImpl(projectOrDomain, createdBy, name);
-		}
-		return getProjectRepository().persist(stakeholderImpl);
 	}
 
 	@Override

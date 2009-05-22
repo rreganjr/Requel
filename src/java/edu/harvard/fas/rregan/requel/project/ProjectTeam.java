@@ -26,5 +26,8 @@ import java.util.Set;
  * @author ron
  */
 public interface ProjectTeam extends ProjectOrDomainEntity, Comparable<ProjectTeam> {
-	public Set<Stakeholder> getMembers();
+	/**
+	 * @return The user stakeholders that are members of this team.
+	 */
+	public Set<UserStakeholder> getMembers();
 }

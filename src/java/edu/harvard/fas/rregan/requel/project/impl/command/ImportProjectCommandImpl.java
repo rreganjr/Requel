@@ -37,11 +37,12 @@ import edu.harvard.fas.rregan.requel.project.ProjectRepository;
 import edu.harvard.fas.rregan.requel.project.ProjectUserRole;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermission;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.project.command.EditReportGeneratorCommand;
 import edu.harvard.fas.rregan.requel.project.command.ImportProjectCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.project.impl.ProjectImpl;
-import edu.harvard.fas.rregan.requel.project.impl.StakeholderImpl;
+import edu.harvard.fas.rregan.requel.project.impl.UserStakeholderImpl;
 import edu.harvard.fas.rregan.requel.project.impl.assistant.AssistantFacade;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.requel.user.UserRepository;
@@ -158,8 +159,8 @@ public class ImportProjectCommandImpl extends AbstractEditProjectCommand impleme
 			// add the project to all the stakeholder user ProjectUserRoles
 			for (Stakeholder stakeholder : project.getStakeholders()) {
 				if (stakeholder.isUserStakeholder()) {
-					stakeholder.getUser().getRoleForType(ProjectUserRole.class).getActiveProjects()
-							.add(project);
+					((UserStakeholder) stakeholder).getUser().getRoleForType(ProjectUserRole.class)
+							.getActiveProjects().add(project);
 				}
 			}
 			if (project.getReportGenerators().isEmpty()) {
@@ -182,13 +183,15 @@ public class ImportProjectCommandImpl extends AbstractEditProjectCommand impleme
 		if (user.hasRole(ProjectUserRole.class)) {
 			boolean alreadyAStakeholder = false;
 			for (Stakeholder stakeholder : project.getStakeholders()) {
-				if (user.equals(stakeholder.getUser())) {
+				if (stakeholder.isUserStakeholder()
+						&& user.equals(((UserStakeholder) stakeholder).getUser())) {
 					alreadyAStakeholder = true;
 					break;
 				}
 			}
 			if (!alreadyAStakeholder) {
-				Stakeholder creatorStakeholder = new StakeholderImpl(project, editedBy, user);
+				UserStakeholder creatorStakeholder = new UserStakeholderImpl(project, editedBy,
+						user);
 				getProjectRepository().persist(creatorStakeholder);
 				for (StakeholderPermission permission : getProjectRepository()
 						.findAvailableStakeholderPermissions()) {

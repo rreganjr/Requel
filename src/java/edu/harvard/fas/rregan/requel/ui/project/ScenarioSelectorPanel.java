@@ -39,8 +39,8 @@ import edu.harvard.fas.rregan.requel.project.Scenario;
 import edu.harvard.fas.rregan.requel.project.Project;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
 import edu.harvard.fas.rregan.requel.project.ProjectRepository;
-import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.uiframework.navigation.NavigatorButton;
 import edu.harvard.fas.rregan.uiframework.navigation.event.ClosePanelEvent;
@@ -184,7 +184,7 @@ public class ScenarioSelectorPanel extends SelectorTablePanel {
 		User user = (User) getApp().getUser();
 		if (getProjectOrDomain() instanceof Project) {
 			Project project = (Project) getProjectOrDomain();
-			Stakeholder stakeholder = project.getUserStakeholder(user);
+			UserStakeholder stakeholder = project.getUserStakeholder(user);
 			if (stakeholder != null) {
 				return !stakeholder.hasPermission(Scenario.class, StakeholderPermissionType.Edit);
 			}

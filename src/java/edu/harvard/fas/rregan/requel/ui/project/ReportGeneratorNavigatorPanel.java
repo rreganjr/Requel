@@ -40,8 +40,8 @@ import edu.harvard.fas.rregan.requel.project.ProjectOrDomainEntity;
 import edu.harvard.fas.rregan.requel.project.ReportGenerator;
 import edu.harvard.fas.rregan.requel.project.Project;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
-import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.project.impl.AbstractProjectOrDomainEntity;
 import edu.harvard.fas.rregan.requel.user.User;
@@ -272,7 +272,7 @@ public class ReportGeneratorNavigatorPanel extends NavigatorTablePanel {
 		User user = (User) getApp().getUser();
 		if (getProjectOrDomain() instanceof Project) {
 			Project project = (Project) getProjectOrDomain();
-			Stakeholder stakeholder = project.getUserStakeholder(user);
+			UserStakeholder stakeholder = project.getUserStakeholder(user);
 			if (stakeholder != null) {
 				return !stakeholder.hasPermission(ReportGenerator.class,
 						StakeholderPermissionType.Edit);

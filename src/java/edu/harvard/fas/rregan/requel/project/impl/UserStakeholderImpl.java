@@ -1,6 +1,7 @@
 /*
- * $Id$
+ * $Id: $
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -22,20 +23,14 @@ package edu.harvard.fas.rregan.requel.project.impl;
 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.TreeSet;
 
 import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
 import javax.persistence.Transient;
-import javax.persistence.UniqueConstraint;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementRef;
@@ -59,6 +54,7 @@ import edu.harvard.fas.rregan.requel.project.ProjectTeam;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermission;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.project.impl.ProjectTeamImpl.Team2TeamImplAdapter;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.requel.user.UserRepository;
@@ -68,18 +64,16 @@ import edu.harvard.fas.rregan.requel.utils.jaxb.JAXBCreatedEntityPatcher;
 import edu.harvard.fas.rregan.requel.utils.jaxb.UnmarshallerListener;
 
 /**
+ * A stakeholder that is a user.
+ * 
  * @author ron
  */
-@Entity
-@Table(name = "stakeholders", uniqueConstraints = { @UniqueConstraint(columnNames = {
-		"projectordomain_id", "name", "user_id" }) })
-@XmlRootElement(name = "stakeholder", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "stakeholder", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-public class StakeholderImpl extends AbstractProjectOrDomainEntity implements Stakeholder {
+@XmlRootElement(name = "user-stakeholder", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlType(name = "user-stakeholder", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+public class UserStakeholderImpl extends AbstractStakeholder implements UserStakeholder {
 	static final long serialVersionUID = 0L;
 
 	private Set<StakeholderPermission> stakeholderPermission = new HashSet<StakeholderPermission>();
-	private Set<Goal> goals = new TreeSet<Goal>();
 	private User user;
 	private ProjectTeam team;
 
@@ -91,42 +85,21 @@ public class StakeholderImpl extends AbstractProjectOrDomainEntity implements St
 	 * @param createdBy
 	 * @param name
 	 */
-	public StakeholderImpl(ProjectOrDomain projectOrDomain, User createdBy, User user) {
-		super(projectOrDomain, createdBy, null);
-		this.user = user;
+	public UserStakeholderImpl(ProjectOrDomain projectOrDomain, User createdBy, User user) {
+		super(UserStakeholder.class.getName(), projectOrDomain, createdBy, null);
+		setUser(user);
 		// add to collection last so that sorting in the collection by entity
 		// properties has access to all the properties.
 		projectOrDomain.getStakeholders().add(this);
 	}
 
-	/**
-	 * Create a stakeholder for a non-user entity.
-	 * 
-	 * @param projectOrDomain
-	 * @param createdBy
-	 * @param name
-	 */
-	public StakeholderImpl(ProjectOrDomain projectOrDomain, User createdBy, String name) {
-		super(projectOrDomain, createdBy, name);
-		projectOrDomain.getStakeholders().add(this);
-	}
-
-	protected StakeholderImpl() {
+	protected UserStakeholderImpl() {
 		// for hibernate
 	}
 
 	@Override
-	@Column(nullable = true, unique = false)
-	@XmlElement(name = "name", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-	public String getName() {
-		return super.getName();
-	}
-
-	// hack for JAXB to set the name, for some reason it won't use the inherited
-	// method.
-	@Override
-	public void setName(String name) {
-		super.setName(name);
+	public boolean isUserStakeholder() {
+		return true;
 	}
 
 	/**
@@ -146,23 +119,16 @@ public class StakeholderImpl extends AbstractProjectOrDomainEntity implements St
 	@XmlTransient
 	@Transient
 	public String getDescription() {
-		if (isUserStakeholder()) {
-			return "Stakeholder: " + getUser().getUsername();
+		if (getUser().getName() != null) {
+			return "Stakeholder: " + getUser().getName() + " [" + getUser().getUsername() + "]";
 		}
-		return "Stakeholder: " + getName();
-	}
-
-	@Transient
-	@XmlTransient
-	@Override
-	public boolean isUserStakeholder() {
-		return (getUser() != null);
+		return "Stakeholder: " + getUser().getUsername();
 	}
 
 	// TODO: there should be some way to mark this as optional in the xml schema
-	@XmlElement(name = "user", type = UserImpl.class, nillable = true, required = false, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "user", type = UserImpl.class, nillable = false, required = true, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
 	// @XmlElementRef(type = UserImpl.class)
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.REFRESH }, optional = true)
+	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.REFRESH }, optional = false)
 	public User getUser() {
 		return user;
 	}
@@ -182,6 +148,9 @@ public class StakeholderImpl extends AbstractProjectOrDomainEntity implements St
 		return getTeamInternal();
 	}
 
+	/**
+	 * @param team
+	 */
 	public void setTeam(ProjectTeam team) {
 		if (getTeamInternal() != null) {
 			getTeamInternal().getMembers().remove(this);
@@ -198,7 +167,7 @@ public class StakeholderImpl extends AbstractProjectOrDomainEntity implements St
 		return team;
 	}
 
-	public void setTeamInternal(ProjectTeam team) {
+	protected void setTeamInternal(ProjectTeam team) {
 		this.team = team;
 	}
 
@@ -240,23 +209,6 @@ public class StakeholderImpl extends AbstractProjectOrDomainEntity implements St
 	}
 
 	/**
-	 * @see edu.harvard.fas.rregan.requel.project.GoalContainer#getGoals()
-	 */
-	@Override
-	@OneToMany(targetEntity = GoalImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
-			CascadeType.REFRESH }, fetch = FetchType.LAZY)
-	@XmlElementWrapper(name = "goals", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-	@XmlIDREF
-	@XmlElement(name = "goalRef", type = GoalImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-	public Set<Goal> getGoals() {
-		return goals;
-	}
-
-	protected void setGoals(Set<Goal> goals) {
-		this.goals = goals;
-	}
-
-	/**
 	 * @see java.lang.Comparable#compareTo(java.lang.Object)
 	 */
 	@Override
@@ -264,12 +216,7 @@ public class StakeholderImpl extends AbstractProjectOrDomainEntity implements St
 		if (this == o) {
 			return 0;
 		}
-		String thisName = (getUser() != null ? getUser().getUsername() : getName());
-		String thatName = (o.getUser() != null ? o.getUser().getUsername() : o.getName());
-		if (thisName == null) {
-			return -1;
-		}
-		return thisName.compareToIgnoreCase(thatName);
+		return getDescription().compareToIgnoreCase(o.getDescription());
 	}
 
 	private Integer tmpHashCode = null;
@@ -300,16 +247,9 @@ public class StakeholderImpl extends AbstractProjectOrDomainEntity implements St
 		if (!getClass().isAssignableFrom(obj.getClass())) {
 			return false;
 		}
-		final StakeholderImpl other = (StakeholderImpl) obj;
+		final UserStakeholderImpl other = (UserStakeholderImpl) obj;
 		if ((getId() != null) && getId().equals(other.getId())) {
 			return true;
-		}
-		if (getName() == null) {
-			if (other.getName() != null) {
-				return false;
-			}
-		} else if (!getName().equals(other.getName())) {
-			return false;
 		}
 		if (getUser() == null) {
 			if (other.getUser() != null) {
@@ -338,21 +278,21 @@ public class StakeholderImpl extends AbstractProjectOrDomainEntity implements St
 			@Override
 			public void run() throws SAXException {
 				try {
-					if (StakeholderImpl.this.getUser() != null) {
+					if (UserStakeholderImpl.this.getUser() != null) {
 						try {
 							User existingUser = userRepository
-									.findUserByUsername(StakeholderImpl.this.getUser()
+									.findUserByUsername(UserStakeholderImpl.this.getUser()
 											.getUsername());
-							StakeholderImpl.this.setUser(existingUser);
+							UserStakeholderImpl.this.setUser(existingUser);
 						} catch (NoSuchUserException e) {
 							// new organization
-							userRepository.persist(StakeholderImpl.this.getUser());
+							userRepository.persist(UserStakeholderImpl.this.getUser());
 						}
 					}
 
 					// update the references to goals
 					for (Goal goal : getGoals()) {
-						goal.getReferers().add(StakeholderImpl.this);
+						goal.getReferers().add(UserStakeholderImpl.this);
 					}
 				} catch (RuntimeException e) {
 					throw e;

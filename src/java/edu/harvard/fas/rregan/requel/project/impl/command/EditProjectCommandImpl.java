@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -40,7 +41,7 @@ import edu.harvard.fas.rregan.requel.project.command.EditProjectCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditReportGeneratorCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.project.impl.ProjectImpl;
-import edu.harvard.fas.rregan.requel.project.impl.StakeholderImpl;
+import edu.harvard.fas.rregan.requel.project.impl.UserStakeholderImpl;
 import edu.harvard.fas.rregan.requel.project.impl.assistant.AssistantFacade;
 import edu.harvard.fas.rregan.requel.user.Organization;
 import edu.harvard.fas.rregan.requel.user.User;
@@ -166,15 +167,22 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 		ProjectImpl projectImpl = getProjectRepository().persist(
 				new ProjectImpl(getName(), user, organization));
 
-		StakeholderImpl creatorStakeholder = getProjectRepository().persist(
-				new StakeholderImpl(projectImpl, user, user));
+		// TODO: use a command to create the stakeholder
+		// EditUserStakeholderCommand command =
+		// getProjectCommandFactory().newEditUserStakeholderCommand();
+
+		// create a stakeholder for the user that creates the project
+		UserStakeholderImpl creatorStakeholder = getProjectRepository().persist(
+				new UserStakeholderImpl(projectImpl, user, user));
 		for (StakeholderPermission permission : getProjectRepository()
 				.findAvailableStakeholderPermissions()) {
 			creatorStakeholder.grantStakeholderPermission(permission);
 		}
 
+		// TODO: use a command to create the stakeholder
+		// create a stakeholder for assistant
 		User assistantUser = getUserRepository().findUserByUsername("assistant");
-		getProjectRepository().persist(new StakeholderImpl(projectImpl, user, assistantUser));
+		getProjectRepository().persist(new UserStakeholderImpl(projectImpl, user, assistantUser));
 
 		ProjectUserRole role = user.getRoleForType(ProjectUserRole.class);
 		role.getActiveProjects().add(projectImpl);

@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -54,17 +55,18 @@ import edu.harvard.fas.rregan.requel.annotation.NoSuchPositionException;
 import edu.harvard.fas.rregan.requel.project.Actor;
 import edu.harvard.fas.rregan.requel.project.GlossaryTerm;
 import edu.harvard.fas.rregan.requel.project.Goal;
+import edu.harvard.fas.rregan.requel.project.NonUserStakeholder;
 import edu.harvard.fas.rregan.requel.project.Project;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomainEntity;
 import edu.harvard.fas.rregan.requel.project.ProjectRepository;
 import edu.harvard.fas.rregan.requel.project.ReportGenerator;
 import edu.harvard.fas.rregan.requel.project.Scenario;
-import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermission;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
 import edu.harvard.fas.rregan.requel.project.Story;
 import edu.harvard.fas.rregan.requel.project.UseCase;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.project.command.EditProjectCommand;
 import edu.harvard.fas.rregan.requel.project.exception.NoSuchActorException;
 import edu.harvard.fas.rregan.requel.project.exception.NoSuchGlossaryTermException;
@@ -195,16 +197,16 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 	}
 
 	@Override
-	public Stakeholder findStakeholderByProjectOrDomainAndName(ProjectOrDomain projectOrDomain,
-			String name) throws NoSuchEntityException {
+	public NonUserStakeholder findStakeholderByProjectOrDomainAndName(
+			ProjectOrDomain projectOrDomain, String name) throws NoSuchEntityException {
 		try {
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(stakeholder) from StakeholderImpl as stakeholder where stakeholder.projectOrDomain = :projectOrDomain and stakeholder.name like :name and stakeholder.user is null");
+							"select object(stakeholder) from NonUserStakeholderImpl as stakeholder where stakeholder.projectOrDomain = :projectOrDomain and stakeholder.name like :name and stakeholder.user is null");
 			query.setParameter("projectOrDomain", projectOrDomain);
 			query.setParameter("name", name.trim());
-			return (Stakeholder) query.getSingleResult();
+			return (NonUserStakeholder) query.getSingleResult();
 		} catch (NoResultException e) {
 			throw NoSuchEntityException.byQuery(Scenario.class, new String[] { "project", "name" },
 					new Object[] { projectOrDomain, name });
@@ -214,16 +216,16 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 	}
 
 	@Override
-	public Stakeholder findStakeholderByProjectOrDomainAndUser(ProjectOrDomain projectOrDomain,
+	public UserStakeholder findStakeholderByProjectOrDomainAndUser(ProjectOrDomain projectOrDomain,
 			User user) throws NoSuchEntityException {
 		try {
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(stakeholder) from StakeholderImpl as stakeholder where stakeholder.projectOrDomain = :projectOrDomain and stakeholder.user = :user");
+							"select object(stakeholder) from UserStakeholderImpl as stakeholder where stakeholder.projectOrDomain = :projectOrDomain and stakeholder.user = :user");
 			query.setParameter("projectOrDomain", projectOrDomain);
 			query.setParameter("user", user);
-			return (Stakeholder) query.getSingleResult();
+			return (UserStakeholder) query.getSingleResult();
 		} catch (NoResultException e) {
 			throw NoSuchEntityException.byQuery(Scenario.class, new String[] { "project", "user" },
 					new Object[] { projectOrDomain, user });

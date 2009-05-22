@@ -6,6 +6,7 @@ import java.util.Set;
 import edu.harvard.fas.rregan.AbstractIntegrationTestCase;
 import edu.harvard.fas.rregan.requel.project.Project;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.project.command.EditProjectCommand;
 import edu.harvard.fas.rregan.requel.user.User;
 
@@ -27,7 +28,8 @@ public class EditProjectCommandImplTest extends AbstractIntegrationTestCase {
 
 		Project project = command.getProject();
 		for (Stakeholder stakeholder : project.getStakeholders()) {
-			if (creator.equals(stakeholder.getUser())) {
+			if (stakeholder.isUserStakeholder()
+					&& creator.equals(((UserStakeholder) stakeholder).getUser())) {
 				expectedStakeholders.add(stakeholder);
 			}
 		}

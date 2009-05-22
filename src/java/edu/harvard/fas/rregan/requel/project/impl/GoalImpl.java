@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -146,7 +147,7 @@ public class GoalImpl extends AbstractTextEntity implements Goal {
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Scenario", targetEntity = ScenarioImpl.class),
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Story", targetEntity = StoryImpl.class),
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Actor", targetEntity = ActorImpl.class),
-			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Stakeholder", targetEntity = StakeholderImpl.class) })
+			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Stakeholder", targetEntity = AbstractStakeholder.class) })
 	@JoinTable(name = "goals_goalcontainers", joinColumns = { @JoinColumn(name = "goal_id") }, inverseJoinColumns = {
 			@JoinColumn(name = "goalcontainer_type"), @JoinColumn(name = "goalcontainer_id") })
 	@Sort(type = SortType.COMPARATOR, comparator = GoalContainer.GoalContainerComparator.class)

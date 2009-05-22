@@ -24,8 +24,8 @@ import edu.harvard.fas.rregan.command.CommandHandler;
 import edu.harvard.fas.rregan.requel.project.Project;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomainEntity;
 import edu.harvard.fas.rregan.requel.project.ProjectRepository;
-import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.ui.AbstractRequelEditorPanel;
 import edu.harvard.fas.rregan.requel.user.User;
@@ -80,7 +80,7 @@ public class AbstractRequelProjectEditorPanel extends AbstractRequelEditorPanel 
 
 	@Override
 	public boolean isReadOnlyMode() {
-		Stakeholder stakeholder = getUserStakeholder(getTargetObject());
+		UserStakeholder stakeholder = getUserStakeholder(getTargetObject());
 		if (stakeholder != null) {
 			return !stakeholder.hasPermission(getSupportedContentType(),
 					StakeholderPermissionType.Edit);
@@ -90,7 +90,7 @@ public class AbstractRequelProjectEditorPanel extends AbstractRequelEditorPanel 
 
 	@Override
 	protected boolean isShowDelete() {
-		Stakeholder stakeholder = getUserStakeholder(getTargetObject());
+		UserStakeholder stakeholder = getUserStakeholder(getTargetObject());
 		if (stakeholder != null) {
 			return stakeholder.hasPermission(getSupportedContentType(),
 					StakeholderPermissionType.Delete);
@@ -98,10 +98,10 @@ public class AbstractRequelProjectEditorPanel extends AbstractRequelEditorPanel 
 		return false;
 	}
 
-	protected Stakeholder getUserStakeholder(Object target) {
+	protected UserStakeholder getUserStakeholder(Object target) {
 		User user = (User) getApp().getUser();
 		Project project = null;
-		Stakeholder stakeholder = null;
+		UserStakeholder stakeholder = null;
 		if (target instanceof Project) {
 			project = (Project) target;
 			stakeholder = project.getUserStakeholder(user);

@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -37,6 +38,7 @@ import edu.harvard.fas.rregan.requel.project.Project;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.project.impl.AbstractProjectOrDomainEntity;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.uiframework.navigation.NavigatorButton;
@@ -122,8 +124,8 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Stakeholder stakeholder = (Stakeholder) model.getBackingObject(row);
 						String displayValue = null;
-						if (stakeholder.getUser() != null) {
-							User user = stakeholder.getUser();
+						if (stakeholder.isUserStakeholder()) {
+							User user = ((UserStakeholder) stakeholder).getUser();
 							if ((user.getName() != null) && (user.getName().length() > 0)) {
 								displayValue = user.getName() + " [ " + user.getUsername() + " ]";
 							} else {
@@ -141,7 +143,7 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Stakeholder stakeholder = (Stakeholder) model.getBackingObject(row);
-						return (stakeholder.getUser() != null ? "yes" : "no");
+						return (stakeholder.isUserStakeholder() ? "yes" : "no");
 					}
 				}));
 
@@ -150,8 +152,12 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Stakeholder stakeholder = (Stakeholder) model.getBackingObject(row);
-						return (stakeholder.getTeam() != null ? stakeholder.getTeam().getName()
-								: "");
+						if (stakeholder.isUserStakeholder()) {
+							return (((UserStakeholder) stakeholder).getTeam() != null ? ((UserStakeholder) stakeholder)
+									.getTeam().getName()
+									: "");
+						}
+						return "";
 					}
 				}));
 
@@ -161,8 +167,8 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Stakeholder stakeholder = (Stakeholder) model.getBackingObject(row);
 						String displayValue = null;
-						if (stakeholder.getUser() != null) {
-							User user = stakeholder.getUser();
+						if (stakeholder.isUserStakeholder()) {
+							User user = ((UserStakeholder) stakeholder).getUser();
 							displayValue = user.getEmailAddress();
 						} else {
 							displayValue = "";
@@ -177,8 +183,8 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Stakeholder stakeholder = (Stakeholder) model.getBackingObject(row);
 						String displayValue = null;
-						if (stakeholder.getUser() != null) {
-							User user = stakeholder.getUser();
+						if (stakeholder.isUserStakeholder()) {
+							User user = ((UserStakeholder) stakeholder).getUser();
 							displayValue = user.getPhoneNumber();
 						} else {
 							displayValue = "";
@@ -284,7 +290,7 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 		User user = (User) getApp().getUser();
 		if (getProjectOrDomain() instanceof Project) {
 			Project project = (Project) getProjectOrDomain();
-			Stakeholder stakeholder = project.getUserStakeholder(user);
+			UserStakeholder stakeholder = project.getUserStakeholder(user);
 			if (stakeholder != null) {
 				return !stakeholder
 						.hasPermission(Stakeholder.class, StakeholderPermissionType.Edit);
