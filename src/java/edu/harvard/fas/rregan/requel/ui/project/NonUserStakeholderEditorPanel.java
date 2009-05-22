@@ -23,6 +23,7 @@ package edu.harvard.fas.rregan.requel.ui.project;
 
 import java.text.MessageFormat;
 
+import nextapp.echo2.app.TextArea;
 import nextapp.echo2.app.TextField;
 import nextapp.echo2.app.event.ActionEvent;
 import nextapp.echo2.app.event.ActionListener;
@@ -44,7 +45,6 @@ import edu.harvard.fas.rregan.requel.project.ProjectRepository;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.command.DeleteStakeholderCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditNonUserStakeholderCommand;
-import edu.harvard.fas.rregan.requel.project.command.EditUserStakeholderCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.ui.annotation.AnnotationsTable;
 import edu.harvard.fas.rregan.requel.user.UserRepository;
@@ -74,7 +74,6 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 	 */
 	public static final String PROP_LABEL_DESCRIPTION = "Description.Label";
 
-	private final UserRepository userRepository;
 	private UpdateListener updateListener;
 
 	// this is set by the DeleteListener so that the UpdateListener can ignore
@@ -106,7 +105,6 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 			ProjectRepository projectRepository) {
 		super(resourceBundleName, Stakeholder.class, commandHandler, projectCommandFactory,
 				projectRepository);
-		this.userRepository = userRepository;
 	}
 
 	/**
@@ -133,14 +131,14 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 			String msgPattern = getResourceBundleHelper(getLocale()).getString(
 					PROP_EXISTING_OBJECT_PANEL_TITLE,
 					getResourceBundleHelper(getLocale()).getString(PROP_PANEL_TITLE,
-							"Stakeholder: {0}"));
+							"Non-User Stakeholder: {0}"));
 			return MessageFormat.format(msgPattern, getStakeholder().getName(),
 					getProjectOrDomain().getName());
 		} else {
 			String msg = getResourceBundleHelper(getLocale()).getString(
 					PROP_NEW_OBJECT_PANEL_TITLE,
 					getResourceBundleHelper(getLocale()).getString(PROP_PANEL_TITLE,
-							"New Stakeholder"));
+							"New Non-User Stakeholder"));
 			return msg;
 		}
 	}
@@ -148,11 +146,12 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 	@Override
 	public void setup() {
 		super.setup();
-		Stakeholder stakeholder = getStakeholder();
+		NonUserStakeholder stakeholder = getStakeholder();
 		if (stakeholder != null) {
 			addInput("name", PROP_LABEL_NAME, "Name", new TextField(), new StringDocumentEx(
 					stakeholder.getName()));
-
+			addInput("text", PROP_LABEL_DESCRIPTION, "Description", new TextArea(), new StringDocumentEx(
+					stakeholder.getText()));
 			addMultiRowInput("goals", GoalsTable.PROP_LABEL_GOALS, "Goals", new GoalsTable(this,
 					getResourceBundleHelper(getLocale()), getProjectCommandFactory(),
 					getCommandHandler()), stakeholder);
@@ -160,6 +159,7 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 					new AnnotationsTable(this, getResourceBundleHelper(getLocale())), stakeholder);
 		} else {
 			addInput("name", PROP_LABEL_NAME, "Name", new TextField(), new StringDocumentEx());
+			addInput("text", PROP_LABEL_DESCRIPTION, "Description", new TextArea(), new StringDocumentEx());
 			addMultiRowInput("goals", GoalsTable.PROP_LABEL_GOALS, "Goals", new GoalsTable(this,
 					getResourceBundleHelper(getLocale()), getProjectCommandFactory(),
 					getCommandHandler()), null);
@@ -203,6 +203,7 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 			command.setProjectOrDomain(getProjectOrDomain());
 			command.setEditedBy(getCurrentUser());
 			command.setName(getInputValue("name", String.class));
+			command.setText(getInputValue("text", String.class));
 			command = getCommandHandler().execute(command);
 			setValid(true);
 			if (updateListener != null) {
@@ -265,10 +266,6 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 			return (NonUserStakeholder) getTargetObject();
 		}
 		return null;
-	}
-
-	private UserRepository getUserRepository() {
-		return userRepository;
 	}
 
 	private static class UpdateListener implements ActionListener {
@@ -334,7 +331,7 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 					// a change before resetting the object and updating the
 					// input fields.
 					panel.setInputValue("name", updatedStakeholder.getName());
-					panel.setInputValue("description", updatedStakeholder.getText());
+					panel.setInputValue("text", updatedStakeholder.getText());
 					panel.setInputValue("goals", updatedStakeholder);
 					panel.setInputValue("annotations", updatedStakeholder);
 					panel.setTargetObject(updatedStakeholder);

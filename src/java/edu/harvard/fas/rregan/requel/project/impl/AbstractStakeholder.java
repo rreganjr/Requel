@@ -32,6 +32,7 @@ import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.Inheritance;
 import javax.persistence.InheritanceType;
+import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
@@ -44,6 +45,7 @@ import edu.harvard.fas.rregan.requel.project.Goal;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.user.User;
+import edu.harvard.fas.rregan.requel.user.impl.UserImpl;
 
 /**
  * @author ron
@@ -58,6 +60,7 @@ public abstract class AbstractStakeholder extends AbstractProjectOrDomainEntity 
 		Stakeholder {
 	static final long serialVersionUID = 0L;
 
+	private User user;
 	private String type;
 	private Set<Goal> goals = new TreeSet<Goal>();
 
@@ -86,6 +89,15 @@ public abstract class AbstractStakeholder extends AbstractProjectOrDomainEntity 
 
 	protected void setType(String type) {
 		this.type = type;
+	}
+
+	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.REFRESH }, optional = true)
+	protected User getUser() {
+		return user;
+	}
+
+	protected void setUser(User user) {
+		this.user = user;
 	}
 
 	/**

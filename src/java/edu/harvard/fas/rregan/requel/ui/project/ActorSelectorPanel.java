@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -39,7 +40,6 @@ import edu.harvard.fas.rregan.requel.project.Project;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomainEntity;
 import edu.harvard.fas.rregan.requel.project.ProjectRepository;
-import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
 import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.user.User;
@@ -65,12 +65,6 @@ public class ActorSelectorPanel extends SelectorTablePanel {
 
 	private final ProjectRepository projectRepository;
 	private UpdateListener updateListener;
-
-	/**
-	 * Property name to use in the ActorNavigatorPanel.properties to set the
-	 * label for the text of the cancel/reset button.
-	 */
-	public static final String PROP_CANCEL_BUTTON_LABEL = "CancelButton.Label";
 
 	/**
 	 * @param projectRepository

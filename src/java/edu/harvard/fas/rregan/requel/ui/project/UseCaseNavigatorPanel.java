@@ -78,12 +78,6 @@ public class UseCaseNavigatorPanel extends NavigatorTablePanel {
 
 	/**
 	 * Property name to use in the UseCaseNavigatorPanel.properties to set the
-	 * label for the text of the cancel/reset button.
-	 */
-	public static final String PROP_CANCEL_BUTTON_LABEL = "CancelButton.Label";
-
-	/**
-	 * Property name to use in the UseCaseNavigatorPanel.properties to set the
 	 * label on the edit usecase button in each row of the table.
 	 */
 	public static final String PROP_EDIT_USE_CASE_BUTTON_LABEL = "EditButton.Label";

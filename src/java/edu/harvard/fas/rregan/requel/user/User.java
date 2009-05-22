@@ -70,6 +70,14 @@ public interface User extends Comparable<User>, OrganizedEntity {
 	public void setUsername(String username);
 
 	/**
+	 * if the user has a name then return the form "<name> [ <username> ]"
+	 * otherwise return "<username>"
+	 * 
+	 * @return The user's name (if it exists) plus the username
+	 */
+	public String getDescriptiveName();
+	
+	/**
 	 * Reset the user's password to the supplied plain text string.
 	 * 
 	 * @param password -

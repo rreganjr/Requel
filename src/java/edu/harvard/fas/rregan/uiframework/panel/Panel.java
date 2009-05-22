@@ -46,6 +46,12 @@ public interface Panel extends PanelDescriptor {
 	public static final String STYLE_NAME_PANEL_TITLE = "Panel.Title";
 
 	/**
+	 * Property name to use in the panel's properties to set the
+	 * label for the text of the cancel/close/reset button.
+	 */
+	public static final String PROP_CANCEL_BUTTON_LABEL = "CancelButton.Label";
+
+	/**
 	 * The default style from the stylesheet.
 	 */
 	public static final String STYLE_NAME_DEFAULT = "Default";

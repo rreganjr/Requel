@@ -188,6 +188,15 @@ public class UserImpl implements User, Serializable {
 	}
 
 	@Transient
+	@Override
+	public String getDescriptiveName() {
+		if (getName() != null) {
+			return getName() + " [" + getUsername() + "]";
+		}
+		return getUsername();
+	}
+
+	@Transient
 	public boolean isPassword(String password) {
 		return getHashedPassword().equals(HashUtils.getMD5HashDigestString(password));
 	}

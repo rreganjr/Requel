@@ -109,6 +109,7 @@ public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUs
 	 * @see edu.harvard.fas.rregan.requel.project.Stakeholder#isUserStakeholder()
 	 */
 	@Override
+	@Transient
 	public boolean isUserStakeholder() {
 		return false;
 	}
