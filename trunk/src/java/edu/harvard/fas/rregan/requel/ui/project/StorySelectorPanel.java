@@ -67,12 +67,6 @@ public class StorySelectorPanel extends SelectorTablePanel {
 	private UpdateListener updateListener;
 
 	/**
-	 * Property name to use in the StoryNavigatorPanel.properties to set the
-	 * label for the text of the cancel/reset button.
-	 */
-	public static final String PROP_CANCEL_BUTTON_LABEL = "CancelButton.Label";
-
-	/**
 	 * @param projectRepository
 	 */
 	public StorySelectorPanel(ProjectRepository projectRepository) {

@@ -27,7 +27,6 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import nextapp.echo2.app.SelectField;
-import nextapp.echo2.app.TextField;
 import nextapp.echo2.app.event.ActionEvent;
 import nextapp.echo2.app.event.ActionListener;
 
@@ -36,7 +35,6 @@ import org.hibernate.validator.InvalidStateException;
 import org.hibernate.validator.InvalidValue;
 
 import echopointng.ComboBox;
-import echopointng.text.StringDocumentEx;
 import edu.harvard.fas.rregan.command.CommandHandler;
 import edu.harvard.fas.rregan.repository.EntityException;
 import edu.harvard.fas.rregan.requel.annotation.Annotatable;
@@ -72,15 +70,9 @@ import edu.harvard.fas.rregan.uiframework.panel.editor.CombinedTextListModel;
  * @author ron
  */
 public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
-	private static final Logger log = Logger.getLogger(NonUserStakeholderEditorPanel.class);
+	private static final Logger log = Logger.getLogger(UserStakeholderEditorPanel.class);
 
 	static final long serialVersionUID = 0L;
-
-	/**
-	 * The name to use in the StakeholderEditorPanel.properties file to set the
-	 * label of the name field. If the property is undefined "Name" is used.
-	 */
-	public static final String PROP_LABEL_NAME = "Name.Label";
 
 	/**
 	 * The name to use in the StakeholderEditorPanel.properties file to set the
@@ -116,7 +108,7 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 	public UserStakeholderEditorPanel(CommandHandler commandHandler,
 			ProjectCommandFactory projectCommandFactory, UserRepository userRepository,
 			ProjectRepository projectRepository) {
-		this(NonUserStakeholderEditorPanel.class.getName(), commandHandler, projectCommandFactory,
+		this(UserStakeholderEditorPanel.class.getName(), commandHandler, projectCommandFactory,
 				userRepository, projectRepository);
 	}
 
@@ -159,14 +151,14 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 			String msgPattern = getResourceBundleHelper(getLocale()).getString(
 					PROP_EXISTING_OBJECT_PANEL_TITLE,
 					getResourceBundleHelper(getLocale()).getString(PROP_PANEL_TITLE,
-							"Stakeholder: {0}"));
-			return MessageFormat.format(msgPattern, getStakeholder().getName(),
+							"User Stakeholder: {0}"));
+			return MessageFormat.format(msgPattern, getStakeholder().getUser().getDescriptiveName(),
 					getProjectOrDomain().getName());
 		} else {
 			String msg = getResourceBundleHelper(getLocale()).getString(
 					PROP_NEW_OBJECT_PANEL_TITLE,
 					getResourceBundleHelper(getLocale()).getString(PROP_PANEL_TITLE,
-							"New Stakeholder"));
+							"New User Stakeholder"));
 			return msg;
 		}
 	}
@@ -176,8 +168,6 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 		super.setup();
 		UserStakeholder stakeholder = getStakeholder();
 		if (stakeholder != null) {
-			addInput("name", PROP_LABEL_NAME, "Name", new TextField(), new StringDocumentEx(
-					stakeholder.getName()));
 			addInput("user", PROP_LABEL_USER, "User", new SelectField(), new CombinedListModel(
 					getProjectUsersUsernames(), (stakeholder.getUser() != null ? stakeholder
 							.getUser().getUsername() : ""), true));
@@ -194,7 +184,6 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 			addMultiRowInput("annotations", AnnotationsTable.PROP_LABEL_ANNOTATIONS, "Annotations",
 					new AnnotationsTable(this, getResourceBundleHelper(getLocale())), stakeholder);
 		} else {
-			addInput("name", PROP_LABEL_NAME, "Name", new TextField(), new StringDocumentEx());
 			addInput("user", PROP_LABEL_USER, "User", new SelectField(), new CombinedListModel(
 					getProjectUsersUsernames(), "", true));
 			addInput("teamName", PROP_LABEL_TEAM, "Team", new ComboBox(),
@@ -205,8 +194,6 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 			addInput("stakeholderPermissions", PROP_LABEL_PERMISSIONS, "Stakeholder Permissions",
 					new CheckBoxTreeSet(), createStakeholderPermissionsSelectionTreeModel(
 							getProjectRepository().findAvailableStakeholderPermissions(), null));
-			addMultiRowInput("annotations", AnnotationsTable.PROP_LABEL_ANNOTATIONS, "Annotations",
-					new AnnotationsTable(this, getResourceBundleHelper(getLocale())), null);
 		}
 
 		if (updateListener != null) {
@@ -246,7 +233,6 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 			command.setStakeholder(getStakeholder());
 			command.setProjectOrDomain(getProjectOrDomain());
 			command.setEditedBy(getCurrentUser());
-			command.setName(getInputValue("name", String.class));
 			command.setUsername(getInputValue("user", String.class));
 			command.setTeamName(getInputValue("teamName", String.class));
 			command.setStakeholderPermissions(getStakeholderPermissionKeys(getInputValue(

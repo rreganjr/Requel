@@ -4,7 +4,7 @@
 	createdBy="USR_1"
 	xmlns="http://www.people.fas.harvard.edu/~rregan/requel"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-	xsi:schemaLocation="http://www.people.fas.harvard.edu/~rregan/requel http://requel.sourceforge.net/integration/1.0/project.xsd">
+	xsi:schemaLocation="http://www.people.fas.harvard.edu/~rregan/requel project.xsd">
     <actors>
         <actor id="ACT_1" revision="10" dateCreated="2009-01-05T00:00:00" createdBy="USR_1">
             <annotations/>
@@ -187,7 +187,7 @@
     <name>Requel</name>
     <reports/>
     <stakeholders>
-        <stakeholder id="STK_5" revision="2" dateCreated="2009-02-11T04:07:01" createdBy="USR_1">
+        <user-stakeholder id="STK_5" revision="2" dateCreated="2009-02-11T04:07:01" createdBy="USR_1">
             <annotations/>
             <goals/>
             <projectPermissions>
@@ -243,8 +243,8 @@
                 </userRoles>
                 <editable>true</editable>
             </user>
-        </stakeholder>
-        <stakeholder id="STK_1" revision="1" dateCreated="2009-01-04T00:00:00" createdBy="USR_1">
+        </user-stakeholder>
+        <user-stakeholder id="STK_1" revision="1" dateCreated="2009-01-04T00:00:00" createdBy="USR_1">
             <annotations/>
             <goals/>
             <projectPermissions/>
@@ -261,17 +261,15 @@
                 </userRoles>
                 <editable>false</editable>
             </user>
-        </stakeholder>
-        <stakeholder id="STK_2" revision="2" dateCreated="2009-01-05T00:00:00" createdBy="USR_1">
+        </user-stakeholder>
+        <nonuser-stakeholder id="STK_2" revision="2" dateCreated="2009-01-05T00:00:00" createdBy="USR_1">
             <annotations/>
             <goals>
                 <goalRef>GOL_10</goalRef>
             </goals>
             <name>Harvard University</name>
-            <projectPermissions/>
-            <user xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
-        </stakeholder>
-        <stakeholder id="STK_3" revision="1" dateCreated="2009-01-05T00:00:00" createdBy="USR_1">
+        </nonuser-stakeholder>
+        <user-stakeholder id="STK_3" revision="1" dateCreated="2009-01-05T00:00:00" createdBy="USR_1">
             <annotations/>
             <goals/>
             <projectPermissions/>
@@ -290,7 +288,7 @@
                 </userRoles>
                 <editable>true</editable>
             </user>
-        </stakeholder>
+        </user-stakeholder>
     </stakeholders>
     <stories>
         <story id="STRY_1" storyType="Success" revision="64" dateCreated="2009-01-05T00:00:00" createdBy="USR_1">

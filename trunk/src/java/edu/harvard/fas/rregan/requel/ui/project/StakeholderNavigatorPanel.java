@@ -34,6 +34,7 @@ import nextapp.echo2.app.layout.RowLayoutData;
 
 import org.apache.log4j.Logger;
 
+import edu.harvard.fas.rregan.requel.project.NonUserStakeholder;
 import edu.harvard.fas.rregan.requel.project.Project;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
@@ -66,9 +67,15 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 
 	/**
 	 * Property name to use in the StakeholderNavigatorPanel.properties to set
-	 * the label on the new stakeholder button.
+	 * the label on the new non-user stakeholder button.
 	 */
-	public static final String PROP_NEW_STAKEHOLDER_BUTTON_LABEL = "NewStakeholderButton.Label";
+	public static final String PROP_NEW_NON_USER_STAKEHOLDER_BUTTON_LABEL = "NewNonUserStakeholderButton.Label";
+
+	/**
+	 * Property name to use in the StakeholderNavigatorPanel.properties to set
+	 * the label on the new user stakeholder button.
+	 */
+	public static final String PROP_NEW_USER_STAKEHOLDER_BUTTON_LABEL = "NewUserStakeholderButton.Label";
 
 	/**
 	 * Property name to use in the StakeholderNavigatorPanel.properties to set
@@ -104,12 +111,19 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 									.getString(PROP_EDIT_STAKEHOLDER_BUTTON_LABEL, "Edit");
 						}
 
-						NavigationEvent openStakeholderEditor = new OpenPanelEvent(this,
-								PanelActionType.Editor, stakeholder, Stakeholder.class, null,
-								WorkflowDisposition.NewFlow);
+						NavigationEvent openStakeholderEditorEvent = null;
+						if (stakeholder.isUserStakeholder()) {
+							openStakeholderEditorEvent = new OpenPanelEvent(this,
+									PanelActionType.Editor, stakeholder, UserStakeholder.class, null,
+									WorkflowDisposition.NewFlow);
+						} else {
+							openStakeholderEditorEvent = new OpenPanelEvent(this,
+									PanelActionType.Editor, stakeholder, NonUserStakeholder.class, null,
+									WorkflowDisposition.NewFlow);
+						}
 						NavigatorButton editStakeholderButton = new NavigatorButton(
 								editStakeholderButtonLabel, getEventDispatcher(),
-								openStakeholderEditor);
+								openStakeholderEditorEvent);
 						editStakeholderButton.setStyleName(STYLE_NAME_PLAIN);
 						RowLayoutData rld = new RowLayoutData();
 						rld.setAlignment(Alignment.ALIGN_CENTER);
@@ -257,7 +271,7 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 		buttonsWrapper.setAlignment(new Alignment(Alignment.CENTER, Alignment.DEFAULT));
 
 		String closeButtonLabel = getResourceBundleHelper(getLocale()).getString(
-				PROP_NEW_STAKEHOLDER_BUTTON_LABEL, "Close");
+				PROP_CANCEL_BUTTON_LABEL, "Close");
 		NavigationEvent closeEvent = new ClosePanelEvent(this, this);
 		NavigatorButton closeButton = new NavigatorButton(closeButtonLabel, getEventDispatcher(),
 				closeEvent);
@@ -265,12 +279,24 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 		buttonsWrapper.add(closeButton);
 
 		if (!isReadOnlyMode()) {
+			// add non-user stakeholder button
 			String newStakeholderButtonLabel = getResourceBundleHelper(getLocale()).getString(
-					PROP_NEW_STAKEHOLDER_BUTTON_LABEL, "Add");
+					PROP_NEW_NON_USER_STAKEHOLDER_BUTTON_LABEL, "Add Non-User");
 			NavigationEvent openStakeholderEditor = new OpenPanelEvent(this,
-					PanelActionType.Editor, getProjectOrDomain(), Stakeholder.class, null,
+					PanelActionType.Editor, getProjectOrDomain(), NonUserStakeholder.class, null,
 					WorkflowDisposition.NewFlow);
 			NavigatorButton newStakeholderButton = new NavigatorButton(newStakeholderButtonLabel,
+					getEventDispatcher(), openStakeholderEditor);
+			newStakeholderButton.setStyleName(STYLE_NAME_DEFAULT);
+			buttonsWrapper.add(newStakeholderButton);
+			
+			// add user stakeholder button
+			newStakeholderButtonLabel = getResourceBundleHelper(getLocale()).getString(
+					PROP_NEW_USER_STAKEHOLDER_BUTTON_LABEL, "Add User");
+			openStakeholderEditor = new OpenPanelEvent(this,
+					PanelActionType.Editor, getProjectOrDomain(), UserStakeholder.class, null,
+					WorkflowDisposition.NewFlow);
+			newStakeholderButton = new NavigatorButton(newStakeholderButtonLabel,
 					getEventDispatcher(), openStakeholderEditor);
 			newStakeholderButton.setStyleName(STYLE_NAME_DEFAULT);
 			buttonsWrapper.add(newStakeholderButton);

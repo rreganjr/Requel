@@ -67,12 +67,6 @@ public class UseCaseSelectorPanel extends SelectorTablePanel {
 	private UpdateListener updateListener;
 
 	/**
-	 * Property name to use in the UseCaseNavigatorPanel.properties to set the
-	 * label for the text of the cancel/reset button.
-	 */
-	public static final String PROP_CANCEL_BUTTON_LABEL = "CancelButton.Label";
-
-	/**
 	 * @param projectRepository
 	 */
 	public UseCaseSelectorPanel(ProjectRepository projectRepository) {

@@ -25,6 +25,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 import javax.persistence.CascadeType;
+import javax.persistence.DiscriminatorValue;
+import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
@@ -68,13 +70,14 @@ import edu.harvard.fas.rregan.requel.utils.jaxb.UnmarshallerListener;
  * 
  * @author ron
  */
+@Entity
+@DiscriminatorValue(value = "edu.harvard.fas.rregan.requel.project.UserStakeholder")
 @XmlRootElement(name = "user-stakeholder", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
 @XmlType(name = "user-stakeholder", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
 public class UserStakeholderImpl extends AbstractStakeholder implements UserStakeholder {
 	static final long serialVersionUID = 0L;
 
 	private Set<StakeholderPermission> stakeholderPermission = new HashSet<StakeholderPermission>();
-	private User user;
 	private ProjectTeam team;
 
 	/**
@@ -98,6 +101,7 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 	}
 
 	@Override
+	@Transient
 	public boolean isUserStakeholder() {
 		return true;
 	}
@@ -119,25 +123,20 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 	@XmlTransient
 	@Transient
 	public String getDescription() {
-		if (getUser().getName() != null) {
-			return "Stakeholder: " + getUser().getName() + " [" + getUser().getUsername() + "]";
-		}
-		return "Stakeholder: " + getUser().getUsername();
+		return "Stakeholder: " + getUser().getDescriptiveName();
 	}
 
-	// TODO: there should be some way to mark this as optional in the xml schema
 	@XmlElement(name = "user", type = UserImpl.class, nillable = false, required = true, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-	// @XmlElementRef(type = UserImpl.class)
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.REFRESH }, optional = false)
+	@Transient
 	public User getUser() {
-		return user;
+		return super.getUser();
 	}
 
 	/**
 	 * @param user
 	 */
 	public void setUser(User user) {
-		this.user = user;
+		super.setUser(user);
 	}
 
 	@XmlIDREF()

@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -74,12 +75,6 @@ public class GoalNavigatorPanel extends NavigatorTablePanel {
 	 * label on the new goal button.
 	 */
 	public static final String PROP_NEW_GOAL_BUTTON_LABEL = "NewGoalButton.Label";
-
-	/**
-	 * Property name to use in the GoalNavigatorPanel.properties to set the
-	 * label for the text of the cancel/reset button.
-	 */
-	public static final String PROP_CANCEL_BUTTON_LABEL = "CancelButton.Label";
 
 	/**
 	 * Property name to use in the GoalNavigatorPanel.properties to set the

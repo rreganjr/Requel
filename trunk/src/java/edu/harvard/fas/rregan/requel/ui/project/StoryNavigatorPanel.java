@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -74,12 +75,6 @@ public class StoryNavigatorPanel extends NavigatorTablePanel {
 	 * label on the new Story button.
 	 */
 	public static final String PROP_NEW_STORY_BUTTON_LABEL = "NewStoryButton.Label";
-
-	/**
-	 * Property name to use in the StoryNavigatorPanel.properties to set the
-	 * label for the text of the cancel/reset button.
-	 */
-	public static final String PROP_CANCEL_BUTTON_LABEL = "CancelButton.Label";
 
 	/**
 	 * Property name to use in the StoryNavigatorPanel.properties to set the

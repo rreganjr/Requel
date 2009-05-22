@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -77,12 +78,6 @@ public class ReportGeneratorNavigatorPanel extends NavigatorTablePanel {
 	 * set the label on the new ReportGenerator button.
 	 */
 	public static final String PROP_NEW_REPORT_BUTTON_LABEL = "NewReportButton.Label";
-
-	/**
-	 * Property name to use in the ReportGeneratorNavigatorPanel.properties to
-	 * set the label for the text of the cancel/reset button.
-	 */
-	public static final String PROP_CANCEL_BUTTON_LABEL = "CancelButton.Label";
 
 	/**
 	 * Property name to use in the ReportGeneratorNavigatorPanel.properties to

@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -64,12 +65,6 @@ public class ScenarioSelectorPanel extends SelectorTablePanel {
 
 	private final ProjectRepository projectRepository;
 	private UpdateListener updateListener;
-
-	/**
-	 * Property name to use in the ScenarioNavigatorPanel.properties to set the
-	 * label for the text of the cancel/reset button.
-	 */
-	public static final String PROP_CANCEL_BUTTON_LABEL = "CancelButton.Label";
 
 	/**
 	 * @param projectRepository

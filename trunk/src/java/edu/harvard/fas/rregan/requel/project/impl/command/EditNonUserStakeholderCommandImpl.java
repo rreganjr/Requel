@@ -20,8 +20,6 @@
  */
 package edu.harvard.fas.rregan.requel.project.impl.command;
 
-import java.util.Set;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
@@ -31,37 +29,30 @@ import edu.harvard.fas.rregan.repository.EntityException;
 import edu.harvard.fas.rregan.repository.EntityExceptionActionType;
 import edu.harvard.fas.rregan.requel.NoSuchEntityException;
 import edu.harvard.fas.rregan.requel.annotation.command.AnnotationCommandFactory;
-import edu.harvard.fas.rregan.requel.project.Project;
+import edu.harvard.fas.rregan.requel.project.NonUserStakeholder;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
 import edu.harvard.fas.rregan.requel.project.ProjectRepository;
-import edu.harvard.fas.rregan.requel.project.ProjectTeam;
-import edu.harvard.fas.rregan.requel.project.ProjectUserRole;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
-import edu.harvard.fas.rregan.requel.project.StakeholderPermission;
-import edu.harvard.fas.rregan.requel.project.UserStakeholder;
-import edu.harvard.fas.rregan.requel.project.command.EditUserStakeholderCommand;
+import edu.harvard.fas.rregan.requel.project.command.EditNonUserStakeholderCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
-import edu.harvard.fas.rregan.requel.project.impl.ProjectTeamImpl;
-import edu.harvard.fas.rregan.requel.project.impl.UserStakeholderImpl;
+import edu.harvard.fas.rregan.requel.project.impl.NonUserStakeholderImpl;
 import edu.harvard.fas.rregan.requel.project.impl.assistant.AssistantFacade;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.requel.user.UserRepository;
 
 /**
- * Create or edit a stakeholder for a system user.
+ * Create or edit a non-user stakeholder.
  * 
  * @author ron
  */
 @Controller("editNonUserStakeholderCommand")
 @Scope("prototype")
 public class EditNonUserStakeholderCommandImpl extends AbstractEditProjectOrDomainEntityCommand
-		implements EditUserStakeholderCommand {
+		implements EditNonUserStakeholderCommand {
 
-	private UserStakeholder stakeholder;
-	private String username;
-	private Set<String> permissionKeys;
-	private String teamName;
-
+	private NonUserStakeholder stakeholder;
+	private String text;
+	
 	/**
 	 * @param assistantManager
 	 * @param userRepository
@@ -79,115 +70,53 @@ public class EditNonUserStakeholderCommandImpl extends AbstractEditProjectOrDoma
 				annotationCommandFactory, commandHandler);
 	}
 
-	public UserStakeholder getStakeholder() {
+	public NonUserStakeholder getStakeholder() {
 		return stakeholder;
 	}
 
-	public void setStakeholder(UserStakeholder stakeholder) {
+	public void setStakeholder(NonUserStakeholder stakeholder) {
 		this.stakeholder = stakeholder;
 	}
 
-	protected String getUsername() {
-		return username;
+	
+	protected String getText() {
+		return text;
 	}
 
-	public void setUsername(String username) {
-		this.username = username;
-	}
-
-	public void setStakeholderPermissions(Set<String> permissionKeys) {
-		this.permissionKeys = permissionKeys;
-	}
-
-	protected Set<String> getStakeholderPermissions() {
-		return permissionKeys;
-	}
-
-	protected String getTeamName() {
-		return teamName;
-	}
-
-	public void setTeamName(String teamName) {
-		this.teamName = teamName;
+	public void setText(String text) {
+		this.text = text;
 	}
 
 	@Override
 	public void execute() {
 		ProjectOrDomain projectOrDomain = getProjectRepository().get(getProjectOrDomain());
 		User editedBy = getProjectRepository().get(getEditedBy());
-		User user = getUserRepository().findUserByUsername(getUsername());
 
-		UserStakeholderImpl stakeholderImpl = (UserStakeholderImpl) getStakeholder();
+		NonUserStakeholderImpl stakeholderImpl = (NonUserStakeholderImpl) getStakeholder();
 
 		// check for uniqueness
 		try {
-			UserStakeholder existing = getProjectRepository()
-					.findStakeholderByProjectOrDomainAndUser(projectOrDomain, user);
+			NonUserStakeholder existing = getProjectRepository()
+					.findStakeholderByProjectOrDomainAndName(projectOrDomain, getName());
 			if (stakeholderImpl == null) {
-				throw EntityException.uniquenessConflict(Stakeholder.class, existing,
-						(user == null ? FIELD_NAME : FIELD_USER),
+				throw EntityException.uniquenessConflict(Stakeholder.class, existing, FIELD_NAME,
 						EntityExceptionActionType.Creating);
 			} else if (!existing.equals(stakeholderImpl)) {
-				throw EntityException.uniquenessConflict(Stakeholder.class, existing,
-						(user == null ? FIELD_NAME : FIELD_USER),
+				throw EntityException.uniquenessConflict(Stakeholder.class, existing, FIELD_NAME,
 						EntityExceptionActionType.Updating);
 			}
 		} catch (NoSuchEntityException e) {
 		}
 
-		ProjectTeam oldTeam = null;
-		ProjectTeam newTeam = null;
-		if (stakeholderImpl != null) {
-			oldTeam = getRepository().get(stakeholderImpl.getTeam());
-		}
-
-		String teamName = getTeamName();
-		if ((teamName != null) && (teamName.length() > 0)) {
-			for (ProjectTeam aTeam : projectOrDomain.getTeams()) {
-				if (teamName.equalsIgnoreCase(aTeam.getName())) {
-					newTeam = aTeam;
-					break;
-				}
-			}
-			if (newTeam == null) {
-				// TODO: add/use create team command?
-				newTeam = getRepository().persist(
-						new ProjectTeamImpl(projectOrDomain, editedBy, teamName));
-			}
-		}
 
 		if (stakeholderImpl == null) {
 			stakeholderImpl = getProjectRepository().persist(
-					new UserStakeholderImpl(projectOrDomain, editedBy, user));
+					new NonUserStakeholderImpl(projectOrDomain, editedBy, getName()));
 		} else {
 			stakeholderImpl.setName(getName());
-			stakeholderImpl.setUser(user);
 		}
-		stakeholderImpl.setTeam(newTeam);
+		stakeholderImpl.setText(getText());
 		stakeholderImpl = getProjectRepository().merge(stakeholderImpl);
-
-		if (oldTeam != null) {
-			oldTeam.getMembers().remove(stakeholderImpl);
-		}
-		if (newTeam != null) {
-			newTeam.getMembers().add(stakeholderImpl);
-		}
-
-		for (StakeholderPermission permission : getProjectRepository()
-				.findAvailableStakeholderPermissions()) {
-			if (stakeholderImpl.hasPermission(permission)
-					&& !getStakeholderPermissions().contains(permission.getPermissionKey())) {
-				stakeholderImpl.revokeStakeholderPermission(permission);
-			} else if (!stakeholderImpl.hasPermission(permission)
-					&& getStakeholderPermissions().contains(permission.getPermissionKey())) {
-				stakeholderImpl.grantStakeholderPermission(permission);
-			}
-		}
-
-		if (user != null) {
-			ProjectUserRole projectRole = user.getRoleForType(ProjectUserRole.class);
-			projectRole.getActiveProjects().add((Project) projectOrDomain);
-		}
 		setStakeholder(stakeholderImpl);
 	}
 

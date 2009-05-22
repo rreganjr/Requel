@@ -124,12 +124,10 @@ public class EditUserStakeholderCommandImpl extends AbstractEditProjectOrDomainE
 			UserStakeholder existing = getProjectRepository()
 					.findStakeholderByProjectOrDomainAndUser(projectOrDomain, user);
 			if (stakeholderImpl == null) {
-				throw EntityException.uniquenessConflict(Stakeholder.class, existing,
-						(user == null ? FIELD_NAME : FIELD_USER),
+				throw EntityException.uniquenessConflict(Stakeholder.class, existing, FIELD_USER,
 						EntityExceptionActionType.Creating);
 			} else if (!existing.equals(stakeholderImpl)) {
-				throw EntityException.uniquenessConflict(Stakeholder.class, existing,
-						(user == null ? FIELD_NAME : FIELD_USER),
+				throw EntityException.uniquenessConflict(Stakeholder.class, existing, FIELD_USER,
 						EntityExceptionActionType.Updating);
 			}
 		} catch (NoSuchEntityException e) {
@@ -160,7 +158,6 @@ public class EditUserStakeholderCommandImpl extends AbstractEditProjectOrDomainE
 			stakeholderImpl = getProjectRepository().persist(
 					new UserStakeholderImpl(projectOrDomain, editedBy, user));
 		} else {
-			stakeholderImpl.setName(getName());
 			stakeholderImpl.setUser(user);
 		}
 		stakeholderImpl.setTeam(newTeam);
