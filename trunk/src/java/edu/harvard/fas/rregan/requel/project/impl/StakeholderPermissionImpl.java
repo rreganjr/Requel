@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -46,9 +47,12 @@ import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 import edu.harvard.fas.rregan.requel.project.ProjectRepository;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermission;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.utils.jaxb.UnmarshallerListener;
 
 /**
+ * Project specific permissions for UserStakeholders
+ * 
  * @author ron
  */
 @Entity
@@ -178,6 +182,11 @@ public class StakeholderPermissionImpl implements StakeholderPermission {
 		return getPermissionKey();
 	}
 
+	/**
+	 * @param entityType
+	 * @param permissionType
+	 * @return A unique key for the permission
+	 */
 	public static final String generatePermissionKey(Class<?> entityType,
 			StakeholderPermissionType permissionType) {
 		return entityType.getName() + "[" + permissionType.toString() + "]";
@@ -242,11 +251,11 @@ public class StakeholderPermissionImpl implements StakeholderPermission {
 			public void run() throws SAXException {
 				try {
 					StakeholderPermission permission = StakeholderPermissionImpl.this;
-					((StakeholderImpl) parent).getStakeholderPermissions().remove(permission);
+					((UserStakeholder) parent).getStakeholderPermissions().remove(permission);
 					StakeholderPermission existingPermission = projectRepository
 							.findStakeholderPermission(permission.getEntityType(), permission
 									.getPermissionType());
-					((StakeholderImpl) parent).getStakeholderPermissions().add(existingPermission);
+					((UserStakeholder) parent).getStakeholderPermissions().add(existingPermission);
 				} catch (RuntimeException e) {
 					throw e;
 				} catch (Exception e) {

@@ -37,8 +37,8 @@ import edu.harvard.fas.rregan.requel.annotation.Issue;
 import edu.harvard.fas.rregan.requel.annotation.Note;
 import edu.harvard.fas.rregan.requel.project.Project;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomainEntity;
-import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.ui.AbstractRequelNavigatorTable;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.uiframework.navigation.NavigatorButton;
@@ -186,7 +186,7 @@ public class AnnotationsTable extends AbstractRequelNavigatorTable {
 		User user = (User) getApp().getUser();
 		Annotatable annotatable = getAnnotatable();
 		if (annotatable != null) {
-			Stakeholder stakeholder = null;
+			UserStakeholder stakeholder = null;
 			if (annotatable instanceof Project) {
 				projectEntity = true;
 				Project project = (Project) annotatable;

@@ -310,8 +310,8 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 	}
 
 	@XmlElementWrapper(name = "stakeholders", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-	@XmlElementRef(name = "stakeholder", type = StakeholderImpl.class)
-	@OneToMany(targetEntity = StakeholderImpl.class, cascade = { CascadeType.PERSIST,
+	@XmlElementRef(name = "stakeholder", type = AbstractStakeholder.class)
+	@OneToMany(targetEntity = AbstractStakeholder.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY, mappedBy = "projectOrDomain")
 	@Sort(type = SortType.NATURAL)
 	public Set<Stakeholder> getStakeholders() {

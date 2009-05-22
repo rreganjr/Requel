@@ -51,8 +51,9 @@ import edu.harvard.fas.rregan.requel.project.ProjectUserRole;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermission;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.project.command.DeleteStakeholderCommand;
-import edu.harvard.fas.rregan.requel.project.command.EditStakeholderCommand;
+import edu.harvard.fas.rregan.requel.project.command.EditUserStakeholderCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.ui.annotation.AnnotationsTable;
 import edu.harvard.fas.rregan.requel.user.User;
@@ -66,10 +67,12 @@ import edu.harvard.fas.rregan.uiframework.panel.editor.CombinedListModel;
 import edu.harvard.fas.rregan.uiframework.panel.editor.CombinedTextListModel;
 
 /**
+ * Panel for creating or editing a user stakeholder.
+ * 
  * @author ron
  */
-public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
-	private static final Logger log = Logger.getLogger(StakeholderEditorPanel.class);
+public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
+	private static final Logger log = Logger.getLogger(NonUserStakeholderEditorPanel.class);
 
 	static final long serialVersionUID = 0L;
 
@@ -110,10 +113,10 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 	 * @param userRepository
 	 * @param projectRepository
 	 */
-	public StakeholderEditorPanel(CommandHandler commandHandler,
+	public UserStakeholderEditorPanel(CommandHandler commandHandler,
 			ProjectCommandFactory projectCommandFactory, UserRepository userRepository,
 			ProjectRepository projectRepository) {
-		this(StakeholderEditorPanel.class.getName(), commandHandler, projectCommandFactory,
+		this(NonUserStakeholderEditorPanel.class.getName(), commandHandler, projectCommandFactory,
 				userRepository, projectRepository);
 	}
 
@@ -124,7 +127,7 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 	 * @param userRepository
 	 * @param projectRepository
 	 */
-	public StakeholderEditorPanel(String resourceBundleName, CommandHandler commandHandler,
+	public UserStakeholderEditorPanel(String resourceBundleName, CommandHandler commandHandler,
 			ProjectCommandFactory projectCommandFactory, UserRepository userRepository,
 			ProjectRepository projectRepository) {
 		super(resourceBundleName, Stakeholder.class, commandHandler, projectCommandFactory,
@@ -157,9 +160,8 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 					PROP_EXISTING_OBJECT_PANEL_TITLE,
 					getResourceBundleHelper(getLocale()).getString(PROP_PANEL_TITLE,
 							"Stakeholder: {0}"));
-			return MessageFormat.format(msgPattern,
-					(getStakeholder().getUser() != null ? getStakeholder().getUser().getUsername()
-							: getStakeholder().getName()), getProjectOrDomain().getName());
+			return MessageFormat.format(msgPattern, getStakeholder().getName(),
+					getProjectOrDomain().getName());
 		} else {
 			String msg = getResourceBundleHelper(getLocale()).getString(
 					PROP_NEW_OBJECT_PANEL_TITLE,
@@ -172,7 +174,7 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 	@Override
 	public void setup() {
 		super.setup();
-		Stakeholder stakeholder = getStakeholder();
+		UserStakeholder stakeholder = getStakeholder();
 		if (stakeholder != null) {
 			addInput("name", PROP_LABEL_NAME, "Name", new TextField(), new StringDocumentEx(
 					stakeholder.getName()));
@@ -239,7 +241,8 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 	public void save() {
 		try {
 			super.save();
-			EditStakeholderCommand command = getProjectCommandFactory().newEditStakeholderCommand();
+			EditUserStakeholderCommand command = getProjectCommandFactory()
+					.newEditUserStakeholderCommand();
 			command.setStakeholder(getStakeholder());
 			command.setProjectOrDomain(getProjectOrDomain());
 			command.setEditedBy(getCurrentUser());
@@ -314,7 +317,7 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 	}
 
 	private CheckBoxTreeSetModel createStakeholderPermissionsSelectionTreeModel(
-			Set<StakeholderPermission> availableStakeholderPermissions, Stakeholder stakeholder) {
+			Set<StakeholderPermission> availableStakeholderPermissions, UserStakeholder stakeholder) {
 		Set<String> optionPaths = new TreeSet<String>(new Comparator<String>() {
 			@Override
 			public int compare(String o1, String o2) {
@@ -341,7 +344,7 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 		User user = (User) getApp().getUser();
 		if (getProjectOrDomain() instanceof Project) {
 			Project project = (Project) getProjectOrDomain();
-			Stakeholder currentStakeholder = project.getUserStakeholder(user);
+			UserStakeholder currentStakeholder = project.getUserStakeholder(user);
 			if (currentStakeholder != null) {
 				for (StakeholderPermission permission : availableStakeholderPermissions) {
 					if (StakeholderPermissionType.Grant.equals(permission.getPermissionType())) {
@@ -393,9 +396,9 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 		return pod;
 	}
 
-	private Stakeholder getStakeholder() {
-		if (getTargetObject() instanceof Stakeholder) {
-			return (Stakeholder) getTargetObject();
+	private UserStakeholder getStakeholder() {
+		if (getTargetObject() instanceof UserStakeholder) {
+			return (UserStakeholder) getTargetObject();
 		}
 		return null;
 	}
@@ -407,9 +410,9 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 	private static class UpdateListener implements ActionListener {
 		static final long serialVersionUID = 0L;
 
-		private final StakeholderEditorPanel panel;
+		private final UserStakeholderEditorPanel panel;
 
-		private UpdateListener(StakeholderEditorPanel panel) {
+		private UpdateListener(UserStakeholderEditorPanel panel) {
 			this.panel = panel;
 		}
 
@@ -418,12 +421,12 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 			if (panel.deleted) {
 				return;
 			}
-			Stakeholder existingStakeholder = panel.getStakeholder();
+			UserStakeholder existingStakeholder = panel.getStakeholder();
 			if ((e instanceof UpdateEntityEvent) && (existingStakeholder != null)) {
 				UpdateEntityEvent event = (UpdateEntityEvent) e;
-				Stakeholder updatedStakeholder = null;
+				UserStakeholder updatedStakeholder = null;
 				if (event.getObject() instanceof Stakeholder) {
-					updatedStakeholder = (Stakeholder) event.getObject();
+					updatedStakeholder = (UserStakeholder) event.getObject();
 					if ((event instanceof DeletedEntityEvent)
 							&& existingStakeholder.equals(updatedStakeholder)) {
 						panel.deleted = true;
@@ -441,7 +444,7 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 					} else if (updatedGoal.getReferers().contains(existingStakeholder)) {
 						for (GoalContainer gc : updatedGoal.getReferers()) {
 							if (gc.equals(existingStakeholder)) {
-								updatedStakeholder = (Stakeholder) gc;
+								updatedStakeholder = (UserStakeholder) gc;
 								break;
 							}
 						}
@@ -456,7 +459,7 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 					} else if (updatedAnnotation.getAnnotatables().contains(existingStakeholder)) {
 						for (Annotatable annotatable : updatedAnnotation.getAnnotatables()) {
 							if (annotatable.equals(existingStakeholder)) {
-								updatedStakeholder = (Stakeholder) annotatable;
+								updatedStakeholder = (UserStakeholder) annotatable;
 								break;
 							}
 						}
@@ -466,7 +469,6 @@ public class StakeholderEditorPanel extends AbstractRequelProjectEditorPanel {
 					// TODO: check the input fields to see if the user has made
 					// a change before resetting the object and updating the
 					// input fields.
-					panel.setInputValue("name", updatedStakeholder.getName());
 					panel.setInputValue("user",
 							(updatedStakeholder.getUser() != null ? updatedStakeholder.getUser()
 									.getUsername() : ""));

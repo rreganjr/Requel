@@ -54,6 +54,7 @@ import edu.harvard.fas.rregan.requel.project.Project;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomainEntity;
 import edu.harvard.fas.rregan.requel.project.ProjectUserRole;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.user.Organization;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.requel.user.UserRepository;
@@ -177,10 +178,11 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 	}
 
 	@Transient
-	public Stakeholder getUserStakeholder(User user) {
+	public UserStakeholder getUserStakeholder(User user) {
 		for (Stakeholder stakeholder : getStakeholders()) {
-			if (user.equals(stakeholder.getUser())) {
-				return stakeholder;
+			if (stakeholder.isUserStakeholder()
+					&& user.equals(((UserStakeholder) stakeholder).getUser())) {
+				return (UserStakeholder) stakeholder;
 			}
 		}
 		return null;

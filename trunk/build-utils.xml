@@ -398,7 +398,9 @@
 			<include name="edu/harvard/fas/rregan/requel/project/impl/GoalRelationImpl.java"/>
 			<include name="edu/harvard/fas/rregan/requel/project/impl/ProjectImpl.java"/>
 			<include name="edu/harvard/fas/rregan/requel/project/impl/ProjectTeamImpl.java"/>
-			<include name="edu/harvard/fas/rregan/requel/project/impl/StakeholderImpl.java"/>
+			<include name="edu/harvard/fas/rregan/requel/project/impl/AbstractStakeholder.java"/>
+			<include name="edu/harvard/fas/rregan/requel/project/impl/UserStakeholderImpl.java"/>
+			<include name="edu/harvard/fas/rregan/requel/project/impl/NonUserStakeholderImpl.java"/>
 			<include name="edu/harvard/fas/rregan/requel/project/impl/StakeholderPermissionImpl.java"/>
 			<include name="edu/harvard/fas/rregan/requel/project/impl/GlossaryTermImpl.java"/>
 			<include name="edu/harvard/fas/rregan/requel/project/impl/AddActorPosition.java"/>

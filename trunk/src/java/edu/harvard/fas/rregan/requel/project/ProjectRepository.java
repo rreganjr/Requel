@@ -110,7 +110,7 @@ public interface ProjectRepository extends Repository {
 	 * @return
 	 * @throws NoSuchEntityException
 	 */
-	public Stakeholder findStakeholderByProjectOrDomainAndName(ProjectOrDomain projectOrDomain,
+	public NonUserStakeholder findStakeholderByProjectOrDomainAndName(ProjectOrDomain projectOrDomain,
 			String name) throws NoSuchEntityException;
 
 	/**
@@ -123,7 +123,7 @@ public interface ProjectRepository extends Repository {
 	 * @return
 	 * @throws NoSuchEntityException
 	 */
-	public Stakeholder findStakeholderByProjectOrDomainAndUser(ProjectOrDomain projectOrDomain,
+	public UserStakeholder findStakeholderByProjectOrDomainAndUser(ProjectOrDomain projectOrDomain,
 			User user) throws NoSuchEntityException;
 
 	/**

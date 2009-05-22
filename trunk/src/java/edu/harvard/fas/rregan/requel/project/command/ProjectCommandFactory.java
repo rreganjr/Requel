@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -47,7 +48,13 @@ public interface ProjectCommandFactory extends CommandFactory {
 	 * @return a new EditStakeholderCommand for creating or editing a
 	 *         stakeholder.
 	 */
-	public EditStakeholderCommand newEditStakeholderCommand();
+	public EditUserStakeholderCommand newEditUserStakeholderCommand();
+
+	/**
+	 * @return a new EditNonUserStakeholderCommand for creating or editing a
+	 *         non-user stakeholder.
+	 */
+	public EditNonUserStakeholderCommand newEditNonUserStakeholderCommand();
 
 	/**
 	 * @return a new EditGoalCommand for creating or editing a goal.

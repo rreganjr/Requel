@@ -47,8 +47,8 @@ import edu.harvard.fas.rregan.requel.annotation.command.DeleteArgumentCommand;
 import edu.harvard.fas.rregan.requel.annotation.command.EditArgumentCommand;
 import edu.harvard.fas.rregan.requel.project.Project;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomainEntity;
-import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.ui.AbstractRequelEditorPanel;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.uiframework.navigation.event.DeletedEntityEvent;
@@ -192,7 +192,7 @@ public class ArgumentEditorPanel extends AbstractRequelEditorPanel {
 		User user = (User) getApp().getUser();
 		Project project = getProject();
 		if (project != null) {
-			Stakeholder stakeholder = project.getUserStakeholder(user);
+			UserStakeholder stakeholder = project.getUserStakeholder(user);
 			if (stakeholder != null) {
 				return !stakeholder.hasPermission(Annotation.class, StakeholderPermissionType.Edit);
 			}

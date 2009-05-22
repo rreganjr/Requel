@@ -1,6 +1,7 @@
 /*
- * $Id$
+ * $Id: $
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -16,27 +17,20 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
- *
  */
+
 package edu.harvard.fas.rregan.requel.project;
 
-import edu.harvard.fas.rregan.requel.OrganizedEntity;
-import edu.harvard.fas.rregan.requel.annotation.Annotatable;
-import edu.harvard.fas.rregan.requel.user.User;
-
 /**
+ * A stakeholder that is not a user of the system, this is basically a holder
+ * for authorities that dictate rules that will be represented as goals.
+ * 
  * @author ron
  */
-public interface Project extends ProjectOrDomain, Annotatable, Comparable<Project>, OrganizedEntity {
+public interface NonUserStakeholder extends Stakeholder {
 
 	/**
-	 * @return The current status of the project.
+	 * @return A description of the stakeholder
 	 */
-	public String getStatus();
-
-	/**
-	 * @param user
-	 * @return the stakeholder representation of the supplied user.
-	 */
-	public UserStakeholder getUserStakeholder(User user);
+	public String getText();
 }

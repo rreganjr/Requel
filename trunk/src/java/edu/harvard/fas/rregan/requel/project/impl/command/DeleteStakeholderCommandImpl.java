@@ -36,6 +36,7 @@ import edu.harvard.fas.rregan.requel.project.Goal;
 import edu.harvard.fas.rregan.requel.project.ProjectRepository;
 import edu.harvard.fas.rregan.requel.project.ProjectUserRole;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.project.command.DeleteStakeholderCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.project.impl.assistant.AssistantFacade;
@@ -99,12 +100,13 @@ public class DeleteStakeholderCommandImpl extends AbstractEditProjectCommand imp
 			}
 		}
 		stakeholder.getProjectOrDomain().getStakeholders().remove(stakeholder);
-		if (stakeholder.getUser() != null) {
-			stakeholder.getUser().getRoleForType(ProjectUserRole.class).getActiveProjects().remove(
-					stakeholder.getProjectOrDomain());
-		}
-		if (stakeholder.getTeam() != null) {
-			stakeholder.getTeam().getMembers().remove(stakeholder);
+		if (stakeholder.isUserStakeholder()) {
+			UserStakeholder userStakeholder = (UserStakeholder) stakeholder;
+			userStakeholder.getUser().getRoleForType(ProjectUserRole.class).getActiveProjects()
+					.remove(userStakeholder.getProjectOrDomain());
+			if (userStakeholder.getTeam() != null) {
+				userStakeholder.getTeam().getMembers().remove(userStakeholder);
+			}
 		}
 		for (GlossaryTerm term : stakeholder.getProjectOrDomain().getGlossaryTerms()) {
 			term.getReferers().remove(stakeholder);

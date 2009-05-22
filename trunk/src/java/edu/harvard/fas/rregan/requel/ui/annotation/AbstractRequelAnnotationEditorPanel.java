@@ -30,6 +30,7 @@ import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomainEntity;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.ui.AbstractRequelEditorPanel;
 import edu.harvard.fas.rregan.requel.user.User;
 
@@ -97,27 +98,29 @@ public abstract class AbstractRequelAnnotationEditorPanel extends AbstractRequel
 	@Override
 	public boolean isReadOnlyMode() {
 		boolean projectEntity = isProjectEntity(getAnnotatable());
-		Stakeholder stakeholder = getUserStakeholder();
-		if (stakeholder != null) {
-			return !stakeholder.hasPermission(Annotation.class, StakeholderPermissionType.Edit);
+		Stakeholder stakeholder = getStakeholder();
+		if ((stakeholder != null) && stakeholder.isUserStakeholder()) {
+			return !((UserStakeholder) stakeholder).hasPermission(Annotation.class,
+					StakeholderPermissionType.Edit);
 		}
 		return projectEntity;
 	}
 
 	@Override
 	protected boolean isShowDelete() {
-		Stakeholder stakeholder = getUserStakeholder();
-		if (stakeholder != null) {
-			return !stakeholder.hasPermission(Annotation.class, StakeholderPermissionType.Delete);
+		Stakeholder stakeholder = getStakeholder();
+		if ((stakeholder != null) && stakeholder.isUserStakeholder()) {
+			return !((UserStakeholder) stakeholder).hasPermission(Annotation.class,
+					StakeholderPermissionType.Delete);
 		}
 		return true;
 	}
 
-	protected Stakeholder getUserStakeholder() {
+	protected UserStakeholder getStakeholder() {
 		User user = (User) getApp().getUser();
 		Annotatable annotatable = getAnnotatable();
 		if (annotatable != null) {
-			Stakeholder stakeholder = null;
+			UserStakeholder stakeholder = null;
 			if (annotatable instanceof Project) {
 				Project project = (Project) annotatable;
 				stakeholder = project.getUserStakeholder(user);

@@ -227,9 +227,23 @@
 			</constructor-arg>			
 		</bean>
 		
-		<bean id="stakeholderEditorPanelFactory" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.ui.project.StakeholderEditorPanel</value></constructor-arg>
-			<constructor-arg index="1"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.project.Stakeholder</value></constructor-arg>
+		<bean id="userStakeholderEditorPanelFactory" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.DefaultPanelFactory">
+			<constructor-arg index="0"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.ui.project.UserStakeholderEditorPanel</value></constructor-arg>
+			<constructor-arg index="1"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.project.UserStakeholder</value></constructor-arg>
+			<constructor-arg index="2"><util:constant static-field="edu.harvard.fas.rregan.uiframework.panel.PanelActionType.Editor"/></constructor-arg>
+			<constructor-arg index="3">
+				<util:list>
+					<ref bean="commandHandler"/>
+					<ref bean="projectCommandFactory"/>
+					<ref bean="userRepository"/>
+					<ref bean="projectRepository"/>
+				</util:list>
+			</constructor-arg>			
+		</bean>
+
+		<bean id="nonUserStakeholderEditorPanelFactory" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.DefaultPanelFactory">
+			<constructor-arg index="0"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.ui.project.NonUserStakeholderEditorPanel</value></constructor-arg>
+			<constructor-arg index="1"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.project.NonUserStakeholder</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="edu.harvard.fas.rregan.uiframework.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
 				<util:list>

@@ -1,6 +1,23 @@
 /*
- * $Id: DomainObjectWrappingAdviceTest.java,v 1.2 2009/01/26 10:19:06 rregan Exp $
- * Copyright (c) 2008 Ron Regan Jr. All Rights Reserved.
+ * $Id: $
+ * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
+ * This file is part of Requel - the Collaborative Requirments
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
  */
 
 package edu.harvard.fas.rregan.repository.jpa;
@@ -17,8 +34,6 @@ import edu.harvard.fas.rregan.nlp.dictionary.impl.command.ImportDictionaryComman
 import edu.harvard.fas.rregan.nlp.dictionary.impl.repository.init.DictionaryInitializer;
 import edu.harvard.fas.rregan.nlp.dictionary.impl.repository.init.DictionaryPhoneticCodeInitializer;
 import edu.harvard.fas.rregan.nlp.dictionary.impl.repository.init.DictionarySQLInitializer;
-import edu.harvard.fas.rregan.repository.jpa.AbstractJpaRepository;
-import edu.harvard.fas.rregan.repository.jpa.DomainObjectWrappingAdvice;
 import edu.harvard.fas.rregan.requel.annotation.impl.command.ResolveIssueCommandImpl;
 import edu.harvard.fas.rregan.requel.annotation.impl.command.ResolveIssueWithAddWordToDictionaryPositionCommandImpl;
 import edu.harvard.fas.rregan.requel.annotation.impl.command.ResolveIssueWithChangeSpellingPositionCommandImpl;
@@ -28,7 +43,7 @@ import edu.harvard.fas.rregan.requel.project.impl.command.AddGoalToGoalContainer
 import edu.harvard.fas.rregan.requel.project.impl.command.EditGlossaryTermCommandImpl;
 import edu.harvard.fas.rregan.requel.project.impl.command.EditGoalCommandImpl;
 import edu.harvard.fas.rregan.requel.project.impl.command.EditProjectCommandImpl;
-import edu.harvard.fas.rregan.requel.project.impl.command.EditStakeholderCommandImpl;
+import edu.harvard.fas.rregan.requel.project.impl.command.EditUserStakeholderCommandImpl;
 import edu.harvard.fas.rregan.requel.project.impl.command.ExportProjectCommandImpl;
 import edu.harvard.fas.rregan.requel.project.impl.command.ImportProjectCommandImpl;
 import edu.harvard.fas.rregan.requel.project.impl.command.RemoveGoalFromGoalContainerCommandImpl;
@@ -41,10 +56,10 @@ import edu.harvard.fas.rregan.requel.ui.login.LoginController;
 import edu.harvard.fas.rregan.requel.ui.project.GoalEditorPanel;
 import edu.harvard.fas.rregan.requel.ui.project.GoalRelationEditorPanel;
 import edu.harvard.fas.rregan.requel.ui.project.GoalSelectorPanel;
+import edu.harvard.fas.rregan.requel.ui.project.NonUserStakeholderEditorPanel;
 import edu.harvard.fas.rregan.requel.ui.project.ProjectOverviewPanel;
 import edu.harvard.fas.rregan.requel.ui.project.ProjectUserNavigatorTreeNodeFactory;
 import edu.harvard.fas.rregan.requel.ui.project.RemoveGoalFromGoalContainerController;
-import edu.harvard.fas.rregan.requel.ui.project.StakeholderEditorPanel;
 import edu.harvard.fas.rregan.requel.ui.user.UserAdminNavigatorPanel;
 import edu.harvard.fas.rregan.requel.ui.user.UserCollectionNavigatorTreeNodeFactory;
 import edu.harvard.fas.rregan.requel.ui.user.UserNavigatorTreeNodeFactory;
@@ -148,7 +163,7 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 		assertFalse(AopUtils.canApply(ajexp, RemoveGoalFromGoalContainerCommandImpl.class, false));
 
 		assertFalse(AopUtils.canApply(ajexp, EditGlossaryTermCommandImpl.class, false));
-		assertFalse(AopUtils.canApply(ajexp, EditStakeholderCommandImpl.class, false));
+		assertFalse(AopUtils.canApply(ajexp, EditUserStakeholderCommandImpl.class, false));
 		assertFalse(AopUtils.canApply(ajexp, EditDictionaryWordCommandImpl.class, false));
 		assertFalse(AopUtils.canApply(ajexp, EditUserCommandImpl.class, false));
 		assertFalse(AopUtils.canApply(ajexp, ExportProjectCommandImpl.class, false));
@@ -184,7 +199,7 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 		assertFalse(AopUtils.canApply(ajexp, RemoveGoalFromGoalContainerCommandImpl.class, false));
 
 		assertFalse(AopUtils.canApply(ajexp, EditGlossaryTermCommandImpl.class, false));
-		assertFalse(AopUtils.canApply(ajexp, EditStakeholderCommandImpl.class, false));
+		assertFalse(AopUtils.canApply(ajexp, EditUserStakeholderCommandImpl.class, false));
 		assertFalse(AopUtils.canApply(ajexp, EditDictionaryWordCommandImpl.class, false));
 		assertFalse(AopUtils.canApply(ajexp, EditUserCommandImpl.class, false));
 		assertFalse(AopUtils.canApply(ajexp, ExportProjectCommandImpl.class, false));
@@ -197,7 +212,7 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 				ResolveIssueWithAddWordToDictionaryPositionCommandImpl.class, false));
 		assertFalse(AopUtils.canApply(ajexp,
 				ResolveIssueWithChangeSpellingPositionCommandImpl.class, false));
-		
+
 		assertTrue(AopUtils.canApply(ajexp, AbstractJpaRepository.class, false));
 		assertTrue(AopUtils.canApply(ajexp, AdminUserInitializer.class, false));
 		assertTrue(AopUtils.canApply(ajexp, TextEntityAssistant.class, false));
@@ -220,7 +235,9 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 	 * @throws Exception
 	 */
 	public void testPointCut() throws Exception {
-		String pointCutExpression = "within(edu.harvard.fas.rregan.requel..*) && !within(" + Command.class.getName() + "+)  && !within(" + SystemInitializer.class.getName() + "+)";
+		String pointCutExpression = "within(edu.harvard.fas.rregan.requel..*) && !within("
+				+ Command.class.getName() + "+)  && !within(" + SystemInitializer.class.getName()
+				+ "+)";
 		AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut(
 				DomainObjectWrappingAdvice.class, new String[0], new Class[0]);
 		ajexp.setExpression(pointCutExpression);
@@ -232,7 +249,7 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 		assertFalse(AopUtils.canApply(ajexp, RemoveGoalFromGoalContainerCommandImpl.class, false));
 
 		assertFalse(AopUtils.canApply(ajexp, EditGlossaryTermCommandImpl.class, false));
-		assertFalse(AopUtils.canApply(ajexp, EditStakeholderCommandImpl.class, false));
+		assertFalse(AopUtils.canApply(ajexp, EditUserStakeholderCommandImpl.class, false));
 		assertFalse(AopUtils.canApply(ajexp, EditDictionaryWordCommandImpl.class, false));
 		assertFalse(AopUtils.canApply(ajexp, EditUserCommandImpl.class, false));
 		assertFalse(AopUtils.canApply(ajexp, ExportProjectCommandImpl.class, false));
@@ -258,10 +275,11 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 		assertFalse(AopUtils.canApply(ajexp, AbstractSystemInitializer.class, false));
 
 		assertTrue(AopUtils.canApply(ajexp, AbstractJpaRepository.class, false));
-		assertTrue(AopUtils.canApply(ajexp, StakeholderEditorPanel.class, false));
+		assertTrue(AopUtils.canApply(ajexp, NonUserStakeholderEditorPanel.class, false));
 		assertTrue(AopUtils.canApply(ajexp, LoginController.class, false));
-		// TODO: why does AbstractRequelAnnotationEditorPanel not match?		
-//		assertTrue(AopUtils.canApply(ajexp, AbstractRequelAnnotationEditorPanel.class, false));
+		// TODO: why does AbstractRequelAnnotationEditorPanel not match?
+		// assertTrue(AopUtils.canApply(ajexp,
+		// AbstractRequelAnnotationEditorPanel.class, false));
 		assertTrue(AopUtils.canApply(ajexp, ArgumentEditorPanel.class, false));
 		assertTrue(AopUtils.canApply(ajexp, IssueEditorPanel.class, false));
 		assertTrue(AopUtils.canApply(ajexp, PositionEditorPanel.class, false));
@@ -273,8 +291,8 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 		assertTrue(AopUtils.canApply(ajexp, GoalSelectorPanel.class, false));
 		assertTrue(AopUtils.canApply(ajexp, GoalRelationEditorPanel.class, false));
 		assertTrue(AopUtils.canApply(ajexp, RemoveGoalFromGoalContainerController.class, false));
-// TODO: why does GoalsTable not match?		
-//		assertTrue(AopUtils.canApply(ajexp, GoalsTable.class, false));
+		// TODO: why does GoalsTable not match?
+		// assertTrue(AopUtils.canApply(ajexp, GoalsTable.class, false));
 		assertTrue(AopUtils.canApply(ajexp, GoalEditorPanel.class, false));
 		assertTrue(AopUtils.canApply(ajexp, ProjectUserNavigatorTreeNodeFactory.class, false));
 	}

@@ -52,13 +52,14 @@ import edu.harvard.fas.rregan.requel.project.command.EditAddWordToGlossaryPositi
 import edu.harvard.fas.rregan.requel.project.command.EditGlossaryTermCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditGoalCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditGoalRelationCommand;
+import edu.harvard.fas.rregan.requel.project.command.EditNonUserStakeholderCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditProjectCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditReportGeneratorCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditScenarioCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditScenarioStepCommand;
-import edu.harvard.fas.rregan.requel.project.command.EditStakeholderCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditStoryCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditUseCaseCommand;
+import edu.harvard.fas.rregan.requel.project.command.EditUserStakeholderCommand;
 import edu.harvard.fas.rregan.requel.project.command.ExportProjectCommand;
 import edu.harvard.fas.rregan.requel.project.command.GenerateReportCommand;
 import edu.harvard.fas.rregan.requel.project.command.ImportProjectCommand;
@@ -106,9 +107,15 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	}
 
 	@Override
-	public EditStakeholderCommand newEditStakeholderCommand() {
-		return (EditStakeholderCommand) getCreationStrategy().newInstance(
-				EditStakeholderCommandImpl.class);
+	public EditUserStakeholderCommand newEditUserStakeholderCommand() {
+		return (EditUserStakeholderCommand) getCreationStrategy().newInstance(
+				EditUserStakeholderCommandImpl.class);
+	}
+
+	@Override
+	public EditNonUserStakeholderCommand newEditNonUserStakeholderCommand() {
+		return (EditNonUserStakeholderCommand) getCreationStrategy().newInstance(
+				EditNonUserStakeholderCommandImpl.class);
 	}
 
 	@Override
