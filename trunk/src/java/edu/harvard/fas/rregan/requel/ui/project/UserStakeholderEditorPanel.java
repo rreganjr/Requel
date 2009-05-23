@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -152,8 +153,9 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 					PROP_EXISTING_OBJECT_PANEL_TITLE,
 					getResourceBundleHelper(getLocale()).getString(PROP_PANEL_TITLE,
 							"User Stakeholder: {0}"));
-			return MessageFormat.format(msgPattern, getStakeholder().getUser().getDescriptiveName(),
-					getProjectOrDomain().getName());
+			return MessageFormat
+					.format(msgPattern, getStakeholder().getUser().getDescriptiveName(),
+							getProjectOrDomain().getName());
 		} else {
 			String msg = getResourceBundleHelper(getLocale()).getString(
 					PROP_NEW_OBJECT_PANEL_TITLE,
@@ -188,9 +190,6 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 					getProjectUsersUsernames(), "", true));
 			addInput("teamName", PROP_LABEL_TEAM, "Team", new ComboBox(),
 					new CombinedTextListModel(getProjectTeamNames(), ""));
-			addMultiRowInput("goals", GoalsTable.PROP_LABEL_GOALS, "Goals", new GoalsTable(this,
-					getResourceBundleHelper(getLocale()), getProjectCommandFactory(),
-					getCommandHandler()), null);
 			addInput("stakeholderPermissions", PROP_LABEL_PERMISSIONS, "Stakeholder Permissions",
 					new CheckBoxTreeSet(), createStakeholderPermissionsSelectionTreeModel(
 							getProjectRepository().findAvailableStakeholderPermissions(), null));

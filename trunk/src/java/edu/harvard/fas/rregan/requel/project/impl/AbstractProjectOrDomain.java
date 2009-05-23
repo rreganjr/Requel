@@ -1,6 +1,7 @@
 /*
  * $Id$
  * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
  * This file is part of Requel - the Collaborative Requirments
  * Elicitation System.
  *
@@ -52,6 +53,7 @@ import javax.persistence.Version;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementRef;
+import javax.xml.bind.annotation.XmlElementRefs;
 import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlID;
 import javax.xml.bind.annotation.XmlIDREF;
@@ -310,7 +312,8 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 	}
 
 	@XmlElementWrapper(name = "stakeholders", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-	@XmlElementRef(name = "stakeholder", type = AbstractStakeholder.class)
+	@XmlElementRefs( { @XmlElementRef(name = "user-stakeholder", type = UserStakeholderImpl.class),
+			@XmlElementRef(name = "nonuser-stakeholder", type = NonUserStakeholderImpl.class) })
 	@OneToMany(targetEntity = AbstractStakeholder.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY, mappedBy = "projectOrDomain")
 	@Sort(type = SortType.NATURAL)

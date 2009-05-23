@@ -154,7 +154,8 @@ public class GlossaryTermImpl extends AbstractTextEntity implements GlossaryTerm
 	@AnyMetaDef(idType = "long", metaType = "string", metaValues = {
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Project", targetEntity = ProjectImpl.class),
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Actor", targetEntity = ActorImpl.class),
-			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Stakeholder", targetEntity = AbstractStakeholder.class),
+			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.NonUserStakeholder", targetEntity = NonUserStakeholderImpl.class),
+			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.UserStakeholder", targetEntity = UserStakeholderImpl.class),
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Goal", targetEntity = GoalImpl.class),
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Scenario", targetEntity = ScenarioImpl.class),
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Step", targetEntity = StepImpl.class),
