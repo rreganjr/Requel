@@ -23,6 +23,8 @@
 
   <xs:element name="lexicalIssue" type="tns:lexicalIssue"/>
 
+  <xs:element name="nonuser-stakeholder" type="tns:nonuser-stakeholder"/>
+
   <xs:element name="note" type="tns:note"/>
 
   <xs:element name="organization" type="tns:organization"/>
@@ -39,8 +41,6 @@
 
   <xs:element name="scenario" type="tns:scenario"/>
 
-  <xs:element name="stakeholder" type="tns:stakeholder"/>
-
   <xs:element name="step" type="tns:step"/>
 
   <xs:element name="story" type="tns:story"/>
@@ -54,6 +54,8 @@
   <xs:element name="usecase" type="tns:usecase"/>
 
   <xs:element name="user" type="tns:user"/>
+
+  <xs:element name="user-stakeholder" type="tns:user-stakeholder"/>
 
   <xs:element name="userPermission" type="tns:userPermission"/>
 
@@ -255,7 +257,10 @@
       <xs:element name="stakeholders" form="qualified" minOccurs="0">
         <xs:complexType>
           <xs:sequence>
-            <xs:element ref="tns:stakeholder" minOccurs="0" maxOccurs="unbounded"/>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+              <xs:element ref="tns:user-stakeholder"/>
+              <xs:element ref="tns:nonuser-stakeholder"/>
+            </xs:choice>
           </xs:sequence>
         </xs:complexType>
       </xs:element>
@@ -408,7 +413,26 @@
     </xs:complexContent>
   </xs:complexType>
 
-  <xs:complexType name="stakeholder">
+  <xs:complexType name="user-stakeholder">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractStakeholder">
+        <xs:sequence>
+          <xs:element name="projectPermissions" form="qualified" minOccurs="0">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element ref="tns:projectPermission" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+          <xs:element ref="tns:user"/>
+        </xs:sequence>
+        <xs:attribute name="team" type="xs:IDREF"/>
+        <xs:attribute name="id" type="xs:ID"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="abstractStakeholder" abstract="true">
     <xs:complexContent>
       <xs:extension base="tns:abstractProjectOrDomainEntity">
         <xs:sequence>
@@ -419,18 +443,7 @@
               </xs:sequence>
             </xs:complexType>
           </xs:element>
-          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
-          <xs:element name="projectPermissions" form="qualified" minOccurs="0">
-            <xs:complexType>
-              <xs:sequence>
-                <xs:element ref="tns:projectPermission" minOccurs="0" maxOccurs="unbounded"/>
-              </xs:sequence>
-            </xs:complexType>
-          </xs:element>
-          <xs:element name="user" type="tns:user" form="qualified" nillable="true" minOccurs="0"/>
         </xs:sequence>
-        <xs:attribute name="team" type="xs:IDREF"/>
-        <xs:attribute name="id" type="xs:ID"/>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
@@ -453,6 +466,18 @@
             </xs:complexType>
           </xs:element>
           <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+        </xs:sequence>
+        <xs:attribute name="id" type="xs:ID"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="nonuser-stakeholder">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractStakeholder">
+        <xs:sequence>
+          <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="text" type="xs:string" form="qualified" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="id" type="xs:ID"/>
       </xs:extension>

@@ -150,8 +150,8 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 		if (stakeholder != null) {
 			addInput("name", PROP_LABEL_NAME, "Name", new TextField(), new StringDocumentEx(
 					stakeholder.getName()));
-			addInput("text", PROP_LABEL_DESCRIPTION, "Description", new TextArea(), new StringDocumentEx(
-					stakeholder.getText()));
+			addInput("text", PROP_LABEL_DESCRIPTION, "Description", new TextArea(),
+					new StringDocumentEx(stakeholder.getText()));
 			addMultiRowInput("goals", GoalsTable.PROP_LABEL_GOALS, "Goals", new GoalsTable(this,
 					getResourceBundleHelper(getLocale()), getProjectCommandFactory(),
 					getCommandHandler()), stakeholder);
@@ -159,10 +159,8 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 					new AnnotationsTable(this, getResourceBundleHelper(getLocale())), stakeholder);
 		} else {
 			addInput("name", PROP_LABEL_NAME, "Name", new TextField(), new StringDocumentEx());
-			addInput("text", PROP_LABEL_DESCRIPTION, "Description", new TextArea(), new StringDocumentEx());
-			addMultiRowInput("goals", GoalsTable.PROP_LABEL_GOALS, "Goals", new GoalsTable(this,
-					getResourceBundleHelper(getLocale()), getProjectCommandFactory(),
-					getCommandHandler()), null);
+			addInput("text", PROP_LABEL_DESCRIPTION, "Description", new TextArea(),
+					new StringDocumentEx());
 		}
 
 		if (updateListener != null) {

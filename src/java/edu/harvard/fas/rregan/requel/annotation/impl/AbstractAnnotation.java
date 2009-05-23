@@ -68,13 +68,14 @@ import edu.harvard.fas.rregan.requel.project.impl.ActorImpl;
 import edu.harvard.fas.rregan.requel.project.impl.GlossaryTermImpl;
 import edu.harvard.fas.rregan.requel.project.impl.GoalImpl;
 import edu.harvard.fas.rregan.requel.project.impl.GoalRelationImpl;
+import edu.harvard.fas.rregan.requel.project.impl.NonUserStakeholderImpl;
 import edu.harvard.fas.rregan.requel.project.impl.ProjectImpl;
 import edu.harvard.fas.rregan.requel.project.impl.ProjectTeamImpl;
 import edu.harvard.fas.rregan.requel.project.impl.ScenarioImpl;
-import edu.harvard.fas.rregan.requel.project.impl.AbstractStakeholder;
 import edu.harvard.fas.rregan.requel.project.impl.StepImpl;
 import edu.harvard.fas.rregan.requel.project.impl.StoryImpl;
 import edu.harvard.fas.rregan.requel.project.impl.UseCaseImpl;
+import edu.harvard.fas.rregan.requel.project.impl.UserStakeholderImpl;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.requel.user.UserRepository;
 import edu.harvard.fas.rregan.requel.user.impl.User2UserImplAdapter;
@@ -195,7 +196,8 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Story", targetEntity = StoryImpl.class),
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Actor", targetEntity = ActorImpl.class),
 			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.GlossaryTerm", targetEntity = GlossaryTermImpl.class),
-			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.Stakeholder", targetEntity = AbstractStakeholder.class) })
+			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.NonUserStakeholder", targetEntity = NonUserStakeholderImpl.class),
+			@MetaValue(value = "edu.harvard.fas.rregan.requel.project.UserStakeholder", targetEntity = UserStakeholderImpl.class) })
 	@JoinTable(name = "annotation_annotatable", joinColumns = { @JoinColumn(name = "annotation_id") }, inverseJoinColumns = { @JoinColumn(name = "annotatable_id") })
 	public Set<Annotatable> getAnnotatables() {
 		return annotatables;
