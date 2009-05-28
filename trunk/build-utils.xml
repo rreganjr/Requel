@@ -17,6 +17,20 @@
         </fileset>
     </path>
 
+    <path id="libs.fop">
+        <fileset dir="${lib.dir}/build/fop/">
+            <include name="*.jar"/>
+        </fileset>
+        <fileset dir="${lib.dir}">
+            <include name="commons-io-*.jar"/>
+            <include name="commons-logging-*.jar"/>
+            <include name="xalan.jar"/>
+	        <include name="serializer.jar"/>
+	        <include name="xercesImpl.jar"/>
+            <include name="xml-apis.jar"/>
+        </fileset>
+    </path>
+
 	<target name="usage" description="message on how to use the build-utils.xml file">
 		<echo>
 			Usage:
@@ -350,12 +364,14 @@
             </filterset>
 		</copy>
 	</target>
-	
+
+	<taskdef name="fop" classname="org.apache.fop.tools.anttasks.Fop" classpathref="libs.fop">
+	</taskdef>
+
 	<!-- note: tools.jar must be in the classpath or you'll see
 			   a warning: A class needed by class com.sun.tools.jxc.SchemaGenTask
 			   cannot be found: com/sun/mirror/apt/AnnotationProcessorFactory -->
-	<taskdef name="schemagen" classname="com.sun.tools.jxc.SchemaGenTask">
-	  <classpath refid="libs.jaxb"/>
+	<taskdef name="schemagen" classname="com.sun.tools.jxc.SchemaGenTask" classpathref="libs.jaxb">
 	</taskdef>
 	
 	<target name="gen-project-xml-schema">

@@ -136,4 +136,16 @@
     	<property name="doxygen.have.dot" value="YES"/>
 		<ant target="gen-dev-doc" antfile="build-utils.xml" inheritall="true"/>
     </target>
+
+    <target name="word2docbook">
+        <delete file="build/normalize.xml"/>
+        <delete file="build/sections.xml"/>
+        <delete file="build/blocks.xml"/>
+        <delete file="build/UserGuide.xml"/>
+        <xslt style="doc/docbook/wordml2normalise.xsl" in="doc/UserGuide.xml" out="build/normalize.xml" reloadstylesheet="true"/>
+        <xslt style="doc/docbook/normalise2sections.xsl" in="build/normalize.xml" out="build/sections.xml" reloadstylesheet="true"/>
+        <xslt style="doc/docbook/sections2blocks.xsl" in="build/sections.xml" out="build/blocks.xml" reloadstylesheet="true"/>
+        <xslt style="doc/docbook/blocks2dbk.xsl" in="build/blocks.xml" out="build/UserGuide.xml" reloadstylesheet="true"/>
+    </target>
+
 </project>
