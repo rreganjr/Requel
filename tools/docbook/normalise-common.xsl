@@ -25,6 +25,19 @@
 
       <!-- Probably should fold all style names to lower-case -->
       <xsl:when test='$style = "Caption"'>caption</xsl:when>
+      
+      <!-- rreganjr: requel UserGuide.doc custom mapping -->
+      <xsl:when test='$style = "BodyText"'></xsl:when>
+      <xsl:when test='$style = "Title"'>book-title</xsl:when>
+      <xsl:when test='$style = "Subtitle"'>book-subtitle</xsl:when>
+      <xsl:when test='$style = "Heading1"'>chapter-title</xsl:when>
+      <xsl:when test='$style = "Heading2"'>sect1-title</xsl:when>
+      <xsl:when test='$style = "TOC1"'></xsl:when>
+      <xsl:when test='$style = "TOC2"'></xsl:when>
+      <xsl:when test='$style = "TableofFigures"'>chapter-title</xsl:when>
+      <xsl:when test='$style = "Quotation"'>blockquote</xsl:when>
+      <xsl:when test='$style = "TableCell"'></xsl:when>
+      <xsl:when test='$style = "code-page"'>programlisting</xsl:when>
 
       <xsl:otherwise>
         <xsl:value-of select='$style'/>
@@ -33,7 +46,12 @@
   </xsl:template>
   <xsl:template name='rnd:map-character-style'>
     <xsl:param name='style'/>
-    <xsl:value-of select='$style'/>
+    <xsl:choose>
+      <xsl:when test='$style = "subtitle0"'>emphasis-bold</xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select='$style'/>
+      </xsl:otherwise>
+    </xsl:choose>
   </xsl:template>
 
 </xsl:stylesheet>

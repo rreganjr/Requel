@@ -138,14 +138,22 @@
     </target>
 
     <target name="word2docbook">
+    	<!-- the docbook/normalise-common.xsl contains custom mappings for Requel wordml styles -->
+    	<!-- the build/UserGuide_wordML.xml should be created by opening the UserGuide.doc and
+    		saving as xml -->
+    	
         <delete file="build/normalize.xml"/>
         <delete file="build/sections.xml"/>
         <delete file="build/blocks.xml"/>
         <delete file="build/UserGuide.xml"/>
-        <xslt style="doc/docbook/wordml2normalise.xsl" in="doc/UserGuide.xml" out="build/normalize.xml" reloadstylesheet="true"/>
-        <xslt style="doc/docbook/normalise2sections.xsl" in="build/normalize.xml" out="build/sections.xml" reloadstylesheet="true"/>
-        <xslt style="doc/docbook/sections2blocks.xsl" in="build/sections.xml" out="build/blocks.xml" reloadstylesheet="true"/>
-        <xslt style="doc/docbook/blocks2dbk.xsl" in="build/blocks.xml" out="build/UserGuide.xml" reloadstylesheet="true"/>
+        <xslt style="tools/docbook/wordml2normalise.xsl" in="build/UserGuide_wordML.xml" out="build/normalize.xml" reloadstylesheet="true">
+        </xslt>
+        <xslt style="tools/docbook/normalise2sections.xsl" in="build/normalize.xml" out="build/sections.xml" reloadstylesheet="true">
+	    </xslt>
+        <xslt style="tools/docbook/sections2blocks.xsl" in="build/sections.xml" out="build/blocks.xml" reloadstylesheet="true">
+        </xslt>        	
+        <xslt style="tools/docbook/blocks2dbk.xsl" in="build/blocks.xml" out="build/UserGuide.xml" reloadstylesheet="true">
+        </xslt>        	
     </target>
 
 </project>
