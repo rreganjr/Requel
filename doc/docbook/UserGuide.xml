@@ -41,7 +41,7 @@
     <info />
     <mediaobject>
       <imageobject>
-        <imagedata depth="83.25pt" fileref="doc-images/Logo_335x83_demun_lotion.png" width="335.25pt" />
+        <imagedata depth="83.25pt" fileref="images/Logo_335x83_demun_lotion.png" width="335.25pt" />
       </imageobject>
     </mediaobject>
   </figure>
@@ -50,7 +50,7 @@
     <info />
     <mediaobject>
       <imageobject>
-        <imagedata depth="148.5pt" fileref="doc-images/logo_fembot_torso_blue_cutout4.png" width="103.5pt" />
+        <imagedata depth="148.5pt" fileref="images/logo_fembot_torso_blue_cutout4.png" width="103.5pt" />
       </imageobject>
     </mediaobject>
   </figure>
