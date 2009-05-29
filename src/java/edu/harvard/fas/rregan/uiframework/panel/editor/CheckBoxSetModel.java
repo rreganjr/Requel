@@ -149,7 +149,6 @@ public class CheckBoxSetModel implements ChangeListener {
 		return selectedOptions;
 	}
 
-	@Override
 	public void stateChanged(ChangeEvent e) {
 		if (isSingleSelection()) {
 			ToggleButtonModel source = (ToggleButtonModel) e.getSource();

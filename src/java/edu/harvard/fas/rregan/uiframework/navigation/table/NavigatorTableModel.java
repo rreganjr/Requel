@@ -74,7 +74,6 @@ public class NavigatorTableModel extends AbstractTableModel {
 		return getEntities().get(row);
 	}
 
-	@Override
 	public Object getValueAt(int column, int row) {
 		return getTableConfig().getColumnConfigs().get(column).getTableCellValueFactory()
 				.getValueAt(this, column, row);

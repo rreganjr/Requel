@@ -72,7 +72,6 @@ public class DownloadButton extends Button implements ActionListener {
 		this.downloadProvider = downloadProvider;
 	}
 
-	@Override
 	public void actionPerformed(ActionEvent e) {
 		Download download = new Download();
 		download.setProvider(downloadProvider);

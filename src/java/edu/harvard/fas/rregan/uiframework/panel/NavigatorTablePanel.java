@@ -106,7 +106,6 @@ public class NavigatorTablePanel extends AbstractPanel implements MessageHandler
 		this.table = table;
 	}
 
-	@Override
 	public void setGeneralMessage(String message) {
 		generalMessage.setText(message);
 	}

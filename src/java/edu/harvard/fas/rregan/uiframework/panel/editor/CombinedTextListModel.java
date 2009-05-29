@@ -60,7 +60,6 @@ public class CombinedTextListModel implements Document, ListModel {
 	/**
 	 * @see nextapp.echo2.app.text.Document#addDocumentListener(nextapp.echo2.app.event.DocumentListener)
 	 */
-	@Override
 	public void addDocumentListener(DocumentListener l) {
 		document.addDocumentListener(l);
 	}
@@ -68,7 +67,6 @@ public class CombinedTextListModel implements Document, ListModel {
 	/**
 	 * @see nextapp.echo2.app.text.Document#getText()
 	 */
-	@Override
 	public String getText() {
 		return document.getText();
 	}
@@ -76,7 +74,6 @@ public class CombinedTextListModel implements Document, ListModel {
 	/**
 	 * @see nextapp.echo2.app.text.Document#removeDocumentListener(nextapp.echo2.app.event.DocumentListener)
 	 */
-	@Override
 	public void removeDocumentListener(DocumentListener l) {
 		document.removeDocumentListener(l);
 
@@ -85,7 +82,6 @@ public class CombinedTextListModel implements Document, ListModel {
 	/**
 	 * @see nextapp.echo2.app.text.Document#setText(java.lang.String)
 	 */
-	@Override
 	public void setText(String text) {
 		document.setText(text);
 
@@ -94,7 +90,6 @@ public class CombinedTextListModel implements Document, ListModel {
 	/**
 	 * @see nextapp.echo2.app.list.ListModel#addListDataListener(nextapp.echo2.app.event.ListDataListener)
 	 */
-	@Override
 	public void addListDataListener(ListDataListener l) {
 		listModel.addListDataListener(l);
 
@@ -103,7 +98,6 @@ public class CombinedTextListModel implements Document, ListModel {
 	/**
 	 * @see nextapp.echo2.app.list.ListModel#get(int)
 	 */
-	@Override
 	public Object get(int index) {
 		return listModel.get(index);
 	}
@@ -111,16 +105,13 @@ public class CombinedTextListModel implements Document, ListModel {
 	/**
 	 * @see nextapp.echo2.app.list.ListModel#removeListDataListener(nextapp.echo2.app.event.ListDataListener)
 	 */
-	@Override
 	public void removeListDataListener(ListDataListener l) {
 		listModel.removeListDataListener(l);
-
 	}
 
 	/**
 	 * @see nextapp.echo2.app.list.ListModel#size()
 	 */
-	@Override
 	public int size() {
 		return listModel.size();
 	}

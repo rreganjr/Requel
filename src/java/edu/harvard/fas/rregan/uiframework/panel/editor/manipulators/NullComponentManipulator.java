@@ -28,7 +28,6 @@ import edu.harvard.fas.rregan.uiframework.panel.editor.EditMode;
  */
 public class NullComponentManipulator extends AbstractComponentManipulator {
 
-	@Override
 	public void addListenerToDetectChangesToInput(EditMode editMode, Component component) {
 	}
 
@@ -37,7 +36,6 @@ public class NullComponentManipulator extends AbstractComponentManipulator {
 		return null;
 	}
 
-	@Override
 	public <T> T getValue(Component component, Class<T> type) {
 		return null;
 	}
@@ -46,7 +44,6 @@ public class NullComponentManipulator extends AbstractComponentManipulator {
 	public void setModel(Component component, Object model) {
 	}
 
-	@Override
 	public void setValue(Component component, Object value) {
 	}
 

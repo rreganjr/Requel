@@ -60,12 +60,10 @@ public class EditorComponents implements EditMode {
 		return editMode.isReadOnlyMode();
 	}
 
-	@Override
 	public boolean isStateEdited() {
 		return editMode.isStateEdited();
 	}
 
-	@Override
 	public void setStateEdited(boolean stateEdited) {
 		editMode.setStateEdited(stateEdited);
 	}

@@ -46,7 +46,6 @@ public class EditorTreeCellRenderer implements TreeCellRenderer {
 	public EditorTreeCellRenderer() {
 	}
 
-	@Override
 	public Component getTreeCellRendererComponent(Tree tree, Object node, boolean selected,
 			boolean expanded, boolean leaf) {
 		if (node instanceof EditorTreeNodeAbstractDecorator) {
@@ -56,13 +55,11 @@ public class EditorTreeCellRenderer implements TreeCellRenderer {
 		return getComponent((TreeNode) node);
 	}
 
-	@Override
 	public Label getTreeCellRendererText(Tree tree, Object node, boolean sel, boolean expanded,
 			boolean leaf) {
 		return null;
 	}
 
-	@Override
 	public XhtmlFragment getTreeCellRendererXhtml(Tree tree, Object value, boolean selected,
 			boolean expanded, boolean leaf) {
 		return null;

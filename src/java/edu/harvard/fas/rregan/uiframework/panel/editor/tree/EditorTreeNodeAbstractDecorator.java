@@ -45,23 +45,19 @@ public abstract class EditorTreeNodeAbstractDecorator implements EditorTreeNode 
 		this.decoratedNode = treeNode;
 	}
 
-	@Override
 	public void insert(MutableTreeNode child, int index) {
 		this.children();
 		decoratedNode.insert(child, index);
 	}
 
-	@Override
 	public void remove(int index) {
 		decoratedNode.remove(index);
 	}
 
-	@Override
 	public void remove(MutableTreeNode node) {
 		decoratedNode.remove(node);
 	}
 
-	@Override
 	public void removeFromParent() {
 		MutableTreeNode parent = (MutableTreeNode) getParent();
 		if (parent != null) {
@@ -69,7 +65,6 @@ public abstract class EditorTreeNodeAbstractDecorator implements EditorTreeNode 
 		}
 	}
 
-	@Override
 	public void setParent(MutableTreeNode newParent) {
 		decoratedNode.setParent(newParent);
 	}
@@ -83,53 +78,43 @@ public abstract class EditorTreeNodeAbstractDecorator implements EditorTreeNode 
 		throw new RuntimeException("stupid tree implementation.");
 	}
 
-	@Override
 	public void setUserObject(Object object) {
 		decoratedNode.setUserObject(object);
 
 	}
 
-	@Override
 	public Enumeration children() {
 		return decoratedNode.children();
 	}
 
-	@Override
 	public String getActionCommand() {
 		return decoratedNode.getActionCommand();
 	}
 
-	@Override
 	public boolean getAllowsChildren() {
 		return decoratedNode.getAllowsChildren();
 	}
 
-	@Override
 	public TreeNode getChildAt(int childIndex) {
 		return decoratedNode.getChildAt(childIndex);
 	}
 
-	@Override
 	public int getChildCount() {
 		return decoratedNode.getChildCount();
 	}
 
-	@Override
 	public int getIndex(TreeNode node) {
 		return decoratedNode.getIndex(node);
 	}
 
-	@Override
 	public TreeNode getParent() {
 		return decoratedNode.getParent();
 	}
 
-	@Override
 	public boolean isLeaf() {
 		return decoratedNode.isLeaf();
 	}
 
-	@Override
 	public void actionPerformed(ActionEvent e) {
 		if (decoratedNode instanceof EditorTreeNode) {
 			((EditorTreeNode) decoratedNode).actionPerformed(e);
@@ -137,14 +122,12 @@ public abstract class EditorTreeNodeAbstractDecorator implements EditorTreeNode 
 
 	}
 
-	@Override
 	public void dispose() {
 		if (decoratedNode instanceof EditorTreeNode) {
 			((EditorTreeNode) decoratedNode).dispose();
 		}
 	}
 
-	@Override
 	public int getDepth() {
 		if (decoratedNode instanceof EditorTreeNode) {
 			return ((EditorTreeNode) decoratedNode).getDepth();
@@ -157,7 +140,6 @@ public abstract class EditorTreeNodeAbstractDecorator implements EditorTreeNode 
 		}
 	}
 
-	@Override
 	public Component getEditor() {
 		if (decoratedNode instanceof EditorTreeNode) {
 			return ((EditorTreeNode) decoratedNode).getEditor();
@@ -165,7 +147,6 @@ public abstract class EditorTreeNodeAbstractDecorator implements EditorTreeNode 
 		return null;
 	}
 
-	@Override
 	public EventDispatcher getEventDispatcher() {
 		if (decoratedNode instanceof EditorTreeNode) {
 			return ((EditorTreeNode) decoratedNode).getEventDispatcher();
@@ -173,7 +154,6 @@ public abstract class EditorTreeNodeAbstractDecorator implements EditorTreeNode 
 		return null;
 	}
 
-	@Override
 	public TreeNode[] getPath() {
 		if (decoratedNode instanceof EditorTreeNode) {
 			return ((EditorTreeNode) decoratedNode).getPath();
@@ -194,7 +174,6 @@ public abstract class EditorTreeNodeAbstractDecorator implements EditorTreeNode 
 		}
 	}
 
-	@Override
 	public void add(MutableTreeNode newChild) {
 		if (decoratedNode instanceof EditorTreeNode) {
 			((EditorTreeNode) decoratedNode).add(newChild);
@@ -206,14 +185,12 @@ public abstract class EditorTreeNodeAbstractDecorator implements EditorTreeNode 
 		}
 	}
 
-	@Override
 	public void setEditor(Component editor) {
 		if (decoratedNode instanceof EditorTreeNode) {
 			((EditorTreeNode) decoratedNode).setEditor(editor);
 		}
 	}
 
-	@Override
 	public void setUpdateListener(EditorTreeNodeUpdateListener updateListener) {
 		if (decoratedNode instanceof EditorTreeNode) {
 			((EditorTreeNode) decoratedNode).setUpdateListener(updateListener);
