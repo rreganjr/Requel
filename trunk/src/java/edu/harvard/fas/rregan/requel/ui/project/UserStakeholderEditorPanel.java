@@ -123,7 +123,7 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 	public UserStakeholderEditorPanel(String resourceBundleName, CommandHandler commandHandler,
 			ProjectCommandFactory projectCommandFactory, UserRepository userRepository,
 			ProjectRepository projectRepository) {
-		super(resourceBundleName, Stakeholder.class, commandHandler, projectCommandFactory,
+		super(resourceBundleName, UserStakeholder.class, commandHandler, projectCommandFactory,
 				projectRepository);
 		this.userRepository = userRepository;
 	}

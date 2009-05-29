@@ -89,7 +89,7 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 	public NonUserStakeholderEditorPanel(CommandHandler commandHandler,
 			ProjectCommandFactory projectCommandFactory, UserRepository userRepository,
 			ProjectRepository projectRepository) {
-		this(UserStakeholderEditorPanel.class.getName(), commandHandler, projectCommandFactory,
+		this(NonUserStakeholderEditorPanel.class.getName(), commandHandler, projectCommandFactory,
 				userRepository, projectRepository);
 	}
 
@@ -103,7 +103,7 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 	public NonUserStakeholderEditorPanel(String resourceBundleName, CommandHandler commandHandler,
 			ProjectCommandFactory projectCommandFactory, UserRepository userRepository,
 			ProjectRepository projectRepository) {
-		super(resourceBundleName, Stakeholder.class, commandHandler, projectCommandFactory,
+		super(resourceBundleName, NonUserStakeholder.class, commandHandler, projectCommandFactory,
 				projectRepository);
 	}
 
