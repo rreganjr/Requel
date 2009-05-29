@@ -317,18 +317,6 @@ public class LoginScreen extends AbstractScreen {
 	public static final String STYLE_NAME_VALIDATION = "ValidationLabel";
 
 	/**
-	 * The name of the property to use for the title from the specified resource
-	 * (property) file.
-	 */
-	public static final String PROP_NAME_TITLE = "Screen.Title";
-
-	/**
-	 * The name of the property to use for the subtitle from the specified
-	 * resource (property) file.
-	 */
-	public static final String PROP_NAME_SUB_TITLE = "Screen.Subtitle";
-
-	/**
 	 * The name of the property to use for the username field label from the
 	 * specified resource (property) file.
 	 */
@@ -427,21 +415,20 @@ public class LoginScreen extends AbstractScreen {
 		logo.setStyleName(STYLE_NAME_RIGHT_LOGO);
 		column.add(logo);
 
-		Label title = new Label(getResourceBundleHelper(getLocale()).getString(PROP_NAME_TITLE,
-				"Login"));
+		// the text is set in the echo2 stylesheet entry LoginScreen.Title text property
+		Label title = new Label();
 		title.setStyleName(STYLE_NAME_TITLE);
 		column.add(title);
 
-		Label subTitle = new Label(getResourceBundleHelper(getLocale()).getString(
-				PROP_NAME_SUB_TITLE, "Login"));
+		// the text is set in the echo2 stylesheet entry LoginScreen.Subtitle text property
+		Label subTitle = new Label();
 		subTitle.setStyleName(STYLE_NAME_SUB_TITLE);
 		column.add(subTitle);
 
 		Grid grid1 = new Grid(2);
 		grid1.setStyleName(STYLE_NAME_LAYOUT_GRID);
 
-		Label usernameLabel = new Label(getResourceBundleHelper(getLocale()).getString(
-				PROP_NAME_USERNAME_LABEL, "Username:"));
+		Label usernameLabel = new Label(getResourceBundleHelper(getLocale()).getString(PROP_NAME_USERNAME_LABEL, "Username:"));
 		usernameLabel.setStyleName(STYLE_NAME_LABEL);
 		grid1.add(usernameLabel);
 
@@ -456,8 +443,7 @@ public class LoginScreen extends AbstractScreen {
 		});
 		grid1.add(usernameField);
 
-		Label passwordLabel = new Label(getResourceBundleHelper(getLocale()).getString(
-				PROP_NAME_PASSWORD_LABEL, "Password:"));
+		Label passwordLabel = new Label(getResourceBundleHelper(getLocale()).getString(PROP_NAME_PASSWORD_LABEL, "Password:"));
 		passwordLabel.setStyleName(STYLE_NAME_LABEL);
 		grid1.add(passwordLabel);
 
@@ -537,5 +523,4 @@ public class LoginScreen extends AbstractScreen {
 			}
 		}
 	}
-
 }
