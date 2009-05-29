@@ -93,12 +93,10 @@ public class SelectorTablePanel extends AbstractPanel implements ActionListener 
 		return new NavigatorTableModelAdapter() {
 			private Collection<Object> targetObject;
 
-			@Override
 			public Collection<Object> getCollection() {
 				return targetObject;
 			}
 
-			@Override
 			public void setTargetObject(Object targetObject) {
 				this.targetObject = (Collection) targetObject;
 			}
@@ -135,7 +133,6 @@ public class SelectorTablePanel extends AbstractPanel implements ActionListener 
 		this.table = table;
 	}
 
-	@Override
 	public void actionPerformed(ActionEvent e) {
 		SelectEntityEvent selectEvent = new SelectEntityEvent(this, getTable().getSelectedObject(),
 				getDestinationObject());

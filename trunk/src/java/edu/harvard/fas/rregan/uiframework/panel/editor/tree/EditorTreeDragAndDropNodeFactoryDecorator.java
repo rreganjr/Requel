@@ -43,7 +43,6 @@ public class EditorTreeDragAndDropNodeFactoryDecorator implements EditorTreeNode
 	 *      edu.harvard.fas.rregan.uiframework.panel.editor.tree.EditorTree,
 	 *      java.lang.Object)
 	 */
-	@Override
 	public MutableTreeNode createTreeNode(EventDispatcher eventDispatcher, EditorTree tree,
 			Object object) {
 		return new EditorTreeNodeDragAndDropDecorator(decoratedFactory.createTreeNode(
@@ -53,7 +52,6 @@ public class EditorTreeDragAndDropNodeFactoryDecorator implements EditorTreeNode
 	/**
 	 * @see edu.harvard.fas.rregan.uiframework.panel.editor.tree.EditorTreeNodeFactory#getTargetType()
 	 */
-	@Override
 	public Class<?> getTargetType() {
 		return decoratedFactory.getTargetType();
 	}

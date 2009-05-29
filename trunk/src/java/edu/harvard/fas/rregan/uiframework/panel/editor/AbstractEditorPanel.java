@@ -244,17 +244,14 @@ public abstract class AbstractEditorPanel extends AbstractPanel implements EditM
 		add(row);
 	}
 
-	@Override
 	public boolean isStateEdited() {
 		return stateEdited;
 	}
 
-	@Override
 	public void setStateEdited(boolean stateEdited) {
 		this.stateEdited = stateEdited;
 	}
 
-	@Override
 	public void setGeneralMessage(String message) {
 		generalMessage.setText(message);
 	}

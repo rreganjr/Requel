@@ -269,7 +269,6 @@ public class CheckBoxTreeSetModel extends DefaultTreeModel implements ChangeList
 		return selectedOptions;
 	}
 
-	@Override
 	public void stateChanged(ChangeEvent e) {
 		// TODO: toggle parent on? disable children when parent is off?
 	}

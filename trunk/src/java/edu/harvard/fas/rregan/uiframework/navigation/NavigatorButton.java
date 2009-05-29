@@ -118,7 +118,6 @@ public class NavigatorButton extends Button implements ActionListener {
 		this.eventToFire = eventToFire;
 	}
 
-	@Override
 	public void actionPerformed(ActionEvent e) {
 		if (eventToFire == null) {
 			log.warn(this + " does not have an eventToFire set.");

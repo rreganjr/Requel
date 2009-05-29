@@ -91,22 +91,18 @@ public class EditorTreeManipulator extends AbstractComponentManipulator {
 		getModel(component).addTreeModelListener(new TreeModelListener() {
 			static final long serialVersionUID = 0L;
 
-			@Override
 			public void treeNodesChanged(TreeModelEvent e) {
 				editMode.setStateEdited(true);
 			}
 
-			@Override
 			public void treeNodesInserted(TreeModelEvent e) {
 				editMode.setStateEdited(true);
 			}
 
-			@Override
 			public void treeNodesRemoved(TreeModelEvent e) {
 				editMode.setStateEdited(true);
 			}
 
-			@Override
 			public void treeStructureChanged(TreeModelEvent e) {
 				editMode.setStateEdited(true);
 			}
@@ -130,7 +126,6 @@ public class EditorTreeManipulator extends AbstractComponentManipulator {
 
 	private static class NodeComparator implements Comparator<List<Object>> {
 
-		@Override
 		public int compare(List<Object> o1, List<Object> o2) {
 			if (o1.size() != o2.size()) {
 				return (o1.size() - o2.size());

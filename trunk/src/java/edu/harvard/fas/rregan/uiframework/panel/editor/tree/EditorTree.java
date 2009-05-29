@@ -141,17 +141,14 @@ public class EditorTree extends Tree implements EditMode {
 		return editMode;
 	}
 
-	@Override
 	public boolean isReadOnlyMode() {
 		return editMode.isReadOnlyMode();
 	}
 
-	@Override
 	public boolean isStateEdited() {
 		return editMode.isStateEdited();
 	}
 
-	@Override
 	public void setStateEdited(boolean stateEdited) {
 		editMode.setStateEdited(stateEdited);
 	}
@@ -361,7 +358,6 @@ public class EditorTree extends Tree implements EditMode {
 		/**
 		 * @see nextapp.echo2.extras.app.event.DropListener#dropPerformed(nextapp.echo2.extras.app.event.DropEvent)
 		 */
-		@Override
 		public void dropPerformed(DropEvent event) {
 			DragSource dragSource = (DragSource) event.getSource();
 			Component dropTarget = (Component) event.getTarget();
