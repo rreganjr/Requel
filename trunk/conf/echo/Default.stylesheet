@@ -555,6 +555,7 @@
 
 	<style name="LoginScreen.Subtitle" type="nextapp.echo2.app.Label">
 		<properties>
+			<property name="text" value="The collaborative requirements elicitation system"/>
 			<property name="font">
 				<font bold="true" size="12pt" typeface="Arial" />
 			</property>
