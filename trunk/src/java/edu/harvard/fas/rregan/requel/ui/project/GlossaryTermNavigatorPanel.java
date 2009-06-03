@@ -216,7 +216,7 @@ public class GlossaryTermNavigatorPanel extends NavigatorTablePanel {
 		buttonsWrapper.setAlignment(new Alignment(Alignment.CENTER, Alignment.DEFAULT));
 
 		String closeButtonLabel = getResourceBundleHelper(getLocale()).getString(
-				PROP_NEW_GLOSSARY_TERM_BUTTON_LABEL, "Close");
+				PROP_CANCEL_BUTTON_LABEL, "Close");
 		NavigationEvent closeEvent = new ClosePanelEvent(this, this);
 		NavigatorButton closeButton = new NavigatorButton(closeButtonLabel, getEventDispatcher(),
 				closeEvent);
