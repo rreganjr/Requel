@@ -33,7 +33,7 @@ import opennlp.tools.parser.ParserME;
 import opennlp.tools.util.Sequence;
 import opennlp.tools.util.Span;
 import edu.harvard.fas.rregan.ApplicationException;
-import edu.harvard.fas.rregan.ResourceBundleHelper;
+import net.sf.echopm.ResourceBundleHelper;
 import edu.harvard.fas.rregan.nlp.GrammaticalStructureLevel;
 import edu.harvard.fas.rregan.nlp.NLPText;
 import edu.harvard.fas.rregan.nlp.ParseTag;

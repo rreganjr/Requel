@@ -29,7 +29,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import edu.harvard.fas.rregan.AbstractSystemInitializer;
-import edu.harvard.fas.rregan.ResourceBundleHelper;
+import net.sf.echopm.ResourceBundleHelper;
 import edu.harvard.fas.rregan.command.CommandHandler;
 import edu.harvard.fas.rregan.nlp.dictionary.DictionaryRepository;
 import edu.harvard.fas.rregan.nlp.dictionary.command.ImportDictionaryCommand;

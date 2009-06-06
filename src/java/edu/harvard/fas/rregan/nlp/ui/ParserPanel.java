@@ -30,7 +30,7 @@ import org.apache.log4j.Logger;
 import echopointng.text.StringDocumentEx;
 import edu.harvard.fas.rregan.nlp.NLPProcessorFactory;
 import edu.harvard.fas.rregan.nlp.NLPText;
-import edu.harvard.fas.rregan.uiframework.panel.editor.AbstractEditorPanel;
+import net.sf.echopm.panel.editor.AbstractEditorPanel;
 
 /**
  * @author ron
@@ -66,7 +66,7 @@ public class ParserPanel extends AbstractEditorPanel {
 	}
 
 	/**
-	 * @see edu.harvard.fas.rregan.uiframework.panel.AbstractPanel#getTitle()
+	 * @see net.sf.echopm.panel.AbstractPanel#getTitle()
 	 */
 	@Override
 	public String getTitle() {

@@ -58,12 +58,12 @@ import edu.harvard.fas.rregan.requel.ui.annotation.AnnotationsTable;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.requel.user.UserRepository;
 import edu.harvard.fas.rregan.requel.user.UserSet;
-import edu.harvard.fas.rregan.uiframework.navigation.event.DeletedEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
-import edu.harvard.fas.rregan.uiframework.panel.editor.CheckBoxTreeSet;
-import edu.harvard.fas.rregan.uiframework.panel.editor.CheckBoxTreeSetModel;
-import edu.harvard.fas.rregan.uiframework.panel.editor.CombinedListModel;
-import edu.harvard.fas.rregan.uiframework.panel.editor.CombinedTextListModel;
+import net.sf.echopm.navigation.event.DeletedEntityEvent;
+import net.sf.echopm.navigation.event.UpdateEntityEvent;
+import net.sf.echopm.panel.editor.CheckBoxTreeSet;
+import net.sf.echopm.panel.editor.CheckBoxTreeSetModel;
+import net.sf.echopm.panel.editor.CombinedListModel;
+import net.sf.echopm.panel.editor.CombinedTextListModel;
 
 /**
  * Panel for creating or editing a user stakeholder.
@@ -144,7 +144,7 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 	 * @see AbstractEditorPanel.PROP_EXISTING_OBJECT_PANEL_TITLE
 	 * @see AbstractEditorPanel.PROP_NEW_OBJECT_PANEL_TITLE
 	 * @see Panel.PROP_PANEL_TITLE
-	 * @see edu.harvard.fas.rregan.uiframework.panel.AbstractPanel#getTitle()
+	 * @see net.sf.echopm.panel.AbstractPanel#getTitle()
 	 */
 	@Override
 	public String getTitle() {

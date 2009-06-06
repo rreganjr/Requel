@@ -20,9 +20,9 @@
  */
 package edu.harvard.fas.rregan.requel.ui;
 
-import edu.harvard.fas.rregan.ResourceBundleHelper;
-import edu.harvard.fas.rregan.uiframework.panel.editor.AbstractComponent;
-import edu.harvard.fas.rregan.uiframework.panel.editor.EditMode;
+import net.sf.echopm.ResourceBundleHelper;
+import net.sf.echopm.panel.editor.AbstractComponent;
+import net.sf.echopm.panel.editor.EditMode;
 
 /**
  * Base class for Navigator tables that get embedded in editors that over rides

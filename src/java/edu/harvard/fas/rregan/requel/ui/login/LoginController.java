@@ -32,9 +32,9 @@ import edu.harvard.fas.rregan.requel.ui.RequelMainScreen;
 import edu.harvard.fas.rregan.requel.user.command.LoginCommand;
 import edu.harvard.fas.rregan.requel.user.command.UserCommandFactory;
 import edu.harvard.fas.rregan.requel.user.exception.NoSuchUserException;
-import edu.harvard.fas.rregan.uiframework.login.LoginEvent;
-import edu.harvard.fas.rregan.uiframework.login.LoginFailedEvent;
-import edu.harvard.fas.rregan.uiframework.login.LoginOkEvent;
+import net.sf.echopm.login.LoginEvent;
+import net.sf.echopm.login.LoginFailedEvent;
+import net.sf.echopm.login.LoginOkEvent;
 
 /**
  * Command for processing LoginEvents.

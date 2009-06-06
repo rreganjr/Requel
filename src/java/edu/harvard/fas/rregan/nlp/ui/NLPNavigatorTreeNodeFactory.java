@@ -27,16 +27,16 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import echopointng.tree.MutableTreeNode;
-import edu.harvard.fas.rregan.uiframework.navigation.WorkflowDisposition;
-import edu.harvard.fas.rregan.uiframework.navigation.event.EventDispatcher;
-import edu.harvard.fas.rregan.uiframework.navigation.event.NavigationEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.OpenPanelEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.tree.AbstractNavigatorTreeNodeFactory;
-import edu.harvard.fas.rregan.uiframework.navigation.tree.NavigatorTree;
-import edu.harvard.fas.rregan.uiframework.navigation.tree.NavigatorTreeNode;
-import edu.harvard.fas.rregan.uiframework.navigation.tree.NavigatorTreeNodeUpdateListener;
-import edu.harvard.fas.rregan.uiframework.panel.PanelActionType;
+import net.sf.echopm.navigation.WorkflowDisposition;
+import net.sf.echopm.navigation.event.EventDispatcher;
+import net.sf.echopm.navigation.event.NavigationEvent;
+import net.sf.echopm.navigation.event.OpenPanelEvent;
+import net.sf.echopm.navigation.event.UpdateEntityEvent;
+import net.sf.echopm.navigation.tree.AbstractNavigatorTreeNodeFactory;
+import net.sf.echopm.navigation.tree.NavigatorTree;
+import net.sf.echopm.navigation.tree.NavigatorTreeNode;
+import net.sf.echopm.navigation.tree.NavigatorTreeNodeUpdateListener;
+import net.sf.echopm.panel.PanelActionType;
 
 /**
  * @author ron
@@ -59,7 +59,7 @@ public class NLPNavigatorTreeNodeFactory extends AbstractNavigatorTreeNodeFactor
 	}
 
 	/**
-	 * @see edu.harvard.fas.rregan.uiframework.navigation.tree.NavigatorTreeNodeFactory#createTreeNode(edu.harvard.fas.rregan.uiframework.navigation.tree.NavigatorTree,
+	 * @see net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory#createTreeNode(net.sf.echopm.navigation.tree.NavigatorTree,
 	 *      java.lang.Object)
 	 */
 	public MutableTreeNode createTreeNode(EventDispatcher eventDispatcher, NavigatorTree tree,

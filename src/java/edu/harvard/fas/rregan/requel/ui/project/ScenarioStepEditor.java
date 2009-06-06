@@ -20,7 +20,7 @@
  */
 package edu.harvard.fas.rregan.requel.ui.project;
 
-import static edu.harvard.fas.rregan.uiframework.panel.Panel.STYLE_NAME_DEFAULT;
+import static net.sf.echopm.panel.Panel.STYLE_NAME_DEFAULT;
 
 import java.util.Set;
 import java.util.TreeSet;
@@ -35,13 +35,13 @@ import nextapp.echo2.app.layout.RowLayoutData;
 
 import org.apache.log4j.Logger;
 
-import edu.harvard.fas.rregan.ResourceBundleHelper;
+import net.sf.echopm.ResourceBundleHelper;
 import edu.harvard.fas.rregan.requel.project.ScenarioType;
 import edu.harvard.fas.rregan.requel.project.Step;
 import edu.harvard.fas.rregan.requel.ui.AbstractRequelComponent;
-import edu.harvard.fas.rregan.uiframework.panel.editor.EditMode;
-import edu.harvard.fas.rregan.uiframework.panel.editor.manipulators.AbstractComponentManipulator;
-import edu.harvard.fas.rregan.uiframework.panel.editor.manipulators.ComponentManipulators;
+import net.sf.echopm.panel.editor.EditMode;
+import net.sf.echopm.panel.editor.manipulators.AbstractComponentManipulator;
+import net.sf.echopm.panel.editor.manipulators.ComponentManipulators;
 
 /**
  * An editor component for editing a scenario step's type and name. This is

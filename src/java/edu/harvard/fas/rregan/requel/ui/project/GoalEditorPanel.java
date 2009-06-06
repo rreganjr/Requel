@@ -57,18 +57,18 @@ import edu.harvard.fas.rregan.requel.project.command.DeleteGoalCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditGoalCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.ui.annotation.AnnotationsTable;
-import edu.harvard.fas.rregan.uiframework.navigation.NavigatorButton;
-import edu.harvard.fas.rregan.uiframework.navigation.WorkflowDisposition;
-import edu.harvard.fas.rregan.uiframework.navigation.event.DeletedEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.NavigationEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.OpenPanelEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTable;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableCellValueFactory;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableColumnConfig;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableConfig;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableModel;
-import edu.harvard.fas.rregan.uiframework.panel.PanelActionType;
+import net.sf.echopm.navigation.NavigatorButton;
+import net.sf.echopm.navigation.WorkflowDisposition;
+import net.sf.echopm.navigation.event.DeletedEntityEvent;
+import net.sf.echopm.navigation.event.NavigationEvent;
+import net.sf.echopm.navigation.event.OpenPanelEvent;
+import net.sf.echopm.navigation.event.UpdateEntityEvent;
+import net.sf.echopm.navigation.table.NavigatorTable;
+import net.sf.echopm.navigation.table.NavigatorTableCellValueFactory;
+import net.sf.echopm.navigation.table.NavigatorTableColumnConfig;
+import net.sf.echopm.navigation.table.NavigatorTableConfig;
+import net.sf.echopm.navigation.table.NavigatorTableModel;
+import net.sf.echopm.panel.PanelActionType;
 
 /**
  * @author ron
@@ -164,7 +164,7 @@ public class GoalEditorPanel extends AbstractRequelProjectEditorPanel {
 	 * @see AbstractEditorPanel.PROP_EXISTING_OBJECT_PANEL_TITLE
 	 * @see AbstractEditorPanel.PROP_NEW_OBJECT_PANEL_TITLE
 	 * @see Panel.PROP_PANEL_TITLE
-	 * @see edu.harvard.fas.rregan.uiframework.panel.AbstractPanel#getTitle()
+	 * @see net.sf.echopm.panel.AbstractPanel#getTitle()
 	 */
 	@Override
 	public String getTitle() {

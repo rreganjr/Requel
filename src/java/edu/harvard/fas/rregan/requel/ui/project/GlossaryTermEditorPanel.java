@@ -48,10 +48,10 @@ import edu.harvard.fas.rregan.requel.project.command.EditGlossaryTermCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.project.command.ReplaceGlossaryTermCommand;
 import edu.harvard.fas.rregan.requel.ui.annotation.AnnotationsTable;
-import edu.harvard.fas.rregan.uiframework.navigation.SelectorButton;
-import edu.harvard.fas.rregan.uiframework.navigation.SelectorButton.SelectionIndicatorLabelAdapter;
-import edu.harvard.fas.rregan.uiframework.navigation.event.DeletedEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
+import net.sf.echopm.navigation.SelectorButton;
+import net.sf.echopm.navigation.SelectorButton.SelectionIndicatorLabelAdapter;
+import net.sf.echopm.navigation.event.DeletedEntityEvent;
+import net.sf.echopm.navigation.event.UpdateEntityEvent;
 
 /**
  * Editor for Glossary Terms. Allow editing the definition, select a canonical
@@ -139,7 +139,7 @@ public class GlossaryTermEditorPanel extends AbstractRequelProjectEditorPanel {
 	 * @see AbstractEditorPanel.PROP_EXISTING_OBJECT_PANEL_TITLE
 	 * @see AbstractEditorPanel.PROP_NEW_OBJECT_PANEL_TITLE
 	 * @see Panel.PROP_PANEL_TITLE
-	 * @see edu.harvard.fas.rregan.uiframework.panel.AbstractPanel#getTitle()
+	 * @see net.sf.echopm.panel.AbstractPanel#getTitle()
 	 */
 	@Override
 	public String getTitle() {

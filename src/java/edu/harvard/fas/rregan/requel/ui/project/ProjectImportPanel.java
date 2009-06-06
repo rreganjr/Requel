@@ -50,8 +50,8 @@ import edu.harvard.fas.rregan.requel.project.command.ImportProjectCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.requel.user.UserRepository;
-import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
-import edu.harvard.fas.rregan.uiframework.panel.editor.ToggleButtonModelEx;
+import net.sf.echopm.navigation.event.UpdateEntityEvent;
+import net.sf.echopm.panel.editor.ToggleButtonModelEx;
 
 /**
  * Panel for importing a project.
@@ -137,7 +137,7 @@ public class ProjectImportPanel extends AbstractRequelProjectEditorPanel {
 	 * @see AbstractEditorPanel.PROP_EXISTING_OBJECT_PANEL_TITLE
 	 * @see AbstractEditorPanel.PROP_NEW_OBJECT_PANEL_TITLE
 	 * @see Panel.PROP_PANEL_TITLE
-	 * @see edu.harvard.fas.rregan.uiframework.panel.AbstractPanel#getTitle()
+	 * @see net.sf.echopm.panel.AbstractPanel#getTitle()
 	 */
 	@Override
 	public String getTitle() {

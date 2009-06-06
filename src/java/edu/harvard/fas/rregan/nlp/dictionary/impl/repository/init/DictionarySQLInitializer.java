@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import edu.harvard.fas.rregan.AbstractSystemInitializer;
-import edu.harvard.fas.rregan.ResourceBundleHelper;
+import net.sf.echopm.ResourceBundleHelper;
 import edu.harvard.fas.rregan.nlp.dictionary.DictionaryRepository;
 
 /**

@@ -31,10 +31,10 @@ import edu.harvard.fas.rregan.requel.user.SystemAdminUserRole;
 import edu.harvard.fas.rregan.requel.user.User;
 import edu.harvard.fas.rregan.requel.user.UserRepository;
 import edu.harvard.fas.rregan.requel.user.UserRole;
-import edu.harvard.fas.rregan.uiframework.login.InitAppEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.WorkflowDisposition;
-import edu.harvard.fas.rregan.uiframework.navigation.event.OpenPanelEvent;
-import edu.harvard.fas.rregan.uiframework.panel.PanelActionType;
+import net.sf.echopm.login.InitAppEvent;
+import net.sf.echopm.navigation.WorkflowDisposition;
+import net.sf.echopm.navigation.event.OpenPanelEvent;
+import net.sf.echopm.panel.PanelActionType;
 
 /**
  * @author ron

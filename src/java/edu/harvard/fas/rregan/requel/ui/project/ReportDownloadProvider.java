@@ -28,7 +28,7 @@ import edu.harvard.fas.rregan.command.CommandHandler;
 import edu.harvard.fas.rregan.requel.project.ReportGenerator;
 import edu.harvard.fas.rregan.requel.project.command.GenerateReportCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
-import edu.harvard.fas.rregan.uiframework.MessageHandler;
+import net.sf.echopm.MessageHandler;
 
 /**
  * Execute a report generator and return the report in the supplied output

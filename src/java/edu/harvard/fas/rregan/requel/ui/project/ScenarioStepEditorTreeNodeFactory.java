@@ -27,12 +27,12 @@ import org.apache.log4j.Logger;
 
 import echopointng.tree.MutableTreeNode;
 import edu.harvard.fas.rregan.requel.project.Step;
-import edu.harvard.fas.rregan.uiframework.navigation.event.EventDispatcher;
-import edu.harvard.fas.rregan.uiframework.panel.editor.tree.AbstractEditorTreeNodeFactory;
-import edu.harvard.fas.rregan.uiframework.panel.editor.tree.DefaultEditorTreeNode;
-import edu.harvard.fas.rregan.uiframework.panel.editor.tree.EditorTree;
-import edu.harvard.fas.rregan.uiframework.panel.editor.tree.EditorTreeNode;
-import edu.harvard.fas.rregan.uiframework.panel.editor.tree.EditorTreeNodeFactory;
+import net.sf.echopm.navigation.event.EventDispatcher;
+import net.sf.echopm.panel.editor.tree.AbstractEditorTreeNodeFactory;
+import net.sf.echopm.panel.editor.tree.DefaultEditorTreeNode;
+import net.sf.echopm.panel.editor.tree.EditorTree;
+import net.sf.echopm.panel.editor.tree.EditorTreeNode;
+import net.sf.echopm.panel.editor.tree.EditorTreeNodeFactory;
 
 /**
  * A factory for created EditorTree nodes for editing scenario steps. It creates
@@ -70,8 +70,8 @@ public class ScenarioStepEditorTreeNodeFactory extends AbstractEditorTreeNodeFac
 	}
 
 	/**
-	 * @see edu.harvard.fas.rregan.uiframework.panel.editor.tree.EditorTreeNodeFactory#createTreeNode(edu.harvard.fas.rregan.uiframework.navigation.event.EventDispatcher,
-	 *      edu.harvard.fas.rregan.uiframework.panel.editor.tree.EditorTree,
+	 * @see net.sf.echopm.panel.editor.tree.EditorTreeNodeFactory#createTreeNode(net.sf.echopm.navigation.event.EventDispatcher,
+	 *      net.sf.echopm.panel.editor.tree.EditorTree,
 	 *      java.lang.Object)
 	 */
 	@Override

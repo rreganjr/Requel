@@ -23,7 +23,7 @@ package edu.harvard.fas.rregan.nlp.impl;
 import opennlp.tools.tokenize.Tokenizer;
 import opennlp.tools.tokenize.TokenizerME;
 import edu.harvard.fas.rregan.ApplicationException;
-import edu.harvard.fas.rregan.ResourceBundleHelper;
+import net.sf.echopm.ResourceBundleHelper;
 import edu.harvard.fas.rregan.nlp.GrammaticalStructureLevel;
 import edu.harvard.fas.rregan.nlp.NLPText;
 

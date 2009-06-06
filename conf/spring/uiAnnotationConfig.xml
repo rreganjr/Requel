@@ -14,10 +14,10 @@
 			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.5.xsd
 			">
 
-		<bean id="noteEditorPanelFactory" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.DefaultPanelFactory">
+		<bean id="noteEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
 			<constructor-arg index="0"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.ui.annotation.NoteEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.annotation.Note</value></constructor-arg>
-			<constructor-arg index="2"><util:constant static-field="edu.harvard.fas.rregan.uiframework.panel.PanelActionType.Editor"/></constructor-arg>
+			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
 				<util:list>
 					<ref bean="commandHandler"/>
@@ -27,10 +27,10 @@
 			</constructor-arg>			
 		</bean>
 
-		<bean id="issueEditorPanelFactory" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.DefaultPanelFactory">
+		<bean id="issueEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
 			<constructor-arg index="0"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.ui.annotation.IssueEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.annotation.Issue</value></constructor-arg>
-			<constructor-arg index="2"><util:constant static-field="edu.harvard.fas.rregan.uiframework.panel.PanelActionType.Editor"/></constructor-arg>
+			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
 				<util:list>
 					<ref bean="commandHandler"/>
@@ -40,10 +40,10 @@
 			</constructor-arg>			
 		</bean>
 		
-		<bean id="positionEditorPanelFactory" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.DefaultPanelFactory">
+		<bean id="positionEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
 			<constructor-arg index="0"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.ui.annotation.PositionEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.annotation.Position</value></constructor-arg>
-			<constructor-arg index="2"><util:constant static-field="edu.harvard.fas.rregan.uiframework.panel.PanelActionType.Editor"/></constructor-arg>
+			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
 				<util:list>
 					<ref bean="commandHandler"/>
@@ -53,10 +53,10 @@
 			</constructor-arg>			
 		</bean>
 		
-		<bean id="argumentEditorPanelFactory" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.DefaultPanelFactory">
+		<bean id="argumentEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
 			<constructor-arg index="0"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.ui.annotation.ArgumentEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">edu.harvard.fas.rregan.requel.annotation.Argument</value></constructor-arg>
-			<constructor-arg index="2"><util:constant static-field="edu.harvard.fas.rregan.uiframework.panel.PanelActionType.Editor"/></constructor-arg>
+			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
 				<util:list>
 					<ref bean="commandHandler"/>

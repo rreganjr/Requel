@@ -14,9 +14,9 @@
 			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.5.xsd
 			">
 
-		<bean id="parserPanelFactory" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.DefaultPanelFactory">
+		<bean id="parserPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
 			<constructor-arg index="0"><value type="java.lang.Class">edu.harvard.fas.rregan.nlp.ui.ParserPanel</value></constructor-arg>
-			<constructor-arg index="1"><util:constant static-field="edu.harvard.fas.rregan.uiframework.panel.PanelActionType.Editor"/></constructor-arg>
+			<constructor-arg index="1"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="edu.harvard.fas.rregan.nlp.ui.NLPPanelNames.PARSER_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="3">
 				<util:list>
@@ -26,7 +26,7 @@
 		</bean>
 		<bean id="nlpNavigatorPanel" scope="prototype" class="edu.harvard.fas.rregan.nlp.ui.NLPNavigatorPanel">
 			<constructor-arg>
-				<util:set scope="prototype" value-type="edu.harvard.fas.rregan.uiframework.navigation.tree.NavigatorTreeNodeFactory">
+				<util:set scope="prototype" value-type="net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory">
 					<ref bean="nlpNavigatorTreeNodeFactory"/>
 				</util:set>		
 			</constructor-arg>

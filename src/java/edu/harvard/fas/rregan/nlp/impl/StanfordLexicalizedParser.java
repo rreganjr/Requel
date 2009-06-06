@@ -30,7 +30,7 @@ import java.util.zip.GZIPInputStream;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
-import edu.harvard.fas.rregan.ResourceBundleHelper;
+import net.sf.echopm.ResourceBundleHelper;
 import edu.harvard.fas.rregan.nlp.GrammaticalRelationType;
 import edu.harvard.fas.rregan.nlp.GrammaticalStructureLevel;
 import edu.harvard.fas.rregan.nlp.NLPProcessor;

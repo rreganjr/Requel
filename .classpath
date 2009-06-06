@@ -18,6 +18,8 @@
 	<classpathentry kind="lib" path="lib/xalan.jar"/>
 	<classpathentry kind="lib" path="lib/xercesImpl.jar"/>
 	<classpathentry kind="lib" path="lib/xml-apis.jar"/>
+	<classpathentry kind="lib" path="lib/echo/commons-fileupload-1.2.1.jar" sourcepath="src/lib/echo/commons-fileupload-1.2.1-sources.jar"/>
+	<classpathentry kind="lib" path="lib/echo/commons-io-1.4.jar" sourcepath="src/lib/echo/commons-io-1.4-sources.jar"/>
 	<classpathentry kind="lib" path="lib/echo/Echo2_App.jar" sourcepath="src/lib/echo/Echo2_App-src.jar"/>
 	<classpathentry kind="lib" path="lib/echo/Echo2_Extras_App.jar" sourcepath="src/lib/echo/Echo2_Extras_App-src.jar"/>
 	<classpathentry kind="lib" path="lib/echo/Echo2_Extras_WebContainer.jar" sourcepath="src/lib/echo/Echo2_Extras_WebContainer-src.jar"/>
@@ -25,9 +27,8 @@
 	<classpathentry kind="lib" path="lib/echo/Echo2_WebRender.jar" sourcepath="src/lib/echo/Echo2_WebRender-src.jar"/>
 	<classpathentry kind="lib" path="lib/echo/Echo2_FileTransfer_App.jar" sourcepath="src/lib/echo/Echo2_FileTransfer_App-src.jar"/>
 	<classpathentry kind="lib" path="lib/echo/Echo2_FileTransfer_WebContainer.jar" sourcepath="src/lib/echo/Echo2_FileTransfer_WebContainer-src.jar"/>
-	<classpathentry kind="lib" path="lib/echo/echopointng-2.2.0rc2.jar" sourcepath="src/lib/echo/echopointng-src-2.2.0rc2.jar"/>
-	<classpathentry kind="lib" path="lib/echo/commons-fileupload-1.2.1.jar" sourcepath="src/lib/echo/commons-fileupload-1.2.1-sources.jar"/>
-	<classpathentry kind="lib" path="lib/echo/commons-io-1.4.jar" sourcepath="src/lib/echo/commons-io-1.4-sources.jar"/>
+	<classpathentry kind="lib" path="lib/echo/echopointng-2.2.0rc2.jar" sourcepath="src/lib/echo/echopointng-2.2.0rc2-src.jar"/>
+	<classpathentry kind="lib" path="lib/echo/echopm.jar" sourcepath="src/lib/echo/echopm-src.jar"/>
 	<classpathentry kind="lib" path="lib/hibernate/antlr-2.7.6.jar"/>
 	<classpathentry kind="lib" path="lib/hibernate/asm.jar"/>
 	<classpathentry kind="lib" path="lib/hibernate/asm-attrs.jar"/>

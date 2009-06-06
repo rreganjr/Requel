@@ -55,7 +55,7 @@ import com.swabunga.spell.engine.SpellDictionaryHashMap;
 import com.swabunga.spell.engine.Transformator;
 import com.swabunga.spell.event.SpellChecker;
 
-import edu.harvard.fas.rregan.ResourceBundleHelper;
+import net.sf.echopm.ResourceBundleHelper;
 import edu.harvard.fas.rregan.nlp.PartOfSpeech;
 import edu.harvard.fas.rregan.nlp.dictionary.Category;
 import edu.harvard.fas.rregan.nlp.dictionary.Dictionary;
