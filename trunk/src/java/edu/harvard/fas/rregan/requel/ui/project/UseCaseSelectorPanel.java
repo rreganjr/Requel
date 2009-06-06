@@ -43,18 +43,18 @@ import edu.harvard.fas.rregan.requel.project.ProjectRepository;
 import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
 import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.user.User;
-import edu.harvard.fas.rregan.uiframework.navigation.NavigatorButton;
-import edu.harvard.fas.rregan.uiframework.navigation.event.ClosePanelEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.DeletedEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.NavigationEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.SelectEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableCellValueFactory;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableColumnConfig;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableConfig;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableModel;
-import edu.harvard.fas.rregan.uiframework.panel.NavigatorTableModelAdapter;
-import edu.harvard.fas.rregan.uiframework.panel.SelectorTablePanel;
+import net.sf.echopm.navigation.NavigatorButton;
+import net.sf.echopm.navigation.event.ClosePanelEvent;
+import net.sf.echopm.navigation.event.DeletedEntityEvent;
+import net.sf.echopm.navigation.event.NavigationEvent;
+import net.sf.echopm.navigation.event.SelectEntityEvent;
+import net.sf.echopm.navigation.event.UpdateEntityEvent;
+import net.sf.echopm.navigation.table.NavigatorTableCellValueFactory;
+import net.sf.echopm.navigation.table.NavigatorTableColumnConfig;
+import net.sf.echopm.navigation.table.NavigatorTableConfig;
+import net.sf.echopm.navigation.table.NavigatorTableModel;
+import net.sf.echopm.panel.NavigatorTableModelAdapter;
+import net.sf.echopm.panel.SelectorTablePanel;
 
 /**
  * @author ron
@@ -114,7 +114,7 @@ public class UseCaseSelectorPanel extends SelectorTablePanel {
 	 * domain, by default the title is "Select UseCase"<br>
 	 * 
 	 * @see Panel.PROP_PANEL_TITLE
-	 * @see edu.harvard.fas.rregan.uiframework.panel.AbstractPanel#getTitle()
+	 * @see net.sf.echopm.panel.AbstractPanel#getTitle()
 	 */
 	@Override
 	public String getTitle() {

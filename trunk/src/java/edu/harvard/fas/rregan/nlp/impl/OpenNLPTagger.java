@@ -35,7 +35,7 @@ import opennlp.tools.postag.POSTaggerME;
 import opennlp.tools.postag.TagDictionary;
 import opennlp.tools.util.Sequence;
 import edu.harvard.fas.rregan.ApplicationException;
-import edu.harvard.fas.rregan.ResourceBundleHelper;
+import net.sf.echopm.ResourceBundleHelper;
 import edu.harvard.fas.rregan.nlp.GrammaticalStructureLevel;
 import edu.harvard.fas.rregan.nlp.NLPText;
 import edu.harvard.fas.rregan.nlp.ParseTag;

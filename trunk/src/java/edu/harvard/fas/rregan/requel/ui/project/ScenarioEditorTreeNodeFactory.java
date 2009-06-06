@@ -26,11 +26,11 @@ import nextapp.echo2.app.Row;
 import echopointng.tree.MutableTreeNode;
 import edu.harvard.fas.rregan.requel.project.Scenario;
 import edu.harvard.fas.rregan.requel.project.Step;
-import edu.harvard.fas.rregan.uiframework.navigation.event.EventDispatcher;
-import edu.harvard.fas.rregan.uiframework.panel.editor.tree.DefaultEditorTreeNode;
-import edu.harvard.fas.rregan.uiframework.panel.editor.tree.EditorTree;
-import edu.harvard.fas.rregan.uiframework.panel.editor.tree.EditorTreeNode;
-import edu.harvard.fas.rregan.uiframework.panel.editor.tree.EditorTreeNodeFactory;
+import net.sf.echopm.navigation.event.EventDispatcher;
+import net.sf.echopm.panel.editor.tree.DefaultEditorTreeNode;
+import net.sf.echopm.panel.editor.tree.EditorTree;
+import net.sf.echopm.panel.editor.tree.EditorTreeNode;
+import net.sf.echopm.panel.editor.tree.EditorTreeNodeFactory;
 
 /**
  * A factory for created EditorTree nodes for editing scenarios. It extends
@@ -52,8 +52,8 @@ public class ScenarioEditorTreeNodeFactory extends ScenarioStepEditorTreeNodeFac
 	 * Create a tree node for editing the scenario's and adding a sub-node for
 	 * editing each step in the scenario.
 	 * 
-	 * @see edu.harvard.fas.rregan.uiframework.panel.editor.tree.EditorTreeNodeFactory#createTreeNode(edu.harvard.fas.rregan.uiframework.navigation.event.EventDispatcher,
-	 *      edu.harvard.fas.rregan.uiframework.panel.editor.tree.EditorTree,
+	 * @see net.sf.echopm.panel.editor.tree.EditorTreeNodeFactory#createTreeNode(net.sf.echopm.navigation.event.EventDispatcher,
+	 *      net.sf.echopm.panel.editor.tree.EditorTree,
 	 *      java.lang.Object)
 	 */
 	@Override

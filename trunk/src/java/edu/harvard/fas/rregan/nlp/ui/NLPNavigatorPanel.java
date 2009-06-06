@@ -24,8 +24,8 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 
-import edu.harvard.fas.rregan.uiframework.navigation.tree.NavigatorTreeNodeFactory;
-import edu.harvard.fas.rregan.uiframework.panel.NavigatorTreePanel;
+import net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory;
+import net.sf.echopm.panel.NavigatorTreePanel;
 
 /**
  * @author ron

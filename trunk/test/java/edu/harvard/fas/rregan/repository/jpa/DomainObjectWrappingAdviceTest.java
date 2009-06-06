@@ -22,6 +22,8 @@
 
 package edu.harvard.fas.rregan.repository.jpa;
 
+import net.sf.echopm.EchoPMApp;
+
 import org.springframework.aop.aspectj.AspectJExpressionPointcut;
 import org.springframework.aop.support.AopUtils;
 
@@ -70,7 +72,6 @@ import edu.harvard.fas.rregan.requel.user.impl.repository.init.AssistantUserInit
 import edu.harvard.fas.rregan.requel.user.impl.repository.init.DomainUserInitializer;
 import edu.harvard.fas.rregan.requel.user.impl.repository.init.ProjectUserInitializer;
 import edu.harvard.fas.rregan.requel.user.impl.repository.init.UserRolePermissionsInitializer;
-import edu.harvard.fas.rregan.uiframework.UIFrameworkApp;
 
 /**
  * @author ron
@@ -106,7 +107,7 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 		ajexp.setExpression(pointCutExpression);
 
 		assertFalse(AopUtils.canApply(ajexp, java.util.Date.class, false));
-		assertFalse(AopUtils.canApply(ajexp, UIFrameworkApp.class, false));
+		assertFalse(AopUtils.canApply(ajexp, EchoPMApp.class, false));
 
 		assertTrue(AopUtils.canApply(ajexp, AddGoalToGoalContainerCommandImpl.class, false));
 		assertTrue(AopUtils.canApply(ajexp, TextEntityAssistant.class, false));

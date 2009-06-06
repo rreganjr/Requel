@@ -22,7 +22,7 @@ package edu.harvard.fas.rregan.requel.ui.project;
 
 import edu.harvard.fas.rregan.requel.project.Actor;
 import edu.harvard.fas.rregan.requel.project.ActorContainer;
-import edu.harvard.fas.rregan.uiframework.navigation.event.NavigationEvent;
+import net.sf.echopm.navigation.event.NavigationEvent;
 
 /**
  * This event is fired from the ActorsTable when a user clicks the "remove"

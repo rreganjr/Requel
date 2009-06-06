@@ -22,8 +22,8 @@ package edu.harvard.fas.rregan.requel.ui;
 
 import org.apache.log4j.Logger;
 
-import edu.harvard.fas.rregan.uiframework.controller.AbstractController;
-import edu.harvard.fas.rregan.uiframework.navigation.event.EventDispatcher;
+import net.sf.echopm.controller.AbstractController;
+import net.sf.echopm.navigation.event.EventDispatcher;
 
 /**
  * @author ron

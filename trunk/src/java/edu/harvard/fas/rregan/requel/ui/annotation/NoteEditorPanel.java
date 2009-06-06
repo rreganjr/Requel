@@ -39,8 +39,8 @@ import edu.harvard.fas.rregan.requel.annotation.Note;
 import edu.harvard.fas.rregan.requel.annotation.command.AnnotationCommandFactory;
 import edu.harvard.fas.rregan.requel.annotation.command.DeleteNoteCommand;
 import edu.harvard.fas.rregan.requel.annotation.command.EditNoteCommand;
-import edu.harvard.fas.rregan.uiframework.navigation.event.DeletedEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
+import net.sf.echopm.navigation.event.DeletedEntityEvent;
+import net.sf.echopm.navigation.event.UpdateEntityEvent;
 
 /**
  * @author ron
@@ -101,7 +101,7 @@ public class NoteEditorPanel extends AbstractRequelAnnotationEditorPanel {
 	 * @see AbstractEditorPanel.PROP_EXISTING_OBJECT_PANEL_TITLE
 	 * @see AbstractEditorPanel.PROP_NEW_OBJECT_PANEL_TITLE
 	 * @see Panel.PROP_PANEL_TITLE
-	 * @see edu.harvard.fas.rregan.uiframework.panel.AbstractPanel#getTitle()
+	 * @see net.sf.echopm.panel.AbstractPanel#getTitle()
 	 */
 	@Override
 	public String getTitle() {

@@ -49,12 +49,12 @@ import edu.harvard.fas.rregan.requel.user.UserRole;
 import edu.harvard.fas.rregan.requel.user.UserRolePermission;
 import edu.harvard.fas.rregan.requel.user.command.EditUserCommand;
 import edu.harvard.fas.rregan.requel.user.command.UserCommandFactory;
-import edu.harvard.fas.rregan.uiframework.login.InitAppEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
-import edu.harvard.fas.rregan.uiframework.panel.editor.AbstractEditorPanel;
-import edu.harvard.fas.rregan.uiframework.panel.editor.CheckBoxTreeSet;
-import edu.harvard.fas.rregan.uiframework.panel.editor.CheckBoxTreeSetModel;
-import edu.harvard.fas.rregan.uiframework.panel.editor.CombinedTextListModel;
+import net.sf.echopm.login.InitAppEvent;
+import net.sf.echopm.navigation.event.UpdateEntityEvent;
+import net.sf.echopm.panel.editor.AbstractEditorPanel;
+import net.sf.echopm.panel.editor.CheckBoxTreeSet;
+import net.sf.echopm.panel.editor.CheckBoxTreeSetModel;
+import net.sf.echopm.panel.editor.CombinedTextListModel;
 
 /**
  * @author ron
@@ -179,7 +179,7 @@ public class UserEditorPanel extends AbstractEditorPanel {
 	 * @see AbstractEditorPanel.PROP_EXISTING_OBJECT_PANEL_TITLE
 	 * @see AbstractEditorPanel.PROP_NEW_OBJECT_PANEL_TITLE
 	 * @see Panel.PROP_PANEL_TITLE
-	 * @see edu.harvard.fas.rregan.uiframework.panel.AbstractPanel#getTitle()
+	 * @see net.sf.echopm.panel.AbstractPanel#getTitle()
 	 */
 	@Override
 	public String getTitle() {

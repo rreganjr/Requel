@@ -22,8 +22,8 @@ package edu.harvard.fas.rregan.requel.ui;
 
 import org.apache.log4j.Logger;
 
-import edu.harvard.fas.rregan.uiframework.panel.PanelManager;
-import edu.harvard.fas.rregan.uiframework.panel.TabbedPanelContainer;
+import net.sf.echopm.panel.PanelManager;
+import net.sf.echopm.panel.TabbedPanelContainer;
 
 /**
  * @author ron

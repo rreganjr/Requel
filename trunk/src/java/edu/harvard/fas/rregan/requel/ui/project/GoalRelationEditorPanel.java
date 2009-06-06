@@ -51,11 +51,11 @@ import edu.harvard.fas.rregan.requel.project.command.EditGoalRelationCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.ui.annotation.AnnotationsTable;
 import edu.harvard.fas.rregan.requel.user.User;
-import edu.harvard.fas.rregan.uiframework.navigation.event.DeletedEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
-import edu.harvard.fas.rregan.uiframework.panel.editor.CombinedListModel;
-import edu.harvard.fas.rregan.uiframework.panel.editor.manipulators.ComponentManipulator;
-import edu.harvard.fas.rregan.uiframework.panel.editor.manipulators.ComponentManipulators;
+import net.sf.echopm.navigation.event.DeletedEntityEvent;
+import net.sf.echopm.navigation.event.UpdateEntityEvent;
+import net.sf.echopm.panel.editor.CombinedListModel;
+import net.sf.echopm.panel.editor.manipulators.ComponentManipulator;
+import net.sf.echopm.panel.editor.manipulators.ComponentManipulators;
 
 /**
  * @author ron
@@ -121,7 +121,7 @@ public class GoalRelationEditorPanel extends AbstractRequelProjectEditorPanel {
 	 * @return the value of Panel.PROP_PANEL_TITLE or "Goal Relation" if the
 	 *         title isn't defined
 	 * @see Panel.PROP_PANEL_TITLE
-	 * @see edu.harvard.fas.rregan.uiframework.panel.AbstractPanel#getTitle()
+	 * @see net.sf.echopm.panel.AbstractPanel#getTitle()
 	 */
 	@Override
 	public String getTitle() {

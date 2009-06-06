@@ -30,13 +30,13 @@ import org.apache.log4j.Logger;
 
 import edu.harvard.fas.rregan.requel.user.SystemAdminUserRole;
 import edu.harvard.fas.rregan.requel.user.User;
-import edu.harvard.fas.rregan.uiframework.navigation.NavigatorButton;
-import edu.harvard.fas.rregan.uiframework.navigation.WorkflowDisposition;
-import edu.harvard.fas.rregan.uiframework.navigation.event.NavigationEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.OpenPanelEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.tree.NavigatorTreeNodeFactory;
-import edu.harvard.fas.rregan.uiframework.panel.NavigatorTreePanel;
-import edu.harvard.fas.rregan.uiframework.panel.PanelActionType;
+import net.sf.echopm.navigation.NavigatorButton;
+import net.sf.echopm.navigation.WorkflowDisposition;
+import net.sf.echopm.navigation.event.NavigationEvent;
+import net.sf.echopm.navigation.event.OpenPanelEvent;
+import net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory;
+import net.sf.echopm.panel.NavigatorTreePanel;
+import net.sf.echopm.panel.PanelActionType;
 
 /**
  * @author ron

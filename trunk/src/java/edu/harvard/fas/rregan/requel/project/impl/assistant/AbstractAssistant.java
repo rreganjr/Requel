@@ -25,7 +25,7 @@ import java.text.MessageFormat;
 import java.util.Locale;
 
 import edu.harvard.fas.rregan.ApplicationException;
-import edu.harvard.fas.rregan.ResourceBundleHelper;
+import net.sf.echopm.ResourceBundleHelper;
 import edu.harvard.fas.rregan.command.CommandHandler;
 import edu.harvard.fas.rregan.requel.annotation.Annotatable;
 import edu.harvard.fas.rregan.requel.annotation.Annotation;

@@ -28,7 +28,7 @@
 		</properties>
 	</style>
 	<!-- TODO: the following seems to have no effect -->
-	<style name="Default" type="edu.harvard.fas.rregan.uiframework.panel.editor.CheckBoxSet">
+	<style name="Default" type="net.sf.echopm.panel.editor.CheckBoxSet">
 		<properties>
 			<property name="alignment">
 				<alignment horizontal="center" vertical="default" />

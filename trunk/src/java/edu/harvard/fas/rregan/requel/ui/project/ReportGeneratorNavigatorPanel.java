@@ -46,20 +46,20 @@ import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.project.impl.AbstractProjectOrDomainEntity;
 import edu.harvard.fas.rregan.requel.user.User;
-import edu.harvard.fas.rregan.uiframework.navigation.DownloadButton;
-import edu.harvard.fas.rregan.uiframework.navigation.NavigatorButton;
-import edu.harvard.fas.rregan.uiframework.navigation.WorkflowDisposition;
-import edu.harvard.fas.rregan.uiframework.navigation.event.ClosePanelEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.DeletedEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.NavigationEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.OpenPanelEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableCellValueFactory;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableColumnConfig;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableConfig;
-import edu.harvard.fas.rregan.uiframework.navigation.table.NavigatorTableModel;
-import edu.harvard.fas.rregan.uiframework.panel.NavigatorTablePanel;
-import edu.harvard.fas.rregan.uiframework.panel.PanelActionType;
+import net.sf.echopm.navigation.DownloadButton;
+import net.sf.echopm.navigation.NavigatorButton;
+import net.sf.echopm.navigation.WorkflowDisposition;
+import net.sf.echopm.navigation.event.ClosePanelEvent;
+import net.sf.echopm.navigation.event.DeletedEntityEvent;
+import net.sf.echopm.navigation.event.NavigationEvent;
+import net.sf.echopm.navigation.event.OpenPanelEvent;
+import net.sf.echopm.navigation.event.UpdateEntityEvent;
+import net.sf.echopm.navigation.table.NavigatorTableCellValueFactory;
+import net.sf.echopm.navigation.table.NavigatorTableColumnConfig;
+import net.sf.echopm.navigation.table.NavigatorTableConfig;
+import net.sf.echopm.navigation.table.NavigatorTableModel;
+import net.sf.echopm.panel.NavigatorTablePanel;
+import net.sf.echopm.panel.PanelActionType;
 
 /**
  * @author ron
@@ -200,7 +200,7 @@ public class ReportGeneratorNavigatorPanel extends NavigatorTablePanel {
 	 * {0} - project/domain name<br>
 	 * 
 	 * @see Panel.PROP_PANEL_TITLE
-	 * @see edu.harvard.fas.rregan.uiframework.panel.AbstractPanel#getTitle()
+	 * @see net.sf.echopm.panel.AbstractPanel#getTitle()
 	 */
 	@Override
 	public String getTitle() {

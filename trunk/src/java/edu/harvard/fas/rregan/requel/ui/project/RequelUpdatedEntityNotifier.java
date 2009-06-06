@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomainEntity;
 import edu.harvard.fas.rregan.requel.project.impl.assistant.UpdatedEntityNotifier;
-import edu.harvard.fas.rregan.uiframework.navigation.event.EventDispatcher;
+import net.sf.echopm.navigation.event.EventDispatcher;
 
 /**
  * An updated entity notifier that will send UpdateEvents through the UI

@@ -28,7 +28,7 @@ import java.util.TreeSet;
 import echopointng.text.StringDocumentEx;
 import edu.harvard.fas.rregan.requel.project.ScenarioType;
 import edu.harvard.fas.rregan.requel.project.Step;
-import edu.harvard.fas.rregan.uiframework.panel.editor.CombinedListModel;
+import net.sf.echopm.panel.editor.CombinedListModel;
 
 /**
  * A composite model of the models used to edit a step in the step editor.

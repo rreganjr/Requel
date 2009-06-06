@@ -27,9 +27,9 @@ import edu.harvard.fas.rregan.requel.project.StoryContainer;
 import edu.harvard.fas.rregan.requel.project.command.AddStoryToStoryContainerCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.ui.AbstractRequelCommandController;
-import edu.harvard.fas.rregan.uiframework.navigation.event.EventDispatcher;
-import edu.harvard.fas.rregan.uiframework.navigation.event.SelectEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
+import net.sf.echopm.navigation.event.EventDispatcher;
+import net.sf.echopm.navigation.event.SelectEntityEvent;
+import net.sf.echopm.navigation.event.UpdateEntityEvent;
 
 /**
  * This controller is to be used in a story container entity editor where the

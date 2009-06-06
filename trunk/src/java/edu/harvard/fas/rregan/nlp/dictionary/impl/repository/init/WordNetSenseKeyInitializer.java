@@ -31,7 +31,7 @@ import net.didion.jwnl.data.POS;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import edu.harvard.fas.rregan.AbstractSystemInitializer;
-import edu.harvard.fas.rregan.ResourceBundleHelper;
+import net.sf.echopm.ResourceBundleHelper;
 import edu.harvard.fas.rregan.command.CommandHandler;
 import edu.harvard.fas.rregan.nlp.PartOfSpeech;
 import edu.harvard.fas.rregan.nlp.dictionary.DictionaryRepository;

@@ -58,12 +58,12 @@ import edu.harvard.fas.rregan.requel.project.command.EditStoryCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditUseCaseCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
 import edu.harvard.fas.rregan.requel.ui.annotation.AnnotationsTable;
-import edu.harvard.fas.rregan.uiframework.navigation.event.DeletedEntityEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.OpenPanelEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.UpdateEntityEvent;
-import edu.harvard.fas.rregan.uiframework.panel.PanelActionType;
-import edu.harvard.fas.rregan.uiframework.panel.editor.CombinedListModel;
-import edu.harvard.fas.rregan.uiframework.panel.editor.CombinedTextListModel;
+import net.sf.echopm.navigation.event.DeletedEntityEvent;
+import net.sf.echopm.navigation.event.OpenPanelEvent;
+import net.sf.echopm.navigation.event.UpdateEntityEvent;
+import net.sf.echopm.panel.PanelActionType;
+import net.sf.echopm.panel.editor.CombinedListModel;
+import net.sf.echopm.panel.editor.CombinedTextListModel;
 
 /**
  * @author ron
@@ -145,7 +145,7 @@ public class UseCaseEditorPanel extends AbstractRequelProjectEditorPanel {
 	 * @see AbstractEditorPanel.PROP_EXISTING_OBJECT_PANEL_TITLE
 	 * @see AbstractEditorPanel.PROP_NEW_OBJECT_PANEL_TITLE
 	 * @see Panel.PROP_PANEL_TITLE
-	 * @see edu.harvard.fas.rregan.uiframework.panel.AbstractPanel#getTitle()
+	 * @see net.sf.echopm.panel.AbstractPanel#getTitle()
 	 */
 	@Override
 	public String getTitle() {

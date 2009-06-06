@@ -22,7 +22,7 @@ package edu.harvard.fas.rregan.requel.ui;
 
 import edu.harvard.fas.rregan.command.CommandFactory;
 import edu.harvard.fas.rregan.command.CommandHandler;
-import edu.harvard.fas.rregan.uiframework.navigation.event.EventDispatcher;
+import net.sf.echopm.navigation.event.EventDispatcher;
 
 /**
  * @author ron

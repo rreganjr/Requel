@@ -47,16 +47,16 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Scope;
 
 import edu.harvard.fas.rregan.requel.user.User;
-import edu.harvard.fas.rregan.uiframework.PanelContainer;
-import edu.harvard.fas.rregan.uiframework.login.LogoutEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.DownloadButton;
-import edu.harvard.fas.rregan.uiframework.navigation.NavigatorButton;
-import edu.harvard.fas.rregan.uiframework.navigation.WorkflowDisposition;
-import edu.harvard.fas.rregan.uiframework.navigation.event.NavigationEvent;
-import edu.harvard.fas.rregan.uiframework.navigation.event.OpenPanelEvent;
-import edu.harvard.fas.rregan.uiframework.panel.Panel;
-import edu.harvard.fas.rregan.uiframework.panel.PanelActionType;
-import edu.harvard.fas.rregan.uiframework.screen.AbstractScreen;
+import net.sf.echopm.PanelContainer;
+import net.sf.echopm.login.LogoutEvent;
+import net.sf.echopm.navigation.DownloadButton;
+import net.sf.echopm.navigation.NavigatorButton;
+import net.sf.echopm.navigation.WorkflowDisposition;
+import net.sf.echopm.navigation.event.NavigationEvent;
+import net.sf.echopm.navigation.event.OpenPanelEvent;
+import net.sf.echopm.panel.Panel;
+import net.sf.echopm.panel.PanelActionType;
+import net.sf.echopm.screen.AbstractScreen;
 
 /**
  * @author ron

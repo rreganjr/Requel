@@ -15,10 +15,10 @@
 			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.5.xsd
 			">
 
-		<bean id="mainNavigationPanelManager" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.DefaultPanelManager">
+		<bean id="mainNavigationPanelManager" scope="prototype" class="net.sf.echopm.panel.DefaultPanelManager">
 			<constructor-arg><ref bean="eventDispatcher"/></constructor-arg>
 			<constructor-arg>
-				<util:set scope="prototype" value-type="edu.harvard.fas.rregan.uiframework.panel.Panel">
+				<util:set scope="prototype" value-type="net.sf.echopm.panel.Panel">
 					<ref bean="userAdminNavigatorPanel"/>
 					<ref bean="projectNavigatorPanel"/>
 					<!-- 
@@ -32,10 +32,10 @@
 			<constructor-arg><ref local="mainNavigationPanelManager"/></constructor-arg>
 		</bean>
 		
-		<bean id="mainContentPanelManager" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.DefaultPanelManager">
+		<bean id="mainContentPanelManager" scope="prototype" class="net.sf.echopm.panel.DefaultPanelManager">
 			<constructor-arg><ref bean="eventDispatcher"/></constructor-arg>
 			<constructor-arg>
-				<util:set scope="prototype" value-type="edu.harvard.fas.rregan.uiframework.panel.PanelDescriptor">
+				<util:set scope="prototype" value-type="net.sf.echopm.panel.PanelDescriptor">
 					<!-- user panels -->
 					<ref bean="userEditorPanelFactory"/>
 					
@@ -88,7 +88,7 @@
 			</constructor-arg>
 		</bean>
 
-		<bean id="mainContentPanelContainer" scope="prototype" class="edu.harvard.fas.rregan.uiframework.panel.TabbedPanelContainer">
+		<bean id="mainContentPanelContainer" scope="prototype" class="net.sf.echopm.panel.TabbedPanelContainer">
 			<constructor-arg><ref local="mainContentPanelManager"/></constructor-arg>
 		</bean>
 </beans>

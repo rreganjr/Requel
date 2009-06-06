@@ -22,7 +22,7 @@ package edu.harvard.fas.rregan.requel.ui;
 
 import edu.harvard.fas.rregan.command.CommandHandler;
 import edu.harvard.fas.rregan.requel.user.User;
-import edu.harvard.fas.rregan.uiframework.panel.editor.AbstractEditorPanel;
+import net.sf.echopm.panel.editor.AbstractEditorPanel;
 
 /**
  * Base class for Requel specific editors.

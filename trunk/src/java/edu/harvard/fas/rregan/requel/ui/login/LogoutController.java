@@ -26,8 +26,8 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import edu.harvard.fas.rregan.requel.ui.AbstractRequelController;
-import edu.harvard.fas.rregan.uiframework.login.LogoutEvent;
-import edu.harvard.fas.rregan.uiframework.login.LogoutOkEvent;
+import net.sf.echopm.login.LogoutEvent;
+import net.sf.echopm.login.LogoutOkEvent;
 
 /**
  * Controller for processing LogoutEvents.

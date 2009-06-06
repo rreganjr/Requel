@@ -55,22 +55,6 @@
 	</listener>
 		
 	<servlet>
-		<description>Echo2 based (AJAX framework) User Interface</description>
-		<display-name>UI Framework Servlet</display-name>
-		<servlet-name>UIFrameworkServlet</servlet-name>
-		<servlet-class>edu.harvard.fas.rregan.uiframework.UIFrameworkServlet</servlet-class>
-        <load-on-startup>1</load-on-startup>
-	</servlet>
-
-	<servlet>
-		<description>clear the session and redirect back to the UIFrameworkServlet</description>
-		<display-name>UI Framework LogoutServlet</display-name>
-		<servlet-name>UIFrameworkLogoutServlet</servlet-name>
-		<servlet-class>edu.harvard.fas.rregan.uiframework.UIFrameworkLogoutServlet</servlet-class>
-        <load-on-startup>1</load-on-startup>
-	</servlet>
-
-	<servlet>
 		<description>Servlet for getting a Project in XML format.</description>
 		<display-name>ProjectXML Servlet</display-name>
 		<servlet-name>ProjectXMLServlet</servlet-name>
@@ -78,18 +62,27 @@
         <servlet-class>org.springframework.web.context.support.HttpRequestHandlerServlet</servlet-class>
         <load-on-startup>1</load-on-startup>
 	</servlet>
-
+	<servlet>
+		<description>Echo2 based (AJAX framework) User Interface</description>
+		<display-name>Echo Panel Manager Servlet</display-name>
+		<servlet-name>EchoPMServlet</servlet-name>
+		<servlet-class>net.sf.echopm.EchoPMServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+	</servlet>
+	<servlet>
+		<description>clear the session and redirect back to the EchoPMServlet</description>
+		<display-name>Echo Panel Manager Logout Servlet</display-name>
+		<servlet-name>EchoPMLogoutServlet</servlet-name>
+		<servlet-class>net.sf.echopm.EchoPMLogoutServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+	</servlet>
 	<servlet-mapping>
-		<servlet-name>UIFrameworkServlet</servlet-name>
+		<servlet-name>EchoPMServlet</servlet-name>
 		<url-pattern>/</url-pattern>
 	</servlet-mapping>
 	<servlet-mapping>
-		<servlet-name>UIFrameworkLogoutServlet</servlet-name>
+		<servlet-name>EchoPMLogoutServlet</servlet-name>
 		<url-pattern>/logout</url-pattern>
-	</servlet-mapping>
-	<servlet-mapping>
-		<servlet-name>ProjectXMLServlet</servlet-name>
-		<url-pattern>/projectxml</url-pattern>
 	</servlet-mapping>
 </web-app>
 
