@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Requel - the Collaborative Requirments Elicitation System.
+  ~
+  ~ Copyright © 2008, 2009 Ron Regan Jr.
+  ~
+  ~ Permission is granted to copy, distribute and/or modify this document
+  ~ under the terms of the GNU Free Documentation License, Version 1.3 or
+  ~ any later version published by the Free Software Foundation; with no
+  ~ Invariant Sections, no Front-Cover Texts and no Back-Cover Texts.  
+  ~ See <http://www.gnu.org/copyleft/fdl.html>
+  ~   
+-->
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
+<!ENTITY gettingstarted SYSTEM "GettingStarted.xml" NDATA SGML>
+]>
+    <sect1 id="Chp_WorkingWithRequirements_Sec_CreatingAProject">
+        <title>Creating a Project</title>
+
+      <para>Requel organizes requirements into projects. If you have project
+      creation authorization the &quot;New Project&quot; button appears at the top of
+      the project navigation tab as shown in <olink targetdoc="gettingstarted" targetptr="Fig_ProjectNavigationTab"/>. Clicking the button
+      opens the &quot;New Project&quot; screen show in <xref linkend="Fig_ProjectNewForm"/>. Enter a name,
+      organization, optional description, and click the save button. The
+      combination of project name and organization are required to be unique.
+      The system verifies the values are valid, creates the project, and adds
+      it to the project navigation tab. If there are validation problems the
+      system puts a message to the right of the affected fields.</para>
+
+    <figure id="Fig_ProjectNewForm" float="1">
+	  <title>New Project Form</title>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="images/ProjectNew.PNG" />
+        </imageobject>
+      </mediaobject>
+    </figure>
+
+      <para>Requel also supports importing a project stored in an XML file. If
+      you have project creation authorization the &quot;Import Project&quot; button
+      appears below the &quot;New Project&quot; button in the project navigation tab as
+      shown in <olink targetdoc="gettingstarted" targetptr="Fig_ProjectNavigationTab"/>. 
+      The button opens the &quot;Import Project&quot; screen show in <xref linkend="Fig_ProjectImportForm"/>.</para>
+
+    <figure id="Fig_ProjectImportForm" float="1">
+	  <title>Import Project Form</title>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="images/ProjectImport.PNG" />
+        </imageobject>
+      </mediaobject>
+    </figure>
+
+      <para>To import a project from an XML file, click the &quot;Browse&quot; button in
+      the &quot;Upload&quot; field and use the file upload dialog to navigate to the
+      file to import as shown in <xref linkend="Fig_ProjectImportFileSelection"/>.
+      If you are importing a project that
+      already exists in Requel, you must change the name by entering a new
+      name in the &quot;Rename&quot; field to meet the uniqueness requirement described
+      earlier.</para>
+
+    <figure id="Fig_ProjectImportFileSelection" float="1">
+	  <title>Import Project Form</title>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="images/ProjectImportFileUpload.PNG" />
+        </imageobject>
+      </mediaobject>
+    </figure>
+
+      <para>When importing a project you have the option to turn off analysis
+      by unchecking the &quot;Enable Analysis&quot; checkbox. This is useful for
+      projects that were exported from the system and the elements have
+      already been analyzed. Since the analysis uses a significant amount of
+      processing power and can take a long time to complete. Projects created
+      by hand or by another tool in the project XML format should have
+      analysis enabled.</para>
+
+      <para>After selecting the file in the upload dialog, click the &quot;Upload&quot;
+      button to upload the project file to the server. Then click the &quot;Save&quot;
+      button at the bottom of the screen. The system creates a new project and
+      adds it to the project navigation tab.</para>
+    </sect1>
