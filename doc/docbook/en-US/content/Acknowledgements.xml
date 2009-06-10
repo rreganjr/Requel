@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Requel - the Collaborative Requirments Elicitation System.
+  ~
+  ~ Copyright © 2008, 2009 Ron Regan Jr.
+  ~
+  ~ Permission is granted to copy, distribute and/or modify this document
+  ~ under the terms of the GNU Free Documentation License, Version 1.3 or
+  ~ any later version published by the Free Software Foundation; with no
+  ~ Invariant Sections, no Front-Cover Texts and no Back-Cover Texts.  
+  ~ See <http://www.gnu.org/copyleft/fdl.html>
+  ~   
+-->
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<chapter>
+   <title>Acknowledgements and Disclaimers</title>
+
+    <para>Requel uses many open source components and data. Apache Xalan and
+    Xerces for XML processing; Apache Commons libraries; Proxool Java
+    connection pool; the MySQL connector for Java; the Spring Framework;
+    Hibernate Java Persistence; the Stanford Parser; the Stanford Named Entity
+    Recognizer; Jazzy spell checker; OpenNLP Tools; GNU Trove; WordNet SQL
+    builder; WordNet; VerbNet; Extended WordNet; Echo2 Web Framework;
+    EchoPointNG;</para>
+
+    <para>This product includes software developed by the Apache Software
+    Foundation (http://www.apache.org/).</para>
+
+    <para>This product includes software developed by the Proxool Project
+    (http://proxool.sourceforge.net/).</para>
+
+    <para>This product includes software developed by Spring Framework Project
+    (http://www.springframework.org).</para>
+
+    <para>Hibernate is licensed under the GNU LGPL, Copyright by Red Hat
+    Middleware LLC (http://www.hibernate.org).</para>
+
+    <para>GNU Trove is licensed under the GNU LGPL, Copyright 2001 Eric D.
+    Friedman and portions Copyright 1999 CERN - European Organization for
+    Nuclear Research (http://trove4j.sourceforge.net/).</para>
+
+    <para>Jazzy is licensed under the GNU LGPL, Copyright 2001 Mindaugas
+    Idzelis. (http://jazzy.sourceforge.net/).</para>
+
+    <para>OpenNLP Tools are licensed under the GNU LGPL, Copyright 2004 Jason
+    Baldridge, Gann Bierner and Tom Morton.
+    (http://opennlp.sourceforge.net/).</para>
+
+    <para>The Stanford Parser is licensed under the GNU GPL, Copyright 2002,
+    2003, 2004, 2005 The Board of Trustees of The Leland Stanford Junior
+    University. (http://nlp.stanford.edu/software/lex-parser.shtml).</para>
+
+    <para>The Stanford Named Entity Recognizer is licensed under the GNU GPL,
+    Copyright 2002-2006 The Board of Trustees of The Leland Stanford Junior
+    University. (http://nlp.stanford.edu/ner/index.shtml).</para>
+
+    <para>WordNet SQL builder is licensed under the GNU LGPL, Copyright 2009
+    <emphasis role="bold">Bernard Bou. (</emphasis>
+    http://wnsqlbuilder.sourceforge.net/ <emphasis
+    role="bold">).</emphasis></para>
+
+    <para>Echo2 Web Framework is licensed under the Mozilla Public License,
+    GNU LGPL, or the GNU GPL, Copyright 2009 NextApp, Inc.
+    (http://echo.nextapp.com/site/echo2).</para>
+
+    <para>EchoPointNG is licensed under Public License, GNU LGPL, or the GNU
+    LGPL, Copyright 2009 bbakerman.
+    (http://echo.nextapp.com/site/echo2).</para>
+
+    <para>WordNet Release 3.0 License (http://wordnet.princeton.edu/)</para>
+
+    <para>This software and database is being provided to you, the LICENSEE,
+    by Princeton University under the following license. By obtaining, using,
+    and/or copying this software and database, you agree that you have read,
+    understood, and will comply with these terms and conditions:</para>
+
+    <para>Permission to use, copy, modify, and distribute this software and
+    database and its documentation for any purpose and without fee or royalty
+    is hereby granted, provided that you agree to comply with the following
+    copyright notice and statements, including the disclaimer, and that the
+    same appear on ALL copies of the software, database and documentation,
+    including modifications that you make for internal use or for
+    distribution.</para>
+
+    <para>WordNet 3.0 Copyright 2006 by Princeton University. All rights
+    reserved.</para>
+
+    <para>THIS SOFTWARE AND DATABASE IS PROVIDED "AS IS" AND PRINCETON
+    UNIVERSITY MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED. BY
+    WAY OF EXAMPLE, BUT NOT LIMITATION, PRINCETON UNIVERSITY MAKES NO
+    REPRESENTATIONS OR WARRANTIES OF MERCHANT- ABILITY OR FITNESS FOR ANY
+    PARTICULAR PURPOSE OR THAT THE USE OF THE LICENSED SOFTWARE, DATABASE OR
+    DOCUMENTATION WILL NOT INFRINGE ANY THIRD PARTY PATENTS, COPYRIGHTS,
+    TRADEMARKS OR OTHER RIGHTS.</para>
+
+    <para>The name of Princeton University or Princeton may not be used in
+    advertising or publicity pertaining to distribution of the software and/or
+    database. Title to copyright in this software, database and any associated
+    documentation shall at all times remain with Princeton University and
+    LICENSEE agrees to preserve same.</para>
+
+    <para>VerbNet 2.1 License
+    (http://verbs.colorado.edu/~mpalmer/projects/verbnet.html)</para>
+
+    <para>This software and database is being provided to you, the LICENSEE,
+    by University of Colorado under the following license. By obtaining, using
+    and/or copying this software and database, you agree that you have read,
+    understood, and will comply with these terms and conditions:</para>
+
+    <para>Permission to use, copy, modify and distribute this software and
+    database and its documentation for any purpose and without fee or royalty
+    is hereby granted, provided that you agree to comply with the following
+    copyright notice and statements, including the disclaimer, and that the
+    same appear on ALL copies of the software, database and documentation,
+    including modifications that you make for internal use or for
+    distribution.</para>
+
+    <para>VerbNet 2.1 Copyright 2006 by University of Colorado. All rights
+    reserved.</para>
+
+    <para>THIS SOFTWARE AND DATABASE IS PROVIDED "AS IS" AND UNIVERSITY OF
+    COLORADO MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED. BY
+    WAY OF EXAMPLE, BUT NOT LIMITATION, UNIVERSITY OF COLORADO MAKES NO
+    REPRESENTATIONS OR WARRANTIES OF MERCHANT-ABILITY OR FITNESS FOR ANY
+    PARTICULAR PURPOSE OR THAT THE USE OF THE LICENSED SOFTWARE, DATABASE OR
+    DOCUMENTATION WILL NOT INFRINGE ANY THIRD PARTY PATENTS, COPYRIGHTS,
+    TRADEMARKS OR OTHER RIGHTS.</para>
+
+    <para>The name of University of Colorado or CU may not be used in
+    advertising or publicity pertaining to distribution of the software and/or
+    database. Title to copyright in this software, database and any associated
+    documentation shall at all times remain with University of Colorado and
+    LICENSEE agrees to preserve same.</para>
+
+    <para>Extended WordNet License (http://xwn.hlt.utdallas.edu/)</para>
+
+    <para>XWN 2.0-1.1 software and database is being provided to you, the
+    LICENSEE, by the University of Texas at Dallas under the following
+    license. By obtaining, using and/or copying this software and database,
+    you agree that you have read, understood, and will comply with these terms
+    and conditions:</para>
+
+    <para>Permission to use, copy, modify and distribute this software and
+    database and its documentation for any purpose and without fee or royalty
+    is hereby granted, provided that you agree to comply with the following
+    copyright notice and statements, including the disclaimer, and that the
+    same appear on ALL copies of the software, database and documentation,
+    including modifications that you make for internal use or for
+    distribution.</para>
+
+    <para>eXtended WordNet 2.0-1.1 for WordNet 2.0 Copyright © 2003 by the
+    University of Texas at Dallas. All rights reserved. (WordNet is
+    copyrighted by the Princeton University)</para>
+
+    <para>THIS SOFTWARE AND DATABASE IS PROVIDED "AS IS" AND THE UNIVERSITY OF
+    TEXAS AT DALLAS MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR
+    IMPLIED. BY WAY OF EXAMPLE, BUT NOT LIMITATION, UNIVERSITY OF TEXAS AT
+    DALLAS MAKES NO REPRESENTATIONS OR WARRANTIES OF MERCHANTABILITY OR
+    FITNESS FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF THE LICENSED
+    SOFTWARE, DATABASE OR DOCUMENTATION WILL NOT INFRINGE ANY THIRD PARTY
+    PATENTS, COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS.</para>
+
+    <para>The name of University of Texas at Dallas may not be used in
+    advertising or publicity pertaining to distribution of the software and/or
+    database. Title to copyright in this software, database and any associated
+    documentation shall at all times remain with University of Texas at Dallas
+    and LICENSEE agrees to preserve same.</para>
+  </chapter>
