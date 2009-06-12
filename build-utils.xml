@@ -479,4 +479,10 @@
 		</tar>
 		<delete dir="${build.dir}/tmp/doc" failonerror="false"/>
 	</target>
+	
+	<target name="gen-user-doc" description="Generate user documentation.">
+        <xslt style="tools/docbook/hibernate/pdf/main-pdf.xsl"
+        	in="doc/docbook/en-US/UserGuide.xml" out="build/UserGuide-fop.xml" reloadstylesheet="true">
+        </xslt>
+	</target>
 </project>
