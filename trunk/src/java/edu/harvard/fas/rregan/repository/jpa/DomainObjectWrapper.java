@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import javax.annotation.Resource;
 import javax.persistence.Entity;
 
 import net.sf.cglib.proxy.Enhancer;
@@ -59,6 +60,8 @@ public class DomainObjectWrapper {
 	private final Map<Class<?>, Factory> factoryMap = new HashMap<Class<?>, Factory>();
 	private final PersistenceContextHelper persistenceContextHelper;
 
+	private Map<Class<?>, Integer> staleTimeoutMap;
+
 	/**
 	 * @param persistenceContextHelper
 	 */
@@ -67,53 +70,72 @@ public class DomainObjectWrapper {
 		this.persistenceContextHelper = persistenceContextHelper;
 	}
 
+	public Map<Class<?>, Integer> getStaleTimeoutMap() {
+		return staleTimeoutMap;
+	}
+
+	// This is done as a resource instead of autowired through
+	// the constructor because map key-type isn't supported with
+	// autowire see http://jira.springframework.org/browse/SPR-4492
+	@Resource(name = "staleTimeoutMap")
+	public void setStaleTimeoutMap(Map<Class<?>, Integer> staleTimeoutMap) {
+		this.staleTimeoutMap = staleTimeoutMap;
+	}
+
 	/**
 	 * Given an object, if it is a persistent entity or a Collection of
 	 * persistent entities, wrap it/them in a proxy.
 	 * 
-	 * @param object
+	 * @param object -
+	 *            any thing that may need to be wrapped with an
+	 *            EntityProxyInterceptor.
+	 * @param timeStamp -
+	 *            The time to use as the starting timestamp for freshness
+	 *            checking.
 	 * @return
 	 */
-	public Object wrapPersistentEntities(Object object) {
+	public Object wrapPersistentEntities(Object object, long timeStamp) {
 		if (object instanceof Collection<?>) {
 			Collection<?> collection = (Collection<?>) object;
 			if (collection instanceof UserSet) {
-				object = wrapUserSetEntries((UserSet) collection);
+				object = wrapUserSetEntries((UserSet) collection, timeStamp);
 			} else if (collection instanceof SortedSet<?>) {
 				object = wrapCollectionEntries(new TreeSet<Object>(((SortedSet) collection)
-						.comparator()), collection);
+						.comparator()), collection, timeStamp);
 			} else if (collection instanceof Set<?>) {
-				object = wrapCollectionEntries(new HashSet<Object>(collection.size()), collection);
+				object = wrapCollectionEntries(new HashSet<Object>(collection.size()), collection,
+						timeStamp);
 			} else if (collection instanceof List<?>) {
-				object = wrapCollectionEntries(new ArrayList<Object>(collection.size()), collection);
+				object = wrapCollectionEntries(new ArrayList<Object>(collection.size()),
+						collection, timeStamp);
 			} else {
 				throw new RuntimeException("unexpected collection type: " + object);
 			}
 
 		} else {
-			object = wrapEntity(object);
+			object = wrapEntity(object, timeStamp);
 		}
 		return object;
 	}
 
 	// TODO: the UserSet may not be needed
-	protected UserSet wrapUserSetEntries(UserSet collection) {
+	protected UserSet wrapUserSetEntries(UserSet collection, long timeStamp) {
 		Set<Object> set = new HashSet<Object>(collection.size());
 		for (Object entity : collection) {
-			set.add(wrapEntity(entity));
+			set.add(wrapEntity(entity, timeStamp));
 		}
 		return new UserSetImpl(set);
 	}
 
 	protected Object wrapCollectionEntries(Collection<Object> newCollection,
-			Collection<?> origCollection) {
+			Collection<?> origCollection, long timeStamp) {
 		for (Object entity : origCollection) {
-			newCollection.add(wrapEntity(entity));
+			newCollection.add(wrapEntity(entity, timeStamp));
 		}
 		return newCollection;
 	}
 
-	protected Object wrapEntity(Object entity) {
+	protected Object wrapEntity(Object entity, long timeStamp) {
 		if (entity != null) {
 			// if an entity is already wrapped, don't add another wrapper
 			if (EntityProxyInterceptor.isEntityProxy(entity)) {
@@ -128,9 +150,13 @@ public class DomainObjectWrapper {
 			if (entity.getClass().getAnnotation(Entity.class) == null) {
 				return entity;
 			}
-			log.debug("wrapping entity: " + entity);
+
+			final long timeOut = getTypeSpecificStaleTimeout(entity.getClass());
+			log.debug("wrapping entity: " + entity + " timeOut = " + timeOut + " timeStamp = "
+					+ timeStamp);
 			return getEntityFactory(entity).newInstance(
-					new EntityProxyInterceptor(persistenceContextHelper, this, entity));
+					new EntityProxyInterceptor(persistenceContextHelper, this, entity, timeStamp,
+							timeOut));
 		}
 		return null;
 	}
@@ -141,10 +167,41 @@ public class DomainObjectWrapper {
 		if (f == null) {
 			Enhancer e = new Enhancer();
 			e.setSuperclass(entityType);
-			e.setCallback(new EntityProxyInterceptor(null, null, null));
+			e.setCallback(new EntityProxyInterceptor(null, null, null, 0, 0));
 			f = (Factory) e.create();
 			factoryMap.put(entityType, f);
 		}
 		return f;
+	}
+
+	/**
+	 * Entity types may be configured with a timeout period to determine if an
+	 * entity needs to be reloaded from the db. This allows objects that are
+	 * mostly read-only to have a long period so that the object isn't read from
+	 * the database frequently. Entities that are likely to change frequently
+	 * should have a second or less. a value of zero means the entity is always
+	 * read from the database on each method access.
+	 * 
+	 * @param targetType
+	 * @return
+	 */
+	protected long getTypeSpecificStaleTimeout(Class<?> targetType) {
+		while (!Object.class.equals(targetType)) {
+			if (staleTimeoutMap.containsKey(targetType)) {
+				return staleTimeoutMap.get(targetType).longValue();
+			}
+			if (targetType.getInterfaces() != null) {
+				for (Class<?> face : targetType.getInterfaces()) {
+					if (staleTimeoutMap.containsKey(face)) {
+						return staleTimeoutMap.get(face).longValue();
+					}
+				}
+			}
+			targetType = targetType.getSuperclass();
+		}
+		if (staleTimeoutMap.containsKey(Object.class)) {
+			return staleTimeoutMap.get(Object.class).longValue();
+		}
+		return 1000;
 	}
 }

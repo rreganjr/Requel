@@ -45,6 +45,7 @@ import org.hibernate.LazyInitializationException;
  */
 public class EntityProxyInterceptor implements MethodInterceptor {
 	protected static final Logger log = Logger.getLogger(EntityProxyInterceptor.class);
+	private long staleTimeOut = 0;
 	private long lastRefreshTime = 0;
 	private Object entity;
 	final private PersistenceContextHelper persistenceContextHelper;
@@ -60,10 +61,13 @@ public class EntityProxyInterceptor implements MethodInterceptor {
 	 *            object.
 	 */
 	public EntityProxyInterceptor(PersistenceContextHelper persistenceContextHelper,
-			DomainObjectWrapper domainObjectWrapper, Object entity) {
+			DomainObjectWrapper domainObjectWrapper, Object entity, long lastRefreshTime,
+			long staleTimeOut) {
+		this.lastRefreshTime = lastRefreshTime;
 		this.persistenceContextHelper = persistenceContextHelper;
 		this.domainObjectWrapper = domainObjectWrapper;
 		this.entity = entity;
+		this.staleTimeOut = staleTimeOut;
 	}
 
 	public Object intercept(Object proxy, Method method, Object[] args, MethodProxy methodProxy)
@@ -77,7 +81,7 @@ public class EntityProxyInterceptor implements MethodInterceptor {
 					+ " which may be bad outside of a command.");
 		}
 		Object retVal;
-		if ((System.currentTimeMillis() - lastRefreshTime) > 1000) {
+		if ((staleTimeOut < 1) || ((System.currentTimeMillis() - lastRefreshTime) > staleTimeOut)) {
 			// TODO: what about using the entity version if available instead of
 			// reloading the whole object from the database?
 			retVal = persistenceContextHelper.invokeInTransaction(this, domainObjectWrapper,
@@ -88,8 +92,8 @@ public class EntityProxyInterceptor implements MethodInterceptor {
 			// transactionally.
 			try {
 				try {
-					retVal = domainObjectWrapper
-							.wrapPersistentEntities(method.invoke(entity, args));
+					retVal = domainObjectWrapper.wrapPersistentEntities(
+							method.invoke(entity, args), this.lastRefreshTime);
 				} catch (InvocationTargetException e) {
 					throw e.getCause();
 				}
