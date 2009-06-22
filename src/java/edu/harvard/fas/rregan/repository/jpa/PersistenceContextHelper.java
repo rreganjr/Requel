@@ -84,6 +84,6 @@ public class PersistenceContextHelper {
 			}
 			log.debug(sb.toString());
 		}
-		return domainObjectWrapper.wrapPersistentEntities(rVal);
+		return domainObjectWrapper.wrapPersistentEntities(rVal, System.currentTimeMillis());
 	}
 }

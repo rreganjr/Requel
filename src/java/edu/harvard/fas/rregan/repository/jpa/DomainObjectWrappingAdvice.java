@@ -61,7 +61,7 @@ public class DomainObjectWrappingAdvice {
 	 * After the execution any method on a repository or a getter on a command,
 	 * wrap returned entities in a proxy so that references to properties always
 	 * return the latest persisted state of the object from the database and
-	 * load lazy objectsas needed.<br>
+	 * load lazy objects as needed.<br>
 	 * TODO: remove the logging and make this an after advice
 	 * 
 	 * @param pjp
@@ -153,7 +153,7 @@ public class DomainObjectWrappingAdvice {
 		}
 
 		if (wrapReturnVal) {
-			retVal = domainObjectWrapper.wrapPersistentEntities(retVal);
+			retVal = domainObjectWrapper.wrapPersistentEntities(retVal, System.currentTimeMillis());
 		}
 		return retVal;
 	}
