@@ -66,6 +66,8 @@ public class PersistenceContextHelper {
 		StringBuffer sb = null;
 		if (log.isDebugEnabled()) {
 			sb = new StringBuffer();
+			sb.append(refreshedEntity.getClass().getName());
+			sb.append(".");
 			sb.append(method.getName());
 			sb.append("(");
 			for (int i = 0; (args != null) && (i < args.length); i++) {
