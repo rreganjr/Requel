@@ -103,7 +103,7 @@ public class ApplicationException extends RuntimeException {
 	 *            string
 	 */
 	protected ApplicationException(String format, Object... args) {
-		super(new Formatter().format(format, args).toString());
+		super(new Formatter().format(format, pretty(args)).toString());
 		if (log.isDebugEnabled()) {
 			log.debug(getMessage());
 		}
@@ -119,9 +119,40 @@ public class ApplicationException extends RuntimeException {
 	 *            string
 	 */
 	protected ApplicationException(Throwable cause, String format, Object... args) {
-		super(new Formatter().format(format, args).toString(), cause);
+		super(new Formatter().format(format, pretty(args)).toString(), cause);
 		if (log.isDebugEnabled()) {
-			log.debug(new Formatter().format(format, args).toString(), cause);
+			log.debug(getMessage(), cause);
 		}
 	}
+	
+	static private Object[] pretty(Object[] args) {
+		Object[] pretty = new Object[args.length];
+		int i = 0;
+		for (Object o : args) {
+			if (Object[].class.isAssignableFrom(o.getClass())) {
+				StringBuilder b = new StringBuilder();
+				Object[] inner = (Object[])args[i];
+				for (int x = 0; x < inner.length - 1; x++) {
+					b.append(pretty(inner[x]));
+					b.append(", ");
+				}
+				b.append(pretty(inner[inner.length -1]));
+				pretty[i] = b.toString();
+			} else {
+				pretty[i] = o.toString();
+			}
+			i++;
+		}
+		return pretty;
+	}
+	
+	static private String pretty(Object o) {
+		if (o == null) {
+			return "<null>";
+		} else if (o instanceof String) {
+			return "\"" + o + "\"";
+		} else {
+			return o.toString();
+		}
+	}	
 }
