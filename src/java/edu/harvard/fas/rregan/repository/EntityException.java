@@ -93,7 +93,7 @@ public class EntityException extends RequelException {
 			for (int i = 0; i < entityPropertyNames.length; i++) {
 				propertyInfo.append(entityPropertyNames[i]);
 				propertyInfo.append(" of '");
-				propertyInfo.append(entityPropertyNames[i]);
+				propertyInfo.append(entityPropertyValues[i]);
 				propertyInfo.append("'");
 				if (i < entityPropertyNames.length + 1) {
 					propertyInfo.append(" and ");
