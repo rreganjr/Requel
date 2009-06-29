@@ -70,6 +70,7 @@ public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUs
 	 */
 	public NonUserStakeholderImpl(ProjectOrDomain projectOrDomain, User createdBy, String name) {
 		super(NonUserStakeholder.class.getName(), projectOrDomain, createdBy, name);
+		projectOrDomain.getStakeholders().add(this);
 	}
 
 	protected NonUserStakeholderImpl() {

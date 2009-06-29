@@ -75,7 +75,6 @@ public abstract class AbstractStakeholder extends AbstractProjectOrDomainEntity 
 			String name) {
 		super(projectOrDomain, createdBy, name);
 		setType(type);
-		projectOrDomain.getStakeholders().add(this);
 	}
 
 	protected AbstractStakeholder() {
