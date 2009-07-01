@@ -18,8 +18,8 @@
 				To override the user's personal environment properties use 
 				-Denv.properties.file={properties file}
 			
-				For example to build for the eatj deployment use
-				-Denv.properties.file=env-eatj.build.properties			
+				For example to build for standard mysql (localhost at port 3306)
+				-Denv.properties.file=env-standard-mysql-db.build.properties			
 			
 				Properties for a specific deployment environment should go in the
 				deployment-{deployment-name}.build.properties file.
@@ -83,12 +83,12 @@
 		<echo message="db.username = ${db.username}"/>
 	</target>
 
-	<target name="build-deployment-hibernate" depends="init-deployment-hibernate,clean,war"/>
+	<target name="build-deployment-standard" depends="init-deployment-standard,clean,war"/>
 	
-	<target name="init-deployment-hibernate" depends="loadProperties">
-		<echo>loading deployment properties from: conf/build/deployment-hibernate.build.properties</echo>
+	<target name="init-deployment-standard" depends="loadProperties">
+		<echo>loading deployment properties from: conf/build/deployment-standard.build.properties</echo>
 		<echo message="db.username = ${db.username}"/>
-		<property file="conf/build/deployment-hibernate.build.properties"/>
+		<property file="conf/build/deployment-standard.build.properties"/>
 		<echo message="db.username = ${db.username}"/>
 	</target>
 
@@ -100,7 +100,7 @@
         <ant target="war" antfile="build-utils.xml" inheritall="true"/>
 	</target>
 		
-	<target name="compile" depends="init-deployment-hibernate">
+	<target name="compile" depends="init-deployment-standard">
 		<property name="subproject.name" value="${subproject.name}"/>
 		<property name="deployment.name" value="${deployment.name}"/>
 		<property name="context.name" value="${context.name}"/>
