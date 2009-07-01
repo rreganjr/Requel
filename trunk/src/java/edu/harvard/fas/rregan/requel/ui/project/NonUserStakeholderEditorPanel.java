@@ -43,6 +43,8 @@ import edu.harvard.fas.rregan.requel.project.NonUserStakeholder;
 import edu.harvard.fas.rregan.requel.project.ProjectOrDomain;
 import edu.harvard.fas.rregan.requel.project.ProjectRepository;
 import edu.harvard.fas.rregan.requel.project.Stakeholder;
+import edu.harvard.fas.rregan.requel.project.StakeholderPermissionType;
+import edu.harvard.fas.rregan.requel.project.UserStakeholder;
 import edu.harvard.fas.rregan.requel.project.command.DeleteStakeholderCommand;
 import edu.harvard.fas.rregan.requel.project.command.EditNonUserStakeholderCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
@@ -245,6 +247,30 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 		} catch (Exception e) {
 			setGeneralMessage("Could not delete entity: " + e);
 		}
+	}
+
+	// This is needed because permissions are granted at the Stakeholder level
+	// and not
+	// the UserStakeholder or NonUserStakeholder level.
+	@Override
+	public boolean isReadOnlyMode() {
+		UserStakeholder stakeholder = getUserStakeholder(getTargetObject());
+		if (stakeholder != null) {
+			return !stakeholder.hasPermission(Stakeholder.class, StakeholderPermissionType.Edit);
+		}
+		return true;
+	}
+
+	// This is needed because permissions are granted at the Stakeholder level
+	// and not
+	// the UserStakeholder or NonUserStakeholder level.
+	@Override
+	protected boolean isShowDelete() {
+		UserStakeholder stakeholder = getUserStakeholder(getTargetObject());
+		if (stakeholder != null) {
+			return stakeholder.hasPermission(Stakeholder.class, StakeholderPermissionType.Delete);
+		}
+		return false;
 	}
 
 	private ProjectOrDomain getProjectOrDomain() {

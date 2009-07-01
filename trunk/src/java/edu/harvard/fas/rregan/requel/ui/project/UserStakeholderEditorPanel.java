@@ -282,6 +282,30 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 		}
 	}
 
+	// This is needed because permissions are granted at the Stakeholder level
+	// and not
+	// the UserStakeholder or NonUserStakeholder level.
+	@Override
+	public boolean isReadOnlyMode() {
+		UserStakeholder stakeholder = getUserStakeholder(getTargetObject());
+		if (stakeholder != null) {
+			return !stakeholder.hasPermission(Stakeholder.class, StakeholderPermissionType.Edit);
+		}
+		return true;
+	}
+
+	// This is needed because permissions are granted at the Stakeholder level
+	// and not
+	// the UserStakeholder or NonUserStakeholder level.
+	@Override
+	protected boolean isShowDelete() {
+		UserStakeholder stakeholder = getUserStakeholder(getTargetObject());
+		if (stakeholder != null) {
+			return stakeholder.hasPermission(Stakeholder.class, StakeholderPermissionType.Delete);
+		}
+		return false;
+	}
+
 	private Set<String> getProjectTeamNames() {
 		Set<String> teamNames = new TreeSet<String>();
 		teamNames.add("");
