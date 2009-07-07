@@ -84,5 +84,9 @@
 		<servlet-name>EchoPMLogoutServlet</servlet-name>
 		<url-pattern>/logout</url-pattern>
 	</servlet-mapping>
+	<servlet-mapping>
+		<servlet-name>ProjectXMLServlet</servlet-name>
+		<url-pattern>/projectxml</url-pattern>
+	</servlet-mapping>
 </web-app>
 
