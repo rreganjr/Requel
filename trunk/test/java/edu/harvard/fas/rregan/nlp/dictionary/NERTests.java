@@ -43,7 +43,7 @@ public class NERTests extends AbstractIntegrationTestCase {
 	}
 
 	public void testNER() {
-		String sentence = "Nellymoser will design and develop a Streaming Audio and Video product for Virgin Mobile USA’s first EVDO device.";
+		String sentence = "Nellymoser will design and develop a Streaming Audio and Video product for Virgin Mobile USA's first EVDO device.";
 		NLPText text = process(sentence);
 		nameEntityRecognizer.process(text);
 		for (NLPText word : text.getLeaves()) {
