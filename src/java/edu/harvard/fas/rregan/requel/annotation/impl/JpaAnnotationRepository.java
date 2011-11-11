@@ -186,7 +186,7 @@ public class JpaAnnotationRepository extends AbstractJpaRepository implements An
 			query.setParameter("groupingObject", groupingObject);
 			return (LexicalIssue) query.getSingleResult();
 		} catch (NoResultException e) {
-			throw NoSuchAnnotationException.forWord(word, null);
+			throw NoSuchAnnotationException.forWord(word, "<no property>");
 		} catch (Exception e) {
 			throw convertException(e, Issue.class, null, EntityExceptionActionType.Reading);
 		}
