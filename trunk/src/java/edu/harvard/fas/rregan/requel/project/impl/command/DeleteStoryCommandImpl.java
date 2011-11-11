@@ -31,12 +31,16 @@ import edu.harvard.fas.rregan.command.CommandHandler;
 import edu.harvard.fas.rregan.requel.annotation.Annotation;
 import edu.harvard.fas.rregan.requel.annotation.command.AnnotationCommandFactory;
 import edu.harvard.fas.rregan.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
+import edu.harvard.fas.rregan.requel.project.Actor;
 import edu.harvard.fas.rregan.requel.project.GlossaryTerm;
+import edu.harvard.fas.rregan.requel.project.Goal;
 import edu.harvard.fas.rregan.requel.project.ProjectRepository;
 import edu.harvard.fas.rregan.requel.project.Story;
 import edu.harvard.fas.rregan.requel.project.StoryContainer;
 import edu.harvard.fas.rregan.requel.project.command.DeleteStoryCommand;
 import edu.harvard.fas.rregan.requel.project.command.ProjectCommandFactory;
+import edu.harvard.fas.rregan.requel.project.command.RemoveActorFromActorContainerCommand;
+import edu.harvard.fas.rregan.requel.project.command.RemoveGoalFromGoalContainerCommand;
 import edu.harvard.fas.rregan.requel.project.command.RemoveStoryFromStoryContainerCommand;
 import edu.harvard.fas.rregan.requel.project.impl.assistant.AssistantFacade;
 import edu.harvard.fas.rregan.requel.user.User;
@@ -93,16 +97,29 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
-		// remove this entity as a referer to any terms
+		// remove this entity as a referrer to any terms
 		for (GlossaryTerm term : story.getProjectOrDomain().getGlossaryTerms()) {
 			if (term.getReferers().contains(story)) {
 				term.getReferers().remove(story);
 			}
 		}
+		for (Actor actor : story.getActors()) {
+			RemoveActorFromActorContainerCommand removeActorFromActorContainerCommand = getProjectCommandFactory().newRemoveActorFromActorContainerCommand();
+			removeActorFromActorContainerCommand.setEditedBy(editedBy);
+			removeActorFromActorContainerCommand.setActor(actor);
+			removeActorFromActorContainerCommand.setActorContainer(story);
+			getCommandHandler().execute(removeActorFromActorContainerCommand);
+		}
+		for (Goal goal : story.getGoals()) {
+			RemoveGoalFromGoalContainerCommand removeGoalFromGoalContainerCommand = getProjectCommandFactory().newRemoveGoalFromGoalContainerCommand();
+			removeGoalFromGoalContainerCommand.setEditedBy(editedBy);
+			removeGoalFromGoalContainerCommand.setGoal(goal);
+			removeGoalFromGoalContainerCommand.setGoalContainer(story);
+			getCommandHandler().execute(removeGoalFromGoalContainerCommand);
+		}
 		Set<StoryContainer> storyReferers = new HashSet<StoryContainer>(story.getReferers());
 		for (StoryContainer storyContainer : storyReferers) {
-			RemoveStoryFromStoryContainerCommand removeStoryFromStoryContainerCommand = getProjectCommandFactory()
-					.newRemoveStoryFromStoryContainerCommand();
+			RemoveStoryFromStoryContainerCommand removeStoryFromStoryContainerCommand = getProjectCommandFactory().newRemoveStoryFromStoryContainerCommand();
 			removeStoryFromStoryContainerCommand.setEditedBy(editedBy);
 			removeStoryFromStoryContainerCommand.setStory(story);
 			removeStoryFromStoryContainerCommand.setStoryContainer(storyContainer);
