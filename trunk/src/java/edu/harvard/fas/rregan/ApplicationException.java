@@ -129,17 +129,21 @@ public class ApplicationException extends RuntimeException {
 		Object[] pretty = new Object[args.length];
 		int i = 0;
 		for (Object o : args) {
-			if (Object[].class.isAssignableFrom(o.getClass())) {
-				StringBuilder b = new StringBuilder();
-				Object[] inner = (Object[])args[i];
-				for (int x = 0; x < inner.length - 1; x++) {
-					b.append(pretty(inner[x]));
-					b.append(", ");
+			if (o != null) {
+				if (Object[].class.isAssignableFrom(o.getClass())) {
+					StringBuilder b = new StringBuilder();
+					Object[] inner = (Object[])args[i];
+					for (int x = 0; x < inner.length - 1; x++) {
+						b.append(pretty(inner[x]));
+						b.append(", ");
+					}
+					b.append(pretty(inner[inner.length -1]));
+					pretty[i] = b.toString();
+				} else {
+					pretty[i] = o.toString();
 				}
-				b.append(pretty(inner[inner.length -1]));
-				pretty[i] = b.toString();
 			} else {
-				pretty[i] = o.toString();
+				pretty[i] = "<null>";
 			}
 			i++;
 		}
