@@ -19,10 +19,13 @@
 				-Denv.properties.file={properties file}
 			
 				For example to build for standard mysql (localhost at port 3306)
-				-Denv.properties.file=env-standard-mysql-db.build.properties			
+				-Denv.properties.file=env-standard-mysql-db.build.properties
 			
 				Properties for a specific deployment environment should go in the
 				deployment-{deployment-name}.build.properties file.
+				use -Ddeployment.name=standard
+			
+				run the loadProperties and war task together
 		</echo>
 	</target>
 
@@ -87,7 +90,6 @@
 	
 	<target name="init-deployment-standard" depends="loadProperties">
 		<echo>loading deployment properties from: conf/build/deployment-standard.build.properties</echo>
-		<echo message="db.username = ${db.username}"/>
 		<property file="conf/build/deployment-standard.build.properties"/>
 		<echo message="db.username = ${db.username}"/>
 	</target>
