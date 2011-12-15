@@ -60,14 +60,14 @@
 
 	<target name="compile">
 		<echo message="compiling to ${classes.dir}"/>
-		<javac srcdir="src/java" destdir="${classes.dir}" debug="true" source="1.6">
+		<javac srcdir="src/java" destdir="${classes.dir}" debug="true" source="1.6" includeantruntime="false">
 			<classpath>
 				<fileset dir="lib">
 					<include name="**/*.jar"/>
 				</fileset>
 			</classpath>
 		</javac>
-		<javac srcdir="test/java" destdir="${classes.dir}" debug="true" source="1.6">
+		<javac srcdir="test/java" destdir="${classes.dir}" debug="true" source="1.6" includeantruntime="false">
 			<classpath>
 				<fileset dir="lib">
 					<include name="**/*.jar"/>
@@ -435,7 +435,7 @@
 		<mkdir dir="${build.dir}/verbnet-2.1/classes"/>
 		<xjc schema="src/resources/nlp/verbnet-2.1/vn_schema-3.xsd" destdir="${verbnet.src.dir}" package="edu.harvard.fas.rregan.nlp.verbnet" extension="true"/>
 		<echo message="compiling to ${verbnet.cls.dir}"/>
-		<javac srcdir="${verbnet.src.dir}" destdir="${verbnet.cls.dir}" debug="true" source="1.6">
+		<javac srcdir="${verbnet.src.dir}" destdir="${verbnet.cls.dir}" debug="true" source="1.6" includeantruntime="false">
 			<classpath>
 				<fileset dir="lib">
 					<include name="**/*.jar"/>
