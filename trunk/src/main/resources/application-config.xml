@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.2.xsd
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd">
+
+	<context:property-placeholder location="classpath*:*.properties" system-properties-mode="OVERRIDE" ignore-unresolvable="false" local-override="true" />
+	<context:component-scan base-package="com.rreganjr"/>
+
+	<import resource="spring/altlemmatizerConfig.xml" />
+	<import resource="spring/assistantConfig.xml" />
+	<import resource="spring/commandHandlerConfig.xml" />
+	<import resource="spring/jpaConfig.xml" />
+	<import resource="spring/lemmatizerConfig.xml" />
+	<import resource="spring/uiAnnotationConfig.xml" />
+	<import resource="spring/uiFrameworkConfig.xml" />
+	<import resource="spring/uiMainConfig.xml" />
+	<import resource="spring/uiNLPConfig.xml" />
+	<import resource="spring/uiProjectConfig.xml" />
+	<import resource="spring/uiUserConfig.xml" />
+</beans>

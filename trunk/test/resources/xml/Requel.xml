@@ -20,7 +20,7 @@
         </actor>
         <actor id="ACT_3" revision="8" dateCreated="2009-01-05T00:00:00" createdBy="USR_5">
             <annotations/>
-            <text>Project users use the system to create requirments in projects.</text>
+            <text>Project users use the system to create Requirements in projects.</text>
             <goals/>
             <name>Project User</name>
         </actor>
@@ -191,24 +191,24 @@
             <annotations/>
             <goals/>
             <projectPermissions>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Stakeholder"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.UseCase"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Actor"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Actor"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Goal"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Stakeholder"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.UseCase"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.ReportGenerator"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.annotation.Annotation"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Story"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.GlossaryTerm"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.annotation.Annotation"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Story"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Scenario"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Goal"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Scenario"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.GlossaryTerm"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.ReportGenerator"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.Stakeholder"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.UseCase"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.Actor"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.Actor"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.Goal"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.Stakeholder"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.UseCase"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.ReportGenerator"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.annotation.Annotation"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.Story"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.GlossaryTerm"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.annotation.Annotation"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.Story"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.Scenario"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.Goal"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.Scenario"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.GlossaryTerm"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.ReportGenerator"/>
             </projectPermissions>
             <user id="USR_1">
                 <username>admin</username>
@@ -223,7 +223,7 @@
                     </systemAdminUserRole>
                     <projectUserRole>
                         <userPermissions>
-                            <userPermission userRoleType="edu.harvard.fas.rregan.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
+                            <userPermission userRoleType="com.rreganjr.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
                         </userPermissions>
                     </projectUserRole>
                 </userRoles>
@@ -270,7 +270,7 @@
                 <userRoles>
                     <projectUserRole>
                         <userPermissions>
-                            <userPermission userRoleType="edu.harvard.fas.rregan.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
+                            <userPermission userRoleType="com.rreganjr.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
                         </userPermissions>
                     </projectUserRole>
                 </userRoles>
@@ -281,24 +281,24 @@
             <annotations/>
             <goals/>
             <projectPermissions>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Stakeholder"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.UseCase"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Actor"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Actor"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Goal"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Stakeholder"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.UseCase"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.ReportGenerator"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.annotation.Annotation"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Story"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.GlossaryTerm"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.annotation.Annotation"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Story"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Scenario"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.Goal"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.Scenario"/>
-                <projectPermission permissionType="Grant" entityType="edu.harvard.fas.rregan.requel.project.GlossaryTerm"/>
-                <projectPermission permissionType="Edit" entityType="edu.harvard.fas.rregan.requel.project.ReportGenerator"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.Stakeholder"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.UseCase"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.Actor"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.Actor"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.Goal"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.Stakeholder"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.UseCase"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.ReportGenerator"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.annotation.Annotation"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.Story"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.GlossaryTerm"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.annotation.Annotation"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.Story"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.Scenario"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.Goal"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.Scenario"/>
+                <projectPermission permissionType="Grant" entityType="com.rreganjr.requel.project.GlossaryTerm"/>
+                <projectPermission permissionType="Edit" entityType="com.rreganjr.requel.project.ReportGenerator"/>
             </projectPermissions>
             <user id="USR_5">
                 <username>rreganjr</username>
@@ -310,7 +310,7 @@
                 <userRoles>
                     <projectUserRole>
                         <userPermissions>
-                            <userPermission userRoleType="edu.harvard.fas.rregan.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
+                            <userPermission userRoleType="com.rreganjr.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
                         </userPermissions>
                     </projectUserRole>
                 </userRoles>

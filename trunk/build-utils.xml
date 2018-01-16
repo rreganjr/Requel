@@ -164,7 +164,7 @@
 		</copy>
 
 		<copy todir="${build.dir}/${context.name}/war/WEB-INF" description="copy spring configurations">
-			<fileset dir="conf/spring">
+			<fileset dir="src/main/resources/spring">
 				<include name="*.xml"/>
 			</fileset>
 		</copy>
@@ -248,7 +248,7 @@
 		</copy>
 
 		<copy todir="${build.dir}/${context.name}/war/WEB-INF" description="copy spring configurations">
-			<fileset dir="conf/spring">
+			<fileset dir="src/main/resources/spring">
 				<include name="*.xml"/>
 			</fileset>
 		</copy>
@@ -433,7 +433,7 @@
 	    <property name="verbnet.cls.dir" value="${build.dir}/verbnet-2.1/classes"/>
 		<mkdir dir="${build.dir}/verbnet-2.1/src"/>
 		<mkdir dir="${build.dir}/verbnet-2.1/classes"/>
-		<xjc schema="src/resources/nlp/verbnet-2.1/vn_schema-3.xsd" destdir="${verbnet.src.dir}" package="edu.harvard.fas.rregan.nlp.verbnet" extension="true"/>
+		<xjc schema="src/resources/nlp/verbnet-2.1/vn_schema-3.xsd" destdir="${verbnet.src.dir}" package="com.rreganjr.nlp.verbnet" extension="true"/>
 		<echo message="compiling to ${verbnet.cls.dir}"/>
 		<javac srcdir="${verbnet.src.dir}" destdir="${verbnet.cls.dir}" debug="true" source="1.6" includeantruntime="false">
 			<classpath>
@@ -442,7 +442,7 @@
 				</fileset>
 			</classpath>
 		</javac>
-		<jar destfile="lib/nlp/verbnet-2.1.jar" duplicate="preserve">
+		<jar destfile="build/verbnet-2.1.jar" duplicate="preserve">
 			<zipfileset dir="${verbnet.cls.dir}"/>
 		</jar>
 		<jar destfile="src/lib/nlp/verbnet-2.1-src.jar" duplicate="preserve">
