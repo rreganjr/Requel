@@ -1,0 +1,702 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- $Id: Default.stylesheet,v 1.22 2009/01/23 09:54:26 rregan Exp $ -->
+<stylesheet>
+
+	<!-- Default Styles used by all screens -->
+	<style name="Default" type="nextapp.echo2.app.WindowPane">
+		<properties>
+			<property name="nextapp.echo2.webcontainer.syncpeer.WindowPanePeer.ieAlphaRenderBorder"
+				type="java.lang.Boolean" value="true" />
+			<property name="titleForeground" value="#000000" />
+			<property name="titleInsets" value="10px 5px" />
+			<property name="titleBackground" value="#aaaaff" />
+			<property name="width" value="480px" />
+		</properties>
+	</style>
+
+	<style name="Default" type="nextapp.echo2.app.ContentPane">
+		<properties>
+			<property name="background" value="#bbbbff" />
+		</properties>
+	</style>
+	<style name="Default" type="nextapp.echo2.app.Label">
+		<properties>
+			<property name="font">
+				<font bold="false" size="10pt" typeface="Arial" />
+			</property>
+			<property name="foreground" value="#000000" />
+		</properties>
+	</style>
+	<!-- TODO: the following seems to have no effect -->
+	<style name="Default" type="net.sf.echopm.panel.editor.CheckBoxSet">
+		<properties>
+			<property name="alignment">
+				<alignment horizontal="center" vertical="default" />
+			</property>
+			<!-- left top right bottom -->
+			<property name="insets" value="0px 0px 5px 5px" />
+			<property name="cellSpacing" value="0px" />
+			<property name="border">
+				<border color="#000000" size="3px" style="groove" />
+			</property>			
+		</properties>
+	</style>
+	<style name="Default" type="nextapp.echo2.app.text.TextComponent">
+		<properties>
+			<property name="background" value="#bbbbff" />
+			<property name="font">
+				<font size="10pt" typeface="Arial" />
+			</property>
+			<property name="border">
+				<border color="#bbbbff" size="2px" style="groove" />
+			</property>
+		</properties>
+	</style>
+	<style name="Default" type="nextapp.echo2.app.TextArea">
+		<properties>
+			<property name="background" value="#bbbbff" />
+			<property name="font">
+				<font size="10pt" typeface="Arial" />
+			</property>
+			<property name="border">
+				<border color="#bbbbff" size="2px" style="groove" />
+			</property>
+		</properties>
+	</style>
+	<style name="Default" type="nextapp.echo2.app.SelectField">
+		<properties>
+			<property name="background" value="#bbbbff" />
+			<property name="font">
+				<font size="10pt" typeface="Arial" />
+			</property>
+			<property name="border">
+				<border color="#bbbbff" size="2px" style="groove" />
+			</property>
+		</properties>
+	</style>	
+	<style name="Default" type="nextapp.echo2.app.ListBox">
+		<properties>
+			<property name="background" value="#bbbbff" />
+			<property name="font">
+				<font size="10pt" typeface="Arial" />
+			</property>
+			<property name="border">
+				<border color="#bbbbff" size="2px" style="groove" />
+			</property>
+		</properties>
+	</style>
+	<style name="Default" type="echopointng.ComboBox">
+		<properties>
+			<property name="font">
+				<font size="10pt" typeface="Arial" />
+			</property>
+			<property name="rolloverEnabled" value="false" />			
+			<property name="popUpBackground" value="#bbbbff" />			
+			<property name="targetBackground" value="#bbbbff" />
+			<property name="targetInsets" value="0px" />
+			<property name="targetBorder">
+				<border color="#bbbbff" size="2px" style="groove" />
+			</property>
+			<property name="toggleBorder">
+				<border color="#bbbbff" size="0px" style="groove" />
+			</property>
+		</properties>
+	</style>
+	<style name="Default" type="nextapp.echo2.app.Table">
+		<properties>
+			<property name="rolloverBackground" value="#85c1ff" />
+			<property name="rolloverEnabled" value="false" />
+			<property name="selectionBackground" value="#f2f3b3" />
+			<property name="selectionEnabled" value="false" />
+			<property name="insets" value="3px 1px" />
+			<property name="border">
+				<border size="1px" style="solid" color="#000000" />
+			</property>
+		</properties>
+	</style>
+	<style name="Table.EvenCell" type="nextapp.echo2.app.Row">
+		<properties>
+			<property name="layoutData">
+				<layout-data type="nextapp.echo2.app.layout.TableLayoutData">
+					<properties>
+						<!-- insets: left, top, right, bottom -->
+						<property name="insets" value="5px 5px 5px 5px" />
+						<property name="background" value="#ccccff" />
+						<property name="alignment">
+							<alignment horizontal="left" vertical="center" />
+						</property>
+					</properties>
+				</layout-data>
+			</property>
+		</properties>
+	</style>
+	<style name="Table.OddCell" type="nextapp.echo2.app.Row">
+		<properties>
+			<property name="layoutData">
+				<layout-data type="nextapp.echo2.app.layout.TableLayoutData">
+					<properties>
+						<!-- insets: left, top, right, bottom -->
+						<property name="insets" value="5px 5px 5px 5px" />
+						<property name="background" value="#aaaaff" />
+						<property name="alignment">
+							<alignment horizontal="left" vertical="center" />
+						</property>
+					</properties>
+				</layout-data>
+			</property>
+		</properties>
+	</style>
+	<style name="NavigatorTable.PagingControls" type="nextapp.echo2.app.Row">
+		<properties>
+			<property name="layoutData">
+				<layout-data type="nextapp.echo2.app.layout.ColumnLayoutData">
+					<properties>
+						<!-- insets: left, top, right, bottom -->
+						<property name="insets" value="10px 5px 10px 5px" />
+						<property name="alignment">
+							<alignment horizontal="center" vertical="center" />
+						</property>
+					</properties>
+				</layout-data>
+			</property>
+		</properties>
+	</style>
+	<style name="NavigatorTable.firstButton" type="nextapp.echo2.app.Button">
+		<properties>
+			<property name="toolTipText" value="first page." />
+			<property name="rolloverEnabled" value="true" />
+			<property name="icon" type="nextapp.echo2.app.ResourceImageReference"
+				value="/images/buttons/transparent_22x22.png" />
+			<property name="backgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/navtable/left_arrow_end_off.png" />
+					</image>
+				</fill-image>
+			</property>
+			<property name="rolloverBackgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/navtable/left_arrow_end_on.png" />
+					</image>
+				</fill-image>
+			</property>
+		</properties>
+	</style>
+	<style name="NavigatorTable.prevButton" type="nextapp.echo2.app.Button">
+		<properties>
+			<property name="toolTipText" value="previous page." />
+			<property name="rolloverEnabled" value="true" />
+			<property name="icon" type="nextapp.echo2.app.ResourceImageReference"
+				value="/images/buttons/transparent_22x22.png" />
+			<property name="backgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/navtable/left_arrow_off.png" />
+					</image>
+				</fill-image>
+			</property>
+			<property name="rolloverBackgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/navtable/left_arrow_on.png" />
+					</image>
+				</fill-image>
+			</property>
+		</properties>
+	</style>
+	<style name="NavigatorTable.nextButton" type="nextapp.echo2.app.Button">
+		<properties>
+			<property name="toolTipText" value="next page." />
+			<property name="rolloverEnabled" value="true" />
+			<property name="icon" type="nextapp.echo2.app.ResourceImageReference"
+				value="/images/buttons/transparent_22x22.png" />
+			<property name="backgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/navtable/right_arrow_off.png" />
+					</image>
+				</fill-image>
+			</property>
+			<property name="rolloverBackgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/navtable/right_arrow_on.png" />
+					</image>
+				</fill-image>
+			</property>
+		</properties>
+	</style>
+	<style name="NavigatorTable.lastButton" type="nextapp.echo2.app.Button">
+		<properties>
+			<property name="toolTipText" value="last page." />
+			<property name="rolloverEnabled" value="true" />
+			<property name="icon" type="nextapp.echo2.app.ResourceImageReference"
+				value="/images/buttons/transparent_22x22.png" />
+			<property name="backgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/navtable/right_arrow_end_off.png" />
+					</image>
+				</fill-image>
+			</property>
+			<property name="rolloverBackgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/navtable/right_arrow_end_on.png" />
+					</image>
+				</fill-image>
+			</property>
+		</properties>
+	</style>
+	<style name="Default" type="nextapp.echo2.app.button.AbstractButton">
+		<properties>
+			<property name="height" value="29px" />
+			<property name="width" value="125px" />
+			<!-- insets: left, top, right, bottom -->
+			<property name="insets" value="0px 5px 0px 2px" />
+			<property name="rolloverEnabled" value="true" />
+			<property name="pressedEnabled" value="true" />
+			<property name="font">
+				<font size="10pt" bold="true" typeface="Arial" />
+			</property>
+			<property name="lineWrap" value="false" />
+			<property name="foreground" value="#000000" />
+			<property name="alignment">
+				<alignment horizontal="center" vertical="default" />
+			</property>
+			<property name="backgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/button_rbkg_125x32_off.png" />
+					</image>
+				</fill-image>
+			</property>
+			<property name="rolloverBackgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/button_rbkg_125x32_on.png" />
+					</image>
+				</fill-image>
+			</property>
+			<property name="pressedBackgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/button_rbkg_125x29_on.png" />
+					</image>
+				</fill-image>
+			</property>
+			<property name="pressedForeground" value="#dd0000" />
+		</properties>
+	</style>
+	<style name="Plain" type="nextapp.echo2.app.button.AbstractButton">
+		<properties>
+			<property name="rolloverEnabled" value="true" />
+			<property name="pressedEnabled" value="true" />
+			<property name="font">
+				<font size="10pt" typeface="Arial" />
+			</property>
+			<property name="lineWrap" value="false" />
+			<property name="foreground" value="#000000" />
+			<property name="alignment">
+				<alignment horizontal="left" vertical="default" />
+			</property>
+			<property name="rolloverForeground" value="#000055" />
+			<property name="pressedForeground" value="#dd0000" />
+			<!-- insets: left, top, right, bottom -->
+			<property name="insets" value="0px 3px 0px 0px" />
+		</properties>
+	</style>	
+	<style name="Default" type="nextapp.echo2.app.CheckBox">
+		<properties>
+			<property name="font">
+				<font size="10pt" typeface="Arial" />
+			</property>
+			<property name="lineWrap" value="false" />
+			<property name="stateMargin" value="10px" />
+			<property name="alignment">
+				<alignment horizontal="left" vertical="default" />
+			</property>
+		</properties>
+	</style>
+	<style name="ValidationLabel" type="nextapp.echo2.app.Label">
+		<properties>
+			<property name="font">
+				<font bold="false" size="10pt" typeface="Arial" />
+			</property>
+			<property name="foreground" value="#FF0000" />
+		</properties>
+	</style>
+	<style name="Panel.Title" type="nextapp.echo2.app.Label">
+		<properties>
+			<property name="font">
+				<font bold="true" size="16pt" typeface="Arial" />
+			</property>
+			<property name="foreground" value="#000066" />
+		</properties>
+	</style>
+	<style name="Default" type="nextapp.echo2.extras.app.TabPane">
+		<properties>
+			<property name="borderType" value="BORDER_TYPE_ADJACENT_TO_TABS" />
+			<property name="tabSpacing" value="10px" />
+			<!-- left top right bottom -->
+			<property name="insets" value="5px 5px 5px 5px" />
+			<property name="tabActiveBorder">
+				<border color="#000066" size="1px" style="groove" />
+			</property>
+			<property name="tabActiveFont">
+				<font bold="true" size="10pt" typeface="Arial" />
+			</property>
+			<property name="tabActiveForeground" value="#ffffff" />
+			<property name="tabActiveBackground" value="#000066" />
+			<property name="tabInactiveBackground" value="#aaaaff" />
+			<property name="tabInactiveFont">
+				<font size="10pt" typeface="Arial" />
+			</property>
+			<property name="tabInactiveForeground" value="#333333" />
+			<property name="tabInactiveBorder">
+				<border color="#000066" size="1px" style="groove" />
+			</property>
+			<property name="background" value="#aaaaff" />
+		</properties>
+	</style>
+
+	<style name="EditorPanel.FormGrid" type="nextapp.echo2.app.Grid">
+		<properties>
+			<property name="insets" value="10px 10px" />
+
+			<property name="border">
+				<border color="#bbbbff" size="2px" style="groove" />
+			</property>
+
+		</properties>
+	</style>
+
+	<!-- Main Screen Styles -->
+	<style name="RequelMainScreen.OuterSplitter" type="nextapp.echo2.app.SplitPane">
+		<properties>
+			<property name="layoutData">
+				<layout-data type="nextapp.echo2.app.layout.SplitPaneLayoutData">
+					<properties>
+						<property name="overflow" value="nextapp.echo2.app.layout.SplitPaneLayoutData.OVERFLOW_HIDDEN" />
+					</properties>
+				</layout-data>
+			</property>
+			<property name="orientation" value="nextapp.echo2.app.SplitPane.ORIENTATION_VERTICAL_TOP_BOTTOM" />
+			<property name="separatorPosition" value="82px" />
+			<property name="background" value="#aaaaff" />
+			<property name="separatorColor" value="#000066" />
+			<property name="separatorWidth" value="0px" />
+			<property name="resizable" value="false" />
+		</properties>
+	</style>
+
+	<style name="RequelMainScreen.InnerSplitter" type="nextapp.echo2.app.SplitPane">
+		<properties>
+			<property name="layoutData">
+				<layout-data type="nextapp.echo2.app.layout.SplitPaneLayoutData">
+					<properties>
+						<property name="overflow" value="nextapp.echo2.app.layout.SplitPaneLayoutData.OVERFLOW_AUTO" />
+					</properties>
+				</layout-data>
+			</property>
+			<property name="orientation" value="nextapp.echo2.app.SplitPane.ORIENTATION_HORIZONTAL_LEFT_RIGHT" />
+			<property name="separatorPosition" value="235px" />
+			<property name="background" value="#aaaaff" />
+			<property name="separatorColor" value="#000066" />
+			<property name="separatorWidth" value="2px" />
+			<property name="resizable" value="true" />
+		</properties>
+	</style>
+
+	<style name="RequelMainScreen.Banner.SplitPane" type="nextapp.echo2.app.SplitPane">
+		<properties>
+			<property name="layoutData">
+				<layout-data type="nextapp.echo2.app.layout.SplitPaneLayoutData">
+					<properties>
+						<property name="overflow" value="nextapp.echo2.app.layout.SplitPaneLayoutData.OVERFLOW_HIDDEN" />
+					</properties>
+				</layout-data>
+			</property>
+			<property name="orientation" value="nextapp.echo2.app.SplitPane.ORIENTATION_HORIZONTAL_LEFT_RIGHT" />
+			<property name="separatorPosition" value="290px" />
+			<property name="background" value="#000066" />
+			<property name="separatorColor" value="#aafaff" />
+			<property name="separatorWidth" value="0px" />
+			<property name="resizable" value="false" />
+		</properties>
+	</style>
+
+	<style name="RequelMainScreen.Banner.LogoPane" type="nextapp.echo2.app.ContentPane">
+		<properties>
+			<!-- left top right bottom -->
+			<property name="insets" value="2px 2px 0px 0px" />
+			<property name="background" value="#000066" />
+		</properties>
+	</style>
+	<style name="RequelMainScreen.Banner.LogoPane.Row" type="nextapp.echo2.app.Row">
+		<properties>
+			<property name="alignment">
+				<alignment horizontal="left" vertical="default" />
+			</property>
+			<!-- left top right bottom -->
+			<property name="insets" value="2px 1px 0px 1px" />
+			<property name="background" value="#aaaaff" />
+		</properties>
+	</style>
+
+	<style name="RequelMainScreen.Banner.Logo" type="nextapp.echo2.app.Label">
+		<properties>
+			<property name="icon" type="nextapp.echo2.app.ResourceImageReference"
+				value="/images/logo_fembot_demun_mini.png" />
+		</properties>
+	</style>
+
+	<style name="RequelMainScreen.Banner.LogoutPane" type="nextapp.echo2.app.ContentPane">
+		<properties>
+			<!-- left top right bottom -->
+			<property name="insets" value="0px 2px 2px 0px" />
+			<property name="background" value="#000066" />
+		</properties>
+	</style>
+	<style name="RequelMainScreen.Banner.LogoutPane.Row" type="nextapp.echo2.app.Row">
+		<properties>
+			<property name="alignment">
+				<alignment horizontal="right" vertical="default" />
+			</property>
+			<property name="background" value="#aaaaff" />
+			<property name="insets" value="0px 24px 10px 18px" />
+		</properties>
+	</style>
+
+	<style name="RequelMainScreen.LogoutButton" base-name="Default" type="nextapp.echo2.app.button.AbstractButton" />
+
+	<style name="RequelMainScreen.MainScreenTabbedNavigation" base-name="Default"
+		type="nextapp.echo2.extras.app.TabPane" />
+
+	<style name="RequelMainScreen.ContentPanelContainer" base-name="Default" type="nextapp.echo2.extras.app.TabPane" />
+
+	<!-- LoginScreen Style -->
+
+	<style name="LoginScreen.SplitPane" type="nextapp.echo2.app.SplitPane">
+		<properties>
+			<property name="layoutData">
+				<layout-data type="nextapp.echo2.app.layout.SplitPaneLayoutData">
+					<properties>
+						<property name="overflow" value="nextapp.echo2.app.layout.SplitPaneLayoutData.OVERFLOW_HIDDEN" />
+					</properties>
+				</layout-data>
+			</property>
+			<property name="orientation" value="nextapp.echo2.app.SplitPane.ORIENTATION_HORIZONTAL_LEADING_TRAILING" />
+			<property name="separatorPosition" value="235px" />
+		</properties>
+	</style>
+
+	<style name="LoginScreen.LeftPane" type="nextapp.echo2.app.ContentPane">
+		<properties>
+			<property name="backgroundImage">
+				<fill-image repeat="vertical">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/backgrounds/LoginPaneBackground2.png" />
+					</image>
+				</fill-image>
+			</property>
+		</properties>
+	</style>
+
+	<style name="LoginScreen.LeftPane.Column" type="nextapp.echo2.app.Column">
+		<properties>
+			<property name="cellSpacing" value="10px" />
+			<!-- left top right bottom -->
+			<property name="insets" value="20px 80px 20px 50px" />
+		</properties>
+	</style>
+
+	<style name="LoginScreen.Left.Logo" type="nextapp.echo2.app.Label">
+		<properties>
+			<property name="icon" type="nextapp.echo2.app.ResourceImageReference"
+				value="/images/logo_fembot_torso_blue_cutout4.png" />
+		</properties>
+	</style>
+
+	<style name="LoginScreen.RightPane" type="nextapp.echo2.app.ContentPane">
+		<properties>
+			<property name="background" value="#aaaaff" />
+		</properties>
+	</style>
+
+	<!--
+		This is the container for the logo, title, subtitle and
+		form grid.
+	-->
+	<style name="LoginScreen.RightPane.Column" type="nextapp.echo2.app.Column">
+		<properties>
+			<property name="cellSpacing" value="10px" />
+			<!-- left top right bottom -->
+			<property name="insets" value="30px 70px 20px 50px" />
+		</properties>
+	</style>
+
+	<style name="LoginScreen.Right.Logo" type="nextapp.echo2.app.Label">
+		<properties>
+			<property name="icon" type="nextapp.echo2.app.ResourceImageReference"
+				value="/images/Logo_335x83_demun_lotion.png" />
+			<!-- Logo209x100plain.png -->
+		</properties>
+	</style>
+
+	<style name="LoginScreen.Title" type="nextapp.echo2.app.Label">
+		<properties>
+			<property name="font">
+				<font bold="true" size="22pt" typeface="Arial" />
+			</property>
+		</properties>
+	</style>
+
+	<style name="LoginScreen.Subtitle" type="nextapp.echo2.app.Label">
+		<properties>
+			<property name="text" value="The collaborative requirements elicitation system"/>
+			<property name="font">
+				<font bold="true" size="12pt" typeface="Arial" />
+			</property>
+		</properties>
+	</style>
+
+	<style name="LoginScreen.LayoutGrid" type="nextapp.echo2.app.Grid">
+		<properties>
+			<property name="insets" value="10px 10px" />
+			<property name="border">
+				<border color="#bbbbff" size="2px" style="groove" />
+			</property>
+		</properties>
+	</style>
+
+	<style name="LoginScreen.Label" base-name="Default" type="nextapp.echo2.app.Label">
+		<properties>
+			<property name="font">
+				<font bold="false" size="10pt" typeface="Arial" />
+			</property>
+		</properties>
+	</style>
+
+	<style name="LoginScreen.Username.InputField" base-name="Default" type="nextapp.echo2.app.text.TextComponent">
+		<properties>
+			<property name="width" value="300px" />
+			<property name="font">
+				<font bold="false" size="10pt" typeface="Arial" />
+			</property>
+		</properties>
+	</style>
+
+	<style name="LoginScreen.Password.InputField" base-name="Default" type="nextapp.echo2.app.text.TextComponent">
+		<properties>
+			<property name="width" value="300px" />
+			<property name="font">
+				<font bold="false" size="10pt" typeface="Arial" />
+			</property>
+		</properties>
+	</style>
+
+	<style name="LoginScreen.LoginButton" base-name="Default" type="nextapp.echo2.app.button.AbstractButton" />
+
+	<!-- Editor Panel -->
+	<style name="EditorPanel.InputField.Label" base-name="Default" type="nextapp.echo2.app.Label" />
+
+	<style name="EditorPanel.InputField" base-name="Default" type="nextapp.echo2.app.text.TextComponent">
+		<properties>
+			<property name="width" value="500px" />
+			<property name="font">
+				<font bold="false" size="10pt" typeface="Arial" />
+			</property>
+		</properties>
+	</style>
+	<style name="EditorPanel.InputField" base-name="Default" type="echopointng.ComboBox">
+		<properties>
+			<property name="width" value="500px" />
+		</properties>
+	</style>
+	<style name="EditorPanel.InputField" base-name="Default" type="nextapp.echo2.app.TextArea">
+		<properties>
+			<property name="width" value="500px" />
+			<property name="height" value="200px" />
+			<property name="font">
+				<font bold="false" size="10pt" typeface="Arial" />
+			</property>
+		</properties>
+	</style>	
+	<style name="EditorPanel.InputField" base-name="Default" type="nextapp.echo2.app.SelectField">
+		<properties>
+			<property name="width" value="500px" />
+		</properties>
+	</style>
+
+	<!-- Drag and Drop Source and Target -->
+	<style name="EditorTree.DragSource" type="nextapp.echo2.app.Label">
+		<properties>
+			<property name="toolTipText" value="drag here to move." />
+			<property name="icon" type="nextapp.echo2.app.ResourceImageReference"
+				value="/images/buttons/editor/tree/DragSource_on.png" />
+		</properties>
+	</style>
+	<style name="EditorTree.DropTarget" type="nextapp.echo2.app.Label">
+		<properties>
+			<property name="toolTipText" value="drop here to insert." />
+			<property name="icon" type="nextapp.echo2.app.ResourceImageReference"
+				value="/images/buttons/editor/tree/DropTarget_on.png" />
+		</properties>
+	</style>			
+	<!-- ScenarioStepsEditor -->
+	<style name="ScenarioStepEditor.AddChildNodeButton" type="nextapp.echo2.app.Button">
+		<properties>
+			<property name="toolTipText" value="add a sub step." />
+			<property name="rolloverEnabled" value="true" />
+			<property name="icon" type="nextapp.echo2.app.ResourceImageReference"
+				value="/images/buttons/transparent_22x22.png" />
+			<property name="backgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/editor/scenario/AddChildNodeButton_off.png" />
+					</image>
+				</fill-image>
+			</property>
+			<property name="rolloverBackgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/editor/scenario/AddChildNodeButton_on.png" />
+					</image>
+				</fill-image>
+			</property>
+		</properties>
+	</style>
+	<style name="ScenarioStepEditor.RemoveNodeButton" type="nextapp.echo2.app.Button">
+		<properties>
+			<property name="toolTipText" value="remove this step." />
+			<property name="rolloverEnabled" value="true" />
+			<property name="icon" type="nextapp.echo2.app.ResourceImageReference"
+				value="/images/buttons/transparent_22x22.png" />
+			<property name="backgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/editor/scenario/RemoveNodeButton_off.png" />
+					</image>
+				</fill-image>
+			</property>
+			<property name="rolloverBackgroundImage">
+				<fill-image repeat="none">
+					<image type="nextapp.echo2.app.ResourceImageReference">
+						<resource-image-reference resource="/images/buttons/editor/scenario/RemoveNodeButton_on.png" />
+					</image>
+				</fill-image>
+			</property>
+		</properties>
+	</style>
+	<style name="ScenarioStepEditor.NameEditor" base-name="Default" type="nextapp.echo2.app.TextArea">
+		<properties>
+			<property name="width" value="40em" />
+			<property name="height" value="4em" />
+			<property name="font">
+				<font bold="false" size="10pt" typeface="Arial" />
+			</property>
+		</properties>
+	</style>	
+</stylesheet>

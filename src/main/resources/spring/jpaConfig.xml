@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  - Spring config using the
+  -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.5.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd">
+
+	<aop:aspectj-autoproxy/>
+	
+	<!-- DomainObjectWrapper configuration -->
+	<!--
+	 * Entity types may be configured with a timeout period to determine if
+	 * an entity needs to be reloaded from the db. This allows objects that
+	 * are mostly read-only to have a long period so that the object isn't
+	 * read from the database frequently. Entities that are likely to change
+	 * frequently should have a second or less. a value of zero means the
+	 * entity is always read from the database on each method access.
+	 * use java.lang.Object to set a default time out for all classes not
+	 * defined else where, otherwise the default will be 1 second.
+	 -->
+	<util:map id="staleTimeoutMap" key-type="java.lang.Class" value-type="java.lang.Integer">
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.Category</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.Lexlinkref</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.LexlinkrefId</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.Linkdef</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.Morphdef</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.Morphref</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.MorphrefId</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.SemcorFile</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.SemcorSentence</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.SemcorSentenceWord</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.Semlinkref</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.SemlinkrefId</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.Sense</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.SenseId</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.Synset</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.SynsetDefinitionWord</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.VerbNetClass</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.VerbNetFrame</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.VerbNetFrameRef</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">com.rreganjr.nlp.dictionary.Word</value></key><value>300000</value></entry>
+  		<entry><key><value type="java.lang.Class">java.lang.Object</value></key><value>1000</value></entry>
+	</util:map> 
+	
+	<bean id="proxyFactoryBean" class="org.springframework.aop.framework.ProxyFactoryBean"/>
+	
+	<!-- The Advice for tracing -->
+	<bean id="traceInterceptor" class="org.springframework.aop.interceptor.SimpleTraceInterceptor"/>
+	
+	<aop:config>
+		<!-- using the full class name with the '+' got this to work -->
+		<aop:pointcut id="repositoryMethods" expression="execution(* com.rreganjr.repository.jpa.AbstractJpaRepository+.*(..))"/>
+		<aop:advisor id="traceInterceptorAdvisor" advice-ref="traceInterceptor" pointcut-ref="repositoryMethods"/>
+ 	</aop:config>
+
+
+	<bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+	  <property name="dataSource" ref="dataSource"/> 
+	</bean>
+
+	<!--
+		This scans for all spring annotated files except for files related to the
+		simple repository. 
+	 -->
+	<context:component-scan base-package="com.rreganjr">
+		<context:exclude-filter type="regex" expression=".*Simple.*Repository"/>
+	</context:component-scan>	
+</beans>

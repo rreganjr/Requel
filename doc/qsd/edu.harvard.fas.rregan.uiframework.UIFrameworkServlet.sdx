@@ -18,10 +18,10 @@ uifs:wacu.getWebApplicationContext()
 uifs:ctx.getAutowireCapableBeanFactory()
 uifs:beanFactory.createBean(UIFrameworkApp.class)
 beanFactory:eventDispatcher.new()
-[c:loop Spring collects all the annotated implementors of edu.harvard.fas.rregan.uiframework.controller.Controller]
+[c:loop Spring collects all the annotated implementors of com.rreganjr.uiframework.controller.Controller]
 beanFactory:controllers.new()
 [/c]
-[c:loop Spring collects all the annotated implementors of edu.harvard.fas.rregan.uiframework.screen.Screen]
+[c:loop Spring collects all the annotated implementors of com.rreganjr.uiframework.screen.Screen]
 beanFactory:screens.new()
 [/c]
 beanFactory:app.new(eventDispatcher, controllers, screens)]]></source>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  - Spring config for nlp ui setup.
+  -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xmlns:context="http://www.springframework.org/schema/context"
+		xmlns:tx="http://www.springframework.org/schema/tx"
+		xmlns:util="http://www.springframework.org/schema/util"
+		xsi:schemaLocation="
+			http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+			http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd
+			http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
+			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.5.xsd
+			">
+
+		<bean id="parserPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.nlp.ui.ParserPanel</value></constructor-arg>
+			<constructor-arg index="1"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
+			<constructor-arg index="2"><util:constant static-field="com.rreganjr.nlp.ui.NLPPanelNames.PARSER_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3">
+				<util:list>
+					<ref bean="nlpProcessorFactory"/>
+				</util:list>
+			</constructor-arg>			
+		</bean>
+		<bean id="nlpNavigatorPanel" scope="prototype" class="com.rreganjr.nlp.ui.NLPNavigatorPanel">
+			<constructor-arg>
+				<util:set scope="prototype" value-type="net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory">
+					<ref bean="nlpNavigatorTreeNodeFactory"/>
+				</util:set>		
+			</constructor-arg>
+		</bean>
+</beans>

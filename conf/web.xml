@@ -26,13 +26,13 @@
 
 	<!-- documentation extractor - this extracts the javaDoc documentation archives 
 	<listener>
-		<listener-class>edu.harvard.fas.rregan.requel.DocumentationInitializationListener</listener-class>
+		<listener-class>com.rreganjr.requel.DocumentationInitializationListener</listener-class>
 	</listener>
 	-->
 	
 	<!-- db creator - this should only be used if a database is in use  -->
 	<listener>
-		<listener-class>edu.harvard.fas.rregan.requel.DatabaseCreationListener</listener-class>
+		<listener-class>com.rreganjr.requel.DatabaseCreationListener</listener-class>
 	</listener>
 
 	<!-- spring loader -->
@@ -51,14 +51,14 @@
 		<param-value>@initializeTestUsers@</param-value>
 	</context-param>
 	<listener>
-		<listener-class>edu.harvard.fas.rregan.requel.DatabaseInitializationListener</listener-class>
+		<listener-class>com.rreganjr.requel.DatabaseInitializationListener</listener-class>
 	</listener>
 		
 	<servlet>
 		<description>Servlet for getting a Project in XML format.</description>
 		<display-name>ProjectXML Servlet</display-name>
 		<servlet-name>ProjectXMLServlet</servlet-name>
-		<!-- uses edu.harvard.fas.rregan.requel.service.ProjectXmlRequestHandler  -->
+		<!-- uses com.rreganjr.requel.service.ProjectXmlController  -->
         <servlet-class>org.springframework.web.context.support.HttpRequestHandlerServlet</servlet-class>
         <load-on-startup>1</load-on-startup>
 	</servlet>
