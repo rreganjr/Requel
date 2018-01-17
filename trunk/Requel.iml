@@ -20,7 +20,7 @@
     <orderEntry type="library" name="Maven: com.nextapp:echo2-webcontainer:2.1.1" level="project" />
     <orderEntry type="library" name="Maven: com.nextapp:echo2-webrender:2.1.1" level="project" />
     <orderEntry type="library" name="Maven: com.nextapp:echo2extras-app:2.1.0" level="project" />
-    <orderEntry type="library" name="Maven: com.nextapp:echo2extras-webcontainer:2.1.0" level="project" />
+    <orderEntry type="library" name="Maven: com.nextapp:echo2extras-webcontainer:2.1.0a" level="project" />
     <orderEntry type="library" name="Maven: com.nextapp:echo2-filetransfer-app:2.1.1" level="project" />
     <orderEntry type="library" name="Maven: com.nextapp:echo2-filetransfer-webcontainer:2.1.1" level="project" />
     <orderEntry type="library" name="Maven: com.rreganjr.echopm:echopm:1.0.0" level="project" />
