@@ -93,10 +93,11 @@
             <version>2.1.0</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.nextapp/echo2extras-webcontainer -->
+        <!-- this uses the local lib jar file, it has a fix in the DND.js file I made a long time ago -->
         <dependency>
             <groupId>com.nextapp</groupId>
             <artifactId>echo2extras-webcontainer</artifactId>
-            <version>2.1.0</version>
+            <version>2.1.0a</version>
         </dependency>
         <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
         <dependency>

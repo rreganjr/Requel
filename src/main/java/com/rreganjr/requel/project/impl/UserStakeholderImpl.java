@@ -86,7 +86,6 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 	 * @param projectOrDomain
 	 * @param user
 	 * @param createdBy
-	 * @param name
 	 */
 	public UserStakeholderImpl(ProjectOrDomain projectOrDomain, User createdBy, User user) {
 		super(UserStakeholder.class.getName(), projectOrDomain, createdBy, null);

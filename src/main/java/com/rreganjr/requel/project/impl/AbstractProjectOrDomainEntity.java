@@ -122,7 +122,8 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 
 	@XmlTransient
 	@ManyToOne(targetEntity = AbstractProjectOrDomain.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, optional = false)
-	@JoinColumn(name="projectordomain_id", insertable = false, updatable = false)
+//	@JoinColumn(name="projectordomain_id", insertable = false, updatable = false)
+	@JoinColumn(name="projectordomain_id")
 	public ProjectOrDomain getProjectOrDomain() {
 		return projectOrDomain;
 	}
