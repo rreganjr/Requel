@@ -60,7 +60,7 @@ import org.hibernate.annotations.AnyMetaDef;
 import org.hibernate.annotations.ManyToAny;
 import org.hibernate.annotations.MetaValue;
 
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Annotation;

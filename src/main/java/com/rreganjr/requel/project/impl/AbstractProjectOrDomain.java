@@ -62,7 +62,7 @@ import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 import org.hibernate.annotations.Sort;
 import org.hibernate.annotations.SortNatural;
 import org.hibernate.annotations.SortType;

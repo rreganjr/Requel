@@ -56,7 +56,7 @@ import org.hibernate.validator.NotEmpty;
 import org.hibernate.validator.Pattern;
 import org.hibernate.validator.Size;
 
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.HashUtils;
 import com.rreganjr.requel.user.AbstractUserRole;

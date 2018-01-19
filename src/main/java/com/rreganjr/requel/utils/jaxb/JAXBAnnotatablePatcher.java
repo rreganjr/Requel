@@ -22,8 +22,7 @@ package com.rreganjr.requel.utils.jaxb;
 
 import org.xml.sax.SAXException;
 
-import com.sun.istack.internal.SAXException2;
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.Patcher;
+import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
 
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Annotation;
@@ -38,7 +37,6 @@ public class JAXBAnnotatablePatcher implements Patcher {
 	private final Annotatable annotatable;
 
 	/**
-	 * @param annotation
 	 * @param annotatable
 	 */
 	public JAXBAnnotatablePatcher(Annotatable annotatable) {
@@ -54,7 +52,7 @@ public class JAXBAnnotatablePatcher implements Patcher {
 		} catch (RuntimeException e) {
 			throw e;
 		} catch (Exception e) {
-			throw new SAXException2(e);
+			throw new SAXException(e);
 		}
 	}
 }

@@ -38,9 +38,9 @@ import org.hibernate.annotations.SortNatural;
 import org.hibernate.annotations.SortType;
 import org.xml.sax.SAXException;
 
-import com.sun.istack.internal.SAXException2;
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.Patcher;
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+
+import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
+import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.requel.user.AbstractUserRole;
@@ -201,7 +201,7 @@ public class ProjectUserRole extends AbstractUserRole {
 					} catch (NoSuchUserException e) {
 					}
 				} else {
-					throw new SAXException2("ProjectUserRole missing User");
+					throw new SAXException("ProjectUserRole missing User");
 				}
 			}
 		});

@@ -40,9 +40,8 @@ import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import org.xml.sax.SAXException;
 
-import com.sun.istack.internal.SAXException2;
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.Patcher;
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
+import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.StakeholderPermission;
@@ -259,7 +258,7 @@ public class StakeholderPermissionImpl implements StakeholderPermission {
 				} catch (RuntimeException e) {
 					throw e;
 				} catch (Exception e) {
-					throw new SAXException2(e);
+					throw new SAXException(e);
 				}
 			}
 		});

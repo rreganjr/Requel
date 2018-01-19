@@ -51,9 +51,8 @@ import org.hibernate.validator.NotEmpty;
 import org.hibernate.validator.NotNull;
 import org.xml.sax.SAXException;
 
-import com.sun.istack.internal.SAXException2;
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.Patcher;
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
+import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Goal;
@@ -230,7 +229,7 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 				} catch (RuntimeException e) {
 					throw e;
 				} catch (Exception e) {
-					throw new SAXException2(e);
+					throw new SAXException(e);
 				}
 			}
 		});
