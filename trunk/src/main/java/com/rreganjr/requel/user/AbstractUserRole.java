@@ -48,7 +48,7 @@ import javax.xml.bind.annotation.XmlElementRef;
 import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlType;
 
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.utils.jaxb.JAXBUserRolePatcher;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
@@ -77,7 +77,6 @@ public abstract class AbstractUserRole implements UserRole, Serializable {
 	// instance as the initial value and not stale.
 
 	/**
-	 * @param roleName
 	 */
 	protected AbstractUserRole() {
 	}

@@ -68,29 +68,32 @@
         </dependency>
 
         <!-- RELATED TO ECHO 2 -->
+        <!-- TODO: I made a couple of changes to the Echo2 code to fix a mime-type issue and old DND.js in extras -->
+        <!-- TODO: both changes were "pull-requested" on github. all versions ending in a are local and loaded in -->
+        <!-- TODO: the script install-lib-mvn.sh -->
         <!-- https://mvnrepository.com/artifact/com.nextapp/echo2-app -->
         <dependency>
             <groupId>com.nextapp</groupId>
             <artifactId>echo2-app</artifactId>
-            <version>2.1.1</version>
+            <version>2.1.1a</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.nextapp/echo2-webcontainer -->
         <dependency>
             <groupId>com.nextapp</groupId>
             <artifactId>echo2-webcontainer</artifactId>
-            <version>2.1.1</version>
+            <version>2.1.1a</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.nextapp/echo2-webrender -->
         <dependency>
             <groupId>com.nextapp</groupId>
             <artifactId>echo2-webrender</artifactId>
-            <version>2.1.1</version>
+            <version>2.1.1a</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.nextapp/echo2extras-app -->
         <dependency>
             <groupId>com.nextapp</groupId>
             <artifactId>echo2extras-app</artifactId>
-            <version>2.1.0</version>
+            <version>2.1.0a</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/com.nextapp/echo2extras-webcontainer -->
         <!-- this uses the local lib jar file, it has a fix in the DND.js file I made a long time ago -->
@@ -145,6 +148,13 @@
             <artifactId>jaxb-api</artifactId>
             <version>2.3.0</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/com.sun.xml.bind/jaxb-impl -->
+        <dependency>
+            <groupId>com.sun.xml.bind</groupId>
+            <artifactId>jaxb-impl</artifactId>
+            <version>2.3.0</version>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/javax.xml.bind/activation -->
         <dependency>
             <groupId>javax.xml.bind</groupId>

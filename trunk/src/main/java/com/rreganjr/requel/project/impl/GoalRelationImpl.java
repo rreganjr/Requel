@@ -41,7 +41,7 @@ import org.hibernate.annotations.Sort;
 import org.hibernate.annotations.SortNatural;
 import org.hibernate.annotations.SortType;
 
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.impl.AbstractAnnotation;

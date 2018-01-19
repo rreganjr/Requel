@@ -41,9 +41,9 @@ import javax.xml.bind.annotation.XmlType;
 
 import org.xml.sax.SAXException;
 
-import com.sun.istack.internal.SAXException2;
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.Patcher;
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+
+import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
+import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
@@ -227,7 +227,7 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 				} catch (RuntimeException e) {
 					throw e;
 				} catch (Exception e) {
-					throw new SAXException2(e);
+					throw new SAXException(e);
 				}
 			}
 		});

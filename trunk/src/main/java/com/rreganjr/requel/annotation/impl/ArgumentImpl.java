@@ -44,7 +44,7 @@ import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.ArgumentPositionSupportLevel;

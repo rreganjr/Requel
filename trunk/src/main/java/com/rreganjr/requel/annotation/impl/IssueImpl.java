@@ -43,10 +43,9 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
+import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 import org.xml.sax.SAXException;
-
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.Patcher;
-import com.sun.xml.internal.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
@@ -217,7 +216,6 @@ public class IssueImpl extends AbstractAnnotation implements Issue {
 	 * resolved by user with an existing user.
 	 * 
 	 * @param userRepository
-	 * @param annotatable
 	 * @see UnmarshallerListener
 	 */
 	public void afterUnmarshal(final UserRepository userRepository) {
