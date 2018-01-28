@@ -22,6 +22,8 @@ package com.rreganjr.nlp.dictionary.impl.repository.jpa;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.net.URI;
 import java.util.ArrayList;
@@ -94,8 +96,7 @@ import com.rreganjr.requel.NoSuchEntityException;
  */
 @Repository("dictionaryRepository")
 @Scope("singleton")
-@Transactional(propagation = Propagation.REQUIRED, noRollbackFor = { NoResultException.class,
-		NoSuchEntityException.class, EntityException.class })
+@Transactional(propagation = Propagation.REQUIRED, noRollbackFor = { NoResultException.class, NoSuchEntityException.class, EntityException.class })
 public class JpaDictionaryRepository extends AbstractJpaRepository implements DictionaryRepository {
 
 	/**
@@ -129,29 +130,25 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 			String dictionaryFilePaths = resourceBundleHelper.getString(
 					PROP_ENGLISH_DICTIONARY_FILES, PROP_ENGLISH_DICTIONARY_FILES_DEFAULT);
 
-			File dictionaryFile;
 			if (dictionaryFilePaths.contains("|")) {
 				for (String dictionaryFilePath : dictionaryFilePaths.split("\\|")) {
 					if (!"".equals(dictionaryFilePath.trim())) {
-						log.debug("loading dictionary: " + dictionaryFilePath);
-						URI dictionaryFileURI = JpaDictionaryRepository.class.getClassLoader()
-								.getResource(dictionaryFilePath).toURI();
-						dictionaryFile = new File(dictionaryFileURI);
-						// TODO: try using SpellDictionaryDisk for less
-						// memory usage than SpellDictionaryHashMap
-						dictionaries.add(new SpellDictionaryHashMap(dictionaryFile));
+						log.info("loading dictionary: " + dictionaryFilePath);
+						try (InputStreamReader reader =  new InputStreamReader(JpaDictionaryRepository.class.getClassLoader().getResourceAsStream(dictionaryFilePath))) {
+							// TODO: try using SpellDictionaryDisk for less memory usage than SpellDictionaryHashMap
+							dictionaries.add(new SpellDictionaryHashMap(reader));
+						}
 					}
 				}
 			} else {
-				URI dictionaryFileURI = JpaDictionaryRepository.class.getClassLoader().getResource(
-						dictionaryFilePaths).toURI();
-				dictionaryFile = new File(dictionaryFileURI);
-				// TODO: try using SpellDictionaryDisk for less memory usage
-				// than SpellDictionaryHashMap
-				dictionaries.add(new SpellDictionaryHashMap(dictionaryFile));
+				try (InputStreamReader reader =  new InputStreamReader(JpaDictionaryRepository.class.getClassLoader().getResourceAsStream(dictionaryFilePaths))) {
+					// TODO: try using SpellDictionaryDisk for less memory usage than SpellDictionaryHashMap
+					dictionaries.add(new SpellDictionaryHashMap(reader));
+				}
 			}
 			staticDictionaries = Collections.unmodifiableCollection(dictionaries);
 		} catch (Exception e) {
+			log.error("Error initializing dictionary repository", e);
 			throw new ExceptionInInitializerError(e);
 		}
 	}

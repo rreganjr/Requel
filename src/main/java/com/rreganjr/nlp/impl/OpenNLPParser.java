@@ -120,24 +120,15 @@ public class OpenNLPParser extends OpenNLPTagger {
 				ResourceBundleHelper resourceBundleHelper = new ResourceBundleHelper(
 						OpenNLPParser.class.getName());
 
-				String headRulesFile = resourceBundleHelper.getString(PROP_PARSER_HEAD_RULES_FILE,
-						PROP_PARSER_HEAD_RULES_FILE_DEFAULT);
-				String headRulesPath = URLDecoder.decode(OpenNLPParser.class.getClassLoader()
-						.getResource(headRulesFile).getPath(), "utf8");
+				//String headRulesFile = resourceBundleHelper.getString(PROP_PARSER_HEAD_RULES_FILE, PROP_PARSER_HEAD_RULES_FILE_DEFAULT);
+				//String headRulesPath = URLDecoder.decode(OpenNLPParser.class.getClassLoader().getResource(headRulesFile).getPath(), "utf8");
 				HeadRules headRules = null;
 
-				String chunkerModelFile = resourceBundleHelper.getString(
-						PROP_PARSER_CHUNKER_MODEL_FILE, PROP_PARSER_CHUNKER_MODEL_FILE_DEFAULT);
+				String chunkerModelFile = resourceBundleHelper.getString(PROP_PARSER_CHUNKER_MODEL_FILE, PROP_PARSER_CHUNKER_MODEL_FILE_DEFAULT);
 				Chunker chunker = new Chunker(readGISModel(chunkerModelFile));
-
-				String buildModelFile = resourceBundleHelper.getString(
-						PROP_PARSER_BUILD_MODEL_FILE, PROP_PARSER_BUILD_MODEL_FILE_DEFAULT);
-
-				String checkModelFile = resourceBundleHelper.getString(
-						PROP_PARSER_CHECK_MODEL_FILE, PROP_PARSER_CHECK_MODEL_FILE_DEFAULT);
-
-				parser = new Parser(readGISModel(buildModelFile), readGISModel(checkModelFile),
-						getTagger(), chunker, headRules);
+				String buildModelFile = resourceBundleHelper.getString(PROP_PARSER_BUILD_MODEL_FILE, PROP_PARSER_BUILD_MODEL_FILE_DEFAULT);
+				String checkModelFile = resourceBundleHelper.getString(PROP_PARSER_CHECK_MODEL_FILE, PROP_PARSER_CHECK_MODEL_FILE_DEFAULT);
+				parser = new Parser(readGISModel(buildModelFile), readGISModel(checkModelFile), getTagger(), chunker, headRules);
 			} catch (Exception e) {
 				parser = null;
 				throw ApplicationException.failedToInitializeComponent(getClass(), e);
