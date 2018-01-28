@@ -1,4 +1,0 @@
-<!-- $Id: context.xml,v 1.3 2008/02/22 03:11:57 rregan Exp $ -->
-<Context path="/@context.name@" reloadable="true" docBase="@context.name@.war">
-<Logger className="org.apache.catalina.logger.SystemOutLogger" verbosity="4" timestamp="true"/>
-</Context>

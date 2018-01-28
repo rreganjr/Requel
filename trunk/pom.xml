@@ -51,6 +51,7 @@
             <url>http://clojars.org/repo/</url>
         </repository>
     </repositories>
+
     <dependencies>
 
         <!-- https://mvnrepository.com/artifact/cglib/cglib-nodep -->
@@ -166,23 +167,8 @@
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/com.cloudhopper.proxool/proxool -->
- <!--
-        <dependency>
-            <groupId>com.cloudhopper.proxool</groupId>
-            <artifactId>proxool</artifactId>
-            <version>0.9.1</version>
-        </dependency>
- -->
-        <!-- https://mvnrepository.com/artifact/com.cloudhopper.proxool/proxool-cglib -->
-        <!--
-             <dependency>
-                  <groupId>com.cloudhopper.proxool</groupId>
-                  <artifactId>proxool-cglib</artifactId>
-                  <version>0.9.1</version>
-              </dependency>
- -->
-              <!-- https://mvnrepository.com/artifact/xalan/xalan -->
+
+        <!-- https://mvnrepository.com/artifact/xalan/xalan -->
         <dependency>
             <groupId>xalan</groupId>
             <artifactId>xalan</artifactId>

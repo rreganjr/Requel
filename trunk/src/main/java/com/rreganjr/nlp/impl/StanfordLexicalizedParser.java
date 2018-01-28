@@ -128,6 +128,10 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 	}
 
 	private static synchronized void parse(NLPText text) throws ParserException {
+		if (parser == null) {
+			return;
+		}
+
 		List<? extends HasWord> tokens = null;
 		if (text.getLeaves().isEmpty()) {
 			String sentence = prepareSentence(text.getText());

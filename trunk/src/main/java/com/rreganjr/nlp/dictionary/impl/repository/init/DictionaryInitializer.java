@@ -72,7 +72,7 @@ public class DictionaryInitializer extends AbstractSystemInitializer {
 	@Override
 	public void initialize() {
 		try {
-			// TODO: this disables the initalizer and shouldn't be hard coded
+			// TODO: this disables the initializer and shouldn't be hard coded
 			if (true) {
 				return;
 			}
@@ -80,12 +80,8 @@ public class DictionaryInitializer extends AbstractSystemInitializer {
 			// if no categories are defined assume the dictionary is
 			// empty and load it from the xml file.
 			if (dictionaryRepository.findCategories().isEmpty()) {
-				ResourceBundleHelper resourceBundleHelper = new ResourceBundleHelper(
-						DictionaryInitializer.class.getName());
-				String dictionaryPath = resourceBundleHelper.getString(PROP_DICTIONARY_XML_FILE,
-						PROP_DICTIONARY_XML_FILE_DEFAULT);
-				log.info("loading dictionary: "
-						+ getClass().getClassLoader().getResource(dictionaryPath).toExternalForm());
+				ResourceBundleHelper resourceBundleHelper = new ResourceBundleHelper(DictionaryInitializer.class.getName());
+				String dictionaryPath = resourceBundleHelper.getString(PROP_DICTIONARY_XML_FILE, PROP_DICTIONARY_XML_FILE_DEFAULT);
 				command.setInputStream(getDataFileInputStream(dictionaryPath));
 				commandHandler.execute(command);
 			}

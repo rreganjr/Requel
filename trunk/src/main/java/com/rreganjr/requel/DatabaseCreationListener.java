@@ -49,7 +49,9 @@ import org.apache.log4j.Logger;
  *                   dcl:connection.createStatement()
  *                   dcl:createDbStmt.execute("create database") [/c]
  * @author ron
+ * @deprecated let Spring or flyway do it
  */
+@Deprecated
 public class DatabaseCreationListener implements ServletContextListener {
 	private static final Logger log = Logger.getLogger(DatabaseCreationListener.class);
 
@@ -125,9 +127,8 @@ public class DatabaseCreationListener implements ServletContextListener {
 	}
 
 	/**
-	 * @param driverName
 	 * @param jdbcUrl
-	 * @see http://exampledepot.com/egs/java.sql/GetPropInfo.html
+	 * see http://exampledepot.com/egs/java.sql/GetPropInfo.html
 	 */
 	private String listDriverOptions(String jdbcUrl) throws Exception {
 
