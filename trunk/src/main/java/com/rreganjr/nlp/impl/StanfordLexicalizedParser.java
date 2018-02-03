@@ -67,7 +67,7 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 	/**
 	 * The default parser model
 	 */
-	public static final String PROP_PARSER_FILE_DEFAULT = "nlp/stanford-parser/englishPCFG.ser.gz";
+	public static final String PROP_PARSER_FILE_DEFAULT = "edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz";
 
 	/**
 	 * The name of the property in the Parser.properties file for the parameters
@@ -93,7 +93,7 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 
 			// TODO: remove empty option elements
 			String[] optionFlags = resourceBundleHelper.getString(PROP_OPTION_FLAGS, "").split(" \t\n");
-			parser = new LexicalizedParser(new ObjectInputStream(new GZIPInputStream(
+			parser = LexicalizedParser.loadModel(new ObjectInputStream(new GZIPInputStream(
 					StanfordLexicalizedParser.class.getClassLoader()
 							.getResourceAsStream(parserFile))));
 			if ((optionFlags != null) && (optionFlags.length > 0) && (optionFlags[0].length() > 0)) {
@@ -157,8 +157,8 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 			Collection<TypedDependency> typedDependencies = gs.typedDependencies();
 			List<NLPText> leaves = text.getLeaves();
 			for (TypedDependency dependency : typedDependencies) {
-				NLPTextImpl governor = (NLPTextImpl) leaves.get(dependency.gov().index() - 1);
-				NLPTextImpl dependent = (NLPTextImpl) leaves.get(dependency.dep().index() - 1);
+				NLPTextImpl governor = (NLPTextImpl) (dependency.gov().index()==0 ? NLPText.ROOT : leaves.get(dependency.gov().index() - 1));
+				NLPTextImpl dependent = (NLPTextImpl) (dependency.gov().index()==0 ? NLPText.ROOT : leaves.get(dependency.dep().index() - 1));
 				GrammaticalRelationType type = GrammaticalRelationType
 						.getGrammaticalRelationByShortName(dependency.reln().getShortName());
 				text.getGrammaticalRelations().add(

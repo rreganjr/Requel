@@ -150,7 +150,7 @@ public class NounPhraseMatchingRule implements SyntaxMatchingRule {
 				&& (relType.isA(GrammaticalRelationType.OBJECT) || relType
 						.isA(GrammaticalRelationType.SUBJECT))) {
 			for (GrammaticalRelation rel2 : rel.getGovernor().getDependentOf()) {
-				if (rel2.getType().isA(GrammaticalRelationType.PREPOSITIONAL_MODIFIER)
+				if (rel2.getType().isA(GrammaticalRelationType.PREPOSITION)
 						&& rel2.getGovernor().equals(verb)) {
 					return true;
 				}
@@ -162,7 +162,7 @@ public class NounPhraseMatchingRule implements SyntaxMatchingRule {
 		// subject/object of the verb
 		if (rel.getGovernor().is(PartOfSpeech.PREPOSITION)) {
 			for (GrammaticalRelation rel2 : rel.getGovernor().getDependentOf()) {
-				if (rel2.getType().isA(GrammaticalRelationType.PREPOSITIONAL_MODIFIER)) {
+				if (rel2.getType().isA(GrammaticalRelationType.PREPOSITION)) {
 					// modifies an object/subject of the verb
 					NLPText thing = rel2.getGovernor();
 					for (GrammaticalRelation rel3 : verb.getGovernorOf()) {
