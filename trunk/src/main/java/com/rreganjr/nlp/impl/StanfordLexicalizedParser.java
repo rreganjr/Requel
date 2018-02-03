@@ -60,7 +60,7 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 	/**
 	 * The name of the property in the Parser.properties file that contains the
 	 * path to the serialized/zipped parser model relative to the classpath. By
-	 * default the path is "nlp/stanford-parser/englishPCFG.ser.gz"
+	 * default the path is "edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz"
 	 */
 	public static final String PROP_PARSER_FILE = "StanfordParserFileModel";
 
@@ -80,28 +80,35 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 	public static final String PROP_OPTION_FLAGS = "optionFlags";
 
 	private static LexicalizedParser parser;
-	private static final TreebankLanguagePack tlp = new PennTreebankLanguagePack();
-	private static final GrammaticalStructureFactory gsf = tlp.grammaticalStructureFactory();
+	private static TreebankLanguagePack tlp;
+	private static GrammaticalStructureFactory gsf;
 
 	static {
 		try {
 			ResourceBundleHelper resourceBundleHelper = new ResourceBundleHelper(
 					StanfordLexicalizedParser.class.getName());
 
-			String parserFile = resourceBundleHelper.getString(PROP_PARSER_FILE,
-					PROP_PARSER_FILE_DEFAULT);
+			String parserFile = resourceBundleHelper.getString(PROP_PARSER_FILE, PROP_PARSER_FILE_DEFAULT);
 
 			// TODO: remove empty option elements
 			String[] optionFlags = resourceBundleHelper.getString(PROP_OPTION_FLAGS, "").split(" \t\n");
 			parser = LexicalizedParser.loadModel(new ObjectInputStream(new GZIPInputStream(
 					StanfordLexicalizedParser.class.getClassLoader()
 							.getResourceAsStream(parserFile))));
-			if ((optionFlags != null) && (optionFlags.length > 0) && (optionFlags[0].length() > 0)) {
-				//parser.setOptionFlags(optionFlags);
+			if ((optionFlags.length > 0) && (optionFlags[0].length() > 0)) {
+				parser.setOptionFlags(optionFlags);
+			}
+			tlp = parser.treebankLanguagePack();
+			if (tlp.supportsGrammaticalStructures()) {
+				gsf = tlp.grammaticalStructureFactory();
+			} else {
+				gsf = null;
 			}
 		} catch (Exception e) {
 			log.error("Failed to initialize Parser", e);
 			parser = null;
+			tlp = null;
+			gsf = null;
 //			throw new ExceptionInInitializerError(e);
 		}
 	}
@@ -134,10 +141,14 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 
 		List<? extends HasWord> tokens = null;
 		if (text.getLeaves().isEmpty()) {
-			String sentence = prepareSentence(text.getText());
-			Tokenizer<? extends HasWord> tokenizer = tlp.getTokenizerFactory().getTokenizer(
-					new CharArrayReader(sentence.toCharArray()));
-			tokens = tokenizer.tokenize();
+			if (tlp == null) {
+				return;
+			} else {
+				String sentence = prepareSentence(text.getText());
+				Tokenizer<? extends HasWord> tokenizer = tlp.getTokenizerFactory().getTokenizer(
+						new CharArrayReader(sentence.toCharArray()));
+				tokens = tokenizer.tokenize();
+			}
 		} else {
 			List<TaggedWord> xtokens = new ArrayList<TaggedWord>();
 			for (NLPText word : text.getLeaves()) {
@@ -153,16 +164,18 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 		if (stanfordTree != null && !stanfordTree.isEmpty()) {
 			copyStanfordTreeToNLPText((NLPTextImpl) text, stanfordTree, stanfordTree.getLeaves(), new Counter());
 
-			GrammaticalStructure gs = gsf.newGrammaticalStructure(stanfordTree);
-			Collection<TypedDependency> typedDependencies = gs.typedDependencies();
-			List<NLPText> leaves = text.getLeaves();
-			for (TypedDependency dependency : typedDependencies) {
-				NLPTextImpl governor = (NLPTextImpl) (dependency.gov().index()==0 ? NLPText.ROOT : leaves.get(dependency.gov().index() - 1));
-				NLPTextImpl dependent = (NLPTextImpl) (dependency.gov().index()==0 ? NLPText.ROOT : leaves.get(dependency.dep().index() - 1));
-				GrammaticalRelationType type = GrammaticalRelationType
-						.getGrammaticalRelationByShortName(dependency.reln().getShortName());
-				text.getGrammaticalRelations().add(
-						new GrammaticalRelationImpl(type, governor, dependent));
+			if (gsf != null) {
+				GrammaticalStructure gs = gsf.newGrammaticalStructure(stanfordTree);
+				Collection<TypedDependency> typedDependencies = gs.typedDependenciesEnhancedPlusPlus(); //typedDependencies();
+				List<NLPText> leaves = text.getLeaves();
+				for (TypedDependency dependency : typedDependencies) {
+					NLPTextImpl governor = (NLPTextImpl) (dependency.gov().index() == 0 ? NLPText.ROOT : leaves.get(dependency.gov().index() - 1));
+					NLPTextImpl dependent = (NLPTextImpl) (dependency.gov().index() == 0 ? NLPText.ROOT : leaves.get(dependency.dep().index() - 1));
+					GrammaticalRelationType type = GrammaticalRelationType
+							.getGrammaticalRelationByShortName(dependency.reln().getShortName());
+					text.getGrammaticalRelations().add(
+							new GrammaticalRelationImpl(type, governor, dependent));
+				}
 			}
 		} else {
 			throw ParserException.parseFailed();

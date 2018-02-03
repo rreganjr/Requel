@@ -60,7 +60,7 @@ public class StanfordNameEntityRecognizer implements NLPProcessor<NLPText> {
 	 * The name of the property in the StanfordNameEntityRecognizer.properties
 	 * file that contains the path to the serialized/zipped model relative to
 	 * the classpath. By default the path is
-	 * "nlp/stanford-ner/ner-eng-ie.crf-3-all2008-distsim.ser.gz"
+	 * "edu/stanford/nlp/models/ner/english.all.3class.distsim.crf.ser.gz"
 	 */
 	public static final String PROP_MODEL_FILE = "StanfordNameEntityRecognizerModelFile";
 
