@@ -32,332 +32,53 @@ import java.util.Map;
  */
 public enum GrammaticalRelationType {
 
-	/**
-	 * The root relationship indicating that the governor "governs" the
-	 * dependent.
-	 */
 	GOVERNOR(null, "gov", "governor", ""),
-
-	/**
-	 * 
-	 */
 	DEPENDENT(null, "dep", "dependent", ""),
-
-	/**
-	 * 
-	 */
+	ROOT(null, "root", "root", "The \"root\" grammatical relation between a faked \"ROOT\" node, and the root of the sentence."),
 	PREDICATE(DEPENDENT, "pred", "predicate", ""),
-
-	/**
-	 * 
-	 */
 	AUXILIARY(DEPENDENT, "aux", "auxiliary", ""),
-
-	/**
-	 * 
-	 */
 	PASSIVE_AUXILIARY(AUXILIARY, "auxpass", "passive auxiliary", ""),
-
-	/**
-	 * 
-	 */
-	COPULA(
-			AUXILIARY,
-			"cop",
-			"copula",
-			"a copula is a word used to link the subject of a sentence with a predicate. It is sometimes refered to as a linking verb."),
-
-	/**
-	 * 
-	 */
+	COPULA(AUXILIARY, "cop", "copula", "a copula is a word used to link the subject of a sentence with a predicate. It is sometimes refered to as a linking verb."),
 	CONJUNCT(DEPENDENT, "conj", "conjunct", ""),
-
-	/**
-	 * 
-	 */
 	COORDINATION(DEPENDENT, "cc", "coordination", ""),
-
-	/**
-	 * a relation between the main verb of a clause and other sentential
-	 * elements, such as a sentential parenthetical, a clause after a ":" or a
-	 * ";".<br>
-	 * For example:<br>
-	 * "The guy, John said, left early in the morning."<br>
-	 * parataxis(left, said)
-	 */
-	PARATAXIS(DEPENDENT, "parataxis", "parataxis", ""),
-
-	/**
-	 * 
-	 */
 	PUNCTUATION(DEPENDENT, "punct", "punctuation", ""),
-
-	/**
-	 * 
-	 */
 	ARGUMENT(DEPENDENT, "arg", "argument", ""),
-
-	/**
-	 * 
-	 */
 	SUBJECT(ARGUMENT, "subj", "subject", ""),
-
-	/**
-	 * 
-	 */
-	NOMINAL_SUBJECT(SUBJECT, "nsubj", "nominal subject",
-			"a subject consisting of a noun, and possibly modifiers."),
-
-	/**
-	 * 
-	 */
-	NOMINAL_PASSIVE_SUBJECT(SUBJECT, "nsubjpass", "nominal passive subject", ""),
-
-	/**
-	 * csubj : clausal subject<br>
-	 * A clausal subject is a clausal syntactic subject of a clause, i.e. the
-	 * subject is itself a clause. The governor of this relation might not
-	 * always be a verb: when the verb is a copular verb, the root of the clause
-	 * is the complement of the copular verb. In the two following examples,
-	 * what she said is the subject.<br>
-	 * What she said makes sense. - csubj (makes, said)<br>
-	 * What she said is not true. - csubj (true, said)<br>
-	 */
-	CLAUSAL_SUBJECT(
-			SUBJECT,
-			"csubj",
-			"clausal subject",
-			"A clausal subject is a clausal syntactic subject of a clause, i.e. the subject is itself a clause."),
-
-	/**
-	 * csubjpass: clausal passive subject<br>
-	 * A clausal passive subject is a clausal syntactic subject of a passive
-	 * clause. In the example below, that she lied is the subject.<br>
-	 * That she lied was suspected by everyone. - csubjpass(suspected, lied)<br>
-	 */
-	CLAUSAL_PASSIVE_SUBJECT(CLAUSAL_SUBJECT, "csubjpass", "clausal passive subject",
-			"A clausal passive subject is a clausal syntactic subject of a passive clause."),
-
-	/**
-	 * A complement ties an object to a verb in a different phrase or clause
-	 */
-	COMPLEMENT(
-			ARGUMENT,
-			"comp",
-			"complement",
-			"A complement of a VP is any object (direct or indirect) of that VP, or a "
-					+ "clause or adjectival phrase which functions like an object; a complement of "
-					+ "a clause is an complement of the VP which is the predicate of that clause."),
-
-	/**
-	 * 
-	 */
-	ATTRIBUTIVE(COMPLEMENT, "attr", "attributive", ""),
-
-	/**
-	 * 
-	 */
+	NOMINAL_SUBJECT(SUBJECT, "nsubj", "nominal subject", ""),
+	NOMINAL_PASSIVE_SUBJECT(NOMINAL_SUBJECT, "nsubjpass", "nominal passive subject", ""),
+	CLAUSAL_SUBJECT(SUBJECT, "csubj", "clausal subject", ""),
+	CLAUSAL_PASSIVE_SUBJECT(CLAUSAL_SUBJECT, "csubjpass", "clausal passive subject", ""),
+	COMPLEMENT(ARGUMENT, "comp", "complement", ""),
 	OBJECT(COMPLEMENT, "obj", "object", ""),
-
-	/**
-	 * 
-	 */
 	DIRECT_OBJECT(OBJECT, "dobj", "direct object", ""),
-
-	/**
-	 * 
-	 */
 	INDIRECT_OBJECT(OBJECT, "iobj", "indirect object", ""),
-
-	/**
-	 * 
-	 */
-	PREPOSITIONAL_OBJECT(OBJECT, "pobj", "prepositional object", ""),
-
-	/**
-	 * 
-	 */
-	PREPOSITIONAL_COMPLEMENT(OBJECT, "pcomp", "prepositional complement", ""),
-
-	/**
-	 * 
-	 */
-	CLAUSAL_COMPLEMENT(COMPLEMENT, "ccomp", "clausal complement", ""),
-
-	/**
-	 * xcomp: open clausal complement<br>
-	 * An open clausal complement (xcomp) of a VP or an ADJP is a clausal
-	 * complement without its own subject, whose reference is determined by an
-	 * external subject. These complements are always non-finite. The name xcomp
-	 * is borrowed from Lexical-Functional Grammar.<br>
-	 * He says that you like to swim. - xcomp(like, swim)<br>
-	 * I am ready to leave. - xcomp(ready, leave)<br>
-	 * John hates eating fish. - xcomp(hates, eating)<br>
-	 */
-	XCLAUSAL_COMPLEMENT(COMPLEMENT, "xcomp", "xclausal complement",
-			"An open clausal complement without its own subject."),
-
-	/**
-	 * example: I bet Bob a dollar [that] Pi is a number.
-	 */
-	COMPLEMENTIZER(COMPLEMENT, "complm", "complementizer",
-			"Like a subordinating conjunction used to show the relationship between the two clauses"),
-
-	/**
-	 * 
-	 */
-	MARKER(COMPLEMENT, "mark", "marker", ""),
-
-	/**
-	 * 
-	 */
-	RELATIVE(COMPLEMENT, "rel", "relative", ""),
-
-	/**
-	 * 
-	 */
-	REFERENT(DEPENDENT, "ref", "referent", ""),
-
-	/**
-	 * 
-	 */
-	EXPLETIVE(DEPENDENT, "expl", "expletive", ""),
-
-	/**
-	 * acomp: adjectival complement<br>
-	 * An adjectival complement of a VP is an adjectival phrase which functions
-	 * as the complement (like an object of the verb); an adjectival complement
-	 * of a clause is the adjectival complement of the VP which is the predicate
-	 * of that clause. <br>
-	 * She looks very beautiful. - acomp(looks, beautiful)
-	 */
-	ADJECTIVAL_COMPLEMENT(COMPLEMENT, "acomp", "adjectival complement",
-			"An adjectival complement of a VP is an adjectival phrase which functions as the complement"),
-
-	/**
-	 * 
-	 */
 	MODIFIER(DEPENDENT, "mod", "modifier", ""),
-
-	/**
-	 * 
-	 */
+	NOMINAL_MODIFIER(MODIFIER, "nmod", "nominal modifier", ""),
+	CLAUSAL_COMPLEMENT(COMPLEMENT, "ccomp", "clausal complement", ""),
+	XCLAUSAL_COMPLEMENT(COMPLEMENT, "xcomp", "xclausal complement", ""),
+	MARKER(MODIFIER, "mark", "marker", ""),
+	RELATIVE(COMPLEMENT, "rel", "relative", ""),
+	REFERENT(DEPENDENT, "ref", "referent", ""),
+	EXPLETIVE(DEPENDENT, "expl", "expletive", ""),
 	ADVERBIAL_CLAUSE_MODIFIER(MODIFIER, "advcl", "adverbial clause modifier", ""),
-
-	/**
-	 * 
-	 */
-	TEMPORAL_MODIFIER(MODIFIER, "tmod", "temporal modifier", ""),
-
-	/**
-	 * 
-	 */
-	RELATIVE_CLAUSE_MODIFIER(MODIFIER, "rcmod", "relative clause modifier", ""),
-
-	/**
-	 * 
-	 */
-	NUMERIC_MODIFIER(MODIFIER, "num", "numeric modifier", ""),
-
-	/**
-	 * 
-	 */
+	TEMPORAL_MODIFIER(NOMINAL_MODIFIER, "nmod:tmod", "temporal modifier", ""),
+	CLAUSAL_MODIFIER_OF_NOUN(MODIFIER, "acl", "clausal modifier of noun", ""),
+	RELATIVE_CLAUSE_MODIFIER(CLAUSAL_MODIFIER_OF_NOUN, "acl:relcl", "relative clause modifier", ""),
+	NUMERIC_MODIFIER(MODIFIER, "nummod", "numeric modifier", ""),
 	ADJECTIVAL_MODIFIER(MODIFIER, "amod", "adjectival modifier", ""),
-
-	/**
-	 * 
-	 */
-	NN_MODIFIER(MODIFIER, "nn", "nn modifier", ""),
-
-	/**
-	 * 
-	 */
+	COMPOUND_MODIFIER(MODIFIER, "compound", "compound modifier", ""),
+	NAME(MODIFIER, "name", "name", ""),
 	APPOSITIONAL_MODIFIER(MODIFIER, "appos", "appositional modifier", ""),
-
-	/**
-	 * abbrev: abbreviation modifer<br>
-	 * An abbreviation modifer of an NP is a parenthesized NP that serves to
-	 * abbreviate the NP (or to define an abbreviation).<br>
-	 * The Australian Broadcasting Corporation (ABC). - abbrev(Corporation, ABC)
-	 */
-	ABBREVIATION_MODIFIER(
-			APPOSITIONAL_MODIFIER,
-			"abbrev",
-			"abbreviation modifier",
-			"An abbreviation modifer of an NP is a parenthesized NP that serves to abbreviate the NP (or to define an abbreviation)."),
-
-	/**
-	 * 
-	 */
-	PARTICIPIAL_MODIFIER(MODIFIER, "partmod", "participial modifier", ""),
-
-	/**
-	 * 
-	 */
-	INFINITIVAL_MODIFIER(MODIFIER, "infmod", "infinitival modifier", ""),
-
-	/**
-	 * 
-	 */
 	ADVERBIAL_MODIFIER(MODIFIER, "advmod", "adverbial modifier", ""),
-
-	/**
-	 * 
-	 */
 	NEGATION_MODIFIER(ADVERBIAL_MODIFIER, "neg", "negation modifier", ""),
-
-	/**
-	 * 
-	 */
+	MULTI_WORD_EXPRESSION(MODIFIER, "mwe", "multi-word expression", ""),
 	DETERMINER(MODIFIER, "det", "determiner", ""),
-
-	/**
-	 * 
-	 */
-	PREDETERMINER(MODIFIER, "predet", "predeterminer", ""),
-
-	/**
-	 * 
-	 */
-	PRECONJUNCT(MODIFIER, "preconj", "preconjunct", ""),
-
-	/**
-	 * 
-	 */
-	POSSESSION_MODIFIER(MODIFIER, "poss", "possession modifier", ""),
-
-	/**
-	 * 
-	 */
-	POSSESSIVE_MODIFIER(MODIFIER, "possessive", "possessive modifier", ""),
-
-	/**
-	 * 
-	 */
-	PREPOSITIONAL_MODIFIER(MODIFIER, "prep", "prepositional modifier", ""),
-
-	/**
-	 * 
-	 */
-	PHRASAL_VERB_PARTICLE(MODIFIER, "prt", "phrasal verb particle", ""),
-
-	/**
-	 * 
-	 */
+	PREDETERMINER(MODIFIER, "det:predet", "predeterminer", ""),
+	PRECONJUNCT(MODIFIER, "cc:preconj", "preconjunct", ""),
+	POSSESSION_MODIFIER(MODIFIER, "nmod:poss", "possession modifier", ""),
+	CASE_MARKER(MODIFIER, "case", "case marker", ""),
+	PHRASAL_VERB_PARTICLE(MODIFIER, "compound:prt", "phrasal verb particle", ""),
 	SEMANTIC_DEPENDENT(DEPENDENT, "sdep", "semantic dependent", ""),
-
-	/**
-	 * xsubj : controlling subject<br>
-	 * A controlling subject is the relation between the head of a open clausal
-	 * complement (xcomp) and the external subject of that clause.<br>
-	 * Tom likes to eat fish. - xsubj(eat, Tom)
-	 */
-	CONTROLLING_SUBJECT(
-			SEMANTIC_DEPENDENT,
-			"xsubj",
-			"controlling subject",
-			"A controlling subject is the relation between the head of a open clausal complement (xcomp) and the external subject of that clause."),
-
 	/**
 	 * agent: agent<br>
 	 * An agent is the complement of a passive verb which is introduced by the
@@ -374,26 +95,31 @@ public enum GrammaticalRelationType {
 	 * prep(killed-4, by-5)<br>
 	 */
 	AGENT(DEPENDENT, "agent", "agent", ""),
-
+	NOUN_PHRASE_ADVERBIAL_MODIFIER(MODIFIER, "nmod:npmod", "noun phrase adverbial modifier", ""),
 	/**
-	 * 
+	 * a relation between the main verb of a clause and other sentential
+	 * elements, such as a sentential parenthetical, a clause after a ":" or a
+	 * ";".<br>
+	 * For example:<br>
+	 * "The guy, John said, left early in the morning."<br>
+	 * parataxis(left, said)
 	 */
-	COMPOUND_NUMBER_MODIFIER(MODIFIER, "number", "compound number modifier", ""),
-
+	PARATAXIS(DEPENDENT, "parataxis", "parataxis", ""),
+	DISCOURSE_ELEMENT(MODIFIER, "discourse", "discourse element", ""),
+	GOES_WITH(MODIFIER, "goeswith", "goes with", ""),
+	LIST(DEPENDENT, "list", "list", ""),
+	PREPOSITION(COMPLEMENT, "prep", "preposition", ""),
+	QUANTIFICATIONAL_MODIFIER(DETERMINER, "det:qmod", "quantificational modifier", ""),
 	/**
-	 * 
+	 * xsubj : controlling subject<br>
+	 * A controlling subject is the relation between the head of a open clausal
+	 * complement (xcomp) and the external subject of that clause.<br>
+	 * Tom likes to eat fish. - xsubj(eat, Tom)
 	 */
-	PURPOSE_CLAUSE_MODIFIER(MODIFIER, "purpcl", "purpose clause modifier", ""),
-
-	/**
-	 * 
-	 */
-	QUANTIFIER_MODIFIER(MODIFIER, "quantmod", "quantifier modifier", ""),
-
-	/**
-	 * 
-	 */
-	MEASURE_PHRASE(MODIFIER, "measure", "measure phrase", "");
+	CONTROLLING_NOMINAL_SUBJECT(NOMINAL_SUBJECT, "nsubj:xsubj", "controlling nominal subject", ""),
+	CONTROLLING_NOMINAL_PASSIVE_SUBJECT(NOMINAL_PASSIVE_SUBJECT, "nsubjpass:xsubj", "controlling nominal passive subject", ""),
+	CONTROLLING_CLAUSAL_SUBJECT(NOMINAL_PASSIVE_SUBJECT, "csubj:xsubj", "controlling clausal subject", ""),
+	CONTROLLING_CLAUSAL_PASSIVE_SUBJECT(NOMINAL_PASSIVE_SUBJECT, "csubjpass:xsubj", "controlling clausal passive subject", "");
 
 	private static final Map<String, GrammaticalRelationType> grammaticalRelationsByShortName = new HashMap<String, GrammaticalRelationType>();
 	static {

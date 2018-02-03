@@ -67,7 +67,7 @@ public class StanfordNameEntityRecognizer implements NLPProcessor<NLPText> {
 	/**
 	 * The default parser model
 	 */
-	public static final String PROP_MODEL_FILE_DEFAULT = "nlp/stanford-ner/ner-eng-ie.crf-3-all2008-distsim.ser.gz";
+	public static final String PROP_MODEL_FILE_DEFAULT = "edu/stanford/nlp/models/ner/english.all.3class.distsim.crf.ser.gz";
 
 	private static AbstractSequenceClassifier<CoreLabel> classifier;
 	private static final TreebankLanguagePack tlp = new PennTreebankLanguagePack();

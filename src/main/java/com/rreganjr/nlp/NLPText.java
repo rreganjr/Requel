@@ -25,6 +25,7 @@ import java.util.Set;
 
 import com.rreganjr.nlp.dictionary.Sense;
 import com.rreganjr.nlp.dictionary.Word;
+import com.rreganjr.nlp.impl.NLPTextImpl;
 import com.rreganjr.nlp.impl.wsd.SenseRelationInfo;
 
 /**
@@ -33,6 +34,11 @@ import com.rreganjr.nlp.impl.wsd.SenseRelationInfo;
  * @author ron
  */
 public interface NLPText extends Cloneable {
+
+	/**
+	 * In a grammatical relationship a dummy node associated to the root of the sentence.
+	 */
+	public static final NLPText ROOT = new NLPTextImpl("ROOT");
 
 	/**
 	 * @return the parent NLPText element that wholly contains this NLPText

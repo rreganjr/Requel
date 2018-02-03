@@ -176,11 +176,11 @@ public class SemanticRoleLabeler implements NLPProcessor<NLPText> {
 						indirectObject = indirectObject.getParent();
 					}
 				}
-			} else if (relType.isA(GrammaticalRelationType.PREPOSITIONAL_OBJECT)) {
+			} else if (relType.isA(GrammaticalRelationType.CASE_MARKER)) {
 				// use the object of a prepositional phrase if it modifies
 				// the primary verb
 				Set<GrammaticalRelation> prepRels = relation.getGovernor().getDependentOfType(
-						GrammaticalRelationType.PREPOSITIONAL_MODIFIER);
+						GrammaticalRelationType.PREPOSITION);
 				if (prepRels.size() == 1) {
 					NLPText verbPred = prepRels.iterator().next().getGovernor();
 					if ((sentence.getPrimaryVerb() == null)
