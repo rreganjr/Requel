@@ -23,4 +23,4 @@ login to the application as **admin** user with password **admin**.
 
 ####Note
 
-There are a couple of issues with the latest version. The file upload for xslt document generation and file import is not working, there appears to be a version compatability issue with the file upload widget/library. The analysis isn't working because of a compatibility issue with the Stanford Parser.
+The language analysis is fixed, but new Stanford CoreNLP mode files are huge and doubled the size of the jar to almost 600Mbytes.
