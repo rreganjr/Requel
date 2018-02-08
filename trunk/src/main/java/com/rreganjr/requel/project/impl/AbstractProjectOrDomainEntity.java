@@ -58,7 +58,7 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
  * @author ron
  */
 @MappedSuperclass
-@XmlType(namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlType(namespace = "http://www.rreganjr.com/requel")
 public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEntity, Serializable {
 	static final long serialVersionUID = 0L;
 
@@ -132,9 +132,9 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 		this.projectOrDomain = projectOrDomain;
 	}
 
-	@XmlElementWrapper(name = "annotations", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "annotations", namespace = "http://www.rreganjr.com/requel")
 	@XmlIDREF
-	@XmlElement(name = "annotationRef", type = AbstractAnnotation.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "annotationRef", type = AbstractAnnotation.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToMany(targetEntity = AbstractAnnotation.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@SortNatural
@@ -146,9 +146,9 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 		this.annotations = annotations;
 	}
 
-	@XmlElementWrapper(name = "glossaryTerms", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "glossaryTerms", namespace = "http://www.rreganjr.com/requel")
 	@XmlIDREF
-	@XmlElement(name = "glossaryTermRef", type = GlossaryTermImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "glossaryTermRef", type = GlossaryTermImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToMany(targetEntity = GlossaryTermImpl.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@SortNatural

@@ -55,8 +55,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.project.NonUserStakeholder")
-@XmlRootElement(name = "nonuser-stakeholder", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "nonuser-stakeholder", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "nonuser-stakeholder", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "nonuser-stakeholder", namespace = "http://www.rreganjr.com/requel")
 public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUserStakeholder {
 	static final long serialVersionUID = 0L;
 
@@ -79,7 +79,7 @@ public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUs
 
 	@Override
 	@Column(nullable = true, unique = false)
-	@XmlElement(name = "name", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
 	public String getName() {
 		return super.getName();
 	}
@@ -92,7 +92,7 @@ public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUs
 	}
 
 	@Lob
-	@XmlElement(name = "text", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
 	public String getText() {
 		return text;
 	}

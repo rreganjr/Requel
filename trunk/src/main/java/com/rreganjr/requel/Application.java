@@ -75,6 +75,7 @@ public class Application extends SpringBootServletInitializer {
 
             http
                     .httpBasic()
+                    .and().headers().frameOptions().sameOrigin()
                     .and().authorizeRequests().antMatchers("/**").anonymous()
                     .and().csrf().disable();
         }

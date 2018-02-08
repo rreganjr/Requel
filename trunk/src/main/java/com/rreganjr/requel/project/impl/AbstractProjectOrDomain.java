@@ -96,7 +96,7 @@ import org.hibernate.validator.NotEmpty;
 @Table(name = "pods", uniqueConstraints = { @UniqueConstraint(columnNames = { "type", "name" }) })
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "type", discriminatorType = DiscriminatorType.STRING, length = 255)
-@XmlType(namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlType(namespace = "http://www.rreganjr.com/requel")
 public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serializable {
 	static final long serialVersionUID = 0L;
 
@@ -178,7 +178,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 
 	@Column(nullable = false)
 	@NotEmpty(message = "a name is required.")
-	@XmlElement(name = "name", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
 	public String getName() {
 		return name;
 	}
@@ -187,7 +187,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 		this.name = name;
 	}
 
-	@XmlElement(name = "description", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "description", namespace = "http://www.rreganjr.com/requel")
 	@Lob
 	public String getText() {
 		return description;
@@ -209,7 +209,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 		this.dateCreated = dateCreated;
 	}
 
-	@XmlElementWrapper(name = "glossary", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "glossary", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = GlossaryTermImpl.class)
 	@OneToMany(targetEntity = GlossaryTermImpl.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
@@ -223,7 +223,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 		this.terms = terms;
 	}
 
-	@XmlElementWrapper(name = "actors", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "actors", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = ActorImpl.class)
 	@OneToMany(targetEntity = ActorImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.LAZY, mappedBy = "projectOrDomain")
 	@SortNatural
@@ -235,7 +235,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 		this.actors = actors;
 	}
 
-	@XmlElementWrapper(name = "goals", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "goals", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = GoalImpl.class)
 	@OneToMany(targetEntity = GoalImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.LAZY, mappedBy = "projectOrDomain")
 	@SortNatural
@@ -247,7 +247,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 		this.goals = goals;
 	}
 
-	@XmlElementWrapper(name = "stories", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "stories", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = StoryImpl.class)
 	@OneToMany(targetEntity = StoryImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.LAZY, mappedBy = "projectOrDomain")
 	@SortNatural
@@ -259,7 +259,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 		this.stories = stories;
 	}
 
-	@XmlElementWrapper(name = "usecases", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "usecases", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = UseCaseImpl.class)
 	@OneToMany(targetEntity = UseCaseImpl.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY, mappedBy = "projectOrDomain")
@@ -292,7 +292,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 	 * 
 	 * @return a set of all the scenarios and steps in the project
 	 */
-	@XmlElementWrapper(name = "scenarios", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "scenarios", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = StepImpl.class)
 	@Transient
 	public Set<Step> getAllScenariosAndSteps() {
@@ -310,7 +310,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 		return scenariosAndSteps;
 	}
 
-	@XmlElementWrapper(name = "stakeholders", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "stakeholders", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRefs( { @XmlElementRef(name = "user-stakeholder", type = UserStakeholderImpl.class),
 			@XmlElementRef(name = "nonuser-stakeholder", type = NonUserStakeholderImpl.class) })
 	@OneToMany(targetEntity = AbstractStakeholder.class, cascade = { CascadeType.PERSIST,
@@ -324,7 +324,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 		this.stakeholders = stakeholders;
 	}
 
-	@XmlElementWrapper(name = "teams", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "teams", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(name = "team", type = ProjectTeamImpl.class)
 	@OneToMany(targetEntity = ProjectTeamImpl.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY, mappedBy = "projectOrDomain")
@@ -338,7 +338,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 	}
 
 	@Override
-	@XmlElementWrapper(name = "reports", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "reports", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(name = "report", type = ReportGeneratorImpl.class)
 	@OneToMany(targetEntity = ReportGeneratorImpl.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY, mappedBy = "projectOrDomain")

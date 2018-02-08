@@ -53,8 +53,8 @@ import org.hibernate.annotations.ListIndexBase;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.project.Scenario")
-@XmlRootElement(name = "scenario", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "scenario", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "scenario", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "scenario", namespace = "http://www.rreganjr.com/requel")
 public class ScenarioImpl extends StepImpl implements Scenario {
 	static final long serialVersionUID = 0L;
 
@@ -120,9 +120,9 @@ public class ScenarioImpl extends StepImpl implements Scenario {
 	}
 
 	@Override
-	@XmlElementWrapper(name = "steps", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "steps", namespace = "http://www.rreganjr.com/requel")
 	@XmlIDREF
-	@XmlElement(name = "stepRef", type = StepImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "stepRef", type = StepImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToMany(targetEntity = StepImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@JoinTable(name = "scenario_steps", joinColumns = { @JoinColumn(name = "scenario_id") }, inverseJoinColumns = { @JoinColumn(name = "step_id") })

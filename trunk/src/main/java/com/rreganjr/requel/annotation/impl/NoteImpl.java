@@ -34,8 +34,8 @@ import com.rreganjr.requel.user.User;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.annotation.Note")
-@XmlRootElement(name = "note", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "note", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "note", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "note", namespace = "http://www.rreganjr.com/requel")
 public class NoteImpl extends AbstractAnnotation implements Note {
 	static final long serialVersionUID = 0L;
 

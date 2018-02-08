@@ -2,9 +2,9 @@
 <project id="POD_1" revision="20"
 	dateCreated="2009-01-04T04:14:06"
 	createdBy="USR_5"
-	xmlns="http://www.people.fas.harvard.edu/~rregan/requel"
+	xmlns="http://www.rreganjr.com/requel"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-	xsi:schemaLocation="http://www.people.fas.harvard.edu/~rregan/requel project.xsd">
+	xsi:schemaLocation="http://www.rreganjr.com/requel project.xsd">
     <actors>
         <actor id="ACT_1" revision="10" dateCreated="2009-01-05T00:00:00" createdBy="USR_5">
             <annotations/>

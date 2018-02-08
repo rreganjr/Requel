@@ -62,8 +62,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
  */
 @Entity
 @Table(name = "goal_relations", uniqueConstraints = { @UniqueConstraint(columnNames = {"toGoalInternal_id", "fromGoalInternal_id" }) })
-@XmlRootElement(name = "goalRelation", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "goalRelation", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "goalRelation", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "goalRelation", namespace = "http://www.rreganjr.com/requel")
 public class GoalRelationImpl implements GoalRelation, Serializable {
 	static final long serialVersionUID = 0L;
 
@@ -195,14 +195,14 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 		this.toGoal = toGoal;
 	}
 
-	@XmlElementWrapper(name = "annotations", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "annotations", namespace = "http://www.rreganjr.com/requel")
 	// changed xml mapping to output references to annotations instead of the
 	// annotations directly because
 	// an annotation may be shared by multiple entities causing duplicates on
 	// import. this makes report
 	// generating via xslt more complicated because of the indirection.
 	@XmlIDREF
-	@XmlElement(name = "annotationRef", type = AbstractAnnotation.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "annotationRef", type = AbstractAnnotation.class, namespace = "http://www.rreganjr.com/requel")
 	// @XmlElementRef(type = AbstractAnnotation.class)
 	@ManyToMany(targetEntity = AbstractAnnotation.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)

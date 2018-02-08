@@ -42,8 +42,8 @@ import com.rreganjr.requel.user.Organization;
  */
 @Entity
 @Table(name = "organizations")
-@XmlRootElement(name = "organization", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "organization", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "organization", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "organization", namespace = "http://www.rreganjr.com/requel")
 public class OrganizationImpl implements Organization, Serializable {
 	static final long serialVersionUID = 0L;
 

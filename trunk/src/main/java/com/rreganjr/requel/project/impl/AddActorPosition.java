@@ -38,8 +38,8 @@ import com.rreganjr.requel.user.User;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.project.impl.AddActorPosition")
-@XmlRootElement(name = "addActorPosition", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "addActorPosition", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "addActorPosition", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "addActorPosition", namespace = "http://www.rreganjr.com/requel")
 public class AddActorPosition extends PositionImpl {
 	static final long serialVersionUID = 0L;
 

@@ -38,8 +38,8 @@ import com.rreganjr.requel.user.User;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.project.impl.AddGlossaryTermPosition")
-@XmlRootElement(name = "addGlossaryTermPosition", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "addGlossaryTermPosition", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "addGlossaryTermPosition", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "addGlossaryTermPosition", namespace = "http://www.rreganjr.com/requel")
 public class AddGlossaryTermPosition extends PositionImpl {
 	static final long serialVersionUID = 0L;
 

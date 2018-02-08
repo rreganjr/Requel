@@ -60,7 +60,7 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 @Table(name = "user_roles")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "role_type", discriminatorType = DiscriminatorType.STRING, length = 255)
-@XmlType(namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlType(namespace = "http://www.rreganjr.com/requel")
 public abstract class AbstractUserRole implements UserRole, Serializable {
 	static final long serialVersionUID = 0L;
 
@@ -103,7 +103,7 @@ public abstract class AbstractUserRole implements UserRole, Serializable {
 	@ManyToMany(targetEntity = UserRolePermission.class, cascade = { CascadeType.MERGE,
 			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.EAGER)
 	@JoinTable(name = "user_roles_permissions", joinColumns = { @JoinColumn(name = "user_role_id") }, inverseJoinColumns = { @JoinColumn(name = "user_role_permission_id") })
-	@XmlElementWrapper(name = "userPermissions", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "userPermissions", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef
 	protected Set<UserRolePermission> getUserRolePermissions() {
 		return userRolePermissions;

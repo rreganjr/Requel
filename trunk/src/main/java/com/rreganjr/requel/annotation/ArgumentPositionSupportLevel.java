@@ -30,7 +30,7 @@ import javax.xml.bind.annotation.XmlType;
  * @author ron
  */
 @XmlEnum()
-@XmlType(namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlType(namespace = "http://www.rreganjr.com/requel")
 public enum ArgumentPositionSupportLevel {
 
 	/**

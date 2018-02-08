@@ -79,8 +79,8 @@ import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "position_type", discriminatorType = DiscriminatorType.STRING, length = 255)
 @DiscriminatorValue(value = "com.rreganjr.requel.annotation.impl.PositionImpl")
-@XmlRootElement(name = "position", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "position", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "position", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "position", namespace = "http://www.rreganjr.com/requel")
 public class PositionImpl implements Position, Serializable {
 	static final long serialVersionUID = 0L;
 
@@ -166,7 +166,7 @@ public class PositionImpl implements Position, Serializable {
 		this.issues = issues;
 	}
 
-	@XmlElement(name = "text", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
 	public String getText() {
 		return text;
 	}
@@ -175,7 +175,7 @@ public class PositionImpl implements Position, Serializable {
 		this.text = text;
 	}
 
-	@XmlElementWrapper(name = "arguments", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "arguments", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = ArgumentImpl.class)
 	@OneToMany(targetEntity = ArgumentImpl.class, mappedBy = "position", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
 	public Set<Argument> getArguments() {

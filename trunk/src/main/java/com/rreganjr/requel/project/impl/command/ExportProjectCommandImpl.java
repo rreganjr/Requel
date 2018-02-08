@@ -136,7 +136,7 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 			JAXBContext context = JAXBContext.newInstance(CLASSES_FOR_JAXB);
 			Marshaller marshaller = context.createMarshaller();
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
-			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://www.people.fas.harvard.edu/~rregan/requel http://requel.sourceforge.net/integration/1.0/project.xsd");
+			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://www.rreganjr.com/requel http://requel.sourceforge.net/integration/1.0/project.xsd");
 			marshaller.marshal(project, getOutputStream());
 		} catch (Exception e) {
 			log.error(e, e);

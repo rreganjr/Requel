@@ -59,8 +59,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.project.ProjectUserRole")
-@XmlRootElement(name = "projectUserRole", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "projectUserRole", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "projectUserRole", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "projectUserRole", namespace = "http://www.rreganjr.com/requel")
 public class ProjectUserRole extends AbstractUserRole {
 	static final long serialVersionUID = 0L;
 

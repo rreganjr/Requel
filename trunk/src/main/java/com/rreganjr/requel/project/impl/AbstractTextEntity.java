@@ -34,7 +34,7 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
  * @author ron
  */
 @MappedSuperclass
-@XmlType(namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlType(namespace = "http://www.rreganjr.com/requel")
 public abstract class AbstractTextEntity extends AbstractProjectOrDomainEntity implements
 		TextEntity {
 	static final long serialVersionUID = 0L;
@@ -60,7 +60,7 @@ public abstract class AbstractTextEntity extends AbstractProjectOrDomainEntity i
 	/**
 	 * @see com.rreganjr.requel.project.TextEntity#getText()
 	 */
-	@XmlElement(name = "text", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
 	@Lob
 	public String getText() {
 		return text;

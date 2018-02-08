@@ -5,7 +5,7 @@
  
  -->
 <xsl:stylesheet version="1.0" xmlns="http://www.w3.org/1999/xhtml"
-	xmlns:rp="http://www.people.fas.harvard.edu/~rregan/requel" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+	xmlns:rp="http://www.rreganjr.com/requel" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xs="http://www.w3.org/2001/XMLSchema"
 	xmlns:xi="http://www.w3.org/2001/XInclude" exclude-result-prefixes="xs xsi rp xsl xi">
 

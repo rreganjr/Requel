@@ -62,8 +62,8 @@ import com.rreganjr.requel.user.User;
 @Entity
 @Table(name = "goals", uniqueConstraints = { @UniqueConstraint(columnNames = {
 		"projectordomain_id", "name" }) })
-@XmlRootElement(name = "goal", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "goal", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "goal", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "goal", namespace = "http://www.rreganjr.com/requel")
 public class GoalImpl extends AbstractTextEntity implements Goal {
 	static final long serialVersionUID = 0L;
 
@@ -92,7 +92,7 @@ public class GoalImpl extends AbstractTextEntity implements Goal {
 	@Override
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
-	@XmlElement(name = "name", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
 	public String getName() {
 		return super.getName();
 	}
@@ -116,7 +116,7 @@ public class GoalImpl extends AbstractTextEntity implements Goal {
 		return "Goal: " + getName();
 	}
 
-	@XmlElementWrapper(name = "goalRelations", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "goalRelations", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = GoalRelationImpl.class)
 	@OneToMany(targetEntity = GoalRelationImpl.class, cascade = { CascadeType.REFRESH }, fetch = FetchType.LAZY, mappedBy = "fromGoalInternal")
 	//@JoinColumn(name = "fromGoalInternal_id")
