@@ -67,8 +67,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 @Entity
 @Table(name = "usecases", uniqueConstraints = { @UniqueConstraint(columnNames = {
 		"projectordomain_id", "name" }) })
-@XmlRootElement(name = "usecase", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "usecase", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "usecase", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "usecase", namespace = "http://www.rreganjr.com/requel")
 public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 	static final long serialVersionUID = 0L;
 
@@ -104,7 +104,7 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 	@Override
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
-	@XmlElement(name = "name", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
 	public String getName() {
 		return super.getName();
 	}
@@ -142,7 +142,7 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 	 * @see com.rreganjr.requel.project.UseCase#getPrimaryActor()
 	 */
 	@XmlIDREF
-	@XmlElement(name = "primaryActorRef", type = ActorImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "primaryActorRef", type = ActorImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToOne(targetEntity = ActorImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
 			CascadeType.REFRESH }, optional = false)
 	@Override
@@ -161,9 +161,9 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 	 * @see com.rreganjr.requel.project.GoalContainer#getGoals()
 	 */
 	@Override
-	@XmlElementWrapper(name = "goals", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "goals", namespace = "http://www.rreganjr.com/requel")
 	@XmlIDREF
-	@XmlElement(name = "goalRef", type = GoalImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "goalRef", type = GoalImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToMany(targetEntity = GoalImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@JoinTable(name = "usecase_goals", joinColumns = { @JoinColumn(name = "usecase_id") }, inverseJoinColumns = { @JoinColumn(name = "goal_id") })
@@ -180,9 +180,9 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 	 * @see com.rreganjr.requel.project.ActorContainer#getActors()
 	 */
 	@Override
-	@XmlElementWrapper(name = "actors", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "actors", namespace = "http://www.rreganjr.com/requel")
 	@XmlIDREF
-	@XmlElement(name = "actorRef", type = ActorImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "actorRef", type = ActorImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToMany(targetEntity = ActorImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@JoinTable(name = "usecase_actors", joinColumns = { @JoinColumn(name = "usecase_id") }, inverseJoinColumns = { @JoinColumn(name = "actor_id") })
@@ -199,9 +199,9 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 	 * @see com.rreganjr.requel.project.StoryContainer#getStories()
 	 */
 	@Override
-	@XmlElementWrapper(name = "stories", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "stories", namespace = "http://www.rreganjr.com/requel")
 	@XmlIDREF
-	@XmlElement(name = "storyRef", type = StoryImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "storyRef", type = StoryImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToMany(targetEntity = StoryImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@JoinTable(name = "usecase_stories", joinColumns = { @JoinColumn(name = "usecase_id") }, inverseJoinColumns = { @JoinColumn(name = "story_id") })
@@ -219,7 +219,7 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 	 */
 	@Override
 	@XmlIDREF
-	@XmlElement(name = "scenarioRef", type = ScenarioImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "scenarioRef", type = ScenarioImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToOne(targetEntity = ScenarioImpl.class, cascade = { CascadeType.MERGE,
 			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	public Scenario getScenario() {

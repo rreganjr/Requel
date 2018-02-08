@@ -63,8 +63,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.annotation.Issue")
-@XmlRootElement(name = "issue", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "issue", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "issue", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "issue", namespace = "http://www.rreganjr.com/requel")
 public class IssueImpl extends AbstractAnnotation implements Issue {
 	static final long serialVersionUID = 0L;
 
@@ -121,9 +121,9 @@ public class IssueImpl extends AbstractAnnotation implements Issue {
 	// positions directly because a position may be shared by multiple
 	// issues causing duplicates on import. this makes report generating via
 	// xslt more complicated because of the indirection.
-	@XmlElementWrapper(name = "positions", namespace = "http://www.people.fas.harvard.edu/~rregan/requel", required = false)
+	@XmlElementWrapper(name = "positions", namespace = "http://www.rreganjr.com/requel", required = false)
 	@XmlIDREF
-	@XmlElement(name = "positionRef", type = PositionImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "positionRef", type = PositionImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToMany(targetEntity = PositionImpl.class, mappedBy = "issues", cascade = {
 			CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	//@JoinTable(name = "position_issue", joinColumns = { @JoinColumn(name = "issue_id") }, inverseJoinColumns = { @JoinColumn(name = "position_id") })

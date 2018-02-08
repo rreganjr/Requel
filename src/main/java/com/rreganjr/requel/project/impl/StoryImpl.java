@@ -73,8 +73,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 @Entity
 @Table(name = "stories", uniqueConstraints = { @UniqueConstraint(columnNames = {
 		"projectordomain_id", "name" }) })
-@XmlRootElement(name = "story", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "story", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "story", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "story", namespace = "http://www.rreganjr.com/requel")
 public class StoryImpl extends AbstractTextEntity implements Story {
 	static final long serialVersionUID = 0;
 
@@ -106,7 +106,7 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 	@Override
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
-	@XmlElement(name = "name", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
 	public String getName() {
 		return super.getName();
 	}
@@ -167,9 +167,9 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 	 * @see com.rreganjr.requel.project.GoalContainer#getGoals()
 	 */
 	@Override
-	@XmlElementWrapper(name = "goals", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "goals", namespace = "http://www.rreganjr.com/requel")
 	@XmlIDREF
-	@XmlElement(name = "goalRef", type = GoalImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "goalRef", type = GoalImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToMany(targetEntity = GoalImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@JoinTable(name = "story_goals", joinColumns = { @JoinColumn(name = "story_id") }, inverseJoinColumns = { @JoinColumn(name = "goal_id") })
@@ -182,9 +182,9 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 		this.goals = goals;
 	}
 
-	@XmlElementWrapper(name = "actors", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "actors", namespace = "http://www.rreganjr.com/requel")
 	@XmlIDREF
-	@XmlElement(name = "actorRef", type = ActorImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "actorRef", type = ActorImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToMany(targetEntity = ActorImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@JoinTable(name = "story_actors", joinColumns = { @JoinColumn(name = "story_id") }, inverseJoinColumns = { @JoinColumn(name = "actor_id") })

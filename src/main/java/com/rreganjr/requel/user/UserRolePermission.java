@@ -42,8 +42,8 @@ import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 @Entity
 @Table(name = "user_role_permissions", uniqueConstraints = { @UniqueConstraint(columnNames = {
 		"name", "role_type" }) })
-@XmlRootElement(name = "userPermission", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "userPermission", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "userPermission", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "userPermission", namespace = "http://www.rreganjr.com/requel")
 public class UserRolePermission implements Comparable<UserRolePermission>, Serializable {
 	static final long serialVersionUID = 0L;
 

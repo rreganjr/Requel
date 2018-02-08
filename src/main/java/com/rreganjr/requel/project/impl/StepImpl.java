@@ -72,8 +72,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "type", discriminatorType = DiscriminatorType.STRING, length = 255)
 @DiscriminatorValue(value = "com.rreganjr.requel.project.Step")
-@XmlRootElement(name = "step", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "step", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "step", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "step", namespace = "http://www.rreganjr.com/requel")
 public class StepImpl extends AbstractTextEntity implements Step {
 	static final long serialVersionUID = 0L;
 
@@ -107,7 +107,7 @@ public class StepImpl extends AbstractTextEntity implements Step {
 	@Override
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
-	@XmlElement(name = "name", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
 	public String getName() {
 		return super.getName();
 	}

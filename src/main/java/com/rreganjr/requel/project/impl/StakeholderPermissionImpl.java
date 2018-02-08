@@ -57,8 +57,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 @Entity
 @Table(name = "stakeholder_permissions", uniqueConstraints = { @UniqueConstraint(columnNames = {
 		"entity_type", "permission_type" }) })
-@XmlRootElement(name = "projectPermission", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "projectPermission", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "projectPermission", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "projectPermission", namespace = "http://www.rreganjr.com/requel")
 public class StakeholderPermissionImpl implements StakeholderPermission {
 
 	private Long id;

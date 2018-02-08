@@ -35,8 +35,8 @@ import com.rreganjr.requel.user.User;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.annotation.impl.LexicalIssue")
-@XmlRootElement(name = "lexicalIssue", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "lexicalIssue", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "lexicalIssue", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "lexicalIssue", namespace = "http://www.rreganjr.com/requel")
 public class LexicalIssue extends IssueImpl {
 	static final long serialVersionUID = 0L;
 

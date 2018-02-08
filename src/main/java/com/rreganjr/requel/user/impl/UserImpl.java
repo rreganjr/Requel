@@ -74,9 +74,9 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
  */
 @Entity
 @Table(name = "users")
-@XmlRootElement(name = "user", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "user", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "user", propOrder = { "username", "hashedPassword", "name", "emailAddress",
-		"phoneNumber", "organization", "userRoles", "editable" }, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+		"phoneNumber", "organization", "userRoles", "editable" }, namespace = "http://www.rreganjr.com/requel")
 public class UserImpl implements User, Serializable {
 	static final long serialVersionUID = 0L;
 
@@ -167,7 +167,7 @@ public class UserImpl implements User, Serializable {
 		this.version = version;
 	}
 
-	@XmlElement(name = "name", defaultValue = "", required = true, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "name", defaultValue = "", required = true, namespace = "http://www.rreganjr.com/requel")
 	public String getName() {
 		return name;
 	}
@@ -178,7 +178,7 @@ public class UserImpl implements User, Serializable {
 
 	@Column(unique = true, nullable = false)
 	@NotEmpty(message = "username is required.")
-	@XmlElement(name = "username", required = true, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "username", required = true, namespace = "http://www.rreganjr.com/requel")
 	public String getUsername() {
 		return username;
 	}
@@ -242,7 +242,7 @@ public class UserImpl implements User, Serializable {
 
 	@Column(nullable = false)
 	@NotEmpty(message = "password is required and both fields must match.")
-	@XmlElement(name = "password", required = true, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "password", required = true, namespace = "http://www.rreganjr.com/requel")
 	protected String getHashedPassword() {
 		return hashedPassword;
 	}
@@ -254,7 +254,7 @@ public class UserImpl implements User, Serializable {
 	@Column(nullable = false)
 	@Email
 	@NotEmpty(message = "email address is required.")
-	@XmlElement(name = "emailAddress", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "emailAddress", namespace = "http://www.rreganjr.com/requel")
 	public String getEmailAddress() {
 		return emailAddress;
 	}
@@ -264,7 +264,7 @@ public class UserImpl implements User, Serializable {
 	}
 
 	@Pattern(regex = "^((?:\\([2-9]\\d{2}\\)\\ ?|[2-9]\\d{2}(?:\\-?|\\ ?))[2-9]\\d{2}[- ]?\\d{4})?$", message = "must be a valid 10 digit phone number or empty.")
-	@XmlElement(name = "phoneNumber", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "phoneNumber", namespace = "http://www.rreganjr.com/requel")
 	public String getPhoneNumber() {
 		return phoneNumber;
 	}
@@ -273,7 +273,7 @@ public class UserImpl implements User, Serializable {
 		this.phoneNumber = phoneNumber;
 	}
 
-	@XmlElementRef(type = OrganizationImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementRef(type = OrganizationImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToOne(targetEntity = OrganizationImpl.class, cascade = { CascadeType.MERGE,
 			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.EAGER, optional = false)
 	public Organization getOrganization() {
@@ -284,7 +284,7 @@ public class UserImpl implements User, Serializable {
 		this.organization = organization;
 	}
 
-	@XmlElement(name = "editable", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "editable", namespace = "http://www.rreganjr.com/requel")
 	public boolean isEditable() {
 		return editable;
 	}
@@ -293,7 +293,7 @@ public class UserImpl implements User, Serializable {
 		this.editable = editable;
 	}
 
-	@XmlElementWrapper(name = "userRoles", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "userRoles", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = AbstractUserRole.class)
 	@OneToMany(targetEntity = AbstractUserRole.class, cascade = { CascadeType.MERGE,
 			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.EAGER)

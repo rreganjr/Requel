@@ -55,7 +55,7 @@ import com.rreganjr.requel.user.impl.UserImpl;
 		"projectordomain_id", "name", "user_id" }) })
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "stakeholder_type", discriminatorType = DiscriminatorType.STRING, length = 255)
-@XmlType(namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlType(namespace = "http://www.rreganjr.com/requel")
 public abstract class AbstractStakeholder extends AbstractProjectOrDomainEntity implements
 		Stakeholder {
 	static final long serialVersionUID = 0L;
@@ -105,9 +105,9 @@ public abstract class AbstractStakeholder extends AbstractProjectOrDomainEntity 
 	@Override
 	@OneToMany(targetEntity = GoalImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
-	@XmlElementWrapper(name = "goals", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "goals", namespace = "http://www.rreganjr.com/requel")
 	@XmlIDREF
-	@XmlElement(name = "goalRef", type = GoalImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "goalRef", type = GoalImpl.class, namespace = "http://www.rreganjr.com/requel")
 	public Set<Goal> getGoals() {
 		return goals;
 	}

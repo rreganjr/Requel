@@ -37,8 +37,8 @@ import com.rreganjr.requel.user.User;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.annotation.impl.ChangeSpellingPosition")
-@XmlRootElement(name = "changeSpellingPosition", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "changeSpellingPosition", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "changeSpellingPosition", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "changeSpellingPosition", namespace = "http://www.rreganjr.com/requel")
 public class ChangeSpellingPosition extends PositionImpl {
 	static final long serialVersionUID = 0L;
 

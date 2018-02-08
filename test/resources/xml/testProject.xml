@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <ns2:project id="POD_1"
-	xmlns:ns2="http://www.people.fas.harvard.edu/~rregan/requel"
+	xmlns:ns2="http://www.rreganjr.com/requel"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-	xsi:schemaLocation="http://www.people.fas.harvard.edu/~rregan/requel project.xsd">
+	xsi:schemaLocation="http://www.rreganjr.com/requel project.xsd">
 
     <ns2:goals>
         <ns2:goal id="GOAL_1">

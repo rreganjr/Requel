@@ -72,8 +72,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.project.UserStakeholder")
-@XmlRootElement(name = "user-stakeholder", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "user-stakeholder", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "user-stakeholder", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "user-stakeholder", namespace = "http://www.rreganjr.com/requel")
 public class UserStakeholderImpl extends AbstractStakeholder implements UserStakeholder {
 	static final long serialVersionUID = 0L;
 
@@ -125,7 +125,7 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 		return "Stakeholder: " + getUser().getDescriptiveName();
 	}
 
-	@XmlElement(name = "user", type = UserImpl.class, nillable = false, required = true, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "user", type = UserImpl.class, nillable = false, required = true, namespace = "http://www.rreganjr.com/requel")
 	@Transient
 	public User getUser() {
 		return super.getUser();
@@ -169,7 +169,7 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 		this.team = team;
 	}
 
-	@XmlElementWrapper(name = "projectPermissions", namespace = "http://www.people.fas.harvard.edu/~rregan/requel", required = false)
+	@XmlElementWrapper(name = "projectPermissions", namespace = "http://www.rreganjr.com/requel", required = false)
 	@XmlElementRef(type = StakeholderPermissionImpl.class)
 	@ManyToMany(targetEntity = StakeholderPermissionImpl.class, cascade = { CascadeType.MERGE,
 			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.LAZY)

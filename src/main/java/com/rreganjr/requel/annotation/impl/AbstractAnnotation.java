@@ -92,7 +92,7 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 @Table(name = "annotations")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "annotation_type", discriminatorType = DiscriminatorType.STRING, length = 255)
-@XmlType(namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlType(namespace = "http://www.rreganjr.com/requel")
 public abstract class AbstractAnnotation implements Annotation, Serializable {
 	static final long serialVersionUID = 0L;
 
@@ -208,7 +208,7 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	}
 
 	@Lob
-	@XmlElement(name = "text", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
 	public String getText() {
 		return text;
 	}

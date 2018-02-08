@@ -62,8 +62,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 @Entity
 @Table(name = "teams", uniqueConstraints = { @UniqueConstraint(columnNames = {
 		"projectordomain_id", "name" }) })
-@XmlRootElement(name = "team", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "team", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "team", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "team", namespace = "http://www.rreganjr.com/requel")
 public class ProjectTeamImpl extends AbstractProjectOrDomainEntity implements ProjectTeam {
 	static final long serialVersionUID = 0L;
 
@@ -86,7 +86,7 @@ public class ProjectTeamImpl extends AbstractProjectOrDomainEntity implements Pr
 	@Override
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
-	@XmlElement(name = "name", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
 	public String getName() {
 		return super.getName();
 	}
@@ -110,9 +110,9 @@ public class ProjectTeamImpl extends AbstractProjectOrDomainEntity implements Pr
 		return "Team: " + getName();
 	}
 
-	@XmlElementWrapper(name = "members", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "members", namespace = "http://www.rreganjr.com/requel")
 	@XmlIDREF
-	@XmlElement(name = "stakeholderRef", type = UserStakeholderImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "stakeholderRef", type = UserStakeholderImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToMany(targetEntity = AbstractStakeholder.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@JoinTable(name = "team_stakeholders", joinColumns = { @JoinColumn(name = "team_id") }, inverseJoinColumns = { @JoinColumn(name = "stakeholder_id") })

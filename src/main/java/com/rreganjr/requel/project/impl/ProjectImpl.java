@@ -67,8 +67,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.project.impl.ProjectImpl")
-@XmlRootElement(name = "project", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "project", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "project", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "project", namespace = "http://www.rreganjr.com/requel")
 public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 	static final long serialVersionUID = 0L;
 
@@ -108,7 +108,7 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 		this.organization = organization;
 	}
 
-	@XmlElement(name = "status", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "status", namespace = "http://www.rreganjr.com/requel")
 	public String getStatus() {
 		return status;
 	}
@@ -124,7 +124,7 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 	 * 
 	 * @return all the annotations of all project entities in a single set.
 	 */
-	@XmlElementWrapper(name = "annotations", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "annotations", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = AbstractAnnotation.class)
 	@Transient
 	public Set<Annotation> getAllProjectEntityAnnotations() {
@@ -143,7 +143,7 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 	 * 
 	 * @return all the annotations of all project entities in a single set.
 	 */
-	@XmlElementWrapper(name = "positions", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "positions", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = PositionImpl.class)
 	@Transient
 	public Set<Position> getAllProjectEntityIssuePositions() {
@@ -157,14 +157,14 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 		return positions;
 	}
 
-	@XmlElementWrapper(name = "annotations", namespace = "http://www.people.fas.harvard.edu/~rregan/requel", required = false)
+	@XmlElementWrapper(name = "annotations", namespace = "http://www.rreganjr.com/requel", required = false)
 	// changed xml mapping to output references to annotations instead of the
 	// annotations directly because
 	// an annotation may be shared by multiple entities causing duplicates on
 	// import. this makes report
 	// generating via xslt more complicated because of the indirection.
 	@XmlIDREF
-	@XmlElement(name = "annotationRef", type = AbstractAnnotation.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "annotationRef", type = AbstractAnnotation.class, namespace = "http://www.rreganjr.com/requel")
 	// @XmlElementRef(type = AbstractAnnotation.class)
 	@ManyToMany(targetEntity = AbstractAnnotation.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)

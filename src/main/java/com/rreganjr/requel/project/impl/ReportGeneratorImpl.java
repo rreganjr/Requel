@@ -46,8 +46,8 @@ import com.rreganjr.requel.user.User;
 @Entity
 @Table(name = "reports", uniqueConstraints = { @UniqueConstraint(columnNames = {
 		"projectordomain_id", "name" }) })
-@XmlRootElement(name = "report", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "report", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "report", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "report", namespace = "http://www.rreganjr.com/requel")
 public class ReportGeneratorImpl extends AbstractTextEntity implements ReportGenerator {
 	static final long serialVersionUID = 0L;
 
@@ -70,7 +70,7 @@ public class ReportGeneratorImpl extends AbstractTextEntity implements ReportGen
 	@Override
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
-	@XmlElement(name = "name", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
 	public String getName() {
 		return super.getName();
 	}

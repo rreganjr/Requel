@@ -62,8 +62,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
  */
 @Entity
 @Table(name = "arguments")
-@XmlRootElement(name = "argument", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "argument", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "argument", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "argument", namespace = "http://www.rreganjr.com/requel")
 public class ArgumentImpl implements Argument, Serializable {
 	static final long serialVersionUID = 0L;
 
@@ -129,7 +129,7 @@ public class ArgumentImpl implements Argument, Serializable {
 		this.position = position;
 	}
 
-	@XmlElement(name = "text", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
 	public String getText() {
 		return text;
 	}

@@ -35,8 +35,8 @@ import javax.xml.bind.annotation.XmlType;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.user.SystemAdminUserRole")
-@XmlRootElement(name = "systemAdminUserRole", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "systemAdminUserRole", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "systemAdminUserRole", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "systemAdminUserRole", namespace = "http://www.rreganjr.com/requel")
 public class SystemAdminUserRole extends AbstractUserRole {
 	static final long serialVersionUID = 0L;
 

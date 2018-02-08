@@ -65,8 +65,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 @Entity
 @Table(name = "actors", uniqueConstraints = { @UniqueConstraint(columnNames = {
 		"projectordomain_id", "name" }) })
-@XmlRootElement(name = "actor", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "actor", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "actor", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "actor", namespace = "http://www.rreganjr.com/requel")
 public class ActorImpl extends AbstractTextEntity implements Actor {
 	static final long serialVersionUID = 0L;
 
@@ -91,7 +91,7 @@ public class ActorImpl extends AbstractTextEntity implements Actor {
 	@Override
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
-	@XmlElement(name = "name", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
 	public String getName() {
 		return super.getName();
 	}
@@ -134,9 +134,9 @@ public class ActorImpl extends AbstractTextEntity implements Actor {
 	}
 
 	@Override
-	@XmlElementWrapper(name = "goals", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElementWrapper(name = "goals", namespace = "http://www.rreganjr.com/requel")
 	@XmlIDREF
-	@XmlElement(name = "goalRef", type = GoalImpl.class, namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+	@XmlElement(name = "goalRef", type = GoalImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToMany(targetEntity = GoalImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@JoinTable(name = "actor_goals", joinColumns = { @JoinColumn(name = "actor_id") }, inverseJoinColumns = { @JoinColumn(name = "goal_id") })
 	@SortNatural

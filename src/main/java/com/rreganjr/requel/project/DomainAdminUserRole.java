@@ -32,8 +32,8 @@ import com.rreganjr.requel.user.AbstractUserRole;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.project.DomainAdminUserRole")
-@XmlRootElement(name = "domainAdminUserRole", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "domainAdminUserRole", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "domainAdminUserRole", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "domainAdminUserRole", namespace = "http://www.rreganjr.com/requel")
 public class DomainAdminUserRole extends AbstractUserRole {
 	static final long serialVersionUID = 0L;
 

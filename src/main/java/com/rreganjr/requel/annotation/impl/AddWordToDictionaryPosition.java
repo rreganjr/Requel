@@ -35,8 +35,8 @@ import com.rreganjr.requel.user.User;
  */
 @Entity
 @DiscriminatorValue(value = "com.rreganjr.requel.annotation.impl.AddWordToDictionaryPosition")
-@XmlRootElement(name = "addWordToDictionaryPosition", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
-@XmlType(name = "addWordToDictionaryPosition", namespace = "http://www.people.fas.harvard.edu/~rregan/requel")
+@XmlRootElement(name = "addWordToDictionaryPosition", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "addWordToDictionaryPosition", namespace = "http://www.rreganjr.com/requel")
 public class AddWordToDictionaryPosition extends PositionImpl {
 	static final long serialVersionUID = 0L;
 
