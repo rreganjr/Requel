@@ -324,7 +324,7 @@ public class UserImpl implements User, Serializable {
 		return (password != null) && (password.trim().length() > 0) && password.length() <= MAX_PASSWORD_LENGTH;
 	}
 
-	@Column(nullable = false)
+	@Column(name="hashed_password", nullable = false)
 	@NotEmpty(message = "password is required and both fields must match.")
 	@XmlElement(name = "password", required = true, namespace = "http://www.rreganjr.com/requel")
 	private String getEncryptedPassword() {
