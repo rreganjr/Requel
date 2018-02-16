@@ -39,9 +39,7 @@ public class ApplicationException extends RuntimeException {
 	protected static String MSG_NO_RESOURCE_BUNDLE = "No resource bundle was supplied.";
 
 	/**
-	 * @param name -
-	 *            the name used to find a project that doesn't exist
-	 * @return
+	 * @return ApplicationException with message {@link #MSG_NOT_IMPLEMENTED}
 	 */
 	public static ApplicationException notImplemented() {
 		return new ApplicationException(MSG_NOT_IMPLEMENTED);
@@ -158,5 +156,15 @@ public class ApplicationException extends RuntimeException {
 		} else {
 			return o.toString();
 		}
-	}	
+	}
+
+	@Override
+	public int hashCode() {
+		return toString().hashCode();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return this == obj || (getClass().equals(obj.getClass()) && this.toString().equals(obj.toString()));
+	}
 }

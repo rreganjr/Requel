@@ -4,9 +4,15 @@
  */
 package com.rreganjr;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
+import com.rreganjr.requel.user.impl.UserImpl;
 import junit.framework.AssertionFailedError;
 
 /**
@@ -286,7 +292,7 @@ public class TestCase extends junit.framework.TestCase {
 	/**
 	 * Test that the supplied map contains the supplied key
 	 * 
-	 * @param object
+	 * @param key
 	 * @param map
 	 * @throws AssertionFailedError
 	 */
@@ -298,5 +304,52 @@ public class TestCase extends junit.framework.TestCase {
 			throw new AssertionFailedError("The supplied map does not contain the expected key "
 					+ key);
 		}
+	}
+
+	public static class ParamTypeAndValue {
+		private final Class<?> type;
+		private final Object value;
+
+		public <T> ParamTypeAndValue(Class<T> type, T value) {
+			this.type = type;
+			this.value = value;
+		}
+
+		public Class<?> getType() {
+			return type;
+		}
+
+		public Object getValue() {
+			return value;
+		}
+	}
+
+	/**
+	 * Allows calling a private method specifying the type and parameter for each argument. This is needed if the
+	 * value being set is null or a narrower type to the argument, for example supplying a String for an Object
+	 * parameter.
+	 *
+	 * @param onObject
+	 * @param methodName
+	 * @param parameters
+	 * @return
+	 * @throws Exception
+	 */
+	public static Object callPrivateMethod(Object onObject, String methodName, ParamTypeAndValue... parameters) throws Exception {
+		Method method = onObject.getClass().getDeclaredMethod(methodName, (parameters!=null?Arrays.stream(parameters).map(ParamTypeAndValue::getType).toArray(size ->new Class[size]): null));
+		method.setAccessible(true);
+		return method.invoke(onObject, (parameters!=null?Arrays.stream(parameters).map(ParamTypeAndValue::getValue).toArray(size ->new Object[size]): null));
+	}
+
+	public static Object callPrivateMethod(Object onObject, String methodName, Object... parameters) throws Exception {
+		Method method = onObject.getClass().getDeclaredMethod(methodName, (parameters!=null?Arrays.stream(parameters).map(o -> {return (o!=null?o.getClass():null);}).toArray(size ->new Class[size]): null));
+		method.setAccessible(true);
+		return method.invoke(onObject, parameters);
+	}
+
+	public static <T> T getPrivateFieldValue(Object onObject, String fieldName, Class<T> fieldType) throws Exception {
+		Field field = onObject.getClass().getDeclaredField(fieldName);
+		field.setAccessible(true);
+		return fieldType.cast(field.get(onObject));
 	}
 }

@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel;
 
+import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.exception.NoSuchUserException;
 import org.hibernate.validator.InvalidStateException;
 import org.hibernate.validator.InvalidValue;
 
@@ -34,6 +36,12 @@ public class EntityValidationException extends EntityException {
 
 	protected static String MSG_VALIDATION_FAILED = "validation failed: %s";
 	protected static String MSG_EMPTY_VALUE = "%s cannot be empty.";
+	protected static String MSG_PASSWORD_AND_REPASSWORD_DONT_MATCH = "The password fields don't match.";
+
+
+	public static EntityValidationException passwordAndRePasswordDontMatch(Class<?> entityType) {
+		return validationFailed(entityType, "password", MSG_PASSWORD_AND_REPASSWORD_DONT_MATCH);
+	}
 
 	/**
 	 * Create an EntityException for an empty property that is required.

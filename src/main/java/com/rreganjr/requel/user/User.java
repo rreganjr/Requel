@@ -23,8 +23,7 @@ package com.rreganjr.requel.user;
 import java.util.Comparator;
 import java.util.Set;
 
-import javax.xml.bind.ValidationException;
-
+import com.rreganjr.requel.EntityValidationException;
 import com.rreganjr.requel.OrganizedEntity;
 import com.rreganjr.requel.user.exception.NoSuchRoleForUserException;
 
@@ -82,11 +81,11 @@ public interface User extends Comparable<User>, OrganizedEntity {
 	 * 
 	 * @param password -
 	 *            the user's new password as plain text.
-	 * @throws ValidationException
+	 * @throws EntityValidationException
 	 *             if the supplied string doesn't meet the password criteria
 	 *             TODO: what is the password criteria?
 	 */
-	public void resetPassword(String password);
+	public void resetPassword(String password) throws EntityValidationException;
 
 	/**
 	 * Return true if the supplied plain text password matches the user's
@@ -113,8 +112,6 @@ public interface User extends Comparable<User>, OrganizedEntity {
 	 * 
 	 * @param emailAddress -
 	 *            the email address to assign
-	 * @throws ValidationException
-	 *             if the emailAddress is ill-formed
 	 */
 	public void setEmailAddress(String emailAddress);
 
@@ -132,20 +129,18 @@ public interface User extends Comparable<User>, OrganizedEntity {
 	 * 
 	 * @param phoneNumber -
 	 *            the phone number to assign
-	 * @throws ValidationException
-	 *             if the phone number is ill-formed
 	 */
 	public void setPhoneNumber(String phoneNumber);
 
-	/**
-	 * The system administrator can create accounts intended to be shared by
-	 * multiple users conceivably for reading the projects status. The
-	 * administrator can lock these accounts so they can not be edited by the
-	 * user.
-	 * 
-	 * @return true if the account is editable by the user, false if the account
-	 *         can only be edited by the administrator
-	 */
+		/**
+         * The system administrator can create accounts intended to be shared by
+         * multiple users conceivably for reading the projects status. The
+         * administrator can lock these accounts so they can not be edited by the
+         * user.
+         *
+         * @return true if the account is editable by the user, false if the account
+         *         can only be edited by the administrator
+         */
 	public boolean isEditable();
 
 	/**

@@ -41,13 +41,6 @@
                     <target>1.8</target>
                 </configuration>
             </plugin>
-<!-- for after move to git
-            <plugin>
-                <groupId>pl.project13.maven</groupId>
-                <artifactId>git-commit-id-plugin</artifactId>
-                <version>2.2.4</version>
-            </plugin>
--->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -319,6 +312,5 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
         </dependency>
-
     </dependencies>
 </project>

@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -86,23 +87,33 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 
 	protected void validate() {
 		if ((getPassword() != null) && !getPassword().equals(getRepassword())) {
-			throw EntityValidationException.validationFailed(User.class, "password",
-					"The password fields don't match.");
+			throw EntityValidationException.passwordAndRePasswordDontMatch(User.class);
 		}
 	}
 
 	private UserImpl createUser() {
-		Organization organization = getOrCreateOrganization(getOrganizationName());
-		UserImpl userImpl = new UserImpl(getUsername(), getPassword(), getRepassword(), getName(),
-				getEmailAddress(), getPhoneNumber(), organization, getEditable());
-		updateRoles(userImpl);
-		return getUserRepository().persist(userImpl);
+		// TODO: probably shouldn't be creating a user with a password, or should be required to change it on first login
+		if (getPassword().equals(getRepassword())) {
+			Organization organization = getOrCreateOrganization(getOrganizationName());
+			UserImpl userImpl = new UserImpl(getUsername(), getPassword(),
+					getName(), getEmailAddress(), getPhoneNumber(), organization, getEditable());
+			updateRoles(userImpl);
+			return getUserRepository().persist(userImpl);
+		} else {
+			throw EntityValidationException.passwordAndRePasswordDontMatch(User.class);
+		}
 	}
 
 	private UserImpl updateUser(UserImpl userImpl) {
 		Organization organization = getOrCreateOrganization(getOrganizationName());
 		userImpl.setName(getName());
-		userImpl.resetPassword(getPassword(), getRepassword());
+		if (!StringUtils.isEmpty(getPassword())) {
+			if (getPassword().equals(getRepassword())) {
+				userImpl.resetPassword(getPassword());
+			} else {
+				throw EntityValidationException.passwordAndRePasswordDontMatch(User.class);
+			}
+		}
 		userImpl.setEmailAddress(getEmailAddress());
 		userImpl.setPhoneNumber(getPhoneNumber());
 		userImpl.setOrganization(organization);
@@ -127,10 +138,8 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 			if (getUserRoleNames().contains(userRoleType.getSimpleName())) {
 				userImpl.grantRole(userRoleType);
 				AbstractUserRole role = (AbstractUserRole) userImpl.getRoleForType(userRoleType);
-				for (UserRolePermission permission : getUserRepository().findUserRolePermissions(
-						userRoleType)) {
-					Set<String> permissionNames = getUserRolePermissionNames().get(
-							role.getRoleName());
+				for (UserRolePermission permission : getUserRepository().findUserRolePermissions(userRoleType)) {
+					Set<String> permissionNames = getUserRolePermissionNames().get(role.getRoleName());
 					if (permissionNames != null) {
 						if (permissionNames.contains(permission.getName())) {
 							role.grantUserRolePermission(permission);

@@ -96,8 +96,6 @@ public class ProjectOrDomainEntityAssistant extends AbstractAssistant {
 	 * UpdatedEntityNotifier that the entity has been updated.<br>
 	 * NOTE: sub classes should call super.analyze() and not analyzeName()
 	 * directly so that the UpdatedEntityNotifier is called.
-	 * 
-	 * @param entity
 	 */
 	public void analyze() {
 		// remove any lexical annotations that apply to all the properties
