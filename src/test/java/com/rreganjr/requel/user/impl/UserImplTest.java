@@ -341,5 +341,6 @@ public class UserImplTest extends TestCase {
         UserImpl.IdAdapter idAdapter = new UserImpl.IdAdapter();
         assertEquals("", idAdapter.marshal(null));
         assertTrue(idAdapter.marshal(1234L).contains("1234"));
+        assertNull("unmarshal always returns null for id, the id in the XML file is only relevant in the file", idAdapter.unmarshal("USR_100"));
     }
 }
