@@ -20,12 +20,10 @@ services:
     networks:
       - requel-net
     environment:
-      - "JAVA_OPTS= -Xmx2g -XX:MaxPermSize=512m"
-      - 'SPRING_APPLICATION_JSON={spring: {datasource: { \
-        url: "jdbc:mysql://requeldb:3306/requeldb?createDatabaseIfNotExist=true", \
-        username: "root", \
-        password: "pa33w0rd" \
-      }}}'
+      - "_JAVA_OPTIONS=-Xms1g -Xmx1g -XX:MaxMetaspaceSize=512m -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled"
+      - "SPRING_DATASOURCE_URL=jdbc:mysql://requeldb:3306/requeldb?createDatabaseIfNotExist=true"
+      - "SPRING_DATASOURCE_USERNAME=root"
+      - "SPRING_DATASOURCE_PASSWORD=pa33w0rd"
 
 networks:
   requel-net:
