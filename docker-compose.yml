@@ -20,7 +20,7 @@ services:
     networks:
       - requel-net
     environment:
-      - "_JAVA_OPTIONS=-Xms1g -Xmx1g -XX:MaxMetaspaceSize=512m -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled"
+      - "_JAVA_OPTIONS=-Xms2g -Xmx2g -XX:MaxMetaspaceSize=512m -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled"
       - "SPRING_DATASOURCE_URL=jdbc:mysql://requeldb:3306/requeldb?createDatabaseIfNotExist=true"
       - "SPRING_DATASOURCE_USERNAME=root"
       - "SPRING_DATASOURCE_PASSWORD=pa33w0rd"
