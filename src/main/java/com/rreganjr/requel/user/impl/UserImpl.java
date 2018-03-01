@@ -75,7 +75,7 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 @Entity
 @Table(name = "users")
 @XmlRootElement(name = "user", namespace = "http://www.rreganjr.com/requel")
-@XmlType(name = "user", propOrder = { "username", "encryptedPassword", "passwordSalt", "passwordEncryptingAlgorithmName", "name", "emailAddress",
+@XmlType(name = "user", propOrder = { "username", "encryptedPassword", "passwordSalt", "passwordEncryptingAlgorithmName", "passwordEncryptingIterations", "name", "emailAddress",
 		"phoneNumber", "organization", "userRoles", "editable" }, namespace = "http://www.rreganjr.com/requel")
 public class UserImpl implements User, Serializable {
 	static final long serialVersionUID = 0L;

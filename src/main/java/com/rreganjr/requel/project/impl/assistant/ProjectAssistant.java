@@ -63,10 +63,12 @@ public class ProjectAssistant {
 	 */
 	public void analyze(Project project) {
 		log.debug("analyzing Project: " + project);
-		analyzeGoals(project.getGoals());
-		analyzeStories(project.getStories());
-		analyzeActors(project.getActors());
-		analyzeUseCases(project.getUseCases());
+		if (project != null) {
+			analyzeGoals(project.getGoals());
+			analyzeStories(project.getStories());
+			analyzeActors(project.getActors());
+			analyzeUseCases(project.getUseCases());
+		}
 	}
 
 	private void analyzeGoals(Collection<Goal> entities) {
