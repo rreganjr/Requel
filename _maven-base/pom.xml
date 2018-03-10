@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>1.5.4.RELEASE</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+
+    <groupId>com.rreganjr.requel</groupId>
+    <artifactId>maven-base</artifactId>
+    <version>1.0.3</version>
+    <packaging>pom</packaging>
+
+    <name>Requel Maven Base Dependencies</name>
+    <description>
+        This defines all the third party dependencies so that all the modules use the same library versions.
+        I copied the third party properties and dependencies from
+        https://github.com/spring-projects/spring-boot/blob/master/spring-boot-dependencies/pom.xml
+    </description>
+    <url>https://github.com/rreganjr/Requel</url>
+    <!-- <url>https://sourceforge.net/projects/requel/</url> -->
+    <licenses>
+        <license>
+            <name>GNU General Public License version 3.0 (GPLv3)</name>
+            <url>https://www.gnu.org/licenses/gpl-3.0.en.html</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>rreganjr</id>
+            <name>Ron Regan</name>
+            <url>https://github.com/rreganjr</url>
+            <email>rreganjr@users.sourceforge.net</email>
+            <roles>
+                <role>Project Lead</role>
+                <role>author</role>
+            </roles>
+            <timezone>America/New_York</timezone>
+        </developer>
+    </developers>
+
+    <properties>
+        <java.version>1.8</java.version>
+        <commons-beanutils.version>1.9.3</commons-beanutils.version>
+        <commons-io.version>2.5</commons-io.version>
+        <commons-logging.version>1.2</commons-logging.version>
+        <commons-codec.version>1.10</commons-codec.version>
+        <commons-compress.version>1.14</commons-compress.version>
+        <docker.image.prefix>rreganjr</docker.image.prefix>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>spring-snapshots</id>
+            <url>http://repo.spring.io/snapshot</url>
+            <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+        <repository>
+            <id>spring-milestones</id>
+            <url>http://repo.spring.io/milestone</url>
+        </repository>
+        <repository>
+            <id>clojars.org</id>
+            <url>http://clojars.org/repo/</url>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>spring-snapshots</id>
+            <url>http://repo.spring.io/snapshot</url>
+        </pluginRepository>
+        <pluginRepository>
+            <id>spring-milestones</id>
+            <url>http://repo.spring.io/milestone</url>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <modules>
+        <module>..</module>
+    </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- https://mvnrepository.com/artifact/cglib/cglib-nodep -->
+            <dependency>
+                <groupId>cglib</groupId>
+                <artifactId>cglib-nodep</artifactId>
+                <version>3.2.5</version>
+            </dependency>
+
+            <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-compress -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>1.15</version>
+            </dependency>
+
+            <!-- RELATED TO ECHO 2 -->
+            <!-- TODO: I made a couple of changes to the Echo2 code to fix a mime-type issue and old DND.js in extras -->
+            <!-- TODO: both changes were "pull-requested" on github. all versions ending in a are local and loaded in -->
+            <!-- TODO: the script install-lib-mvn.sh -->
+            <!-- https://mvnrepository.com/artifact/com.nextapp/echo2-app -->
+            <dependency>
+                <groupId>com.nextapp</groupId>
+                <artifactId>echo2-app</artifactId>
+                <version>2.1.1a</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/com.nextapp/echo2-webcontainer -->
+            <dependency>
+                <groupId>com.nextapp</groupId>
+                <artifactId>echo2-webcontainer</artifactId>
+                <version>2.1.1a</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/com.nextapp/echo2-webrender -->
+            <dependency>
+                <groupId>com.nextapp</groupId>
+                <artifactId>echo2-webrender</artifactId>
+                <version>2.1.1a</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/com.nextapp/echo2extras-app -->
+            <dependency>
+                <groupId>com.nextapp</groupId>
+                <artifactId>echo2extras-app</artifactId>
+                <version>2.1.0a</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/com.nextapp/echo2extras-webcontainer -->
+            <!-- this uses the local lib jar file, it has a fix in the DND.js file I made a long time ago -->
+            <dependency>
+                <groupId>com.nextapp</groupId>
+                <artifactId>echo2extras-webcontainer</artifactId>
+                <version>2.1.0a</version>
+            </dependency>
+            <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
+            <dependency>
+                <groupId>com.nextapp</groupId>
+                <artifactId>echo2-filetransfer-app</artifactId>
+                <version>2.1.1</version>
+            </dependency>
+            <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
+            <dependency>
+                <groupId>com.nextapp</groupId>
+                <artifactId>echo2-filetransfer-webcontainer</artifactId>
+                <version>2.1.1</version>
+            </dependency>
+            <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
+            <dependency>
+                <groupId>com.rreganjr.echopm</groupId>
+                <artifactId>echopm</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+            <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
+            <dependency>
+                <groupId>echopointng</groupId>
+                <artifactId>echopointng</artifactId>
+                <version>1.0.0</version>
+            </dependency>
+
+            <!-- https://mvnrepository.com/artifact/commons-fileupload/commons-fileupload -->
+            <dependency>
+                <groupId>commons-fileupload</groupId>
+                <artifactId>commons-fileupload</artifactId>
+                <version>1.2.1</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>1.4</version>
+            </dependency>
+
+            <!-- JAXB -->
+            <!-- https://mvnrepository.com/artifact/javax.xml.bind/jaxb-api -->
+            <dependency>
+                <groupId>javax.xml.bind</groupId>
+                <artifactId>jaxb-api</artifactId>
+                <version>2.3.0</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/com.sun.xml.bind/jaxb-impl -->
+            <dependency>
+                <groupId>com.sun.xml.bind</groupId>
+                <artifactId>jaxb-impl</artifactId>
+                <version>2.3.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.sun.xml.bind</groupId>
+                <artifactId>jaxb-core</artifactId>
+                <version>2.3.0</version>
+            </dependency>
+
+            <!-- https://mvnrepository.com/artifact/xalan/xalan -->
+            <dependency>
+                <groupId>xalan</groupId>
+                <artifactId>xalan</artifactId>
+                <version>2.7.2</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/xerces/xercesImpl -->
+            <dependency>
+                <groupId>xerces</groupId>
+                <artifactId>xercesImpl</artifactId>
+                <version>2.11.0</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/org.eclipse.birt.runtime.3_7_1/org.apache.xml.serializer -->
+            <dependency>
+                <groupId>org.eclipse.birt.runtime.3_7_1</groupId>
+                <artifactId>org.apache.xml.serializer</artifactId>
+                <version>2.7.1</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/commons-digester/commons-digester -->
+            <dependency>
+                <groupId>commons-digester</groupId>
+                <artifactId>commons-digester</artifactId>
+                <version>2.1</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/opennlp/tools -->
+            <dependency>
+                <groupId>opennlp</groupId>
+                <artifactId>tools</artifactId>
+                <version>1.5.0</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/opennlp/maxent -->
+            <dependency>
+                <groupId>opennlp</groupId>
+                <artifactId>maxent</artifactId>
+                <version>3.0.0</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/com.fifesoft/spellchecker -->
+            <dependency>
+                <groupId>com.fifesoft</groupId>
+                <artifactId>spellchecker</artifactId>
+                <version>2.6.0</version>
+            </dependency>
+            <!-- https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-parser -->
+            <!--
+                    <dependency>
+                        <groupId>edu.stanford.nlp</groupId>
+                        <artifactId>stanford-parser</artifactId>
+                        <version>3.8.0</version>
+                    </dependency>
+                    -->
+            <!-- https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-corenlp -->
+            <dependency>
+                <groupId>edu.stanford.nlp</groupId>
+                <artifactId>stanford-corenlp</artifactId>
+                <version>3.8.0</version>
+            </dependency>
+            <dependency>
+                <groupId>edu.stanford.nlp</groupId>
+                <artifactId>stanford-corenlp</artifactId>
+                <version>3.8.0</version>
+                <classifier>models</classifier>
+            </dependency>
+
+            <!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-validator -->
+            <dependency>
+                <groupId>org.hibernate</groupId>
+                <artifactId>hibernate-validator</artifactId>
+                <version>3.1.0.GA</version>
+            </dependency>
+<!--
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+            </dependency>
+            -->
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-config</artifactId>
+                <version>4.0.2.RELEASE</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-httpclient</groupId>
+                <artifactId>commons-httpclient</artifactId>
+                <version>3.1</version>
+                <scope>compile</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>3.1</version>
+                <scope>compile</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+            <version>${commons-logging.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.1.2</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.3</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>com.spotify</groupId>
+                <artifactId>dockerfile-maven-plugin</artifactId>
+                <version>1.3.6</version>
+                <configuration>
+                    <repository>${docker.image.prefix}/${project.artifactId}</repository>
+                    <tag>${project.version}</tag>
+                    <buildArgs>
+                        <JAR_FILE>target/${project.build.finalName}.jar</JAR_FILE>
+                    </buildArgs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>default</id>
+                        <goals>
+                            <goal>build</goal>
+                            <goal>push</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- disabled for now
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            -->
+        </plugins>
+
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.1</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>
