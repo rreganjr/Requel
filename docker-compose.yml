@@ -14,7 +14,7 @@ services:
   web:
     depends_on:
       - db
-    image: rreganjr/requel:1.0.2
+    image: rreganjr/requel:1.0.3
     ports:
       - "8080:8080"
     networks:

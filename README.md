@@ -25,7 +25,7 @@ Optionally pass the service port like this:
 ### Example command
 
 ```
-java -jar Requel-1.0.1.jar --spring.datasource.url=jdbc:mysql://localhost:3306/requeldb?createDatabaseIfNotExist=true --spring.datasource.username=root --spring.datasource.password=password --server.port=8081
+java -jar Requel-1.0.3.jar --spring.datasource.url=jdbc:mysql://localhost:3306/requeldb?createDatabaseIfNotExist=true --spring.datasource.username=root --spring.datasource.password=password --server.port=8081
 ```
 
 Then access the app http://localhost:8081/

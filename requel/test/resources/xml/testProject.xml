@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns2:project id="POD_1"
+	xmlns:ns2="http://www.rreganjr.com/requel"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://www.rreganjr.com/requel project.xsd">
+
+    <ns2:goals>
+        <ns2:goal id="GOAL_1">
+            <ns2:name>Supported Handsets</ns2:name>
+            <ns2:text>
+            	The following handsets will be supported: Snapper V-8, Slider Sonic, Switchback, Slice,
+            	Cyclops, Wild Card, Super Slice, Slash, Messaging 08, Slice Repl 08, Moto Jefferson 08.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_2">
+            <ns2:name>Streaming Audio and Video product</ns2:name>
+            <ns2:text>
+            	Nellymoser will design and develop a Streaming Audio and Video product for Virgin Mobile
+             	USA’s first EVDO device. For EVDO devices, there is no need to support a Java client.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_3">
+            <ns2:name>Designed by Nellymoser and approved by VMU</ns2:name>
+            <ns2:text>
+            	The EVDO Streaming Video product will be a new VMU-branded service designed by Nellymoser
+            	and approved by VMU.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_4">
+            <ns2:name>Accessing the service</ns2:name>
+            <ns2:text>
+            	Users will access the Streaming Video service via a link from the Virgin XL WAP environment.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_5">
+            <ns2:name>Types of Content</ns2:name>
+            <ns2:text>
+            	Nellymoser will provide the branded and white-label short form video clip content including
+            	weather, news, sports, action, movie previews and entertainment. The full content lineup is
+            	detailed in the Nellymoser presentation: Nellymoser Sourced Content (2 2608).FINAL.ppt.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_6">
+            <ns2:name>product name</ns2:name>
+            <ns2:text>
+            	The EVDO Streaming Video product name is: TBD.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_7">
+            <ns2:name>Style Guidelines</ns2:name>
+            <ns2:text>
+            	The EVDO Streaming Video page templates and branding should reflect: VMU WAP Style Guide
+            	(w/ source files) and VMU Style Guide.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_8">
+            <ns2:name>Organization of Content</ns2:name>
+            <ns2:text>
+            	The EVDO Streaming Video Main Menu should contain: Featured Content, VMU Channels: Life &amp; Hot Shots,
+				Catalog Browse, Top Rated Content in the Community, Top Viewed Content in the Community (in the past 7 days),
+				and VMU-branded content channels that include the Nellymoser Sourced Content.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_9">
+            <ns2:name>Flow through the application</ns2:name>
+            <ns2:text>
+            	The EVDO Streaming Video Main Menu user flow is: Main Menu -> Content Folder or 
+            	Browse Results Page -> Video Clip Details Page -> Purchase Confirmation (If applicable) -> 
+            	Stream -> Video Clip Return Page -> Originating Content Folder or Browse Results Page.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_10">
+            <ns2:name>EVDO device support</ns2:name>
+            <ns2:text>
+            	Nellymoser will design and develop a Streaming Audio and Video product for Virgin Mobile
+            	USA's first EVDO device. For EVDO devices, there is no need to support a Java client.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_11">
+            <ns2:name>Video Clip Details Page</ns2:name>
+            <ns2:text>
+            	The Video Clip Details Page will include user Poll Results, Community Rating and User Comments. 
+            	Community rating should be displayed in half-star increments. (For example, if average rating is
+            	2.5 stars, then 2.5 stars should be displayed rather than 2 or 3 stars).
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_12">
+            <ns2:name>Video Clip Return Page</ns2:name>
+            <ns2:text>
+            	The Video Clip Return Page will allow the user to rate the content, answer a poll question 
+            	and enter a comment.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_13">
+            <ns2:name>New Content must be distinguished</ns2:name>
+            <ns2:text>
+            	"New" Content must be distinguished from "archive" content with a tag or other visual marker.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_14">
+            <ns2:name>Free video gallery</ns2:name>
+            <ns2:text>
+            	A Free video gallery should be made available for users to preview the EVDO Streaming Video product.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_15">
+            <ns2:name>"head to head" matchups</ns2:name>
+            <ns2:text>
+            	The EVDO Video Product must support "head to head" matchups that allow users to vote between two
+            	pieces of content.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_16">
+            <ns2:name>Send to a friend</ns2:name>
+            <ns2:text>
+            	The EVDO Video Product must allow the user to refer content to a friend via SMS.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_17">
+            <ns2:name>search for keywords</ns2:name>
+            <ns2:text>
+            	The EVDO Video Product must be capable of launching a mobile web search for keywords within the
+            	Content metadata.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_18">
+            <ns2:name>new content notification</ns2:name>
+            <ns2:text>
+            	The EVDO Video Product must have short code integration so that users can be notified of new content.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_19">
+            <ns2:name>user favorites</ns2:name>
+            <ns2:text>
+            	The EVDO Video Product must allow the user to tag content for inclusion in a "My Content" folder.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_20">
+            <ns2:name>About, FAQ and User Guide</ns2:name>
+            <ns2:text>
+            	The EVDO Video Product must contain About, FAQ and User Guide pages.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_21">
+            <ns2:name>publish XML feeds of video content</ns2:name>
+            <ns2:text>
+            	The EVDO Video Product must be able to publish XML feeds to VMU which allow video content to be
+            	published in other areas of the VXL portal.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_22">
+            <ns2:name>support Sugarmama</ns2:name>
+            <ns2:text>
+            	The EVDO Video Product must support Sugarmama, VMU’s mobile advertising program. (Nice to Have).
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_23">
+            <ns2:name>content refreshed weekly</ns2:name>
+            <ns2:text>
+            	The EVDO Video Product content library must be refreshed weekly. Nellymoser will manage the batch
+            	upload of all Streaming Video content.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_24">
+            <ns2:name>Content Management Interface</ns2:name>
+            <ns2:text>
+            	The Content Management Interface is the publishing tool that allows VMU to control the application content.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_25">
+            <ns2:name>CMI URL</ns2:name>
+            <ns2:text>
+            	The existing CMI URL is: TBD.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_26">
+            <ns2:name>CMI requires a user name and a password</ns2:name>
+            <ns2:text>
+            	Entering the CMI requires a user name and a password.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_27">
+            <ns2:name>Merchandising changes</ns2:name>
+            <ns2:text>
+            	Merchandising changes made to Headliner Streaming Audio content for the Phase I Java client should also
+            	be applied in the Phase III Headliner Jukebox Storefront on WAP.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_28">
+            <ns2:name>CMI features</ns2:name>
+            <ns2:text>
+            	For Streaming Video content, the CMI allows the VMU content manager to browse, remove, classify and edit
+            	metadata to Streaming Video clips with functionality similar to that offered for Streaming Audio tracks.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_29">
+            <ns2:name>CMI upload content with metadata</ns2:name>
+            <ns2:text>
+            	The CMI allows the content manager to upload individual pieces of Streaming Video content with metadata.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_30">
+            <ns2:name>name and order the folders and channels</ns2:name>
+            <ns2:text>
+            	The CMI allows the content manager to name and order the Streaming Video folders and channels.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_31">
+            <ns2:name>remove and modify VMU items</ns2:name>
+            <ns2:text>
+            	The CMI allows the content manager to remove and modify VMU items.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_32">
+            <ns2:name>publish the content</ns2:name>
+            <ns2:text>
+            	Once all updated content items are ready, the content manager can publish the content into the production service.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_33">
+            <ns2:name>Billing &amp; Reconciliation reports</ns2:name>
+            <ns2:text>
+            	Vendor will provide VMU the Billing &amp; Reconciliation reports below (capable of being opened and manipulated
+            	in Excel) allowing:
+				Billing Reconciliation between VMU Billing Server and Vendor charge transactions for Vendor invoices,
+				Remuneration of Content providers for purchased content, and
+				Tracing Billing System return code for each transaction.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_34">
+            <ns2:name>Report 1</ns2:name>
+            <ns2:text>
+            	Report #1: The data collected during each Charge transaction will be captured in real time and accumulated
+            	in a transaction log. The log file will not be available for any processing until the end of each day.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_35">
+            <ns2:name>daily transaction log</ns2:name>
+            <ns2:text>
+            	One transaction log file will be created daily (and made available to VMU on an ad hoc basis if necessary).
+            	The format for the name of this log file is: transaction.log.&lt;YYYY-MM-DD&gt;.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_36">
+            <ns2:name>transaction log is a standard UNIX file</ns2:name>
+            <ns2:text>
+            	The transaction log is a standard UNIX file.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_37">
+            <ns2:name>log file field delimiter</ns2:name>
+            <ns2:text>
+            	The field delimiter within the file is the &lt;TAB&gt; character.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_38">
+            <ns2:name>log file ordered by transaction date</ns2:name>
+            <ns2:text>
+            	The data in the file will be ordered by transaction date (first field).
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_39">
+            <ns2:name>log file aggregation</ns2:name>
+            <ns2:text>
+            	Each month, all of the individual daily transaction log files will be grouped into a compressed
+            	file then stored in a dedicated folder. The format for the name of this compressed file is: 
+            	transaction.&lt;YYYY-MM-DD&gt;_&lt;YYYY-MM-DD&gt;.tar.gz, where the dates are the first and the
+            	last date of the given period
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_40">
+            <ns2:name>maintain 12 months worth of log data</ns2:name>
+            <ns2:text>
+            	The last 12 months worth of data (i.e., the 12 most recent tar.gz files) will be preserved for download
+            	through a Web server. The format for the name of this compressed file the same as above.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_41">
+            <ns2:name>record format</ns2:name>
+            <ns2:text>
+            	The record format is fully defined in a table in the following section of this document.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_42">
+            <ns2:name>Reports #2 &amp; 3</ns2:name>
+            <ns2:text>
+            	Reports #2 &amp; 3: The transaction data collected for Report #1 will be aggregated monthly (on Monday, 
+            	containing data for the preceding month) for the purposes of content provider reconciliation and renumeration.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_43">
+            <ns2:name>Logs preserved for 12 months</ns2:name>
+            <ns2:text>
+            	The last 12 months worth of data (i.e., the 12 most recent tgz files) will be preserved on a RAID disk device
+            	and available for download through a Web server.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_44">
+            <ns2:name>Report formats</ns2:name>
+            <ns2:text>
+            	Report formats are fully defined below in tables X.X and X.X.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_45">
+            <ns2:name>Media playback</ns2:name>
+            <ns2:text>
+            	Media playback should not begin unless the user has been authenticated and charged.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_46">
+            <ns2:name>Media playback starts after charging</ns2:name>
+            <ns2:text>
+            	At the conclusion of Streaming Video Charging, video playback begins.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_47">
+            <ns2:name>Monthly Data Plan</ns2:name>
+            <ns2:text>
+            	If user status is Monthly Data Plan – On, Vendor should point to Billed RTSP Streaming Server;
+            	if user status is Monthly Data Plan – Off or Monthly Data Plan – Overage/ISF, Vendor should point
+            	to Free RTSP Streaming Server.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_48">
+            <ns2:name>initiation of streaming video session</ns2:name>
+            <ns2:text>
+            	At initiation of streaming video session, the WAP browser will communicate Network Type, video
+            	location URL and invoke the handset’s media player.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_49">
+            <ns2:name>streaming bit rate</ns2:name>
+            <ns2:text>
+            	Vendor determines appropriate streaming bit rate based upon Network Type.
+			</ns2:text>
+        </ns2:goal>
+        <ns2:goal id="GOAL_50">
+            <ns2:name>changes in Network Type</ns2:name>
+            <ns2:text>
+            	During stream, Vendor must be able to adjust streaming bit rate based on changes in Network Type.
+			</ns2:text>
+        </ns2:goal>
+    </ns2:goals>
+    <ns2:name>Test Project</ns2:name>
+    <ns2:organization name="Requel"/>
+    <ns2:status>New</ns2:status>
+</ns2:project>

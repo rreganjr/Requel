@@ -83,11 +83,23 @@
     </pluginRepositories>
 
     <modules>
-        <module>..</module>
+        <module>../requel</module>
+        <module>../command</module>
     </modules>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>command</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>requel</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+
             <!-- https://mvnrepository.com/artifact/cglib/cglib-nodep -->
             <dependency>
                 <groupId>cglib</groupId>
