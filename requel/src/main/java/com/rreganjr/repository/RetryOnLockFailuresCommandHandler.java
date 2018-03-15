@@ -31,7 +31,7 @@ import org.apache.commons.logging.LogFactory;
 import org.hibernate.StaleObjectStateException;
 import org.hibernate.exception.LockAcquisitionException;
 import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.orm.hibernate3.HibernateOptimisticLockingFailureException;
+import org.springframework.orm.hibernate5.HibernateOptimisticLockingFailureException;
 
 import com.rreganjr.requel.EntityLockException;
 import com.rreganjr.requel.EntityValidationException;
