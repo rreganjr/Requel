@@ -25,9 +25,9 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.repository.EntityExceptionActionType;
-import com.rreganjr.requel.EntityValidationException;
-import com.rreganjr.requel.NoSuchEntityException;
+import com.rreganjr.EntityExceptionActionType;
+import com.rreganjr.EntityValidationException;
+import com.rreganjr.NoSuchEntityException;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;

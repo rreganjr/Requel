@@ -38,7 +38,7 @@ import org.hibernate.validator.InvalidValue;
 
 import echopointng.text.StringDocumentEx;
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.repository.EntityException;
+import com.rreganjr.EntityException;
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.project.Actor;

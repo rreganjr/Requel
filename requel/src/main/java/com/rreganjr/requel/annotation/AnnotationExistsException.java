@@ -20,8 +20,8 @@
  */
 package com.rreganjr.requel.annotation;
 
-import com.rreganjr.repository.EntityException;
-import com.rreganjr.repository.EntityExceptionActionType;
+import com.rreganjr.EntityException;
+import com.rreganjr.EntityExceptionActionType;
 
 /**
  * @author ron

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>nlp</artifactId>
+    <version>1.0.3</version>
+
+    <parent>
+        <groupId>com.rreganjr.requel</groupId>
+        <artifactId>maven-base</artifactId>
+        <version>1.0.3</version>
+        <relativePath>../_maven-base/pom.xml</relativePath>
+    </parent>
+
+    <properties>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>exception</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>initializer</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>command</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>repository</artifactId>
+        </dependency>
+
+        <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
+        <!-- this is only needed for ResourceBundleHelper in OpenNLPParser, that should probably
+            not be in a UI module, or I should switch to a Spring alternative.
+            -->
+        <dependency>
+            <groupId>com.rreganjr.echopm</groupId>
+            <artifactId>echopm</artifactId>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-corenlp -->
+        <dependency>
+            <groupId>edu.stanford.nlp</groupId>
+            <artifactId>stanford-corenlp</artifactId>
+            <version>3.8.0</version>
+        </dependency>
+        <dependency>
+            <groupId>edu.stanford.nlp</groupId>
+            <artifactId>stanford-corenlp</artifactId>
+            <version>3.8.0</version>
+            <classifier>models</classifier>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/opennlp/tools -->
+        <dependency>
+            <groupId>opennlp</groupId>
+            <artifactId>tools</artifactId>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/opennlp/maxent -->
+        <dependency>
+            <groupId>opennlp</groupId>
+            <artifactId>maxent</artifactId>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.fifesoft/spellchecker -->
+        <dependency>
+            <groupId>com.fifesoft</groupId>
+            <artifactId>spellchecker</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-orm</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-core</artifactId>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/commons-digester/commons-digester -->
+        <dependency>
+            <groupId>commons-digester</groupId>
+            <artifactId>commons-digester</artifactId>
+        </dependency>
+
+    </dependencies>
+</project>

@@ -25,8 +25,8 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.repository.EntityExceptionActionType;
-import com.rreganjr.requel.EntityValidationException;
+import com.rreganjr.EntityExceptionActionType;
+import com.rreganjr.EntityValidationException;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.ArgumentPositionSupportLevel;

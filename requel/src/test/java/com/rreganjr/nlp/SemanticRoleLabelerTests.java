@@ -10,12 +10,8 @@ import java.util.Map;
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.nlp.dictionary.Sense;
 import com.rreganjr.nlp.dictionary.VerbNetFrameRef;
-import com.rreganjr.nlp.impl.ConstituentTreePrinter;
-import com.rreganjr.nlp.impl.DependencyPrinter;
-import com.rreganjr.nlp.impl.StringNLPTextWalker;
 import com.rreganjr.nlp.impl.srl.SemanticRoleCollector;
 import com.rreganjr.nlp.impl.srl.SemanticRoleCollectorFunction;
-import com.rreganjr.nlp.impl.srl.SemanticRolePrinter;
 import org.junit.Assert;
 
 /**

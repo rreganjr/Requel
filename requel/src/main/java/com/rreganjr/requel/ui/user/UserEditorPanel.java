@@ -40,7 +40,7 @@ import org.hibernate.validator.InvalidValue;
 import echopointng.ComboBox;
 import echopointng.text.StringDocumentEx;
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.repository.EntityException;
+import com.rreganjr.EntityException;
 import com.rreganjr.requel.user.AbstractUserRole;
 import com.rreganjr.requel.user.Organization;
 import com.rreganjr.requel.user.SystemAdminUserRole;

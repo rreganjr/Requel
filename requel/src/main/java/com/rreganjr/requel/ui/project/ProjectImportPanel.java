@@ -42,7 +42,7 @@ import org.hibernate.validator.InvalidValue;
 
 import echopointng.text.StringDocumentEx;
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.repository.EntityException;
+import com.rreganjr.EntityException;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectUserRole;

@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel;
 
+import com.rreganjr.NoSuchEntityException;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
 import org.springframework.transaction.annotation.Propagation;

@@ -22,9 +22,9 @@ package com.rreganjr.requel.project;
 
 import java.util.Set;
 
-import com.rreganjr.repository.EntityException;
+import com.rreganjr.EntityException;
 import com.rreganjr.repository.Repository;
-import com.rreganjr.requel.NoSuchEntityException;
+import com.rreganjr.NoSuchEntityException;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.project.impl.AddActorPosition;
 import com.rreganjr.requel.project.impl.AddGlossaryTermPosition;

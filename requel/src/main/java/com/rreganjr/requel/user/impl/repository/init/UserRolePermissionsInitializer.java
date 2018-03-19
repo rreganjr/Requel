@@ -29,8 +29,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.rreganjr.AbstractSystemInitializer;
-import com.rreganjr.repository.EntityException;
+import com.rreganjr.initializer.AbstractSystemInitializer;
+import com.rreganjr.EntityException;
 import com.rreganjr.requel.user.AbstractUserRole;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRole;

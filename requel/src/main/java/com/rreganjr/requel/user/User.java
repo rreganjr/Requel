@@ -23,7 +23,7 @@ package com.rreganjr.requel.user;
 import java.util.Comparator;
 import java.util.Set;
 
-import com.rreganjr.requel.EntityValidationException;
+import com.rreganjr.EntityValidationException;
 import com.rreganjr.requel.OrganizedEntity;
 import com.rreganjr.requel.user.exception.NoSuchRoleForUserException;
 

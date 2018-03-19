@@ -30,7 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import com.rreganjr.requel.EntityValidationException;
+import com.rreganjr.EntityValidationException;
 import com.rreganjr.requel.user.AbstractUserRole;
 import com.rreganjr.requel.user.Organization;
 import com.rreganjr.requel.user.SystemAdminUserRole;

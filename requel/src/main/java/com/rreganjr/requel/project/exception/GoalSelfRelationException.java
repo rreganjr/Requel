@@ -20,8 +20,8 @@
  */
 package com.rreganjr.requel.project.exception;
 
-import com.rreganjr.repository.EntityException;
-import com.rreganjr.repository.EntityExceptionActionType;
+import com.rreganjr.EntityException;
+import com.rreganjr.EntityExceptionActionType;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalRelation;
 

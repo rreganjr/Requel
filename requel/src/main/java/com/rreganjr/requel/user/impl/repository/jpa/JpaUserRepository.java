@@ -22,10 +22,12 @@ package com.rreganjr.requel.user.impl.repository.jpa;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 
 import javax.persistence.NoResultException;
 import javax.persistence.OptimisticLockException;
 import javax.persistence.Query;
+import javax.persistence.TypedQuery;
 
 import org.hibernate.PropertyValueException;
 import org.hibernate.StaleObjectStateException;
@@ -40,8 +42,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.rreganjr.repository.EntityException;
-import com.rreganjr.repository.EntityExceptionActionType;
+import com.rreganjr.EntityException;
+import com.rreganjr.EntityExceptionActionType;
 import com.rreganjr.repository.jpa.AbstractJpaRepository;
 import com.rreganjr.repository.jpa.ConstraintViolationExceptionAdapter;
 import com.rreganjr.repository.ExceptionMapper;
@@ -49,17 +51,15 @@ import com.rreganjr.repository.jpa.GenericPropertyValueExceptionAdapter;
 import com.rreganjr.repository.jpa.InvalidStateExceptionAdapter;
 import com.rreganjr.repository.jpa.OptimisticLockExceptionAdapter;
 import com.rreganjr.repository.jpa.UserPropertyValueExceptionAdapter;
-import com.rreganjr.requel.NoSuchEntityException;
+import com.rreganjr.NoSuchEntityException;
 import com.rreganjr.requel.user.AbstractUserRole;
 import com.rreganjr.requel.user.Organization;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRole;
 import com.rreganjr.requel.user.UserRolePermission;
-import com.rreganjr.requel.user.UserSet;
 import com.rreganjr.requel.user.exception.NoSuchOrganizationException;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
-import com.rreganjr.requel.user.impl.UserSetImpl;
 
 /**
  * @author ron
@@ -120,31 +120,30 @@ public class JpaUserRepository extends AbstractJpaRepository implements UserRepo
 		}
 	}
 
-	public UserSet findUsers() {
+	public Set<User> findUsers() {
 		try {
 			// TODO: use named query so it can be configured externally
-			Query query = getEntityManager().createQuery(
-					"select object(user) from UserImpl as user");
-			return new UserSetImpl(query.getResultList());
+			TypedQuery<User> query = getEntityManager().createQuery(
+					"select object(user) from UserImpl as user", User.class);
+			return new TreeSet<User>(query.getResultList());
 		} catch (NoResultException e) {
-			return (UserSet) new HashSet<User>();
+			return new HashSet<User>();
 		} catch (Exception e) {
-			throw convertException(e, UserSet.class, null, EntityExceptionActionType.Reading);
+			throw convertException(e, Set.class, null, EntityExceptionActionType.Reading);
 		}
 	}
 
-	public UserSet findUsersForRole(Class<? extends UserRole> roleType) {
+	public Set<User> findUsersForRole(Class<? extends UserRole> roleType) {
 		try {
 			// TODO: use named query so it can be configured externally
-			Query query = getEntityManager()
-					.createQuery(
-							"select object(user) from UserImpl as user inner join user.userRoles as roles, AbstractUserRole role where role.roleType like :roleType and role in roles");
+			TypedQuery<User> query = getEntityManager().createQuery(
+							"select object(user) from UserImpl as user inner join user.userRoles as roles, AbstractUserRole role where role.roleType like :roleType and role in roles", User.class);
 			query.setParameter("roleType", roleType.getName());
-			return new UserSetImpl(query.getResultList());
+			return new TreeSet<>(query.getResultList());
 		} catch (NoResultException e) {
-			return (UserSet) new HashSet<User>();
+			return new HashSet<User>();
 		} catch (Exception e) {
-			throw convertException(e, UserSet.class, null, EntityExceptionActionType.Reading);
+			throw convertException(e, Set.class, null, EntityExceptionActionType.Reading);
 		}
 	}
 

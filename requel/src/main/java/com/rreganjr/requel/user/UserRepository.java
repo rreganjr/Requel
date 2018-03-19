@@ -66,13 +66,13 @@ public interface UserRepository extends Repository {
 	/**
 	 * @return all the users of the system in the repository.
 	 */
-	public UserSet findUsers();
+	public Set<User> findUsers();
 
 	/**
 	 * @param roleType
 	 * @return a set of users that have the supplied role type.
 	 */
-	public UserSet findUsersForRole(Class<? extends UserRole> roleType);
+	public Set<User> findUsersForRole(Class<? extends UserRole> roleType);
 
 	/**
 	 * @return the available types of user roles

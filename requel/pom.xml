@@ -4,7 +4,6 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <artifactId>requel</artifactId>
-    <version>1.0.3</version>
 
     <parent>
         <groupId>com.rreganjr.requel</groupId>
@@ -17,16 +16,25 @@
     </properties>
 
     <dependencies>
-
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>exception</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>initializer</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
             <artifactId>command</artifactId>
         </dependency>
-
-        <!-- https://mvnrepository.com/artifact/cglib/cglib-nodep -->
         <dependency>
-            <groupId>cglib</groupId>
-            <artifactId>cglib-nodep</artifactId>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>nlp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>repository</artifactId>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-compress -->
@@ -138,42 +146,6 @@
             <groupId>commons-digester</groupId>
             <artifactId>commons-digester</artifactId>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/opennlp/tools -->
-        <dependency>
-            <groupId>opennlp</groupId>
-            <artifactId>tools</artifactId>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/opennlp/maxent -->
-        <dependency>
-            <groupId>opennlp</groupId>
-            <artifactId>maxent</artifactId>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/com.fifesoft/spellchecker -->
-        <dependency>
-            <groupId>com.fifesoft</groupId>
-            <artifactId>spellchecker</artifactId>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-parser -->
-<!--
-        <dependency>
-            <groupId>edu.stanford.nlp</groupId>
-            <artifactId>stanford-parser</artifactId>
-            <version>3.8.0</version>
-        </dependency>
-        -->
-        <!-- https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-corenlp -->
-        <dependency>
-            <groupId>edu.stanford.nlp</groupId>
-            <artifactId>stanford-corenlp</artifactId>
-            <version>3.8.0</version>
-        </dependency>
-        <dependency>
-            <groupId>edu.stanford.nlp</groupId>
-            <artifactId>stanford-corenlp</artifactId>
-            <version>3.8.0</version>
-            <classifier>models</classifier>
-        </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>

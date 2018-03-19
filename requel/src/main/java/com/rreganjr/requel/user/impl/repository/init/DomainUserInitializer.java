@@ -24,7 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import com.rreganjr.AbstractSystemInitializer;
+import com.rreganjr.initializer.AbstractSystemInitializer;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.project.DomainAdminUserRole;
 import com.rreganjr.requel.user.UserRepository;

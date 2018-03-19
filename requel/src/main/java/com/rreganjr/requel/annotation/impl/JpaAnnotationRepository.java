@@ -36,8 +36,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.rreganjr.repository.EntityException;
-import com.rreganjr.repository.EntityExceptionActionType;
+import com.rreganjr.EntityException;
+import com.rreganjr.EntityExceptionActionType;
 import com.rreganjr.repository.jpa.AbstractJpaRepository;
 import com.rreganjr.repository.ExceptionMapper;
 import com.rreganjr.repository.jpa.GenericPropertyValueExceptionAdapter;

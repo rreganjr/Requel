@@ -29,8 +29,8 @@ import org.springframework.aop.aspectj.AspectJExpressionPointcut;
 import org.springframework.aop.support.AopUtils;
 
 import com.rreganjr.AbstractIntegrationTestCase;
-import com.rreganjr.AbstractSystemInitializer;
-import com.rreganjr.SystemInitializer;
+import com.rreganjr.initializer.AbstractSystemInitializer;
+import com.rreganjr.initializer.SystemInitializer;
 import com.rreganjr.command.Command;
 import com.rreganjr.nlp.dictionary.impl.command.EditDictionaryWordCommandImpl;
 import com.rreganjr.nlp.dictionary.impl.command.ImportDictionaryCommandImpl;

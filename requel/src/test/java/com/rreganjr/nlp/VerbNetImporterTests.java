@@ -8,8 +8,6 @@ package com.rreganjr.nlp;
 import java.io.File;
 import java.io.FileFilter;
 
-import javax.xml.bind.JAXBElement;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 

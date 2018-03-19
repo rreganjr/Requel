@@ -20,8 +20,8 @@
  */
 package com.rreganjr.requel.user.exception;
 
-import com.rreganjr.repository.EntityException;
-import com.rreganjr.repository.EntityExceptionActionType;
+import com.rreganjr.EntityException;
+import com.rreganjr.EntityExceptionActionType;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRole;
 

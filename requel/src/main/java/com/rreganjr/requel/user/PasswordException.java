@@ -1,8 +1,8 @@
 package com.rreganjr.requel.user;
 
-import com.rreganjr.requel.RequelException;
+import com.rreganjr.ApplicationException;
 
-public class PasswordException extends RequelException {
+public class PasswordException extends ApplicationException {
 
     public static final String MSG_PROBLEM_ENCRYPTING_PASSWORD = "There was a problem encrypting the user's password.";
     public static final String MSG_PROBLEM_ENCRYPTING_PASSWORD_WITH_MESSAGE = "There was a problem encrypting the user's password: %s";

@@ -21,6 +21,7 @@
 package com.rreganjr.requel.ui.user;
 
 import java.util.Enumeration;
+import java.util.Set;
 
 import nextapp.echo2.app.Label;
 import nextapp.echo2.app.event.ActionEvent;
@@ -30,7 +31,6 @@ import org.springframework.stereotype.Component;
 
 import echopointng.tree.MutableTreeNode;
 import com.rreganjr.requel.user.User;
-import com.rreganjr.requel.user.UserSet;
 import net.sf.echopm.navigation.WorkflowDisposition;
 import net.sf.echopm.navigation.event.EventDispatcher;
 import net.sf.echopm.navigation.event.NavigationEvent;
@@ -57,19 +57,17 @@ public class UserCollectionNavigatorTreeNodeFactory extends AbstractNavigatorTre
 	public final static String PROP_USERS_NODE_LABEL = "UsersNodeLabel";
 
 	/**
-	 * @param eventDispatcher
 	 */
 	public UserCollectionNavigatorTreeNodeFactory() {
-		super(UserCollectionNavigatorTreeNodeFactory.class.getName(), UserSet.class);
+		super(UserCollectionNavigatorTreeNodeFactory.class.getName(), Set.class);
 	}
 
 	/**
-	 * @see net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory#createTreeNode(net.sf.echopm.navigation.tree.NavigatorTree,
-	 *      java.lang.Object)
+	 * @see net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory#createTreeNode(EventDispatcher, NavigatorTree, Object)
 	 */
 	public MutableTreeNode createTreeNode(EventDispatcher eventDispatcher, NavigatorTree tree,
 			Object object) {
-		UserSet users = (UserSet) object;
+		Set<User> users = (Set<User>) object;
 		String usersNodeLabel = getResourceBundleHelper(tree.getLocale()).getString(
 				PROP_USERS_NODE_LABEL, "Users");
 
@@ -78,7 +76,7 @@ public class UserCollectionNavigatorTreeNodeFactory extends AbstractNavigatorTre
 		// NavigatorTreeNodeUpdateListener reset the event when
 		// users are updated
 		NavigationEvent openUserList = new OpenPanelEvent(tree, PanelActionType.Navigator, users,
-				UserSet.class, null, WorkflowDisposition.NewFlow);
+				Set.class, null, WorkflowDisposition.NewFlow);
 
 		NavigatorTreeNode usersTreeNode = new NavigatorTreeNode(eventDispatcher, users, new Label(
 				usersNodeLabel), openUserList);
@@ -111,7 +109,7 @@ public class UserCollectionNavigatorTreeNodeFactory extends AbstractNavigatorTre
 				if ((uee.getObject() != null) && (uee.getObject() instanceof User)) {
 					User user = (User) uee.getObject();
 					NavigatorTreeNode thisNode = getNavigatorTreeNode();
-					UserSet users = (UserSet) thisNode.getTargetObject();
+					Set<User> users = (Set<User>) thisNode.getTargetObject();
 					if (!users.contains(user)) {
 						addUserNode(thisNode, user);
 					} else {

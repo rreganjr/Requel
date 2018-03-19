@@ -20,7 +20,7 @@
  */
 package com.rreganjr.requel.user.exception;
 
-import com.rreganjr.repository.EntityExceptionActionType;
+import com.rreganjr.EntityExceptionActionType;
 import com.rreganjr.requel.user.User;
 
 /**

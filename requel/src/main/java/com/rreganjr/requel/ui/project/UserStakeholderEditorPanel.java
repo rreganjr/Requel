@@ -36,7 +36,7 @@ import org.apache.commons.logging.LogFactory;
 
 import echopointng.ComboBox;
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.repository.EntityException;
+import com.rreganjr.EntityException;
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.project.Goal;
@@ -56,7 +56,6 @@ import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.ui.annotation.AnnotationsTable;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
-import com.rreganjr.requel.user.UserSet;
 import net.sf.echopm.navigation.event.DeletedEntityEvent;
 import net.sf.echopm.navigation.event.UpdateEntityEvent;
 import net.sf.echopm.panel.editor.CheckBoxTreeSet;
@@ -319,7 +318,7 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 	private Set<String> getProjectUsersUsernames() {
 		Set<String> usernames = new TreeSet<String>();
 		usernames.add("");
-		UserSet projectUsers = getUserRepository().findUsersForRole(ProjectUserRole.class);
+		Set<User> projectUsers = getUserRepository().findUsersForRole(ProjectUserRole.class);
 		for (User user : projectUsers) {
 			usernames.add(user.getUsername());
 		}
