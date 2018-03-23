@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>nlp-ui</artifactId>
+
+    <parent>
+        <groupId>com.rreganjr.requel</groupId>
+        <artifactId>maven-base</artifactId>
+        <version>1.0.3</version>
+        <relativePath>../_maven-base/pom.xml</relativePath>
+    </parent>
+
+    <name>Requel NLP Echo2 User Interface</name>
+    <description>
+        This package has a simple UI for running the parser on a text string. By default it isn't
+        mapped into the Requel UI. To enable it, in requel/src/resources/spring/uiMainConfig.xml bean
+        definition for mainNavigationPanelManager uncomment the ref element for "nlpNavigatorPanel".
+    </description>
+
+    <properties>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>nlp</artifactId>
+        </dependency>
+
+        <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
+        <!-- this is only needed for ResourceBundleHelper in OpenNLPParser, that should probably
+            not be in a UI module, or I should switch to a Spring alternative.
+            -->
+        <dependency>
+            <groupId>com.nextapp</groupId>
+            <artifactId>echo2-app</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.echopm</groupId>
+            <artifactId>echopm</artifactId>
+        </dependency>
+        <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
+        <dependency>
+            <groupId>echopointng</groupId>
+            <artifactId>echopointng</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+    </dependencies>
+</project>

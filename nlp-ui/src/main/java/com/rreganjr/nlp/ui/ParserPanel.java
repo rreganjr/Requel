@@ -20,6 +20,8 @@
  */
 package com.rreganjr.nlp.ui;
 
+import net.sf.echopm.navigation.event.OpenPanelEvent;
+import net.sf.echopm.panel.Panel;
 import nextapp.echo2.app.Button;
 import nextapp.echo2.app.TextArea;
 import nextapp.echo2.app.event.ActionEvent;
@@ -49,9 +51,7 @@ public class ParserPanel extends AbstractEditorPanel {
 	private Button parseButton;
 
 	/**
-	 * @param commandHandler
-	 * @param projectCommandFactory
-	 * @param projectRepository
+	 * @param processorFactory
 	 */
 	public ParserPanel(NLPProcessorFactory processorFactory) {
 		this(ParserPanel.class.getName(), processorFactory);
@@ -71,7 +71,7 @@ public class ParserPanel extends AbstractEditorPanel {
 	 */
 	@Override
 	public String getTitle() {
-		String msg = getResourceBundleHelper(getLocale()).getString(PROP_PANEL_TITLE,
+		String msg = getResourceBundleHelper(getLocale()).getString(Panel.PROP_PANEL_TITLE,
 				"Parser Panel");
 		return msg;
 	}
@@ -85,6 +85,8 @@ public class ParserPanel extends AbstractEditorPanel {
 				PROP_LABEL_PARSE_BUTTON, "Parse")));
 		parseButton.addActionListener(new ParseListener(this));
 		parseButton.setEnabled(true);
+
+		getEventDispatcher().addEventTypeActionListener(OpenPanelEvent.class, new NullActionListener());
 	}
 
 	@Override
@@ -134,6 +136,14 @@ public class ParserPanel extends AbstractEditorPanel {
 			} catch (Exception e) {
 				panel.setGeneralMessage("Could not parse text: " + e);
 			}
+		}
+	}
+
+
+	private static class NullActionListener implements ActionListener {
+		@Override
+		public void actionPerformed(ActionEvent actionEvent) {
+			log.info("action event: " + actionEvent);
 		}
 	}
 

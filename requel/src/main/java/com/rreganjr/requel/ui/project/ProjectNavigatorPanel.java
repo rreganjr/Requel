@@ -50,20 +50,19 @@ public class ProjectNavigatorPanel extends NavigatorTreePanel {
 
 	/**
 	 * Property name to use in the ProjectNavigatorPanel.properties to set the
-	 * lable on the new project button.
+	 * label on the new project button.
 	 */
 	public static final String PROP_NEW_PROJECT_BUTTON_LABEL = "NewProjectButton.Label";
 
-
 	/**
 	 * Property name to use in the ProjectNavigatorPanel.properties to set the
-	 * lable on the import project button.
+	 * label on the import project button.
 	 */
 	public static final String PROP_IMPORT_PROJECT_BUTTON_LABEL = "ImportProjectButton.Label";
 
 	/**
 	 * Property name to use in the ProjectNavigatorPanel.properties to set the
-	 * lable on the find/open projects button.
+	 * label on the find/open projects button.
 	 */
 	public static final String PROP_FIND_PROJECT_BUTTON_LABEL = "FindProjectButton.Label";
 

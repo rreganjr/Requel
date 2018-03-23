@@ -349,7 +349,7 @@ public class ActorEditorPanel extends AbstractRequelProjectEditorPanel {
 
 	// TODO: it may be better to have different standardized update listeners
 	// for different types of updated or deleted objects associated with the
-	// input controls like an annotation table or referers.
+	// input controls like an annotation table or referrers.
 	private static class UpdateListener implements ActionListener {
 		static final long serialVersionUID = 0L;
 

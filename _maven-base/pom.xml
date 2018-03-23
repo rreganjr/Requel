@@ -89,6 +89,7 @@
         <module>../repository</module>
         <module>../nlp</module>
         <module>../requel</module>
+        <module>../nlp-ui</module>
     </modules>
 
     <dependencyManagement>
@@ -111,6 +112,11 @@
             <dependency>
                 <groupId>com.rreganjr.requel</groupId>
                 <artifactId>nlp</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>nlp-ui</artifactId>
                 <version>1.0.3</version>
             </dependency>
             <dependency>

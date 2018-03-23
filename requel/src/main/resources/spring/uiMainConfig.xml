@@ -21,7 +21,7 @@
 				<util:set scope="prototype" value-type="net.sf.echopm.panel.Panel">
 					<ref bean="userAdminNavigatorPanel"/>
 					<ref bean="projectNavigatorPanel"/>
-					<!-- 
+					<!--
 					<ref bean="nlpNavigatorPanel"/>
 					 -->
 				</util:set>

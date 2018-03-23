@@ -16,13 +16,13 @@
 
 		<bean id="parserPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
 			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.nlp.ui.ParserPanel</value></constructor-arg>
-			<constructor-arg index="1"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
+			<constructor-arg index="1"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Unspecified"/></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="com.rreganjr.nlp.ui.NLPPanelNames.PARSER_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="3">
 				<util:list>
 					<ref bean="nlpProcessorFactory"/>
 				</util:list>
-			</constructor-arg>			
+			</constructor-arg>
 		</bean>
 		<bean id="nlpNavigatorPanel" scope="prototype" class="com.rreganjr.nlp.ui.NLPNavigatorPanel">
 			<constructor-arg>

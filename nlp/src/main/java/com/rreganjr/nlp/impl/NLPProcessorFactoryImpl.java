@@ -60,7 +60,7 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 	private final Map<String, NLPText> processedTextCache = new HashMap<String, NLPText>();
 
 	/**
-	 * @param dictionaryRepository
+	 *
 	 */
 	public NLPProcessorFactoryImpl() {
 	}
@@ -78,7 +78,7 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.NLPProcessorFactory#createNLPText()
+	 * @see com.rreganjr.nlp.NLPProcessorFactory#createNLPText(String)
 	 */
 	@Override
 	public NLPText createNLPText(String text) {

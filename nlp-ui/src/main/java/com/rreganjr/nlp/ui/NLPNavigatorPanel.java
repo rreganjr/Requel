@@ -22,6 +22,17 @@ package com.rreganjr.nlp.ui;
 
 import java.util.Set;
 
+import net.sf.echopm.navigation.NavigatorButton;
+import net.sf.echopm.navigation.WorkflowDisposition;
+import net.sf.echopm.navigation.event.NavigationEvent;
+import net.sf.echopm.navigation.event.OpenPanelEvent;
+import net.sf.echopm.panel.PanelActionType;
+import nextapp.echo2.app.Alignment;
+import nextapp.echo2.app.Component;
+import nextapp.echo2.app.Insets;
+import nextapp.echo2.app.Row;
+import nextapp.echo2.app.event.ActionEvent;
+import nextapp.echo2.app.event.ActionListener;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -36,11 +47,23 @@ public class NLPNavigatorPanel extends NavigatorTreePanel {
 	static final long serialVersionUID = 0;
 
 	/**
+	 * Property name to use in the NLPNavigatorPanel.properties to set the
+	 * label on the new parser button.
+	 */
+	public static final String PROP_NEW_PARSER_BUTTON_LABEL = "NewParserButton.Label";
+
+	/**
 	 * @param treeNodeFactories
 	 */
 	public NLPNavigatorPanel(Set<NavigatorTreeNodeFactory> treeNodeFactories) {
 		super(NLPNavigatorPanel.class.getName(), treeNodeFactories,
 				NLPPanelNames.NLP_NAVIGATOR_PANEL_NAME);
+	}
+
+	@Override
+	public void setup() {
+		add(createButton(PROP_NEW_PARSER_BUTTON_LABEL, "New Parser", NLPPanelNames.PARSER_PANEL_NAME));
+		super.setup();
 	}
 
 	@Override
@@ -57,5 +80,17 @@ public class NLPNavigatorPanel extends NavigatorTreePanel {
 	@Override
 	public Object getTargetObject() {
 		return this.getClass();
+	}
+
+	private Component createButton(String labelResourceName, String labelDefault, String panelName) {
+		String buttonLabel = getResourceBundleHelper(getLocale()).getString(labelResourceName, labelDefault);
+		NavigationEvent event = new OpenPanelEvent(this, PanelActionType.Unspecified, null, null, panelName, WorkflowDisposition.NewFlow);
+		NavigatorButton button = new NavigatorButton(buttonLabel, getEventDispatcher(), event);
+		button.setStyleName(STYLE_NAME_DEFAULT);
+		Row wrapper = new Row();
+		wrapper.setInsets(new Insets(5));
+		wrapper.setAlignment(new Alignment(Alignment.CENTER, Alignment.DEFAULT));
+		wrapper.add(button);
+		return wrapper;
 	}
 }

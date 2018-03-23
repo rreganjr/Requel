@@ -60,15 +60,14 @@ public class ProjectUserNavigatorTreeNodeFactory extends AbstractNavigatorTreeNo
 	public final static String PROP_PROJECTS_NODE_LABEL = "ProjectsNodeLabel";
 
 	/**
-	 * @param eventDispatcher
+	 *
 	 */
 	public ProjectUserNavigatorTreeNodeFactory() {
 		super(ProjectUserNavigatorTreeNodeFactory.class.getName(), User.class);
 	}
 
 	/**
-	 * @see net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory#createTreeNode(net.sf.echopm.navigation.tree.NavigatorTree,
-	 *      java.lang.Object)
+	 * @see net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory#createTreeNode(EventDispatcher, NavigatorTree, Object)
 	 */
 	public MutableTreeNode createTreeNode(EventDispatcher eventDispatcher, NavigatorTree tree,
 			Object object) {

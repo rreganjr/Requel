@@ -52,15 +52,14 @@ public class NLPNavigatorTreeNodeFactory extends AbstractNavigatorTreeNodeFactor
 	public final static String PROP_PARSER_NODE_LABEL = "ParserNodeLabel";
 
 	/**
-	 * @param eventDispatcher
+	 *
 	 */
 	public NLPNavigatorTreeNodeFactory() {
 		super(NLPNavigatorTreeNodeFactory.class.getName(), NLPNavigatorPanel.class);
 	}
 
 	/**
-	 * @see net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory#createTreeNode(net.sf.echopm.navigation.tree.NavigatorTree,
-	 *      java.lang.Object)
+	 * @see net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory#createTreeNode(EventDispatcher, NavigatorTree, Object)
 	 */
 	public MutableTreeNode createTreeNode(EventDispatcher eventDispatcher, NavigatorTree tree,
 			Object object) {
