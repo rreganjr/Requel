@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>requel-ui</artifactId>
+
+    <parent>
+        <groupId>com.rreganjr.requel</groupId>
+        <artifactId>maven-base</artifactId>
+        <version>1.0.3</version>
+        <relativePath>../_maven-base/pom.xml</relativePath>
+    </parent>
+
+    <properties>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>exception</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>date-util</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>describable</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>annotatable</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>initializer</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>command</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>requel-user</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>nlp-ui</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.nextapp</groupId>
+            <artifactId>echo2-app</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nextapp</groupId>
+            <artifactId>echo2-filetransfer-app</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nextapp</groupId>
+            <artifactId>echo2-webcontainer</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>echopointng</groupId>
+            <artifactId>echopointng</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.echopm</groupId>
+            <artifactId>echopm</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+        </dependency>
+
+    </dependencies>
+
+</project>

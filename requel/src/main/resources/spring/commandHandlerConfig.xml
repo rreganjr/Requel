@@ -21,7 +21,7 @@
 					<bean class="com.rreganjr.repository.ExceptionMapper"/>
 				</constructor-arg>
 				<constructor-arg index="1">
-					<bean class="com.rreganjr.requel.command.AnalysisInvokingCommandHandler" scope="singleton">
+					<bean class="com.rreganjr.requel.user.AnalysisInvokingCommandHandler" scope="singleton">
 						<constructor-arg index="0">
 							<bean class="com.rreganjr.requel.DefaultCommandHandler" scope="singleton"/>
 						</constructor-arg>

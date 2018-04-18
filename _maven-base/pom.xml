@@ -18,7 +18,7 @@
 
     <name>Requel Maven Base Dependencies</name>
     <description>
-        This defines all the third party dependencies so that all the modules use the same library versions.
+        This defines all the third party dependencies so that all the moduueles use the same library versions.
         I copied the third party properties and dependencies from
         https://github.com/spring-projects/spring-boot/blob/master/spring-boot-dependencies/pom.xml
     </description>
@@ -83,6 +83,7 @@
     </pluginRepositories>
 
     <modules>
+        <module>../_test-base</module>
         <module>../exception</module>
         <module>../initializer</module>
         <module>../command</module>
@@ -90,10 +91,57 @@
         <module>../nlp</module>
         <module>../requel</module>
         <module>../nlp-ui</module>
+        <module>../requel-project</module>
+        <module>../requel-user</module>
+        <module>../jaxb-utils</module>
+        <module>../date-util</module>
+        <module>../describable</module>
+        <module>../annotatable</module>
+        <module>../annotation</module>
+        <module>../requel-project-ui</module>
+        <module>../requel-ui</module>
+        <module>../requel-user-ui</module>
+        <module>../annotation-ui</module>
     </modules>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>_test-base</artifactId>
+                <scope>test</scope>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>annotatable</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>annotation</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>annotation-ui</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>command</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>date-util</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>describable</artifactId>
+                <version>1.0.3</version>
+            </dependency>
             <dependency>
                 <groupId>com.rreganjr.requel</groupId>
                 <artifactId>exception</artifactId>
@@ -102,11 +150,6 @@
             <dependency>
                 <groupId>com.rreganjr.requel</groupId>
                 <artifactId>initializer</artifactId>
-                <version>1.0.3</version>
-            </dependency>
-            <dependency>
-                <groupId>com.rreganjr.requel</groupId>
-                <artifactId>command</artifactId>
                 <version>1.0.3</version>
             </dependency>
             <dependency>
@@ -127,6 +170,31 @@
             <dependency>
                 <groupId>com.rreganjr.requel</groupId>
                 <artifactId>requel</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>requel-project</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>requel-project-ui</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>requel-ui</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>requel-user</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>requel-user-ui</artifactId>
                 <version>1.0.3</version>
             </dependency>
 

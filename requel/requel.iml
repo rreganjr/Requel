@@ -11,13 +11,19 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="exception" />
-    <orderEntry type="module" module-name="initializer" />
+    <orderEntry type="module" module-name="_test-base" scope="TEST" />
+    <orderEntry type="module" module-name="annotatable" />
+    <orderEntry type="module" module-name="annotation" />
+    <orderEntry type="module" module-name="annotation-ui" />
     <orderEntry type="module" module-name="command" />
     <orderEntry type="library" name="Maven: org.springframework:spring-beans:5.0.4.RELEASE" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-context:5.0.4.RELEASE" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-expression:5.0.4.RELEASE" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-tx:5.0.4.RELEASE" level="project" />
+    <orderEntry type="module" module-name="date-util" />
+    <orderEntry type="module" module-name="describable" />
+    <orderEntry type="module" module-name="exception" />
+    <orderEntry type="module" module-name="initializer" />
     <orderEntry type="module" module-name="nlp" />
     <orderEntry type="library" name="Maven: edu.stanford.nlp:stanford-corenlp:3.8.0" level="project" />
     <orderEntry type="library" name="Maven: com.apple:AppleJavaExtensions:1.4" level="project" />
@@ -55,6 +61,11 @@
     <orderEntry type="module" module-name="repository" />
     <orderEntry type="library" name="Maven: cglib:cglib-nodep:3.2.5" level="project" />
     <orderEntry type="library" name="Maven: org.aspectj:aspectjrt:1.8.13" level="project" />
+    <orderEntry type="module" module-name="requel-project" />
+    <orderEntry type="module" module-name="requel-project-ui" />
+    <orderEntry type="module" module-name="requel-ui" />
+    <orderEntry type="module" module-name="requel-user" />
+    <orderEntry type="module" module-name="requel-user-ui" />
     <orderEntry type="library" name="Maven: org.apache.commons:commons-compress:1.15" level="project" />
     <orderEntry type="library" name="Maven: org.objenesis:objenesis:2.6" level="project" />
     <orderEntry type="library" name="Maven: com.nextapp:echo2-app:2.1.1a" level="project" />

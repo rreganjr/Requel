@@ -15,7 +15,7 @@
 			">
 
 		<bean id="noteEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.annotation.NoteEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.annotation.ui.NoteEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.annotation.Note</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
@@ -28,7 +28,7 @@
 		</bean>
 
 		<bean id="issueEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.annotation.IssueEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.annotation.ui.IssueEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.annotation.Issue</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
@@ -41,7 +41,7 @@
 		</bean>
 		
 		<bean id="positionEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.annotation.PositionEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.annotation.ui.PositionEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.annotation.Position</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
@@ -54,7 +54,7 @@
 		</bean>
 		
 		<bean id="argumentEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.annotation.ArgumentEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.annotation.ui.ArgumentEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.annotation.Argument</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">

@@ -98,7 +98,7 @@ public class ProjectJAXBTest extends AbstractIntegrationTestCase {
 			// the newInstance or an error will occur:
 			// IllegalAnnotationExceptions
 			// at public java.util.Set
-			// com.rreganjr.requel.project.impl.AbstractProjectOrDomainEntity.getAnnotations()
+			// AbstractProjectOrDomainEntity.getAnnotations()
 			JAXBContext context = JAXBContext.newInstance(ProjectImpl.class, NoteImpl.class,
 					IssueImpl.class);
 			Marshaller m = context.createMarshaller();

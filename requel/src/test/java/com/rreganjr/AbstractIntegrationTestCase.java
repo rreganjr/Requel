@@ -34,7 +34,7 @@ import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.command.DictionaryCommandFactory;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
-import com.rreganjr.requel.project.DomainAdminUserRole;
+import com.rreganjr.requel.user.DomainAdminUserRole;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;

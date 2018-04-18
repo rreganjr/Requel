@@ -14,7 +14,7 @@
 			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-4.0.xsd
 			">
 
-		<bean id="userAdminNavigatorPanel" scope="prototype" class="com.rreganjr.requel.ui.user.UserAdminNavigatorPanel">
+		<bean id="userAdminNavigatorPanel" scope="prototype" class="com.rreganjr.requel.user.ui.UserAdminNavigatorPanel">
 			<constructor-arg>
 				<util:set scope="prototype" value-type="net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory">
 					<ref bean="userCollectionNavigatorTreeNodeFactory"/>
@@ -24,7 +24,7 @@
 		</bean>
 
 		<bean id="userEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.user.UserEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.user.ui.UserEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.user.User</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">

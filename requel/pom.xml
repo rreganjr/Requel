@@ -18,15 +18,39 @@
     <dependencies>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
+            <artifactId>_test-base</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>annotatable</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>annotation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>annotation-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>command</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>date-util</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>describable</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
             <artifactId>exception</artifactId>
         </dependency>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
             <artifactId>initializer</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.rreganjr.requel</groupId>
-            <artifactId>command</artifactId>
         </dependency>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
@@ -39,6 +63,26 @@
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
             <artifactId>repository</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>requel-project</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>requel-project-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>requel-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>requel-user</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>requel-user-ui</artifactId>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-compress -->

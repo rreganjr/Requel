@@ -14,7 +14,7 @@
 			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-4.0.xsd
 			">
 
-		<bean id="projectNavigatorPanel" scope="prototype" class="com.rreganjr.requel.ui.project.ProjectNavigatorPanel">
+		<bean id="projectNavigatorPanel" scope="prototype" class="com.rreganjr.requel.project.ui.ProjectNavigatorPanel">
 			<constructor-arg>
 				<util:set scope="prototype" value-type="net.sf.echopm.navigation.tree.NavigatorTreeNodeFactory">
 					<ref bean="projectUserNavigatorTreeNodeFactory"/>
@@ -24,10 +24,10 @@
 		</bean>
 
 		<bean id="projectOverviewPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.ProjectOverviewPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.ProjectOverviewPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_OVERVIEW_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_OVERVIEW_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 					<ref bean="commandHandler"/>
@@ -39,10 +39,10 @@
 		</bean>
 
 		<bean id="projectImportPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.ProjectImportPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.ProjectImportPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_IMPORT_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_IMPORT_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 					<ref bean="commandHandler"/>
@@ -54,10 +54,10 @@
 		</bean>
 
 		<bean id="projectOpenIssuesPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.ProjectOpenIssuesNavigatorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.ProjectOpenIssuesNavigatorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Navigator"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_OPEN_ISSUES_NAVIGATOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_OPEN_ISSUES_NAVIGATOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 				</util:list>
@@ -66,10 +66,10 @@
 
 
 		<bean id="projectStakeholdersNavigatorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.StakeholderNavigatorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.StakeholderNavigatorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Navigator"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_STAKEHOLDERS_NAVIGATOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_STAKEHOLDERS_NAVIGATOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 				</util:list>
@@ -77,10 +77,10 @@
 		</bean>
 
 		<bean id="projectGoalsNavigatorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.GoalNavigatorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.GoalNavigatorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Navigator"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_GOALS_NAVIGATOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_GOALS_NAVIGATOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 				</util:list>
@@ -88,10 +88,10 @@
 		</bean>
 
 		<bean id="projectGoalsSelectorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.GoalSelectorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.GoalSelectorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Selector"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_GOALS_SELECTOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_GOALS_SELECTOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 					<ref bean="projectRepository"/>
@@ -100,10 +100,10 @@
 		</bean>
 
 		<bean id="projectStoriesNavigatorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.StoryNavigatorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.StoryNavigatorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Navigator"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_STORIES_NAVIGATOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_STORIES_NAVIGATOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 				</util:list>
@@ -111,10 +111,10 @@
 		</bean>
 
 		<bean id="projectStoriesSelectorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.StorySelectorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.StorySelectorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Selector"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_STORY_SELECTOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_STORY_SELECTOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 					<ref bean="projectRepository"/>
@@ -123,10 +123,10 @@
 		</bean>
 
 		<bean id="projectActorsNavigatorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.ActorNavigatorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.ActorNavigatorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Navigator"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_ACTORS_NAVIGATOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_ACTORS_NAVIGATOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 				</util:list>
@@ -134,10 +134,10 @@
 		</bean>
 
 		<bean id="projectActorsSelectorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.ActorSelectorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.ActorSelectorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Selector"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_ACTORS_SELECTOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_ACTORS_SELECTOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 					<ref bean="projectRepository"/>
@@ -146,10 +146,10 @@
 		</bean>
 
 		<bean id="projectUseCasesNavigatorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.UseCaseNavigatorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.UseCaseNavigatorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Navigator"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_USE_CASES_NAVIGATOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_USE_CASES_NAVIGATOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 				</util:list>
@@ -157,10 +157,10 @@
 		</bean>
 
 		<bean id="projectUseCasesSelectorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.UseCaseSelectorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.UseCaseSelectorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Selector"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_USE_CASES_SELECTOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_USE_CASES_SELECTOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 					<ref bean="projectRepository"/>
@@ -169,10 +169,10 @@
 		</bean>
 
 		<bean id="projectScenariosNavigatorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.ScenarioNavigatorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.ScenarioNavigatorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Navigator"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_SCENARIOS_NAVIGATOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_SCENARIOS_NAVIGATOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 				</util:list>
@@ -180,10 +180,10 @@
 		</bean>
 
 		<bean id="projectScenarioSelectorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.ScenarioSelectorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.ScenarioSelectorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Selector"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_SCENARIO_SELECTOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_SCENARIO_SELECTOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 					<ref bean="projectRepository"/>
@@ -192,10 +192,10 @@
 		</bean>
 		
 		<bean id="projectGlossaryTermsNavigatorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.GlossaryTermNavigatorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.GlossaryTermNavigatorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Navigator"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_GLOSSARY_TERMS_NAVIGATOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_GLOSSARY_TERMS_NAVIGATOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 				</util:list>
@@ -203,10 +203,10 @@
 		</bean>
 
 		<bean id="projectGlossaryTermsSelectorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.GlossaryTermSelectorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.GlossaryTermSelectorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Selector"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_GLOSSARY_TERM_SELECTOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_GLOSSARY_TERM_SELECTOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 					<ref bean="projectRepository"/>
@@ -215,10 +215,10 @@
 		</bean>
 
 		<bean id="projectReportsNavigatorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.ReportGeneratorNavigatorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.ReportGeneratorNavigatorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Project</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Navigator"/></constructor-arg>
-			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.ui.project.ProjectManagementPanelNames.PROJECT_REPORTS_NAVIGATOR_PANEL_NAME"/></constructor-arg>
+			<constructor-arg index="3"><util:constant static-field="com.rreganjr.requel.project.ui.ProjectManagementPanelNames.PROJECT_REPORTS_NAVIGATOR_PANEL_NAME"/></constructor-arg>
 			<constructor-arg index="4">
 				<util:list>
 					<ref bean="commandHandler"/>
@@ -228,7 +228,7 @@
 		</bean>
 		
 		<bean id="userStakeholderEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.UserStakeholderEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.UserStakeholderEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.UserStakeholder</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
@@ -242,7 +242,7 @@
 		</bean>
 
 		<bean id="nonUserStakeholderEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.NonUserStakeholderEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.NonUserStakeholderEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.NonUserStakeholder</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
@@ -256,7 +256,7 @@
 		</bean>
 		
 		<bean id="goalEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.GoalEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.GoalEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Goal</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
@@ -269,7 +269,7 @@
 		</bean>
 		
 		<bean id="goalRelationEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.GoalRelationEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.GoalRelationEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.GoalRelation</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
@@ -282,7 +282,7 @@
 		</bean>
 		
 		<bean id="storyEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.StoryEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.StoryEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Story</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
@@ -295,7 +295,7 @@
 		</bean>
 
 		<bean id="actorEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.ActorEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.ActorEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Actor</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
@@ -308,7 +308,7 @@
 		</bean>
 
 		<bean id="useCaseEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.UseCaseEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.UseCaseEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.UseCase</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
@@ -321,7 +321,7 @@
 		</bean>
 
 		<bean id="scenarioEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.ScenarioEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.ScenarioEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.Scenario</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
@@ -334,7 +334,7 @@
 		</bean>
 		
 		<bean id="glossaryTermEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.GlossaryTermEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.GlossaryTermEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.GlossaryTerm</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">
@@ -347,7 +347,7 @@
 		</bean>
 
 		<bean id="reportEditorPanelFactory" scope="prototype" class="net.sf.echopm.panel.DefaultPanelFactory">
-			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.ui.project.ReportGeneratorEditorPanel</value></constructor-arg>
+			<constructor-arg index="0"><value type="java.lang.Class">com.rreganjr.requel.project.ui.ReportGeneratorEditorPanel</value></constructor-arg>
 			<constructor-arg index="1"><value type="java.lang.Class">com.rreganjr.requel.project.ReportGenerator</value></constructor-arg>
 			<constructor-arg index="2"><util:constant static-field="net.sf.echopm.panel.PanelActionType.Editor"/></constructor-arg>
 			<constructor-arg index="3">

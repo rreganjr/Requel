@@ -32,6 +32,10 @@
             <groupId>com.rreganjr.requel</groupId>
             <artifactId>repository</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>annotation</artifactId>
+        </dependency>
 
         <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
         <!-- this is only needed for ResourceBundleHelper in OpenNLPParser, that should probably
