@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  - Spring config for the ui framework supplied files. It collects the components
+  - Spring config for the project framework supplied files. It collects the components
   - annotated with Spring annotations.
   -->
 <beans xmlns="http://www.springframework.org/schema/beans"

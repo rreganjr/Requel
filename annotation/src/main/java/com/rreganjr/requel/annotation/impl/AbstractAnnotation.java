@@ -169,23 +169,22 @@ public abstract class AbstractAnnotation implements Annotation, Describable, Ser
 	/**
 	 * @return the entity that is annotated by this annotation.
 	 */
-	// TODO: it would be better if this wasn't dependent on the classes being
-	// mapped.
+	// TODO: it would be better if this wasn't dependent on the classes being mapped.
 	@ManyToAny(fetch = FetchType.LAZY, metaColumn = @Column(name = "annotatable_type", length = 255, nullable = false))
 	@AnyMetaDef(idType = "long", metaType = "string", metaValues = {
 			@MetaValue(value = "com.rreganjr.requel.annotation.Annotation", targetEntity = AbstractAnnotation.class),
-//			@MetaValue(value = "Project", targetEntity = ProjectImpl.class),
-//			@MetaValue(value = "ProjectTeam", targetEntity = ProjectTeamImpl.class),
-//			@MetaValue(value = "Goal", targetEntity = GoalImpl.class),
-//			@MetaValue(value = "GoalRelation", targetEntity = GoalRelationImpl.class),
-//			@MetaValue(value = "UseCase", targetEntity = UseCaseImpl.class),
-//			@MetaValue(value = "Scenario", targetEntity = ScenarioImpl.class),
-//			@MetaValue(value = "Step", targetEntity = StepImpl.class),
-//			@MetaValue(value = "Story", targetEntity = StoryImpl.class),
-//			@MetaValue(value = "Actor", targetEntity = ActorImpl.class),
-//			@MetaValue(value = "GlossaryTerm", targetEntity = GlossaryTermImpl.class),
-//			@MetaValue(value = "NonUserStakeholder", targetEntity = NonUserStakeholderImpl.class),
-//			@MetaValue(value = "UserStakeholder", targetEntity = UserStakeholderImpl.class)
+//			@MetaValue(value = "com.rreganjr.requel.project.Project", targetEntity = ProjectImpl.class),
+//			@MetaValue(value = "com.rreganjr.requel.project.ProjectTeam", targetEntity = ProjectTeamImpl.class),
+//			@MetaValue(value = "com.rreganjr.requel.project.Goal", targetEntity = GoalImpl.class),
+//			@MetaValue(value = "com.rreganjr.requel.project.GoalRelation", targetEntity = GoalRelationImpl.class),
+//			@MetaValue(value = "com.rreganjr.requel.project.UseCase", targetEntity = UseCaseImpl.class),
+//			@MetaValue(value = "com.rreganjr.requel.project.Scenario", targetEntity = ScenarioImpl.class),
+//			@MetaValue(value = "com.rreganjr.requel.project.Step", targetEntity = StepImpl.class),
+//			@MetaValue(value = "com.rreganjr.requel.project.Story", targetEntity = StoryImpl.class),
+//			@MetaValue(value = "com.rreganjr.requel.project.Actor", targetEntity = ActorImpl.class),
+//			@MetaValue(value = "com.rreganjr.requel.project.GlossaryTerm", targetEntity = GlossaryTermImpl.class),
+//			@MetaValue(value = "com.rreganjr.requel.project.NonUserStakeholder", targetEntity = NonUserStakeholderImpl.class),
+//			@MetaValue(value = "com.rreganjr.requel.project.UserStakeholder", targetEntity = UserStakeholderImpl.class)
 	})
 	@JoinTable(name = "annotation_annotatable", joinColumns = { @JoinColumn(name = "annotation_id") }, inverseJoinColumns = { @JoinColumn(name = "annotatable_id") })
 	public Set<Annotatable> getAnnotatables() {

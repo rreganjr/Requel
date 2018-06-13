@@ -223,7 +223,7 @@
                     </systemAdminUserRole>
                     <projectUserRole>
                         <userPermissions>
-                            <userPermission userRoleType="com.rreganjr.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
+                            <userPermission userRoleType="ProjectUserRole" name="createProjects" id="PRM_1"/>
                         </userPermissions>
                     </projectUserRole>
                 </userRoles>
@@ -270,7 +270,7 @@
                 <userRoles>
                     <projectUserRole>
                         <userPermissions>
-                            <userPermission userRoleType="com.rreganjr.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
+                            <userPermission userRoleType="ProjectUserRole" name="createProjects" id="PRM_1"/>
                         </userPermissions>
                     </projectUserRole>
                 </userRoles>
@@ -310,7 +310,7 @@
                 <userRoles>
                     <projectUserRole>
                         <userPermissions>
-                            <userPermission userRoleType="com.rreganjr.requel.project.ProjectUserRole" name="createProjects" id="PRM_1"/>
+                            <userPermission userRoleType="ProjectUserRole" name="createProjects" id="PRM_1"/>
                         </userPermissions>
                     </projectUserRole>
                 </userRoles>

@@ -47,7 +47,7 @@ public class SystemAdminUserRole extends AbstractUserRole {
 	}
 
 	/**
-	 * @param roleName
+	 *
 	 */
 	public SystemAdminUserRole() {
 		super();
