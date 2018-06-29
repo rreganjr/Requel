@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="RunIt" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.rreganjr.requel.Application" />
+    <module name="requel" />
+    <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$/_maven-base" />
+    <method />
+  </configuration>
+</component>
