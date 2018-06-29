@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.nextapp:echo2extras-app:2.1.0a">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/nextapp/echo2extras-app/2.1.0a/echo2extras-app-2.1.0a.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/nextapp/echo2extras-app/2.1.0a/echo2extras-app-2.1.0a-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/nextapp/echo2extras-app/2.1.0a/echo2extras-app-2.1.0a-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

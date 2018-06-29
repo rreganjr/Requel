@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/_maven-base/_maven-base.iml" filepath="$PROJECT_DIR$/_maven-base/_maven-base.iml" />
+      <module fileurl="file://$PROJECT_DIR$/_test-base/_test-base.iml" filepath="$PROJECT_DIR$/_test-base/_test-base.iml" />
+      <module fileurl="file://$PROJECT_DIR$/annotatable/annotatable.iml" filepath="$PROJECT_DIR$/annotatable/annotatable.iml" />
+      <module fileurl="file://$PROJECT_DIR$/annotatable-mapping/annotatable-mapping.iml" filepath="$PROJECT_DIR$/annotatable-mapping/annotatable-mapping.iml" />
+      <module fileurl="file://$PROJECT_DIR$/annotation/annotation.iml" filepath="$PROJECT_DIR$/annotation/annotation.iml" />
+      <module fileurl="file://$PROJECT_DIR$/annotation-ui/annotation-ui.iml" filepath="$PROJECT_DIR$/annotation-ui/annotation-ui.iml" />
+      <module fileurl="file://$PROJECT_DIR$/command/command.iml" filepath="$PROJECT_DIR$/command/command.iml" />
+      <module fileurl="file://$PROJECT_DIR$/date-util/date-util.iml" filepath="$PROJECT_DIR$/date-util/date-util.iml" />
+      <module fileurl="file://$PROJECT_DIR$/describable/describable.iml" filepath="$PROJECT_DIR$/describable/describable.iml" />
+      <module fileurl="file://$PROJECT_DIR$/exception/exception.iml" filepath="$PROJECT_DIR$/exception/exception.iml" />
+      <module fileurl="file://$PROJECT_DIR$/initializer/initializer.iml" filepath="$PROJECT_DIR$/initializer/initializer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/nlp/nlp.iml" filepath="$PROJECT_DIR$/nlp/nlp.iml" />
+      <module fileurl="file://$PROJECT_DIR$/nlp-ui/nlp-ui.iml" filepath="$PROJECT_DIR$/nlp-ui/nlp-ui.iml" />
+      <module fileurl="file://$PROJECT_DIR$/repository/repository.iml" filepath="$PROJECT_DIR$/repository/repository.iml" />
+      <module fileurl="file://$PROJECT_DIR$/requel/requel.iml" filepath="$PROJECT_DIR$/requel/requel.iml" />
+      <module fileurl="file://$PROJECT_DIR$/requel-project/requel-project.iml" filepath="$PROJECT_DIR$/requel-project/requel-project.iml" />
+      <module fileurl="file://$PROJECT_DIR$/requel-project-ui/requel-project-ui.iml" filepath="$PROJECT_DIR$/requel-project-ui/requel-project-ui.iml" />
+      <module fileurl="file://$PROJECT_DIR$/requel-ui/requel-ui.iml" filepath="$PROJECT_DIR$/requel-ui/requel-ui.iml" />
+      <module fileurl="file://$PROJECT_DIR$/requel-user/requel-user.iml" filepath="$PROJECT_DIR$/requel-user/requel-user.iml" />
+      <module fileurl="file://$PROJECT_DIR$/requel-user-ui/requel-user-ui.iml" filepath="$PROJECT_DIR$/requel-user-ui/requel-user-ui.iml" />
+    </modules>
+  </component>
+</project>

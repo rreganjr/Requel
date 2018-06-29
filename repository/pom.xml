@@ -6,7 +6,7 @@
     <artifactId>repository</artifactId>
     <parent>
         <groupId>com.rreganjr.requel</groupId>
-        <artifactId>maven-base</artifactId>
+        <artifactId>_maven-base</artifactId>
         <version>1.0.3</version>
         <relativePath>../_maven-base/pom.xml</relativePath>
     </parent>

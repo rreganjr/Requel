@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="_test-base" />
+        <module name="annotatable" />
+        <module name="annotatable-mapping" />
+        <module name="annotation" />
+        <module name="annotation-ui" />
+        <module name="command" />
+        <module name="date-util" />
+        <module name="describable" />
+        <module name="exception" />
+        <module name="initializer" />
+        <module name="nlp" />
+        <module name="nlp-ui" />
+        <module name="repository" />
+        <module name="requel" />
+        <module name="requel-project" />
+        <module name="requel-project-ui" />
+        <module name="requel-ui" />
+        <module name="requel-user" />
+        <module name="requel-user-ui" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="_maven-base" target="1.8" />
+      <module name="_test-base" target="1.8" />
+      <module name="annotatable" target="1.8" />
+      <module name="annotatable-mapping" target="1.8" />
+      <module name="annotation" target="1.8" />
+      <module name="annotation-ui" target="1.8" />
+      <module name="command" target="1.8" />
+      <module name="date-util" target="1.8" />
+      <module name="describable" target="1.8" />
+      <module name="exception" target="1.8" />
+      <module name="initializer" target="1.8" />
+      <module name="nlp" target="1.8" />
+      <module name="nlp-ui" target="1.8" />
+      <module name="repository" target="1.8" />
+      <module name="requel" target="1.8" />
+      <module name="requel-project" target="1.8" />
+      <module name="requel-project-ui" target="1.8" />
+      <module name="requel-ui" target="1.8" />
+      <module name="requel-user" target="1.8" />
+      <module name="requel-user-ui" target="1.8" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

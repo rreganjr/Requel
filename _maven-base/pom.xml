@@ -12,7 +12,7 @@
     </parent>
 
     <groupId>com.rreganjr.requel</groupId>
-    <artifactId>maven-base</artifactId>
+    <artifactId>_maven-base</artifactId>
     <version>1.0.3</version>
     <packaging>pom</packaging>
 
@@ -93,7 +93,6 @@
         <module>../nlp-ui</module>
         <module>../requel-project</module>
         <module>../requel-user</module>
-        <module>../jaxb-utils</module>
         <module>../date-util</module>
         <module>../describable</module>
         <module>../annotatable</module>

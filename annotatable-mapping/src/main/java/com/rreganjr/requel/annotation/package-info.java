@@ -1,6 +1,9 @@
 /**
  * Define the mapping for AbstractAnnotation annotatables in a way so that the annotation package doesn't depend
- * on project objects
+ * on project objects.
+ *
+ * NOTE: the annotation module can't depend on this module as it will lead to a cycle because of
+ * the direct relationship of this -> annotation and this -> requel-project -> annotation
  */
 @AnyMetaDef(name = "annotatables", idType = "long", metaType = "string", metaValues = {
     @MetaValue(value = "com.rreganjr.requel.annotation.Annotation", targetEntity = AbstractAnnotation.class),
