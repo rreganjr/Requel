@@ -10,30 +10,18 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>annotation</artifactId>
+    <artifactId>annotatable-mapping</artifactId>
 
 
     <dependencies>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
-            <artifactId>exception</artifactId>
+            <artifactId>annotation</artifactId>
         </dependency>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
-            <artifactId>annotatable</artifactId>
+            <artifactId>requel-project</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.rreganjr.requel</groupId>
-            <artifactId>annotatable-mapping</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.rreganjr.requel</groupId>
-            <artifactId>requel-user</artifactId>
-        </dependency>
-        <!--<dependency>-->
-            <!--<groupId>com.rreganjr.requel</groupId>-->
-            <!--<artifactId>requel-project</artifactId>-->
-        <!--</dependency>-->
-    </dependencies>
 
+    </dependencies>
 </project>

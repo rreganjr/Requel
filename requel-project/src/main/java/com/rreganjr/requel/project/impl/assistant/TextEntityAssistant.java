@@ -43,9 +43,6 @@ public class TextEntityAssistant extends ProjectOrDomainEntityAssistant {
 	 * @param lexicalAssistant -
 	 *            assistant for analyzing text for spelling, terms and other
 	 *            word oriented analysis.
-	 * @param updatedEntityNotifier -
-	 *            after an entity is analyzed it is passed to the notifier to
-	 *            tell the UI components that reference the entity to refresh
 	 * @param assistantUser -
 	 *            the user to use as the creator of the annotation entities.
 	 */
@@ -64,8 +61,6 @@ public class TextEntityAssistant extends ProjectOrDomainEntityAssistant {
 
 	/**
 	 * Analyze the text of the text property
-	 * 
-	 * @param entity
 	 */
 	@Override
 	public void analyze() {

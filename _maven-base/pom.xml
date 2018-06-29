@@ -102,6 +102,7 @@
         <module>../requel-ui</module>
         <module>../requel-user-ui</module>
         <module>../annotation-ui</module>
+        <module>../annotatable-mapping</module>
     </modules>
 
     <dependencyManagement>
@@ -115,6 +116,11 @@
             <dependency>
                 <groupId>com.rreganjr.requel</groupId>
                 <artifactId>annotatable</artifactId>
+                <version>1.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>com.rreganjr.requel</groupId>
+                <artifactId>annotatable-mapping</artifactId>
                 <version>1.0.3</version>
             </dependency>
             <dependency>
