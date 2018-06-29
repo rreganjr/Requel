@@ -416,8 +416,8 @@ public class ScenarioEditorPanel extends AbstractRequelProjectEditorPanel {
 					}
 				} else if (event.getObject() instanceof Goal) {
 					Goal updatedGoal = (Goal) event.getObject();
-					if (updatedGoal.getReferers().contains(existingScenario)) {
-						for (GoalContainer gc : updatedGoal.getReferers()) {
+					if (updatedGoal.getReferrers().contains(existingScenario)) {
+						for (GoalContainer gc : updatedGoal.getReferrers()) {
 							if (gc.equals(existingScenario)) {
 								updatedScenario = (Scenario) gc;
 								break;
@@ -426,8 +426,8 @@ public class ScenarioEditorPanel extends AbstractRequelProjectEditorPanel {
 					}
 				} else if (event.getObject() instanceof Actor) {
 					Actor updatedActor = (Actor) event.getObject();
-					if (updatedActor.getReferers().contains(existingScenario)) {
-						for (ActorContainer ac : updatedActor.getReferers()) {
+					if (updatedActor.getReferrers().contains(existingScenario)) {
+						for (ActorContainer ac : updatedActor.getReferrers()) {
 							if (ac.equals(existingScenario)) {
 								updatedScenario = (Scenario) ac;
 								break;

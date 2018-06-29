@@ -106,7 +106,7 @@ public class GoalContainersTable extends AbstractRequelNavigatorTable {
 	protected void setGoal(Goal goal) {
 		this.goal = goal;
 		if (goal != null) {
-			table.setModel(new NavigatorTableModel((Collection) goal.getReferers()));
+			table.setModel(new NavigatorTableModel((Collection) goal.getReferrers()));
 		} else {
 			table.setModel(new NavigatorTableModel(Collections.EMPTY_SET));
 		}

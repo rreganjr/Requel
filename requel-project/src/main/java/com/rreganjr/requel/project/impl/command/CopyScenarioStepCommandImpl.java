@@ -114,7 +114,7 @@ public class CopyScenarioStepCommandImpl extends AbstractEditProjectCommand impl
 		}
 		for (GlossaryTerm term : originalScenarioStep.getGlossaryTerms()) {
 			newScenarioStep.getGlossaryTerms().add(term);
-			term.getReferers().add(newScenarioStep);
+			term.getReferrers().add(newScenarioStep);
 		}
 		newScenarioStep = getProjectRepository().merge(newScenarioStep);
 		setNewScenarioStep(newScenarioStep);

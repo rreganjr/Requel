@@ -69,7 +69,7 @@ import com.rreganjr.requel.user.JAXBCreatedEntityPatcher;
 public class ActorImpl extends AbstractTextEntity implements Actor {
 	static final long serialVersionUID = 0L;
 
-	private Set<ActorContainer> referers = new TreeSet<ActorContainer>(ActorContainer.COMPARATOR);
+	private Set<ActorContainer> referrers = new TreeSet<ActorContainer>(ActorContainer.COMPARATOR);
 	private Set<Goal> goals = new TreeSet<Goal>();
 
 	/**
@@ -124,12 +124,12 @@ public class ActorImpl extends AbstractTextEntity implements Actor {
 	@JoinTable(name = "actor_actorcontainers", joinColumns = { @JoinColumn(name = "actor_id") }, inverseJoinColumns = {
 			@JoinColumn(name = "actorcontainer_type"), @JoinColumn(name = "actorcontainer_id") })
 	@Sort(type = SortType.COMPARATOR, comparator = ActorContainer.ActorContainerComparator.class)
-	public Set<ActorContainer> getReferers() {
-		return referers;
+	public Set<ActorContainer> getReferrers() {
+		return referrers;
 	}
 
-	protected void setReferers(Set<ActorContainer> referers) {
-		this.referers = referers;
+	protected void setReferrers(Set<ActorContainer> referrers) {
+		this.referrers = referrers;
 	}
 
 	@Override
@@ -171,7 +171,7 @@ public class ActorImpl extends AbstractTextEntity implements Actor {
 				try {
 					// update the references to goals
 					for (Goal goal : getGoals()) {
-						goal.getReferers().add(ActorImpl.this);
+						goal.getReferrers().add(ActorImpl.this);
 					}
 				} catch (RuntimeException e) {
 					throw e;

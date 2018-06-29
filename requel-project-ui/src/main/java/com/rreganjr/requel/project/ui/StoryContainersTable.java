@@ -107,7 +107,7 @@ public class StoryContainersTable extends AbstractRequelNavigatorTable {
 	protected void setStory(Story story) {
 		this.story = story;
 		if (story != null) {
-			table.setModel(new NavigatorTableModel((Collection) story.getReferers()));
+			table.setModel(new NavigatorTableModel((Collection) story.getReferrers()));
 		} else {
 			table.setModel(new NavigatorTableModel(Collections.EMPTY_SET));
 		}

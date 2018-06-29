@@ -96,11 +96,11 @@ public class DeleteGoalCommandImpl extends AbstractEditProjectCommand implements
 		}
 		// remove this entity as a referer to any terms
 		for (GlossaryTerm term : goal.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(goal)) {
-				term.getReferers().remove(goal);
+			if (term.getReferrers().contains(goal)) {
+				term.getReferrers().remove(goal);
 			}
 		}
-		Set<GoalContainer> goalReferers = new HashSet<GoalContainer>(goal.getReferers());
+		Set<GoalContainer> goalReferers = new HashSet<GoalContainer>(goal.getReferrers());
 		for (GoalContainer goalContainer : goalReferers) {
 			RemoveGoalFromGoalContainerCommand removeGoalFromGoalContainerCommand = getProjectCommandFactory()
 					.newRemoveGoalFromGoalContainerCommand();

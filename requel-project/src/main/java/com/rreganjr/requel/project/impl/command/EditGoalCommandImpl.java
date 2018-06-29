@@ -136,7 +136,7 @@ public class EditGoalCommandImpl extends AbstractEditProjectOrDomainEntityComman
 			goalImpl.setText(getText());
 		}
 		if (goalContainer != null) {
-			goalImpl.getReferers().add(goalContainer);
+			goalImpl.getReferrers().add(goalContainer);
 		}
 		setGoal(getProjectRepository().merge(goalImpl));
 		if (goalContainer != null) {

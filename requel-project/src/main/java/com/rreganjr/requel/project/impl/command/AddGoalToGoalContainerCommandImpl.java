@@ -83,7 +83,7 @@ public class AddGoalToGoalContainerCommandImpl extends AbstractEditProjectComman
 	public void execute() {
 		Goal addedGoal = getProjectRepository().get(getGoal());
 		GoalContainer addingContainer = getProjectRepository().get(getGoalContainer());
-		addedGoal.getReferers().add(addingContainer);
+		addedGoal.getReferrers().add(addingContainer);
 		addingContainer.getGoals().add(addedGoal);
 
 		// replaced the supplied objects with the updated objects for retrieval.

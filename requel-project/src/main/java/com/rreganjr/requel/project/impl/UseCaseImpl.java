@@ -252,16 +252,16 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 			public void run() throws SAXException {
 				try {
 					for (Goal goal : getGoals()) {
-						goal.getReferers().add(UseCaseImpl.this);
+						goal.getReferrers().add(UseCaseImpl.this);
 					}
 					for (Actor actor : getActors()) {
-						actor.getReferers().add(UseCaseImpl.this);
+						actor.getReferrers().add(UseCaseImpl.this);
 					}
 					if (getPrimaryActor() != null) {
-						getPrimaryActor().getReferers().add(UseCaseImpl.this);
+						getPrimaryActor().getReferrers().add(UseCaseImpl.this);
 					}
 					for (Story story : getStories()) {
-						story.getReferers().add(UseCaseImpl.this);
+						story.getReferrers().add(UseCaseImpl.this);
 					}
 				} catch (RuntimeException e) {
 					throw e;

@@ -83,7 +83,7 @@ public class AddStoryToStoryContainerCommandImpl extends AbstractEditProjectComm
 	public void execute() {
 		Story addedStory = getRepository().get(getStory());
 		StoryContainer addingContainer = getRepository().get(getStoryContainer());
-		addedStory.getReferers().add(addingContainer);
+		addedStory.getReferrers().add(addingContainer);
 		addingContainer.getStories().add(addedStory);
 
 		// replaced the supplied objects with the updated objects for retrieval.

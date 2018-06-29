@@ -183,17 +183,17 @@ public class EditActorCommandImpl extends AbstractEditProjectOrDomainEntityComma
 			}
 		}
 
-		actorImpl.getReferers().add(projectOrDomain);
+		actorImpl.getReferrers().add(projectOrDomain);
 		projectOrDomain.getActors().add(actorImpl);
 
 		if (containers != null) {
 			// TODO: equals on a set seems weird
 			if (containers.equals(getActorContainers())) {
-				actorImpl.getReferers().clear();
+				actorImpl.getReferrers().clear();
 			}
 			for (ActorContainer container : containers) {
 				container = getRepository().get(container);
-				actorImpl.getReferers().add(container);
+				actorImpl.getReferrers().add(container);
 			}
 		}
 		setActor(getProjectRepository().merge(actorImpl));
@@ -201,7 +201,7 @@ public class EditActorCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		if (containers != null) {
 			// TODO: equals on a set seems weird
 			if (containers.equals(getActorContainers())) {
-				actorImpl.getReferers().clear();
+				actorImpl.getReferrers().clear();
 			}
 			for (ActorContainer container : containers) {
 				container = getRepository().get(container);

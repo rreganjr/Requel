@@ -432,8 +432,8 @@ public class UseCaseEditorPanel extends AbstractRequelProjectEditorPanel {
 							existingUseCase.getGoals().remove(updatedGoal);
 						}
 						updatedUseCase = existingUseCase;
-					} else if (updatedGoal.getReferers().contains(existingUseCase)) {
-						for (GoalContainer gc : updatedGoal.getReferers()) {
+					} else if (updatedGoal.getReferrers().contains(existingUseCase)) {
+						for (GoalContainer gc : updatedGoal.getReferrers()) {
 							if (gc.equals(existingUseCase)) {
 								updatedUseCase = (UseCase) gc;
 								break;
@@ -450,8 +450,8 @@ public class UseCaseEditorPanel extends AbstractRequelProjectEditorPanel {
 							existingUseCase.getActors().remove(updatedActor);
 						}
 						updatedUseCase = existingUseCase;
-					} else if (updatedActor.getReferers().contains(existingUseCase)) {
-						for (ActorContainer ac : updatedActor.getReferers()) {
+					} else if (updatedActor.getReferrers().contains(existingUseCase)) {
+						for (ActorContainer ac : updatedActor.getReferrers()) {
 							if (ac.equals(existingUseCase)) {
 								updatedUseCase = (UseCase) ac;
 								break;
@@ -465,8 +465,8 @@ public class UseCaseEditorPanel extends AbstractRequelProjectEditorPanel {
 							existingUseCase.getStories().remove(updatedStory);
 						}
 						updatedUseCase = existingUseCase;
-					} else if (updatedStory.getReferers().contains(existingUseCase)) {
-						for (StoryContainer ac : updatedStory.getReferers()) {
+					} else if (updatedStory.getReferrers().contains(existingUseCase)) {
+						for (StoryContainer ac : updatedStory.getReferrers()) {
 							if (ac.equals(existingUseCase)) {
 								updatedUseCase = (UseCase) ac;
 								break;

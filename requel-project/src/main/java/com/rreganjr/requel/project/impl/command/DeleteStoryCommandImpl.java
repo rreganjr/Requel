@@ -99,8 +99,8 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 		}
 		// remove this entity as a referrer to any terms
 		for (GlossaryTerm term : story.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(story)) {
-				term.getReferers().remove(story);
+			if (term.getReferrers().contains(story)) {
+				term.getReferrers().remove(story);
 			}
 		}
 		for (Actor actor : story.getActors()) {
@@ -117,7 +117,7 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 			removeGoalFromGoalContainerCommand.setGoalContainer(story);
 			getCommandHandler().execute(removeGoalFromGoalContainerCommand);
 		}
-		Set<StoryContainer> storyReferers = new HashSet<StoryContainer>(story.getReferers());
+		Set<StoryContainer> storyReferers = new HashSet<StoryContainer>(story.getReferrers());
 		for (StoryContainer storyContainer : storyReferers) {
 			RemoveStoryFromStoryContainerCommand removeStoryFromStoryContainerCommand = getProjectCommandFactory().newRemoveStoryFromStoryContainerCommand();
 			removeStoryFromStoryContainerCommand.setEditedBy(editedBy);

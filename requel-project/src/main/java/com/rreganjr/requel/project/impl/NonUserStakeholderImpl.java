@@ -204,7 +204,7 @@ public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUs
 				try {
 					// update the references to goals
 					for (Goal goal : getGoals()) {
-						goal.getReferers().add(NonUserStakeholderImpl.this);
+						goal.getReferrers().add(NonUserStakeholderImpl.this);
 					}
 				} catch (RuntimeException e) {
 					throw e;

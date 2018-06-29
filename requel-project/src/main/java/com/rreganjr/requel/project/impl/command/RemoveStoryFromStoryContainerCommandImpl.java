@@ -83,7 +83,7 @@ public class RemoveStoryFromStoryContainerCommandImpl extends AbstractEditProjec
 	public void execute() {
 		Story removedStory = getProjectRepository().get(getStory());
 		StoryContainer removingContainer = getProjectRepository().get(getStoryContainer());
-		removedStory.getReferers().remove(removingContainer);
+		removedStory.getReferrers().remove(removingContainer);
 		removingContainer.getStories().remove(removedStory);
 
 		// replaced the supplied objects with the updated objects for retrieval.

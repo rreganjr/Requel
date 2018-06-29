@@ -32,7 +32,7 @@ public interface Story extends TextEntity, GoalContainer, ActorContainer, Compar
 	 * 
 	 * @return
 	 */
-	public Set<StoryContainer> getReferers();
+	public Set<StoryContainer> getReferrers();
 
 	/**
 	 * @return The type of story: Success or Exceptional

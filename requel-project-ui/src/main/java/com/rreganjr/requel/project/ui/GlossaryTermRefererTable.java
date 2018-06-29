@@ -106,7 +106,7 @@ public class GlossaryTermRefererTable extends AbstractRequelNavigatorTable {
 	protected void setGlossaryTerm(GlossaryTerm glossaryTerm) {
 		this.glossaryTerm = glossaryTerm;
 		if (glossaryTerm != null) {
-			table.setModel(new NavigatorTableModel((Collection) glossaryTerm.getReferers()));
+			table.setModel(new NavigatorTableModel((Collection) glossaryTerm.getReferrers()));
 		} else {
 			table.setModel(new NavigatorTableModel(Collections.EMPTY_SET));
 		}

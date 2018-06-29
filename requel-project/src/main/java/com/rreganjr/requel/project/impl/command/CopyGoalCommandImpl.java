@@ -126,7 +126,7 @@ public class CopyGoalCommandImpl extends AbstractEditProjectCommand implements C
 		}
 		for (GlossaryTerm term : originalGoal.getGlossaryTerms()) {
 			newGoal.getGlossaryTerms().add(term);
-			term.getReferers().add(newGoal);
+			term.getReferrers().add(newGoal);
 		}
 		newGoal = getProjectRepository().merge(newGoal);
 		setNewGoal(newGoal);

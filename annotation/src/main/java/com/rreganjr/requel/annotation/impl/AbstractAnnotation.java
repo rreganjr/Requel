@@ -63,9 +63,7 @@ import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
 import org.hibernate.annotations.Any;
-import org.hibernate.annotations.AnyMetaDef;
 import org.hibernate.annotations.ManyToAny;
-import org.hibernate.annotations.MetaValue;
 
 import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 
@@ -139,8 +137,7 @@ public abstract class AbstractAnnotation implements Annotation, Describable, Ser
 	/**
 	 * @return An object used as the "owner" of a group of annotations.
 	 */
-	@Any(metaColumn = @Column(name = "grouping_object_type", length = 255), fetch = FetchType.LAZY, optional = false)
-	@AnyMetaDef(idType = "long", metaType = "string", metaValues = { /*@MetaValue(value = "Project", targetEntity = ProjectImpl.class)*/ })
+	@Any(metaDef = "groupingObject", metaColumn = @Column(name = "grouping_object_type", length = 255), fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "grouping_object_id")
 	@XmlTransient
 	public Object getGroupingObject() {
@@ -169,7 +166,6 @@ public abstract class AbstractAnnotation implements Annotation, Describable, Ser
 	/**
 	 * @return the entity that is annotated by this annotation.
 	 */
-	// TODO: it would be better if this wasn't dependent on the classes being mapped.
 	@ManyToAny(metaDef = "annotatables", fetch = FetchType.LAZY, metaColumn = @Column(name = "annotatable_type", length = 255, nullable = false))
 	@JoinTable(name = "annotation_annotatable", joinColumns = { @JoinColumn(name = "annotation_id") }, inverseJoinColumns = { @JoinColumn(name = "annotatable_id") })
 	public Set<Annotatable> getAnnotatables() {

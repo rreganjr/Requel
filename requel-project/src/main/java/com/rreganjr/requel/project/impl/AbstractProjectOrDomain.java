@@ -467,7 +467,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 				new JAXBCreatedEntityPatcher(userRepository, this, defaultCreatedByUser));
 		// update the references to goals
 		for (Goal goal : getGoals()) {
-			goal.getReferers().add(AbstractProjectOrDomain.this);
+			goal.getReferrers().add(AbstractProjectOrDomain.this);
 		}
 	}
 

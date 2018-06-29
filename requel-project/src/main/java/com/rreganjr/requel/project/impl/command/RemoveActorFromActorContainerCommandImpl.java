@@ -83,7 +83,7 @@ public class RemoveActorFromActorContainerCommandImpl extends AbstractEditProjec
 	public void execute() {
 		Actor removedActor = getProjectRepository().get(getActor());
 		ActorContainer removingContainer = getProjectRepository().get(getActorContainer());
-		removedActor.getReferers().remove(removingContainer);
+		removedActor.getReferrers().remove(removingContainer);
 		removingContainer.getActors().remove(removedActor);
 
 		// replaced the supplied objects with the updated objects for retrieval.

@@ -68,7 +68,7 @@ public class GlossaryTermImpl extends AbstractTextEntity implements GlossaryTerm
 
 	private GlossaryTerm canonicalTerm;
 	private Set<GlossaryTerm> alternateTerms = new TreeSet<GlossaryTerm>();
-	private Set<ProjectOrDomainEntity> referers = new TreeSet<ProjectOrDomainEntity>(
+	private Set<ProjectOrDomainEntity> referrers = new TreeSet<ProjectOrDomainEntity>(
 			new ProjectOrDomainEntityComparator());
 
 	/**
@@ -159,12 +159,12 @@ public class GlossaryTermImpl extends AbstractTextEntity implements GlossaryTerm
 	@JoinTable(name = "terms_referers", joinColumns = { @JoinColumn(name = "term_id") }, inverseJoinColumns = {
 			@JoinColumn(name = "referer_type"), @JoinColumn(name = "referer_id") })
 	@Sort(type = SortType.COMPARATOR, comparator = ProjectOrDomainEntityComparator.class)
-	public Set<ProjectOrDomainEntity> getReferers() {
-		return referers;
+	public Set<ProjectOrDomainEntity> getReferrers() {
+		return referrers;
 	}
 
-	protected void setReferers(Set<ProjectOrDomainEntity> referersToThisTerm) {
-		this.referers = referersToThisTerm;
+	protected void setReferrers(Set<ProjectOrDomainEntity> referrersToThisTerm) {
+		this.referrers = referrersToThisTerm;
 	}
 
 	/**

@@ -105,11 +105,11 @@ public class CopyStoryCommandImpl extends AbstractEditProjectCommand implements 
 						.getText(), originalStory.getStoryType()));
 		for (Actor actor : originalStory.getActors()) {
 			newStory.getActors().add(actor);
-			actor.getReferers().add(newStory);
+			actor.getReferrers().add(newStory);
 		}
 		for (Goal goal : originalStory.getGoals()) {
 			newStory.getGoals().add(goal);
-			goal.getReferers().add(newStory);
+			goal.getReferrers().add(newStory);
 		}
 		// TODO: this assumes that all annotations are appropriate for the new
 		// story
@@ -119,7 +119,7 @@ public class CopyStoryCommandImpl extends AbstractEditProjectCommand implements 
 		}
 		for (GlossaryTerm term : originalStory.getGlossaryTerms()) {
 			newStory.getGlossaryTerms().add(term);
-			term.getReferers().add(newStory);
+			term.getReferrers().add(newStory);
 		}
 		newStory = getProjectRepository().merge(newStory);
 		setNewStory(newStory);

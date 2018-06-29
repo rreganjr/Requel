@@ -77,7 +77,7 @@ import com.rreganjr.requel.user.JAXBCreatedEntityPatcher;
 public class StoryImpl extends AbstractTextEntity implements Story {
 	static final long serialVersionUID = 0;
 
-	private Set<StoryContainer> referers = new TreeSet<StoryContainer>(StoryContainer.COMPARATOR);
+	private Set<StoryContainer> referrers = new TreeSet<StoryContainer>(StoryContainer.COMPARATOR);
 	private StoryType storyType;
 	private Set<Goal> goals = new TreeSet<Goal>();
 	private Set<Actor> actors = new TreeSet<Actor>();
@@ -139,12 +139,12 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 	@JoinTable(name = "story_storycontainers", joinColumns = { @JoinColumn(name = "story_id") }, inverseJoinColumns = {
 			@JoinColumn(name = "storycontainer_type"), @JoinColumn(name = "storycontainer_id") })
 	@Sort(type = SortType.COMPARATOR, comparator = StoryContainer.StoryContainerComparator.class)
-	public Set<StoryContainer> getReferers() {
-		return referers;
+	public Set<StoryContainer> getReferrers() {
+		return referrers;
 	}
 
-	protected void setReferers(Set<StoryContainer> referers) {
-		this.referers = referers;
+	protected void setReferrers(Set<StoryContainer> referrers) {
+		this.referrers = referrers;
 	}
 
 	@Override
@@ -220,10 +220,10 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 				try {
 					// update the references to goals
 					for (Goal goal : getGoals()) {
-						goal.getReferers().add(StoryImpl.this);
+						goal.getReferrers().add(StoryImpl.this);
 					}
 					for (Actor actor : getActors()) {
-						actor.getReferers().add(StoryImpl.this);
+						actor.getReferrers().add(StoryImpl.this);
 					}
 				} catch (RuntimeException e) {
 					throw e;

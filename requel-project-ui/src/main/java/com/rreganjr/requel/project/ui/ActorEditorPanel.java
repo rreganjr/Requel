@@ -385,8 +385,8 @@ public class ActorEditorPanel extends AbstractRequelProjectEditorPanel {
 							currentActor.getGoals().remove(updatedGoal);
 						}
 						updatedActor = currentActor;
-					} else if (updatedGoal.getReferers().contains(currentActor)) {
-						for (GoalContainer gc : updatedGoal.getReferers()) {
+					} else if (updatedGoal.getReferrers().contains(currentActor)) {
+						for (GoalContainer gc : updatedGoal.getReferrers()) {
 							if (gc.equals(currentActor)) {
 								updatedActor = (Actor) gc;
 								break;
@@ -398,7 +398,7 @@ public class ActorEditorPanel extends AbstractRequelProjectEditorPanel {
 					// actors
 					updatedActor = currentActor;
 					if (event instanceof DeletedEntityEvent) {
-						updatedActor.getReferers().remove(event.getObject());
+						updatedActor.getReferrers().remove(event.getObject());
 					} else {
 						UseCase useCase = (UseCase) event.getObject();
 						if (useCase.getPrimaryActor().equals(updatedActor)) {
@@ -410,15 +410,15 @@ public class ActorEditorPanel extends AbstractRequelProjectEditorPanel {
 									break;
 								}
 							}
-						} else if (updatedActor.getReferers().contains(useCase)) {
-							updatedActor.getReferers().remove(useCase);
+						} else if (updatedActor.getReferrers().contains(useCase)) {
+							updatedActor.getReferrers().remove(useCase);
 						}
 					}
 				} else if (event.getObject() instanceof ActorContainer) {
 					updatedActor = currentActor;
-					if (updatedActor.getReferers().contains(event.getObject())) {
+					if (updatedActor.getReferrers().contains(event.getObject())) {
 						if (event instanceof DeletedEntityEvent) {
-							updatedActor.getReferers().remove(event.getObject());
+							updatedActor.getReferrers().remove(event.getObject());
 						} else {
 							ActorContainer actorContainer = (ActorContainer) event.getObject();
 							for (Actor actor : actorContainer.getActors()) {

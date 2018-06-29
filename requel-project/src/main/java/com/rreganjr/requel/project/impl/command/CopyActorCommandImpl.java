@@ -107,7 +107,7 @@ public class CopyActorCommandImpl extends AbstractEditProjectCommand implements 
 						.getText()));
 		for (Goal goal : originalActor.getGoals()) {
 			newActor.getGoals().add(goal);
-			goal.getReferers().add(newActor);
+			goal.getReferrers().add(newActor);
 		}
 		// TODO: what other references should be added?
 
@@ -119,7 +119,7 @@ public class CopyActorCommandImpl extends AbstractEditProjectCommand implements 
 		}
 		for (GlossaryTerm term : originalActor.getGlossaryTerms()) {
 			newActor.getGlossaryTerms().add(term);
-			term.getReferers().add(newActor);
+			term.getReferrers().add(newActor);
 		}
 		newActor = getProjectRepository().merge(newActor);
 		setNewActor(newActor);

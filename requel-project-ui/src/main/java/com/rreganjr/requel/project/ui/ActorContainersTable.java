@@ -108,7 +108,7 @@ public class ActorContainersTable extends AbstractRequelNavigatorTable {
 	protected void setActor(Actor actor) {
 		this.actor = actor;
 		if (actor != null) {
-			table.setModel(new NavigatorTableModel((Collection) actor.getReferers()));
+			table.setModel(new NavigatorTableModel((Collection) actor.getReferrers()));
 		} else {
 			table.setModel(new NavigatorTableModel(Collections.EMPTY_SET));
 		}

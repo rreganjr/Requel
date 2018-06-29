@@ -101,8 +101,8 @@ public class DeleteUseCaseCommandImpl extends AbstractEditProjectCommand impleme
 		}
 		// remove this entity as a referer to any terms
 		for (GlossaryTerm term : usecase.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(usecase)) {
-				term.getReferers().remove(usecase);
+			if (term.getReferrers().contains(usecase)) {
+				term.getReferrers().remove(usecase);
 			}
 		}
 		Set<Actor> actors = new HashSet<Actor>(usecase.getActors());

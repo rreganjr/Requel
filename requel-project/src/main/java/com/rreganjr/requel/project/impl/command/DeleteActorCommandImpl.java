@@ -99,11 +99,11 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 		}
 		// remove this entity as a referer to any terms
 		for (GlossaryTerm term : actor.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(actor)) {
-				term.getReferers().remove(actor);
+			if (term.getReferrers().contains(actor)) {
+				term.getReferrers().remove(actor);
 			}
 		}
-		Set<ActorContainer> actorReferers = new HashSet<ActorContainer>(actor.getReferers());
+		Set<ActorContainer> actorReferers = new HashSet<ActorContainer>(actor.getReferrers());
 		for (ActorContainer actorContainer : actorReferers) {
 			RemoveActorFromActorContainerCommand removeActorFromActorContainerCommand = getProjectCommandFactory()
 					.newRemoveActorFromActorContainerCommand();

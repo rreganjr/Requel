@@ -20,6 +20,11 @@
     @MetaValue(value = "com.rreganjr.requel.project.NonUserStakeholder", targetEntity = NonUserStakeholderImpl.class),
     @MetaValue(value = "com.rreganjr.requel.project.UserStakeholder", targetEntity = UserStakeholderImpl.class)
 })
+
+@AnyMetaDef(name = "groupingObject", idType = "long", metaType = "string", metaValues = {
+        @MetaValue(value = "Project", targetEntity = ProjectImpl.class)
+})
+
 package com.rreganjr.requel.annotation;
 
     import com.rreganjr.requel.annotation.impl.AbstractAnnotation;

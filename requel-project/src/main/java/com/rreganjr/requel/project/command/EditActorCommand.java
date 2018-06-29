@@ -63,7 +63,7 @@ public interface EditActorCommand extends EditTextEntityCommand {
 
 	/**
 	 * Set the actor containers to add as referers to the actor.<br>
-	 * Either this or setReferers should be used, setReferers takes precedence.
+	 * Either this or setReferrers should be used, setReferrers takes precedence.
 	 * 
 	 * @param actorContainers
 	 */

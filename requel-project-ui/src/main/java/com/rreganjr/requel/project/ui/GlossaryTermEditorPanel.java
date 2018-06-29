@@ -326,7 +326,7 @@ public class GlossaryTermEditorPanel extends AbstractRequelProjectEditorPanel {
 		if ((getGlossaryTerm() != null)
 				&& (((getGlossaryTerm().getCanonicalTerm() != null) || (getInputValue(
 						"canonicalTerm", GlossaryTerm.class) != null)) && (getGlossaryTerm()
-						.getReferers().size() > 0))) {
+						.getReferrers().size() > 0))) {
 			replaceTermButton.setEnabled(true);
 		} else {
 			replaceTermButton.setEnabled(false);

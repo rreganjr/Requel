@@ -95,8 +95,8 @@ public class DeleteStakeholderCommandImpl extends AbstractEditProjectCommand imp
 		}
 		// remove this entity as a referer to any terms
 		for (GlossaryTerm term : stakeholder.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(stakeholder)) {
-				term.getReferers().remove(stakeholder);
+			if (term.getReferrers().contains(stakeholder)) {
+				term.getReferrers().remove(stakeholder);
 			}
 		}
 		stakeholder.getProjectOrDomain().getStakeholders().remove(stakeholder);
@@ -109,10 +109,10 @@ public class DeleteStakeholderCommandImpl extends AbstractEditProjectCommand imp
 			}
 		}
 		for (GlossaryTerm term : stakeholder.getProjectOrDomain().getGlossaryTerms()) {
-			term.getReferers().remove(stakeholder);
+			term.getReferrers().remove(stakeholder);
 		}
 		for (Goal goal : stakeholder.getGoals()) {
-			goal.getReferers().remove(stakeholder);
+			goal.getReferrers().remove(stakeholder);
 		}
 		getRepository().delete(stakeholder);
 	}

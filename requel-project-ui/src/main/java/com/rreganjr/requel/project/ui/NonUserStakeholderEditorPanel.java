@@ -329,8 +329,8 @@ public class NonUserStakeholderEditorPanel extends AbstractRequelProjectEditorPa
 							existingStakeholder.getGoals().remove(updatedGoal);
 						}
 						updatedStakeholder = existingStakeholder;
-					} else if (updatedGoal.getReferers().contains(existingStakeholder)) {
-						for (GoalContainer gc : updatedGoal.getReferers()) {
+					} else if (updatedGoal.getReferrers().contains(existingStakeholder)) {
+						for (GoalContainer gc : updatedGoal.getReferrers()) {
 							if (gc.equals(existingStakeholder)) {
 								updatedStakeholder = (NonUserStakeholder) gc;
 								break;

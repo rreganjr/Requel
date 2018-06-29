@@ -83,7 +83,7 @@ public class AddActorToActorContainerCommandImpl extends AbstractEditProjectComm
 	public void execute() {
 		Actor addedActor = getProjectRepository().get(getActor());
 		ActorContainer addingContainer = getProjectRepository().get(getActorContainer());
-		addedActor.getReferers().add(addingContainer);
+		addedActor.getReferrers().add(addingContainer);
 		addingContainer.getActors().add(addedActor);
 
 		// replaced the supplied objects with the updated objects for retrieval.

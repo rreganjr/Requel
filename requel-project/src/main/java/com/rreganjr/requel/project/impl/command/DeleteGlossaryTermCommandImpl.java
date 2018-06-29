@@ -93,7 +93,7 @@ public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand im
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
-		glossaryTerm.getReferers().clear();
+		glossaryTerm.getReferrers().clear();
 		// if this is the canonical term for other glossary terms, the
 		// other terms must be updated to set the canonical term to null.
 		for (GlossaryTerm alternateTerm : glossaryTerm.getAlternateTerms()) {

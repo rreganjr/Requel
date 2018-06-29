@@ -95,8 +95,8 @@ public class DeleteScenarioCommandImpl extends AbstractEditProjectCommand implem
 		}
 		// remove this entity as a referer to any terms
 		for (GlossaryTerm term : scenario.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(scenario)) {
-				term.getReferers().remove(scenario);
+			if (term.getReferrers().contains(scenario)) {
+				term.getReferrers().remove(scenario);
 			}
 		}
 		Set<Scenario> scenarioReferers = new HashSet<Scenario>(scenario.getUsingScenarios());

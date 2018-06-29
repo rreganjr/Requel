@@ -169,7 +169,7 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 			Actor existingPrimaryActor = getRepository().get(usecaseImpl.getPrimaryActor());
 			if (primaryActor != null) {
 				if ((existingPrimaryActor != null) && !primaryActor.equals(existingPrimaryActor)) {
-					existingPrimaryActor.getReferers().remove(usecaseImpl);
+					existingPrimaryActor.getReferrers().remove(usecaseImpl);
 				}
 				usecaseImpl.setPrimaryActor(primaryActor);
 			}
@@ -189,7 +189,7 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 			projectOrDomain.getUseCases().add(usecaseImpl);
 		}
 		if (primaryActor != null) {
-			primaryActor.getReferers().add(usecaseImpl);
+			primaryActor.getReferrers().add(usecaseImpl);
 		}
 		setUseCase(usecaseImpl);
 	}

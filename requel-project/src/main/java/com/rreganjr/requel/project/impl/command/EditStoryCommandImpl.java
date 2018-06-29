@@ -151,7 +151,7 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 			storyImpl.setStoryType(getStoryType());
 		}
 		if (storyContainer != null) {
-			storyImpl.getReferers().add(storyContainer);
+			storyImpl.getReferrers().add(storyContainer);
 			storyContainer.getStories().add(storyImpl);
 		}
 		setStory(getProjectRepository().merge(storyImpl));

@@ -288,7 +288,7 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 
 					// update the references to goals
 					for (Goal goal : getGoals()) {
-						goal.getReferers().add(UserStakeholderImpl.this);
+						goal.getReferrers().add(UserStakeholderImpl.this);
 					}
 				} catch (RuntimeException e) {
 					throw e;

@@ -46,5 +46,5 @@ public interface GlossaryTerm extends TextEntity {
 	/**
 	 * @return project or domain entities that refer to this term, such as goals
 	 */
-	public Set<ProjectOrDomainEntity> getReferers();
+	public Set<ProjectOrDomainEntity> getReferrers();
 }

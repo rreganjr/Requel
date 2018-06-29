@@ -109,7 +109,7 @@ public class ReplaceGlossaryTermCommandImpl extends AbstractEditProjectCommand i
 			canonicalTerm.getAlternateTerms().add(glossaryTerm);
 		}
 
-		for (ProjectOrDomainEntity entity : glossaryTerm.getReferers()) {
+		for (ProjectOrDomainEntity entity : glossaryTerm.getReferrers()) {
 			if (entity instanceof Goal) {
 				GoalImpl goal = (GoalImpl) entity;
 				AbstractRepositoryCommand.log.debug("replacing '" + glossaryTerm.getName() + "' with '"
@@ -120,8 +120,8 @@ public class ReplaceGlossaryTermCommandImpl extends AbstractEditProjectCommand i
 						+ canonicalTerm.getName() + "' in the goal text: " + goal.getText());
 				goal.setText(replaceText(goal.getText(), glossaryTerm.getName(), canonicalTerm
 						.getName()));
-				glossaryTerm.getReferers().remove(goal);
-				canonicalTerm.getReferers().add(goal);
+				glossaryTerm.getReferrers().remove(goal);
+				canonicalTerm.getReferrers().add(goal);
 			} else if (entity instanceof Story) {
 				StoryImpl story = (StoryImpl) entity;
 				AbstractRepositoryCommand.log.debug("replacing '" + glossaryTerm.getName() + "' with '"
@@ -132,8 +132,8 @@ public class ReplaceGlossaryTermCommandImpl extends AbstractEditProjectCommand i
 						+ canonicalTerm.getName() + "' in the story text: " + story.getText());
 				story.setText(replaceText(story.getText(), glossaryTerm.getName(), canonicalTerm
 						.getName()));
-				glossaryTerm.getReferers().remove(story);
-				canonicalTerm.getReferers().add(story);
+				glossaryTerm.getReferrers().remove(story);
+				canonicalTerm.getReferrers().add(story);
 			} else if (entity instanceof Story) {
 				ActorImpl actor = (ActorImpl) entity;
 				AbstractRepositoryCommand.log.debug("replacing '" + glossaryTerm.getName() + "' with '"
@@ -144,8 +144,8 @@ public class ReplaceGlossaryTermCommandImpl extends AbstractEditProjectCommand i
 						+ canonicalTerm.getName() + "' in the actor text: " + actor.getText());
 				actor.setText(replaceText(actor.getText(), glossaryTerm.getName(), canonicalTerm
 						.getName()));
-				glossaryTerm.getReferers().remove(actor);
-				canonicalTerm.getReferers().add(actor);
+				glossaryTerm.getReferrers().remove(actor);
+				canonicalTerm.getReferrers().add(actor);
 			} else {
 				throw new RuntimeException("Unsupported entity type " + entity.getClass());
 			}

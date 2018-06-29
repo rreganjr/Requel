@@ -173,22 +173,22 @@ public class EditGlossaryTermCommandImpl extends AbstractEditProjectOrDomainEnti
 
 		if (getReferers() != null) {
 			// remove the term for all its referers
-			for (ProjectOrDomainEntity entity : glossaryTermImpl.getReferers()) {
+			for (ProjectOrDomainEntity entity : glossaryTermImpl.getReferrers()) {
 				if (entity != null) {
 					entity.getGlossaryTerms().remove(glossaryTermImpl);
 				}
 			}
 			// add the referers to the term and the term to the referers
-			glossaryTermImpl.getReferers().clear();
+			glossaryTermImpl.getReferrers().clear();
 			for (ProjectOrDomainEntity entity : getReferers()) {
 				entity = getProjectRepository().get(entity);
-				glossaryTermImpl.getReferers().add(entity);
+				glossaryTermImpl.getReferrers().add(entity);
 				entity.getGlossaryTerms().add(glossaryTermImpl);
 			}
 		} else if (getAddReferers() != null) {
 			for (ProjectOrDomainEntity entity : getAddReferers()) {
 				entity = getProjectRepository().get(entity);
-				glossaryTermImpl.getReferers().add(entity);
+				glossaryTermImpl.getReferrers().add(entity);
 				entity.getGlossaryTerms().add(glossaryTermImpl);
 			}
 		}

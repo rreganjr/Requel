@@ -83,7 +83,7 @@ public class RemoveGoalFromGoalContainerCommandImpl extends AbstractEditProjectC
 	public void execute() {
 		Goal removedGoal = getProjectRepository().get(getGoal());
 		GoalContainer removingContainer = getProjectRepository().get(getGoalContainer());
-		removedGoal.getReferers().remove(removingContainer);
+		removedGoal.getReferrers().remove(removingContainer);
 		removingContainer.getGoals().remove(removedGoal);
 
 		// replaced the supplied objects with the updated objects for retrieval.

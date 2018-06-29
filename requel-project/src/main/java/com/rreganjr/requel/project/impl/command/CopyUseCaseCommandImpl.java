@@ -115,15 +115,15 @@ public class CopyUseCaseCommandImpl extends AbstractEditProjectCommand implement
 						copyScenarioCommand.getNewScenario()));
 		for (Actor actor : originalUseCase.getActors()) {
 			newUseCase.getActors().add(actor);
-			actor.getReferers().add(newUseCase);
+			actor.getReferrers().add(newUseCase);
 		}
 		for (Story story : originalUseCase.getStories()) {
 			newUseCase.getStories().add(story);
-			story.getReferers().add(newUseCase);
+			story.getReferrers().add(newUseCase);
 		}
 		for (Goal goal : originalUseCase.getGoals()) {
 			newUseCase.getGoals().add(goal);
-			goal.getReferers().add(newUseCase);
+			goal.getReferrers().add(newUseCase);
 		}
 		// TODO: this assumes that all annotations are appropriate for the new
 		// use case
@@ -133,7 +133,7 @@ public class CopyUseCaseCommandImpl extends AbstractEditProjectCommand implement
 		}
 		for (GlossaryTerm term : originalUseCase.getGlossaryTerms()) {
 			newUseCase.getGlossaryTerms().add(term);
-			term.getReferers().add(newUseCase);
+			term.getReferrers().add(newUseCase);
 		}
 		newUseCase = getProjectRepository().merge(newUseCase);
 		setNewUseCase(newUseCase);

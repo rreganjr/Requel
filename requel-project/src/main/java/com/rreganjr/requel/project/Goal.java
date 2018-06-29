@@ -51,5 +51,5 @@ public interface Goal extends TextEntity, Comparable<Goal> {
 	 * 
 	 * @return
 	 */
-	public Set<GoalContainer> getReferers();
+	public Set<GoalContainer> getReferrers();
 }

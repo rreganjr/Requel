@@ -95,8 +95,8 @@ public class DeleteScenarioStepCommandImpl extends AbstractEditProjectCommand im
 		}
 		// remove this entity as a referer to any terms
 		for (GlossaryTerm term : scenarioStep.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(scenarioStep)) {
-				term.getReferers().remove(scenarioStep);
+			if (term.getReferrers().contains(scenarioStep)) {
+				term.getReferrers().remove(scenarioStep);
 			}
 		}
 		Set<Scenario> scenarioReferers = new HashSet<Scenario>(scenarioStep.getUsingScenarios());

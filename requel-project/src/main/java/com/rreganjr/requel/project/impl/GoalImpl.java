@@ -69,7 +69,7 @@ public class GoalImpl extends AbstractTextEntity implements Goal {
 
 	private Set<GoalRelation> relationsFromThisGoal = new TreeSet<GoalRelation>();
 	private Set<GoalRelation> relationsToThisGoal = new TreeSet<GoalRelation>();
-	private Set<GoalContainer> referersToThisGoal = new TreeSet<GoalContainer>(
+	private Set<GoalContainer> referrersToThisGoal = new TreeSet<GoalContainer>(
 			GoalContainer.COMPARATOR);
 
 	/**
@@ -152,12 +152,12 @@ public class GoalImpl extends AbstractTextEntity implements Goal {
 	@JoinTable(name = "goals_goalcontainers", joinColumns = { @JoinColumn(name = "goal_id") }, inverseJoinColumns = {
 			@JoinColumn(name = "goalcontainer_type"), @JoinColumn(name = "goalcontainer_id") })
 	@Sort(type = SortType.COMPARATOR, comparator = GoalContainer.GoalContainerComparator.class)
-	public Set<GoalContainer> getReferers() {
-		return referersToThisGoal;
+	public Set<GoalContainer> getReferrers() {
+		return referrersToThisGoal;
 	}
 
-	protected void setReferers(Set<GoalContainer> referersToThisGoal) {
-		this.referersToThisGoal = referersToThisGoal;
+	protected void setReferrers(Set<GoalContainer> referrersToThisGoal) {
+		this.referrersToThisGoal = referrersToThisGoal;
 	}
 
 	@Override

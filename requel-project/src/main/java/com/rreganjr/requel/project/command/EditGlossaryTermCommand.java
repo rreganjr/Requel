@@ -43,7 +43,7 @@ public interface EditGlossaryTermCommand extends EditTextEntityCommand {
 	/**
 	 * Set the project or domain entities to add as referers of the glossary
 	 * term. This is for adding new referers to the existing set.<br>
-	 * Either this or setReferers should be used, setReferers takes precedence.
+	 * Either this or setReferrers should be used, setReferrers takes precedence.
 	 * 
 	 * @param referers
 	 */

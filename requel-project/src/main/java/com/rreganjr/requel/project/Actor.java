@@ -30,6 +30,6 @@ public interface Actor extends TextEntity, GoalContainer, Comparable<Actor> {
 	/**
 	 * @return The referers/users of the actor.
 	 */
-	public Set<ActorContainer> getReferers();
+	public Set<ActorContainer> getReferrers();
 
 }
