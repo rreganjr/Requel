@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.project;
 
+import com.rreganjr.requel.project.ProjectOrDomain;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
 import org.xml.sax.SAXException;
 
@@ -51,13 +53,12 @@ public class JAXBAnnotationGroupedByPatcher implements Patcher {
 			// annotations expect the annotatable object and
 			// the group object, which should be the
 			// project.
-//			if (annotatable instanceof ProjectOrDomain) {
-//				annotation.setGroupingObject(annotatable);
-//			} else if (annotatable instanceof ProjectOrDomainEntity) {
-//				annotation.setGroupingObject(((ProjectOrDomainEntity) annotatable)
-//								.getProjectOrDomain());
-//			}
-			throw new Exception("FIXME");
+			if (annotatable instanceof ProjectOrDomain) {
+				annotation.setGroupingObject(annotatable);
+			} else if (annotatable instanceof ProjectOrDomainEntity) {
+				annotation.setGroupingObject(((ProjectOrDomainEntity) annotatable)
+								.getProjectOrDomain());
+			}
 		} catch (RuntimeException e) {
 			throw e;
 		} catch (Exception e) {

@@ -285,13 +285,15 @@ public abstract class AbstractAnnotation implements Annotation, Describable, Ser
 				new JAXBCreatedEntityPatcher(userRepository, this, defaultCreatedByUser));
 //		UnmarshallingContext.getInstance().addPatcher(
 //				new JAXBAnnotationGroupedByPatcher(this, (Annotatable) annotatable));
+//		JaxbUnmarshallingContextPatcherConfigurer
 		throw new RuntimeException("FIXME");
 	}
 
 	/**
 	 * This class is used by JAXB to convert the id of an entity into an xml id
 	 * string that will be distinct from other entity xml id strings by the use
-	 * of a prefix.
+	 * of a prefix. When unmarshalled the id is ignored, a new id will be assigned
+	 * by the persistence mechanism.
 	 * 
 	 * @author ron
 	 */

@@ -16,6 +16,7 @@
         <module name="describable" />
         <module name="exception" />
         <module name="initializer" />
+        <module name="jaxb-support" />
         <module name="nlp" />
         <module name="nlp-ui" />
         <module name="repository" />
@@ -39,6 +40,7 @@
       <module name="describable" target="1.8" />
       <module name="exception" target="1.8" />
       <module name="initializer" target="1.8" />
+      <module name="jaxb-support" target="1.8" />
       <module name="nlp" target="1.8" />
       <module name="nlp-ui" target="1.8" />
       <module name="repository" target="1.8" />

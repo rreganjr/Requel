@@ -74,5 +74,7 @@
 	 -->
 	<context:component-scan base-package="com.rreganjr">
 		<context:exclude-filter type="regex" expression=".*Simple.*Repository"/>
-	</context:component-scan>	
+	</context:component-scan>
+
+
 </beans>

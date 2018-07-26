@@ -13,6 +13,7 @@
       <module fileurl="file://$PROJECT_DIR$/describable/describable.iml" filepath="$PROJECT_DIR$/describable/describable.iml" />
       <module fileurl="file://$PROJECT_DIR$/exception/exception.iml" filepath="$PROJECT_DIR$/exception/exception.iml" />
       <module fileurl="file://$PROJECT_DIR$/initializer/initializer.iml" filepath="$PROJECT_DIR$/initializer/initializer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/jaxb-support/jaxb-support.iml" filepath="$PROJECT_DIR$/jaxb-support/jaxb-support.iml" />
       <module fileurl="file://$PROJECT_DIR$/nlp/nlp.iml" filepath="$PROJECT_DIR$/nlp/nlp.iml" />
       <module fileurl="file://$PROJECT_DIR$/nlp-ui/nlp-ui.iml" filepath="$PROJECT_DIR$/nlp-ui/nlp-ui.iml" />
       <module fileurl="file://$PROJECT_DIR$/repository/repository.iml" filepath="$PROJECT_DIR$/repository/repository.iml" />

@@ -13,7 +13,7 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="_test-base" scope="TEST" />
     <orderEntry type="module" module-name="annotatable" />
-    <orderEntry type="module" module-name="annotatable-mapping" scope="RUNTIME" />
+    <orderEntry type="module" module-name="jaxb-support" scope="RUNTIME" />
     <orderEntry type="module" module-name="annotation" />
     <orderEntry type="module" module-name="annotation-ui" />
     <orderEntry type="module" module-name="command" />

@@ -133,6 +133,7 @@ public class UnmarshallerListener extends Unmarshaller.Listener {
 						}
 						afterUnmarshalMethod.invoke(target, params);
 					} catch (NoSuchMethodException e) {
+						log.debug("No method " + methodName + " of class " + targetType.getName());
 					} catch (SecurityException e) {
 						log.error("The afterUnmarshal method for the class " + targetType.getName()
 								+ " is not accessible.", e);

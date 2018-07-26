@@ -25,6 +25,7 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.commons.logging.Log;
@@ -124,9 +125,11 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 	public NLPText process(NLPText text) {
 		if (text.hasText()) {
 			if (GrammaticalStructureLevel.PARAGRAPH.equals(text.getGrammaticalStructureLevel())) {
-				for (NLPText sentence : text.getChildren()) {
-					process(sentence);
-				}
+				// multithreaded parsing for each sentence
+				parse(text.getChildren());
+//				for (NLPText sentence : text.getChildren()) {
+//					process(sentence);
+//				}
 			} else if (text.is(GrammaticalStructureLevel.SENTENCE)
 					&& (text.getChildren().size() == 0)) {
 				parse(text);
@@ -180,6 +183,61 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 			}
 		} else {
 			throw ParserException.parseFailed();
+		}
+	}
+
+	private static synchronized void parse(List<NLPText> texts) throws ParserException {
+		if (parser == null || texts == null || texts.size() == 0) {
+			return;
+		}
+
+		List<List<? extends HasWord>> sentences = texts.parallelStream().map(text -> {
+			List<? extends HasWord> tokens = null;
+			if (text.getLeaves().isEmpty()) {
+				if (tlp == null) {
+					return null;
+				} else {
+					String sentence = prepareSentence(text.getText());
+					Tokenizer<? extends HasWord> tokenizer = tlp.getTokenizerFactory().getTokenizer(
+							new CharArrayReader(sentence.toCharArray()));
+					tokens = tokenizer.tokenize();
+				}
+			} else {
+				List<TaggedWord> xtokens = new ArrayList<TaggedWord>();
+				for (NLPText word : text.getLeaves()) {
+					if (word.getParseTag() != null) {
+						xtokens.add(new TaggedWord(word.getText(), word.getParseTag().getText()));
+					} else {
+						xtokens.add(new TaggedWord(word.getText()));
+					}
+				}
+				tokens = xtokens;
+			}
+			return tokens;
+		}).collect(Collectors.toList());
+
+		List<Tree> stanfordTrees = parser.parseMultiple(sentences, 4);
+
+		for (int i = 0; i < sentences.size(); i++) {
+			Tree stanfordTree = stanfordTrees.get(i);
+
+			if (stanfordTree != null && !stanfordTree.isEmpty()) {
+				copyStanfordTreeToNLPText((NLPTextImpl) texts.get(i), stanfordTree, stanfordTree.getLeaves(), new Counter());
+
+				if (gsf != null) {
+					GrammaticalStructure gs = gsf.newGrammaticalStructure(stanfordTree);
+					Collection<TypedDependency> typedDependencies = gs.typedDependenciesEnhancedPlusPlus(); //typedDependencies();
+					List<NLPText> leaves = texts.get(i).getLeaves();
+					for (TypedDependency dependency : typedDependencies) {
+						NLPTextImpl governor = (NLPTextImpl) (dependency.gov().index() == 0 ? NLPText.ROOT : leaves.get(dependency.gov().index() - 1));
+						NLPTextImpl dependent = (NLPTextImpl) (dependency.gov().index() == 0 ? NLPText.ROOT : leaves.get(dependency.dep().index() - 1));
+						GrammaticalRelationType type = GrammaticalRelationType
+								.getGrammaticalRelationByShortName(dependency.reln().getShortName());
+						texts.get(i).getGrammaticalRelations().add(
+								new GrammaticalRelationImpl(type, governor, dependent));
+					}
+				}
+			}
 		}
 	}
 
