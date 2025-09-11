@@ -22,8 +22,8 @@ package com.rreganjr.requel;
 
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
-import org.hibernate.validator.InvalidStateException;
-import org.hibernate.validator.InvalidValue;
+import com.rreganjr.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidValue;
 
 import com.rreganjr.repository.EntityException;
 import com.rreganjr.repository.EntityExceptionActionType;

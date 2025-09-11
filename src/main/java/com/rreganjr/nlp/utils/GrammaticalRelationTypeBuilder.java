@@ -43,7 +43,6 @@ public class GrammaticalRelationTypeBuilder {
             CLAUSAL_SUBJECT,
             CLAUSAL_PASSIVE_SUBJECT,
             COMPLEMENT,
-            OBJECT,
             DIRECT_OBJECT,
             INDIRECT_OBJECT,
             NOMINAL_MODIFIER,

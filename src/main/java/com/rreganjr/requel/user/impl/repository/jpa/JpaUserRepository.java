@@ -31,7 +31,7 @@ import org.hibernate.PropertyValueException;
 import org.hibernate.StaleObjectStateException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.hibernate.exception.LockAcquisitionException;
-import org.hibernate.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidStateException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.dao.CannotAcquireLockException;

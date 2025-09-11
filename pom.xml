@@ -15,6 +15,8 @@
 
     <properties>
         <docker.image.prefix>rreganjr</docker.image.prefix>
+        <!-- Docker image name must be lowercase -->
+        <docker.image.name>requel</docker.image.name>
     </properties>
 
     <build>
@@ -29,6 +31,141 @@
                         <goals>
                             <goal>jar-no-fork</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Install local Echo2/Echopoint/EchoPM jars into the local Maven repo -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>3.1.1</version>
+                <executions>
+                    <execution>
+                        <id>install-echo2-app</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.basedir}/lib/echo/Echo2_App.jar</file>
+                            <groupId>com.nextapp</groupId>
+                            <artifactId>echo2-app</artifactId>
+                            <version>2.1.1a</version>
+                            <packaging>jar</packaging>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>install-echo2-webcontainer</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.basedir}/lib/echo/Echo2_WebContainer.jar</file>
+                            <groupId>com.nextapp</groupId>
+                            <artifactId>echo2-webcontainer</artifactId>
+                            <version>2.1.1a</version>
+                            <packaging>jar</packaging>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>install-echo2-webrender</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.basedir}/lib/echo/Echo2_WebRender.jar</file>
+                            <groupId>com.nextapp</groupId>
+                            <artifactId>echo2-webrender</artifactId>
+                            <version>2.1.1a</version>
+                            <packaging>jar</packaging>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>install-echo2extras-app</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.basedir}/lib/echo/Echo2_Extras_App.jar</file>
+                            <groupId>com.nextapp</groupId>
+                            <artifactId>echo2extras-app</artifactId>
+                            <version>2.1.0a</version>
+                            <packaging>jar</packaging>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>install-echo2extras-webcontainer</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.basedir}/lib/echo/Echo2_Extras_WebContainer.jar</file>
+                            <groupId>com.nextapp</groupId>
+                            <artifactId>echo2extras-webcontainer</artifactId>
+                            <version>2.1.0a</version>
+                            <packaging>jar</packaging>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>install-echo2-filetransfer-app</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.basedir}/lib/echo/Echo2_FileTransfer_App.jar</file>
+                            <groupId>com.nextapp</groupId>
+                            <artifactId>echo2-filetransfer-app</artifactId>
+                            <version>2.1.1</version>
+                            <packaging>jar</packaging>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>install-echo2-filetransfer-webcontainer</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.basedir}/lib/echo/Echo2_FileTransfer_WebContainer.jar</file>
+                            <groupId>com.nextapp</groupId>
+                            <artifactId>echo2-filetransfer-webcontainer</artifactId>
+                            <version>2.1.1</version>
+                            <packaging>jar</packaging>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>install-echopm</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.basedir}/lib/echo/echopm.jar</file>
+                            <groupId>com.rreganjr.echopm</groupId>
+                            <artifactId>echopm</artifactId>
+                            <version>1.0.0</version>
+                            <packaging>jar</packaging>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>install-echopointng</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.basedir}/lib/echo/echopointng-2.2.0rc2.jar</file>
+                            <groupId>echopointng</groupId>
+                            <artifactId>echopointng</artifactId>
+                            <version>1.0.0</version>
+                            <packaging>jar</packaging>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -49,31 +186,53 @@
             <plugin>
                 <groupId>com.spotify</groupId>
                 <artifactId>dockerfile-maven-plugin</artifactId>
-                <version>1.3.6</version>
+                <version>1.4.13</version>
                 <configuration>
-                    <repository>${docker.image.prefix}/${project.artifactId}</repository>
+                    <repository>${docker.image.prefix}/${docker.image.name}</repository>
                     <tag>${project.version}</tag>
                     <buildArgs>
                         <JAR_FILE>target/${project.build.finalName}.jar</JAR_FILE>
                     </buildArgs>
                 </configuration>
-                <executions>
-                    <execution>
-                        <id>default</id>
-                        <goals>
-                            <goal>build</goal>
-                            <goal>push</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <id>docker-image</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.spotify</groupId>
+                        <artifactId>dockerfile-maven-plugin</artifactId>
+                        <version>1.4.13</version>
+                        <executions>
+                            <execution>
+                                <id>docker-build</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>build</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>docker-push</id>
+                                <phase>deploy</phase>
+                                <goals>
+                                    <goal>push</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
     <repositories>
         <repository>
             <id>clojars.org</id>
-            <url>http://clojars.org/repo/</url>
+            <url>https://repo.clojars.org/</url>
         </repository>
     </repositories>
 
@@ -188,6 +347,14 @@
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.33</version>
+        </dependency>
+
+        <!-- Ensure JPA APIs are present on the compile classpath for Java 8/Boot 1.5 -->
+        <dependency>
+            <groupId>org.hibernate.javax.persistence</groupId>
+            <artifactId>hibernate-jpa-2.1-api</artifactId>
+            <version>1.0.2.Final</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/xalan/xalan -->

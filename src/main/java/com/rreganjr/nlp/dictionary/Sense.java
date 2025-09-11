@@ -135,7 +135,7 @@ public class Sense implements Comparable<Sense>, Serializable {
 		return frames;
 	}
 
-	@Column(name = "rank", nullable = false)
+    @Column(name = "`rank`", nullable = false)
 	@XmlAttribute(name = "rank")
 	public Integer getRank() {
 		return this.rank;

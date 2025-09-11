@@ -48,7 +48,7 @@ import org.hibernate.annotations.ManyToAny;
 import org.hibernate.annotations.MetaValue;
 import org.hibernate.annotations.Sort;
 import org.hibernate.annotations.SortType;
-import org.hibernate.validator.NotEmpty;
+import org.hibernate.validator.constraints.NotEmpty;
 
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;

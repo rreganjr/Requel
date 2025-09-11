@@ -31,7 +31,7 @@ import javax.xml.bind.annotation.XmlID;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
 
-import org.hibernate.validator.NotEmpty;
+import org.hibernate.validator.constraints.NotEmpty;
 
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ReportGenerator;

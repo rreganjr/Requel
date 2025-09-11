@@ -128,24 +128,31 @@ public class DomainObjectWrappingAdvice {
 			log.debug(sb.toString());
 		}
 
-		// TODO: shouldn't use sun.reflect.Reflection
 		// don't wrap an entity if the repository is called from inside an
 		// initializer or command (something that has an active transaction),
 		// this is a hack because there is no way to describe this pointcut in
 		// Spring, should use Aspectj cflow or cflowbelow pointcut
+		//
+		// Avoid using internal JDK APIs (sun.reflect.Reflection) to walk the stack.
+		// Use Thread.currentThread().getStackTrace() which works on Java 8+.
 		boolean wrapReturnVal = true;
 		try {
-			for (int index = 1; index < Integer.MAX_VALUE; index++) {
-				Class<?> callerClass = sun.reflect.Reflection.getCallerClass(index);
-				if (callerClass == null) {
-					// reached the top of the stack
-					break;
+			StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+			ClassLoader cl = Thread.currentThread().getContextClassLoader();
+			for (int i = 0; i < stack.length; i++) {
+				String className = stack[i].getClassName();
+				if (className == null) {
+					continue;
 				}
-				if ((Command.class.isAssignableFrom(callerClass) || SystemInitializer.class
-						.isAssignableFrom(callerClass))
-						&& (!Advised.class.isAssignableFrom(callerClass))) {
-					wrapReturnVal = false;
-					break;
+				try {
+					Class<?> callerClass = Class.forName(className, false, cl);
+					if ((Command.class.isAssignableFrom(callerClass) || SystemInitializer.class.isAssignableFrom(callerClass))
+							&& (!Advised.class.isAssignableFrom(callerClass))) {
+						wrapReturnVal = false;
+						break;
+					}
+				} catch (Throwable ignore) {
+					// Ignore classes that cannot be loaded in this context
 				}
 			}
 		} catch (Throwable t) {

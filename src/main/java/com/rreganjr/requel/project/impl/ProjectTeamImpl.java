@@ -47,7 +47,7 @@ import javax.xml.bind.annotation.adapters.XmlAdapter;
 import org.hibernate.annotations.Sort;
 import org.hibernate.annotations.SortNatural;
 import org.hibernate.annotations.SortType;
-import org.hibernate.validator.NotEmpty;
+import org.hibernate.validator.constraints.NotEmpty;
 
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectTeam;

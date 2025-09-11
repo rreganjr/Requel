@@ -44,7 +44,7 @@ import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
 
 import org.hibernate.annotations.SortNatural;
-import org.hibernate.validator.NotEmpty;
+import org.hibernate.validator.constraints.NotEmpty;
 import org.xml.sax.SAXException;
 
 import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;

@@ -45,7 +45,7 @@ import javax.xml.bind.annotation.XmlType;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import org.hibernate.annotations.*;
-import org.hibernate.validator.NotEmpty;
+import org.hibernate.validator.constraints.NotEmpty;
 
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomain;

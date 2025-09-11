@@ -57,10 +57,10 @@ import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import com.rreganjr.requel.user.*;
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.validator.Email;
-import org.hibernate.validator.NotEmpty;
-import org.hibernate.validator.Pattern;
-import org.hibernate.validator.Size;
+import org.hibernate.validator.constraints.Email;
+import org.hibernate.validator.constraints.NotEmpty;
+import javax.validation.constraints.Pattern;
+import javax.validation.constraints.Size;
 
 import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
 
@@ -374,7 +374,7 @@ public class UserImpl implements User, Serializable {
 		this.emailAddress = emailAddress;
 	}
 
-	@Pattern(regex = "^((?:\\([2-9]\\d{2}\\)\\ ?|[2-9]\\d{2}(?:\\-?|\\ ?))[2-9]\\d{2}[- ]?\\d{4})?$", message = "must be a valid 10 digit phone number or empty.")
+    @Pattern(regexp = "^((?:\\([2-9]\\d{2}\\)\\ ?|[2-9]\\d{2}(?:\\-?|\\ ?))[2-9]\\d{2}[- ]?\\d{4})?$", message = "must be a valid 10 digit phone number or empty.")
 	@XmlElement(name = "phoneNumber", namespace = "http://www.rreganjr.com/requel")
 	public String getPhoneNumber() {
 		return phoneNumber;

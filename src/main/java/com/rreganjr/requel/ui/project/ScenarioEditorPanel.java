@@ -32,8 +32,8 @@ import nextapp.echo2.app.event.ActionEvent;
 import nextapp.echo2.app.event.ActionListener;
 
 import org.apache.log4j.Logger;
-import org.hibernate.validator.InvalidStateException;
-import org.hibernate.validator.InvalidValue;
+import com.rreganjr.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidValue;
 
 import echopointng.text.StringDocumentEx;
 import echopointng.tree.DefaultTreeModel;

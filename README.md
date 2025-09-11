@@ -24,10 +24,26 @@ Optionally pass the service port like this:
 
 ### Example command
 
+Note for zsh users: quote the JDBC URL (because of the `?`) or prefix the command with `noglob`.
+
 ```
-java -jar Requel-1.0.1.jar --spring.datasource.url=jdbc:mysql://localhost:3306/requeldb?createDatabaseIfNotExist=true --spring.datasource.username=root --spring.datasource.password=password --server.port=8081
+java -jar ./target/Requel-1.0.2.jar \
+  '--spring.datasource.url=jdbc:mysql://localhost:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
+  --spring.datasource.username=root \
+  --spring.datasource.password='password' \
+  --server.port=8081
 ```
 
+Then access the app http://localhost:8081/
+
+One‑time schema init (if starting from an empty DB):
+
+```
+java -jar ./target/Requel-1.0.2.jar \
+  '--spring.datasource.url=jdbc:mysql://localhost:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
+  --spring.jpa.hibernate.ddl-auto=create \
+  --server.port=8081
+```
 Then access the app http://localhost:8081/
 
 log in to the application as **admin** user with password **admin**.
@@ -36,8 +52,16 @@ log in to the application as **admin** user with password **admin**.
 check out  https://hub.docker.com/r/rreganjr/requel/
 
 ```
-docker network create requel-net
-docker run --name requelDB --net=requel-net -e MYSQL_ROOT_PASSWORD=pa33w0rd -d mysql:5.6.32
-docker run --name requel --net=requel-net -p8181:8080 -d rreganjr/requel:1.0.1 --spring.datasource.url=jdbc:mysql://requelDB:3306/requeldb?createDatabaseIfNotExist=true --spring.datasource.password=pa33w0rd
+docker network create requel-net || true
+
+# MySQL 8 container
+docker run --name requelDB --net=requel-net -e MYSQL_ROOT_PASSWORD=pa33w0rd -d mysql:8.0
+
+# Requel 1.0.2 image, connecting to MySQL 8
+docker run --name requel --net=requel-net -p8181:8080 -d \
+  rreganjr/requel:1.0.2 \
+  --spring.datasource.url=jdbc:mysql://requelDB:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC \
+  --spring.datasource.username=root \
+  --spring.datasource.password=pa33w0rd
 ```
 Then access the app http://localhost:8181/
