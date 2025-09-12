@@ -28,7 +28,7 @@ import org.apache.log4j.Logger;
 import org.hibernate.StaleObjectStateException;
 import org.hibernate.exception.LockAcquisitionException;
 import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.orm.hibernate3.HibernateOptimisticLockingFailureException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import com.rreganjr.repository.EntityException;
 import com.rreganjr.repository.Repository;
@@ -180,7 +180,7 @@ public class RetryOnLockFailuresCommandHandler implements CommandHandler {
 							+ " failed due to a stale object: " + e.getEntityName() + "#"
 							+ e.getIdentifier() + ", retrying attempt: " + retries);
 				}
-			} catch (HibernateOptimisticLockingFailureException e) {
+            } catch (ObjectOptimisticLockingFailureException e) {
 				// must catch hibernate and/or spring exceptions
 				// because they are thrown from the commit and not
 				// wrapped by the exception adapters on the repositories

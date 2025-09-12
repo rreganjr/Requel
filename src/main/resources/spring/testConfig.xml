@@ -49,7 +49,7 @@
 	</bean>
 
 	<bean id="entityManagerFactory" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
- 		<property name="dataSource"><ref local="dataSource"/></property>
+ 		<property name="dataSource"><ref bean="dataSource"/></property>
 		<property name="persistenceUnitName" value="${db.jpa.persistenceUnitName}" />
 		<property name="persistenceXmlLocation" value="classpath*:/META-INF/persistence.xml"/>
 		<property name="jpaDialect"><bean class="${db.jpa.dialect}"/></property>
@@ -64,7 +64,7 @@
 	</bean>
 
 	<bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
-		<property name="entityManagerFactory"><ref local="entityManagerFactory"/></property>
+		<property name="entityManagerFactory"><ref bean="entityManagerFactory"/></property>
 	</bean>
 
 	

@@ -38,7 +38,7 @@ import org.hibernate.exception.LockAcquisitionException;
 import com.rreganjr.validator.InvalidStateException;
 import org.springframework.context.annotation.Scope;
 import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.orm.hibernate3.HibernateOptimisticLockingFailureException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.repository.EntityException;
@@ -71,8 +71,8 @@ public class ExceptionMapper {
 		addExceptionAdapter(StaleObjectStateException.class, new OptimisticLockExceptionAdapter());
 		addExceptionAdapter(LockAcquisitionException.class, new OptimisticLockExceptionAdapter());
 		addExceptionAdapter(CannotAcquireLockException.class, new OptimisticLockExceptionAdapter());
-		addExceptionAdapter(HibernateOptimisticLockingFailureException.class,
-				new OptimisticLockExceptionAdapter());
+        addExceptionAdapter(ObjectOptimisticLockingFailureException.class,
+                new OptimisticLockExceptionAdapter());
 
 		addExceptionAdapter(EntityExistsException.class, new EntityExistsExceptionAdapter());
 	}

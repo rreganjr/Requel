@@ -29,7 +29,7 @@
 		</bean>
 
 		<bean id="mainNavigationPanelContainer" scope="prototype" class="com.rreganjr.requel.ui.MainScreenTabbedNavigation">
-			<constructor-arg><ref local="mainNavigationPanelManager"/></constructor-arg>
+			<constructor-arg><ref bean="mainNavigationPanelManager"/></constructor-arg>
 		</bean>
 		
 		<bean id="mainContentPanelManager" scope="prototype" class="net.sf.echopm.panel.DefaultPanelManager">
@@ -89,6 +89,6 @@
 		</bean>
 
 		<bean id="mainContentPanelContainer" scope="prototype" class="net.sf.echopm.panel.TabbedPanelContainer">
-			<constructor-arg><ref local="mainContentPanelManager"/></constructor-arg>
+			<constructor-arg><ref bean="mainContentPanelManager"/></constructor-arg>
 		</bean>
 </beans>

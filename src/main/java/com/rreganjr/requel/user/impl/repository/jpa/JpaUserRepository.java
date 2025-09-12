@@ -35,7 +35,7 @@ import com.rreganjr.validator.InvalidStateException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.orm.hibernate3.HibernateOptimisticLockingFailureException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,9 +100,9 @@ public class JpaUserRepository extends AbstractJpaRepository implements UserRepo
 		addExceptionAdapter(CannotAcquireLockException.class, new OptimisticLockExceptionAdapter(),
 				User.class, Organization.class, UserRole.class, UserRolePermission.class);
 
-		addExceptionAdapter(HibernateOptimisticLockingFailureException.class,
-				new OptimisticLockExceptionAdapter(), User.class, Organization.class,
-				UserRole.class, UserRolePermission.class);
+        addExceptionAdapter(ObjectOptimisticLockingFailureException.class,
+                new OptimisticLockExceptionAdapter(), User.class, Organization.class,
+                UserRole.class, UserRolePermission.class);
 
 	}
 

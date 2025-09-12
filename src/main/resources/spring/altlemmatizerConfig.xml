@@ -14,7 +14,7 @@
 			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.5.xsd
 			">
 
-		<bean id="nounDictionarySuffixExchangingLemmatizerRule" scope="prototype" class="com.rreganjr.nlp.impl.lemmatizer.DictionarySuffixExchangingLemmatizerRule">
+		<bean id="altNounDictionarySuffixExchangingLemmatizerRule" scope="prototype" class="com.rreganjr.nlp.impl.lemmatizer.DictionarySuffixExchangingLemmatizerRule">
 			<constructor-arg index="0"><ref bean="dictionaryRepository"/></constructor-arg>
 			<constructor-arg index="1">
 				<util:set>
@@ -56,7 +56,7 @@
 				</util:list>
 			</constructor-arg>
 		</bean>
-		<bean id="verbDictionarySuffixExchangingLemmatizerRule" scope="prototype" class="com.rreganjr.nlp.impl.lemmatizer.DictionarySuffixExchangingLemmatizerRule">
+		<bean id="altVerbDictionarySuffixExchangingLemmatizerRule" scope="prototype" class="com.rreganjr.nlp.impl.lemmatizer.DictionarySuffixExchangingLemmatizerRule">
 			<constructor-arg index="0"><ref bean="dictionaryRepository"/></constructor-arg>
 			<constructor-arg index="1">
 				<util:set>
@@ -94,7 +94,7 @@
 				</util:list>
 			</constructor-arg>
 		</bean>
-		<bean id="adjectiveDictionarySuffixExchangingLemmatizerRule" scope="prototype" class="com.rreganjr.nlp.impl.lemmatizer.DictionarySuffixExchangingLemmatizerRule">
+		<bean id="altAdjectiveDictionarySuffixExchangingLemmatizerRule" scope="prototype" class="com.rreganjr.nlp.impl.lemmatizer.DictionarySuffixExchangingLemmatizerRule">
 			<constructor-arg index="0"><ref bean="dictionaryRepository"/></constructor-arg>
 			<constructor-arg index="1">
 				<util:set>

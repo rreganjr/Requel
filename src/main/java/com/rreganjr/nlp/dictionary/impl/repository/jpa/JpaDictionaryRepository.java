@@ -51,7 +51,7 @@ import com.rreganjr.validator.InvalidStateException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.orm.hibernate3.HibernateOptimisticLockingFailureException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -195,8 +195,8 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 		addExceptionAdapter(CannotAcquireLockException.class, new OptimisticLockExceptionAdapter(),
 				Word.class, Category.class, Synset.class);
 
-		addExceptionAdapter(HibernateOptimisticLockingFailureException.class,
-				new OptimisticLockExceptionAdapter(), Word.class, Category.class, Synset.class);
+        addExceptionAdapter(ObjectOptimisticLockingFailureException.class,
+                new OptimisticLockExceptionAdapter(), Word.class, Category.class, Synset.class);
 	}
 
 	protected SpellChecker getSpellChecker() {

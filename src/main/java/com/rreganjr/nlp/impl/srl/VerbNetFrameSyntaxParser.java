@@ -27,6 +27,7 @@ import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.XMLConstants;
 
 import org.apache.log4j.Logger;
 import org.apache.xpath.XPathAPI;
@@ -76,7 +77,13 @@ public class VerbNetFrameSyntaxParser {
 		VerbNetFrame frame = frameRef.getFrame();
 		List<SyntaxMatchingRule> rules = new ArrayList<SyntaxMatchingRule>();
 		try {
-			DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            try {
+                dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+                dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+                dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+            } catch (Throwable ignore) {}
+            DocumentBuilder db = dbf.newDocumentBuilder();
 			Reader reader = new StringReader("<syntax>" + frame.getSyntax() + "</syntax>");
 			Document verbNetSyntaxXML = db.parse(new InputSource(reader));
 			NodeIterator nl = XPathAPI.selectNodeIterator(verbNetSyntaxXML, "/syntax/*");

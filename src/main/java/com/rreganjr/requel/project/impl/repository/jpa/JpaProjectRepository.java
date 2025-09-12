@@ -37,7 +37,7 @@ import com.rreganjr.validator.InvalidStateException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.orm.hibernate3.HibernateOptimisticLockingFailureException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -122,9 +122,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 				Project.class, ProjectOrDomainEntity.class, AddGlossaryTermPosition.class,
 				AddActorPosition.class);
 
-		addExceptionAdapter(HibernateOptimisticLockingFailureException.class,
-				new OptimisticLockExceptionAdapter(), Project.class, ProjectOrDomainEntity.class,
-				AddGlossaryTermPosition.class, AddActorPosition.class);
+        addExceptionAdapter(ObjectOptimisticLockingFailureException.class,
+                new OptimisticLockExceptionAdapter(), Project.class, ProjectOrDomainEntity.class,
+                AddGlossaryTermPosition.class, AddActorPosition.class);
 	}
 
 	public Project findProjectByName(String name) throws NoSuchProjectException {

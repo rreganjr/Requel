@@ -10,10 +10,15 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>1.5.4.RELEASE</version>
+        <version>2.7.18</version>
     </parent>
 
+    <prerequisites>
+        <maven>3.2.5</maven>
+    </prerequisites>
+
     <properties>
+        <java.version>1.8</java.version>
         <docker.image.prefix>rreganjr</docker.image.prefix>
         <!-- Docker image name must be lowercase -->
         <docker.image.name>requel</docker.image.name>
@@ -24,7 +29,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
-                <version>2.1.2</version>
+                <version>3.3.0</version>
                 <executions>
                     <execution>
                         <id>attach-sources</id>
@@ -172,10 +177,10 @@
 
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.3</version>
+                <version>3.11.0</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -197,6 +202,16 @@
             </plugin>
         </plugins>
     </build>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>mysql</groupId>
+                <artifactId>mysql-connector-java</artifactId>
+                <version>8.0.33</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <profiles>
         <profile>
@@ -347,7 +362,6 @@
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
-            <version>8.0.33</version>
         </dependency>
 
         <!-- Ensure JPA APIs are present on the compile classpath for Java 8/Boot 1.5 -->
@@ -357,18 +371,7 @@
             <version>1.0.2.Final</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/xalan/xalan -->
-        <dependency>
-            <groupId>xalan</groupId>
-            <artifactId>xalan</artifactId>
-            <version>2.7.3</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/xerces/xercesImpl -->
-        <dependency>
-            <groupId>xerces</groupId>
-            <artifactId>xercesImpl</artifactId>
-            <version>2.12.2</version>
-        </dependency>
+        <!-- Prefer JDK JAXP implementations; remove explicit Xalan/Xerces to avoid property warnings -->
         <!-- https://mvnrepository.com/artifact/org.eclipse.birt.runtime.3_7_1/org.apache.xml.serializer -->
         <dependency>
             <groupId>org.eclipse.birt.runtime.3_7_1</groupId>
@@ -433,11 +436,10 @@
             <artifactId>spring-boot-starter-web-services</artifactId>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-validator -->
+        <!-- Use Boot-managed Hibernate Validator (org.hibernate.validator group) -->
         <dependency>
-            <groupId>org.hibernate</groupId>
+            <groupId>org.hibernate.validator</groupId>
             <artifactId>hibernate-validator</artifactId>
-            <version>5.3.6.Final</version>
         </dependency>
 
         <dependency>
@@ -448,6 +450,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
+        <!-- Bridge legacy Log4j 1.x API usages to SLF4J/Logback -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>log4j-over-slf4j</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
@@ -456,12 +463,12 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-config</artifactId>
-            <version>4.0.2.RELEASE</version>
         </dependency>
+        <!-- Replace EOL commons-httpclient with Apache HttpClient 4.x -->
         <dependency>
-            <groupId>commons-httpclient</groupId>
-            <artifactId>commons-httpclient</artifactId>
-            <version>3.1</version>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.14</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
@@ -478,6 +485,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>
