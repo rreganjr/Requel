@@ -22,12 +22,11 @@
  */
 package com.rreganjr.requel;
 
-import com.rreganjr.requel.service.ProjectXmlController;
+
 import net.sf.echopm.EchoPMLogoutServlet;
 import net.sf.echopm.EchoPMServlet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -39,11 +38,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportResource;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 
 @SpringBootApplication
-@EnableAutoConfiguration
 @ServletComponentScan
 @EntityScan( basePackages = {"com.rreganjr.requel", "com.rreganjr.nlp"} )
 @ImportResource( {"classpath:application-config.xml"} )
@@ -86,7 +83,7 @@ public class Application extends SpringBootServletInitializer {
             auth
                     .inMemoryAuthentication()
                     .withUser("admin")
-                    .password("admin")
+                    .password("{noop}admin")
                     .roles("ADMIN","USER");
         }
     }
