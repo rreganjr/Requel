@@ -59,10 +59,8 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 public class ProjectUserRole extends AbstractUserRole {
 	static final long serialVersionUID = 0L;
 
-	@Transient
 	public static final UserRolePermission createProjects = new UserRolePermission(
 			ProjectUserRole.class, "createProjects");
-	@Transient
 	public static final UserRolePermission inviteUsers = new UserRolePermission(
 			ProjectUserRole.class, "inviteUsers");
 
@@ -143,14 +141,6 @@ public class ProjectUserRole extends AbstractUserRole {
 	}
 
 	private Integer tmpHashCode = null;
-
-	public UserRolePermission getInviteUsers() {
-		return inviteUsers;
-	}
-
-	public UserRolePermission getCreateProjects() {
-		return createProjects;
-	}
 
 	@Override
 	public int hashCode() {

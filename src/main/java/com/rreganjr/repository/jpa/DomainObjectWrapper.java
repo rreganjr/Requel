@@ -33,14 +33,13 @@ import java.util.TreeSet;
 import javax.annotation.Resource;
 import javax.persistence.Entity;
 
-import net.sf.cglib.proxy.Enhancer;
-import net.sf.cglib.proxy.Factory;
-
 import org.apache.log4j.Logger;
 import org.hibernate.proxy.HibernateProxy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import org.springframework.cglib.proxy.Enhancer;
+import org.springframework.cglib.proxy.Factory;
 
 import com.rreganjr.requel.user.UserSet;
 import com.rreganjr.requel.user.impl.UserSetImpl;
