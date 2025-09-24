@@ -238,14 +238,14 @@ public class Synset implements Comparable<Synset>, Serializable {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + ((getCategory() == null) ? 0 : getCategory().hashCode());
 			result = prime * result + ((getDefinition() == null) ? 0 : getDefinition().hashCode());
 			result = prime * result + ((getPos() == null) ? 0 : getPos().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}
@@ -306,7 +306,7 @@ public class Synset implements Comparable<Synset>, Serializable {
 
 		@Override
 		public Long unmarshal(String id) throws Exception {
-			return new Long(id.substring(prefix.length()));
+			return Long.valueOf(id.substring(prefix.length()));
 		}
 
 		@Override

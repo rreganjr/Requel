@@ -118,7 +118,7 @@ public class Semlinkref implements Comparable<Semlinkref>, Serializable {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
@@ -126,7 +126,7 @@ public class Semlinkref implements Comparable<Semlinkref>, Serializable {
 			result = prime * result + ((getToSynset() == null) ? 0 : getToSynset().hashCode());
 			result = prime * result + ((getLinkType() == null) ? 0 : getLinkType().hashCode());
 			result = prime * result + getDistance();
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

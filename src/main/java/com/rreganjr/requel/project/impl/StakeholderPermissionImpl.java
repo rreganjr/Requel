@@ -123,14 +123,14 @@ public class StakeholderPermissionImpl implements StakeholderPermission {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + ((getEntityType() == null) ? 0 : getEntityType().hashCode());
 			result = prime * result
 					+ ((getPermissionType() == null) ? 0 : getPermissionType().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

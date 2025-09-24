@@ -487,7 +487,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 
 		@Override
 		public Long unmarshal(String id) throws Exception {
-			return null; // new Long(id.substring(prefix.length()));
+			return null; // Long.valueOf(id.substring(prefix.length()));
 		}
 
 		@Override

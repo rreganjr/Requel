@@ -110,13 +110,13 @@ public class VerbNetFrameRef implements Comparable<VerbNetFrameRef>, Serializabl
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + ((getSense() == null) ? 0 : getSense().hashCode());
 			result = prime * result + ((getFrame() == null) ? 0 : getFrame().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

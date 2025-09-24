@@ -240,14 +240,14 @@ public class PositionImpl implements Position, Serializable {
 		final int prime = 31;
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			int result = 1;
 			result = prime * result
 					+ ((getDateCreated() == null) ? 0 : getDateCreated().hashCode());
 			result = prime * result + ((getCreatedBy() == null) ? 0 : getCreatedBy().hashCode());
 			result = prime * result + ((getText() == null) ? 0 : getText().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}
@@ -312,7 +312,7 @@ public class PositionImpl implements Position, Serializable {
 
 		@Override
 		public Long unmarshal(String id) throws Exception {
-			return null; // new Long(id.substring(prefix.length()));
+			return null; // Long.valueOf(id.substring(prefix.length()));
 		}
 
 		@Override

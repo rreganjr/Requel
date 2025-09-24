@@ -111,7 +111,7 @@ public class VerbNetRoleRef implements Serializable {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
@@ -121,7 +121,7 @@ public class VerbNetRoleRef implements Serializable {
 					+ ((getVerbNetClass() == null) ? 0 : getVerbNetClass().hashCode());
 			result = prime * result
 					+ ((getVerbNetRole() == null) ? 0 : getVerbNetRole().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

@@ -90,13 +90,13 @@ public class Category implements Comparable<Category>, Serializable {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + ((getName() == null) ? 0 : getName().hashCode());
 			result = prime * result + ((getPos() == null) ? 0 : getPos().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}
@@ -145,7 +145,7 @@ public class Category implements Comparable<Category>, Serializable {
 
 		@Override
 		public Long unmarshal(String id) throws Exception {
-			return new Long(id.substring(prefix.length()));
+			return Long.valueOf(id.substring(prefix.length()));
 		}
 
 		@Override

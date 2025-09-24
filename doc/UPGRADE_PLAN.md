@@ -11,7 +11,25 @@
   - Homebrew: `brew install openjdk@17` and use `JAVA_HOME=` paths per shell or IntelliJ.
   - SDKMAN/asdf: `sdk install java 17-tem` (or vendor of choice) and switch per project.
   - IntelliJ IDEA: add JDK 17 under *Project Structure → SDKs* and assign it only to the Requel module.
-- For command-line builds, prefer Maven Toolchains so Maven can select JDK 17 without altering other shells. Create `~/.m2/toolchains.xml` with JDK 17 entry and reference it via the `toolchain-maven-plugin`.
+- For command-line builds, prefer Maven Toolchains so Maven can select JDK 17 without altering other shells.
+  1. Create or edit `~/.m2/toolchains.xml` with an entry that points to your JDK 17 installation, for example:
+
+     ```xml
+     <toolchains>
+       <toolchain>
+         <type>jdk</type>
+         <provides>
+           <version>17</version>
+           <vendor>any</vendor>
+         </provides>
+         <configuration>
+           <jdkHome>/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home</jdkHome>
+         </configuration>
+       </toolchain>
+     </toolchains>
+     ```
+
+  2. Wire the `maven-toolchains-plugin` into `pom.xml` (typically in the `<build><plugins>` section) so Maven respects the toolchain. When you run `mvn` for this project it will pick JDK 17 automatically, while other projects without a toolchain entry continue using Java 11.
 
 ## Phase 1 – Prepare on Spring Boot 2.7
 1. **Baseline sanity checks**

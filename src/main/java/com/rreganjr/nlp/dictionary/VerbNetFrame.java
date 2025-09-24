@@ -125,7 +125,7 @@ public class VerbNetFrame implements Comparable<VerbNetFrame>, Serializable {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
@@ -135,7 +135,7 @@ public class VerbNetFrame implements Comparable<VerbNetFrame>, Serializable {
 					+ ((getDescription1() == null) ? 0 : getDescription1().hashCode());
 			result = prime * result
 					+ ((getDescription2() == null) ? 0 : getDescription2().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

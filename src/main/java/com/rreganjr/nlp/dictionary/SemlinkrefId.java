@@ -113,7 +113,7 @@ public class SemlinkrefId implements Comparable<SemlinkrefId>, Serializable {
 			result = prime * result + getSynset1id().hashCode();
 			result = prime * result + getSynset2id().hashCode();
 			result = prime * result + getLinkid().hashCode();
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

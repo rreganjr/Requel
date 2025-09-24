@@ -236,7 +236,7 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 				int result = 1;
 				result = prime * result + ((getType() == null) ? 0 : getType().hashCode());
 				result = prime * result + ((getText() == null) ? 0 : getText().hashCode());
-				tmpHashCode = new Integer(result);
+				tmpHashCode = Integer.valueOf(result);
 			}
 		}
 		return tmpHashCode.intValue();
@@ -331,7 +331,7 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 
 		@Override
 		public Long unmarshal(String id) throws Exception {
-			return null; // new Long(id.substring(prefix.length()));
+			return null; // Long.valueOf(id.substring(prefix.length()));
 		}
 
 		@Override

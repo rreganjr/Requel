@@ -24,12 +24,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
-import javax.persistence.CascadeType;
-import javax.persistence.DiscriminatorValue;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
+import javax.persistence.*;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
 
@@ -64,8 +59,10 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 public class ProjectUserRole extends AbstractUserRole {
 	static final long serialVersionUID = 0L;
 
+	@Transient
 	public static final UserRolePermission createProjects = new UserRolePermission(
 			ProjectUserRole.class, "createProjects");
+	@Transient
 	public static final UserRolePermission inviteUsers = new UserRolePermission(
 			ProjectUserRole.class, "inviteUsers");
 
@@ -147,17 +144,25 @@ public class ProjectUserRole extends AbstractUserRole {
 
 	private Integer tmpHashCode = null;
 
+	public UserRolePermission getInviteUsers() {
+		return inviteUsers;
+	}
+
+	public UserRolePermission getCreateProjects() {
+		return createProjects;
+	}
+
 	@Override
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			} else {
 				final int prime = 31;
 				int result = 1;
 				result = prime * result + ((getRoleName() == null) ? 0 : getRoleName().hashCode());
 				result = prime * result + ((getUser() == null) ? 0 : getUser().hashCode());
-				tmpHashCode = new Integer(result);
+				tmpHashCode = Integer.valueOf(result);
 			}
 		}
 		return tmpHashCode.intValue();
@@ -183,8 +188,6 @@ public class ProjectUserRole extends AbstractUserRole {
 	 * This is for JAXB to patchup the parent/child relationship.
 	 * 
 	 * @param userRepository
-	 * @param defaultCreatedByUser -
-	 *            the user to be set as the created by if no user is supplied.
 	 * @param parent
 	 * @see UnmarshallerListener
 	 */

@@ -104,7 +104,7 @@ public class WordNetSenseKeyInitializer extends AbstractSystemInitializer {
 					if (synsetTypeCode.equals("5")) {
 						synsetTypeCode = "3";
 					}
-					Long synsetId = new Long(synsetTypeCode + offset);
+					Long synsetId = Long.valueOf(synsetTypeCode + offset);
 					try {
 						Sense sense = dictionaryRepository.findSensesByLemmaAndSynsetId(lemma
 								.replace('_', ' '), synsetId);

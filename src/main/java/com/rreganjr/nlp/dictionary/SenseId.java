@@ -87,7 +87,7 @@ public class SenseId implements Serializable {
 			int result = 1;
 			result = prime * result + ((getSynsetid() == null) ? 0 : getSynsetid().hashCode());
 			result = prime * result + ((getWordid() == null) ? 0 : getWordid().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

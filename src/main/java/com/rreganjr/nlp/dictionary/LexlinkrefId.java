@@ -126,7 +126,7 @@ public class LexlinkrefId implements Comparable<LexlinkrefId>, Serializable {
 			result = prime * result + getSynset2id().hashCode();
 			result = prime * result + getWord2id().hashCode();
 			result = prime * result + getLinkid().hashCode();
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

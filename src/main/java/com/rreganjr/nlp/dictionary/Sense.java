@@ -180,14 +180,14 @@ public class Sense implements Comparable<Sense>, Serializable {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + ((getRank() == null) ? 0 : getRank().hashCode());
 			result = prime * result + ((getSynset() == null) ? 0 : getSynset().hashCode());
 			result = prime * result + ((getWord() == null) ? 0 : getWord().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

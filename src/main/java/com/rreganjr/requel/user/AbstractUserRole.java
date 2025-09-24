@@ -177,12 +177,12 @@ public abstract class AbstractUserRole implements UserRole, Serializable {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			} else {
 				final int prime = 31;
 				int result = 1;
 				result = prime * result + ((getRoleName() == null) ? 0 : getRoleName().hashCode());
-				tmpHashCode = new Integer(result);
+				tmpHashCode = Integer.valueOf(result);
 			}
 		}
 		return tmpHashCode.intValue();
