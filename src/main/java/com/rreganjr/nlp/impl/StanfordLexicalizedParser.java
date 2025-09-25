@@ -25,6 +25,8 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.GZIPInputStream;
 
 import org.apache.log4j.Logger;
@@ -56,6 +58,7 @@ import edu.stanford.nlp.trees.TypedDependency;
 @Component("stanfordParser")
 public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 	private static final Logger log = Logger.getLogger(StanfordLexicalizedParser.class);
+    private static final Set<String> unsupportedRelationNames = ConcurrentHashMap.newKeySet();
 
 	/**
 	 * The name of the property in the Parser.properties file that contains the
@@ -171,14 +174,28 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 				for (TypedDependency dependency : typedDependencies) {
 					NLPTextImpl governor = (NLPTextImpl) (dependency.gov().index() == 0 ? NLPText.ROOT : leaves.get(dependency.gov().index() - 1));
 					NLPTextImpl dependent = (NLPTextImpl) (dependency.gov().index() == 0 ? NLPText.ROOT : leaves.get(dependency.dep().index() - 1));
+					String relationShortName = dependency.reln().getShortName();
 					GrammaticalRelationType type = GrammaticalRelationType
-							.getGrammaticalRelationByShortName(dependency.reln().getShortName());
+							.getGrammaticalRelationByShortName(relationShortName);
+					if (type == null) {
+						if (unsupportedRelationNames.add(relationShortName) && log.isWarnEnabled()) {
+							log.warn("Skipping unsupported grammatical relation: " + relationShortName);
+							if (log.isDebugEnabled()) {
+								log.debug("  governor=" + governor + " dependent=" + dependent);
+							}
+						}
+						continue;
+					}
 					text.getGrammaticalRelations().add(
 							new GrammaticalRelationImpl(type, governor, dependent));
 				}
 			}
 		} else {
-			throw ParserException.parseFailed();
+			if (tokens == null || tokens.isEmpty()) {
+				log.warn("Skipping parsing for empty token sequence");
+			} else {
+				log.warn("Stanford parser returned no tree for tokens: " + tokens);
+			}
 		}
 	}
 

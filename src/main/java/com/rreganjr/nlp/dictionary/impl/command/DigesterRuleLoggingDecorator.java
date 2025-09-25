@@ -20,8 +20,8 @@
  */
 package com.rreganjr.nlp.dictionary.impl.command;
 
-import org.apache.commons.digester.Digester;
-import org.apache.commons.digester.Rule;
+import org.apache.commons.digester3.Digester;
+import org.apache.commons.digester3.Rule;
 import org.apache.log4j.Logger;
 import org.xml.sax.Attributes;
 

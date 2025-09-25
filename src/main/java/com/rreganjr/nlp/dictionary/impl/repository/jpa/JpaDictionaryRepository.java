@@ -861,14 +861,21 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 			} else {
 				if (synset1.getPartOfSpeech().equals(synset2.getPartOfSpeech())) {
 					Query query = getEntityManager().createNativeQuery(
-							"select syn.* from synset syn " + "left join semlinkref slr1 on ( "
-									+ "	slr1.synset2id = syn.synsetid ) "
-									+ "left join semlinkref slr2 on ( "
-									+ "	slr1.synset2id = slr2.synset2id ) "
+							"select syn.* " + "from synset syn "
+									+ "join semlinkref slr1 on (slr1.synset2id = syn.synsetid and slr1.linkid = 1) "
+									+ "join semlinkref slr2 on (slr2.synset2id = syn.synsetid and slr2.linkid = 1) "
 									+ "where slr1.synset1id = :synset1id "
-									+ "and  slr2.synset1id = :synset2id and  slr1.linkid = 1 "
-									+ "and  slr2.linkid = 1 "
-									+ "having min(slr1.distance + slr2.distance)", Synset.class);
+									+ "and   slr2.synset1id = :synset2id "
+									+ "and   (slr1.distance + slr2.distance) = ("
+									+ "    select min(slr1b.distance + slr2b.distance) "
+									+ "    from semlinkref slr1b "
+									+ "         join semlinkref slr2b on (slr1b.synset2id = slr2b.synset2id) "
+									+ "    where slr1b.synset1id = :synset1id "
+									+ "      and slr2b.synset1id = :synset2id "
+									+ "      and slr1b.linkid = 1 "
+									+ "      and slr2b.linkid = 1"
+									+ "  )",
+							Synset.class);
 					query.setParameter("synset1id", synset1.getId());
 					query.setParameter("synset2id", synset2.getId());
 					lcsSet.addAll(query.getResultList());
