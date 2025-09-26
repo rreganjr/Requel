@@ -85,30 +85,6 @@
                 </configuration>
             </plugin>
 
-            <!-- Install local Echo2/Echopoint/EchoPM jars into the local Maven repo -->
-            <plugin>
-                <artifactId>maven-resources-plugin</artifactId>
-                <version>3.3.1</version>
-                <executions>
-                    <execution>
-                        <id>copy-transform-config</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>copy-resources</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${project.build.directory}/transform-config</outputDirectory>
-                            <resources>
-                                <resource>
-                                    <directory>${project.basedir}/transform-config</directory>
-                                    <filtering>true</filtering>
-                                </resource>
-                            </resources>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
