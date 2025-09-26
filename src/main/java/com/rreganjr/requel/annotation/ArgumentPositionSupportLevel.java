@@ -20,8 +20,8 @@
  */
 package com.rreganjr.requel.annotation;
 
-import javax.xml.bind.annotation.XmlEnum;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlEnum;
+import jakarta.xml.bind.annotation.XmlType;
 
 /**
  * Arguments can be for or against a position, this enumerates the level of

@@ -34,15 +34,15 @@ import javax.persistence.ManyToMany;
 import javax.persistence.Table;
 import javax.persistence.Transient;
 import javax.persistence.UniqueConstraint;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlID;
-import javax.xml.bind.annotation.XmlIDREF;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
+import jakarta.xml.bind.annotation.XmlID;
+import jakarta.xml.bind.annotation.XmlIDREF;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 import org.hibernate.annotations.Sort;
 import org.hibernate.annotations.SortNatural;
@@ -154,7 +154,7 @@ public class ProjectTeamImpl extends AbstractProjectOrDomainEntity implements Pr
 	public static class Team2TeamImplAdapter extends XmlAdapter<ProjectTeamImpl, ProjectTeam> {
 
 		/**
-		 * @see javax.xml.bind.annotation.adapters.XmlAdapter#marshal(java.lang.Object)
+		 * @see jakarta.xml.bind.annotation.adapters.XmlAdapter#marshal(java.lang.Object)
 		 */
 		@Override
 		public ProjectTeamImpl marshal(ProjectTeam team) throws Exception {
@@ -162,7 +162,7 @@ public class ProjectTeamImpl extends AbstractProjectOrDomainEntity implements Pr
 		}
 
 		/**
-		 * @see javax.xml.bind.annotation.adapters.XmlAdapter#unmarshal(java.lang.Object)
+		 * @see jakarta.xml.bind.annotation.adapters.XmlAdapter#unmarshal(java.lang.Object)
 		 */
 		@Override
 		public ProjectTeam unmarshal(ProjectTeamImpl team) throws Exception {

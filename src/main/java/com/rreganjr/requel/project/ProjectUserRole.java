@@ -25,8 +25,8 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import javax.persistence.*;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlType;
 
 import org.hibernate.annotations.Sort;
 import org.hibernate.annotations.SortNatural;

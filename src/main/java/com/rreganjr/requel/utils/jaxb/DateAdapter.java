@@ -22,7 +22,7 @@ package com.rreganjr.requel.utils.jaxb;
 
 import java.util.Date;
 
-import javax.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 import com.rreganjr.requel.utils.DateUtils;
 

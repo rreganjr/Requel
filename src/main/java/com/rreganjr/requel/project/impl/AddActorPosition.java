@@ -22,8 +22,8 @@ package com.rreganjr.requel.project.impl;
 
 import javax.persistence.DiscriminatorValue;
 import javax.persistence.Entity;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlType;
 
 import com.rreganjr.requel.annotation.impl.PositionImpl;
 import com.rreganjr.requel.annotation.impl.command.AnnotationCommandFactoryImpl;
