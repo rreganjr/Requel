@@ -1,21 +1,18 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Requel [test]" type="MavenRunConfiguration" factoryName="Maven" nameIsGenerated="true">
-    <envs>
-      <env name="JAVA_HOME" value="/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home" />
-    </envs>
+  <configuration default="false" name="Requel [initialize]" type="MavenRunConfiguration" factoryName="Maven" nameIsGenerated="true">
     <option name="PASS_PARENT_ENVS" value="true" />
     <MavenSettings>
       <option name="myGeneralSettings" />
       <option name="myRunnerSettings" />
       <option name="myRunnerParameters">
         <MavenRunnerParameters>
-          <option name="cmdOptions" value="" />
+          <option name="cmdOptions" />
           <option name="profiles">
             <set />
           </option>
           <option name="goals">
             <list>
-              <option value="test" />
+              <option value="initialize" />
             </list>
           </option>
           <option name="multimoduleDir" />
