@@ -18,6 +18,7 @@
         <!-- Docker image name must be lowercase -->
         <docker.image.name>requel</docker.image.name>
         <transform.output.dir>${project.build.directory}/echo-jakarta</transform.output.dir>
+        <echo.artifact.source.dir>${project.basedir}/lib/echo</echo.artifact.source.dir>
     </properties>
 
     <build>
@@ -86,160 +87,6 @@
             </plugin>
 
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.1.0</version>
-                <configuration>
-                    <executable>${project.basedir}/scripts/java17-transform.sh</executable>
-                    <workingDirectory>${project.basedir}</workingDirectory>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>transform-echo2-app</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/lib/echo/Echo2_App.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_App.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echo2-webcontainer</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/lib/echo/Echo2_WebContainer.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_WebContainer.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echo2-webrender</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/lib/echo/Echo2_WebRender.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_WebRender.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echo2-extras-app</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/lib/echo/Echo2_Extras_App.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_Extras_App.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echo2-extras-webcontainer</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/lib/echo/Echo2_Extras_WebContainer.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_Extras_WebContainer.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echo2-filetransfer-app</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/lib/echo/Echo2_FileTransfer_App.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_FileTransfer_App.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echo2-filetransfer-webcontainer</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/lib/echo/Echo2_FileTransfer_WebContainer.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_FileTransfer_WebContainer.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echopm</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/lib/echo/echopm.jar</argument>
-                                <argument>${transform.output.dir}/echopm.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echopointng</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/lib/echo/echopointng-2.2.0rc2.jar</argument>
-                                <argument>${transform.output.dir}/echopointng-2.2.0rc2.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                </executions>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.eclipse.transformer</groupId>
-                        <artifactId>org.eclipse.transformer.cli</artifactId>
-                        <version>1.0.0</version>
-                    </dependency>
-                </dependencies>
-            </plugin>
-
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-install-plugin</artifactId>
                 <version>3.1.1</version>
@@ -251,7 +98,7 @@
                             <goal>install-file</goal>
                         </goals>
                         <configuration>
-                            <file>${transform.output.dir}/Echo2_App.jar</file>
+                            <file>${echo.artifact.source.dir}/Echo2_App.jar</file>
                             <groupId>com.nextapp</groupId>
                             <artifactId>echo2-app</artifactId>
                             <version>2.1.1a</version>
@@ -265,7 +112,7 @@
                             <goal>install-file</goal>
                         </goals>
                         <configuration>
-                            <file>${transform.output.dir}/Echo2_WebContainer.jar</file>
+                            <file>${echo.artifact.source.dir}/Echo2_WebContainer.jar</file>
                             <groupId>com.nextapp</groupId>
                             <artifactId>echo2-webcontainer</artifactId>
                             <version>2.1.1a</version>
@@ -279,7 +126,7 @@
                             <goal>install-file</goal>
                         </goals>
                         <configuration>
-                            <file>${transform.output.dir}/Echo2_WebRender.jar</file>
+                            <file>${echo.artifact.source.dir}/Echo2_WebRender.jar</file>
                             <groupId>com.nextapp</groupId>
                             <artifactId>echo2-webrender</artifactId>
                             <version>2.1.1a</version>
@@ -293,7 +140,7 @@
                             <goal>install-file</goal>
                         </goals>
                         <configuration>
-                            <file>${transform.output.dir}/Echo2_Extras_App.jar</file>
+                            <file>${echo.artifact.source.dir}/Echo2_Extras_App.jar</file>
                             <groupId>com.nextapp</groupId>
                             <artifactId>echo2extras-app</artifactId>
                             <version>2.1.0a</version>
@@ -307,7 +154,7 @@
                             <goal>install-file</goal>
                         </goals>
                         <configuration>
-                            <file>${transform.output.dir}/Echo2_Extras_WebContainer.jar</file>
+                            <file>${echo.artifact.source.dir}/Echo2_Extras_WebContainer.jar</file>
                             <groupId>com.nextapp</groupId>
                             <artifactId>echo2extras-webcontainer</artifactId>
                             <version>2.1.0a</version>
@@ -321,7 +168,7 @@
                             <goal>install-file</goal>
                         </goals>
                         <configuration>
-                            <file>${transform.output.dir}/Echo2_FileTransfer_App.jar</file>
+                            <file>${echo.artifact.source.dir}/Echo2_FileTransfer_App.jar</file>
                             <groupId>com.nextapp</groupId>
                             <artifactId>echo2-filetransfer-app</artifactId>
                             <version>2.1.1</version>
@@ -335,7 +182,7 @@
                             <goal>install-file</goal>
                         </goals>
                         <configuration>
-                            <file>${transform.output.dir}/Echo2_FileTransfer_WebContainer.jar</file>
+                            <file>${echo.artifact.source.dir}/Echo2_FileTransfer_WebContainer.jar</file>
                             <groupId>com.nextapp</groupId>
                             <artifactId>echo2-filetransfer-webcontainer</artifactId>
                             <version>2.1.1</version>
@@ -349,7 +196,7 @@
                             <goal>install-file</goal>
                         </goals>
                         <configuration>
-                            <file>${transform.output.dir}/echopm.jar</file>
+                            <file>${echo.artifact.source.dir}/echopm.jar</file>
                             <groupId>com.rreganjr.echopm</groupId>
                             <artifactId>echopm</artifactId>
                             <version>1.0.0</version>
@@ -363,7 +210,7 @@
                             <goal>install-file</goal>
                         </goals>
                         <configuration>
-                            <file>${transform.output.dir}/echopointng-2.2.0rc2.jar</file>
+                            <file>${echo.artifact.source.dir}/echopointng-2.2.0rc2.jar</file>
                             <groupId>echopointng</groupId>
                             <artifactId>echopointng</artifactId>
                             <version>1.0.0</version>
@@ -412,6 +259,175 @@
     </dependencyManagement>
 
     <profiles>
+        <profile>
+            <id>jakarta-transform</id>
+            <activation>
+                <property>
+                    <name>jakarta.transform</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <properties>
+                <echo.artifact.source.dir>${transform.output.dir}</echo.artifact.source.dir>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <configuration>
+                            <executable>${project.basedir}/scripts/java17-transform.sh</executable>
+                            <workingDirectory>${project.basedir}</workingDirectory>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>transform-echo2-app</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>
+                                        <argument>${project.basedir}/lib/echo/Echo2_App.jar</argument>
+                                        <argument>${transform.output.dir}/Echo2_App.jar</argument>
+                                        <argument>-o</argument>
+                                        <argument>-w</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>transform-echo2-webcontainer</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>
+                                        <argument>${project.basedir}/lib/echo/Echo2_WebContainer.jar</argument>
+                                        <argument>${transform.output.dir}/Echo2_WebContainer.jar</argument>
+                                        <argument>-o</argument>
+                                        <argument>-w</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>transform-echo2-webrender</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>
+                                        <argument>${project.basedir}/lib/echo/Echo2_WebRender.jar</argument>
+                                        <argument>${transform.output.dir}/Echo2_WebRender.jar</argument>
+                                        <argument>-o</argument>
+                                        <argument>-w</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>transform-echo2-extras-app</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>
+                                        <argument>${project.basedir}/lib/echo/Echo2_Extras_App.jar</argument>
+                                        <argument>${transform.output.dir}/Echo2_Extras_App.jar</argument>
+                                        <argument>-o</argument>
+                                        <argument>-w</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>transform-echo2-extras-webcontainer</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>
+                                        <argument>${project.basedir}/lib/echo/Echo2_Extras_WebContainer.jar</argument>
+                                        <argument>${transform.output.dir}/Echo2_Extras_WebContainer.jar</argument>
+                                        <argument>-o</argument>
+                                        <argument>-w</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>transform-echo2-filetransfer-app</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>
+                                        <argument>${project.basedir}/lib/echo/Echo2_FileTransfer_App.jar</argument>
+                                        <argument>${transform.output.dir}/Echo2_FileTransfer_App.jar</argument>
+                                        <argument>-o</argument>
+                                        <argument>-w</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>transform-echo2-filetransfer-webcontainer</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>
+                                        <argument>${project.basedir}/lib/echo/Echo2_FileTransfer_WebContainer.jar</argument>
+                                        <argument>${transform.output.dir}/Echo2_FileTransfer_WebContainer.jar</argument>
+                                        <argument>-o</argument>
+                                        <argument>-w</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>transform-echopm</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>
+                                        <argument>${project.basedir}/lib/echo/echopm.jar</argument>
+                                        <argument>${transform.output.dir}/echopm.jar</argument>
+                                        <argument>-o</argument>
+                                        <argument>-w</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>transform-echopointng</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <arguments>
+                                        <argument>${project.basedir}/lib/echo/echopointng-2.2.0rc2.jar</argument>
+                                        <argument>${transform.output.dir}/echopointng-2.2.0rc2.jar</argument>
+                                        <argument>-o</argument>
+                                        <argument>-w</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.eclipse.transformer</groupId>
+                                <artifactId>org.eclipse.transformer.cli</artifactId>
+                                <version>1.0.0</version>
+                            </dependency>
+                        </dependencies>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>docker-image</id>
             <build>

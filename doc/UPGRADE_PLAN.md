@@ -64,7 +64,7 @@
      - `javax.xml.bind:jaxb-api`, `com.sun.xml.bind:jaxb-impl`, `com.sun.xml.bind:jaxb-core` → swap for Jakarta (`jakarta.xml.bind:jakarta.xml.bind-api`, `org.glassfish.jaxb:jaxb-runtime`).
      - Legacy Echo/Echopoint artifacts and custom `echopm` jars are compiled against `javax.servlet` and likely have no Jakarta build – evaluate upgrade/replacement strategy.
      - Hibernate/JPA stack via Spring Boot 2.7 still depends on `javax.persistence`; final migration will come with Boot 3 + Hibernate 6.
-   - Short-term bridge: Maven now runs the Eclipse Jakarta Transformer CLI (via `scripts/java17-transform.sh`) during the `initialize` phase to rewrite the Echo/Echopoint/EchoPM jars to `jakarta.*` namespaces and installs those transformed artifacts under the original coordinates, keeping the existing UI working while the backend upgrades.
+   - Short-term bridge: When invoked with `-Djakarta.transform=true`, Maven runs the Eclipse Jakarta Transformer CLI (via `scripts/java17-transform.sh`) during the `initialize` phase to rewrite the Echo/Echopoint/EchoPM jars to `jakarta.*` namespaces and installs those transformed artifacts under the original coordinates, keeping the existing UI working while the backend upgrades. Without that flag, the original `javax.*` jars remain in use so the Spring Boot 2.x build continues to compile.
 3. **Refactor imports and annotations**
    - Migrate code imports to `jakarta.*` equivalents and adjust package names in XML, configuration classes, and reflection usage.
    - Validate serialization/deserialization logic that depends on JAXB.
