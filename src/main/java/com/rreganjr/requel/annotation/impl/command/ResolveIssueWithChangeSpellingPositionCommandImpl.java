@@ -23,7 +23,7 @@ package com.rreganjr.requel.annotation.impl.command;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import javax.persistence.Transient;
+import jakarta.persistence.Transient;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;

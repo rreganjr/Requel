@@ -22,7 +22,7 @@ package com.rreganjr.nlp.dictionary.impl.command;
 
 import java.io.InputStream;
 
-import javax.persistence.NoResultException;
+import jakarta.persistence.NoResultException;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Unmarshaller;
 

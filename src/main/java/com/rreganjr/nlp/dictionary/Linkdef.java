@@ -22,12 +22,13 @@ package com.rreganjr.nlp.dictionary;
 
 import java.io.Serializable;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
-import org.hibernate.annotations.Type;
+import org.hibernate.type.YesNoConverter;
 
 /**
  * @author ron
@@ -94,11 +95,11 @@ public class Linkdef implements Serializable {
 		this.name = name;
 	}
 
-	@Column(name = "recurses", nullable = false)
-	@Type(type = "yes_no")
-	public boolean getRecurses() {
-		return this.recurses;
-	}
+    @Column(name = "recurses", nullable = false)
+    @Convert(converter = YesNoConverter.class)
+    public boolean getRecurses() {
+        return this.recurses;
+    }
 
 	public void setRecurses(boolean recurses) {
 		this.recurses = recurses;

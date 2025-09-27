@@ -21,11 +21,11 @@
  */
 package com.rreganjr.requel.project.impl;
 
-import javax.persistence.Column;
-import javax.persistence.DiscriminatorValue;
-import javax.persistence.Entity;
-import javax.persistence.Lob;
-import javax.persistence.Transient;
+import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorValue;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Lob;
+import jakarta.persistence.Transient;
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlID;
@@ -36,8 +36,8 @@ import jakarta.xml.bind.annotation.XmlType;
 import org.xml.sax.SAXException;
 
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
-import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.NonUserStakeholder;

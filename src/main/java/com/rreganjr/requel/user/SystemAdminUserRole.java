@@ -22,8 +22,8 @@ package com.rreganjr.requel.user;
 
 import java.util.HashSet;
 
-import javax.persistence.DiscriminatorValue;
-import javax.persistence.Entity;
+import jakarta.persistence.DiscriminatorValue;
+import jakarta.persistence.Entity;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlType;
 

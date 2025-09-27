@@ -23,17 +23,17 @@ package com.rreganjr.requel.annotation.impl;
 import java.io.Serializable;
 import java.util.Date;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.persistence.Version;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
+import jakarta.persistence.Version;
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlID;
@@ -44,7 +44,7 @@ import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.ArgumentPositionSupportLevel;

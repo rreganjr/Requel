@@ -23,8 +23,8 @@ package com.rreganjr.repository.jpa;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 import org.hibernate.Hibernate;
 import org.hibernate.proxy.HibernateProxy;

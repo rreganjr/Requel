@@ -22,10 +22,10 @@ package com.rreganjr.nlp.dictionary;
 
 import java.io.Serializable;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlID;
 import jakarta.xml.bind.annotation.XmlRootElement;

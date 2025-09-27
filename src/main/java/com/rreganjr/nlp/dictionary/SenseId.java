@@ -22,8 +22,8 @@ package com.rreganjr.nlp.dictionary;
 
 import java.io.Serializable;
 
-import javax.persistence.Column;
-import javax.persistence.Embeddable;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
 
 /**
  * Wordnet Sense composite id based on a Word and a Synset.

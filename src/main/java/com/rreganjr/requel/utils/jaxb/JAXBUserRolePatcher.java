@@ -22,7 +22,7 @@ package com.rreganjr.requel.utils.jaxb;
 
 import org.xml.sax.SAXException;
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
 
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRole;

@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlElementWrapper;
 import jakarta.xml.bind.annotation.XmlIDREF;

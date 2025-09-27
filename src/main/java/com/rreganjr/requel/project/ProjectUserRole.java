@@ -24,18 +24,16 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlType;
 
-import org.hibernate.annotations.Sort;
 import org.hibernate.annotations.SortNatural;
-import org.hibernate.annotations.SortType;
 import org.xml.sax.SAXException;
 
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
-import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.requel.user.AbstractUserRole;

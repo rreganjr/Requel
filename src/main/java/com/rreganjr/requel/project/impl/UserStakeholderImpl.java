@@ -24,15 +24,15 @@ package com.rreganjr.requel.project.impl;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.persistence.CascadeType;
-import javax.persistence.DiscriminatorValue;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.persistence.Transient;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.DiscriminatorValue;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Transient;
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlElementRef;
@@ -47,8 +47,8 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import org.xml.sax.SAXException;
 
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
-import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectOrDomain;

@@ -52,27 +52,26 @@
 1. **Inventory `javax.*` usage**
    - Use `rg 'javax\.' src/main/java` (already started) to produce a checklist of packages: `javax.servlet`, `javax.persistence`, `javax.validation`, `javax.xml.bind`, etc.
    - Current usage (2025-09-24):
-     - Application/server: `javax.servlet.*`, `javax.servlet.annotation.WebListener`, `javax.servlet.http.*`.
-     - Persistence/JPA: `javax.persistence.*` across domain entities, repositories, and helper classes.
-     - Bean validation: `javax.validation.constraints.*` on DTO/domain fields.
-     - JAXB / XML binding: `javax.xml.bind.*` plus annotations (XmlElement/ID/Type) and adapters in annotation/domain packages.
-     - Miscellaneous: `javax.annotation.Resource`, `javax.crypto.*`, `javax.xml.transform.*`, `javax.xml.parsers.*` (standard JDK modules – migrate only if required by downstream libs).
+     - Application/server: `jakarta.servlet.*`, `jakarta.servlet.annotation.WebListener`, `jakarta.servlet.http.*`.
+     - Persistence/JPA: `jakarta.persistence.*` across domain entities, repositories, and helper classes.
+     - Bean validation: `jakarta.validation.constraints.*` on DTO/domain fields.
+     - JAXB / XML binding: `jakarta.xml.bind.*` plus annotations (XmlElement/ID/Type) and adapters in annotation/domain packages.
+     - Miscellaneous: `jakarta.annotation.Resource`, `javax.crypto.*`, `javax.xml.transform.*`, `javax.xml.parsers.*` (standard JDK modules – migrate only if required by downstream libs).
 2. **Update dependencies to Jakarta releases**
    - Replace key coordinates: `jakarta.persistence:jakarta.persistence-api`, `jakarta.servlet:jakarta.servlet-api`, `jakarta.validation:jakarta.validation-api`, `jakarta.xml.bind:jakarta.xml.bind-api`, etc.
    - Introduce `org.glassfish.jaxb:jaxb-runtime` for Jakarta JAXB runtime needs.
-   - Dependencies currently binding to `javax` APIs:
-     - `javax.xml.bind:jaxb-api`, `com.sun.xml.bind:jaxb-impl`, `com.sun.xml.bind:jaxb-core` → swap for Jakarta (`jakarta.xml.bind:jakarta.xml.bind-api`, `org.glassfish.jaxb:jaxb-runtime`).
-     - Legacy Echo/Echopoint artifacts and custom `echopm` jars are compiled against `javax.servlet` and likely have no Jakarta build – evaluate upgrade/replacement strategy.
-     - Hibernate/JPA stack via Spring Boot 2.7 still depends on `javax.persistence`; final migration will come with Boot 3 + Hibernate 6.
-   - Short-term bridge: When invoked with `-Djakarta.transform=true`, Maven runs the Eclipse Jakarta Transformer CLI (via `scripts/java17-transform.sh`) during the `initialize` phase to rewrite the Echo/Echopoint/EchoPM jars to `jakarta.*` namespaces and installs those transformed artifacts under the original coordinates, keeping the existing UI working while the backend upgrades. Without that flag, the original `javax.*` jars remain in use so the Spring Boot 2.x build continues to compile.
+   - Dependencies previously binding to `javax` APIs now target Jakarta equivalents:
+     - `jakarta.xml.bind:jakarta.xml.bind-api` plus `org.glassfish.jaxb:jaxb-runtime` replace the old `javax.xml.bind` stack.
+     - Legacy Echo/Echopoint artifacts and custom `echopm` jars are rewritten during the build so the resulting artifacts expose `jakarta.servlet` types while retaining their original coordinates.
+   - Short-term bridge: the Maven build always runs the Eclipse Jakarta Transformer CLI (via `scripts/java17-transform.sh`) during the `initialize` phase to rewrite the Echo/Echopoint/EchoPM jars to `jakarta.*` namespaces before installing them into the local repository. This keeps the existing UI working while the backend upgrades.
 3. **Refactor imports and annotations**
    - Migrate code imports to `jakarta.*` equivalents and adjust package names in XML, configuration classes, and reflection usage.
    - Validate serialization/deserialization logic that depends on JAXB.
 4. **Third-party library audit**
    - Echo2/Echopoint/EchoPM artifacts: confirm if Jakarta-compatible forks exist; otherwise plan shims or consider repackaging/rewriting the UI layer.
    - Any vendor library still using `javax.*` must be upgraded or replaced; document blockers.
-5. **Build and test on Boot 2.7 + Jakarta APIs**
-   - Ensure the app still runs on Tomcat 9 with the Jakarta artifacts (back-compat works via the servlet API bridge bundled in Boot 2.7).
+5. **Build and test on Boot 3 + Jakarta APIs**
+   - Ensure the app runs cleanly on Tomcat 10 with the rewritten Echo artifacts.
    - Run automated and manual tests again.
 
 ## Phase 3 – Upgrade to Spring Boot 3.x

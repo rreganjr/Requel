@@ -23,16 +23,16 @@ package com.rreganjr.requel.project.impl;
 import java.util.Set;
 import java.util.TreeSet;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-import javax.persistence.UniqueConstraint;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlElementWrapper;
@@ -42,13 +42,20 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
 
-import org.hibernate.annotations.*;
+import jakarta.persistence.DiscriminatorType;
+
+import org.hibernate.annotations.AnyDiscriminator;
+import org.hibernate.annotations.AnyDiscriminatorValue;
+import org.hibernate.annotations.AnyKeyJavaClass;
+import org.hibernate.annotations.ManyToAny;
+import org.hibernate.annotations.SortComparator;
+import org.hibernate.annotations.SortNatural;
 import org.hibernate.validator.constraints.NotEmpty;
 import org.xml.sax.SAXException;
 
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
-import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ActorContainer;
@@ -116,15 +123,17 @@ public class ActorImpl extends AbstractTextEntity implements Actor {
 	}
 
 	@XmlTransient
-	@ManyToAny(fetch = FetchType.LAZY, metaColumn = @Column(name = "actorcontainer_type", length = 255, nullable = false))
-	@AnyMetaDef(idType = "long", metaType = "string", metaValues = {
-			@MetaValue(value = "com.rreganjr.requel.project.Project", targetEntity = ProjectImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.UseCase", targetEntity = UseCaseImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.Goal", targetEntity = GoalImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.Story", targetEntity = StoryImpl.class) })
+	@Column(name = "actorcontainer_type", length = 255, nullable = false)
+	@ManyToAny(fetch = FetchType.LAZY)
+	@AnyDiscriminator(DiscriminatorType.STRING)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Project", entity = ProjectImpl.class)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.UseCase", entity = UseCaseImpl.class)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Goal", entity = GoalImpl.class)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Story", entity = StoryImpl.class)
+	@AnyKeyJavaClass(Long.class)
 	@JoinTable(name = "actor_actorcontainers", joinColumns = { @JoinColumn(name = "actor_id") }, inverseJoinColumns = {
 			@JoinColumn(name = "actorcontainer_type"), @JoinColumn(name = "actorcontainer_id") })
-	@Sort(type = SortType.COMPARATOR, comparator = ActorContainer.ActorContainerComparator.class)
+	@SortComparator(ActorContainer.ActorContainerComparator.class)
 	public Set<ActorContainer> getReferers() {
 		return referers;
 	}

@@ -26,7 +26,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlElementWrapper;
@@ -35,10 +35,8 @@ import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
-import org.hibernate.annotations.Sort;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 import org.hibernate.annotations.SortNatural;
-import org.hibernate.annotations.SortType;
 
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.impl.AbstractAnnotation;
