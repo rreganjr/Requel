@@ -27,8 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
-import javax.persistence.EntityExistsException;
-import javax.persistence.OptimisticLockException;
+import jakarta.persistence.EntityExistsException;
+import jakarta.persistence.OptimisticLockException;
 
 import org.apache.log4j.Logger;
 import org.hibernate.PropertyValueException;

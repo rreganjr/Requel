@@ -22,7 +22,7 @@ package com.rreganjr.command;
 
 import java.lang.reflect.Method;
 
-import javax.persistence.OptimisticLockException;
+import jakarta.persistence.OptimisticLockException;
 
 import org.apache.log4j.Logger;
 import org.hibernate.StaleObjectStateException;

@@ -75,7 +75,7 @@ public class Application extends SpringBootServletInitializer {
             //http://www.codesandnotes.be/2014/10/31/restful-authentication-using-spring-security-on-spring-boot-and-jquery-as-a-web-client/
             http
                     .httpBasic(Customizer.withDefaults())
-                    .headers(headers -> headers.frameOptions().sameOrigin())
+                    .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                     .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
                     .anonymous(Customizer.withDefaults())
                     .csrf(csrf -> csrf.disable());

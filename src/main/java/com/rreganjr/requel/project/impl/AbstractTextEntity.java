@@ -20,8 +20,8 @@
  */
 package com.rreganjr.requel.project.impl;
 
-import javax.persistence.Lob;
-import javax.persistence.MappedSuperclass;
+import jakarta.persistence.Lob;
+import jakarta.persistence.MappedSuperclass;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlType;
 

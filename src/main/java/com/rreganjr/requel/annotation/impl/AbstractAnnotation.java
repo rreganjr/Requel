@@ -26,26 +26,26 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.DiscriminatorColumn;
-import javax.persistence.DiscriminatorType;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Inheritance;
-import javax.persistence.InheritanceType;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.Lob;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.persistence.Transient;
-import javax.persistence.Version;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorColumn;
+import jakarta.persistence.DiscriminatorType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
+import jakarta.persistence.Transient;
+import jakarta.persistence.Version;
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlID;
@@ -56,11 +56,12 @@ import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import org.hibernate.annotations.Any;
-import org.hibernate.annotations.AnyMetaDef;
+import org.hibernate.annotations.AnyDiscriminator;
+import org.hibernate.annotations.AnyDiscriminatorValue;
+import org.hibernate.annotations.AnyKeyJavaClass;
 import org.hibernate.annotations.ManyToAny;
-import org.hibernate.annotations.MetaValue;
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Annotation;
@@ -151,8 +152,11 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	/**
 	 * @return An object used as the "owner" of a group of annotations.
 	 */
-	@Any(metaColumn = @Column(name = "grouping_object_type", length = 255), fetch = FetchType.LAZY, optional = false)
-	@AnyMetaDef(idType = "long", metaType = "string", metaValues = { @MetaValue(value = "com.rreganjr.requel.project.Project", targetEntity = ProjectImpl.class) })
+    @Column(name = "grouping_object_type", length = 255)
+    @Any(optional = false)
+    @AnyDiscriminator(DiscriminatorType.STRING)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Project", entity = ProjectImpl.class)
+    @AnyKeyJavaClass(Long.class)
 	@JoinColumn(name = "grouping_object_id")
 	@XmlTransient
 	public Object getGroupingObject() {
@@ -183,21 +187,23 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	 */
 	// TODO: it would be better if this wasn't dependent on the classes being
 	// mapped.
-	@ManyToAny(fetch = FetchType.LAZY, metaColumn = @Column(name = "annotatable_type", length = 255, nullable = false))
-	@AnyMetaDef(idType = "long", metaType = "string", metaValues = {
-			@MetaValue(value = "com.rreganjr.requel.annotation.Annotation", targetEntity = AbstractAnnotation.class),
-			@MetaValue(value = "com.rreganjr.requel.project.Project", targetEntity = ProjectImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.ProjectTeam", targetEntity = ProjectTeamImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.Goal", targetEntity = GoalImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.GoalRelation", targetEntity = GoalRelationImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.UseCase", targetEntity = UseCaseImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.Scenario", targetEntity = ScenarioImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.Step", targetEntity = StepImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.Story", targetEntity = StoryImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.Actor", targetEntity = ActorImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.GlossaryTerm", targetEntity = GlossaryTermImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.NonUserStakeholder", targetEntity = NonUserStakeholderImpl.class),
-			@MetaValue(value = "com.rreganjr.requel.project.UserStakeholder", targetEntity = UserStakeholderImpl.class) })
+    @Column(name = "annotatable_type", length = 255, nullable = false)
+    @ManyToAny(fetch = FetchType.LAZY)
+    @AnyDiscriminator(DiscriminatorType.STRING)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.annotation.Annotation", entity = AbstractAnnotation.class)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Project", entity = ProjectImpl.class)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.ProjectTeam", entity = ProjectTeamImpl.class)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Goal", entity = GoalImpl.class)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.GoalRelation", entity = GoalRelationImpl.class)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.UseCase", entity = UseCaseImpl.class)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Scenario", entity = ScenarioImpl.class)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Step", entity = StepImpl.class)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Story", entity = StoryImpl.class)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Actor", entity = ActorImpl.class)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.GlossaryTerm", entity = GlossaryTermImpl.class)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.NonUserStakeholder", entity = NonUserStakeholderImpl.class)
+    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.UserStakeholder", entity = UserStakeholderImpl.class)
+    @AnyKeyJavaClass(Long.class)
 	@JoinTable(name = "annotation_annotatable", joinColumns = { @JoinColumn(name = "annotation_id") }, inverseJoinColumns = { @JoinColumn(name = "annotatable_id") })
 	public Set<Annotatable> getAnnotatables() {
 		return annotatables;

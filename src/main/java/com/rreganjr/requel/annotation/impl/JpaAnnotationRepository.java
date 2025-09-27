@@ -20,9 +20,9 @@
  */
 package com.rreganjr.requel.annotation.impl;
 
-import javax.persistence.NoResultException;
-import javax.persistence.OptimisticLockException;
-import javax.persistence.Query;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.Query;
 
 import org.hibernate.PropertyValueException;
 import org.hibernate.StaleObjectStateException;
