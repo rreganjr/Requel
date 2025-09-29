@@ -166,8 +166,9 @@ public class GlossaryTermImpl extends AbstractTextEntity implements GlossaryTerm
 	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.UseCase", entity = UseCaseImpl.class)
 	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Story", entity = StoryImpl.class)
 	@AnyKeyJavaClass(Long.class)
-	@JoinTable(name = "terms_referers", joinColumns = { @JoinColumn(name = "term_id") }, inverseJoinColumns = {
-			@JoinColumn(name = "referer_type"), @JoinColumn(name = "referer_id") })
+	@JoinTable(name = "terms_referers",
+			joinColumns = @JoinColumn(name = "term_id"),
+			inverseJoinColumns = @JoinColumn(name = "referer_id"))
 	@SortComparator(ProjectOrDomainEntityComparator.class)
 	public Set<ProjectOrDomainEntity> getReferers() {
 		return referers;

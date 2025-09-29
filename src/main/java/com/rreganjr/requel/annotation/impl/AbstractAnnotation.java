@@ -204,7 +204,10 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
     @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.NonUserStakeholder", entity = NonUserStakeholderImpl.class)
     @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.UserStakeholder", entity = UserStakeholderImpl.class)
     @AnyKeyJavaClass(Long.class)
-	@JoinTable(name = "annotation_annotatable", joinColumns = { @JoinColumn(name = "annotation_id") }, inverseJoinColumns = { @JoinColumn(name = "annotatable_id") })
+	@JoinTable(name = "annotation_annotatable",
+			joinColumns = @JoinColumn(name = "annotation_id"),
+			inverseJoinColumns = @JoinColumn(name = "annotatable_id")
+	)
 	public Set<Annotatable> getAnnotatables() {
 		return annotatables;
 	}

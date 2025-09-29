@@ -131,8 +131,11 @@ public class ActorImpl extends AbstractTextEntity implements Actor {
 	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Goal", entity = GoalImpl.class)
 	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Story", entity = StoryImpl.class)
 	@AnyKeyJavaClass(Long.class)
-	@JoinTable(name = "actor_actorcontainers", joinColumns = { @JoinColumn(name = "actor_id") }, inverseJoinColumns = {
-			@JoinColumn(name = "actorcontainer_type"), @JoinColumn(name = "actorcontainer_id") })
+	@JoinTable(
+			name = "actor_actorcontainers",
+			joinColumns = @JoinColumn(name = "actor_id"),
+			inverseJoinColumns = @JoinColumn(name = "actorcontainer_id")
+	)
 	@SortComparator(ActorContainer.ActorContainerComparator.class)
 	public Set<ActorContainer> getReferers() {
 		return referers;

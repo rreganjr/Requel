@@ -153,8 +153,10 @@ public class GoalImpl extends AbstractTextEntity implements Goal {
 	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.NonUserStakeholder", entity = NonUserStakeholderImpl.class)
 	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.UserStakeholder", entity = UserStakeholderImpl.class)
 	@AnyKeyJavaClass(Long.class)
-	@JoinTable(name = "goals_goalcontainers", joinColumns = { @JoinColumn(name = "goal_id") }, inverseJoinColumns = {
-			@JoinColumn(name = "goalcontainer_type"), @JoinColumn(name = "goalcontainer_id") })
+	@JoinTable(name = "goals_goalcontainers",
+			joinColumns = @JoinColumn(name = "goal_id"),
+			inverseJoinColumns = @JoinColumn(name = "goalcontainer_id")
+	)
 	@SortComparator(GoalContainer.GoalContainerComparator.class)
 	public Set<GoalContainer> getReferers() {
 		return referersToThisGoal;

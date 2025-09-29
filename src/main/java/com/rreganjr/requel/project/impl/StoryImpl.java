@@ -146,8 +146,10 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Goal", entity = GoalImpl.class)
 	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.UseCase", entity = UseCaseImpl.class)
 	@AnyKeyJavaClass(Long.class)
-	@JoinTable(name = "story_storycontainers", joinColumns = { @JoinColumn(name = "story_id") }, inverseJoinColumns = {
-			@JoinColumn(name = "storycontainer_type"), @JoinColumn(name = "storycontainer_id") })
+	@JoinTable(name = "story_storycontainers",
+			joinColumns = @JoinColumn(name = "story_id"),
+			inverseJoinColumns =  @JoinColumn(name = "storycontainer_id")
+	)
 	@SortComparator(StoryContainer.StoryContainerComparator.class)
 	public Set<StoryContainer> getReferers() {
 		return referers;
