@@ -22,10 +22,8 @@ package com.rreganjr.nlp.dictionary.impl.repository.jpa;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -55,12 +53,6 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-//import com.swabunga.spell.engine.DoubleMeta;
-//import com.swabunga.spell.engine.SpellDictionary;
-//import com.swabunga.spell.engine.SpellDictionaryHashMap;
-//import com.swabunga.spell.engine.Transformator;
-//import com.swabunga.spell.event.SpellChecker;
 
 import net.sf.echopm.ResourceBundleHelper;
 import com.rreganjr.nlp.PartOfSpeech;
@@ -132,7 +124,7 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 
 			if (dictionaryFilePaths.contains("|")) {
 				for (String dictionaryFilePath : dictionaryFilePaths.split("\\|")) {
-					if (!"".equals(dictionaryFilePath.trim())) {
+					if (!dictionaryFilePath.trim().isEmpty()) {
 						log.info("loading dictionary: " + dictionaryFilePath);
 						try (InputStreamReader reader =  new InputStreamReader(JpaDictionaryRepository.class.getClassLoader().getResourceAsStream(dictionaryFilePath))) {
 							// TODO: try using SpellDictionaryDisk for less memory usage than SpellDictionaryHashMap
@@ -934,7 +926,7 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 				Query query = getEntityManager().createNativeQuery(
 						"select count(*) from synset where pos = :pos");
 				query.setParameter("pos", pos);
-				posConceptCountCache.put(pos, ((BigInteger) query.getSingleResult()).intValue());
+				posConceptCountCache.put(pos, ((Long) query.getSingleResult()).intValue());
 			}
 			return posConceptCountCache.get(pos);
 		} catch (Exception e) {
