@@ -85,7 +85,7 @@ import com.rreganjr.requel.user.impl.UserImpl;
 import com.rreganjr.requel.utils.jaxb.DateAdapter;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
-import org.hibernate.validator.constraints.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 
 /**
  * @author ron

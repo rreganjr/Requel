@@ -54,7 +54,7 @@ import org.hibernate.annotations.AnyKeyJavaClass;
 import org.hibernate.annotations.ManyToAny;
 import org.hibernate.annotations.SortComparator;
 import org.hibernate.annotations.SortNatural;
-import org.hibernate.validator.constraints.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import org.xml.sax.SAXException;
 

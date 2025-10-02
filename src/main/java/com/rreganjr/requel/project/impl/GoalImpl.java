@@ -50,7 +50,7 @@ import org.hibernate.annotations.AnyDiscriminatorValue;
 import org.hibernate.annotations.AnyKeyJavaClass;
 import org.hibernate.annotations.ManyToAny;
 import org.hibernate.annotations.SortComparator;
-import org.hibernate.validator.constraints.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
