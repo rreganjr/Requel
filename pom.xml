@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.rreganjr.requel</groupId>
     <artifactId>Requel</artifactId>
-    <version>1.0.2</version>
+    <version>1.1.0</version>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -519,11 +519,11 @@
             <version>1.0.0</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/commons-fileupload/commons-fileupload -->
+        <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-fileupload2-jakarta -->
         <dependency>
-            <groupId>commons-fileupload</groupId>
-            <artifactId>commons-fileupload</artifactId>
-            <version>1.5</version>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-fileupload2-jakarta</artifactId>
+            <version>2.0.0-M1</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
         <dependency>

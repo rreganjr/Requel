@@ -2,10 +2,10 @@ version: "3"
 services:
 
   db:
-    image: mysql:5.6.32
+    image: mysql:8.4
     container_name: requeldb
     ports:
-      - "3306:3306"
+      - "3307:3306"
     networks:
       - requel-net
     environment:
@@ -14,13 +14,13 @@ services:
   web:
     depends_on:
       - db
-    image: rreganjr/requel:1.0.2
+    image: rreganjr/requel:1.1.0
     ports:
       - "8080:8080"
     networks:
       - requel-net
     environment:
-      - "_JAVA_OPTIONS=-Xms2g -Xmx2g -XX:MaxMetaspaceSize=512m -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled"
+      - "_JAVA_OPTIONS=-Xms2g -Xmx2g -XX:MaxMetaspaceSize=512m -XX:+UseG1GC"
       - "SPRING_DATASOURCE_URL=jdbc:mysql://requeldb:3306/requeldb?createDatabaseIfNotExist=true"
       - "SPRING_DATASOURCE_USERNAME=root"
       - "SPRING_DATASOURCE_PASSWORD=pa33w0rd"
@@ -28,4 +28,3 @@ services:
 networks:
   requel-net:
     driver: bridge
-

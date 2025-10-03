@@ -132,9 +132,6 @@ public class DomainObjectWrappingAdvice {
 		// initializer or command (something that has an active transaction),
 		// this is a hack because there is no way to describe this pointcut in
 		// Spring, should use Aspectj cflow or cflowbelow pointcut
-		//
-		// Avoid using internal JDK APIs (sun.reflect.Reflection) to walk the stack.
-		// Use Thread.currentThread().getStackTrace() which works on Java 8+.
 		boolean wrapReturnVal = true;
 		try {
 			StackTraceElement[] stack = Thread.currentThread().getStackTrace();

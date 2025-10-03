@@ -1,4 +1,4 @@
-FROM eclipse-temurin:8-jre-jammy
+FROM eclipse-temurin:17-jre-jammy
 LABEL maintainer=rreganjr@users.sourceforge.net
 VOLUME /tmp
 ARG JAR_FILE
