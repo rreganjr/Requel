@@ -25,6 +25,8 @@ package com.rreganjr.requel;
 
 import net.sf.echopm.EchoPMLogoutServlet;
 import net.sf.echopm.EchoPMServlet;
+import nextapp.echo2.webcontainer.filetransfer.CommonsFileUpload2JakartaProvider;
+import nextapp.echo2.webcontainer.filetransfer.MultipartUploadSPI;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
@@ -35,8 +37,8 @@ import org.springframework.boot.web.servlet.support.SpringBootServletInitializer
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportResource;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -98,6 +100,10 @@ public class Application extends SpringBootServletInitializer {
     }
 
     public static void main(String[] args) {
+        System.setProperty(
+                MultipartUploadSPI.SYSTEM_PROPERTY_NAME,
+                CommonsFileUpload2JakartaProvider.class.getName()
+        );
         SpringApplication.run(Application.class, args);
     }
 

@@ -23,7 +23,6 @@ package com.rreganjr.nlp.dictionary.impl.repository.jpa;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -696,7 +695,7 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 		try {
 			Query query = getEntityManager().createNativeQuery(
 					"select count(*) from synset_subsumer_counts");
-			long count = ((BigInteger) query.getSingleResult()).longValue();
+			long count = extractCount(query.getSingleResult());
 			return count == 0L;
 		} catch (Exception e) {
 			throw new RuntimeException(
@@ -709,7 +708,7 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 		try {
 			Query query = getEntityManager().createNativeQuery(
 					"select count(*) from sense where sense_key is null");
-			long count = ((BigInteger) query.getSingleResult()).longValue();
+			long count = extractCount(query.getSingleResult());
 			return count > 0L;
 		} catch (Exception e) {
 			throw new RuntimeException("failed determining if senses need sense key assignment.", e);
@@ -1177,7 +1176,7 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 							+ "and hyponym.synsetid = :hyponym and  slr1.linkid = 1");
 			query.setParameter("hypernym", hypernym.getId());
 			query.setParameter("hyponym", synset.getId());
-			long count = ((BigInteger) query.getSingleResult()).longValue();
+			long count = extractCount(query.getSingleResult());
 			return count > 0L;
 		} catch (Exception e) {
 			log.error(e, e);
@@ -1208,5 +1207,16 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 			throw new RuntimeException("failed to get the hyponyms of " + hypernym
 					+ " with a max distance of " + maxDistance, e);
 		}
+	}
+
+	private long extractCount(Object result) {
+		if (result == null) {
+			return 0L;
+		}
+		if (result instanceof Number) {
+			return ((Number) result).longValue();
+		}
+		throw new IllegalStateException(
+				"Unexpected numeric result type: " + result.getClass().getName());
 	}
 }
