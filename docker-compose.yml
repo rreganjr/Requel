@@ -10,6 +10,8 @@ services:
       - requel-net
     environment:
       - "MYSQL_ROOT_PASSWORD=pa33w0rd"
+      - "MYSQL_DATABASE=requeldb"
+      - "MYSQL_ROOT_HOST=%"
 
   web:
     depends_on:
@@ -21,7 +23,7 @@ services:
       - requel-net
     environment:
       - "_JAVA_OPTIONS=-Xms2g -Xmx2g -XX:MaxMetaspaceSize=512m -XX:+UseG1GC"
-      - "SPRING_DATASOURCE_URL=jdbc:mysql://requeldb:3306/requeldb?createDatabaseIfNotExist=true"
+      - "SPRING_DATASOURCE_URL=jdbc:mysql://requeldb:3306/requeldb?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC"
       - "SPRING_DATASOURCE_USERNAME=root"
       - "SPRING_DATASOURCE_PASSWORD=pa33w0rd"
 
