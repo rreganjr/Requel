@@ -49,30 +49,6 @@ java -jar .\target\Requel-1.1.0.jar "--spring.datasource.url=jdbc:mysql://127.0.
 
 Then access the app http://localhost:8081/
 
-One‑time schema init (if starting from an empty DB):
-
-```bash
-# macOS one-time schema init
-JAVA_HOME=$(/usr/libexec/java_home -v 17) PATH="$JAVA_HOME/bin:$PATH" \
-java -jar ./target/Requel-1.1.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.jpa.hibernate.ddl-auto=create --server.port=8081
-
-# Linux
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-export PATH="$JAVA_HOME/bin:$PATH"
-java -jar ./target/Requel-1.1.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.jpa.hibernate.ddl-auto=create --server.port=8081
-
-# Windows PowerShell
-$env:JAVA_HOME="C:\\Program Files\\Java\\jdk-17"
-$env:Path="${env:JAVA_HOME}\\bin;${env:Path}"
-java -jar .\target\Requel-1.1.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.jpa.hibernate.ddl-auto=create --server.port=8081
-
-# Windows Command Prompt
-set JAVA_HOME=C:\\Program Files\\Java\\jdk-17
-set PATH=%JAVA_HOME%\\bin;%PATH%
-java -jar .\target\Requel-1.1.0.jar "--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC" --spring.jpa.hibernate.ddl-auto=create --server.port=8081
-```
-Then access the app http://localhost:8081/
-
 log in to the application as **admin** user with password **admin**.
 
 ### If You Use Docker
