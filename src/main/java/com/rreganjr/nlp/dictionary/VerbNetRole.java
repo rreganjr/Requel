@@ -20,14 +20,14 @@
  */
 package com.rreganjr.nlp.dictionary;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import com.rreganjr.nlp.SemanticRole;
 
@@ -82,12 +82,12 @@ public class VerbNetRole implements java.io.Serializable, Comparable<VerbNetRole
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + ((getType() == null) ? 0 : getType().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

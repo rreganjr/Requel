@@ -22,18 +22,18 @@ package com.rreganjr.nlp.dictionary;
 
 import java.io.Serializable;
 
-import javax.persistence.AttributeOverride;
-import javax.persistence.AttributeOverrides;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.EmbeddedId;
-import javax.persistence.Entity;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import jakarta.persistence.AttributeOverride;
+import jakarta.persistence.AttributeOverrides;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 
 /**
  * @author ron
@@ -118,7 +118,7 @@ public class Semlinkref implements Comparable<Semlinkref>, Serializable {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
@@ -126,7 +126,7 @@ public class Semlinkref implements Comparable<Semlinkref>, Serializable {
 			result = prime * result + ((getToSynset() == null) ? 0 : getToSynset().hashCode());
 			result = prime * result + ((getLinkType() == null) ? 0 : getLinkType().hashCode());
 			result = prime * result + getDistance();
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

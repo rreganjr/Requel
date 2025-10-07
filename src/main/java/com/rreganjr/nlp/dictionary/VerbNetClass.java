@@ -23,16 +23,16 @@ package com.rreganjr.nlp.dictionary;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Transient;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 /**
  * A VerbNet class. VerbNet frames are organized into a set of classes like
@@ -123,12 +123,12 @@ public class VerbNetClass {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + ((getName() == null) ? 0 : getName().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

@@ -29,22 +29,20 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import javax.persistence.*;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementRef;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlID;
-import javax.xml.bind.annotation.XmlIDREF;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import jakarta.persistence.*;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementRef;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
+import jakarta.xml.bind.annotation.XmlID;
+import jakarta.xml.bind.annotation.XmlIDREF;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import org.hibernate.annotations.IndexColumn;
-import org.hibernate.annotations.Sort;
 import org.hibernate.annotations.SortNatural;
-import org.hibernate.annotations.SortType;
 
 import com.rreganjr.nlp.PartOfSpeech;
 
@@ -238,14 +236,14 @@ public class Synset implements Comparable<Synset>, Serializable {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + ((getCategory() == null) ? 0 : getCategory().hashCode());
 			result = prime * result + ((getDefinition() == null) ? 0 : getDefinition().hashCode());
 			result = prime * result + ((getPos() == null) ? 0 : getPos().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}
@@ -306,7 +304,7 @@ public class Synset implements Comparable<Synset>, Serializable {
 
 		@Override
 		public Long unmarshal(String id) throws Exception {
-			return new Long(id.substring(prefix.length()));
+			return Long.valueOf(id.substring(prefix.length()));
 		}
 
 		@Override

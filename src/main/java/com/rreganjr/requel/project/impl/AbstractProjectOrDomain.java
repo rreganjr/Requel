@@ -30,42 +30,40 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.DiscriminatorColumn;
-import javax.persistence.DiscriminatorType;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Inheritance;
-import javax.persistence.InheritanceType;
-import javax.persistence.Lob;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Temporal;
-import javax.persistence.TemporalType;
-import javax.persistence.Transient;
-import javax.persistence.UniqueConstraint;
-import javax.persistence.Version;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementRef;
-import javax.xml.bind.annotation.XmlElementRefs;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlID;
-import javax.xml.bind.annotation.XmlIDREF;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorColumn;
+import jakarta.persistence.DiscriminatorType;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
+import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Temporal;
+import jakarta.persistence.TemporalType;
+import jakarta.persistence.Transient;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementRef;
+import jakarta.xml.bind.annotation.XmlElementRefs;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
+import jakarta.xml.bind.annotation.XmlID;
+import jakarta.xml.bind.annotation.XmlIDREF;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
-import org.hibernate.annotations.Sort;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 import org.hibernate.annotations.SortNatural;
-import org.hibernate.annotations.SortType;
 import org.hibernate.annotations.Where;
 
 import com.rreganjr.requel.project.Actor;
@@ -87,7 +85,7 @@ import com.rreganjr.requel.user.impl.UserImpl;
 import com.rreganjr.requel.utils.jaxb.DateAdapter;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
-import org.hibernate.validator.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 
 /**
  * @author ron
@@ -487,7 +485,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 
 		@Override
 		public Long unmarshal(String id) throws Exception {
-			return null; // new Long(id.substring(prefix.length()));
+			return null; // Long.valueOf(id.substring(prefix.length()));
 		}
 
 		@Override

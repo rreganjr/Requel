@@ -22,10 +22,10 @@ package com.rreganjr.nlp.dictionary;
 
 import java.io.Serializable;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 /**
  * A frame from VerbNET that assigns thematic roles to syntax structures. The
@@ -125,7 +125,7 @@ public class VerbNetFrame implements Comparable<VerbNetFrame>, Serializable {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
@@ -135,7 +135,7 @@ public class VerbNetFrame implements Comparable<VerbNetFrame>, Serializable {
 					+ ((getDescription1() == null) ? 0 : getDescription1().hashCode());
 			result = prime * result
 					+ ((getDescription2() == null) ? 0 : getDescription2().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}

@@ -31,12 +31,13 @@ import java.io.OutputStreamWriter;
 
 import javax.xml.transform.ErrorListener;
 import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.XMLConstants;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.sax.SAXSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
-import org.apache.xalan.processor.TransformerFactoryImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
@@ -140,8 +141,15 @@ public class GenerateReportCommandImpl extends AbstractProjectCommand implements
 				log.warn("The parser does not support XML validation.");
 			}
 			SAXSource saxSource = new SAXSource(reader, new InputSource(projectInputStream));
-			Transformer transformer = new TransformerFactoryImpl().newTransformer(new StreamSource(
-					xsltInputStream));
+            TransformerFactory tf = TransformerFactory.newInstance();
+            try {
+                tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+                tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+                tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+            } catch (Throwable t) {
+                // ignore if not supported
+            }
+            Transformer transformer = tf.newTransformer(new StreamSource(xsltInputStream));
 			transformer.setErrorListener(new AnErrorListener());
 			transformer.transform(saxSource, new StreamResult(new BufferedWriter(
 					new OutputStreamWriter(getOutputStream(), "UTF8"))));

@@ -22,10 +22,7 @@ package com.rreganjr.nlp.dictionary.impl.repository.jpa;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.math.BigInteger;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -35,9 +32,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.persistence.NoResultException;
-import javax.persistence.OptimisticLockException;
-import javax.persistence.Query;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.Query;
 
 import org.fife.com.swabunga.spell.engine.DoubleMeta;
 import org.fife.com.swabunga.spell.engine.SpellDictionary;
@@ -47,20 +44,16 @@ import org.fife.com.swabunga.spell.event.SpellChecker;
 import org.hibernate.PropertyValueException;
 import org.hibernate.StaleObjectStateException;
 import org.hibernate.exception.LockAcquisitionException;
-import org.hibernate.validator.InvalidStateException;
+import org.hibernate.query.NativeQuery;
+import org.hibernate.type.StandardBasicTypes;
+import com.rreganjr.validator.InvalidStateException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.orm.hibernate3.HibernateOptimisticLockingFailureException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-//import com.swabunga.spell.engine.DoubleMeta;
-//import com.swabunga.spell.engine.SpellDictionary;
-//import com.swabunga.spell.engine.SpellDictionaryHashMap;
-//import com.swabunga.spell.engine.Transformator;
-//import com.swabunga.spell.event.SpellChecker;
 
 import net.sf.echopm.ResourceBundleHelper;
 import com.rreganjr.nlp.PartOfSpeech;
@@ -132,7 +125,7 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 
 			if (dictionaryFilePaths.contains("|")) {
 				for (String dictionaryFilePath : dictionaryFilePaths.split("\\|")) {
-					if (!"".equals(dictionaryFilePath.trim())) {
+					if (!dictionaryFilePath.trim().isEmpty()) {
 						log.info("loading dictionary: " + dictionaryFilePath);
 						try (InputStreamReader reader =  new InputStreamReader(JpaDictionaryRepository.class.getClassLoader().getResourceAsStream(dictionaryFilePath))) {
 							// TODO: try using SpellDictionaryDisk for less memory usage than SpellDictionaryHashMap
@@ -195,8 +188,8 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 		addExceptionAdapter(CannotAcquireLockException.class, new OptimisticLockExceptionAdapter(),
 				Word.class, Category.class, Synset.class);
 
-		addExceptionAdapter(HibernateOptimisticLockingFailureException.class,
-				new OptimisticLockExceptionAdapter(), Word.class, Category.class, Synset.class);
+        addExceptionAdapter(ObjectOptimisticLockingFailureException.class,
+                new OptimisticLockExceptionAdapter(), Word.class, Category.class, Synset.class);
 	}
 
 	protected SpellChecker getSpellChecker() {
@@ -702,7 +695,7 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 		try {
 			Query query = getEntityManager().createNativeQuery(
 					"select count(*) from synset_subsumer_counts");
-			long count = ((BigInteger) query.getSingleResult()).longValue();
+			long count = extractCount(query.getSingleResult());
 			return count == 0L;
 		} catch (Exception e) {
 			throw new RuntimeException(
@@ -715,7 +708,7 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 		try {
 			Query query = getEntityManager().createNativeQuery(
 					"select count(*) from sense where sense_key is null");
-			long count = ((BigInteger) query.getSingleResult()).longValue();
+			long count = extractCount(query.getSingleResult());
 			return count > 0L;
 		} catch (Exception e) {
 			throw new RuntimeException("failed determining if senses need sense key assignment.", e);
@@ -749,21 +742,19 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 		log.debug("sense: " + sense + " word: " + word);
 		try {
 			// TODO: use named query so it can be configured externally
-			Query query = getEntityManager()
-					.createNativeQuery(
+			NativeQuery<Synset> query = unwrapNativeQuery(
+					getEntityManager().createNativeQuery(
 							"select sy2.* "
 									+ "from synset sy1 "
 									+ "left join synset_definition_word sdw1 on (sdw1.synset_id = sy1.synsetid) "
 									+ "left join synset_definition_word sdw2 on (sdw2.synset_id = sy1.synsetid) "
 									+ "left join synset sy2 on (sy2.synsetid = sdw2.sense_id) "
 									+ "where sdw1.sense_id = :sense "
-									+ "and   sdw2.word_id  = :word " +
-
-									"union " +
-
-									"select * from synset where synsetid = :sense ", Synset.class);
-			query.setParameter("sense", sense.getId());
-			query.setParameter("word", word.getId());
+									+ "and   sdw2.word_id  = :word "
+									+ "union "
+									+ "select * from synset where synsetid = :sense ", Synset.class));
+			bindLong(query, "sense", sense.getId().getSynsetid());
+			bindLong(query, "word", word.getId());
 			return query.getResultList();
 		} catch (NoResultException e) {
 			return new ArrayList<Synset>();
@@ -779,8 +770,8 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 		log.debug("word1: " + word1 + " word2: " + word2);
 		try {
 			// TODO: use named query so it can be configured externally
-			Query query = getEntityManager()
-					.createNativeQuery(
+			NativeQuery<Synset> query = unwrapNativeQuery(
+					getEntityManager().createNativeQuery(
 							"select sy2.* "
 									+ "from synset sy1 "
 									+ "left join synset_definition_word sdw1 on (sdw1.synset_id = sy1.synsetid) "
@@ -788,20 +779,16 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 									+ "left join synset sy2 on (sy2.synsetid = sdw2.sense_id) "
 									+ "where sdw1.word_id = :word1 "
 									+ "and   sdw2.word_id  = :word2 "
-									+
-
-									" union "
-									+
-
-									"select sy2.* "
+									+ "union "
+									+ "select sy2.* "
 									+ "from synset sy1 "
 									+ "left join synset_definition_word sdw1 on (sdw1.synset_id = sy1.synsetid) "
 									+ "left join synset_definition_word sdw2 on (sdw2.synset_id = sy1.synsetid) "
 									+ "left join synset sy2 on (sy2.synsetid = sdw1.sense_id) "
 									+ "where sdw1.word_id = :word1 "
-									+ "and   sdw2.word_id  = :word2", Synset.class);
-			query.setParameter("word1", word1.getId());
-			query.setParameter("word2", word2.getId());
+									+ "and   sdw2.word_id  = :word2", Synset.class));
+			bindLong(query, "word1", word1.getId());
+			bindLong(query, "word2", word2.getId());
 			return query.getResultList();
 		} catch (NoResultException e) {
 			return new ArrayList<Synset>();
@@ -859,19 +846,27 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 					lcsSet.add(get(synset));
 				}
 			} else {
-				if (synset1.getPartOfSpeech().equals(synset2.getPartOfSpeech())) {
-					Query query = getEntityManager().createNativeQuery(
-							"select syn.* from synset syn " + "left join semlinkref slr1 on ( "
-									+ "	slr1.synset2id = syn.synsetid ) "
-									+ "left join semlinkref slr2 on ( "
-									+ "	slr1.synset2id = slr2.synset2id ) "
-									+ "where slr1.synset1id = :synset1id "
-									+ "and  slr2.synset1id = :synset2id and  slr1.linkid = 1 "
-									+ "and  slr2.linkid = 1 "
-									+ "having min(slr1.distance + slr2.distance)", Synset.class);
-					query.setParameter("synset1id", synset1.getId());
-					query.setParameter("synset2id", synset2.getId());
-					lcsSet.addAll(query.getResultList());
+					if (synset1.getPartOfSpeech().equals(synset2.getPartOfSpeech())) {
+						NativeQuery<Synset> query = unwrapNativeQuery(
+								getEntityManager().createNativeQuery(
+										"select syn.* " + "from synset syn "
+												+ "join semlinkref slr1 on (slr1.synset2id = syn.synsetid and slr1.linkid = 1) "
+												+ "join semlinkref slr2 on (slr2.synset2id = syn.synsetid and slr2.linkid = 1) "
+												+ "where slr1.synset1id = :synset1id "
+												+ "and   slr2.synset1id = :synset2id "
+												+ "and   (slr1.distance + slr2.distance) = ("
+												+ "    select min(slr1b.distance + slr2b.distance) "
+												+ "    from semlinkref slr1b "
+												+ "         join semlinkref slr2b on (slr1b.synset2id = slr2b.synset2id) "
+												+ "    where slr1b.synset1id = :synset1id "
+												+ "      and slr2b.synset1id = :synset2id "
+												+ "      and slr1b.linkid = 1 "
+												+ "      and slr2b.linkid = 1"
+												+ "  )",
+									Synset.class));
+						bindLong(query, "synset1id", synset1.getId());
+						bindLong(query, "synset2id", synset2.getId());
+						lcsSet.addAll(query.getResultList());
 				}
 				lowestCommonHypernymsCache.put(synsetPair, lcsSet);
 			}
@@ -895,14 +890,14 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 			if (rootHypernymCache.containsKey(synset)) {
 				rootHypernym = rootHypernymCache.get(synset);
 			} else {
-				Query query = getEntityManager().createNativeQuery(
+				NativeQuery<Synset> query = unwrapNativeQuery(getEntityManager().createNativeQuery(
 						"select syn.* " + "from synset syn left join semlinkref slr1 on ( "
 								+ "	slr1.synset2id = syn.synsetid) "
 								+ "where slr1.synset1id = :synsetid and  slr1.linkid = 1 "
-								+ "order by distance desc ", Synset.class);
-				query.setParameter("synsetid", synset.getId());
+					+ "order by distance desc ", Synset.class));
+				bindLong(query, "synsetid", synset.getId());
 				query.setMaxResults(1);
-				rootHypernym = (Synset) query.getSingleResult();
+				rootHypernym = query.getSingleResult();
 				rootHypernymCache.put(synset, rootHypernym);
 			}
 			if (log.isDebugEnabled()) {
@@ -924,15 +919,25 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 	public Integer getConceptCount(String pos) {
 		try {
 			if (!posConceptCountCache.containsKey(pos)) {
-				Query query = getEntityManager().createNativeQuery(
-						"select count(*) from synset where pos = :pos");
-				query.setParameter("pos", pos);
-				posConceptCountCache.put(pos, ((BigInteger) query.getSingleResult()).intValue());
+					Query query = getEntityManager().createNativeQuery(
+							"select count(*) from synset where pos = :pos");
+					query.setParameter("pos", pos);
+					Number result = (Number) query.getSingleResult();
+					posConceptCountCache.put(pos, result.intValue());
 			}
 			return posConceptCountCache.get(pos);
 		} catch (Exception e) {
 			throw new RuntimeException("failed to get concept count for " + pos, e);
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private <T> NativeQuery<T> unwrapNativeQuery(Query query) {
+		return (NativeQuery<T>) query.unwrap(NativeQuery.class);
+	}
+
+	private void bindLong(NativeQuery<?> query, String name, Long value) {
+		query.setParameter(name, value, StandardBasicTypes.LONG);
 	}
 
 	private static class SynsetPair {
@@ -1079,22 +1084,21 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 		log.debug("sense: " + sense + " word: " + word);
 		try {
 			// TODO: use named query so it can be configured externally
-			Query query = getEntityManager().createNativeQuery(
-					"select ssw1.* from semcor_sentence_word ssw1 "
-							+ "left join semcor_sentence ss1 on ( ssw1.sentence_id = ss1.id "
-							+ ") left join semcor_sentence_word ssw2 on ( "
-							+ "ssw2.sentence_id = ss1.id  ) where ssw1.sense_id = :sense "
-							+ "and ssw2.word_id = :word " +
-
-							"union " +
-
-							"select ssw2.* from semcor_sentence_word ssw1 "
-							+ "left join semcor_sentence ss1 on ( ssw1.sentence_id = ss1.id "
-							+ ") left join semcor_sentence_word ssw2 on ( "
-							+ "ssw2.sentence_id = ss1.id ) where ssw1.sense_id = :sense "
-							+ "and ssw2.word_id = :word", SemcorSentenceWord.class);
-			query.setParameter("sense", sense.getId());
-			query.setParameter("word", word.getId());
+			NativeQuery<SemcorSentenceWord> query = unwrapNativeQuery(
+					getEntityManager().createNativeQuery(
+							"select ssw1.* from semcor_sentence_word ssw1 "
+									+ "left join semcor_sentence ss1 on ( ssw1.sentence_id = ss1.id "
+									+ ") left join semcor_sentence_word ssw2 on ( "
+									+ "ssw2.sentence_id = ss1.id  ) where ssw1.sense_id = :sense "
+									+ "and ssw2.word_id = :word "
+									+ "union "
+									+ "select ssw2.* from semcor_sentence_word ssw1 "
+									+ "left join semcor_sentence ss1 on ( ssw1.sentence_id = ss1.id "
+									+ ") left join semcor_sentence_word ssw2 on ( "
+									+ "ssw2.sentence_id = ss1.id ) where ssw1.sense_id = :sense "
+									+ "and ssw2.word_id = :word", SemcorSentenceWord.class));
+			bindLong(query, "sense", sense.getId().getSynsetid());
+			bindLong(query, "word", word.getId());
 			return query.getResultList();
 		} catch (NoResultException e) {
 			return new ArrayList<SemcorSentenceWord>();
@@ -1111,22 +1115,21 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 		log.debug("word1: " + word1 + " word2: " + word2);
 		try {
 			// TODO: use named query so it can be configured externally
-			Query query = getEntityManager().createNativeQuery(
-					"select ssw1.* from semcor_sentence_word ssw1 "
-							+ "left join semcor_sentence ss1 on ( ssw1.sentence_id = ss1.id "
-							+ ") left join semcor_sentence_word ssw2 on ( "
-							+ "ssw2.sentence_id = ss1.id  ) where ssw1.word_id = :word1 "
-							+ "and ssw2.word_id = :word2 " +
-
-							"union " +
-
-							"select ssw2.* from semcor_sentence_word ssw1 "
-							+ "left join semcor_sentence ss1 on ( ssw1.sentence_id = ss1.id "
-							+ ") left join semcor_sentence_word ssw2 on ( "
-							+ "ssw2.sentence_id = ss1.id ) where ssw1.word_id = :word1 "
-							+ "and ssw2.word_id = :word2", SemcorSentenceWord.class);
-			query.setParameter("word1", word1.getId());
-			query.setParameter("word2", word2.getId());
+			NativeQuery<SemcorSentenceWord> query = unwrapNativeQuery(
+					getEntityManager().createNativeQuery(
+							"select ssw1.* from semcor_sentence_word ssw1 "
+									+ "left join semcor_sentence ss1 on ( ssw1.sentence_id = ss1.id "
+									+ ") left join semcor_sentence_word ssw2 on ( "
+									+ "ssw2.sentence_id = ss1.id  ) where ssw1.word_id = :word1 "
+									+ "and ssw2.word_id = :word2 "
+									+ "union "
+									+ "select ssw2.* from semcor_sentence_word ssw1 "
+									+ "left join semcor_sentence ss1 on ( ssw1.sentence_id = ss1.id "
+									+ ") left join semcor_sentence_word ssw2 on ( "
+									+ "ssw2.sentence_id = ss1.id ) where ssw1.word_id = :word1 "
+									+ "and ssw2.word_id = :word2", SemcorSentenceWord.class));
+			bindLong(query, "word1", word1.getId());
+			bindLong(query, "word2", word2.getId());
 			return query.getResultList();
 		} catch (NoResultException e) {
 			return new ArrayList<SemcorSentenceWord>();
@@ -1173,7 +1176,7 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 							+ "and hyponym.synsetid = :hyponym and  slr1.linkid = 1");
 			query.setParameter("hypernym", hypernym.getId());
 			query.setParameter("hyponym", synset.getId());
-			long count = ((BigInteger) query.getSingleResult()).longValue();
+			long count = extractCount(query.getSingleResult());
 			return count > 0L;
 		} catch (Exception e) {
 			log.error(e, e);
@@ -1204,5 +1207,16 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 			throw new RuntimeException("failed to get the hyponyms of " + hypernym
 					+ " with a max distance of " + maxDistance, e);
 		}
+	}
+
+	private long extractCount(Object result) {
+		if (result == null) {
+			return 0L;
+		}
+		if (result instanceof Number) {
+			return ((Number) result).longValue();
+		}
+		throw new IllegalStateException(
+				"Unexpected numeric result type: " + result.getClass().getName());
 	}
 }

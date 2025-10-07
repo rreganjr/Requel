@@ -24,30 +24,28 @@ package com.rreganjr.requel.project.impl;
 import java.util.Set;
 import java.util.TreeSet;
 
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-import javax.persistence.UniqueConstraint;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlID;
-import javax.xml.bind.annotation.XmlIDREF;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
+import jakarta.xml.bind.annotation.XmlID;
+import jakarta.xml.bind.annotation.XmlIDREF;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
-import org.hibernate.annotations.Sort;
 import org.hibernate.annotations.SortNatural;
-import org.hibernate.annotations.SortType;
-import org.hibernate.validator.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectTeam;
@@ -154,7 +152,7 @@ public class ProjectTeamImpl extends AbstractProjectOrDomainEntity implements Pr
 	public static class Team2TeamImplAdapter extends XmlAdapter<ProjectTeamImpl, ProjectTeam> {
 
 		/**
-		 * @see javax.xml.bind.annotation.adapters.XmlAdapter#marshal(java.lang.Object)
+		 * @see jakarta.xml.bind.annotation.adapters.XmlAdapter#marshal(java.lang.Object)
 		 */
 		@Override
 		public ProjectTeamImpl marshal(ProjectTeam team) throws Exception {
@@ -162,7 +160,7 @@ public class ProjectTeamImpl extends AbstractProjectOrDomainEntity implements Pr
 		}
 
 		/**
-		 * @see javax.xml.bind.annotation.adapters.XmlAdapter#unmarshal(java.lang.Object)
+		 * @see jakarta.xml.bind.annotation.adapters.XmlAdapter#unmarshal(java.lang.Object)
 		 */
 		@Override
 		public ProjectTeam unmarshal(ProjectTeamImpl team) throws Exception {

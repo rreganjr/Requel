@@ -22,8 +22,8 @@ package com.rreganjr.requel.project.impl.command;
 
 import java.io.InputStream;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.Unmarshaller;
 
 import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;

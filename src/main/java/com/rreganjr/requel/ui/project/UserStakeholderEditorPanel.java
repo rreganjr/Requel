@@ -62,8 +62,8 @@ import net.sf.echopm.panel.editor.CheckBoxTreeSet;
 import net.sf.echopm.panel.editor.CheckBoxTreeSetModel;
 import net.sf.echopm.panel.editor.CombinedListModel;
 import net.sf.echopm.panel.editor.CombinedTextListModel;
-import org.hibernate.validator.InvalidStateException;
-import org.hibernate.validator.InvalidValue;
+import com.rreganjr.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidValue;
 
 /**
  * Panel for creating or editing a user stakeholder.

@@ -22,28 +22,30 @@
  */
 package com.rreganjr.requel;
 
-import com.rreganjr.requel.service.ProjectXmlController;
+
 import net.sf.echopm.EchoPMLogoutServlet;
 import net.sf.echopm.EchoPMServlet;
-import org.springframework.beans.factory.annotation.Autowired;
+import nextapp.echo2.webcontainer.filetransfer.CommonsFileUpload2JakartaProvider;
+import nextapp.echo2.webcontainer.filetransfer.MultipartUploadSPI;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.ServletComponentScan;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
-import org.springframework.boot.web.support.SpringBootServletInitializer;
+import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportResource;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.builders.WebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.SecurityFilterChain;
 
 @SpringBootApplication
-@EnableAutoConfiguration
 @ServletComponentScan
 @EntityScan( basePackages = {"com.rreganjr.requel", "com.rreganjr.nlp"} )
 @ImportResource( {"classpath:application-config.xml"} )
@@ -68,26 +70,27 @@ public class Application extends SpringBootServletInitializer {
     }
 
     @Configuration
-    static class WebSecurityConfig extends WebSecurityConfigurerAdapter {
-        @Override
-        protected void configure(HttpSecurity http) throws Exception {
-            //http://www.codesandnotes.be/2014/10/31/restful-authentication-using-spring-security-on-spring-boot-and-jquery-as-a-web-client/
+    static class WebSecurityConfig {
 
+        @Bean
+        SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+            //http://www.codesandnotes.be/2014/10/31/restful-authentication-using-spring-security-on-spring-boot-and-jquery-as-a-web-client/
             http
-                    .httpBasic()
-                    .and().headers().frameOptions().sameOrigin()
-                    .and().authorizeRequests().antMatchers("/**").anonymous()
-                    .and().csrf().disable();
+                    .httpBasic(Customizer.withDefaults())
+                    .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
+                    .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
+                    .anonymous(Customizer.withDefaults())
+                    .csrf(csrf -> csrf.disable());
+            return http.build();
         }
 
-
-        @Autowired
-        public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
-            auth
-                    .inMemoryAuthentication()
-                    .withUser("admin")
-                    .password("admin")
-                    .roles("ADMIN","USER");
+        @Bean
+        UserDetailsService userDetailsService() {
+            UserDetails adminUser = User.withUsername("admin")
+                    .password("{noop}admin")
+                    .roles("ADMIN", "USER")
+                    .build();
+            return new InMemoryUserDetailsManager(adminUser);
         }
     }
 
@@ -97,6 +100,10 @@ public class Application extends SpringBootServletInitializer {
     }
 
     public static void main(String[] args) {
+        System.setProperty(
+                MultipartUploadSPI.SYSTEM_PROPERTY_NAME,
+                CommonsFileUpload2JakartaProvider.class.getName()
+        );
         SpringApplication.run(Application.class, args);
     }
 

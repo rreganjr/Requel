@@ -20,8 +20,8 @@
  */
 package com.rreganjr.requel.project.impl;
 
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 import com.rreganjr.requel.project.GlossaryTerm;
 

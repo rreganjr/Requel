@@ -23,13 +23,12 @@ package com.rreganjr.repository.jpa;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import net.sf.cglib.proxy.Callback;
-import net.sf.cglib.proxy.Factory;
-import net.sf.cglib.proxy.MethodInterceptor;
-import net.sf.cglib.proxy.MethodProxy;
-
 import org.apache.log4j.Logger;
 import org.hibernate.LazyInitializationException;
+import org.springframework.cglib.proxy.Callback;
+import org.springframework.cglib.proxy.Factory;
+import org.springframework.cglib.proxy.MethodInterceptor;
+import org.springframework.cglib.proxy.MethodProxy;
 
 /**
  * A MethodInterceptor that gets assigned to a proxy for entity objects by the

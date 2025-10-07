@@ -1,0 +1,14 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Requel [Run App]" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.rreganjr.requel.Application" />
+    <module name="Requel" />
+    <option name="PROGRAM_PARAMETERS" value="--server.port=8081" />
+    <shortenClasspath name="NONE" />
+    <option name="VM_PARAMETERS" value="-Dspring.devtools.restart.enabled=false" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <option name="ALTERNATIVE_JRE_PATH" value="/opt/homebrew/Cellar/openjdk@17/17.0.16/libexec/openjdk.jdk/Contents/Home" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

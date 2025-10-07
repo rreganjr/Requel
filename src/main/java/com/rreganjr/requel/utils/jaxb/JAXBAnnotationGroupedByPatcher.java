@@ -20,7 +20,7 @@
  */
 package com.rreganjr.requel.utils.jaxb;
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
 import org.xml.sax.SAXException;
 
 import com.rreganjr.requel.annotation.Annotatable;

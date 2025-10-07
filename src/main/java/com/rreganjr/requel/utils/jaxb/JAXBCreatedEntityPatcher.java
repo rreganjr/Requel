@@ -23,7 +23,7 @@ package com.rreganjr.requel.utils.jaxb;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
 import org.xml.sax.SAXException;
 
 import com.rreganjr.requel.CreatedEntity;

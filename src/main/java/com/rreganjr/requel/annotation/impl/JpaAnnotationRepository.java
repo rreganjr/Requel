@@ -20,18 +20,18 @@
  */
 package com.rreganjr.requel.annotation.impl;
 
-import javax.persistence.NoResultException;
-import javax.persistence.OptimisticLockException;
-import javax.persistence.Query;
+import jakarta.persistence.NoResultException;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.Query;
 
 import org.hibernate.PropertyValueException;
 import org.hibernate.StaleObjectStateException;
 import org.hibernate.exception.LockAcquisitionException;
-import org.hibernate.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidStateException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.orm.hibernate3.HibernateOptimisticLockingFailureException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -89,9 +89,9 @@ public class JpaAnnotationRepository extends AbstractJpaRepository implements An
 		addExceptionAdapter(CannotAcquireLockException.class, new OptimisticLockExceptionAdapter(),
 				Position.class, Issue.class, Note.class, Argument.class);
 
-		addExceptionAdapter(HibernateOptimisticLockingFailureException.class,
-				new OptimisticLockExceptionAdapter(), Position.class, Issue.class, Note.class,
-				Argument.class);
+        addExceptionAdapter(ObjectOptimisticLockingFailureException.class,
+                new OptimisticLockExceptionAdapter(), Position.class, Issue.class, Note.class,
+                Argument.class);
 	}
 
 	@Override

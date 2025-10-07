@@ -8,13 +8,13 @@
 		xmlns:tx="http://www.springframework.org/schema/tx"
 		xmlns:util="http://www.springframework.org/schema/util"
 		xsi:schemaLocation="
-			http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
-			http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd
-			http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
-			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.5.xsd
+			http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+			http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd
+			http://www.springframework.org/schema/tx https://www.springframework.org/schema/tx/spring-tx.xsd
+			http://www.springframework.org/schema/util https://www.springframework.org/schema/util/spring-util.xsd
 			">
 
-		<bean id="nounDictionarySuffixExchangingLemmatizerRule" scope="prototype" class="com.rreganjr.nlp.impl.lemmatizer.DictionarySuffixExchangingLemmatizerRule">
+		<bean id="altNounDictionarySuffixExchangingLemmatizerRule" scope="prototype" class="com.rreganjr.nlp.impl.lemmatizer.DictionarySuffixExchangingLemmatizerRule">
 			<constructor-arg index="0"><ref bean="dictionaryRepository"/></constructor-arg>
 			<constructor-arg index="1">
 				<util:set>
@@ -56,7 +56,7 @@
 				</util:list>
 			</constructor-arg>
 		</bean>
-		<bean id="verbDictionarySuffixExchangingLemmatizerRule" scope="prototype" class="com.rreganjr.nlp.impl.lemmatizer.DictionarySuffixExchangingLemmatizerRule">
+		<bean id="altVerbDictionarySuffixExchangingLemmatizerRule" scope="prototype" class="com.rreganjr.nlp.impl.lemmatizer.DictionarySuffixExchangingLemmatizerRule">
 			<constructor-arg index="0"><ref bean="dictionaryRepository"/></constructor-arg>
 			<constructor-arg index="1">
 				<util:set>
@@ -94,7 +94,7 @@
 				</util:list>
 			</constructor-arg>
 		</bean>
-		<bean id="adjectiveDictionarySuffixExchangingLemmatizerRule" scope="prototype" class="com.rreganjr.nlp.impl.lemmatizer.DictionarySuffixExchangingLemmatizerRule">
+		<bean id="altAdjectiveDictionarySuffixExchangingLemmatizerRule" scope="prototype" class="com.rreganjr.nlp.impl.lemmatizer.DictionarySuffixExchangingLemmatizerRule">
 			<constructor-arg index="0"><ref bean="dictionaryRepository"/></constructor-arg>
 			<constructor-arg index="1">
 				<util:set>

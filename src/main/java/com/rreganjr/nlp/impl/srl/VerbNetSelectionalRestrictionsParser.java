@@ -25,6 +25,7 @@ import java.io.StringReader;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.XMLConstants;
 
 import org.apache.log4j.Logger;
 import org.apache.xpath.XPathAPI;
@@ -78,7 +79,13 @@ public class VerbNetSelectionalRestrictionsParser {
 	 */
 	public VerbNetRoleRef parseSelectionalRestrictions(VerbNetRoleRef roleRef) {
 		try {
-			DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            try {
+                dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+                dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+                dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+            } catch (Throwable ignore) {}
+            DocumentBuilder db = dbf.newDocumentBuilder();
 			Reader reader = new StringReader(roleRef.getRestrictionXML());
 			Document selrestrsXML = db.parse(new InputSource(reader));
 			NodeIterator nl = XPathAPI.selectNodeIterator(selrestrsXML, "/SELRESTRS/*");

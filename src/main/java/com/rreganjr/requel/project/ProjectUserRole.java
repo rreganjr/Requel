@@ -24,23 +24,16 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
-import javax.persistence.CascadeType;
-import javax.persistence.DiscriminatorValue;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.persistence.*;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlType;
 
-import org.hibernate.annotations.Sort;
 import org.hibernate.annotations.SortNatural;
-import org.hibernate.annotations.SortType;
 import org.xml.sax.SAXException;
 
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.Patcher;
-import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.requel.user.AbstractUserRole;
@@ -151,13 +144,13 @@ public class ProjectUserRole extends AbstractUserRole {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			} else {
 				final int prime = 31;
 				int result = 1;
 				result = prime * result + ((getRoleName() == null) ? 0 : getRoleName().hashCode());
 				result = prime * result + ((getUser() == null) ? 0 : getUser().hashCode());
-				tmpHashCode = new Integer(result);
+				tmpHashCode = Integer.valueOf(result);
 			}
 		}
 		return tmpHashCode.intValue();
@@ -183,8 +176,6 @@ public class ProjectUserRole extends AbstractUserRole {
 	 * This is for JAXB to patchup the parent/child relationship.
 	 * 
 	 * @param userRepository
-	 * @param defaultCreatedByUser -
-	 *            the user to be set as the created by if no user is supplied.
 	 * @param parent
 	 * @see UnmarshallerListener
 	 */

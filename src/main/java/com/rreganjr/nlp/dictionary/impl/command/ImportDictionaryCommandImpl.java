@@ -22,9 +22,9 @@ package com.rreganjr.nlp.dictionary.impl.command;
 
 import java.io.InputStream;
 
-import javax.persistence.NoResultException;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.Unmarshaller;
+import jakarta.persistence.NoResultException;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.Unmarshaller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;

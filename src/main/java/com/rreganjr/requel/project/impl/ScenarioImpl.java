@@ -27,14 +27,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import javax.persistence.*;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlIDREF;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.persistence.*;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
+import jakarta.xml.bind.annotation.XmlIDREF;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 import org.hibernate.annotations.IndexColumn;
 
@@ -206,7 +206,7 @@ public class ScenarioImpl extends StepImpl implements Scenario {
 
 		@Override
 		public Long unmarshal(String id) throws Exception {
-			return null; // new Long(id.substring(prefix.length()));
+			return null; // Long.valueOf(id.substring(prefix.length()));
 		}
 
 		@Override

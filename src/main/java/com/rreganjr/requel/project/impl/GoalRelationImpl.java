@@ -25,23 +25,21 @@ import java.util.Date;
 import java.util.Set;
 import java.util.TreeSet;
 
-import javax.persistence.*;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlID;
-import javax.xml.bind.annotation.XmlIDREF;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
-import javax.xml.bind.annotation.XmlType;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import jakarta.persistence.*;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
+import jakarta.xml.bind.annotation.XmlID;
+import jakarta.xml.bind.annotation.XmlIDREF;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import org.hibernate.annotations.Sort;
 import org.hibernate.annotations.SortNatural;
-import org.hibernate.annotations.SortType;
 
-import com.sun.xml.bind.v2.runtime.unmarshaller.UnmarshallingContext;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.impl.AbstractAnnotation;
@@ -256,7 +254,7 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 	public int hashCode() {
 		if (tmpHashCode == null) {
 			if (getId() != null) {
-				tmpHashCode = new Integer(getId().hashCode());
+				tmpHashCode = Integer.valueOf(getId().hashCode());
 			}
 			final int prime = 31;
 			int result = 1;
@@ -266,7 +264,7 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 					+ ((getToGoalInternal() == null) ? 0 : getToGoalInternal().hashCode());
 			result = prime * result
 					+ ((getRelationType() == null) ? 0 : getRelationType().hashCode());
-			tmpHashCode = new Integer(result);
+			tmpHashCode = Integer.valueOf(result);
 		}
 		return tmpHashCode.intValue();
 	}
@@ -329,7 +327,7 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 
 		@Override
 		public Long unmarshal(String id) throws Exception {
-			return null; // new Long(id.substring(prefix.length()));
+			return null; // Long.valueOf(id.substring(prefix.length()));
 		}
 
 		@Override

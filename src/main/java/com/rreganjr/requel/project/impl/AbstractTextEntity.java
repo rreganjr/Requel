@@ -20,10 +20,10 @@
  */
 package com.rreganjr.requel.project.impl;
 
-import javax.persistence.Lob;
-import javax.persistence.MappedSuperclass;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlType;
+import jakarta.persistence.Lob;
+import jakarta.persistence.MappedSuperclass;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlType;
 
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.TextEntity;

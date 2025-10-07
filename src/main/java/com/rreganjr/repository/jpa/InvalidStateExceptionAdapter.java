@@ -20,7 +20,7 @@
  */
 package com.rreganjr.repository.jpa;
 
-import org.hibernate.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidStateException;
 
 import com.rreganjr.repository.EntityException;
 import com.rreganjr.repository.EntityExceptionActionType;

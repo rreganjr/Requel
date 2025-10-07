@@ -21,8 +21,7 @@
 package com.rreganjr.repository.jpa;
 
 import org.hibernate.exception.ConstraintViolationException;
-
-import com.mysql.jdbc.exceptions.MySQLIntegrityConstraintViolationException;
+import java.sql.SQLException;
 
 import com.rreganjr.repository.EntityException;
 import com.rreganjr.repository.EntityExceptionActionType;
@@ -51,18 +50,15 @@ public class ConstraintViolationExceptionAdapter implements EntityExceptionAdapt
 	@Override
 	public EntityException convert(Throwable original, Class<?> entityType, Object entity,
 			EntityExceptionActionType actionType) {
-		if (entityType == null) {
-			if (entity == null) {
-				ConstraintViolationException cve = (ConstraintViolationException) original;
-				if (MySQLIntegrityConstraintViolationException.class.equals(cve.getCause()
-						.getClass())) {
-					MySQLIntegrityConstraintViolationException icve = (MySQLIntegrityConstraintViolationException) cve
-							.getCause();
-					return EntityException.uniquenessConflict(icve, icve.getMessage());
-				}
-			}
-		}
-		return EntityException.uniquenessConflict(entityType, entity, propertyName, actionType);
-	}
+        if (entityType == null && entity == null && original instanceof ConstraintViolationException) {
+            ConstraintViolationException cve = (ConstraintViolationException) original;
+            SQLException sqle = cve.getSQLException();
+            // SQLState '23000' indicates integrity constraint violation across vendors
+            if (sqle != null && "23000".equals(sqle.getSQLState())) {
+                return EntityException.uniquenessConflict(sqle, sqle.getMessage());
+            }
+        }
+        return EntityException.uniquenessConflict(entityType, entity, propertyName, actionType);
+    }
 
 }
