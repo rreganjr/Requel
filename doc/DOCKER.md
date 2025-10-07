@@ -42,24 +42,29 @@ Once both containers are healthy, browse to http://localhost:8181/. If you are u
 ## Optional: Compose File
 Use a `docker-compose.yml` file to configure the database and server:
 ```yaml
-version: "3"
 services:
-
   db:
     image: mysql:8.4
-    container_name: requeldb
     ports:
       - "3307:3306"
     networks:
       - requel-net
     environment:
       - "MYSQL_ROOT_PASSWORD=pa33w0rd"
-      - "MYSQL_DATABASE=requeldb"
+      - "MYSQL_DATABASE=requel"
       - "MYSQL_ROOT_HOST=%"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
 
   web:
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     image: rreganjr/requel:1.1.0
     ports:
       - "8080:8080"
@@ -67,9 +72,10 @@ services:
       - requel-net
     environment:
       - "_JAVA_OPTIONS=-Xms2g -Xmx2g -XX:MaxMetaspaceSize=512m -XX:+UseG1GC"
-      - "SPRING_DATASOURCE_URL=jdbc:mysql://requeldb:3306/requeldb?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC"
+      - "SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/requel?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC"
       - "SPRING_DATASOURCE_USERNAME=root"
       - "SPRING_DATASOURCE_PASSWORD=pa33w0rd"
+    restart: unless-stopped
 
 networks:
   requel-net:
