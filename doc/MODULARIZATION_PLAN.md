@@ -28,12 +28,12 @@ The monorepo will grow a `/modules` directory with one Maven module per package 
 | Foundation | `command-core` | Current `com.rreganjr.command`. Replace direct references to `user` exceptions with platform equivalents or callback interfaces. | `platform-core`, `validation-core` |
 | Foundation | `repository-core` | `com.rreganjr.repository` & `com.rreganjr.repository.jpa` minus domain-specific adapters, refactored to depend on interfaces (`UserSet`, etc.) instead of impl classes. | `platform-core`, `command-core` |
 | Domain | `user-domain` | `com.rreganjr.requel.user` interfaces, DTOs, exceptions. Convert `CreatedEntity` dependency to the new `UserReference` abstraction. | `platform-core` |
-| Domain | `user-jpa` | `com.rreganjr.requel.user.impl` entities and repository adapters. Depends on `user-domain`, `repository-core`. | `user-domain`, `repository-core` |
-| Domain | `project-domain` | `com.rreganjr.requel.project` interfaces + `impl` entity classes stripped of NLP/assistant hooks. Introduce new `com.rreganjr.requel.project.access` subpackage for `ProjectUserRole` & stakeholder bridges that depend on `user-domain`. | `platform-core`, `user-domain` |
-| Domain | `project-jpa` | Persistence implementations, command implementations, and repository initializers that sit on top of `project-domain` & `repository-core`. | `project-domain`, `repository-core`, `user-jpa` |
+| Domain | `user-jpa` | `com.rreganjr.requel.user.jpa` (renamed from `.impl`) entities and repository adapters. Depends on `user-domain`, `repository-core`. | `user-domain`, `repository-core` |
+| Domain | `project-domain` | `com.rreganjr.requel.project` interfaces + entities stripped of NLP/assistant hooks. Introduce new `com.rreganjr.requel.project.access` subpackage for `ProjectUserRole` & stakeholder bridges that depend on `user-domain`. | `platform-core`, `user-domain` |
+| Domain | `project-jpa` | `com.rreganjr.requel.project.jpa` (renamed from `.impl`) persistence implementations, command implementations, and repository initializers that sit on top of `project-domain` & `repository-core`. | `project-domain`, `repository-core`, `user-jpa` |
 | Domain | `annotation-domain` | `com.rreganjr.requel.annotation` & `impl` reorganised so that entity references go through interfaces or a registry; move project-specific discriminators to `project-domain`. | `platform-core`, `project-domain` |
 | Domain | `utils-core` | Generic utilities (`DateUtils`, `Untar`). Introduce `utils-jaxb` module for patchers that rely on project/user/annotation interfaces. | `platform-core` (+ optional `annotation-domain` for `utils-jaxb`) |
-| Feature | `project-analysis` | Extract `impl.assistant`, `impl.command.RemoveUnneedLexicalIssuesCommand*`, and other NLP-heavy classes from `project-jpa`. Depends on `project-domain`, `annotation-domain`, `nlp-core`. | `project-domain`, `annotation-domain`, `nlp-core` |
+| Feature | `project-analysis` | Extract `com.rreganjr.requel.project.analysis` (from `impl.assistant`, `impl.command.RemoveUnneedLexicalIssuesCommand*`, etc.) and other NLP-heavy classes from `project-jpa`. Depends on `project-domain`, `annotation-domain`, `nlp-core`. | `project-domain`, `annotation-domain`, `nlp-core` |
 | Feature | `nlp-core` | Entire `com.rreganjr.nlp` tree. Replace direct `NoSuchEntityException` usage with `platform-core` type. | `platform-core` |
 | Feature | `ui-echo2` | `com.rreganjr.requel.ui` plus vendored `nextapp.*` sources. Depends only on `project-analysis` (for assistants), `project-domain` (for DTOs), and service APIs. | `project-analysis`, `service-api` |
 | Feature | `service-api` | Split `com.rreganjr.requel.service` into API contracts (controllers, DTOs) and implementation module (`service-impl`). API should not depend on UI. | `platform-core`, `project-domain`, `command-core` |
@@ -46,6 +46,17 @@ The monorepo will grow a `/modules` directory with one Maven module per package 
 - Introduce `com.rreganjr.requel.project.analysis` (or `assistant`) within `project-analysis` for NLP dependent logic.
 - Shift JAXB patchers into `com.rreganjr.requel.utils.jaxb` with clear dependency direction: patchers depend on domain APIs, domains never import patchers.
 - UI module retains `com.rreganjr.requel.ui` but becomes isolated from domain implementation packages (only import service interfaces).
+
+### 3.2 Package naming guidelines
+- **Module directories** live under `modules/<artifactId>` (e.g., `modules/user-domain`), but Java packages always use dot-separated names—no hyphens.
+- **Platform core**: `com.rreganjr.platform.core` for shared abstractions; bootstrap helpers in `com.rreganjr.platform.bootstrap`.
+- **Command and repository**: retain `com.rreganjr.command` and `com.rreganjr.repository` with subpackages (`.jpa`, `.spring`) as needed.
+- **User modules**: public APIs remain in `com.rreganjr.requel.user`; persistence implementations relocate to `com.rreganjr.requel.user.jpa`.
+- **Project modules**: interfaces and aggregates in `com.rreganjr.requel.project`; persistence code in `com.rreganjr.requel.project.jpa`; cross-module bridges in `com.rreganjr.requel.project.access`; analysis extensions in `com.rreganjr.requel.project.analysis`.
+- **Annotation**: keep `com.rreganjr.requel.annotation` for APIs and add `com.rreganjr.requel.annotation.jpa` if we split persistence bindings.
+- **Utilities**: `com.rreganjr.requel.utils` for generic helpers; `com.rreganjr.requel.utils.jaxb` for bridge utilities.
+- **Service layer**: reserve `com.rreganjr.requel.service.api` for controller/service contracts and `com.rreganjr.requel.service.impl` (Spring MVC wiring) within the `service-impl` module.
+- **Application module**: `com.rreganjr.requel.app` (or retain `com.rreganjr.requel`) for Spring Boot entrypoints and configuration classes.
 
 ## 4. Dependency Refactors & Cycle Breaks
 ### 4.1 User ↔ Project cycle
@@ -107,7 +118,6 @@ The monorepo will grow a `/modules` directory with one Maven module per package 
 - **Database migration strategy**: Evaluate introducing Flyway alongside (or instead of) the current `SystemInitializer` beans. Flyway brings versioned, repeatable migrations with checksum validation, easier CI drift detection, and module-specific migration folders. Initializers still cover non-SQL bootstrap tasks (seeding default users, dynamic permission wiring), so a hybrid approach may be appropriate—Flyway handles schema and static data, while lightweight initializers orchestrate programmatic seeding that depends on services.
 
 ## 9. Immediate Next Steps
-- Confirm module naming conventions and propagate rename plans across code, configuration, and documentation.
 - Add regression coverage that exports/imports `doc/samples/Requel.xml` against the refactored modules to guard the XML contract.
 - Prototype `platform-core` extraction (move exceptions, `SystemInitializer`) and ensure existing tests still pass.
 - Prepare Maven parent/child POM skeletons to unblock gradual module migration.
