@@ -235,7 +235,7 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 
 	/**
 	 * @param name -
-	 *            project name that over rides the name in the xml file.
+	 *            project name that overrides the name in the xml file.
 	 */
 	public void afterUnmarshal(String name) {
 		if ((name != null) && !name.trim().equals("")) {

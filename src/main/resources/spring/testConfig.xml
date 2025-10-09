@@ -36,7 +36,7 @@
 	<bean id="dataSource" class="org.logicalcobwebs.proxool.ProxoolDataSource">
 		<property name="alias" value="pool1" />
 		<property name="driver" value="${db.driver}" />
-		<property name="driverUrl" value="${db.baseUrl}${db.server}:${db.port}/${db.name}${db.urlParams}" />
+		<property name="driverUrl" value="${db.driverUrl:${db.baseUrl}${db.server}:${db.port}/${db.name}${db.urlParams}}" />
 		<property name="user" value="${db.username}" />
 		<property name="password" value="${db.password}" />
 		<property name="maximumConnectionCount" value="10" />

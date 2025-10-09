@@ -14,7 +14,7 @@
         </actor>
         <actor id="ACT_2" revision="2" dateCreated="2009-01-20T00:00:00" createdBy="USR_1">
             <annotations/>
-            <text></text>
+            <text>This is a placeholder for an interactive user</text>
             <goals/>
             <name>Interactive User</name>
         </actor>
@@ -227,9 +227,9 @@
             <user id="USR_1">
                 <username>admin</username>
                 <password>21232f297a57a5a743894a0e4a801fc3</password>
-                <name></name>
+                <name>Built-in Admin</name>
                 <emailAddress>rreganjr@users.sourceforge.net</emailAddress>
-                <phoneNumber></phoneNumber>
+                <phoneNumber>0</phoneNumber>
                 <organization name="Requel"/>
                 <userRoles>
                     <systemAdminUserRole>
@@ -276,7 +276,7 @@
             <user id="USR_3">
                 <username>project</username>
                 <password>46f86faa6bbf9ac94a7e459509a20ed0</password>
-                <name></name>
+                <name>Ron Regan</name>
                 <emailAddress>rreganjr@users.sourceforge.net</emailAddress>
                 <organization name="Requel"/>
                 <userRoles>
