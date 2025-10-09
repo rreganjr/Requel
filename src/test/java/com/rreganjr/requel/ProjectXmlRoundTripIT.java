@@ -25,6 +25,10 @@ import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.repository.init.StakeholderPermissionsInitializer;
 import com.rreganjr.requel.project.ProjectUserRole;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.project.Stakeholder;
+import com.rreganjr.requel.project.UserStakeholder;
+import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.repository.init.AdminUserInitializer;
@@ -93,6 +97,7 @@ class ProjectXmlRoundTripIT {
 
 		assertThat(importedProject).as("Imported project").isNotNull();
 		assertThat(importedProject.getName()).isEqualTo(uniqueProjectName);
+		assertProjectStructure(importedProject);
 
 		ByteArrayOutputStream exportedXml = new ByteArrayOutputStream();
 		ExportProjectCommand exportCommand = projectCommandFactory.newExportProjectCommand();
@@ -102,9 +107,13 @@ class ProjectXmlRoundTripIT {
 
 		byte[] exportedBytes = exportedXml.toByteArray();
 		assertThat(exportedBytes).as("Exported XML payload").isNotEmpty();
-		assertThat(new String(exportedBytes, StandardCharsets.UTF_8))
+		String exportedXmlString = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(exportedXmlString)
 				.as("Exported XML content")
-				.contains("<project");
+				.contains("<project")
+				.contains("<stakeholders>")
+				.contains("<goals>")
+				.contains("<actors>");
 
 		// Ensure the exported XML can be imported again under a different project name.
 		try (ByteArrayInputStream reimportStream = new ByteArrayInputStream(exportedBytes)) {
@@ -113,7 +122,10 @@ class ProjectXmlRoundTripIT {
 			reimportCommand.setEditedBy(projectUser);
 			reimportCommand.setName(importedProject.getName() + " Reimport " + Instant.now().toEpochMilli());
 			reimportCommand.setInputStream(reimportStream);
-			commandHandler.execute(reimportCommand);
+			reimportCommand = commandHandler.execute(reimportCommand);
+			Project reimportedProject = reimportCommand.getProject();
+			assertThat(reimportedProject).as("Re-imported project result").isNotNull();
+			assertProjectStructure(reimportedProject);
 		}
 	}
 
@@ -147,4 +159,28 @@ class ProjectXmlRoundTripIT {
 		}
 	}
 
+	private void assertProjectStructure(Project project) {
+		assertThat(project.getStakeholders())
+				.as("Project stakeholders")
+				.isNotEmpty();
+		assertThat(project.getStakeholders().stream()
+				.filter(Stakeholder::isUserStakeholder)
+				.map(stakeholder -> ((UserStakeholder) stakeholder).getUser().getUsername()))
+				.as("User stakeholders present")
+				.contains("admin", "assistant", "project");
+
+	assertThat(project.getGoals())
+			.as("Project goals")
+			.isNotEmpty();
+	assertThat(project.getActors())
+			.as("Project actors")
+			.isNotEmpty();
+	assertThat(project.getStories())
+			.as("Project stories")
+			.isNotEmpty();
+	assertThat(project.getProjectEntities().stream()
+			.anyMatch(entity -> entity instanceof Scenario))
+		.as("Project scenarios present")
+		.isTrue();
+}
 }
