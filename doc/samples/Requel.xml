@@ -292,7 +292,9 @@
     </stakeholders>
     <stories>
         <story id="STRY_1" storyType="Success" revision="64" dateCreated="2009-01-05T00:00:00" createdBy="USR_1">
-            <annotations/>
+            <annotations>
+                <annotationRef>ISS_1</annotationRef>
+            </annotations>
             <text>Buddy the controller of Bailey Pet Supply has a problem; it takes over a month to close the books each quarter. Due to new disclosure requirements, Alex the CFO needs to submit quarterly results to the board of directors one week after the end of the quarter. Buddy tells Theresa, the accounting manager, that they need to close the books each quarter in less than a week. Theresa tells Buddy that the problem stems from the order processing system not being integrated with the accounting package and at the end of each month data must be entered into both systems to reconcile them manually.
 Buddy decides that the systems must be integrated before the end of the next quarter so that the one week turn-around for reporting can be met. Buddy meets with Dave the IT manager to discuss the work. Dave assigns Tim, one of the IT project managers, to work with Buddy to determine the requirements and estimate the work. Tim meets with Buddy and they generate a list of high level requirements. Tim gives the requirements and a rough estimate of two months to Dave, who in turn gives them to Ron, an MIS programmer, to design and develop. Ron reviews the requirements and goes back to Dave and tells him there are a lot of vague areas and he needs to get clarification from Tim and Buddy.
 Ron and Tim have a meeting to discuss the requirements. Ron asks Tim &quot;What is a purchase order?&quot; Tim response &quot;It’s a record in the purchase system that Linda enters based on information from a sales person.&quot; Ron asks &quot;What information is in the purchase order?&quot; Tim doesn’t know and tells Ron he will ask Buddy and get back to him. Tim sends an email to Buddy and calls it a day.
@@ -359,7 +361,9 @@ Theresa enters her username and password, and the system verifies it as correct.
             </stories>
         </usecase>
         <usecase id="UC_2" revision="10" dateCreated="2009-01-20T00:00:00" createdBy="USR_1">
-            <annotations/>
+            <annotations>
+                <annotationRef>NTE_1</annotationRef>
+            </annotations>
             <actors/>
             <goals>
                 <goalRef>GOL_9</goalRef>
@@ -375,9 +379,26 @@ Theresa enters her username and password, and the system verifies it as correct.
             </stories>
         </usecase>
     </usecases>
-    <annotations/>
-    <positions/>
-    <annotations/>
+    <annotations>
+        <note id="NTE_1" createdBy="USR_1" dateCreated="2009-01-20T00:00:00">
+            <text>hi there</text>
+        </note>
+        <lexicalIssue id="ISS_1" createdBy="USR_1" dateCreated="2009-01-20T00:00:00" mustBeResolved="false">
+            <text>hello Cleveland</text>
+            <positions>
+                <positionRef>POS_1</positionRef>
+            </positions>
+        </lexicalIssue>
+    </annotations>
+    <positions>
+        <changeSpellingPosition id="POS_1"  createdBy="USR_1" dateCreated="2009-01-20T00:00:00" proposedWord="hello there">
+            <arguments>
+                <argument createdBy="USR_1" dateCreated="2009-01-20T00:00:00">
+                    <text>we should be more formal</text>
+                </argument>
+            </arguments>
+        </changeSpellingPosition>
+    </positions>
     <organization name="Harvard University"/>
     <status>New</status>
 </project>

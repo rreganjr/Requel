@@ -60,6 +60,7 @@ import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.OrganizationImpl;
 import com.rreganjr.requel.utils.jaxb.JAXBOrganizedEntityPatcher;
+import com.rreganjr.requel.utils.jaxb.JAXBAnnotatablePatcher;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
@@ -211,6 +212,7 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 	@Override
 	public void afterUnmarshal(UserRepository userRepository, User defaultCreatedByUser) {
 		super.afterUnmarshal(userRepository, defaultCreatedByUser);
+		UnmarshallingContext.getInstance().addPatcher(new JAXBAnnotatablePatcher(this));
 		UnmarshallingContext.getInstance().addPatcher(
 				new JAXBOrganizedEntityPatcher(userRepository, this));
 		UnmarshallingContext.getInstance().addPatcher(new Patcher() {

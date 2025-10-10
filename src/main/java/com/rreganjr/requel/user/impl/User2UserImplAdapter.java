@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.user.impl;
 
+import com.rreganjr.repository.jpa.EntityProxyInterceptor;
 import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
@@ -35,6 +36,12 @@ public class User2UserImplAdapter extends XmlAdapter<UserImpl, User> {
 
 	@Override
 	public UserImpl marshal(User user) throws Exception {
+		if (user == null) {
+			return null;
+		}
+		if (EntityProxyInterceptor.isEntityProxy(user)) {
+			user = EntityProxyInterceptor.unwrap(user);
+		}
 		return (UserImpl) user;
 	}
 
