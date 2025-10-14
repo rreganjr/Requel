@@ -112,6 +112,38 @@
             <annotations/>
             <name>The system informs the user that the username and password combination supplied is not valid and displays the login interface.</name>
         </step>
+            <step scenarioType="Primary" id="SCN_18" createdBy="USR_1" dateCreated="2025-10-14T23:07:25" revision="8">
+                <annotations>
+                    <annotationRef>ANN_393</annotationRef>
+                    <annotationRef>ANN_112</annotationRef>
+                    <annotationRef>ANN_14</annotationRef>
+                    <annotationRef>ANN_113</annotationRef>
+                    <annotationRef>ANN_394</annotationRef>
+                    <annotationRef>ANN_392</annotationRef>
+                    <annotationRef>ANN_395</annotationRef>
+                </annotations>
+                <glossaryTerms/>
+                <name>collect the underpants</name>
+            </step>
+            <scenario scenarioType="Primary" id="SCN_19" createdBy="USR_1" dateCreated="2025-10-14T23:07:25" revision="11">
+                <annotations>
+                    <annotationRef>ANN_385</annotationRef>
+                    <annotationRef>ANN_389</annotationRef>
+                    <annotationRef>ANN_14</annotationRef>
+                    <annotationRef>ANN_387</annotationRef>
+                    <annotationRef>ANN_386</annotationRef>
+                    <annotationRef>ANN_390</annotationRef>
+                    <annotationRef>ANN_392</annotationRef>
+                    <annotationRef>ANN_388</annotationRef>
+                    <annotationRef>ANN_391</annotationRef>
+                </annotations>
+                <glossaryTerms/>
+                <text>this is a test of the top level (in the project UI)</text>
+                <name>test top level scenario</name>
+                <steps>
+                    <stepRef>SCN_18</stepRef>
+                </steps>
+            </scenario>
     </scenarios>
     <glossary/>
     <goals>
