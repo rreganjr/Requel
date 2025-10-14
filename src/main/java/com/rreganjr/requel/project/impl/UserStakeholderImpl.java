@@ -61,6 +61,7 @@ import com.rreganjr.requel.project.impl.ProjectTeamImpl.Team2TeamImplAdapter;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
+import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
@@ -126,6 +127,7 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 	}
 
 	@XmlElement(name = "user", type = UserImpl.class, nillable = false, required = true, namespace = "http://www.rreganjr.com/requel")
+	@XmlJavaTypeAdapter(User2UserImplAdapter.class)
 	@Transient
 	public User getUser() {
 		return super.getUser();

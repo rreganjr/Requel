@@ -179,7 +179,10 @@ public class ScenarioImpl extends StepImpl implements Scenario {
 		// hiararchy and
 		// fill them in from a top level scenario
 		if (parent instanceof ProjectOrDomain) {
-			afterUnmarshalFixupChildren(this, (ProjectOrDomain) parent);
+			ProjectOrDomain projectOrDomain = (ProjectOrDomain) parent;
+			setProjectOrDomain(projectOrDomain);
+			projectOrDomain.getScenarios().add(this);
+			afterUnmarshalFixupChildren(this, projectOrDomain);
 		}
 	}
 
@@ -188,6 +191,7 @@ public class ScenarioImpl extends StepImpl implements Scenario {
 			((StepImpl) step).setProjectOrDomain(projectOrDomain);
 			((StepImpl) step).getUsingScenarios().add(this);
 			if (step instanceof Scenario) {
+				projectOrDomain.getScenarios().add((Scenario) step);
 				afterUnmarshalFixupChildren((Scenario) step, projectOrDomain);
 			}
 		}

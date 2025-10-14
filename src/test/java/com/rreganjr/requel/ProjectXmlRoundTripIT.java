@@ -72,6 +72,7 @@ import com.rreganjr.requel.user.exception.NoSuchUserException;
  */
 @SpringBootTest(classes = Application.class)
 @TestPropertySource(locations = "classpath:db.properties")
+@org.springframework.test.context.ActiveProfiles("test")
 class ProjectXmlRoundTripIT {
 
 	private static final String SAMPLE_PROJECT_NAME_PREFIX = "Regression Project ";
@@ -127,7 +128,11 @@ class ProjectXmlRoundTripIT {
 				.contains("<project")
 				.contains("<stakeholders>")
 				.contains("<goals>")
-				.contains("<actors>");
+				.contains("<actors>")
+				.contains("<password>")
+				.contains("<passwordSalt>")
+				.contains("<passwordEncryptingAlgorithm>")
+				.contains("<passwordEncryptingIterations>");
 		assertXmlMatchesProjectSchema(exportedBytes);
 
 		String reimportedProjectName = originalProject.getName() + " Reimport " + Instant.now().toEpochMilli();

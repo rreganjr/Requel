@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <xs:schema version="1.0" targetNamespace="http://www.rreganjr.com/requel" xmlns:tns="http://www.rreganjr.com/requel" xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
+  <xs:element name="annotationRef" type="xs:IDREF" />
+
   <xs:element name="actor" type="tns:actor"/>
 
   <xs:element name="addActorPosition" type="tns:addActorPosition"/>
@@ -72,6 +74,9 @@
     <xs:sequence>
       <xs:element name="username" type="xs:string" form="qualified"/>
       <xs:element name="password" type="xs:string" form="qualified"/>
+      <xs:element name="passwordSalt" type="xs:string" form="qualified" minOccurs="0"/>
+      <xs:element name="passwordEncryptingAlgorithm" type="xs:string" form="qualified" minOccurs="0"/>
+      <xs:element name="passwordEncryptingIterations" type="xs:int" form="qualified" minOccurs="0"/>
       <xs:element name="name" type="xs:string" form="qualified" default=""/>
       <xs:element name="emailAddress" type="xs:string" form="qualified" minOccurs="0"/>
       <xs:element name="phoneNumber" type="xs:string" form="qualified" minOccurs="0"/>
@@ -580,30 +585,33 @@
     <xs:complexContent>
       <xs:extension base="tns:abstractProjectOrDomain">
         <xs:sequence>
-          <xs:element name="annotations" form="qualified" minOccurs="0">
-            <xs:complexType>
-              <xs:sequence>
-                <xs:choice minOccurs="0" maxOccurs="unbounded">
-                  <xs:element ref="tns:issue"/>
-                  <xs:element ref="tns:lexicalIssue"/>
-                  <xs:element ref="tns:note"/>
-                </xs:choice>
-              </xs:sequence>
-            </xs:complexType>
-          </xs:element>
-          <xs:element name="positions" form="qualified" minOccurs="0">
-            <xs:complexType>
-              <xs:sequence>
-                <xs:choice minOccurs="0" maxOccurs="unbounded">
-                  <xs:element ref="tns:position"/>
-                  <xs:element ref="tns:addWordToDictionaryPosition"/>
-                  <xs:element ref="tns:changeSpellingPosition"/>
-                  <xs:element ref="tns:addActorPosition"/>
-                  <xs:element ref="tns:addGlossaryTermPosition"/>
-                </xs:choice>
-              </xs:sequence>
-            </xs:complexType>
-          </xs:element>
+          <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="annotations" form="qualified">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:choice minOccurs="0" maxOccurs="unbounded">
+                    <xs:element ref="tns:issue"/>
+                    <xs:element ref="tns:lexicalIssue"/>
+                    <xs:element ref="tns:note"/>
+                    <xs:element ref="tns:annotationRef"/>
+                  </xs:choice>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+            <xs:element name="positions" form="qualified" minOccurs="0" maxOccurs="1">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:choice minOccurs="0" maxOccurs="unbounded">
+                    <xs:element ref="tns:position"/>
+                    <xs:element ref="tns:addWordToDictionaryPosition"/>
+                    <xs:element ref="tns:changeSpellingPosition"/>
+                    <xs:element ref="tns:addActorPosition"/>
+                    <xs:element ref="tns:addGlossaryTermPosition"/>
+                  </xs:choice>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+          </xs:choice>
           <xs:element ref="tns:organization"/>
           <xs:element name="status" type="xs:string" form="qualified" minOccurs="0"/>
         </xs:sequence>
@@ -629,4 +637,3 @@
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>
-

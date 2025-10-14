@@ -54,6 +54,7 @@ import com.rreganjr.requel.user.SystemAdminUserRole;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.OrganizationImpl;
 import com.rreganjr.requel.user.impl.UserImpl;
+import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 
 /**
  * @author ron
@@ -132,11 +133,11 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 	@Override
 	public void execute() {
 		try {
-			// NOTE: the classes referenced by Xml
 			JAXBContext context = JAXBContext.newInstance(CLASSES_FOR_JAXB);
 			Marshaller marshaller = context.createMarshaller();
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
 			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://www.rreganjr.com/requel http://requel.sourceforge.net/integration/1.0/project.xsd");
+			marshaller.setAdapter(new User2UserImplAdapter());
 			marshaller.marshal(project, getOutputStream());
 		} catch (Exception e) {
 			log.error(e, e);

@@ -327,38 +327,38 @@ public class UserImpl implements User, Serializable {
 	@Column(name="hashed_password", nullable = false)
 	@NotEmpty(message = "password is required and both fields must match.")
 	@XmlElement(name = "password", required = true, namespace = "http://www.rreganjr.com/requel")
-	private String getEncryptedPassword() {
+	public String getEncryptedPassword() {
 		return encryptedPassword;
 	}
 
-	private void setEncryptedPassword(String encryptedPassword) {
+	public void setEncryptedPassword(String encryptedPassword) {
 		this.encryptedPassword = encryptedPassword;
 	}
 
 	@XmlElement(name = "passwordSalt", namespace = "http://www.rreganjr.com/requel", defaultValue = DEFAULT_PASSWORD_SALT)
-	private String getPasswordSalt() {
+	public String getPasswordSalt() {
 		return passwordSalt;
 	}
 
-	private void setPasswordSalt(String passwordSalt) {
+	public void setPasswordSalt(String passwordSalt) {
 		this.passwordSalt = passwordSalt;
 	}
 
 	@XmlElement(name = "passwordEncryptingAlgorithm", namespace = "http://www.rreganjr.com/requel", defaultValue = DEFAULT_PASSWORD_ENCRYPTING_ALGORITHM)
-	private String getPasswordEncryptingAlgorithmName() {
+	public String getPasswordEncryptingAlgorithmName() {
 		return passwordEncryptingAlgorithmName;
 	}
 
-	private void setPasswordEncryptingAlgorithmName(String passwordEncryptingAlgorithmName) {
+	public void setPasswordEncryptingAlgorithmName(String passwordEncryptingAlgorithmName) {
 		this.passwordEncryptingAlgorithmName = passwordEncryptingAlgorithmName;
 	}
 
 	@XmlElement(name = "passwordEncryptingIterations", namespace = "http://www.rreganjr.com/requel", defaultValue = DEFAULT_PASSWORD_ENCRYPTING_ITERATIONS)
-	private Integer getPasswordEncryptingIterations() {
+	public Integer getPasswordEncryptingIterations() {
 		return passwordEncryptingIterations;
 	}
 
-	private void setPasswordEncryptingIterations(Integer passwordEncryptingIterations) {
+	public void setPasswordEncryptingIterations(Integer passwordEncryptingIterations) {
 		this.passwordEncryptingIterations = passwordEncryptingIterations;
 	}
 
