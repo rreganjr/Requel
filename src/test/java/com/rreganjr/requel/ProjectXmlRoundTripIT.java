@@ -50,6 +50,7 @@ import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditNonUserStakeholderCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
+import com.rreganjr.requel.project.command.EditScenarioCommand;
 import com.rreganjr.requel.project.command.EditScenarioStepCommand;
 import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.EditUseCaseCommand;
@@ -115,6 +116,16 @@ class ProjectXmlRoundTripIT {
 
 		User projectUser = ensureProjectUserExists();
 		Project originalProject = createSampleProject(projectUser);
+		Scenario standaloneScenario = originalProject.getScenarios()
+				.stream()
+				.filter(scenario -> scenario.getName() != null && scenario.getName().startsWith("Standalone Scenario"))
+				.findFirst()
+				.orElseThrow(() -> new AssertionError("Standalone scenario not created"));
+		String standaloneScenarioName = standaloneScenario.getName();
+		String standaloneScenarioStepName = standaloneScenario.getSteps()
+				.iterator()
+				.next()
+				.getName();
 		ProjectSnapshot originalSnapshot = snapshotProject(originalProject);
 		System.out.println("Original project annotations: " + originalSnapshot.annotationCount());
 
@@ -129,6 +140,8 @@ class ProjectXmlRoundTripIT {
 				.contains("<stakeholders>")
 				.contains("<goals>")
 				.contains("<actors>")
+				.contains(standaloneScenarioName)
+				.contains(standaloneScenarioStepName)
 				.contains("<password>")
 				.contains("<passwordSalt>")
 				.contains("<passwordEncryptingAlgorithm>")
@@ -181,6 +194,9 @@ class ProjectXmlRoundTripIT {
 		String actorName = "Actor " + uniqueifier;
 		String storyName = "Story " + uniqueifier;
 		String useCaseName = "Use Case " + uniqueifier;
+		String standaloneScenarioName = "Standalone Scenario " + uniqueifier;
+		String standaloneScenarioStepName = "Standalone Scenario Step " + uniqueifier;
+		String standaloneScenarioStepText = "The standalone scenario step executes unique flow " + uniqueifier + ".";
 		String stepNameOne = "Authenticate User " + uniqueifier;
 		String stepNameTwo = "Persist Project " + uniqueifier;
 		String nonUserStakeholderName = "Regulatory Board " + uniqueifier;
@@ -205,8 +221,12 @@ class ProjectXmlRoundTripIT {
 				newScenarioStepCommand(project, creator, stepNameTwo,
 						"The system saves the new project details.", ScenarioType.Primary));
 
-		createUseCase(project, actorName, stepCommands,
-				useCaseName, "Facilitates project creation.", creator);
+	createUseCase(project, actorName, stepCommands,
+			useCaseName, "Facilitates project creation.", creator);
+
+	createStandaloneScenario(project, creator, standaloneScenarioName,
+			standaloneScenarioStepName, standaloneScenarioStepText,
+			"Standalone scenario outside any use case.", ScenarioType.Primary);
 
 		createUserStakeholder(project, creator, "assistant" + uniqueifier);
 		createNonUserStakeholder(project, nonUserStakeholderName,
@@ -230,6 +250,12 @@ class ProjectXmlRoundTripIT {
 		addNote(refreshed, scenario, creator, "Scenario note");
 		for (Step step : scenario.getSteps()) {
 			addNote(refreshed, (Annotatable) step, creator, "Scenario step note: " + step.getName());
+		}
+
+		Scenario standaloneScenario = findScenarioByName(refreshed, standaloneScenarioName);
+		addNote(refreshed, standaloneScenario, creator, "Standalone scenario note");
+		for (Step step : standaloneScenario.getSteps()) {
+			addNote(refreshed, (Annotatable) step, creator, "Standalone scenario step note: " + step.getName());
 		}
 
 		annotateCreatorStakeholder(refreshed, creator);
@@ -300,9 +326,9 @@ class ProjectXmlRoundTripIT {
 		return command;
 	}
 
-	private UseCase createUseCase(Project project, String primaryActorName,
-			List<EditScenarioStepCommand> stepCommands, String name, String text, User creator)
-			throws Exception {
+private UseCase createUseCase(Project project, String primaryActorName,
+		List<EditScenarioStepCommand> stepCommands, String name, String text, User creator)
+		throws Exception {
 		EditUseCaseCommand command = projectCommandFactory.newEditUseCaseCommand();
 		command.setAnalysisEnabled(false);
 		command.setEditedBy(creator);
@@ -314,6 +340,24 @@ class ProjectXmlRoundTripIT {
 		command = commandHandler.execute(command);
 		assertThat(command.getUseCase()).as("Created use case").isNotNull();
 		return command.getUseCase();
+}
+
+	private Scenario createStandaloneScenario(Project project, User creator, String scenarioName,
+			String stepName, String stepText, String scenarioText, ScenarioType scenarioType)
+		throws Exception {
+		EditScenarioCommand scenarioCommand = projectCommandFactory.newEditScenarioCommand();
+		scenarioCommand.setAnalysisEnabled(false);
+		scenarioCommand.setEditedBy(creator);
+		scenarioCommand.setProjectOrDomain(project);
+		scenarioCommand.setName(scenarioName);
+		scenarioCommand.setText(scenarioText);
+		scenarioCommand.setScenarioTypeName(scenarioType.name());
+		scenarioCommand.setStepCommands(List.of(
+				newScenarioStepCommand(project, creator, stepName, stepText, scenarioType)));
+		scenarioCommand = commandHandler.execute(scenarioCommand);
+		Scenario scenario = scenarioCommand.getScenario();
+		assertThat(scenario).as("Created standalone scenario").isNotNull();
+		return scenario;
 	}
 
 	private UserStakeholder createUserStakeholder(Project project, User creator, String username) throws Exception {

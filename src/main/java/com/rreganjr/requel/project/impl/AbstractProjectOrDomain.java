@@ -308,6 +308,21 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 		return scenariosAndSteps;
 	}
 
+	@SuppressWarnings("unused")
+	private void setAllScenariosAndSteps(Set<Step> steps) {
+		if (steps == null) {
+			return;
+		}
+		for (Step step : steps) {
+			if (step instanceof StepImpl) {
+				((StepImpl) step).setProjectOrDomain(this);
+			}
+			if (step instanceof Scenario) {
+				getScenarios().add((Scenario) step);
+			}
+		}
+	}
+
 	@XmlElementWrapper(name = "stakeholders", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRefs( { @XmlElementRef(name = "user-stakeholder", type = UserStakeholderImpl.class),
 			@XmlElementRef(name = "nonuser-stakeholder", type = NonUserStakeholderImpl.class) })
