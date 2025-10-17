@@ -22,74 +22,32 @@ package com.rreganjr.requel.user;
 
 import java.util.Set;
 
-import com.rreganjr.repository.Repository;
+import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.UserRole;
 import com.rreganjr.requel.user.exception.NoSuchOrganizationException;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 
 /**
- * @author ron
+ * Repository abstraction for interacting with identity users and related metadata.
  */
-public interface UserRepository extends Repository {
+public interface UserRepository extends com.rreganjr.repository.Repository {
 
-	/**
-	 * Get a specific organization by name.
-	 * 
-	 * @param name -
-	 *            the name of the organization
-	 * @return the organzation with the specified name
-	 * @throws NoSuchOrganizationException
-	 */
-	public Organization findOrganizationByName(String name) throws NoSuchOrganizationException;
+    Organization findOrganizationByName(String name) throws NoSuchOrganizationException;
 
-	/**
-	 * @return all the organizations in the system.
-	 */
-	public Set<Organization> findOrganizations();
+    Set<Organization> findOrganizations();
 
-	/**
-	 * @return all the names of the organizations in the system.
-	 */
-	public Set<String> getOrganizationNames();
+    Set<String> getOrganizationNames();
 
-	/**
-	 * Get a specific user by username from the repository.
-	 * 
-	 * @param username -
-	 *            the username of the user to retrieve from the repository.
-	 * @return The user for the username
-	 * @throws NoSuchUserException -
-	 *             if the supplied username doesn't correspond to a user in the
-	 *             repository.
-	 */
-	public User findUserByUsername(String username) throws NoSuchUserException;
+    User findUserByUsername(String username) throws NoSuchUserException;
 
-	/**
-	 * @return all the users of the system in the repository.
-	 */
-	public UserSet findUsers();
+    UserSet findUsers();
 
-	/**
-	 * @param roleType
-	 * @return a set of users that have the supplied role type.
-	 */
-	public UserSet findUsersForRole(Class<? extends UserRole> roleType);
+    UserSet findUsersForRole(Class<? extends UserRole> roleType);
 
-	/**
-	 * @return the available types of user roles
-	 */
-	public Set<Class<? extends UserRole>> findUserRoleTypes();
+    Set<Class<? extends UserRole>> findUserRoleTypes();
 
-	/**
-	 * @param userRoleType
-	 * @param name
-	 * @return
-	 */
-	public UserRolePermission findUserRolePermission(Class<? extends UserRole> userRoleType,
-			String name);
+    UserRolePermission findUserRolePermission(Class<? extends UserRole> userRoleType, String name);
 
-	/**
-	 * @param userRoleType
-	 * @return
-	 */
-	public Set<UserRolePermission> findUserRolePermissions(Class<? extends UserRole> userRoleType);
+    Set<UserRolePermission> findUserRolePermissions(Class<? extends UserRole> userRoleType);
+
 }

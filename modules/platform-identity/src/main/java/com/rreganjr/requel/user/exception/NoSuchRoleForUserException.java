@@ -22,42 +22,38 @@ package com.rreganjr.requel.user.exception;
 
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.Role;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron
  */
-public class NoSuchUserException extends NoSuchEntityException {
+public class NoSuchRoleForUserException extends NoSuchEntityException {
 	static final long serialVersionUID = 0;
 
-	protected static String MSG_NO_USER_FOR_NAME = "No user for username '%s'";
-	protected static String MSG_WRONG_PASSWORD = "The password for username '%s' was incorrect.";
+	protected static String MSG_NO_ROLE_FOR_USER = "The user '%s' does not have the role '%s'";
 
 	/**
-	 * @param username
+	 * @param user -
+	 *            the user that doesn't have the role.
+	 * @param userRoleType -
+	 *            the type of the role that the user doesn't have.
 	 * @return
 	 */
-	public static NoSuchUserException forUsername(String username) {
-		return new NoSuchUserException(User.class, null, "username", username,
-				EntityExceptionActionType.Reading, MSG_NO_USER_FOR_NAME, username);
+	public static NoSuchRoleForUserException forUserRoleTypeName(User user,
+			Class<? extends Role> userRoleType) {
+		return new NoSuchRoleForUserException(User.class, user, "userRoles", userRoleType,
+				EntityExceptionActionType.Reading, MSG_NO_ROLE_FOR_USER, user.getUsername(),
+				userRoleType.getSimpleName());
 	}
 
-	/**
-	 * @param user
-	 * @return
-	 */
-	public static NoSuchUserException wrongPasswordForUser(User user) {
-		return new NoSuchUserException(User.class, user, "password", null,
-				EntityExceptionActionType.Reading, MSG_WRONG_PASSWORD, user.getUsername());
-	}
-
-	protected NoSuchUserException(Class<?> entityType, Object entity, String entityPropertyName,
-			Object entityValue, EntityExceptionActionType actionType, String format,
-			Object... messageArgs) {
+	protected NoSuchRoleForUserException(Class<?> entityType, Object entity,
+			String entityPropertyName, Object entityValue, EntityExceptionActionType actionType,
+			String format, Object... messageArgs) {
 		super(entityType, entity, entityPropertyName, entityValue, actionType, format, messageArgs);
 	}
 
-	protected NoSuchUserException(Throwable cause, Class<?> entityType, Object entity,
+	protected NoSuchRoleForUserException(Throwable cause, Class<?> entityType, Object entity,
 			String entityPropertyName, Object entityValue, EntityExceptionActionType actionType,
 			String format, Object... messageArgs) {
 		super(cause, entityType, entity, entityPropertyName, entityValue, actionType, format,

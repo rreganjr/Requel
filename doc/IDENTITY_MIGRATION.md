@@ -36,6 +36,8 @@ Splitting these responsibilities allows us to build a reusable “platform” la
 2. **Move identity internals**  
    - Relocate `com.rreganjr.requel.user` classes (password handling, validators, role management) into the new module.  
    - Adapt `UserImpl` to implement `UserDetails` and expose authorities through Spring Security.
+   - Centralise hashing/salting logic (e.g., `PasswordHasher`) and associated exceptions inside `platform-identity`.
+   - Shift shared role contracts and exceptions (`UserRole`, `UserRolePermission`, `NoSuch*` identity errors) into `platform-identity` so the requirement domain consumes them without owning their definitions.
 3. **Update platform contracts**  
    - Move `CreatedEntity` and related helpers to `platform-core`, replacing the dependency on the full `User` API with the new lightweight interface.  
    - Provide optional helpers (e.g., `getDisplayName`) only when truly needed.

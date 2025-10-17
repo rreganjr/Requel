@@ -1,7 +1,10 @@
-package com.rreganjr.requel.user;
+package com.rreganjr.platform.identity.password;
 
 import com.rreganjr.platform.exception.RequelException;
 
+/**
+ * Signals problems encountered while hashing or salting user passwords.
+ */
 public class PasswordException extends RequelException {
 
     public static final String MSG_PROBLEM_ENCRYPTING_PASSWORD = "There was a problem encrypting the user's password.";

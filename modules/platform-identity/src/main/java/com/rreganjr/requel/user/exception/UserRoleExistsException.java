@@ -22,7 +22,7 @@ package com.rreganjr.requel.user.exception;
 
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRole;
 
 /**

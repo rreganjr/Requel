@@ -4,7 +4,7 @@ import com.rreganjr.TestCase;
 import com.rreganjr.requel.project.DomainAdminUserRole;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.user.Organization;
-import com.rreganjr.requel.user.PasswordException;
+import com.rreganjr.platform.identity.password.PasswordException;
 import com.rreganjr.requel.user.SystemAdminUserRole;
 import com.rreganjr.requel.user.UserRole;
 import com.rreganjr.requel.user.exception.NoSuchRoleForUserException;

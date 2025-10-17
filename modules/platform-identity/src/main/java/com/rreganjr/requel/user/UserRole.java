@@ -26,12 +26,17 @@ import java.util.Set;
 /**
  * @author ron
  */
-public interface UserRole {
+public interface UserRole extends com.rreganjr.platform.identity.Role {
 
 	/**
 	 * @return the name of the role.
 	 */
 	public String getRoleName();
+
+	@Override
+	default String getName() {
+		return getRoleName();
+	}
 
 	/**
 	 * @return the permissions available for this role

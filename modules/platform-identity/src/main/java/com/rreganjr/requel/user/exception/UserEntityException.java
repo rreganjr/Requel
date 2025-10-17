@@ -22,8 +22,8 @@ package com.rreganjr.requel.user.exception;
 
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
-import com.rreganjr.requel.user.User;
-import com.rreganjr.requel.user.UserRole;
+import com.rreganjr.platform.identity.Role;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron
@@ -44,7 +44,7 @@ public class UserEntityException extends EntityException {
 	 *            the exception that occured during the grant
 	 * @return
 	 */
-	public static UserEntityException exceptionGrantingRole(Class<? extends UserRole> userRoleType,
+	public static UserEntityException exceptionGrantingRole(Class<? extends Role> userRoleType,
 			User user, Exception cause) {
 		return new UserEntityException(cause, User.class, user, "userRoles", userRoleType,
 				EntityExceptionActionType.Creating, MSG_EXCEPTION_GRANTING_ROLE, userRoleType
@@ -60,7 +60,7 @@ public class UserEntityException extends EntityException {
 	 *            the exception that occured during the revoke.
 	 * @return
 	 */
-	public static UserEntityException exceptionRevokingRole(Class<? extends UserRole> userRoleType,
+	public static UserEntityException exceptionRevokingRole(Class<? extends Role> userRoleType,
 			User user, Exception cause) {
 		return new UserEntityException(cause, User.class, user, "userRoles", userRoleType,
 				EntityExceptionActionType.Creating, MSG_EXCEPTION_REVOKING_ROLE, userRoleType

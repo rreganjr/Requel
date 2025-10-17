@@ -29,10 +29,10 @@ import com.rreganjr.requel.user.exception.NoSuchRoleForUserException;
 
 /**
  * A user of the system.
- * 
+ *
  * @author ron
  */
-public interface User extends Comparable<User>, OrganizedEntity {
+public interface User extends Comparable<User>, OrganizedEntity, com.rreganjr.platform.identity.User {
 
 	/**
 	 * The users real name userful for identifying the user in documents or

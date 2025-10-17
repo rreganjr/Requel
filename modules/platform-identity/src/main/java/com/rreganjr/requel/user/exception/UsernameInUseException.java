@@ -21,7 +21,7 @@
 package com.rreganjr.requel.user.exception;
 
 import com.rreganjr.platform.exception.EntityExceptionActionType;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron

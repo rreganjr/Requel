@@ -169,10 +169,15 @@ public class UserSetImpl implements UserSet {
 	 * @see java.util.Collection#retainAll(java.util.Collection)
 	 */
 	public boolean retainAll(Collection<?> c) {
-		boolean rval = usersByName.retainAll(c);
-		usersById.clear();
-		for (User u : usersByName) {
-			usersById.put(((UserImpl) u).getId(), u);
+		boolean rval = false;
+		Iterator<User> i = iterator();
+		while (i.hasNext()) {
+			User u = i.next();
+			if (!c.contains(u)) {
+				i.remove();
+				usersById.remove(u.getId());
+				rval = true;
+			}
 		}
 		return rval;
 	}
@@ -192,9 +197,11 @@ public class UserSetImpl implements UserSet {
 	}
 
 	/**
-	 * @see java.util.Collection#toArray(T[])
+	 * @param t
+	 * @return
+	 * @see java.util.Collection#toArray(java.lang.Object[])
 	 */
-	public <T> T[] toArray(T[] a) {
-		return usersByName.toArray(a);
+	public <T> T[] toArray(T[] t) {
+		return usersByName.toArray(t);
 	}
 }

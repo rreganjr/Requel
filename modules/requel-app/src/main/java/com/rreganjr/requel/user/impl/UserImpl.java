@@ -23,13 +23,7 @@ package com.rreganjr.requel.user.impl;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
-import java.math.BigInteger;
-import java.security.*;
-import java.security.spec.InvalidKeySpecException;
 import java.util.*;
-
-import javax.crypto.SecretKeyFactory;
-import javax.crypto.spec.PBEKeySpec;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -55,6 +49,9 @@ import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import com.rreganjr.platform.identity.password.PasswordException;
+import com.rreganjr.platform.identity.password.PasswordHasher;
+import com.rreganjr.platform.identity.password.PasswordHasher.HashedPassword;
 import com.rreganjr.requel.user.*;
 import org.apache.commons.lang3.StringUtils;
 import jakarta.validation.constraints.Email;
@@ -160,7 +157,7 @@ public class UserImpl implements User, Serializable {
 	@XmlID
 	@XmlAttribute(name = "id")
 	@XmlJavaTypeAdapter(IdAdapter.class)
-	protected Long getId() {
+	public Long getId() {
 		return id;
 	}
 
@@ -247,70 +244,31 @@ public class UserImpl implements User, Serializable {
 
 	private  void _resetPassword(String password) {
 		// When resetting a password use the preferred algorithm and a new salt value.
-		setPasswordEncryptingAlgorithmName(PREFERRED_PASSWORD_ENCRYPTING_ALGORITHM);
-		setPasswordEncryptingIterations(PREFERRED_PASSWORD_ENCRYPTING_ITERATIONS);
-		setPasswordSalt(makePasswordSalt());
-		// Order is important, encryptPassword uses above properties
-		setEncryptedPassword(encryptPassword(password));
+		HashedPassword hashed = PasswordHasher.hashWithPreferredSettings(password);
+		setPasswordEncryptingAlgorithmName(hashed.algorithm());
+		setPasswordEncryptingIterations(hashed.iterations());
+		setPasswordSalt(hashed.salt());
+		setEncryptedPassword(hashed.value());
 	}
 
 	/**
 	 * @return a semi-random value to use for password salt.
 	 */
 	private static String makePasswordSalt() {
-		try {
-			SecureRandom sr = SecureRandom.getInstance("SHA1PRNG");
-			byte[] salt = new byte[64];
-			sr.nextBytes(salt);
-			return toHexString(salt);
-		} catch (Exception e) {
-			throw PasswordException.problemGeneratingPasswordSalt(e);
-		}
+		return PasswordHasher.generateSalt();
 	}
 
 	/**
 	 * @param password - the password from the user
-	 * @see SecretKeyFactory#getInstance(String)
-	 * @see MessageDigest#getInstance(String)
+	 * Delegates password hashing to {@link PasswordHasher}.
 	 * @return The encoded password as a hexadecimal sequence
 	 * based on code from https://howtodoinjava.com/security/how-to-generate-secure-password-hash-md5-sha-pbkdf2-bcrypt-examples/
 	 */
 	private String encryptPassword(String password) {
-		byte[] encodedPassword;
-		try {
-			String algorithmName = (StringUtils.isEmpty(getPasswordEncryptingAlgorithmName()) ? DEFAULT_PASSWORD_ENCRYPTING_ALGORITHM : getPasswordEncryptingAlgorithmName());
-			String salt = (StringUtils.isEmpty(getPasswordSalt()) ? DEFAULT_PASSWORD_SALT : getPasswordSalt());
-			Integer iterations = (getPasswordEncryptingIterations()==null?Integer.parseInt(DEFAULT_PASSWORD_ENCRYPTING_ITERATIONS): getPasswordEncryptingIterations());
-			if (Security.getAlgorithms("SecretKeyFactory").contains(algorithmName.toUpperCase())) {
-				PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt.getBytes(), iterations, 512);
-				SecretKeyFactory skf = SecretKeyFactory.getInstance(algorithmName);
-				encodedPassword = skf.generateSecret(spec).getEncoded();
-			} else if (Security.getAlgorithms("MessageDigest").contains(algorithmName.toUpperCase())) {
-				encodedPassword = MessageDigest.getInstance(algorithmName).digest(password.getBytes());
-			} else {
-				throw PasswordException.badAlgorithmName(algorithmName);
-			}
-		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-			throw PasswordException.problemEncryptingPassword(e);
-		}
-		return toHexString(encodedPassword);
-	}
-
-	/**
-	 * @param binaryData
-	 *            Array containing the hashed/encrypted value
-	 * @return a hexadecimal string representation of the supplied binaryData
-	 * based on code from https://howtodoinjava.com/security/how-to-generate-secure-password-hash-md5-sha-pbkdf2-bcrypt-examples/
-	 */
-	private static String toHexString(byte[] binaryData) {
-		BigInteger bigInteger = new BigInteger(1, binaryData);
-		String hex = bigInteger.toString(16);
-		int paddingLength = (binaryData.length * 2) - hex.length();
-		if (paddingLength > 0) {
-			return String.format("%0"  + paddingLength + "d", 0) + hex;
-		} else {
-			return hex;
-		}
+		String algorithmName = StringUtils.defaultIfEmpty(getPasswordEncryptingAlgorithmName(), DEFAULT_PASSWORD_ENCRYPTING_ALGORITHM);
+		String salt = StringUtils.defaultIfEmpty(getPasswordSalt(), DEFAULT_PASSWORD_SALT);
+		Integer iterations = (getPasswordEncryptingIterations() == null ? Integer.parseInt(DEFAULT_PASSWORD_ENCRYPTING_ITERATIONS) : getPasswordEncryptingIterations());
+		return PasswordHasher.hash(password, algorithmName, salt, iterations);
 	}
 
 	/**
