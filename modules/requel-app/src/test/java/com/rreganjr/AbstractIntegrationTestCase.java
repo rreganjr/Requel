@@ -31,7 +31,7 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.nlp.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.command.DictionaryCommandFactory;
-import com.rreganjr.repository.DatabaseInitializer;
+import com.rreganjr.platform.bootstrap.DatabaseInitializer;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;

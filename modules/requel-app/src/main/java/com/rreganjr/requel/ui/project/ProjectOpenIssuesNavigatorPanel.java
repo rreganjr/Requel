@@ -37,7 +37,7 @@ import nextapp.echo2.app.layout.RowLayoutData;
 
 import org.apache.log4j.Logger;
 
-import com.rreganjr.requel.Describable;
+import com.rreganjr.platform.domain.Describable;
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;

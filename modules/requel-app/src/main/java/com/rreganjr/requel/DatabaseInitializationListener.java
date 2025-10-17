@@ -26,7 +26,7 @@ import jakarta.servlet.annotation.WebListener;
 
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;
-import com.rreganjr.repository.DatabaseInitializer;
+import com.rreganjr.platform.bootstrap.DatabaseInitializer;
 
 /**
  * This listener checks if the database has been initialized with the base data,

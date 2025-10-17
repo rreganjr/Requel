@@ -128,7 +128,7 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 	}
 
 	/**
-	 * @see com.rreganjr.requel.Describable#getDescription()
+	 * @see com.rreganjr.platform.domain.Describable#getDescription()
 	 */
 	@XmlTransient
 	@Transient

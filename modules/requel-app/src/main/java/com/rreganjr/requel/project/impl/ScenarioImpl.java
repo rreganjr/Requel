@@ -98,7 +98,7 @@ public class ScenarioImpl extends StepImpl implements Scenario {
 	}
 
 	/**
-	 * @see com.rreganjr.requel.Describable#getDescription()
+	 * @see com.rreganjr.platform.domain.Describable#getDescription()
 	 */
 	@XmlTransient
 	@Transient

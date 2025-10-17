@@ -24,7 +24,7 @@ import java.util.Set;
 import java.util.SortedSet;
 
 import com.rreganjr.requel.CreatedEntity;
-import com.rreganjr.requel.Describable;
+import com.rreganjr.platform.domain.Describable;
 
 /**
  * @author ron

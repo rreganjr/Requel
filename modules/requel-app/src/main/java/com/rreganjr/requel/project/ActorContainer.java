@@ -24,7 +24,7 @@ import java.util.Comparator;
 import java.util.Set;
 
 import com.rreganjr.requel.CreatedEntity;
-import com.rreganjr.requel.Describable;
+import com.rreganjr.platform.domain.Describable;
 
 /**
  * An abstraction of something that contains a set of Actors.

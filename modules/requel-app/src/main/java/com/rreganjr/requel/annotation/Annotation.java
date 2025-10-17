@@ -23,7 +23,7 @@ package com.rreganjr.requel.annotation;
 import java.util.Set;
 
 import com.rreganjr.requel.CreatedEntity;
-import com.rreganjr.requel.Describable;
+import com.rreganjr.platform.domain.Describable;
 
 /**
  * An abstraction of something that can be added to an Annotatable object such

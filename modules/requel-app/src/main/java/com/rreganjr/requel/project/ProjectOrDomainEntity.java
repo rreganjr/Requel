@@ -24,8 +24,8 @@ import java.util.Comparator;
 import java.util.Set;
 
 import com.rreganjr.requel.CreatedEntity;
-import com.rreganjr.requel.Describable;
-import com.rreganjr.requel.NamedEntity;
+import com.rreganjr.platform.domain.Describable;
+import com.rreganjr.platform.domain.NamedEntity;
 import com.rreganjr.requel.annotation.Annotatable;
 
 /**

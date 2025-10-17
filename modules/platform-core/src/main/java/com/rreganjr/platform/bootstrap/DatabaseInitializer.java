@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.repository;
+package com.rreganjr.platform.bootstrap;
 
 import java.util.Set;
 import java.util.TreeSet;
@@ -26,8 +26,6 @@ import java.util.TreeSet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-
-import com.rreganjr.platform.bootstrap.SystemInitializer;
 
 /**
  * @author ron

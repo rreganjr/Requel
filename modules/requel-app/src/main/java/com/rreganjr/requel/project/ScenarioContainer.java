@@ -23,7 +23,7 @@ import java.util.Comparator;
 import java.util.Set;
 
 import com.rreganjr.requel.CreatedEntity;
-import com.rreganjr.requel.Describable;
+import com.rreganjr.platform.domain.Describable;
 
 /**
  * A thing that can contain/refer to scenarios.
