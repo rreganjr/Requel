@@ -138,7 +138,7 @@ public class JpaUserRepository extends AbstractJpaRepository implements UserRepo
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(user) from UserImpl as user inner join user.userRoles as roles, AbstractUserRole role where role.roleType like :roleType and role in roles");
+							"select user from UserImpl user join user.userRoles role where role.roleType = :roleType");
 			query.setParameter("roleType", roleType.getName());
 			return new UserSetImpl(query.getResultList());
 		} catch (NoResultException e) {

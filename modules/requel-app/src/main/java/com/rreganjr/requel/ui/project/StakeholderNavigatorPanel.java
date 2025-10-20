@@ -137,18 +137,7 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Stakeholder stakeholder = (Stakeholder) model.getBackingObject(row);
-						String displayValue = null;
-						if (stakeholder.isUserStakeholder()) {
-							User user = ((UserStakeholder) stakeholder).getUser();
-							if ((user.getName() != null) && (user.getName().length() > 0)) {
-								displayValue = user.getName() + " [ " + user.getUsername() + " ]";
-							} else {
-								displayValue = user.getUsername();
-							}
-						} else {
-							displayValue = stakeholder.getName();
-						}
-						return displayValue;
+						return stakeholder.getDisplayLabel();
 					}
 				}));
 
@@ -180,14 +169,8 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Stakeholder stakeholder = (Stakeholder) model.getBackingObject(row);
-						String displayValue = null;
-						if (stakeholder.isUserStakeholder()) {
-							User user = ((UserStakeholder) stakeholder).getUser();
-							displayValue = user.getEmailAddress();
-						} else {
-							displayValue = "";
-						}
-						return displayValue;
+						String emailAddress = stakeholder.getDisplayEmailAddress();
+						return (emailAddress != null) ? emailAddress : "";
 					}
 				}));
 
@@ -196,14 +179,8 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Stakeholder stakeholder = (Stakeholder) model.getBackingObject(row);
-						String displayValue = null;
-						if (stakeholder.isUserStakeholder()) {
-							User user = ((UserStakeholder) stakeholder).getUser();
-							displayValue = user.getPhoneNumber();
-						} else {
-							displayValue = "";
-						}
-						return displayValue;
+						String phoneNumber = stakeholder.getDisplayPhoneNumber();
+						return (phoneNumber != null) ? phoneNumber : "";
 					}
 				}));
 

@@ -124,3 +124,38 @@ This approach preserves the original distinction—admins control who can access
 2. Move password, role, and user implementation classes into the new module, keeping package names stable during the initial cut.  
 3. Refactor domain modules to depend on the new identity API, focusing first on `CreatedEntity` and stakeholder profile ownership.  
 4. Iterate on role/permission mapping and update UI/business logic accordingly.
+
+### 6.1 Stakeholder Contact Access Refactor
+
+1. **Add stakeholder-facing accessors**  
+   - Extend `Stakeholder` (and implementations in `project/impl`) with display helpers (`getDisplayName`, `getDisplayEmailAddress`, `getDisplayPhoneNumber`) that delegate to the underlying user when present and fall back to stakeholder-local data otherwise.  
+   - Ensure `UserStakeholderImpl` pulls values from `User` while non-user stakeholders use their own fields.
+2. **Audit UI & service layers**  
+   - Replace direct calls to `((UserStakeholder) stakeholder).getUser().get…` with the new stakeholder accessors in high-traffic panels (for example `modules/requel-app/src/main/java/com/rreganjr/requel/ui/project/StakeholderNavigatorPanel.java`).  
+   - Document any remaining call sites that still need raw user access so future migrations can revisit them.
+3. **Command & workflow checks**  
+   - Review project commands (`…/impl/command`) and services for similar patterns, e.g., `ImportProjectCommandImpl` when it inspects `ProjectUserRole`. Determine whether stakeholder accessors suffice or if raw user access is required.
+4. **XML import/export caveat**  
+   - Preserve explicit user references in JAXB adapters and import/export flows (e.g., `UserStakeholderImpl.afterUnmarshal`, `JAXBUserRolePatcher`) so data round-trips remain deterministic. Clearly comment where raw `getUser()` must stay for persistence wiring.
+5. **Testing & regression pass**  
+   - After rewiring callers, run UI smoke tests (where possible) and targeted unit tests to confirm stakeholder display remains correct and no null-pointer regressions appear when non-user stakeholders are present.
+
+#### 6.1.1 Intentional direct user access (current)
+
+- **Stakeholder editing:** `modules/requel-app/src/main/java/com/rreganjr/requel/ui/project/UserStakeholderEditorPanel.java` still surfaces `getUser()` to populate selectors and audit permission changes—this panel needs the underlying identity object.
+- **Project lookup helpers:** `modules/requel-app/src/main/java/com/rreganjr/requel/project/impl/ProjectImpl.java` resolves `Project.getUserStakeholder(User)` by comparing the canonical user instance.
+- **Import/export workflows:** `modules/requel-app/src/main/java/com/rreganjr/requel/project/impl/UserStakeholderImpl.java` (`afterUnmarshal`) and `modules/requel-app/src/main/java/com/rreganjr/requel/project/impl/command/ImportProjectCommandImpl.java` manipulate `User` references while stitching persisted data to runtime stakeholders.
+- **Role management commands:** `modules/requel-app/src/main/java/com/rreganjr/requel/project/impl/command/DeleteStakeholderCommandImpl.java` and the `ProjectUserRole` hierarchy operate on users to maintain project membership lists.
+- These call sites are documented so future migration steps can introduce adapters or services without regressing persistence semantics.
+
+## 7. Current Coupling Snapshot
+- `com.rreganjr.requel.user.User` is referenced from 172 source files; 83 in `project`, 34 in `ui`, 21 in `annotation`, 14 in `user`, and the remainder spread across utility and shared helpers.
+- The majority of usages expect rich profile data (`getName`, `getEmailAddress`, `getPhoneNumber`) and stakeholder-specific associations, highlighting why simply swapping in the slim `platform.identity.User` causes compile/runtime failures.
+- JAXB adapters, repository projections, and UI command flows all directly depend on `UserImpl`, so moving those classes without a compatibility layer immediately breaks imports.
+- `UserSet`/`UserSetImpl` surfaced type-erasure issues when generic signatures changed to the new interface, reinforcing the need for an adapter instead of direct replacements.
+
+## 8. Adapter Bridge Strategy
+- Introduced `com.rreganjr.requel.user.bridge.IdentityUserAdapter` with a default passthrough implementation that keeps builds green while establishing a single translation point between modules.
+- The adapter currently performs a safe cast when the identity instance already implements the richer interface; future phases will resolve or wrap foreign implementations (e.g., fetching a `UserImpl` by id or stakeholder link).
+- All forthcoming migrations of repositories/services into `platform-identity` should return the lean interface and rely on the adapter when the UI/domain layer requires `com.rreganjr.requel.user.User`.
+- Once stakeholder contact data is separated, we can extend the adapter to compose a view object rather than exposing legacy fields, decoupling identity from profile attributes.

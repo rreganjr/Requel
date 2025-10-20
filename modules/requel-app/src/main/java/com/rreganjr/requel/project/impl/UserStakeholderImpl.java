@@ -123,7 +123,11 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 	@XmlTransient
 	@Transient
 	public String getDescription() {
-		return "Stakeholder: " + getUser().getDescriptiveName();
+		String displayLabel = getDisplayLabel();
+		if ((displayLabel == null) || displayLabel.isEmpty()) {
+			displayLabel = "Stakeholder";
+		}
+		return "Stakeholder: " + displayLabel;
 	}
 
 	@XmlElement(name = "user", type = UserImpl.class, nillable = false, required = true, namespace = "http://www.rreganjr.com/requel")

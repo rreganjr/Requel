@@ -31,4 +31,55 @@ public interface Stakeholder extends ProjectOrDomainEntity, GoalContainer, Compa
 	 * @return true if this is a stakeholder user (basically getUser() != null)
 	 */
 	public boolean isUserStakeholder();
+
+	/**
+	 * @return the display name to use within the project context. Defaults to the stakeholder's
+	 *         own name but user stakeholders may delegate to the underlying user.
+	 */
+	default String getDisplayName() {
+		return getName();
+	}
+
+	/**
+	 * @return the login name when the stakeholder wraps a user, otherwise {@code null}.
+	 */
+	default String getDisplayUsername() {
+		return null;
+	}
+
+	/**
+	 * @return the email address visible to project participants, delegating to the user when
+	 *         applicable.
+	 */
+	default String getDisplayEmailAddress() {
+		return null;
+	}
+
+	/**
+	 * @return the phone number visible to project participants, delegating to the user when
+	 *         applicable.
+	 */
+	default String getDisplayPhoneNumber() {
+		return null;
+	}
+
+	/**
+	 * Convenience helper for tables/navigation trees that need a combined label.
+	 */
+	default String getDisplayLabel() {
+		String effectiveName = getDisplayName();
+		String username = getDisplayUsername();
+		boolean hasName = (effectiveName != null) && !effectiveName.isEmpty();
+		boolean hasUsername = (username != null) && !username.isEmpty();
+		if (hasName && hasUsername) {
+			return effectiveName + " [ " + username + " ]";
+		}
+		if (hasName) {
+			return effectiveName;
+		}
+		if (hasUsername) {
+			return username;
+		}
+		return getDescription();
+	}
 }

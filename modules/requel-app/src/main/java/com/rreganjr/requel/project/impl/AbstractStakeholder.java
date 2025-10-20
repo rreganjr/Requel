@@ -35,6 +35,7 @@ import jakarta.persistence.InheritanceType;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlElementWrapper;
@@ -114,5 +115,67 @@ public abstract class AbstractStakeholder extends AbstractProjectOrDomainEntity 
 
 	protected void setGoals(Set<Goal> goals) {
 		this.goals = goals;
+	}
+
+	private static boolean hasText(String value) {
+		return (value != null) && !value.trim().isEmpty();
+	}
+
+	@Override
+	@Transient
+	public String getDisplayName() {
+		if (hasText(getName())) {
+			return getName();
+		}
+		User user = getUser();
+		if (user != null) {
+			if (hasText(user.getName())) {
+				return user.getName();
+			}
+			if (hasText(user.getUsername())) {
+				return user.getUsername();
+			}
+		}
+		return null;
+	}
+
+	@Override
+	@Transient
+	public String getDisplayUsername() {
+		User user = getUser();
+		return (user != null) ? user.getUsername() : null;
+	}
+
+	@Override
+	@Transient
+	public String getDisplayEmailAddress() {
+		User user = getUser();
+		return (user != null) ? user.getEmailAddress() : null;
+	}
+
+	@Override
+	@Transient
+	public String getDisplayPhoneNumber() {
+		User user = getUser();
+		return (user != null) ? user.getPhoneNumber() : null;
+	}
+
+	@Override
+	@Transient
+	public String getDisplayLabel() {
+		String effectiveName = getDisplayName();
+		String username = getDisplayUsername();
+		boolean hasName = hasText(effectiveName);
+		boolean hasUsername = hasText(username);
+		if (hasName && hasUsername) {
+			return effectiveName + " [ " + username + " ]";
+		}
+		if (hasName) {
+			return effectiveName;
+		}
+		if (hasUsername) {
+			return username;
+		}
+		return "";
 	}
 }
