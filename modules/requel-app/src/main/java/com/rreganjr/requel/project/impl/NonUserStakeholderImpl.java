@@ -187,6 +187,7 @@ public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUs
 		return true;
 	}
 
+
 	/**
 	 * This is for JAXB to patchup the parent/child relationship and to patchup
 	 * existing persistent objects for the objects that are attached directly to

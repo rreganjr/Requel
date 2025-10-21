@@ -22,6 +22,7 @@ package com.rreganjr.requel.project.impl.command;
 
 import java.io.InputStream;
 
+import com.rreganjr.requel.project.*;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Unmarshaller;
 
@@ -32,12 +33,6 @@ import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
-import com.rreganjr.requel.project.Project;
-import com.rreganjr.requel.project.ProjectRepository;
-import com.rreganjr.requel.project.ProjectUserRole;
-import com.rreganjr.requel.project.Stakeholder;
-import com.rreganjr.requel.project.StakeholderPermission;
-import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.EditReportGeneratorCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -155,14 +150,11 @@ public class ImportProjectCommandImpl extends AbstractEditProjectCommand impleme
 			}
 			setProject(getProjectRepository().persist(project));
 
-			// TODO: use a command to edit each stakeholder?
-			// add the project to all the stakeholder user ProjectUserRoles
-			for (Stakeholder stakeholder : project.getStakeholders()) {
-				if (stakeholder.isUserStakeholder()) {
-					((UserStakeholder) stakeholder).getUser().getRoleForType(ProjectUserRole.class)
-							.getActiveProjects().add(project);
-				}
-			}
+		// TODO: use a command to edit each stakeholder?
+		// ensure project membership is mirrored into user roles
+		for (Stakeholder stakeholder : project.getStakeholders()) {
+			stakeholder.ensureProjectMembership();
+		}
 			if (project.getReportGenerators().isEmpty()) {
 				addBuiltinReportGenerator(project, createdBy);
 			}
@@ -183,8 +175,7 @@ public class ImportProjectCommandImpl extends AbstractEditProjectCommand impleme
 		if (user.hasRole(ProjectUserRole.class)) {
 			boolean alreadyAStakeholder = false;
 			for (Stakeholder stakeholder : project.getStakeholders()) {
-				if (stakeholder.isUserStakeholder()
-						&& user.equals(((UserStakeholder) stakeholder).getUser())) {
+				if (stakeholder.matchesUser(user)) {
 					alreadyAStakeholder = true;
 					break;
 				}
@@ -198,6 +189,7 @@ public class ImportProjectCommandImpl extends AbstractEditProjectCommand impleme
 					creatorStakeholder.grantStakeholderPermission(permission);
 				}
 				project.getStakeholders().add(creatorStakeholder);
+				creatorStakeholder.ensureProjectMembership();
 			}
 		}
 	}

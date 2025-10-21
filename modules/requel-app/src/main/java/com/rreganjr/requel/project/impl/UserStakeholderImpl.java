@@ -51,8 +51,10 @@ import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectTeam;
+import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.StakeholderPermission;
 import com.rreganjr.requel.project.StakeholderPermissionType;
@@ -210,6 +212,36 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 	@Override
 	public void revokeStakeholderPermission(StakeholderPermission stakeholderPermission) {
 		getStakeholderPermissions().remove(stakeholderPermission);
+	}
+
+	@Override
+	public boolean matchesUser(User user) {
+		return (user != null) && user.equals(getUser());
+	}
+
+	@Override
+	public void ensureProjectMembership() {
+		if (!(getProjectOrDomain() instanceof Project) || getUser() == null) {
+			return;
+		}
+		ProjectUserRole projectRole = getUser().getRoleForType(ProjectUserRole.class);
+		if (projectRole != null) {
+			projectRole.getActiveProjects().add((Project) getProjectOrDomain());
+		}
+	}
+
+	@Override
+	public void removeFromProject() {
+		if (getTeam() != null) {
+			getTeam().getMembers().remove(this);
+		}
+		if (getUser() != null) {
+			ProjectUserRole projectRole = getUser().getRoleForType(ProjectUserRole.class);
+			if (projectRole != null) {
+				projectRole.getActiveProjects().remove(getProjectOrDomain());
+			}
+		}
+		super.removeFromProject();
 	}
 
 	/**

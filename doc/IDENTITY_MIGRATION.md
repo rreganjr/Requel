@@ -147,6 +147,7 @@ This approach preserves the original distinction—admins control who can access
 - **Import/export workflows:** `modules/requel-app/src/main/java/com/rreganjr/requel/project/impl/UserStakeholderImpl.java` (`afterUnmarshal`) and `modules/requel-app/src/main/java/com/rreganjr/requel/project/impl/command/ImportProjectCommandImpl.java` manipulate `User` references while stitching persisted data to runtime stakeholders.
 - **Role management commands:** `modules/requel-app/src/main/java/com/rreganjr/requel/project/impl/command/DeleteStakeholderCommandImpl.java` and the `ProjectUserRole` hierarchy operate on users to maintain project membership lists.
 - These call sites are documented so future migration steps can introduce adapters or services without regressing persistence semantics.
+- See `doc/USER_ACCESS_AUDIT.md` for the full inventory and recommendations.
 
 ## 7. Current Coupling Snapshot
 - `com.rreganjr.requel.user.User` is referenced from 172 source files; 83 in `project`, 34 in `ui`, 21 in `annotation`, 14 in `user`, and the remainder spread across utility and shared helpers.

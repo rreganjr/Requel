@@ -153,9 +153,11 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 					PROP_EXISTING_OBJECT_PANEL_TITLE,
 					getResourceBundleHelper(getLocale()).getString(PROP_PANEL_TITLE,
 							"User Stakeholder: {0}"));
-			return MessageFormat
-					.format(msgPattern, getStakeholder().getUser().getDescriptiveName(),
-							getProjectOrDomain().getName());
+			String label = getStakeholder().getDisplayLabel();
+			if ((label == null) || label.isEmpty()) {
+				label = "Stakeholder";
+			}
+			return MessageFormat.format(msgPattern, label, getProjectOrDomain().getName());
 		} else {
 			String msg = getResourceBundleHelper(getLocale()).getString(
 					PROP_NEW_OBJECT_PANEL_TITLE,
@@ -171,8 +173,7 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 		UserStakeholder stakeholder = getStakeholder();
 		if (stakeholder != null) {
 			addInput("user", PROP_LABEL_USER, "User", new SelectField(), new CombinedListModel(
-					getProjectUsersUsernames(), (stakeholder.getUser() != null ? stakeholder
-							.getUser().getUsername() : ""), true));
+					getProjectUsersUsernames(), defaultUsername(stakeholder), true));
 			addInput("teamName", PROP_LABEL_TEAM, "Team", new ComboBox(),
 					new CombinedTextListModel(getProjectTeamNames(),
 							(stakeholder.getTeam() != null ? stakeholder.getTeam().getName() : "")));
@@ -313,6 +314,11 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 			teamNames.add(team.getName());
 		}
 		return teamNames;
+	}
+
+	private String defaultUsername(UserStakeholder stakeholder) {
+		String username = stakeholder.getDisplayUsername();
+		return (username != null) ? username : "";
 	}
 
 	private Set<String> getProjectUsersUsernames() {
@@ -478,9 +484,7 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 					// TODO: check the input fields to see if the user has made
 					// a change before resetting the object and updating the
 					// input fields.
-					panel.setInputValue("user",
-							(updatedStakeholder.getUser() != null ? updatedStakeholder.getUser()
-									.getUsername() : ""));
+					panel.setInputValue("user", panel.defaultUsername(updatedStakeholder));
 					panel.setInputValue("teamName",
 							(updatedStakeholder.getTeam() != null ? updatedStakeholder.getTeam()
 									.getName() : ""));

@@ -180,12 +180,11 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 
 	@Transient
 	public UserStakeholder getUserStakeholder(User user) {
-		for (Stakeholder stakeholder : getStakeholders()) {
-			if (stakeholder.isUserStakeholder()
-					&& user.equals(((UserStakeholder) stakeholder).getUser())) {
-				return (UserStakeholder) stakeholder;
-			}
+	for (Stakeholder stakeholder : getStakeholders()) {
+		if (stakeholder.matchesUser(user)) {
+			return (UserStakeholder) stakeholder;
 		}
+	}
 		return null;
 	}
 

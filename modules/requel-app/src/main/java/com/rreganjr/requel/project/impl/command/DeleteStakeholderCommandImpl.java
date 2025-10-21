@@ -34,9 +34,7 @@ import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCom
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectRepository;
-import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.Stakeholder;
-import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.DeleteStakeholderCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -99,15 +97,7 @@ public class DeleteStakeholderCommandImpl extends AbstractEditProjectCommand imp
 				term.getReferers().remove(stakeholder);
 			}
 		}
-		stakeholder.getProjectOrDomain().getStakeholders().remove(stakeholder);
-		if (stakeholder.isUserStakeholder()) {
-			UserStakeholder userStakeholder = (UserStakeholder) stakeholder;
-			userStakeholder.getUser().getRoleForType(ProjectUserRole.class).getActiveProjects()
-					.remove(userStakeholder.getProjectOrDomain());
-			if (userStakeholder.getTeam() != null) {
-				userStakeholder.getTeam().getMembers().remove(userStakeholder);
-			}
-		}
+		stakeholder.removeFromProject();
 		for (GlossaryTerm term : stakeholder.getProjectOrDomain().getGlossaryTerms()) {
 			term.getReferers().remove(stakeholder);
 		}

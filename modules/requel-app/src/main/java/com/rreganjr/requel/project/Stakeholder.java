@@ -21,6 +21,8 @@
  */
 package com.rreganjr.requel.project;
 
+import com.rreganjr.requel.user.User;
+
 
 /**
  * @author ron
@@ -63,23 +65,47 @@ public interface Stakeholder extends ProjectOrDomainEntity, GoalContainer, Compa
 		return null;
 	}
 
-	/**
+	 /**
 	 * Convenience helper for tables/navigation trees that need a combined label.
 	 */
-	default String getDisplayLabel() {
-		String effectiveName = getDisplayName();
-		String username = getDisplayUsername();
-		boolean hasName = (effectiveName != null) && !effectiveName.isEmpty();
-		boolean hasUsername = (username != null) && !username.isEmpty();
-		if (hasName && hasUsername) {
-			return effectiveName + " [ " + username + " ]";
-		}
-		if (hasName) {
-			return effectiveName;
-		}
-		if (hasUsername) {
-			return username;
-		}
-		return getDescription();
-	}
+	 default String getDisplayLabel() {
+	 	String effectiveName = getDisplayName();
+	 	String username = getDisplayUsername();
+	 	boolean hasName = (effectiveName != null) && !effectiveName.isEmpty();
+	 	boolean hasUsername = (username != null) && !username.isEmpty();
+	 	if (hasName && hasUsername) {
+	 		return effectiveName + " [ " + username + " ]";
+	 	}
+	 	if (hasName) {
+	 		return effectiveName;
+	 	}
+	 	if (hasUsername) {
+	 		return username;
+	 	}
+	 	return getDescription();
+	 }
+
+	 /**
+	 * @return {@code true} when this stakeholder represents the supplied user.
+	 */
+	 default boolean matchesUser(User user) {
+	 	return false;
+	 }
+
+	 /**
+	 * Ensures any backing identity model reflects this stakeholder's project membership.
+	 */
+	 default void ensureProjectMembership() {
+	 }
+
+	 /**
+	 * Remove this stakeholder from the supplied project, handling any cleanup such as team
+	 * membership or associated user roles.
+	 */
+	 default void removeFromProject() {
+	 	ProjectOrDomain project = getProjectOrDomain();
+	 	if (project != null) {
+	 		project.getStakeholders().remove(this);
+	 	}
+	 }
 }
