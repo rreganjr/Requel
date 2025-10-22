@@ -156,7 +156,7 @@ public class ScenarioUseCasesTable extends AbstractRequelNavigatorTable {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						UseCase useCase = (UseCase) model.getBackingObject(row);
-						return useCase.getCreatedBy().getUsername();
+						return useCase.getCreatedBy().getDisplayName();
 					}
 				}));
 

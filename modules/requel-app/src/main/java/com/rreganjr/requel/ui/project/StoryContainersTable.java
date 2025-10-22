@@ -159,7 +159,7 @@ public class StoryContainersTable extends AbstractRequelNavigatorTable {
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						StoryContainer StoryContainer = (StoryContainer) model
 								.getBackingObject(row);
-						return StoryContainer.getCreatedBy().getUsername();
+						return StoryContainer.getCreatedBy().getDisplayName();
 					}
 				}));
 

@@ -49,7 +49,6 @@ import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import com.rreganjr.platform.identity.password.PasswordException;
 import com.rreganjr.platform.identity.password.PasswordHasher;
 import com.rreganjr.platform.identity.password.PasswordHasher.HashedPassword;
 import com.rreganjr.requel.user.*;
@@ -63,8 +62,7 @@ import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.user.exception.NoSuchRoleForUserException;
 import com.rreganjr.requel.user.exception.UserEntityException;
-import com.rreganjr.requel.utils.jaxb.JAXBOrganizedEntityPatcher;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
+import com.rreganjr.requel.user.JAXBOrganizedEntityPatcher;
 
 /**
  * @author ron
@@ -196,7 +194,7 @@ public class UserImpl implements User, Serializable {
 
 	@Transient
 	@Override
-	public String getDescriptiveName() {
+	public String getDisplayName() {
 		if (getName() != null) {
 			return getName() + " [" + getUsername() + "]";
 		}
@@ -502,7 +500,7 @@ public class UserImpl implements User, Serializable {
 	}
 
 	@Override
-	public int compareTo(User o) {
+	public int compareTo(com.rreganjr.platform.identity.User o) {
 		return getUsername().compareToIgnoreCase(o.getUsername());
 	}
 
@@ -538,7 +536,7 @@ public class UserImpl implements User, Serializable {
 	 * that are attached directly to this object.
 	 * 
 	 * @param userRepository - pass in user repository to patch up relationship with an organization.
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal(UserRepository userRepository) {
 		UnmarshallingContext.getInstance().addPatcher(

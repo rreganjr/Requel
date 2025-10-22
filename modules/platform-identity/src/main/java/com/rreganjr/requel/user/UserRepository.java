@@ -22,8 +22,6 @@ package com.rreganjr.requel.user;
 
 import java.util.Set;
 
-import com.rreganjr.requel.user.User;
-import com.rreganjr.requel.user.UserRole;
 import com.rreganjr.requel.user.exception.NoSuchOrganizationException;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 

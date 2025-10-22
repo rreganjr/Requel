@@ -101,7 +101,7 @@ public class StorySelectorPanel extends SelectorTablePanel {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Story story = (Story) model.getBackingObject(row);
-						return story.getCreatedBy().getUsername();
+						return story.getCreatedBy().getDisplayName();
 					}
 				}));
 

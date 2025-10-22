@@ -50,9 +50,6 @@ import jakarta.xml.bind.annotation.XmlType;
 
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
-import com.rreganjr.requel.utils.jaxb.JAXBUserRolePatcher;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
-
 /**
  * @author ron
  */
@@ -218,7 +215,7 @@ public abstract class AbstractUserRole implements UserRole, Serializable {
 	 * that are attached directly to this object.
 	 * 
 	 * @param userRepository
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal(UserRepository userRepository) {
 		UnmarshallingContext.getInstance()

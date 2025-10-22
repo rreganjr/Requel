@@ -110,7 +110,7 @@ public class ScenarioSelectorPanel extends SelectorTablePanel {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Scenario scenario = (Scenario) model.getBackingObject(row);
-						return scenario.getCreatedBy().getUsername();
+						return scenario.getCreatedBy().getDisplayName();
 					}
 				}));
 

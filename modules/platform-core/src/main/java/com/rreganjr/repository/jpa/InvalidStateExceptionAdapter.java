@@ -20,17 +20,17 @@
  */
 package com.rreganjr.repository.jpa;
 
-import org.hibernate.PropertyValueException;
+import com.rreganjr.validator.InvalidStateException;
 
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.EntityExceptionAdapter;
-import com.rreganjr.requel.EntityValidationException;
+import com.rreganjr.validator.EntityValidationException;
 
 /**
  * @author ron
  */
-public class GenericPropertyValueExceptionAdapter implements EntityExceptionAdapter {
+public class InvalidStateExceptionAdapter implements EntityExceptionAdapter {
 
 	/**
 	 * @see com.rreganjr.platform.exception.EntityExceptionAdapter#convert(java.lang.Throwable,
@@ -40,15 +40,8 @@ public class GenericPropertyValueExceptionAdapter implements EntityExceptionAdap
 	@Override
 	public EntityException convert(Throwable original, Class<?> entityType, Object entity,
 			EntityExceptionActionType actionType) {
-		PropertyValueException pve = (PropertyValueException) original;
-		String propertyName = pve.getPropertyName();
-		if (original.getMessage().startsWith(
-				"not-null property references a null or transient value")) {
-			return EntityValidationException.emptyRequiredProperty(entityType, entity,
-					propertyName, actionType);
-		} else {
-			return EntityException.forUnknownProblem(original, entityType, entity, propertyName,
-					null, actionType);
-		}
+		return EntityValidationException.validationFailed((InvalidStateException) original,
+				entityType, entity, actionType);
 	}
+
 }

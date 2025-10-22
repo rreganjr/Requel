@@ -18,12 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel;
-
-import com.rreganjr.requel.user.User;
-import com.rreganjr.requel.user.exception.NoSuchUserException;
-import com.rreganjr.validator.InvalidStateException;
-import com.rreganjr.validator.InvalidValue;
+package com.rreganjr.validator;
 
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;

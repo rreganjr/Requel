@@ -158,7 +158,7 @@ public class GlossaryTermRefererTable extends AbstractRequelNavigatorTable {
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						ProjectOrDomainEntity glossaryTermReferer = (ProjectOrDomainEntity) model
 								.getBackingObject(row);
-						return glossaryTermReferer.getCreatedBy().getUsername();
+						return glossaryTermReferer.getCreatedBy().getDisplayName();
 					}
 				}));
 

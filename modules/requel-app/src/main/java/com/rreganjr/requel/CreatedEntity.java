@@ -24,7 +24,7 @@ package com.rreganjr.requel;
 
 import java.util.Date;
 
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron
@@ -34,10 +34,10 @@ public interface CreatedEntity {
 	/**
 	 * @return the user that created the entity
 	 */
-	public User getCreatedBy();
+	User getCreatedBy();
 
 	/**
 	 * @return the date the entity was created
 	 */
-	public Date getDateCreated();
+	Date getDateCreated();
 }

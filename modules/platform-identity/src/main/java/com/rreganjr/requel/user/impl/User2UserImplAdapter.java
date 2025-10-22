@@ -18,26 +18,35 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel;
+package com.rreganjr.requel.user.impl;
 
-import com.rreganjr.requel.user.Organization;
+import com.rreganjr.platform.identity.User;
+import com.rreganjr.repository.jpa.EntityProxyInterceptor;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 /**
- * An entity that has an organization assigned.
+ * Adapter for JAXB to convert interface User to class UserImpl and back.
  * 
  * @author ron
  */
-public interface OrganizedEntity {
+@XmlTransient
+public class User2UserImplAdapter extends XmlAdapter<UserImpl, User> {
 
-	/**
-	 * @return the default organzation of this user.
-	 */
-	public Organization getOrganization();
+	@Override
+	public UserImpl marshal(User user) throws Exception {
+		if (user == null) {
+			return null;
+		}
+		if (EntityProxyInterceptor.isEntityProxy(user)) {
+			user = EntityProxyInterceptor.unwrap(user);
+		}
+		return (UserImpl) user;
+	}
 
-	/**
-	 * set the default organization of this user.
-	 * 
-	 * @param organization
-	 */
-	public void setOrganization(Organization organization);
+	@Override
+	public User unmarshal(UserImpl user) throws Exception {
+		return user;
+	}
+
 }

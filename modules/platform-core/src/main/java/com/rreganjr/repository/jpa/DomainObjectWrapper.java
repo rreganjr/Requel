@@ -36,13 +36,8 @@ import jakarta.persistence.Entity;
 import org.apache.log4j.Logger;
 import org.hibernate.proxy.HibernateProxy;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
 import org.springframework.cglib.proxy.Enhancer;
 import org.springframework.cglib.proxy.Factory;
-
-import com.rreganjr.requel.user.UserSet;
-import com.rreganjr.requel.user.impl.UserSetImpl;
 
 /**
  * A component that takes an object and if it is a persistent entity or
@@ -51,12 +46,11 @@ import com.rreganjr.requel.user.impl.UserSetImpl;
  * 
  * @author ron
  */
-@Component("domainObjectWrapper")
-@Scope("singleton")
 public class DomainObjectWrapper {
 	protected static final Logger log = Logger.getLogger(DomainObjectWrapper.class);
 
 	private final Map<Class<?>, Factory> factoryMap = new HashMap<Class<?>, Factory>();
+
 	private final PersistenceContextHelper persistenceContextHelper;
 
 	private Map<Class<?>, Integer> staleTimeoutMap;
@@ -96,9 +90,7 @@ public class DomainObjectWrapper {
 	public Object wrapPersistentEntities(Object object, long timeStamp) {
 		if (object instanceof Collection<?>) {
 			Collection<?> collection = (Collection<?>) object;
-			if (collection instanceof UserSet) {
-				object = wrapUserSetEntries((UserSet) collection, timeStamp);
-			} else if (collection instanceof SortedSet<?>) {
+			if (collection instanceof SortedSet<?>) {
 				object = wrapCollectionEntries(new TreeSet<Object>(((SortedSet) collection)
 						.comparator()), collection, timeStamp);
 			} else if (collection instanceof Set<?>) {
@@ -115,15 +107,6 @@ public class DomainObjectWrapper {
 			object = wrapEntity(object, timeStamp);
 		}
 		return object;
-	}
-
-	// TODO: the UserSet may not be needed
-	protected UserSet wrapUserSetEntries(UserSet collection, long timeStamp) {
-		Set<Object> set = new HashSet<Object>(collection.size());
-		for (Object entity : collection) {
-			set.add(wrapEntity(entity, timeStamp));
-		}
-		return new UserSetImpl(set);
 	}
 
 	protected Object wrapCollectionEntries(Collection<Object> newCollection,
@@ -203,4 +186,9 @@ public class DomainObjectWrapper {
 		}
 		return 1000;
 	}
+
+	protected PersistenceContextHelper getPersistenceContextHelper() {
+		return persistenceContextHelper;
+	}
+
 }

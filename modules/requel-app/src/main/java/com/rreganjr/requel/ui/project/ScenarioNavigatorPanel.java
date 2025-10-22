@@ -153,7 +153,7 @@ public class ScenarioNavigatorPanel extends NavigatorTablePanel {
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						AbstractProjectOrDomainEntity entity = (AbstractProjectOrDomainEntity) model
 								.getBackingObject(row);
-						return entity.getCreatedBy().getUsername();
+						return entity.getCreatedBy().getDisplayName();
 					}
 				}));
 

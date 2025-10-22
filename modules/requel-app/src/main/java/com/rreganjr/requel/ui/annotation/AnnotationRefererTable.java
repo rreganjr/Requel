@@ -160,7 +160,7 @@ public class AnnotationRefererTable extends AbstractRequelNavigatorTable {
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Object annotationReferer = model.getBackingObject(row);
 						if (annotationReferer instanceof CreatedEntity) {
-							return ((CreatedEntity) annotationReferer).getCreatedBy().getUsername();
+							return ((CreatedEntity) annotationReferer).getCreatedBy().getDisplayName();
 						}
 						return "";
 					}

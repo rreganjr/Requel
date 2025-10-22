@@ -14,7 +14,7 @@
   - `com.rreganjr.requel.project.impl.assistant` depends on `com.rreganjr.nlp` and injects NLP types into entities and commands; this ties analysis to the domain model.
   - `com.rreganjr.requel.annotation.impl.AbstractAnnotation` hard-codes entity implementations (`ProjectImpl`, `ScenarioImpl`, etc.), pulling annotation logic into the project module.
   - `com.rreganjr.requel.utils.jaxb` mixes general-purpose helpers with project/user aware JAXB patchers, creating back edges into the domain.
-  - `com.rreganjr.repository.jpa.DomainObjectWrapper` references `UserSetImpl`, producing a repository → user-impl dependency.
+  - `com.rreganjr.repository.jpa.UserAwareDomainObjectWrapper` references `UserSetImpl`, producing a repository → user-impl dependency.
 - **Infrastructure**: `SystemInitializer` lives at the root package and is implemented by project, user, and NLP initializers. The Spring Boot `Application` bootstraps Echo servlets and scans `com.rreganjr.requel` and `com.rreganjr.nlp`.
 - **Tests**: Concentrated in `src/test/java/com/rreganjr/requel/...`, tightly coupled to concrete implementations.
 

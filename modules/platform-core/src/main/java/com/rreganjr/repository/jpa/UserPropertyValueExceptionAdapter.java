@@ -25,7 +25,7 @@ import org.hibernate.PropertyValueException;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.EntityExceptionAdapter;
-import com.rreganjr.requel.EntityValidationException;
+import com.rreganjr.validator.EntityValidationException;
 
 /**
  * @author ron

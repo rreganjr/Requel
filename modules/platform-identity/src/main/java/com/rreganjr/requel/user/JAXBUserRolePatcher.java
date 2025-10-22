@@ -18,15 +18,11 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.utils.jaxb;
+package com.rreganjr.requel.user;
 
 import org.xml.sax.SAXException;
 
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
-
-import com.rreganjr.requel.user.UserRepository;
-import com.rreganjr.requel.user.UserRole;
-import com.rreganjr.requel.user.UserRolePermission;
 
 /**
  * This is used to swap the UserRolePermission object on UserRole objects

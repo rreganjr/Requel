@@ -20,8 +20,11 @@
  */
 package com.rreganjr.requel.ui.project;
 
+import java.io.Serial;
 import java.text.MessageFormat;
 
+import com.rreganjr.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidValue;
 import nextapp.echo2.app.Button;
 import nextapp.echo2.app.TextArea;
 import nextapp.echo2.app.TextField;
@@ -33,8 +36,6 @@ import nextapp.echo2.app.filetransfer.UploadSelect;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
-import com.rreganjr.validator.InvalidStateException;
-import com.rreganjr.validator.InvalidValue;
 
 import echopointng.text.StringDocumentEx;
 import com.rreganjr.command.CommandHandler;
@@ -58,7 +59,8 @@ import net.sf.echopm.navigation.event.UpdateEntityEvent;
 public class ReportGeneratorEditorPanel extends AbstractRequelProjectEditorPanel {
 	private static final Logger log = Logger.getLogger(ReportGeneratorEditorPanel.class);
 
-	static final long serialVersionUID = 0L;
+	@Serial
+    private static final long serialVersionUID = 0L;
 
 	/**
 	 * The name to use in the ReportGeneratorEditorPanel.properties file to set

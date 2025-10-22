@@ -33,7 +33,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.repository.Repository;
 import com.rreganjr.platform.exception.EntityLockException;
-import com.rreganjr.requel.EntityValidationException;
+import com.rreganjr.validator.EntityValidationException;
 
 /**
  * A command handler that wraps another command handler and traps exceptions

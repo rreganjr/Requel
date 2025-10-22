@@ -164,7 +164,7 @@ public class GlossaryTermsTable extends AbstractRequelNavigatorTable {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						GlossaryTerm glossaryTerm = (GlossaryTerm) model.getBackingObject(row);
-						return glossaryTerm.getCreatedBy().getUsername();
+						return glossaryTerm.getCreatedBy().getDisplayName();
 					}
 				}));
 

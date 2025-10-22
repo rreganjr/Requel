@@ -26,6 +26,8 @@ import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.TreeSet;
 
+import com.rreganjr.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidValue;
 import nextapp.echo2.app.Alignment;
 import nextapp.echo2.app.Button;
 import nextapp.echo2.app.Column;
@@ -38,8 +40,6 @@ import nextapp.echo2.app.layout.ColumnLayoutData;
 import nextapp.echo2.app.layout.RowLayoutData;
 
 import org.apache.log4j.Logger;
-import com.rreganjr.validator.InvalidStateException;
-import com.rreganjr.validator.InvalidValue;
 
 import echopointng.text.StringDocumentEx;
 import com.rreganjr.command.CommandHandler;
@@ -317,7 +317,7 @@ public class GoalEditorPanel extends AbstractRequelProjectEditorPanel {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						GoalRelation goalRelation = (GoalRelation) model.getBackingObject(row);
-						return goalRelation.getCreatedBy().getUsername();
+						return goalRelation.getCreatedBy().getDisplayName();
 					}
 				}));
 

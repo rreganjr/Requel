@@ -18,15 +18,12 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.utils.jaxb;
+package com.rreganjr.requel.user;
 
 import org.xml.sax.SAXException;
 
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
 
-import com.rreganjr.requel.OrganizedEntity;
-import com.rreganjr.requel.user.Organization;
-import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.exception.NoSuchOrganizationException;
 
 /**

@@ -20,19 +20,16 @@
  */
 package com.rreganjr.requel.user;
 
-import java.util.Comparator;
 import java.util.Set;
 
-import com.rreganjr.requel.EntityValidationException;
-import com.rreganjr.requel.OrganizedEntity;
-import com.rreganjr.requel.user.exception.NoSuchRoleForUserException;
+import com.rreganjr.validator.EntityValidationException;
 
 /**
  * A user of the system.
  *
  * @author ron
  */
-public interface User extends Comparable<User>, OrganizedEntity, com.rreganjr.platform.identity.User {
+public interface User extends OrganizedEntity, com.rreganjr.platform.identity.User {
 
 	/**
 	 * The users real name userful for identifying the user in documents or
@@ -68,14 +65,6 @@ public interface User extends Comparable<User>, OrganizedEntity, com.rreganjr.pl
 	 */
 	public void setUsername(String username);
 
-	/**
-	 * if the user has a name then return the form "<name> [ <username> ]"
-	 * otherwise return "<username>"
-	 * 
-	 * @return The user's name (if it exists) plus the username
-	 */
-	public String getDescriptiveName();
-	
 	/**
 	 * Reset the user's password to the supplied plain text string.
 	 * 
@@ -158,30 +147,6 @@ public interface User extends Comparable<User>, OrganizedEntity, com.rreganjr.pl
 	public Set<UserRole> getUserRoles();
 
 	/**
-	 * Return the role object for the specified type. A user can only have one
-	 * role per type.
-	 * 
-	 * @param <T> -
-	 *            the class of user role being retrieved
-	 * @param roleType -
-	 *            The type (class) of the role being requested.
-	 * @return the role object for the specified type
-	 * @throws NoSuchRoleForUserException -
-	 *             if the user doesn't have a role for the supplied type
-	 */
-	public <T extends UserRole> T getRoleForType(Class<T> roleType)
-			throws NoSuchRoleForUserException;
-
-	/**
-	 * Return true if the user is assigned to the supplied role type.
-	 * 
-	 * @param roleType -
-	 *            The UserRoleType of the role being tested.
-	 * @return - true if the user is assigned to the supplied role type.
-	 */
-	public boolean hasRole(Class<? extends UserRole> roleType);
-
-	/**
 	 * grant the specified role to the user.
 	 * 
 	 * @param userRoleType -
@@ -206,30 +171,5 @@ public interface User extends Comparable<User>, OrganizedEntity, com.rreganjr.pl
 	 * @return
 	 */
 	public boolean equalsById(User other);
-
-	/**
-	 * a Comparator for comparing two users, ordered by username
-	 */
-	public static Comparator<User> UserComparator = new Comparator<User>() {
-		public int compare(User o1, User o2) {
-			// this catches the case of when a user's username has changed
-			// TODO: if the new username sorts before the original then the
-			// username comparator may terminate the sorting before the actual
-			// user is found.
-			if (o1.equals(o2)) {
-				return 0;
-			}
-			return UsernameComparator.compare(o1.getUsername(), o2.getUsername());
-		}
-	};
-
-	/**
-	 * Compare two username strings.
-	 */
-	public static Comparator<String> UsernameComparator = new Comparator<String>() {
-		public int compare(String o1, String o2) {
-			return o1.toLowerCase().compareTo(o2.toLowerCase());
-		}
-	};
 
 }

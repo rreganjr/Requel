@@ -23,11 +23,11 @@ package com.rreganjr.requel.utils.jaxb;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
+import com.rreganjr.platform.identity.User;
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
 import org.xml.sax.SAXException;
 
 import com.rreganjr.requel.CreatedEntity;
-import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 

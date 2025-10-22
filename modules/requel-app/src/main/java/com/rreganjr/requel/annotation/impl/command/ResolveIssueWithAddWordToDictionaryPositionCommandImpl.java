@@ -28,7 +28,7 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.nlp.dictionary.command.DictionaryCommandFactory;
 import com.rreganjr.nlp.dictionary.command.EditDictionaryWordCommand;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
-import com.rreganjr.requel.EntityValidationException;
+import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.impl.AddWordToDictionaryPosition;

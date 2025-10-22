@@ -38,7 +38,7 @@ public class UserImplTest extends TestCase {
         assertEquals(defaultOrganization, user.getOrganization());
         assertEquals(defaultEditable, user.isEditable());
         assertEquals(defaultUserRoles, user.getUserRoles()); // by default the roles are empty.
-        assertNotNull(user.getDescriptiveName());
+        assertNotNull(user.getDisplayName());
     }
 
     public void testNullName() {
@@ -51,7 +51,7 @@ public class UserImplTest extends TestCase {
         assertEquals(defaultOrganization, user.getOrganization());
         assertEquals(defaultEditable, user.isEditable());
         assertEquals(defaultUserRoles, user.getUserRoles()); // by default the roles are empty.
-        assertNotNull(user.getDescriptiveName()); // if name is null a descriptive name is still generated
+        assertNotNull(user.getDisplayName()); // if name is null a descriptive name is still generated
     }
 
     public void testNoArgsConstructor() {

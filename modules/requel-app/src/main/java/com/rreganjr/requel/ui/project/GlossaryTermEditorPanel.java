@@ -22,6 +22,8 @@ package com.rreganjr.requel.ui.project;
 
 import java.text.MessageFormat;
 
+import com.rreganjr.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidValue;
 import nextapp.echo2.app.Button;
 import nextapp.echo2.app.TextArea;
 import nextapp.echo2.app.TextField;
@@ -31,8 +33,6 @@ import nextapp.echo2.app.event.ChangeEvent;
 import nextapp.echo2.app.event.ChangeListener;
 
 import org.apache.log4j.Logger;
-import com.rreganjr.validator.InvalidStateException;
-import com.rreganjr.validator.InvalidValue;
 
 import echopointng.text.StringDocumentEx;
 import com.rreganjr.command.CommandHandler;

@@ -28,13 +28,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.rreganjr.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidValue;
 import nextapp.echo2.app.Component;
 import nextapp.echo2.app.PasswordField;
 import nextapp.echo2.app.TextField;
 
 import org.apache.log4j.Logger;
-import com.rreganjr.validator.InvalidStateException;
-import com.rreganjr.validator.InvalidValue;
 
 import echopointng.ComboBox;
 import echopointng.text.StringDocumentEx;

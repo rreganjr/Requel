@@ -242,7 +242,7 @@ public class ProjectOpenIssuesNavigatorPanel extends NavigatorTablePanel {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Annotation annotation = (Annotation) model.getBackingObject(row);
-						return annotation.getCreatedBy().getUsername();
+						return annotation.getCreatedBy().getDisplayName();
 					}
 				}));
 

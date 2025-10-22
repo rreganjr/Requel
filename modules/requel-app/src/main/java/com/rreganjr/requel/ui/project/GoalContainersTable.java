@@ -155,7 +155,7 @@ public class GoalContainersTable extends AbstractRequelNavigatorTable {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						GoalContainer goalContainer = (GoalContainer) model.getBackingObject(row);
-						return goalContainer.getCreatedBy().getUsername();
+						return goalContainer.getCreatedBy().getDisplayName();
 					}
 				}));
 

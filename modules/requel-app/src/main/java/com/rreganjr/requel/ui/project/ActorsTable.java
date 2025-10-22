@@ -281,7 +281,7 @@ public class ActorsTable extends AbstractRequelNavigatorTable {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Actor actor = (Actor) model.getBackingObject(row);
-						return actor.getCreatedBy().getUsername();
+						return actor.getCreatedBy().getDisplayName();
 					}
 				}));
 

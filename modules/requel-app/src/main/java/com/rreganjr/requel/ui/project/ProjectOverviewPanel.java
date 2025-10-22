@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.text.MessageFormat;
 
+import com.rreganjr.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidValue;
 import nextapp.echo2.app.Label;
 import nextapp.echo2.app.TextArea;
 import nextapp.echo2.app.TextField;
@@ -33,8 +35,6 @@ import nextapp.echo2.app.event.ActionListener;
 import nextapp.echo2.app.filetransfer.DownloadProvider;
 
 import org.apache.log4j.Logger;
-import com.rreganjr.validator.InvalidStateException;
-import com.rreganjr.validator.InvalidValue;
 
 import echopointng.ComboBox;
 import echopointng.text.StringDocumentEx;
@@ -49,7 +49,7 @@ import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.ExportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.ui.annotation.AnnotationsTable;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import net.sf.echopm.navigation.DownloadButton;
 import net.sf.echopm.navigation.event.DeletedEntityEvent;
@@ -195,15 +195,7 @@ public class ProjectOverviewPanel extends AbstractRequelProjectEditorPanel {
 					new CombinedTextListModel(getUserRepository().getOrganizationNames(), project
 							.getOrganization().getName()));
 
-			User createdBy = project.getCreatedBy();
-			StringBuilder sb = new StringBuilder(50);
-			sb.append(createdBy.getUsername());
-			if ((createdBy.getName() != null) && (createdBy.getName().length() > 0)) {
-				sb.append(" [");
-				sb.append(createdBy.getName());
-				sb.append("]");
-			}
-			addInput("createdBy", PROP_LABEL_CREATED_BY, "CreatedBy", new Label(), sb.toString());
+			addInput("createdBy", PROP_LABEL_CREATED_BY, "CreatedBy", new Label(), project.getCreatedBy().getDisplayName());
 			addMultiRowInput("annotations", AnnotationsTable.PROP_LABEL_ANNOTATIONS, "Annotations",
 					new AnnotationsTable(this, getResourceBundleHelper(getLocale())), project);
 

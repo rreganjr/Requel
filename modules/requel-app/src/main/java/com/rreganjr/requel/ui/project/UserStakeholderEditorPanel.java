@@ -27,6 +27,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.rreganjr.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidValue;
 import nextapp.echo2.app.SelectField;
 import nextapp.echo2.app.event.ActionEvent;
 import nextapp.echo2.app.event.ActionListener;
@@ -62,8 +64,6 @@ import net.sf.echopm.panel.editor.CheckBoxTreeSet;
 import net.sf.echopm.panel.editor.CheckBoxTreeSetModel;
 import net.sf.echopm.panel.editor.CombinedListModel;
 import net.sf.echopm.panel.editor.CombinedTextListModel;
-import com.rreganjr.validator.InvalidStateException;
-import com.rreganjr.validator.InvalidValue;
 
 /**
  * Panel for creating or editing a user stakeholder.

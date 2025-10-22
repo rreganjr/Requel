@@ -59,7 +59,7 @@ import com.rreganjr.requel.user.Organization;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.OrganizationImpl;
-import com.rreganjr.requel.utils.jaxb.JAXBOrganizedEntityPatcher;
+import com.rreganjr.requel.user.JAXBOrganizedEntityPatcher;
 import com.rreganjr.requel.utils.jaxb.JAXBAnnotatablePatcher;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 

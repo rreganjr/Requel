@@ -282,7 +282,7 @@ public class GoalsTable extends AbstractRequelNavigatorTable {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Goal goal = (Goal) model.getBackingObject(row);
-						return goal.getCreatedBy().getUsername();
+						return goal.getCreatedBy().getDisplayName();
 					}
 				}));
 

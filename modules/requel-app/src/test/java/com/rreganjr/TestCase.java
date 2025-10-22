@@ -9,10 +9,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
 
-import com.rreganjr.requel.user.impl.UserImpl;
 import junit.framework.AssertionFailedError;
 
 /**

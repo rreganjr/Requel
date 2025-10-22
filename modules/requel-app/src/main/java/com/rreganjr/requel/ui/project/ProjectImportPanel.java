@@ -26,6 +26,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 
+import com.rreganjr.validator.InvalidStateException;
+import com.rreganjr.validator.InvalidValue;
 import nextapp.echo2.app.CheckBox;
 import nextapp.echo2.app.TextField;
 import nextapp.echo2.app.event.ActionEvent;
@@ -36,8 +38,6 @@ import nextapp.echo2.app.filetransfer.UploadSelect;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.log4j.Logger;
-import com.rreganjr.validator.InvalidStateException;
-import com.rreganjr.validator.InvalidValue;
 
 import echopointng.text.StringDocumentEx;
 import com.rreganjr.command.CommandHandler;

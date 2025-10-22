@@ -160,7 +160,7 @@ public class ActorContainersTable extends AbstractRequelNavigatorTable {
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						ActorContainer ActorContainer = (ActorContainer) model
 								.getBackingObject(row);
-						return ActorContainer.getCreatedBy().getUsername();
+						return ActorContainer.getCreatedBy().getDisplayName();
 					}
 				}));
 

@@ -22,9 +22,10 @@
 
 package com.rreganjr.repository.jpa;
 
+import junit.framework.Assert;
 import net.sf.echopm.EchoPMApp;
 
-import org.junit.Assert;
+
 import org.springframework.aop.aspectj.AspectJExpressionPointcut;
 import org.springframework.aop.support.AopUtils;
 

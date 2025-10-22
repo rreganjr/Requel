@@ -92,7 +92,7 @@ public class UseCaseSelectorPanel extends SelectorTablePanel {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						UseCase usecase = (UseCase) model.getBackingObject(row);
-						return usecase.getCreatedBy().getUsername();
+						return usecase.getCreatedBy().getDisplayName();
 					}
 				}));
 

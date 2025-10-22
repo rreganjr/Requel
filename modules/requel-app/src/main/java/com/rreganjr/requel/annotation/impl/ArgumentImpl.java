@@ -23,6 +23,7 @@ package com.rreganjr.requel.annotation.impl;
 import java.io.Serializable;
 import java.util.Date;
 
+import com.rreganjr.platform.identity.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -49,7 +50,6 @@ import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.ArgumentPositionSupportLevel;
 import com.rreganjr.requel.annotation.Position;
-import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
