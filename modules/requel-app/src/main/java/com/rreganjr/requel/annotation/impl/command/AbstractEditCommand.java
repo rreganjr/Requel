@@ -25,7 +25,7 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.command.EditCommand;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron

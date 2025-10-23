@@ -33,7 +33,7 @@ import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.ResolveIssueCommand;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron

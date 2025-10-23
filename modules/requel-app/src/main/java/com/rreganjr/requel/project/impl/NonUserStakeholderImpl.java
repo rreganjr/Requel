@@ -43,7 +43,7 @@ import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.NonUserStakeholder;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.Stakeholder;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
@@ -69,7 +69,7 @@ public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUs
 	 * @param name
 	 */
 	public NonUserStakeholderImpl(ProjectOrDomain projectOrDomain, User createdBy, String name) {
-		super(NonUserStakeholder.class.getName(), projectOrDomain, createdBy, name);
+		super(NonUserStakeholder.class.getName(), projectOrDomain, (com.rreganjr.requel.user.User)createdBy, name);
 		projectOrDomain.getStakeholders().add(this);
 	}
 

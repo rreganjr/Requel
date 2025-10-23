@@ -28,7 +28,7 @@ import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.ui.AbstractRequelEditorPanel;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron

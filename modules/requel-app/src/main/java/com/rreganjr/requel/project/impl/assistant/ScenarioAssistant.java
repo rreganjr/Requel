@@ -22,7 +22,7 @@ package com.rreganjr.requel.project.impl.assistant;
 
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Analyses a scenario and adds annotations with suggestions.

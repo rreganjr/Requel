@@ -30,7 +30,7 @@ import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.TextEntity;
 import com.rreganjr.requel.project.UseCase;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * The Project Assistant analyzes the entities of a project via entity specific

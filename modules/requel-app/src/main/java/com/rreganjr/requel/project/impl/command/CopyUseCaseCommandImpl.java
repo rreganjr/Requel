@@ -39,7 +39,7 @@ import com.rreganjr.requel.project.command.CopyUseCaseCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.UseCaseImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 
 /**

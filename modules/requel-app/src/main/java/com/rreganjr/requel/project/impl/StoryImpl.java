@@ -23,6 +23,7 @@ package com.rreganjr.requel.project.impl;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.rreganjr.platform.identity.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -67,7 +68,7 @@ import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.StoryType;
-import com.rreganjr.requel.user.User;
+
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
@@ -98,7 +99,7 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 	 * @param storyType
 	 */
 	public StoryImpl(ProjectOrDomain projectOrDomain, User createdBy, String name, String text,
-			StoryType storyType) {
+					 StoryType storyType) {
 		super(projectOrDomain, createdBy, name, text);
 		// add to collection last so that sorting in the collection by entity
 		// properties has access to all the properties.

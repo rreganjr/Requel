@@ -90,7 +90,7 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 	 * @param user
 	 * @param createdBy
 	 */
-	public UserStakeholderImpl(ProjectOrDomain projectOrDomain, User createdBy, User user) {
+	public UserStakeholderImpl(ProjectOrDomain projectOrDomain, com.rreganjr.platform.identity.User createdBy, User user) {
 		super(UserStakeholder.class.getName(), projectOrDomain, createdBy, null);
 		setUser(user);
 		// add to collection last so that sorting in the collection by entity
@@ -125,11 +125,7 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 	@XmlTransient
 	@Transient
 	public String getDescription() {
-		String displayLabel = getDisplayLabel();
-		if ((displayLabel == null) || displayLabel.isEmpty()) {
-			displayLabel = "Stakeholder";
-		}
-		return "Stakeholder: " + displayLabel;
+		return "Stakeholder: " + getDisplayName();
 	}
 
 	@XmlElement(name = "user", type = UserImpl.class, nillable = false, required = true, namespace = "http://www.rreganjr.com/requel")
@@ -215,7 +211,7 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 	}
 
 	@Override
-	public boolean matchesUser(User user) {
+	public boolean matchesUser(com.rreganjr.platform.identity.User user) {
 		return (user != null) && user.equals(getUser());
 	}
 

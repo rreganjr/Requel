@@ -8,7 +8,7 @@ import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.EditProjectCommand;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import org.junit.Assert;
 
 public class EditProjectCommandImplTest extends AbstractIntegrationTestCase {

@@ -31,7 +31,7 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.EditChangeSpellingPositionCommand;
 import com.rreganjr.requel.annotation.impl.ChangeSpellingPosition;
 import com.rreganjr.requel.annotation.impl.LexicalIssue;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Create or edit a position for changing the spelling of a word in an entity.

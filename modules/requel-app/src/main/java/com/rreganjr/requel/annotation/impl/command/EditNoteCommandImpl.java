@@ -34,7 +34,7 @@ import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.EditNoteCommand;
 import com.rreganjr.requel.annotation.impl.NoteImpl;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Create or edit a note annotation on an annotatable entity.

@@ -9,7 +9,7 @@ import java.io.InputStream;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron

@@ -50,7 +50,7 @@ import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.EditGoalRelationCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.ui.annotation.AnnotationsTable;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import net.sf.echopm.navigation.event.DeletedEntityEvent;
 import net.sf.echopm.navigation.event.UpdateEntityEvent;
 import net.sf.echopm.panel.editor.CombinedListModel;

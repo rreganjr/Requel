@@ -31,7 +31,7 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.EditAddWordToDictionaryPositionCommand;
 import com.rreganjr.requel.annotation.impl.AddWordToDictionaryPosition;
 import com.rreganjr.requel.annotation.impl.LexicalIssue;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron

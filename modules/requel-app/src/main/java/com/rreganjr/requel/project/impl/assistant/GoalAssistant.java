@@ -22,7 +22,7 @@ package com.rreganjr.requel.project.impl.assistant;
 
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalRelation;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Analyses goals and adds annotations with suggestions.

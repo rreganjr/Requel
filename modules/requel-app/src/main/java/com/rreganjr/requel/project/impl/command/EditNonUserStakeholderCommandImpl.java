@@ -37,7 +37,7 @@ import com.rreganjr.requel.project.command.EditNonUserStakeholderCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.NonUserStakeholderImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 
 /**

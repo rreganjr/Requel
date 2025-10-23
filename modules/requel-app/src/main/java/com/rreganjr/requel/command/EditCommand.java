@@ -21,7 +21,7 @@
 package com.rreganjr.requel.command;
 
 import com.rreganjr.command.Command;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * An abstraction of a command where a user is creating or editing something.

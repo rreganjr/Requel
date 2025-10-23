@@ -42,7 +42,7 @@ import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.impl.AbstractProjectOrDomainEntity;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import net.sf.echopm.navigation.NavigatorButton;
 import net.sf.echopm.navigation.WorkflowDisposition;
 import net.sf.echopm.navigation.event.ClosePanelEvent;

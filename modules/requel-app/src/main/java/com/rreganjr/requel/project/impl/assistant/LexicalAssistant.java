@@ -61,7 +61,7 @@ import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveUnneedLexicalIssuesCommand;
 import com.rreganjr.requel.project.exception.NoSuchActorException;
 import com.rreganjr.requel.project.exception.NoSuchGlossaryTermException;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * The lexical assistant checks spelling and identifies noun phrases that may be

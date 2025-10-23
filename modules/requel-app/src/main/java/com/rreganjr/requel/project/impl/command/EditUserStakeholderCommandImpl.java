@@ -22,6 +22,7 @@ package com.rreganjr.requel.project.impl.command;
 
 import java.util.Set;
 
+import com.rreganjr.requel.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
@@ -44,7 +45,7 @@ import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ProjectTeamImpl;
 import com.rreganjr.requel.project.impl.UserStakeholderImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
-import com.rreganjr.requel.user.User;
+
 import com.rreganjr.requel.user.UserRepository;
 
 /**
@@ -114,8 +115,8 @@ public class EditUserStakeholderCommandImpl extends AbstractEditProjectOrDomainE
 	@Override
 	public void execute() {
 		ProjectOrDomain projectOrDomain = getProjectRepository().get(getProjectOrDomain());
-		User editedBy = getProjectRepository().get(getEditedBy());
-		User user = getUserRepository().findUserByUsername(getUsername());
+		com.rreganjr.platform.identity.User editedBy = getProjectRepository().get(getEditedBy());
+		com.rreganjr.requel.user.User user = getUserRepository().findUserByUsername(getUsername());
 
 		UserStakeholderImpl stakeholderImpl = (UserStakeholderImpl) getStakeholder();
 

@@ -7,7 +7,7 @@ import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import org.junit.Assert;
 
 /**

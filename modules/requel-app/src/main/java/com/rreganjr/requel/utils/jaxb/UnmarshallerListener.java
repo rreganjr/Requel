@@ -30,7 +30,7 @@ import org.apache.log4j.Logger;
 
 import com.rreganjr.repository.Repository;
 import com.rreganjr.requel.project.ProjectRepository;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 
 /**

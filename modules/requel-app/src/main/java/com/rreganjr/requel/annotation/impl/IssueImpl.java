@@ -48,7 +48,7 @@ import org.xml.sax.SAXException;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.annotation.impl.PositionImpl.Position2PositionImplAdapter;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;

@@ -35,7 +35,7 @@ import com.rreganjr.requel.project.command.CopyScenarioStepCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.StepImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 
 /**

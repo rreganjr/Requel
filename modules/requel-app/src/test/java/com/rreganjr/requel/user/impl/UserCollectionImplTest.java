@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Iterator;
 
 import com.rreganjr.TestCase;
+
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserSet;
 

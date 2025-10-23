@@ -28,7 +28,7 @@ import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.project.impl.AddActorPosition;
 import com.rreganjr.requel.project.impl.AddGlossaryTermPosition;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * A repository for holding projects and project entities.

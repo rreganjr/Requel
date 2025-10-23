@@ -11,7 +11,7 @@ import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.impl.assistant.LexicalAssistant;
 import com.rreganjr.requel.project.impl.assistant.ProjectAssistant;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron

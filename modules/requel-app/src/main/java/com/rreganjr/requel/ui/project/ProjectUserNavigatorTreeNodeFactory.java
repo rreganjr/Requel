@@ -33,7 +33,7 @@ import echopointng.tree.TreePath;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectUserRole;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import net.sf.echopm.navigation.WorkflowDisposition;
 import net.sf.echopm.navigation.event.EventDispatcher;
 import net.sf.echopm.navigation.event.NavigationEvent;

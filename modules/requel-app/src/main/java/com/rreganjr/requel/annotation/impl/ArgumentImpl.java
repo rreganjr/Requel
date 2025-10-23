@@ -23,7 +23,7 @@ package com.rreganjr.requel.annotation.impl;
 import java.io.Serializable;
 import java.util.Date;
 
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

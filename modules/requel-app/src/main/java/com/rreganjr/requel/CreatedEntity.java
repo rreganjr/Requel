@@ -22,9 +22,10 @@
  */
 package com.rreganjr.requel;
 
+import com.rreganjr.platform.identity.User;
+
 import java.util.Date;
 
-import com.rreganjr.requel.user.User;
 
 /**
  * @author ron

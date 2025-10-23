@@ -20,7 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.assistant;
 
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Analyses stories and adds annotations with suggestions.

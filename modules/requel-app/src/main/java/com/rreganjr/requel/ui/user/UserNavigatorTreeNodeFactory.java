@@ -26,7 +26,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import echopointng.tree.MutableTreeNode;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import net.sf.echopm.navigation.WorkflowDisposition;
 import net.sf.echopm.navigation.event.EventDispatcher;
 import net.sf.echopm.navigation.event.NavigationEvent;

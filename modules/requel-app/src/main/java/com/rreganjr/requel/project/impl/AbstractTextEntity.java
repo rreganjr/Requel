@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl;
 
+import com.rreganjr.platform.identity.User;
 import jakarta.persistence.Lob;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.xml.bind.annotation.XmlElement;
@@ -27,7 +28,6 @@ import jakarta.xml.bind.annotation.XmlType;
 
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.TextEntity;
-import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
@@ -47,7 +47,7 @@ public abstract class AbstractTextEntity extends AbstractProjectOrDomainEntity i
 	 * @param text
 	 */
 	protected AbstractTextEntity(ProjectOrDomain projectOrDomain, User createdBy, String name,
-			String text) {
+								 String text) {
 		super(projectOrDomain, createdBy, name);
 		setText(text);
 

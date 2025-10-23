@@ -24,6 +24,8 @@ package com.rreganjr.requel.project.impl;
 import java.util.Set;
 import java.util.TreeSet;
 
+
+import com.rreganjr.requel.user.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
@@ -45,7 +47,6 @@ import jakarta.xml.bind.annotation.XmlType;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.Stakeholder;
-import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.impl.UserImpl;
 
 /**
@@ -72,7 +73,7 @@ public abstract class AbstractStakeholder extends AbstractProjectOrDomainEntity 
 	 * @param createdBy
 	 * @param name
 	 */
-	protected AbstractStakeholder(String type, ProjectOrDomain projectOrDomain, User createdBy,
+	protected AbstractStakeholder(String type, ProjectOrDomain projectOrDomain, com.rreganjr.platform.identity.User createdBy,
 			String name) {
 		super(projectOrDomain, createdBy, name);
 		setType(type);
@@ -129,12 +130,7 @@ public abstract class AbstractStakeholder extends AbstractProjectOrDomainEntity 
 		}
 		User user = getUser();
 		if (user != null) {
-			if (hasText(user.getName())) {
-				return user.getName();
-			}
-			if (hasText(user.getUsername())) {
-				return user.getUsername();
-			}
+			return user.getDisplayName();
 		}
 		return null;
 	}
@@ -158,24 +154,5 @@ public abstract class AbstractStakeholder extends AbstractProjectOrDomainEntity 
 	public String getDisplayPhoneNumber() {
 		User user = getUser();
 		return (user != null) ? user.getPhoneNumber() : null;
-	}
-
-	@Override
-	@Transient
-	public String getDisplayLabel() {
-		String effectiveName = getDisplayName();
-		String username = getDisplayUsername();
-		boolean hasName = hasText(effectiveName);
-		boolean hasUsername = hasText(username);
-		if (hasName && hasUsername) {
-			return effectiveName + " [ " + username + " ]";
-		}
-		if (hasName) {
-			return effectiveName;
-		}
-		if (hasUsername) {
-			return username;
-		}
-		return "";
 	}
 }

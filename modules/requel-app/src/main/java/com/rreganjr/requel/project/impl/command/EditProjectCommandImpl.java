@@ -44,7 +44,7 @@ import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.requel.project.impl.UserStakeholderImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.requel.user.Organization;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.exception.NoSuchOrganizationException;
 import com.rreganjr.requel.user.impl.OrganizationImpl;
@@ -173,7 +173,7 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 
 		// create a stakeholder for the user that creates the project
 		UserStakeholderImpl creatorStakeholder = getProjectRepository().persist(
-				new UserStakeholderImpl(projectImpl, user, user));
+				new UserStakeholderImpl(projectImpl, user, (com.rreganjr.requel.user.User)user));
 		for (StakeholderPermission permission : getProjectRepository()
 				.findAvailableStakeholderPermissions()) {
 			creatorStakeholder.grantStakeholderPermission(permission);
@@ -182,7 +182,7 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 		// TODO: use a command to create the stakeholder
 		// create a stakeholder for assistant
 		User assistantUser = getUserRepository().findUserByUsername("assistant");
-		getProjectRepository().persist(new UserStakeholderImpl(projectImpl, user, assistantUser));
+		getProjectRepository().persist(new UserStakeholderImpl(projectImpl, user, (com.rreganjr.requel.user.User)assistantUser));
 
 		ProjectUserRole role = user.getRoleForType(ProjectUserRole.class);
 		role.getActiveProjects().add(projectImpl);

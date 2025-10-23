@@ -22,8 +22,9 @@ package com.rreganjr.requel.annotation;
 
 import java.util.Set;
 
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.CreatedEntity;
-import com.rreganjr.requel.user.User;
+
 
 /**
  * A position on how to resolve an issue.

@@ -24,7 +24,7 @@ import org.apache.log4j.Logger;
 
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.TextEntity;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Assistant for analyzing entities based on the TextEntity interface, such as

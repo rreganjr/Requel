@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.rreganjr.requel.user.*;
 import com.rreganjr.validator.InvalidStateException;
 import com.rreganjr.validator.InvalidValue;
 import nextapp.echo2.app.Component;
@@ -40,13 +41,7 @@ import echopointng.ComboBox;
 import echopointng.text.StringDocumentEx;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.exception.EntityException;
-import com.rreganjr.requel.user.AbstractUserRole;
-import com.rreganjr.requel.user.Organization;
-import com.rreganjr.requel.user.SystemAdminUserRole;
-import com.rreganjr.requel.user.User;
-import com.rreganjr.requel.user.UserRepository;
-import com.rreganjr.requel.user.UserRole;
-import com.rreganjr.requel.user.UserRolePermission;
+
 import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.user.command.UserCommandFactory;
 import net.sf.echopm.login.InitAppEvent;

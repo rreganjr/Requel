@@ -23,7 +23,7 @@ package com.rreganjr.requel.utils.jaxb;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
 import org.xml.sax.SAXException;
@@ -68,10 +68,10 @@ public class JAXBCreatedEntityPatcher implements Patcher {
 					// new user
 					// TODO: the following causes an exception because the
 					// JAXBUserRolePermissionPatcher hasn't run yet to map
-					// the persistant permissions to the ones created by
+					// the persistent permissions to the ones created by
 					// the xml. Solved by making references to User in
 					// implementors of CreatedEntity cascade
-					// userRepository.persist(createdEntity.getCreatedBy());
+					userRepository.persist(createdEntity.getCreatedBy());
 				}
 			} else {
 				setCreatedBy(createdEntity, defaultCreatedByUser);

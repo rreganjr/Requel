@@ -55,7 +55,7 @@ import com.rreganjr.requel.project.command.DeleteStakeholderCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.ui.annotation.AnnotationsTable;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserSet;
 import net.sf.echopm.navigation.event.DeletedEntityEvent;
@@ -153,7 +153,7 @@ public class UserStakeholderEditorPanel extends AbstractRequelProjectEditorPanel
 					PROP_EXISTING_OBJECT_PANEL_TITLE,
 					getResourceBundleHelper(getLocale()).getString(PROP_PANEL_TITLE,
 							"User Stakeholder: {0}"));
-			String label = getStakeholder().getDisplayLabel();
+			String label = getStakeholder().getDisplayName();
 			if ((label == null) || label.isEmpty()) {
 				label = "Stakeholder";
 			}

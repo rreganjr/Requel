@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.ui;
 
+import com.rreganjr.requel.user.User;
 import nextapp.echo2.app.event.ActionEvent;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +29,7 @@ import org.springframework.stereotype.Controller;
 
 import com.rreganjr.nlp.ui.NLPPanelNames;
 import com.rreganjr.requel.user.SystemAdminUserRole;
-import com.rreganjr.requel.user.User;
+
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRole;
 import net.sf.echopm.login.InitAppEvent;

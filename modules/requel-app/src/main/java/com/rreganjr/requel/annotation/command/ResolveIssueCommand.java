@@ -24,7 +24,7 @@ import com.rreganjr.command.Command;
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Resolve the supplied issue with the supplied position.

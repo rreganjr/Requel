@@ -20,9 +20,9 @@
  */
 package com.rreganjr.requel.project;
 
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.OrganizedEntity;
 import com.rreganjr.requel.annotation.Annotatable;
-import com.rreganjr.requel.user.User;
 
 /**
  * @author ron

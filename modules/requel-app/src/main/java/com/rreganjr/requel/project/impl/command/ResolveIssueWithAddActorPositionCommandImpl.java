@@ -38,7 +38,7 @@ import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.AddActorPosition;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * This resolves an issue with the specified position by adding a word or phrase

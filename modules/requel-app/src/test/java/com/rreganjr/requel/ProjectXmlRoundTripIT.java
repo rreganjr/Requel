@@ -21,6 +21,8 @@ import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
+
+import com.rreganjr.requel.user.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -59,7 +61,7 @@ import com.rreganjr.requel.project.command.ExportProjectCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.repository.init.StakeholderPermissionsInitializer;
-import com.rreganjr.requel.user.User;
+
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.repository.init.AdminUserInitializer;
 import com.rreganjr.requel.user.impl.repository.init.AssistantUserInitializer;

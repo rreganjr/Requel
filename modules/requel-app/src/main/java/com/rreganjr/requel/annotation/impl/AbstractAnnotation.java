@@ -77,7 +77,7 @@ import com.rreganjr.requel.project.impl.StepImpl;
 import com.rreganjr.requel.project.impl.StoryImpl;
 import com.rreganjr.requel.project.impl.UseCaseImpl;
 import com.rreganjr.requel.project.impl.UserStakeholderImpl;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;

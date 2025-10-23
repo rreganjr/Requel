@@ -23,7 +23,7 @@ package com.rreganjr.requel.annotation;
 import java.util.Date;
 import java.util.Set;
 
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron

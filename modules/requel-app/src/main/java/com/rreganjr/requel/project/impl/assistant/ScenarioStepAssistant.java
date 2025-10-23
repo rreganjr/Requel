@@ -34,7 +34,7 @@ import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.UseCase;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Analyses a scenario step and adds annotations with suggestions.

@@ -35,7 +35,7 @@ import jakarta.validation.constraints.NotEmpty;
 
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ReportGenerator;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Generate a report for the project by transforming the project xml via an

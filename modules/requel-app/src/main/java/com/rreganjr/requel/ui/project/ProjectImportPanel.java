@@ -48,7 +48,7 @@ import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import net.sf.echopm.navigation.event.UpdateEntityEvent;
 import net.sf.echopm.panel.editor.ToggleButtonModelEx;

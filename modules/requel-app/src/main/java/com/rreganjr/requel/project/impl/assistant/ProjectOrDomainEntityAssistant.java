@@ -29,7 +29,7 @@ import org.apache.log4j.Logger;
 import com.rreganjr.nlp.NLPText;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Assistant for analyzing entities based on the ProjectOrDomainEntity

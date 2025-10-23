@@ -37,7 +37,7 @@ import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.requel.user.AbstractUserRole;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRolePermission;
 import com.rreganjr.requel.user.exception.NoSuchUserException;

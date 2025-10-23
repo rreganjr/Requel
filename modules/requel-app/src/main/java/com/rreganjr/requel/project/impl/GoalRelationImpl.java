@@ -46,7 +46,7 @@ import com.rreganjr.requel.annotation.impl.AbstractAnnotation;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalRelation;
 import com.rreganjr.requel.project.GoalRelationType;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;

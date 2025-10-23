@@ -34,7 +34,7 @@ import com.rreganjr.requel.annotation.NoSuchAnnotationException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.annotation.impl.IssueImpl;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Create or edit an issue annotation on an annotatable entity.

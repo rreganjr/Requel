@@ -39,7 +39,7 @@ import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.requel.project.impl.UserStakeholderImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
@@ -186,7 +186,7 @@ public class ImportProjectCommandImpl extends AbstractEditProjectCommand impleme
 			}
 			if (!alreadyAStakeholder) {
 				UserStakeholder creatorStakeholder = new UserStakeholderImpl(project, editedBy,
-						user);
+						(com.rreganjr.requel.user.User)user);
 				getProjectRepository().persist(creatorStakeholder);
 				for (StakeholderPermission permission : getProjectRepository()
 						.findAvailableStakeholderPermissions()) {

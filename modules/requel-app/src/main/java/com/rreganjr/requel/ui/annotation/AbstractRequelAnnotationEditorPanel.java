@@ -32,7 +32,7 @@ import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.ui.AbstractRequelEditorPanel;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Base class for Annotation editors with access to an annotation repository.

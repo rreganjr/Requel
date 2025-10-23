@@ -21,7 +21,7 @@
 package com.rreganjr.requel.ui;
 
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import net.sf.echopm.panel.editor.AbstractEditorPanel;
 
 /**

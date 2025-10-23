@@ -50,7 +50,7 @@ import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.ui.AbstractRequelEditorPanel;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import net.sf.echopm.navigation.event.DeletedEntityEvent;
 import net.sf.echopm.navigation.event.UpdateEntityEvent;
 import net.sf.echopm.panel.editor.CombinedListModel;

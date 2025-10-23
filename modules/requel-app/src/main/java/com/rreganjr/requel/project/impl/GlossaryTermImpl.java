@@ -57,7 +57,7 @@ import jakarta.validation.constraints.NotEmpty;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**

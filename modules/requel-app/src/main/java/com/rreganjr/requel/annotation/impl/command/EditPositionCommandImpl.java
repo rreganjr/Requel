@@ -34,7 +34,7 @@ import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.EditPositionCommand;
 import com.rreganjr.requel.annotation.impl.PositionImpl;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron

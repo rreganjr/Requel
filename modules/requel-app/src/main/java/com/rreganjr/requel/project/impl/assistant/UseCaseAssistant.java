@@ -21,7 +21,7 @@
 package com.rreganjr.requel.project.impl.assistant;
 
 import com.rreganjr.requel.project.UseCase;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Analyses a use case and its elements and adds annotations with suggestions.

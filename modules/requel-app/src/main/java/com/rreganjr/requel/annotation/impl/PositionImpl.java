@@ -25,6 +25,7 @@ import java.util.Date;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.rreganjr.platform.identity.User;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
@@ -62,7 +63,7 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
-import com.rreganjr.requel.user.User;
+
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;

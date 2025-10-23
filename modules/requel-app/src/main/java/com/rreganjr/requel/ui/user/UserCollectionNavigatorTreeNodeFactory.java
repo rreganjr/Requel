@@ -22,6 +22,7 @@ package com.rreganjr.requel.ui.user;
 
 import java.util.Enumeration;
 
+import com.rreganjr.requel.user.User;
 import nextapp.echo2.app.Label;
 import nextapp.echo2.app.event.ActionEvent;
 
@@ -29,7 +30,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import echopointng.tree.MutableTreeNode;
-import com.rreganjr.requel.user.User;
+
 import com.rreganjr.requel.user.UserSet;
 import net.sf.echopm.navigation.WorkflowDisposition;
 import net.sf.echopm.navigation.event.EventDispatcher;
@@ -57,7 +58,6 @@ public class UserCollectionNavigatorTreeNodeFactory extends AbstractNavigatorTre
 	public final static String PROP_USERS_NODE_LABEL = "UsersNodeLabel";
 
 	/**
-	 * @param eventDispatcher
 	 */
 	public UserCollectionNavigatorTreeNodeFactory() {
 		super(UserCollectionNavigatorTreeNodeFactory.class.getName(), UserSet.class);

@@ -21,7 +21,7 @@
 package com.rreganjr.requel.ui;
 
 import net.sf.echopm.ResourceBundleHelper;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import net.sf.echopm.panel.editor.AbstractComponent;
 import net.sf.echopm.panel.editor.EditMode;
 

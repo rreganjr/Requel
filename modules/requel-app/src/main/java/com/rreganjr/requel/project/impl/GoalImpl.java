@@ -56,7 +56,7 @@ import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
 import com.rreganjr.requel.project.GoalRelation;
 import com.rreganjr.requel.project.ProjectOrDomain;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron

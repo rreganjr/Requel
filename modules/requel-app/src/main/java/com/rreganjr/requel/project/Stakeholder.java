@@ -21,8 +21,8 @@
  */
 package com.rreganjr.requel.project;
 
-import com.rreganjr.requel.user.User;
 
+import com.rreganjr.platform.identity.User;
 
 /**
  * @author ron
@@ -64,26 +64,6 @@ public interface Stakeholder extends ProjectOrDomainEntity, GoalContainer, Compa
 	default String getDisplayPhoneNumber() {
 		return null;
 	}
-
-	 /**
-	 * Convenience helper for tables/navigation trees that need a combined label.
-	 */
-	 default String getDisplayLabel() {
-	 	String effectiveName = getDisplayName();
-	 	String username = getDisplayUsername();
-	 	boolean hasName = (effectiveName != null) && !effectiveName.isEmpty();
-	 	boolean hasUsername = (username != null) && !username.isEmpty();
-	 	if (hasName && hasUsername) {
-	 		return effectiveName + " [ " + username + " ]";
-	 	}
-	 	if (hasName) {
-	 		return effectiveName;
-	 	}
-	 	if (hasUsername) {
-	 		return username;
-	 	}
-	 	return getDescription();
-	 }
 
 	 /**
 	 * @return {@code true} when this stakeholder represents the supplied user.

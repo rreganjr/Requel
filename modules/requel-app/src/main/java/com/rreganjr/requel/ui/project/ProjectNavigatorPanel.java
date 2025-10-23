@@ -31,7 +31,7 @@ import org.apache.log4j.Logger;
 
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectUserRole;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import net.sf.echopm.navigation.NavigatorButton;
 import net.sf.echopm.navigation.WorkflowDisposition;
 import net.sf.echopm.navigation.event.NavigationEvent;

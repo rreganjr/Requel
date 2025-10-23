@@ -41,7 +41,7 @@ import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.impl.AbstractProjectOrDomainEntity;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import net.sf.echopm.navigation.NavigatorButton;
 import net.sf.echopm.navigation.WorkflowDisposition;
 import net.sf.echopm.navigation.event.ClosePanelEvent;
@@ -137,7 +137,7 @@ public class StakeholderNavigatorPanel extends NavigatorTablePanel {
 					@Override
 					public Object getValueAt(NavigatorTableModel model, int column, int row) {
 						Stakeholder stakeholder = (Stakeholder) model.getBackingObject(row);
-						return stakeholder.getDisplayLabel();
+						return stakeholder.getDisplayName();
 					}
 				}));
 

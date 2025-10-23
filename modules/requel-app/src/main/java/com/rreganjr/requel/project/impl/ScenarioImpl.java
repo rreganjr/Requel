@@ -43,7 +43,7 @@ import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.ScenarioType;
 import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.UseCase;
-import com.rreganjr.requel.user.User;
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 import org.hibernate.annotations.ListIndexBase;
