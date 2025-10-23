@@ -42,6 +42,7 @@ import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
+import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
@@ -123,6 +124,7 @@ public class ImportProjectCommandImpl extends AbstractEditProjectCommand impleme
 	 */
 	@Override
 	public void execute() {
+		User2UserImplAdapter.clearReplacements();
 		try {
 			User createdBy = getUserRepository().get(getEditedBy());
 			// NOTE: the annotation classes need to be explicitly supplied to
@@ -160,6 +162,8 @@ public class ImportProjectCommandImpl extends AbstractEditProjectCommand impleme
 			}
 		} catch (Exception e) {
 			log.error(e, e);
+		} finally {
+			User2UserImplAdapter.clearReplacements();
 		}
 	}
 

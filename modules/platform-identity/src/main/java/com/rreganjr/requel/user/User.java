@@ -48,14 +48,6 @@ public interface User extends OrganizedEntity, com.rreganjr.platform.identity.Us
 	public void setName(String name);
 
 	/**
-	 * A system-wide unique text identifier for the user.
-	 * 
-	 * @return - the user's username TODO: what makes a valid username? TODO:
-	 *         can a username be changed?
-	 */
-	public String getUsername();
-
-	/**
 	 * Set a new username for this user<br>
 	 * NOTE: if the new user name is in use by someone else, saving the user
 	 * will fail.

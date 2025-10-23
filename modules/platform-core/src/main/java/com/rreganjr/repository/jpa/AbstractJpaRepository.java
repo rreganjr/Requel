@@ -56,8 +56,22 @@ public class AbstractJpaRepository extends AbstractRepository {
 	@Override
 	public <T> T persist(T entity) throws EntityException {
 		try {
-			entityManager.persist(entity);
-			return entity;
+			if (entity == null) {
+				return null;
+			}
+			T target = entity;
+			if (EntityProxyInterceptor.isEntityProxy(target)) {
+				target = EntityProxyInterceptor.unwrap(target);
+			}
+			if (entityManager.contains(target)) {
+				return target;
+			}
+			Object id = getId(target);
+			if (id != null) {
+				return entityManager.merge(target);
+			}
+			entityManager.persist(target);
+			return target;
 		} catch (Exception e) {
 			log.warn(e, e);
 			throw convertException(e, entity.getClass(), entity, EntityExceptionActionType.Creating);

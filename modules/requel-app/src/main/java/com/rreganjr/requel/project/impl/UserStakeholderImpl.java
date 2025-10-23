@@ -314,15 +314,16 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 			@Override
 			public void run() throws SAXException {
 				try {
-					if (UserStakeholderImpl.this.getUser() != null) {
+					User resolvedUser = User2UserImplAdapter
+							.resolveDomain(UserStakeholderImpl.this.getUser());
+					if (resolvedUser != null) {
 						try {
 							User existingUser = userRepository
-									.findUserByUsername(UserStakeholderImpl.this.getUser()
-											.getUsername());
+									.findUserByUsername(resolvedUser.getUsername());
 							UserStakeholderImpl.this.setUser(existingUser);
 						} catch (NoSuchUserException e) {
 							// new organization
-							userRepository.persist(UserStakeholderImpl.this.getUser());
+							userRepository.merge(resolvedUser);
 						}
 					}
 

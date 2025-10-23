@@ -58,11 +58,17 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
+import org.xml.sax.SAXException;
 
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
+
+import com.rreganjr.repository.jpa.EntityProxyInterceptor;
 import com.rreganjr.requel.user.exception.NoSuchRoleForUserException;
+import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.exception.UserEntityException;
 import com.rreganjr.requel.user.JAXBOrganizedEntityPatcher;
+import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 
 /**
  * @author ron
@@ -330,14 +336,18 @@ public class UserImpl implements User, Serializable {
 		this.emailAddress = emailAddress;
 	}
 
-    @Pattern(regexp = "^((?:\\([2-9]\\d{2}\\)\\ ?|[2-9]\\d{2}(?:\\-?|\\ ?))[2-9]\\d{2}[- ]?\\d{4})?$", message = "must be a valid 10 digit phone number or empty.")
+	@Pattern(regexp = "^((?:\\([2-9]\\d{2}\\)\\ ?|[2-9]\\d{2}(?:\\-?|\\ ?))[2-9]\\d{2}[- ]?\\d{4})?$", message = "must be a valid 10 digit phone number or empty.")
 	@XmlElement(name = "phoneNumber", namespace = "http://www.rreganjr.com/requel")
 	public String getPhoneNumber() {
 		return phoneNumber;
 	}
 
 	public void setPhoneNumber(String phoneNumber) {
-		this.phoneNumber = phoneNumber;
+		if (StringUtils.isBlank(phoneNumber)) {
+			this.phoneNumber = null;
+		} else {
+			this.phoneNumber = phoneNumber.trim();
+		}
 	}
 
 	@XmlElementRef(type = OrganizationImpl.class, namespace = "http://www.rreganjr.com/requel")
@@ -539,8 +549,75 @@ public class UserImpl implements User, Serializable {
 	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal(UserRepository userRepository) {
-		UnmarshallingContext.getInstance().addPatcher(
-				new JAXBOrganizedEntityPatcher(userRepository, this));
+		UnmarshallingContext context = UnmarshallingContext.getInstance();
+		context.addPatcher(new JAXBOrganizedEntityPatcher(userRepository, this));
+		context.addPatcher(new Patcher() {
+			@Override
+			public void run() throws SAXException {
+				try {
+					normalizeIdentityFields();
+					String normalizedUsername = getUsername();
+					if (StringUtils.isBlank(normalizedUsername)) {
+						return;
+					}
+					try {
+						User existing = userRepository.findUserByUsername(normalizedUsername);
+						if (existing != null) {
+							User resolved = existing;
+							if (EntityProxyInterceptor.isEntityProxy(resolved)) {
+								resolved = EntityProxyInterceptor.unwrap(resolved);
+							}
+							User2UserImplAdapter.registerReplacement(UserImpl.this, resolved);
+							if (resolved instanceof UserImpl existingUser) {
+								adoptExistingState(existingUser);
+							}
+						}
+					} catch (NoSuchUserException e) {
+						// new user definition – keep imported state
+					}
+				} catch (RuntimeException e) {
+					throw e;
+				} catch (Exception e) {
+					throw new SAXException(e);
+				}
+			}
+		});
+	}
+
+	private void normalizeIdentityFields() {
+		if (StringUtils.isBlank(getUsername())) {
+			setUsername(null);
+		} else {
+			String trimmedUsername = getUsername().trim();
+			if (!trimmedUsername.equals(getUsername())) {
+				setUsername(trimmedUsername);
+			}
+		}
+		// phone number normalization already handled in setter; reuse it for trimming.
+		setPhoneNumber(getPhoneNumber());
+	}
+
+	private void adoptExistingState(UserImpl existingUser) {
+		setId(existingUser.getId());
+		setVersion(existingUser.getVersion());
+		setUsername(existingUser.getUsername());
+		setName(existingUser.getName());
+		setEmailAddress(existingUser.getEmailAddress());
+		setPhoneNumber(existingUser.getPhoneNumber());
+		setEditable(existingUser.isEditable());
+		setOrganization(existingUser.getOrganization());
+		setEncryptedPassword(existingUser.getEncryptedPassword());
+		setPasswordSalt(existingUser.getPasswordSalt());
+		setPasswordEncryptingAlgorithmName(existingUser.getPasswordEncryptingAlgorithmName());
+		setPasswordEncryptingIterations(existingUser.getPasswordEncryptingIterations());
+		Set<UserRole> existingRoles = existingUser.getUserRoles();
+		if (existingRoles != null) {
+			Set<UserRole> normalizedRoles = new TreeSet<>(UserRole.UserRoleComparator.INSTANCE);
+			normalizedRoles.addAll(existingRoles);
+			setUserRoles(normalizedRoles);
+		} else {
+			setUserRoles(new TreeSet<>(UserRole.UserRoleComparator.INSTANCE));
+		}
 	}
 
 	/**

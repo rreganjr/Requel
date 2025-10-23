@@ -41,6 +41,7 @@ import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRolePermission;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
+import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
@@ -140,6 +141,11 @@ public class ProjectUserRole extends AbstractUserRole {
 
 	private Integer tmpHashCode = null;
 
+	@Transient
+	public UserRolePermission getCreateProjects() {
+		return createProjects;
+	}
+
 	@Override
 	public int hashCode() {
 		if (tmpHashCode == null) {
@@ -180,14 +186,16 @@ public class ProjectUserRole extends AbstractUserRole {
 	 * @see UnmarshallerListener
 	 */
 	public void afterUnmarshal(final UserRepository userRepository, Object parent) {
-		setUser((User) parent);
+		User domainParent = User2UserImplAdapter.resolveDomain((User) parent);
+		setUser(domainParent != null ? domainParent : (User) parent);
 		UnmarshallingContext.getInstance().addPatcher(new Patcher() {
 			@Override
 			public void run() throws SAXException {
-				if (getUser() != null) {
+				User resolvedUser = User2UserImplAdapter.resolveDomain(getUser());
+				if (resolvedUser != null) {
 					try {
-						User existingUser = userRepository.findUserByUsername(getUser()
-								.getUsername());
+						User existingUser = userRepository
+								.findUserByUsername(resolvedUser.getUsername());
 						setUser(existingUser);
 					} catch (NoSuchUserException e) {
 					}

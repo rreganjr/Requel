@@ -23,7 +23,8 @@ package com.rreganjr.requel.utils.jaxb;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
 import org.xml.sax.SAXException;
 
@@ -58,10 +59,10 @@ public class JAXBCreatedEntityPatcher implements Patcher {
 	@Override
 	public void run() throws SAXException {
 		try {
-			if (createdEntity.getCreatedBy() != null) {
+			User createdBy = User2UserImplAdapter.resolveIdentity(createdEntity.getCreatedBy());
+			if (createdBy != null) {
 				try {
-					User existingUser = userRepository.findUserByUsername(createdEntity
-							.getCreatedBy().getUsername());
+					User existingUser = userRepository.findUserByUsername(createdBy.getUsername());
 					setCreatedBy(createdEntity, existingUser);
 				} catch (NoSuchUserException e) {
 					// new user

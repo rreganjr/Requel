@@ -25,6 +25,7 @@ import java.util.Set;
 
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.FlushModeType;
 import jakarta.persistence.Query;
 
 import org.hibernate.PropertyValueException;
@@ -109,9 +110,10 @@ public class JpaUserRepository extends AbstractJpaRepository implements UserRepo
 	public User findUserByUsername(String username) throws NoSuchUserException {
 		try {
 			// TODO: use named query so it can be configured externally
-			Query query = getEntityManager().createQuery(
-					"select object(user) from UserImpl as user where user.username like :username");
-			query.setParameter("username", username);
+            Query query = getEntityManager().createQuery(
+                    "select object(user) from UserImpl as user where user.username like :username");
+            query.setFlushMode(FlushModeType.COMMIT);
+            query.setParameter("username", username);
 			return (User) query.getSingleResult();
 		} catch (NoResultException e) {
 			throw NoSuchUserException.forUsername(username);
