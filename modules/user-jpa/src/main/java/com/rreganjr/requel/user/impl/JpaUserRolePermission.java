@@ -29,6 +29,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Transient;
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlTransient;
@@ -61,6 +62,16 @@ public class JpaUserRolePermission implements UserRolePermission {
 	public JpaUserRolePermission(Class<? extends UserRole> userRoleType, String permissionName) {
 		setUserRoleType(userRoleType.getName());
 		setName(permissionName);
+	}
+
+	public JpaUserRolePermission(UserRolePermission source) {
+		this();
+		setName(source.getName());
+		setUserRoleType(source.getUserRoleTypeName());
+		if (source instanceof JpaUserRolePermission jpaPermission) {
+			setUserRoleType(jpaPermission.getUserRoleType());
+			this.id = jpaPermission.getId();
+		}
 	}
 
 	protected JpaUserRolePermission() {
@@ -99,6 +110,12 @@ public class JpaUserRolePermission implements UserRolePermission {
 
 	protected void setUserRoleType(String userRoleType) {
 		this.userRoleType = userRoleType;
+	}
+
+	@Transient
+	@Override
+	public String getUserRoleTypeName() {
+		return getUserRoleType();
 	}
 
 	private Integer tmpHashCode = null;

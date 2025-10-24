@@ -72,7 +72,7 @@ public abstract class AbstractUserRole implements UserRole, Serializable {
 	public static final Map<Class<? extends UserRole>, Set<UserRolePermission>> userRoleTypePermissions = new HashMap<Class<? extends UserRole>, Set<UserRolePermission>>();
 
 	private Long id;
-	private Set<UserRolePermission> userRolePermissions = new HashSet<UserRolePermission>();
+private Set<JpaUserRolePermission> userRolePermissions = new HashSet<>();
 	private String roleType;
 	private int version = 1; // start at 1 so hibernate recognizes the new
 
@@ -102,31 +102,40 @@ public abstract class AbstractUserRole implements UserRole, Serializable {
 		this.version = version;
 	}
 
-	@ManyToMany(targetEntity = JpaUserRolePermission.class, cascade = { CascadeType.MERGE,
-			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.EAGER)
-	@JoinTable(name = "user_roles_permissions", joinColumns = { @JoinColumn(name = "user_role_id") }, inverseJoinColumns = { @JoinColumn(name = "user_role_permission_id") })
-	@XmlElementWrapper(name = "userPermissions", namespace = "http://www.rreganjr.com/requel")
-	@XmlElementRef
-	protected Set<UserRolePermission> getUserRolePermissions() {
-		return userRolePermissions;
+    @ManyToMany(targetEntity = JpaUserRolePermission.class, cascade = { CascadeType.MERGE,
+            CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.EAGER)
+    @JoinTable(name = "user_roles_permissions", joinColumns = { @JoinColumn(name = "user_role_id") }, inverseJoinColumns = { @JoinColumn(name = "user_role_permission_id") })
+    @XmlElementWrapper(name = "userPermissions", namespace = "http://www.rreganjr.com/requel")
+    @XmlElementRef(type = JpaUserRolePermission.class)
+    protected Set<JpaUserRolePermission> getUserRolePermissions() {
+        return userRolePermissions;
+    }
+
+    protected void setUserRolePermissions(Set<JpaUserRolePermission> userRolePermissions) {
+        this.userRolePermissions = userRolePermissions;
+    }
+
+    @Override
+    public void grantUserRolePermission(UserRolePermission permission) {
+        JpaUserRolePermission jpaPermission = (permission instanceof JpaUserRolePermission)
+                ? (JpaUserRolePermission) permission
+                : new JpaUserRolePermission(permission);
+        userRolePermissions.add(jpaPermission);
 	}
 
-	protected void setUserRolePermissions(Set<UserRolePermission> userRolePermissions) {
-		this.userRolePermissions = userRolePermissions;
+    @Override
+    public void revokeUserRolePermission(UserRolePermission permission) {
+        JpaUserRolePermission jpaPermission = (permission instanceof JpaUserRolePermission)
+                ? (JpaUserRolePermission) permission
+                : new JpaUserRolePermission(permission);
+        userRolePermissions.remove(jpaPermission);
 	}
 
-	@Override
-	public void grantUserRolePermission(UserRolePermission permission) {
-		getUserRolePermissions().add(permission);
-	}
-
-	@Override
-	public void revokeUserRolePermission(UserRolePermission permission) {
-		getUserRolePermissions().remove(permission);
-	}
-
-	public boolean hasUserRolePermission(UserRolePermission permission) {
-		return getUserRolePermissions().contains(permission);
+    public boolean hasUserRolePermission(UserRolePermission permission) {
+        JpaUserRolePermission jpaPermission = (permission instanceof JpaUserRolePermission)
+                ? (JpaUserRolePermission) permission
+                : new JpaUserRolePermission(permission);
+        return userRolePermissions.contains(jpaPermission);
 	}
 
 	@Transient

@@ -11,4 +11,9 @@ public interface UserRolePermission extends Comparable<UserRolePermission>, Seri
      * @return human-readable permission name.
      */
     String getName();
+
+    /**
+     * @return fully qualified role type that owns this permission.
+     */
+    String getUserRoleTypeName();
 }
