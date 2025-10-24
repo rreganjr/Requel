@@ -30,14 +30,12 @@ import jakarta.xml.bind.annotation.XmlType;
 
 import org.hibernate.annotations.SortNatural;
 import org.xml.sax.SAXException;
-
-
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.requel.user.AbstractUserRole;
-import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRolePermission;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
@@ -58,8 +56,10 @@ import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 public class ProjectUserRole extends AbstractUserRole {
 	static final long serialVersionUID = 0L;
 
+	@Transient
 	public static final UserRolePermission createProjects = new UserRolePermission(
 			ProjectUserRole.class, "createProjects");
+	@Transient
 	public static final UserRolePermission inviteUsers = new UserRolePermission(
 			ProjectUserRole.class, "inviteUsers");
 
@@ -140,11 +140,6 @@ public class ProjectUserRole extends AbstractUserRole {
 	}
 
 	private Integer tmpHashCode = null;
-
-	@Transient
-	public UserRolePermission getCreateProjects() {
-		return createProjects;
-	}
 
 	@Override
 	public int hashCode() {
