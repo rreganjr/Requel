@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.user;
+package com.rreganjr.requel.user.impl;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -49,6 +49,11 @@ import jakarta.xml.bind.annotation.XmlElementWrapper;
 import jakarta.xml.bind.annotation.XmlType;
 
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
+
+import com.rreganjr.requel.user.JAXBUserRolePatcher;
+import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.requel.user.UserRole;
+import com.rreganjr.requel.user.UserRolePermission;
 
 /**
  * @author ron
@@ -97,7 +102,7 @@ public abstract class AbstractUserRole implements UserRole, Serializable {
 		this.version = version;
 	}
 
-	@ManyToMany(targetEntity = UserRolePermission.class, cascade = { CascadeType.MERGE,
+	@ManyToMany(targetEntity = JpaUserRolePermission.class, cascade = { CascadeType.MERGE,
 			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.EAGER)
 	@JoinTable(name = "user_roles_permissions", joinColumns = { @JoinColumn(name = "user_role_id") }, inverseJoinColumns = { @JoinColumn(name = "user_role_permission_id") })
 	@XmlElementWrapper(name = "userPermissions", namespace = "http://www.rreganjr.com/requel")

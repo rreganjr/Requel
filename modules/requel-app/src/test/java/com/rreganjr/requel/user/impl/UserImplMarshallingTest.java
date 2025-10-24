@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import com.rreganjr.requel.project.DomainAdminUserRole;
 import com.rreganjr.requel.project.ProjectUserRole;
-import com.rreganjr.requel.user.SystemAdminUserRole;
+import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.requel.user.UserRolePermission;
 
 class UserImplMarshallingTest {

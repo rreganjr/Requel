@@ -51,7 +51,7 @@ import com.rreganjr.repository.jpa.InvalidStateExceptionAdapter;
 import com.rreganjr.repository.jpa.OptimisticLockExceptionAdapter;
 import com.rreganjr.repository.jpa.UserPropertyValueExceptionAdapter;
 import com.rreganjr.platform.exception.NoSuchEntityException;
-import com.rreganjr.requel.user.AbstractUserRole;
+import com.rreganjr.requel.user.impl.AbstractUserRole;
 import com.rreganjr.requel.user.Organization;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;

@@ -34,13 +34,14 @@ import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.project.impl.ProjectImpl;
-import com.rreganjr.requel.user.AbstractUserRole;
+import com.rreganjr.requel.user.impl.AbstractUserRole;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRolePermission;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
+import com.rreganjr.requel.user.impl.JpaUserRolePermission;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
@@ -57,10 +58,10 @@ public class ProjectUserRole extends AbstractUserRole {
 	static final long serialVersionUID = 0L;
 
 	@Transient
-	public static final UserRolePermission createProjects = new UserRolePermission(
+	public static final UserRolePermission createProjects = new JpaUserRolePermission(
 			ProjectUserRole.class, "createProjects");
 	@Transient
-	public static final UserRolePermission inviteUsers = new UserRolePermission(
+	public static final UserRolePermission inviteUsers = new JpaUserRolePermission(
 			ProjectUserRole.class, "inviteUsers");
 
 	static {

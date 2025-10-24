@@ -28,7 +28,7 @@ import nextapp.echo2.app.Row;
 
 import org.apache.log4j.Logger;
 
-import com.rreganjr.requel.user.SystemAdminUserRole;
+import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.requel.user.User;
 import net.sf.echopm.navigation.NavigatorButton;
 import net.sf.echopm.navigation.WorkflowDisposition;

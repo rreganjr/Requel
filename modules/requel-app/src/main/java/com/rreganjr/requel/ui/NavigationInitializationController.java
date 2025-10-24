@@ -28,7 +28,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.nlp.ui.NLPPanelNames;
-import com.rreganjr.requel.user.SystemAdminUserRole;
+import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRole;

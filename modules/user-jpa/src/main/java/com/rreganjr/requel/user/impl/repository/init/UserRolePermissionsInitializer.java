@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.rreganjr.platform.bootstrap.AbstractSystemInitializer;
 import com.rreganjr.platform.exception.EntityException;
-import com.rreganjr.requel.user.AbstractUserRole;
+import com.rreganjr.requel.user.impl.AbstractUserRole;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRole;
 import com.rreganjr.requel.user.UserRolePermission;

@@ -31,9 +31,9 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.validator.EntityValidationException;
-import com.rreganjr.requel.user.AbstractUserRole;
+import com.rreganjr.requel.user.impl.AbstractUserRole;
 import com.rreganjr.requel.user.Organization;
-import com.rreganjr.requel.user.SystemAdminUserRole;
+import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRole;

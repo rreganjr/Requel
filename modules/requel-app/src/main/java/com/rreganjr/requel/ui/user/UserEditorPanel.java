@@ -29,6 +29,8 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.rreganjr.requel.user.*;
+import com.rreganjr.requel.user.impl.AbstractUserRole;
+import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.validator.InvalidStateException;
 import com.rreganjr.validator.InvalidValue;
 import nextapp.echo2.app.Component;

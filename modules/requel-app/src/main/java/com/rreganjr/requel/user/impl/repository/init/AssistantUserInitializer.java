@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component;
 import com.rreganjr.platform.bootstrap.AbstractSystemInitializer;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.project.ProjectUserRole;
-import com.rreganjr.requel.user.SystemAdminUserRole;
+import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.user.exception.NoSuchUserException;

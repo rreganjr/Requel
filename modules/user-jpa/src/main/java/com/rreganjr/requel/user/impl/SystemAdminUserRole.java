@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.user;
+package com.rreganjr.requel.user.impl;
 
 import java.util.HashSet;
 
@@ -26,6 +26,8 @@ import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlType;
+
+import com.rreganjr.requel.user.UserRolePermission;
 
 /**
  * Represents a user with system administration privilges. This role has no user
