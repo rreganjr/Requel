@@ -49,6 +49,7 @@ import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import com.rreganjr.platform.identity.Role;
 import com.rreganjr.platform.identity.password.PasswordHasher;
 import com.rreganjr.platform.identity.password.PasswordHasher.HashedPassword;
 import com.rreganjr.requel.user.*;
@@ -396,8 +397,9 @@ public class UserImpl implements User, Serializable {
 	 * @return The role for the type supplied.
 	 * @throws NoSuchRoleForUserException if the user doesn't have the role.
 	 */
+	@Override
 	@Transient
-	public <T extends UserRole> T getRoleForType(Class<T> userRoleType)
+	public <T extends Role> T getRoleForType(Class<T> userRoleType)
 			throws NoSuchRoleForUserException {
 		for (UserRole role : getUserRoles()) {
 			if (userRoleType.isAssignableFrom(role.getClass())) {
@@ -412,8 +414,9 @@ public class UserImpl implements User, Serializable {
 	 * @param userRoleType the type of role to check.
 	 * @return true if the user was {@link #grantRole(Class)}ed the role.
 	 */
+	@Override
 	@Transient
-	public boolean hasRole(Class<? extends UserRole> userRoleType) {
+	public boolean hasRole(Class<? extends Role> userRoleType) {
 		try {
 			getRoleForType(userRoleType);
 			return true;

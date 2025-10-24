@@ -2,9 +2,10 @@
 
 ## User ↔ Domain Adapter
 
-`com.rreganjr.requel.user.impl.User2UserImplAdapter` is the single bridge between the
-platform identity API (`com.rreganjr.platform.identity.User`) and the richer Requel
-domain user (`com.rreganjr.requel.user.User`/`UserImpl`). JAXB uses this adapter for
+`com.rreganjr.requel.user.impl.User2UserImplAdapter` (now published from the `user-jpa`
+module) is the single bridge between the platform identity API
+(`com.rreganjr.platform.identity.User`) and the richer Requel domain user
+(`com.rreganjr.requel.user.User`/`UserImpl`). JAXB uses this adapter for
 all `@XmlJavaTypeAdapter` bindings on project/annotation entities, and several runtime
 patchers rely on its helper methods.
 

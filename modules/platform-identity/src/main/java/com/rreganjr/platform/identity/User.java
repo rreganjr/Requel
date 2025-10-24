@@ -1,6 +1,5 @@
 package com.rreganjr.platform.identity;
 
-import com.rreganjr.requel.user.UserRole;
 import com.rreganjr.requel.user.exception.NoSuchRoleForUserException;
 
 import java.util.Comparator;
@@ -32,7 +31,7 @@ public interface User extends Comparable<User> {
      * @throws NoSuchRoleForUserException -
      *             if the user doesn't have a role for the supplied type
      */
-    <T extends UserRole> T getRoleForType(Class<T> roleType)
+    <T extends Role> T getRoleForType(Class<T> roleType)
             throws NoSuchRoleForUserException;
 
     /**
@@ -42,7 +41,7 @@ public interface User extends Comparable<User> {
      *            The UserRoleType of the role being tested.
      * @return - true if the user is assigned to the supplied role type.
      */
-    boolean hasRole(Class<? extends UserRole> roleType);
+    boolean hasRole(Class<? extends Role> roleType);
 
 
     /**
