@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.EditCommand;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
@@ -132,7 +133,7 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 	}
 
 	/**
-	 * @see com.rreganjr.requel.command.EditCommand#setEditedBy(com.rreganjr.requel.user.User)
+	 * @see EditCommand#setEditedBy(com.rreganjr.requel.user.User)
 	 */
 	@Override
 	public void setEditedBy(User user) {

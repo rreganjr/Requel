@@ -28,7 +28,7 @@ import org.springframework.test.context.junit4.AbstractJUnit4SpringContextTests;
 //import org.springframework.test.jpa.AbstractJpaTests;
 
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.nlp.NLPProcessorFactory;
+import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.command.DictionaryCommandFactory;
 import com.rreganjr.platform.exception.EntityException;

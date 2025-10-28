@@ -38,7 +38,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.traversal.NodeIterator;
 import org.xml.sax.InputSource;
 
-import com.rreganjr.nlp.SemanticRole;
+import com.rreganjr.nlp.dictionary.SemanticRole;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.VerbNetFrame;
 import com.rreganjr.nlp.dictionary.VerbNetFrameRef;

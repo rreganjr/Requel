@@ -20,7 +20,7 @@
  */
 package com.rreganjr.nlp.impl;
 
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.NLPText;
 
 /**
  * A visitor for NLPText nodes called at the start and end of visiting each node

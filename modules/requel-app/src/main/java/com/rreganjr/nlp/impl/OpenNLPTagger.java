@@ -28,15 +28,17 @@ import java.util.List;
 
 //import opennlp.maxent.MaxentModel;
 //import opennlp.tools.parser.ParserTagger;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import opennlp.model.AbstractModel;
 import opennlp.model.MaxentModel;
 import opennlp.tools.postag.*;
 import opennlp.tools.util.Sequence;
 import com.rreganjr.platform.ApplicationException;
 import net.sf.echopm.ResourceBundleHelper;
-import com.rreganjr.nlp.GrammaticalStructureLevel;
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.nlp.ParseTag;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.ParseTag;
 
 /**
  * @author ron
@@ -134,7 +136,7 @@ public class OpenNLPTagger extends OpenNLPTokenizer {
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.NLPProcessor#process(com.rreganjr.nlp.NLPText)
+	 * @see NLPProcessor#process(NLPText)
 	 */
 	@Override
 	public NLPText process(NLPText text) {

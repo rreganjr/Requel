@@ -26,7 +26,7 @@ import java.util.Map;
 
 import org.apache.log4j.Logger;
 
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.NLPText;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.platform.identity.User;

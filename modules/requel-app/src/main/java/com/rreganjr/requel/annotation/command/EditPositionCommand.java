@@ -22,7 +22,7 @@ package com.rreganjr.requel.annotation.command;
 
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
-import com.rreganjr.requel.command.EditCommand;
+import com.rreganjr.platform.command.EditCommand;
 
 /**
  * Create or edit a position for an issue.

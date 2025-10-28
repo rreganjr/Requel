@@ -24,13 +24,13 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 
-import com.rreganjr.nlp.GrammaticalRelation;
-import com.rreganjr.nlp.GrammaticalRelationType;
-import com.rreganjr.nlp.GrammaticalStructureLevel;
-import com.rreganjr.nlp.NLPProcessor;
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.nlp.ParseTag;
-import com.rreganjr.nlp.SemanticRole;
+import com.rreganjr.nlp.dictionary.GrammaticalRelation;
+import com.rreganjr.nlp.dictionary.GrammaticalRelationType;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.ParseTag;
+import com.rreganjr.nlp.dictionary.SemanticRole;
 
 /**
  * This uses the dependency information attached to the NLPText to get the

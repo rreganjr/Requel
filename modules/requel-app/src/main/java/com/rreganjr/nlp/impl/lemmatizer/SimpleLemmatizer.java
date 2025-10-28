@@ -22,13 +22,13 @@ package com.rreganjr.nlp.impl.lemmatizer;
 
 import java.util.Set;
 
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPText;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.rreganjr.nlp.GrammaticalStructureLevel;
-import com.rreganjr.nlp.LemmatizerRule;
-import com.rreganjr.nlp.NLPProcessor;
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.LemmatizerRule;
 
 /**
  * Lemmatizer that uses a set of rules to find a matching lemma in the
@@ -52,7 +52,7 @@ public class SimpleLemmatizer implements NLPProcessor<NLPText> {
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.NLPProcessor#process(com.rreganjr.nlp.NLPText)
+	 * @see NLPProcessor#process(NLPText)
 	 */
 	@Override
 	public NLPText process(NLPText text) {

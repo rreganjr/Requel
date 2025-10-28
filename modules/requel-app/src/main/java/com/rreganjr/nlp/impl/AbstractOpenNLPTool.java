@@ -31,7 +31,7 @@ import opennlp.maxent.io.GISModelReader;
 
 import org.apache.log4j.Logger;
 
-import com.rreganjr.nlp.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
 
 /**
  * Base class for OpenNLP tool wrappers with helpers for loading GIS models.

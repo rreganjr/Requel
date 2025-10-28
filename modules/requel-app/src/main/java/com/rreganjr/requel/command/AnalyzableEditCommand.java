@@ -21,6 +21,8 @@
 
 package com.rreganjr.requel.command;
 
+import com.rreganjr.platform.command.EditCommand;
+
 /**
  * An EditCommand with a secondary process for analyzing the results of the edit
  * command after the execute() method completes successfully.

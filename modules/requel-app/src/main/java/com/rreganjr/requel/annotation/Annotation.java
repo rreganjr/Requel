@@ -22,7 +22,7 @@ package com.rreganjr.requel.annotation;
 
 import java.util.Set;
 
-import com.rreganjr.requel.CreatedEntity;
+import com.rreganjr.platform.CreatedEntity;
 import com.rreganjr.platform.domain.Describable;
 
 /**

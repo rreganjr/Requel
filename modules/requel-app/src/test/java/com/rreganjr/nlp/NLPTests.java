@@ -6,7 +6,11 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.rreganjr.TestCase;
-import com.rreganjr.nlp.impl.NLPTextImpl;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.ParseTag;
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import com.rreganjr.nlp.impl.OpenNLPTagger;
 import com.rreganjr.nlp.impl.OpenNLPTokenizer;
 import com.rreganjr.nlp.impl.Sentencizer;

@@ -6,8 +6,6 @@
 package com.rreganjr.nlp.dictionary;
 
 import com.rreganjr.AbstractIntegrationTestCase;
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.nlp.PartOfSpeech;
 import com.rreganjr.nlp.impl.StanfordNameEntityRecognizer;
 import org.junit.Assert;
 

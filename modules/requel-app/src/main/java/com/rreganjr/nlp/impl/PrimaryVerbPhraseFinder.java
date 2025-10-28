@@ -21,10 +21,10 @@
 
 package com.rreganjr.nlp.impl;
 
-import com.rreganjr.nlp.GrammaticalStructureLevel;
-import com.rreganjr.nlp.NLPProcessor;
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.nlp.ParseTag;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.ParseTag;
 
 /**
  * @author ron

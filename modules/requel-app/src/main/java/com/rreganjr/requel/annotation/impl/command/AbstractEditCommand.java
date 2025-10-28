@@ -24,7 +24,7 @@ import com.rreganjr.command.AbstractCommand;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
-import com.rreganjr.requel.command.EditCommand;
+import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.platform.identity.User;
 
 /**
@@ -50,7 +50,7 @@ public abstract class AbstractEditCommand extends AbstractCommand implements Edi
 	}
 
 	/**
-	 * @see com.rreganjr.requel.command.EditCommand#setEditedBy(com.rreganjr.requel.user.User)
+	 * @see EditCommand#setEditedBy(com.rreganjr.requel.user.User)
 	 */
 	@Override
 	public void setEditedBy(User editedBy) {

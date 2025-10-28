@@ -23,13 +23,14 @@ package com.rreganjr.requel.project;
 import java.util.Set;
 import java.util.SortedSet;
 
-import com.rreganjr.requel.CreatedEntity;
+import com.rreganjr.platform.CreatedEntity;
 import com.rreganjr.platform.domain.Describable;
+import com.rreganjr.platform.domain.NamedEntity;
 
 /**
  * @author ron
  */
-public interface ProjectOrDomain extends CreatedEntity, Describable, GoalContainer, StoryContainer,
+public interface ProjectOrDomain extends CreatedEntity, NamedEntity, Describable, GoalContainer, StoryContainer,
 		ActorContainer, ScenarioContainer {
 
 	/**

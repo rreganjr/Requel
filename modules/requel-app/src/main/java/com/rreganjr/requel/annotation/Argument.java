@@ -20,7 +20,7 @@
  */
 package com.rreganjr.requel.annotation;
 
-import com.rreganjr.requel.CreatedEntity;
+import com.rreganjr.platform.CreatedEntity;
 
 /**
  * An argument for or against a Position of an Annotation.

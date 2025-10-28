@@ -26,6 +26,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import org.apache.log4j.Logger;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
@@ -33,9 +35,8 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import com.rreganjr.nlp.NLPProcessor;
-import com.rreganjr.nlp.NLPProcessorFactory;
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPText;
 import com.rreganjr.nlp.impl.lemmatizer.SimpleLemmatizer;
 import com.rreganjr.nlp.impl.srl.SemanticRoleLabeler;
 import com.rreganjr.nlp.impl.srl.SemanticRolePrinter;
@@ -77,7 +78,7 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.NLPProcessorFactory#createNLPText()
+	 * @see NLPProcessorFactory#createNLPText()
 	 */
 	@Override
 	public NLPText createNLPText(String text) {
@@ -148,7 +149,7 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.NLPProcessorFactory#getSentencizer()
+	 * @see NLPProcessorFactory#getSentencizer()
 	 */
 	@Override
 	public NLPProcessor<NLPText> getSentencizer() {
@@ -156,7 +157,7 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.NLPProcessorFactory#getTokenizer()
+	 * @see NLPProcessorFactory#getTokenizer()
 	 */
 	@Override
 	public NLPProcessor<NLPText> getTokenizer() {
@@ -164,7 +165,7 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.NLPProcessorFactory#getParser()
+	 * @see NLPProcessorFactory#getParser()
 	 */
 	@Override
 	public NLPProcessor<NLPText> getParser() {
@@ -201,7 +202,7 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.NLPProcessorFactory#getSemanticRoleLabeler()
+	 * @see NLPProcessorFactory#getSemanticRoleLabeler()
 	 */
 	@Override
 	public NLPProcessor<NLPText> getSemanticRoleLabeler() {

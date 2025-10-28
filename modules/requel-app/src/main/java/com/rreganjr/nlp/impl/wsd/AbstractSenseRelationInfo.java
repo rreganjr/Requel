@@ -21,6 +21,7 @@
 package com.rreganjr.nlp.impl.wsd;
 
 import com.rreganjr.nlp.dictionary.Sense;
+import com.rreganjr.nlp.dictionary.SenseRelationInfo;
 
 /**
  * @author ron

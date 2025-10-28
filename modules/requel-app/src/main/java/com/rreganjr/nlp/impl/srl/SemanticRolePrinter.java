@@ -22,8 +22,8 @@ package com.rreganjr.nlp.impl.srl;
 
 import org.apache.log4j.Logger;
 
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.nlp.SemanticRole;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.SemanticRole;
 import com.rreganjr.nlp.impl.NLPTextWalkerFunction;
 
 /**

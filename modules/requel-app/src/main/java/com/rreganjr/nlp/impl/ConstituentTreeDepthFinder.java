@@ -20,7 +20,7 @@
  */
 package com.rreganjr.nlp.impl;
 
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.NLPText;
 
 /**
  * An NLPTextWalkerFunction that takes an NLPText and returns the maximum depth

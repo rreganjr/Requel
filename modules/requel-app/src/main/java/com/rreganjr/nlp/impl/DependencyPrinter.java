@@ -23,9 +23,9 @@ package com.rreganjr.nlp.impl;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.rreganjr.nlp.GrammaticalRelation;
-import com.rreganjr.nlp.GrammaticalStructureLevel;
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.GrammaticalRelation;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPText;
 
 /**
  * An NLPTextWalkerFunction that takes an NLPText and prints out the list of

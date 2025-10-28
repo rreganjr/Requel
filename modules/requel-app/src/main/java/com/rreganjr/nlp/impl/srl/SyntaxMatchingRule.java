@@ -22,7 +22,7 @@ package com.rreganjr.nlp.impl.srl;
 
 import java.util.ListIterator;
 
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.NLPText;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 
 /**

@@ -31,12 +31,12 @@ import java.util.Set;
 import org.apache.log4j.Logger;
 
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.nlp.GrammaticalStructureLevel;
-import com.rreganjr.nlp.NLPProcessor;
-import com.rreganjr.nlp.NLPProcessorFactory;
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.nlp.ParseTag;
-import com.rreganjr.nlp.PartOfSpeech;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.ParseTag;
+import com.rreganjr.nlp.dictionary.PartOfSpeech;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.Linkdef;
 import com.rreganjr.nlp.dictionary.Sense;

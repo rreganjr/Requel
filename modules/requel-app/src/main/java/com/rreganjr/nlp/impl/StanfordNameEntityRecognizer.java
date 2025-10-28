@@ -29,11 +29,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import net.sf.echopm.ResourceBundleHelper;
-import com.rreganjr.nlp.GrammaticalStructureLevel;
-import com.rreganjr.nlp.NLPProcessor;
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.nlp.ParserException;
-import com.rreganjr.nlp.PartOfSpeech;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.ParserException;
+import com.rreganjr.nlp.dictionary.PartOfSpeech;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.Sense;
 import com.rreganjr.nlp.dictionary.Word;

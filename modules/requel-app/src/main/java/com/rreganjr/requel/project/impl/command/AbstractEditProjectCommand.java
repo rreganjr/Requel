@@ -21,8 +21,8 @@
 package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
-import com.rreganjr.requel.command.EditCommand;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -54,7 +54,7 @@ public abstract class AbstractEditProjectCommand extends AbstractProjectCommand 
 	}
 
 	/**
-	 * @see com.rreganjr.requel.command.EditCommand#setEditedBy(com.rreganjr.requel.user.User)
+	 * @see EditCommand#setEditedBy(com.rreganjr.requel.user.User)
 	 */
 	@Override
 	public void setEditedBy(User editedBy) {

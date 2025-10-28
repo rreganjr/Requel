@@ -23,16 +23,16 @@ package com.rreganjr.nlp.impl.wsd;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.rreganjr.nlp.GrammaticalStructureLevel;
-import com.rreganjr.nlp.NLPProcessor;
-import com.rreganjr.nlp.NLPProcessorFactory;
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
+import com.rreganjr.nlp.dictionary.NLPText;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.SemcorSentence;
 import com.rreganjr.nlp.dictionary.SemcorSentenceWord;
 import com.rreganjr.nlp.dictionary.Sense;
 import com.rreganjr.nlp.dictionary.Word;
-import com.rreganjr.nlp.impl.NLPTextImpl;
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 
 /**
  * A dictionary based word sense disambiguator that uses the simplified lesk

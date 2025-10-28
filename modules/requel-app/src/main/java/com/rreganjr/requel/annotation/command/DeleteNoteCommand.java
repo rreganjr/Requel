@@ -21,7 +21,7 @@
 package com.rreganjr.requel.annotation.command;
 
 import com.rreganjr.requel.annotation.Note;
-import com.rreganjr.requel.command.EditCommand;
+import com.rreganjr.platform.command.EditCommand;
 
 /**
  * Delete a note from the system. Update all the annotatables that refer to the

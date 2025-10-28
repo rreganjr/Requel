@@ -29,23 +29,24 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.GZIPInputStream;
 
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
 import net.sf.echopm.ResourceBundleHelper;
-import com.rreganjr.nlp.GrammaticalRelationType;
-import com.rreganjr.nlp.GrammaticalStructureLevel;
-import com.rreganjr.nlp.NLPProcessor;
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.nlp.ParseTag;
-import com.rreganjr.nlp.ParserException;
+import com.rreganjr.nlp.dictionary.GrammaticalRelationType;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.ParseTag;
+import com.rreganjr.nlp.dictionary.ParserException;
 import edu.stanford.nlp.ling.HasWord;
 import edu.stanford.nlp.ling.TaggedWord;
 import edu.stanford.nlp.parser.lexparser.LexicalizedParser;
 import edu.stanford.nlp.process.Tokenizer;
 import edu.stanford.nlp.trees.GrammaticalStructure;
 import edu.stanford.nlp.trees.GrammaticalStructureFactory;
-import edu.stanford.nlp.trees.PennTreebankLanguagePack;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.trees.TreebankLanguagePack;
 import edu.stanford.nlp.trees.TypedDependency;
@@ -178,7 +179,7 @@ public class StanfordLexicalizedParser implements NLPProcessor<NLPText> {
 					GrammaticalRelationType type = GrammaticalRelationType
 							.getGrammaticalRelationByShortName(relationShortName);
 					if (type == null) {
-						if (unsupportedRelationNames.add(relationShortName) && log.isWarnEnabled()) {
+						if (unsupportedRelationNames.add(relationShortName) && log.isEnabledFor(Level.WARN)) {
 							log.warn("Skipping unsupported grammatical relation: " + relationShortName);
 							if (log.isDebugEnabled()) {
 								log.debug("  governor=" + governor + " dependent=" + dependent);

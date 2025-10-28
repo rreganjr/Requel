@@ -21,7 +21,7 @@
 package com.rreganjr.nlp.impl;
 
 import com.rreganjr.platform.ApplicationException;
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.NLPText;
 
 /**
  * @author ron

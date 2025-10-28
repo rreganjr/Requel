@@ -20,8 +20,8 @@
  */
 package com.rreganjr.nlp.impl;
 
-import com.rreganjr.nlp.NLPProcessor;
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPText;
 
 /**
  * An NLPProcessor that takes an NLPText and applies an NLPTextWalkerFunction to

@@ -1,11 +1,13 @@
 package com.rreganjr.nlp;
 
 import com.rreganjr.TestCase;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPText;
 import com.rreganjr.nlp.impl.ConstituentTreePrinter;
 import com.rreganjr.nlp.impl.DependencyPrimaryVerbFinder;
 import com.rreganjr.nlp.impl.DependencyPrinter;
 import com.rreganjr.nlp.impl.DependencySubjectFinder;
-import com.rreganjr.nlp.impl.NLPTextImpl;
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import com.rreganjr.nlp.impl.Sentencizer;
 import com.rreganjr.nlp.impl.StanfordLexicalizedParser;
 import com.rreganjr.nlp.impl.StringNLPTextWalker;

@@ -12,15 +12,11 @@ import java.util.Set;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.TestCase;
-import com.rreganjr.nlp.NLPProcessor;
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.nlp.PartOfSpeech;
 import com.rreganjr.nlp.impl.ConstituentTreePrinter;
 import com.rreganjr.nlp.impl.DependencyPrinter;
-import com.rreganjr.nlp.impl.NLPTextImpl;
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import com.rreganjr.nlp.impl.PartOfSpeechAndSensePrinter;
 import com.rreganjr.nlp.impl.StringNLPTextWalker;
-import com.rreganjr.nlp.impl.wsd.SenseRelationInfo;
 import com.rreganjr.nlp.impl.wsd.WordnetWSD;
 import org.junit.Assert;
 

@@ -20,7 +20,7 @@
  */
 package com.rreganjr.nlp.impl.lemmatizer;
 
-import com.rreganjr.nlp.LemmatizerRule;
+import com.rreganjr.nlp.dictionary.LemmatizerRule;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 
 /**

@@ -20,9 +20,9 @@
  */
 package com.rreganjr.nlp.impl;
 
-import com.rreganjr.nlp.GrammaticalRelation;
-import com.rreganjr.nlp.GrammaticalRelationType;
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.GrammaticalRelation;
+import com.rreganjr.nlp.dictionary.GrammaticalRelationType;
+import com.rreganjr.nlp.dictionary.NLPText;
 
 /**
  * This uses the dependency information attached to the NLPText to get the

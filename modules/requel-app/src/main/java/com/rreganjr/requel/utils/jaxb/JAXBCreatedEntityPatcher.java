@@ -28,7 +28,7 @@ import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
 import org.xml.sax.SAXException;
 
-import com.rreganjr.requel.CreatedEntity;
+import com.rreganjr.platform.CreatedEntity;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 

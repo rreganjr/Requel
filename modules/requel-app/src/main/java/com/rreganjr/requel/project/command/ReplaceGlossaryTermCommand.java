@@ -22,7 +22,7 @@ package com.rreganjr.requel.project.command;
 
 import java.util.Set;
 
-import com.rreganjr.requel.command.EditCommand;
+import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 

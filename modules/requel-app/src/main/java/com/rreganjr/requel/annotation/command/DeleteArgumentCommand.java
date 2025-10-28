@@ -21,7 +21,7 @@
 package com.rreganjr.requel.annotation.command;
 
 import com.rreganjr.requel.annotation.Argument;
-import com.rreganjr.requel.command.EditCommand;
+import com.rreganjr.platform.command.EditCommand;
 
 /**
  * Delete an argument of a position from the system.

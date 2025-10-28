@@ -20,12 +20,14 @@
  */
 package com.rreganjr.nlp.impl;
 
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import opennlp.tools.tokenize.Tokenizer;
 import opennlp.tools.tokenize.TokenizerME;
 import com.rreganjr.platform.ApplicationException;
 import net.sf.echopm.ResourceBundleHelper;
-import com.rreganjr.nlp.GrammaticalStructureLevel;
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPText;
 import opennlp.tools.tokenize.TokenizerModel;
 
 /**
@@ -93,7 +95,7 @@ public class OpenNLPTokenizer extends AbstractOpenNLPTool<NLPText> {
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.NLPProcessor#process(com.rreganjr.nlp.NLPText)
+	 * @see NLPProcessor#process(NLPText)
 	 */
 	@Override
 	public NLPText process(NLPText text) {

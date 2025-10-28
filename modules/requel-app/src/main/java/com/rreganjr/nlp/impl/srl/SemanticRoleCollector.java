@@ -24,8 +24,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.nlp.SemanticRole;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.SemanticRole;
 import com.rreganjr.nlp.impl.AbstractNLPTextWalker;
 import com.rreganjr.nlp.impl.NLPTextWalkerFunction;
 

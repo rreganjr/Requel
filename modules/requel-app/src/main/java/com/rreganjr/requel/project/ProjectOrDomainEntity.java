@@ -23,7 +23,7 @@ package com.rreganjr.requel.project;
 import java.util.Comparator;
 import java.util.Set;
 
-import com.rreganjr.requel.CreatedEntity;
+import com.rreganjr.platform.CreatedEntity;
 import com.rreganjr.platform.domain.Describable;
 import com.rreganjr.platform.domain.NamedEntity;
 import com.rreganjr.requel.annotation.Annotatable;

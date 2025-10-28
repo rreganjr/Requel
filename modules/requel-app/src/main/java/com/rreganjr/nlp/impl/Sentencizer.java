@@ -23,6 +23,7 @@ package com.rreganjr.nlp.impl;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import opennlp.tools.sentdetect.SentenceDetector;
 import opennlp.tools.sentdetect.SentenceDetectorME;
 
@@ -33,8 +34,8 @@ import org.springframework.stereotype.Component;
 
 import com.rreganjr.platform.ApplicationException;
 import net.sf.echopm.ResourceBundleHelper;
-import com.rreganjr.nlp.GrammaticalStructureLevel;
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPText;
 
 /**
  * Detects and separates sentences in an NLPText.

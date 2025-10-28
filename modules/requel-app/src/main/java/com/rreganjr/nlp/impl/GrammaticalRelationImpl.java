@@ -20,9 +20,10 @@
  */
 package com.rreganjr.nlp.impl;
 
-import com.rreganjr.nlp.GrammaticalRelation;
-import com.rreganjr.nlp.GrammaticalRelationType;
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.GrammaticalRelation;
+import com.rreganjr.nlp.dictionary.GrammaticalRelationType;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 
 /**
  * @author ron
@@ -47,28 +48,28 @@ public class GrammaticalRelationImpl implements GrammaticalRelation {
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.GrammaticalRelation#getType()
+	 * @see com.rreganjr.nlp.dictionary.GrammaticalRelation#getType()
 	 */
 	public GrammaticalRelationType getType() {
 		return type;
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.GrammaticalRelation#getGovernor()
+	 * @see com.rreganjr.nlp.dictionary.GrammaticalRelation#getGovernor()
 	 */
 	public NLPText getGovernor() {
 		return governor;
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.GrammaticalRelation#getDependent()
+	 * @see com.rreganjr.nlp.dictionary.GrammaticalRelation#getDependent()
 	 */
 	public NLPText getDependent() {
 		return dependent;
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.GrammaticalRelation#compareTo(com.rreganjr.nlp.impl.GrammaticalRelation)
+	 * @see com.rreganjr.nlp.dictionary.GrammaticalRelation#compareTo(com.rreganjr.nlp.impl.GrammaticalRelation)
 	 */
 	public int compareTo(GrammaticalRelation o) {
 		if (getDependent().getWordIndex().equals(o.getDependent().getWordIndex())) {

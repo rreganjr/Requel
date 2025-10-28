@@ -1,6 +1,7 @@
 package com.rreganjr.nlp.utils;
 
 
+import com.rreganjr.nlp.dictionary.GrammaticalRelationType;
 import edu.stanford.nlp.trees.EnglishGrammaticalRelations;
 import edu.stanford.nlp.trees.GrammaticalRelation;
 
@@ -15,7 +16,7 @@ import static edu.stanford.nlp.trees.GrammaticalRelation.ROOT;
 
 /**
  * This is a small program that takes the {@link GrammaticalRelation}s defined in {@link EnglishGrammaticalRelations}
- * and defines the enum values to insert into {@link com.rreganjr.nlp.GrammaticalRelationType}, although the idea of
+ * and defines the enum values to insert into {@link GrammaticalRelationType}, although the idea of
  * the enum type is to insulate the rest of the program from dependencies on the Stanford Parser, but I guess it doesn't
  * if it needs to be rebuilt and then all the references changed.
  *

@@ -20,7 +20,8 @@
  */
 package com.rreganjr.nlp.impl.lemmatizer;
 
-import com.rreganjr.nlp.PartOfSpeech;
+import com.rreganjr.nlp.dictionary.LemmatizerRule;
+import com.rreganjr.nlp.dictionary.PartOfSpeech;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.impl.repository.NoSuchWordException;
 
@@ -44,8 +45,8 @@ public class IdentityLemmatizerRule extends AbstractDictionaryLemmatizerRule {
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.LemmatizerRule#lemmatize(java.lang.String,
-	 *      com.rreganjr.nlp.PartOfSpeech)
+	 * @see LemmatizerRule#lemmatize(java.lang.String,
+	 *      PartOfSpeech)
 	 */
 	@Override
 	public String lemmatize(String word, PartOfSpeech partOfSpeech) {

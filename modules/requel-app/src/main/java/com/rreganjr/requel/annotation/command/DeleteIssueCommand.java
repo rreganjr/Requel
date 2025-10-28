@@ -21,7 +21,7 @@
 package com.rreganjr.requel.annotation.command;
 
 import com.rreganjr.requel.annotation.Issue;
-import com.rreganjr.requel.command.EditCommand;
+import com.rreganjr.platform.command.EditCommand;
 
 /**
  * Delete an issue, its positions and all the arguments of the positions. Update

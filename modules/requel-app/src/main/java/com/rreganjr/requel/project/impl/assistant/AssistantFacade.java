@@ -28,7 +28,7 @@ import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.nlp.NLPProcessorFactory;
+import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;

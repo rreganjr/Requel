@@ -27,8 +27,8 @@ import java.util.ListIterator;
 
 import org.apache.log4j.Logger;
 
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.nlp.PartOfSpeech;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.PartOfSpeech;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 
 /**

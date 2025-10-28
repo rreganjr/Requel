@@ -63,6 +63,7 @@
         <module>modules/platform-identity</module>
         <module>modules/user-domain</module>
         <module>modules/user-jpa</module>
+        <module>modules/dictionary-jpa</module>
         <module>modules/requel-app</module>
     </modules>
 </project>

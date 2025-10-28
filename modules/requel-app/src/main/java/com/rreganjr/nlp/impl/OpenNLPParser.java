@@ -20,10 +20,11 @@
  */
 package com.rreganjr.nlp.impl;
 
-import java.net.URLDecoder;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import opennlp.model.MaxentModel;
 import opennlp.tools.chunker.ChunkerME;
 import opennlp.tools.parser.HeadRules;
@@ -33,9 +34,9 @@ import opennlp.tools.util.Sequence;
 import opennlp.tools.util.Span;
 import com.rreganjr.platform.ApplicationException;
 import net.sf.echopm.ResourceBundleHelper;
-import com.rreganjr.nlp.GrammaticalStructureLevel;
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.nlp.ParseTag;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.ParseTag;
 
 /**
  * @author ron
@@ -137,7 +138,7 @@ public class OpenNLPParser extends OpenNLPTagger {
 	}
 
 	/**
-	 * @see com.rreganjr.nlp.NLPProcessor#process(com.rreganjr.nlp.NLPText)
+	 * @see NLPProcessor#process(NLPText)
 	 */
 	@Override
 	public NLPText process(NLPText text) {

@@ -18,7 +18,7 @@
 			<constructor-arg index="0"><ref bean="dictionaryRepository"/></constructor-arg>
 			<constructor-arg index="1">
 				<util:set>
-					<util:constant static-field="com.rreganjr.nlp.PartOfSpeech.NOUN"/>
+					<util:constant static-field="com.rreganjr.nlp.dictionary.PartOfSpeech.NOUN"/>
 				</util:set>
 			</constructor-arg>
 			<constructor-arg index="2">
@@ -50,7 +50,7 @@
 			<constructor-arg index="0"><ref bean="dictionaryRepository"/></constructor-arg>
 			<constructor-arg index="1">
 				<util:set>
-					<util:constant static-field="com.rreganjr.nlp.PartOfSpeech.VERB"/>
+					<util:constant static-field="com.rreganjr.nlp.dictionary.PartOfSpeech.VERB"/>
 				</util:set>
 			</constructor-arg>
 			<constructor-arg index="2">
@@ -88,7 +88,7 @@
 			<constructor-arg index="0"><ref bean="dictionaryRepository"/></constructor-arg>
 			<constructor-arg index="1">
 				<util:set>
-					<util:constant static-field="com.rreganjr.nlp.PartOfSpeech.ADJECTIVE"/>
+					<util:constant static-field="com.rreganjr.nlp.dictionary.PartOfSpeech.ADJECTIVE"/>
 				</util:set>
 			</constructor-arg>
 			<constructor-arg index="2">

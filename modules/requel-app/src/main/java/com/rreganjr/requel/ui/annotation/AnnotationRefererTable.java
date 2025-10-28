@@ -30,7 +30,7 @@ import nextapp.echo2.app.Component;
 import nextapp.echo2.app.layout.ColumnLayoutData;
 import nextapp.echo2.app.layout.RowLayoutData;
 import net.sf.echopm.ResourceBundleHelper;
-import com.rreganjr.requel.CreatedEntity;
+import com.rreganjr.platform.CreatedEntity;
 import com.rreganjr.platform.domain.Describable;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.ui.AbstractRequelNavigatorTable;

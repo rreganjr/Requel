@@ -28,8 +28,8 @@ import nextapp.echo2.app.event.ActionListener;
 import org.apache.log4j.Logger;
 
 import echopointng.text.StringDocumentEx;
-import com.rreganjr.nlp.NLPProcessorFactory;
-import com.rreganjr.nlp.NLPText;
+import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
+import com.rreganjr.nlp.dictionary.NLPText;
 import net.sf.echopm.panel.editor.AbstractEditorPanel;
 
 /**

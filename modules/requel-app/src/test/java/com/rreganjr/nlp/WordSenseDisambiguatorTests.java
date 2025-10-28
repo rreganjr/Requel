@@ -6,10 +6,7 @@
 package com.rreganjr.nlp;
 
 import com.rreganjr.AbstractIntegrationTestCase;
-import com.rreganjr.nlp.dictionary.Category;
-import com.rreganjr.nlp.dictionary.Sense;
-import com.rreganjr.nlp.dictionary.Synset;
-import com.rreganjr.nlp.dictionary.Word;
+import com.rreganjr.nlp.dictionary.*;
 
 /**
  * @author ron
@@ -28,7 +25,7 @@ public class WordSenseDisambiguatorTests extends AbstractIntegrationTestCase {
 
 	/**
 	 * Test method for
-	 * {@link com.rreganjr.nlp.impl.wsd.SimpleLeskWSD#process(com.rreganjr.nlp.NLPText)}.
+	 * {@link com.rreganjr.nlp.impl.wsd.SimpleLeskWSD#process(NLPText)}.
 	 */
 	public void testSentence1() {
 		report(process(getNlpProcessorFactory().createNLPText(TEST_SENTENCE_1)));

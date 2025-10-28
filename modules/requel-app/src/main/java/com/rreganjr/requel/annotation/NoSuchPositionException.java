@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.annotation;
 
+import com.rreganjr.platform.domain.NamedEntity;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.impl.LexicalIssue;
@@ -58,35 +59,33 @@ public class NoSuchPositionException extends NoSuchEntityException {
 	}
 
 	/**
-	 * TODO: this violates project ref in annotation package
-	 * 
-	 * @param pod -
+	 *
+	 * @param namedEntity -
 	 *            the project or domain
 	 * @param word -
 	 *            the word used to search for a position that didn't exist
 	 * @return
 	 */
-	public static NoSuchPositionException forAddingWordToGlossary(ProjectOrDomain pod, String word) {
+	public static NoSuchPositionException forAddingWordToGlossary(NamedEntity namedEntity, String word) {
 		return new NoSuchPositionException(Position.class, null, "word", word,
-				EntityExceptionActionType.Reading, MSG_FOR_ADDING_WORD_TO_GLOSSARY, pod.getName(),
+				EntityExceptionActionType.Reading, MSG_FOR_ADDING_WORD_TO_GLOSSARY, namedEntity.getName(),
 				word);
 	}
 
 	/**
-	 * @param pod
+	 * @param namedEntity
 	 * @param actorName
 	 * @return
 	 */
-	public static NoSuchPositionException forAddingActorToProject(ProjectOrDomain pod,
+	public static NoSuchPositionException forAddingActorToProject(NamedEntity namedEntity,
 			String actorName) {
 		return new NoSuchPositionException(Position.class, null, "actorName", actorName,
-				EntityExceptionActionType.Reading, MSG_FOR_ADDING_ACTOR_TO_PROJECT, pod.getName(),
+				EntityExceptionActionType.Reading, MSG_FOR_ADDING_ACTOR_TO_PROJECT, namedEntity.getName(),
 				actorName);
 	}
 
 	/**
 	 * @param issue
-	 * @param misspelledWord
 	 * @param proposedWord
 	 * @return
 	 */
@@ -98,7 +97,6 @@ public class NoSuchPositionException extends NoSuchEntityException {
 
 	/**
 	 * @param format
-	 * @param args
 	 */
 	protected NoSuchPositionException(Class<?> entityType, Object entity,
 			String entityPropertyName, Object entityValue, EntityExceptionActionType actionType,
@@ -109,7 +107,6 @@ public class NoSuchPositionException extends NoSuchEntityException {
 	/**
 	 * @param cause
 	 * @param format
-	 * @param args
 	 */
 	protected NoSuchPositionException(Throwable cause, Class<?> entityType, Object entity,
 			String entityPropertyName, Object entityValue, EntityExceptionActionType actionType,

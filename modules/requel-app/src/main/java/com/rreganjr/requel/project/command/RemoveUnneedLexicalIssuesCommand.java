@@ -20,8 +20,8 @@
  */
 package com.rreganjr.requel.project.command;
 
-import com.rreganjr.nlp.NLPText;
-import com.rreganjr.requel.command.EditCommand;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 
