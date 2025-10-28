@@ -57,7 +57,6 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import org.hibernate.annotations.Any;
 import org.hibernate.annotations.AnyDiscriminator;
-import org.hibernate.annotations.AnyDiscriminatorValue;
 import org.hibernate.annotations.AnyKeyJavaClass;
 import org.hibernate.annotations.ManyToAny;
 
@@ -65,18 +64,6 @@ import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Annotation;
-import com.rreganjr.requel.project.impl.ActorImpl;
-import com.rreganjr.requel.project.impl.GlossaryTermImpl;
-import com.rreganjr.requel.project.impl.GoalImpl;
-import com.rreganjr.requel.project.impl.GoalRelationImpl;
-import com.rreganjr.requel.project.impl.NonUserStakeholderImpl;
-import com.rreganjr.requel.project.impl.ProjectImpl;
-import com.rreganjr.requel.project.impl.ProjectTeamImpl;
-import com.rreganjr.requel.project.impl.ScenarioImpl;
-import com.rreganjr.requel.project.impl.StepImpl;
-import com.rreganjr.requel.project.impl.StoryImpl;
-import com.rreganjr.requel.project.impl.UseCaseImpl;
-import com.rreganjr.requel.project.impl.UserStakeholderImpl;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
@@ -155,7 +142,6 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
     @Column(name = "grouping_object_type", length = 255)
     @Any(optional = false)
     @AnyDiscriminator(DiscriminatorType.STRING)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Project", entity = ProjectImpl.class)
     @AnyKeyJavaClass(Long.class)
 	@JoinColumn(name = "grouping_object_id")
 	@XmlTransient
@@ -190,19 +176,6 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
     @Column(name = "annotatable_type", length = 255, nullable = false)
     @ManyToAny(fetch = FetchType.LAZY)
     @AnyDiscriminator(DiscriminatorType.STRING)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.annotation.Annotation", entity = AbstractAnnotation.class)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Project", entity = ProjectImpl.class)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.ProjectTeam", entity = ProjectTeamImpl.class)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Goal", entity = GoalImpl.class)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.GoalRelation", entity = GoalRelationImpl.class)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.UseCase", entity = UseCaseImpl.class)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Scenario", entity = ScenarioImpl.class)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Step", entity = StepImpl.class)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Story", entity = StoryImpl.class)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Actor", entity = ActorImpl.class)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.GlossaryTerm", entity = GlossaryTermImpl.class)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.NonUserStakeholder", entity = NonUserStakeholderImpl.class)
-    @AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.UserStakeholder", entity = UserStakeholderImpl.class)
     @AnyKeyJavaClass(Long.class)
 	@JoinTable(name = "annotation_annotatable",
 			joinColumns = @JoinColumn(name = "annotation_id"),

@@ -73,7 +73,14 @@ The monorepo will grow a `/modules` directory with one Maven module per package 
 
 ### 4.2 Annotation ↔ Project coupling
 - Introduce an `AnnotatableTypeRegistry` in `annotation-domain` that maps discriminator strings to entity interfaces. Register JPA implementations (`ProjectImpl`, `ScenarioImpl`, etc.) from `project-jpa` via Spring configuration instead of static annotations inside `AbstractAnnotation`.
-- Limit annotation entities to depend on `ProjectOrDomainEntity` interfaces only. Validation logic that needs concrete classes moves to `project-jpa`.
+- Limit annotation entities to depend on `ProjectOrDomainEntity` (or other domain-facing) interfaces only. Any validation or business rules that require concrete project classes should live in `project-jpa` or a higher layer that consumes the annotation APIs, keeping the `annotation-domain` module free of implementation imports.
+- Mirror the `AnnotatableTypeRegistry` with a `GroupingObjectRegistry` that records which domain types may act as annotation grouping roots (currently `ProjectImpl`). Seed the registry from `project-jpa` via Spring configuration so future modules can register their own grouping contexts without modifying the annotation package.
+
+#### 4.2.1 Spring-driven annotatable mapping
+- Before extracting `annotation-domain`, move the Hibernate `@Any` / `@ManyToAny` discriminator configuration for `AbstractAnnotation` into a Spring-managed contributor that lives in `project-jpa`.
+- Create a `@Configuration` class (e.g., `ProjectAnnotatableMappingConfig`) that exposes a `MetadataBuilderContributor` bean. Use it to register a named `@AnyMetaDef` (or equivalent type configuration) that maps the discriminator values to the concrete project entities. Reference that meta-def from `AbstractAnnotation` so the annotation package no longer imports project impl classes.
+- Expose the contributor via the Hibernate `AdditionalMappingContributor` service (register in `META-INF/services`), so modules can augment the mapping without application.properties tweaks. Document the mapping contract and ensure new project entities extend it through configuration rather than touching annotation code.
+- Once the Spring configuration owns the mapping, remove the `@AnyDiscriminatorValue` declarations from `AbstractAnnotation` and verify JAXB patchers still resolve grouping/annotatable objects through interfaces. This is a prerequisite for moving annotations into their standalone module.
 
 ### 4.3 NLP leakage into core
 - Migrate NLP-dependent assistants and commands into `project-analysis`. Core `project-domain` should restrict itself to NLP-free entities and value objects.
@@ -126,6 +133,7 @@ The monorepo will grow a `/modules` directory with one Maven module per package 
 ## 9. Immediate Next Steps
 - Add regression coverage that exports/imports `doc/samples/Requel.xml` against the refactored modules to guard the XML contract.
 - Prototype `platform-core` extraction (move exceptions, `SystemInitializer`) and ensure existing tests still pass.
+- Prototype the Spring-driven annotatable mapping configuration (§4.2.1) so `AbstractAnnotation` no longer hard-codes project entities before the annotation module split.
 - Prepare Maven parent/child POM skeletons to unblock gradual module migration.
 - Draft architectural diagrams (plantuml) illustrating the intended dependency graph for inclusion in project docs.
 - Decide whether to pilot Flyway alongside the existing initializers in an early module (e.g., `user-jpa`) to validate the hybrid migration approach before committing project-wide.
