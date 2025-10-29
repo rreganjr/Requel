@@ -33,7 +33,7 @@ import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.platform.ApplicationException;
-import net.sf.echopm.ResourceBundleHelper;
+import com.rreganjr.ResourceBundleHelper;
 import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
 import com.rreganjr.nlp.dictionary.NLPText;
 

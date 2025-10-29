@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.rreganjr.platform.bootstrap.AbstractSystemInitializer;
-import net.sf.echopm.ResourceBundleHelper;
+import com.rreganjr.ResourceBundleHelper;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 
 /**

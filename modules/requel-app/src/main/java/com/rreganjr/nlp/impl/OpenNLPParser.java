@@ -33,7 +33,7 @@ import opennlp.tools.parser.chunking.Parser;
 import opennlp.tools.util.Sequence;
 import opennlp.tools.util.Span;
 import com.rreganjr.platform.ApplicationException;
-import net.sf.echopm.ResourceBundleHelper;
+import com.rreganjr.ResourceBundleHelper;
 import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
 import com.rreganjr.nlp.dictionary.NLPText;
 import com.rreganjr.nlp.dictionary.ParseTag;

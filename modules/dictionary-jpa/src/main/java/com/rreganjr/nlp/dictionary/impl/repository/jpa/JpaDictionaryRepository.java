@@ -55,7 +55,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import net.sf.echopm.ResourceBundleHelper;
+import com.rreganjr.ResourceBundleHelper;
 import com.rreganjr.nlp.dictionary.PartOfSpeech;
 import com.rreganjr.nlp.dictionary.Category;
 import com.rreganjr.nlp.dictionary.Dictionary;

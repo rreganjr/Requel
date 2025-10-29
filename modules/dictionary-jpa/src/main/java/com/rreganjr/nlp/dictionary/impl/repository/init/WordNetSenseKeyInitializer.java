@@ -31,7 +31,7 @@ import net.didion.jwnl.data.POS;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.rreganjr.platform.bootstrap.AbstractSystemInitializer;
-import net.sf.echopm.ResourceBundleHelper;
+import com.rreganjr.ResourceBundleHelper;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.nlp.dictionary.PartOfSpeech;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;

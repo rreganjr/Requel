@@ -25,7 +25,7 @@ import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import opennlp.tools.tokenize.Tokenizer;
 import opennlp.tools.tokenize.TokenizerME;
 import com.rreganjr.platform.ApplicationException;
-import net.sf.echopm.ResourceBundleHelper;
+import com.rreganjr.ResourceBundleHelper;
 import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
 import com.rreganjr.nlp.dictionary.NLPText;
 import opennlp.tools.tokenize.TokenizerModel;

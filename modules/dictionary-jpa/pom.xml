@@ -68,10 +68,5 @@
             <scope>system</scope>
             <systemPath>${project.basedir}/../../lib/nlp/jwnl-1.4rc2.jar</systemPath>
         </dependency>
-        <dependency>
-            <groupId>com.rreganjr.echopm</groupId>
-            <artifactId>echopm</artifactId>
-            <version>1.0.0</version>
-        </dependency>
     </dependencies>
 </project>

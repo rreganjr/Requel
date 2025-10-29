@@ -25,7 +25,7 @@ import java.text.MessageFormat;
 import java.util.Locale;
 
 import com.rreganjr.platform.ApplicationException;
-import net.sf.echopm.ResourceBundleHelper;
+import com.rreganjr.ResourceBundleHelper;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Annotation;
