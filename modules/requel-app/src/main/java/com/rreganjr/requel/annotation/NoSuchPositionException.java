@@ -24,7 +24,6 @@ import com.rreganjr.platform.domain.NamedEntity;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.impl.LexicalIssue;
-import com.rreganjr.requel.project.ProjectOrDomain;
 
 /**
  * @author ron

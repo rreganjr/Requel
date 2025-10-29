@@ -43,7 +43,8 @@ import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
+import com.rreganjr.requel.utils.jaxb.JaxbAdapterConfigurer;
+import com.rreganjr.requel.utils.jaxb.UnmarshallerListenerFactory;
 
 /**
  * @author ron
@@ -57,6 +58,8 @@ public class ImportProjectCommandImpl extends AbstractEditProjectCommand impleme
 	private InputStream inputStream;
 	private String name;
 	private boolean analysisEnabled = false;
+    private final JaxbAdapterConfigurer jaxbAdapterConfigurer;
+    private final UnmarshallerListenerFactory unmarshallerListenerFactory;
 
 	/**
 	 * @param assistantManager
@@ -68,11 +71,15 @@ public class ImportProjectCommandImpl extends AbstractEditProjectCommand impleme
 	 */
 	@Autowired
 	public ImportProjectCommandImpl(AssistantFacade assistantManager,
-			UserRepository userRepository, ProjectRepository projectRepository,
-			ProjectCommandFactory projectCommandFactory,
-			AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler) {
+		UserRepository userRepository, ProjectRepository projectRepository,
+		ProjectCommandFactory projectCommandFactory,
+		AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler,
+		JaxbAdapterConfigurer jaxbAdapterConfigurer,
+		UnmarshallerListenerFactory unmarshallerListenerFactory) {
 		super(assistantManager, userRepository, projectRepository, projectCommandFactory,
-				annotationCommandFactory, commandHandler);
+			annotationCommandFactory, commandHandler);
+        this.jaxbAdapterConfigurer = jaxbAdapterConfigurer;
+        this.unmarshallerListenerFactory = unmarshallerListenerFactory;
 	}
 
 	/**
@@ -133,8 +140,9 @@ public class ImportProjectCommandImpl extends AbstractEditProjectCommand impleme
 			JAXBContext context = JAXBContext
 					.newInstance(ExportProjectCommandImpl.CLASSES_FOR_JAXB);
 			Unmarshaller unmarshaller = context.createUnmarshaller();
-			unmarshaller.setListener(new UnmarshallerListener(getProjectRepository(),
-					getUserRepository(), createdBy, getName()));
+			jaxbAdapterConfigurer.configure(unmarshaller);
+			unmarshaller.setListener(
+				unmarshallerListenerFactory.create(createdBy, getName()));
 			ProjectImpl project = (ProjectImpl) unmarshaller.unmarshal(getInputStream());
 			if (project.getCreatedBy() == null) {
 				project.setCreatedBy(createdBy);

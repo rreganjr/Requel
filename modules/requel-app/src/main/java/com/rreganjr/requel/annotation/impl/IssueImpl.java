@@ -51,9 +51,7 @@ import com.rreganjr.requel.annotation.impl.PositionImpl.Position2PositionImplAda
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
-import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
-import com.rreganjr.requel.utils.jaxb.DateAdapter;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
@@ -189,7 +187,6 @@ public class IssueImpl extends AbstractAnnotation implements Issue {
 			CascadeType.REFRESH }, optional = true)
 	@XmlIDREF
 	@XmlAttribute(name = "resolvedByUser")
-	@XmlJavaTypeAdapter(User2UserImplAdapter.class)
 	public User getResolvedByUser() {
 		return resolvedByUser;
 	}
@@ -199,7 +196,6 @@ public class IssueImpl extends AbstractAnnotation implements Issue {
 	}
 
 	@XmlAttribute(name = "dateResolved")
-	@XmlJavaTypeAdapter(DateAdapter.class)
 	@Temporal(TemporalType.TIMESTAMP)
 	public Date getResolvedDate() {
 		return resolvedDate;

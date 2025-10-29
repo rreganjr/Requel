@@ -65,9 +65,7 @@ import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
 
 import com.rreganjr.requel.user.UserRepository;
-import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
-import com.rreganjr.requel.utils.jaxb.DateAdapter;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
@@ -199,23 +197,21 @@ public class PositionImpl implements Position, Serializable {
 		}
 	}
 
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.REFRESH }, optional = false)
-	@XmlIDREF()
-	@XmlAttribute(name = "createdBy")
-	@XmlJavaTypeAdapter(User2UserImplAdapter.class)
-	public User getCreatedBy() {
-		return createdBy;
-	}
+    @ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.REFRESH }, optional = false)
+    @XmlIDREF()
+    @XmlAttribute(name = "createdBy")
+    public User getCreatedBy() {
+        return createdBy;
+    }
 
 	protected void setCreatedBy(User createdBy) {
 		this.createdBy = createdBy;
 	}
 
-	@XmlAttribute(name = "dateCreated")
-	@XmlJavaTypeAdapter(DateAdapter.class)
-	@Column(updatable = false)
-	@Temporal(TemporalType.TIMESTAMP)
-	public Date getDateCreated() {
+    @XmlAttribute(name = "dateCreated")
+    @Column(updatable = false)
+    @Temporal(TemporalType.TIMESTAMP)
+    public Date getDateCreated() {
 		return dateCreated;
 	}
 

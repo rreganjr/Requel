@@ -51,9 +51,7 @@ import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.ArgumentPositionSupportLevel;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.user.UserRepository;
-import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
-import com.rreganjr.requel.utils.jaxb.DateAdapter;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
 import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
@@ -147,23 +145,21 @@ public class ArgumentImpl implements Argument, Serializable {
 		this.supportLevel = supportLevel;
 	}
 
-	@XmlIDREF()
-	@XmlAttribute(name = "createdBy")
-	@XmlJavaTypeAdapter(User2UserImplAdapter.class)
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, optional = false)
-	public User getCreatedBy() {
-		return createdBy;
+    @XmlIDREF()
+    @XmlAttribute(name = "createdBy")
+    @ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, optional = false)
+    public User getCreatedBy() {
+        return createdBy;
 	}
 
 	protected void setCreatedBy(User createdBy) {
 		this.createdBy = createdBy;
 	}
 
-	@XmlAttribute(name = "dateCreated")
-	@XmlJavaTypeAdapter(DateAdapter.class)
-	@Column(updatable = false)
-	@Temporal(TemporalType.TIMESTAMP)
-	public Date getDateCreated() {
+    @XmlAttribute(name = "dateCreated")
+    @Column(updatable = false)
+    @Temporal(TemporalType.TIMESTAMP)
+    public Date getDateCreated() {
 		return dateCreated;
 	}
 

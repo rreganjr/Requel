@@ -54,7 +54,7 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.OrganizationImpl;
 import com.rreganjr.requel.user.impl.UserImpl;
-import com.rreganjr.requel.user.impl.User2UserImplAdapter;
+import com.rreganjr.requel.utils.jaxb.JaxbAdapterConfigurer;
 
 /**
  * @author ron
@@ -92,6 +92,7 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 
 	private Project project;
 	private OutputStream outputStream;
+    private final JaxbAdapterConfigurer jaxbAdapterConfigurer;
 
 	/**
 	 * @param assistantManager
@@ -103,11 +104,13 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 	 */
 	@Autowired
 	public ExportProjectCommandImpl(AssistantFacade assistantManager,
-			UserRepository userRepository, ProjectRepository projectRepository,
-			ProjectCommandFactory projectCommandFactory,
-			AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler) {
+		UserRepository userRepository, ProjectRepository projectRepository,
+		ProjectCommandFactory projectCommandFactory,
+		AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler,
+		JaxbAdapterConfigurer jaxbAdapterConfigurer) {
 		super(assistantManager, userRepository, projectRepository, projectCommandFactory,
-				annotationCommandFactory, commandHandler);
+			annotationCommandFactory, commandHandler);
+        this.jaxbAdapterConfigurer = jaxbAdapterConfigurer;
 	}
 
 	/**
@@ -137,7 +140,7 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 			Marshaller marshaller = context.createMarshaller();
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
 			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://www.rreganjr.com/requel http://requel.sourceforge.net/integration/1.0/project.xsd");
-			marshaller.setAdapter(new User2UserImplAdapter());
+			jaxbAdapterConfigurer.configure(marshaller);
 			marshaller.marshal(project, getOutputStream());
 		} catch (Exception e) {
 			log.error(e, e);
