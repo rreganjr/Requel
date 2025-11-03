@@ -42,7 +42,6 @@ import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
 import com.rreganjr.requel.user.impl.JpaUserRolePermission;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
  * A ProjectUserRole represents a user authorized to work with Projects in the
@@ -179,7 +178,7 @@ public class ProjectUserRole extends AbstractUserRole {
 	 * 
 	 * @param userRepository
 	 * @param parent
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal(final UserRepository userRepository, Object parent) {
 		User domainParent = User2UserImplAdapter.resolveDomain((User) parent);

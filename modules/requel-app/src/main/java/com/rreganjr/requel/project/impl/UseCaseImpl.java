@@ -60,7 +60,6 @@ import com.rreganjr.requel.project.UseCase;
 
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
  * @author ron
@@ -244,7 +243,7 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 	 * @param userRepository
 	 * @param defaultCreatedByUser -
 	 *            the user to be set as the created by if no user is supplied.
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal(final UserRepository userRepository, User defaultCreatedByUser) {
 		UnmarshallingContext.getInstance().addPatcher(

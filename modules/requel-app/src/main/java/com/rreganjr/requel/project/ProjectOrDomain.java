@@ -34,11 +34,6 @@ public interface ProjectOrDomain extends CreatedEntity, NamedEntity, Describable
 		ActorContainer, ScenarioContainer {
 
 	/**
-	 * @return The name used to uniquely idenfity the domain or project.
-	 */
-	public String getName();
-
-	/**
 	 * Change the name of the domain or project.
 	 * 
 	 * @param name

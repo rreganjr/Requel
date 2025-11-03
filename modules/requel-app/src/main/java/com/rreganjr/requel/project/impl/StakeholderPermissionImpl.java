@@ -47,7 +47,6 @@ import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.StakeholderPermission;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.UserStakeholder;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
  * Project specific permissions for UserStakeholders
@@ -242,7 +241,7 @@ public class StakeholderPermissionImpl implements StakeholderPermission {
 	 * @param projectRepository
 	 * @param parent -
 	 *            the stakeholder that should be granted the permission.
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal(final ProjectRepository projectRepository, final Object parent) {
 		UnmarshallingContext.getInstance().addPatcher(new Patcher() {

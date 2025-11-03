@@ -71,7 +71,6 @@ import com.rreganjr.requel.project.StoryType;
 
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
  * A story describes an interaction with the system as prose.
@@ -222,7 +221,7 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 	 * @param userRepository
 	 * @param defaultCreatedByUser -
 	 *            the user to be set as the created by if no user is supplied.
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal(final UserRepository userRepository, User defaultCreatedByUser) {
 		UnmarshallingContext.getInstance().addPatcher(

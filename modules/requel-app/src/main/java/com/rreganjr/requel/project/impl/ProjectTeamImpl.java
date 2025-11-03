@@ -52,7 +52,6 @@ import com.rreganjr.requel.project.ProjectTeam;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.platform.identity.User;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
  * @author ron
@@ -127,7 +126,7 @@ public class ProjectTeamImpl extends AbstractProjectOrDomainEntity implements Pr
 	 * This is for JAXB to fixup the parent child relationship with the
 	 * canonical term.
 	 * 
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal() {
 		for (Stakeholder stakeholder : getMembers()) {

@@ -1,26 +1,22 @@
-# Annotation Package External Dependencies (as of 2025-10-29)
+# Annotation Package External Dependencies (as of 2025-10-30)
 
-## Depends on `modules/requel-app` (outside `com.rreganjr.requel.annotation`)
+
+## Depends on other modules
 
 - `impl/AbstractAnnotation.java`
-  - `import com.rreganjr.requel.utils.jaxb.DateAdapter`
-  - `import com.rreganjr.requel.utils.jaxb.JAXBAnnotationGroupedByPatcher`
-  - `import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher`
-  - `import com.rreganjr.requel.utils.jaxb.UnmarshallerListener`
+  - `com.rreganjr.requel.user.UserRepository` (user-domain)
+  - `com.rreganjr.requel.user.impl.UserImpl` (user-jpa)
+  - `com.rreganjr.requel.utils.jaxb.JAXBAnnotationGroupedByPatcher` (requel-app)
+  - `com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher` (user-jpa)
 - `impl/ArgumentImpl.java`
-  - `import com.rreganjr.requel.utils.jaxb.DateAdapter`
-  - `import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher`
-  - `import com.rreganjr.requel.utils.jaxb.UnmarshallerListener`
+  - `com.rreganjr.requel.user.UserRepository` (user-domain)
+  - `com.rreganjr.requel.user.impl.UserImpl` (user-jpa)
+  - `com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher` (user-jpa)
 - `impl/IssueImpl.java`
-  - `import com.rreganjr.requel.utils.jaxb.DateAdapter`
-  - `import com.rreganjr.requel.utils.jaxb.UnmarshallerListener`
+  - `com.rreganjr.requel.user.UserRepository` (user-domain)
+  - `com.rreganjr.requel.user.exception.NoSuchUserException` (user-domain)
+  - `com.rreganjr.requel.user.impl.UserImpl` (user-jpa)
 - `impl/PositionImpl.java`
-  - `import com.rreganjr.requel.utils.jaxb.DateAdapter`
-  - `import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher`
-  - `import com.rreganjr.requel.utils.jaxb.UnmarshallerListener`
-
-## Depends on `modules/dictionary-jpa`
-
-- `impl/command/ResolveIssueWithAddWordToDictionaryPositionCommandImpl.java`
-  - `import com.rreganjr.nlp.dictionary.command.DictionaryCommandFactory`
-  - `import com.rreganjr.nlp.dictionary.command.EditDictionaryWordCommand`
+  - `com.rreganjr.requel.user.UserRepository` (user-domain)
+  - `com.rreganjr.requel.user.impl.UserImpl` (user-jpa)
+  - `com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher` (user-jpa)

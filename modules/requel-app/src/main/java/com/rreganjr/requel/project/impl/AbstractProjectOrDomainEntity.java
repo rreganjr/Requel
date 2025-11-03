@@ -48,9 +48,8 @@ import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
 import com.rreganjr.requel.utils.jaxb.DateAdapter;
-import com.rreganjr.requel.utils.jaxb.JAXBAnnotatablePatcher;
+import com.rreganjr.requel.annotation.JAXBAnnotatablePatcher;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
  * @author ron
@@ -270,7 +269,7 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 	 * @param defaultCreatedByUser -
 	 *            the user to be set as the created by if no user is supplied.
 	 * @param parent
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal(UserRepository userRepository, User defaultCreatedByUser,
 			Object parent) {

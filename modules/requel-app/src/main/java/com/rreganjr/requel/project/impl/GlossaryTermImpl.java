@@ -58,7 +58,6 @@ import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.platform.identity.User;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
  * Implementation of a Glossary Term.
@@ -182,7 +181,7 @@ public class GlossaryTermImpl extends AbstractTextEntity implements GlossaryTerm
 	 * This is for JAXB to fixup the parent child relationship with the
 	 * canonical term.
 	 * 
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	@Override
 	public void afterUnmarshal() {

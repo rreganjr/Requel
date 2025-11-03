@@ -69,7 +69,6 @@ import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.UserImpl;
 import com.rreganjr.requel.utils.jaxb.JAXBAnnotationGroupedByPatcher;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
  * @author ron
@@ -272,7 +271,7 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	/**
 	 * This is for JAXB to patchup the type
 	 * 
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void beforeUnmarshal() {
 		setType(getClass().getName());
@@ -286,7 +285,7 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	 * @param defaultCreatedByUser -
 	 *            the user to be set as the created by if no user is supplied.
 	 * @param annotatable
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal(UserRepository userRepository, User defaultCreatedByUser,
 			Object annotatable) {

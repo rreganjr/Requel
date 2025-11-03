@@ -66,7 +66,6 @@ import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
  * A stakeholder that is a user.
@@ -301,7 +300,7 @@ public class UserStakeholderImpl extends AbstractStakeholder implements UserStak
 	 * @param userRepository
 	 * @param defaultCreatedByUser -
 	 *            the user to be set as the created by if no user is supplied.
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal(final UserRepository userRepository, User defaultCreatedByUser) {
 		UnmarshallingContext.getInstance().addPatcher(

@@ -46,7 +46,6 @@ import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
  * A stakeholder that is not a user.
@@ -196,7 +195,7 @@ public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUs
 	 * @param userRepository
 	 * @param defaultCreatedByUser -
 	 *            the user to be set as the created by if no user is supplied.
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal(final UserRepository userRepository, User defaultCreatedByUser) {
 		UnmarshallingContext.getInstance().addPatcher(

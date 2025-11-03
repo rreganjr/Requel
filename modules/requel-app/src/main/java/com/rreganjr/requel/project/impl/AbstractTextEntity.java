@@ -28,7 +28,6 @@ import jakarta.xml.bind.annotation.XmlType;
 
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.TextEntity;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
  * @author ron
@@ -78,7 +77,7 @@ public abstract class AbstractTextEntity extends AbstractProjectOrDomainEntity i
 	 * This is for JAXB to cleanup the text of extra whitespace at the start and
 	 * end of the text.
 	 * 
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal() {
 		if (getText() != null) {

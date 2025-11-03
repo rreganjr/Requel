@@ -18,14 +18,11 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.utils.jaxb;
+package com.rreganjr.requel.annotation;
 
 import org.xml.sax.SAXException;
 
 import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
-
-import com.rreganjr.requel.annotation.Annotatable;
-import com.rreganjr.requel.annotation.Annotation;
 
 /**
  * This is used to add an annotatable to all the annotations after import.

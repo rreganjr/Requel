@@ -52,7 +52,6 @@ import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.impl.UserImpl;
-import com.rreganjr.requel.utils.jaxb.UnmarshallerListener;
 
 /**
  * @author ron
@@ -210,7 +209,7 @@ public class IssueImpl extends AbstractAnnotation implements Issue {
 	 * resolved by user with an existing user.
 	 * 
 	 * @param userRepository
-	 * @see UnmarshallerListener
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
 	public void afterUnmarshal(final UserRepository userRepository) {
 		UnmarshallingContext.getInstance().addPatcher(new Patcher() {
