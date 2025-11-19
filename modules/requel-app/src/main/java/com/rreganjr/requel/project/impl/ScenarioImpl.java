@@ -134,6 +134,16 @@ public class ScenarioImpl extends StepImpl implements Scenario {
 		this.steps = steps;
 	}
 
+	/**
+	 * Internal helper for import to add a step.
+	 */
+	public void addStep(Step step) {
+		if (step == null) {
+			return;
+		}
+		steps.add(step);
+	}
+
 	@Override
 	public boolean usesStep(Step stepToFind) {
 		if (this.equals(stepToFind)) {

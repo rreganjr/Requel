@@ -226,7 +226,7 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 		return scenario;
 	}
 
-	protected void setScenario(Scenario scenario) {
+	public void setScenario(Scenario scenario) {
 		this.scenario = scenario;
 	}
 

@@ -27,9 +27,10 @@
 ## 2. Strategic Goals (DDD Terminology)
 - Re-establish **aggregate boundaries** so that import logic lives in application or domain services, not inside entities.
 - Maintain **persistence ignorance** during unmarshalling; aggregates should be materialised in a detached state and only attached when the application service commits the transaction.
-- Introduce a dedicated **mapping layer** (DTOs) to act as an **anti-corruption layer** between the XML contract and our aggregates.
+- Introduce a dedicated **mapping layer** (DTOs) to act as an **anti-corruption layer** between the XML contract and our aggregates, while keeping the DTO surface minimal (only where the XML contract diverges from the domain).
 - Provide an extensible **domain service** (renaming the current `EntityPatcher` idea to `AggregateAssembler`) that can enforce invariants and replace stubs with managed references before the unit of work is flushed.
 - Decouple annotation grouping by introducing an **Annotation bounded-context adapter** so the Annotation aggregate can remain agnostic of Project-specific types.
+- Avoid a “full-copy-in-memory” import; process aggregate roots incrementally with caches for cross-aggregate references so we do not materialise an entire project graph before persistence.
 
 ## 3. Tactical Steps
 
@@ -37,9 +38,10 @@
    - Keep the existing audit of `afterUnmarshal` hooks as a reference artefact for identifying where aggregates violate persistence ignorance.
    - Map each hook to the bounded context and aggregate that owns the behaviour to understand the correct home for that logic.
 
-2. **Introduce an anti-corruption layer.**
-   - Define DTOs (`ProjectImportDto`, `AnnotationDto`, etc.) representing the XML schema. These DTOs live outside the domain layer and shield aggregates from transport concerns.
-   - Build mappers (could leverage MapStruct or manual assemblers) that translate DTOs into aggregate construction calls. Mapping occurs inside the application service after unmarshalling completes.
+2. **Introduce an anti-corruption layer (keep it thin).**
+   - Define DTOs only where the XML shape diverges from the domain (e.g., references by ID, flattened primitives). Prefer **draft/factory inputs** that directly call domain constructors when the shapes already align to avoid DTO proliferation.
+   - Use a small number of root DTOs (e.g., `ProjectImportDocument`, `AnnotationImportDocument`) plus value-object DTOs; avoid a 1:1 DTO per entity when the domain already provides suitable factories/builder methods.
+   - Build mappers (MapStruct or manual) that translate DTOs into aggregate construction calls. Mapping happens in the application service right after unmarshalling, but per-aggregate-root rather than buffering the entire project.
 
 3. **Implement `AggregateAssembler` SPI.**
    - Define an interface (formerly `EntityPatcher`) such as:
@@ -51,18 +53,21 @@
      ```
    - `ImportUnitOfWork` (formerly `ImportContext`) supplies repositories, identity caches, and factories needed by assemblers while keeping transactional control in the application service.
    - Assemblers function as domain services that complete aggregates (resolve references, enforce invariants) without performing persistence operations themselves.
+   - Assemblers should accept **reference tokens** (IDs, external keys) rather than DTO graphs to minimise copies; they resolve references lazily via the `ImportUnitOfWork`.
 
 4. **Registry & orchestration.**
    - The application service collects all `AggregateAssembler` beans and registers them by aggregate type.
-   - After DTO → aggregate materialisation, the application service traverses the aggregate graph, invoking assemblers inside the import **unit of work**. Once all invariants hold, it hands the fully-consistent aggregate to the repository for persistence.
+   - Process **per aggregate root** to sidestep full-graph buffering: unmarshal → map → assemble → persist/flush → detach. Maintain an identity/organisation/annotation reference cache in `ImportUnitOfWork` so later aggregates can still resolve already-persisted relationships without keeping the whole graph in memory.
    - Assemblers must replace identity/organisation placeholders in situ (e.g., `setCreatedBy`) so the final graph is consistent before calling repositories.
+   - Suggested per-root order for the provided sample XML (`doc/samples/Requel.xml`) that avoids buffering the full graph:
+     1) pre-scan and cache `positions` (IDs only); 2) actors; 3) scenarios/steps; 4) goals (capture inter-goal refs); 5) stakeholders/users; 6) stories; 7) use cases; 8) annotations (resolving `positionRef` against the cache); then project metadata. Each stage maps → assembles → persists/flushes before moving on.
 
 5. **Annotation bounded context adapter.**
    - Define interfaces like `AnnotationGroupingAdapter` within the Annotation context. Project-specific implementations live in the Project context and are injected via configuration, preserving the layered architecture.
    - Move `JAXBAnnotationGroupedByPatcher` (or its successor) into the annotation module once adapters are in place, ensuring the domain model for annotations depends only on abstractions.
 
 6. **Verification.**
-   - Exercise the import application service with representative project XMLs to ensure aggregates remain detached until the final persistence boundary.
+   - Exercise the import application service with representative project XMLs to ensure aggregates remain detached until the final persistence boundary and that per-root processing does not reload the full graph.
    - Add integration tests that assert duplicate identities/organisations are resolved via assemblers and that annotation grouping remains consistent.
 
 ## 4. Open Questions
