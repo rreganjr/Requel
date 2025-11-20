@@ -40,8 +40,4 @@ public class AnnotationImportXml {
     public Boolean getMustBeResolved() { return mustBeResolved; }
     public List<String> getPositionRefs() { return positionRefs; }
     public List<String> getAnnotatableRefs() { return annotatableRefs; }
-    @XmlAttribute(name = "annotatableDiscriminator")
-    private String annotatableDiscriminator;
-
-    public String getAnnotatableDiscriminator() { return annotatableDiscriminator; }
 }

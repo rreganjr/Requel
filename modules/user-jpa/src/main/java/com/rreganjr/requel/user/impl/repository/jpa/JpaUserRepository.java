@@ -112,7 +112,6 @@ public class JpaUserRepository extends AbstractJpaRepository implements UserRepo
 			// TODO: use named query so it can be configured externally
             Query query = getEntityManager().createQuery(
                     "select object(user) from UserImpl as user where user.username like :username");
-            query.setFlushMode(FlushModeType.COMMIT);
             query.setParameter("username", username);
 			return (User) query.getSingleResult();
 		} catch (NoResultException e) {

@@ -35,9 +35,15 @@ public class PositionImportXml {
     public static class ArgumentImportXml {
         @XmlAttribute(name = "id")
         private String id;
+        @XmlAttribute(name = "createdBy")
+        private String createdBy;
+        @XmlAttribute(name = "supportLevel")
+        private String supportLevel;
         @XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
         private String text;
         public String getId() { return id; }
+        public String getCreatedBy() { return createdBy; }
+        public String getSupportLevel() { return supportLevel; }
         public String getText() { return text; }
     }
 }

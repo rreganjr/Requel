@@ -49,7 +49,7 @@ public class AbstractJpaRepository extends AbstractRepository {
 		super(exceptionMapper);
 	}
 
-	protected EntityManager getEntityManager() {
+	public EntityManager getEntityManager() {
 		return entityManager;
 	}
 

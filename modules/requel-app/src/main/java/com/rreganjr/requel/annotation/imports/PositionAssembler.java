@@ -1,6 +1,8 @@
 package com.rreganjr.requel.annotation.imports;
 
 import com.rreganjr.requel.annotation.impl.PositionImpl;
+import com.rreganjr.requel.annotation.impl.ArgumentImpl;
+import com.rreganjr.requel.annotation.ArgumentPositionSupportLevel;
 import com.rreganjr.requel.imports.AggregateAssembler;
 import com.rreganjr.requel.imports.ImportException;
 import com.rreganjr.requel.imports.ImportUnitOfWork;
@@ -39,6 +41,12 @@ public class PositionAssembler implements AggregateAssembler<PositionImportDraft
         PositionImpl position = new PositionImpl(draft.getText(), createdBy);
         unitOfWork.register(PositionImpl.class, draft.getExternalId(), position);
         unitOfWork.register(com.rreganjr.requel.annotation.Position.class, draft.getExternalId(), position);
+        draft.getArguments().forEach(argDraft -> {
+            User argCreatedBy = resolveUser(argDraft.getCreatedByExternalId(), unitOfWork);
+            ArgumentPositionSupportLevel level = parseSupportLevel(argDraft.getSupportLevel());
+            ArgumentImpl argument = new ArgumentImpl(position, argDraft.getText(), level, argCreatedBy);
+            position.getArguments().add(argument);
+        });
         return position;
     }
 
@@ -54,5 +62,30 @@ public class PositionAssembler implements AggregateAssembler<PositionImportDraft
             }
         }
         return defaultCreatedBy;
+    }
+
+    private User resolveUser(String externalId, ImportUnitOfWork unitOfWork) {
+        if (StringUtils.hasText(externalId)) {
+            Optional<User> resolved = unitOfWork.resolve(User.class, externalId);
+            if (resolved.isPresent()) {
+                return resolved.get();
+            }
+            try {
+                return userRepository.findUserByUsername(externalId);
+            } catch (Exception ignored) {
+            }
+        }
+        return defaultCreatedBy;
+    }
+
+    private ArgumentPositionSupportLevel parseSupportLevel(String value) {
+        if (!StringUtils.hasText(value)) {
+            return ArgumentPositionSupportLevel.Neutral;
+        }
+        try {
+            return ArgumentPositionSupportLevel.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            return ArgumentPositionSupportLevel.Neutral;
+        }
     }
 }

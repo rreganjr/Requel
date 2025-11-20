@@ -23,9 +23,11 @@ import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 
 import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.impl.repository.jpa.JpaUserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,18 +70,19 @@ import com.rreganjr.requel.user.impl.repository.init.AssistantUserInitializer;
 import com.rreganjr.requel.user.impl.repository.init.ProjectUserInitializer;
 import com.rreganjr.requel.user.impl.repository.init.UserRolePermissionsInitializer;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
+import com.rreganjr.requel.user.command.UserCommandFactory;
+import com.rreganjr.requel.user.command.EditUserCommand;
 
 /**
  * Regression coverage that builds a project with sample data, exports it, and verifies that re-importing
- * the XML produces an equivalent project structure.
+ * the XML via the streaming StAX importer produces an equivalent project structure.
  */
 @SpringBootTest(classes = Application.class)
 @TestPropertySource(locations = "classpath:db.properties")
 @org.springframework.test.context.ActiveProfiles("test")
-class ProjectXmlRoundTripIT {
+class ProjectXmlStreamingRoundTripIT {
 
 	private static final String SAMPLE_PROJECT_NAME_PREFIX = "Regression Project ";
-	private static final AtomicBoolean BASELINE_BOOTSTRAPPED = new AtomicBoolean(false);
 
 	@Autowired
 	private ProjectCommandFactory projectCommandFactory;
@@ -110,6 +113,12 @@ class ProjectXmlRoundTripIT {
 
 	@Autowired
 	private AnnotationCommandFactory annotationCommandFactory;
+
+	@Autowired
+	private ApplicationContext applicationContext;
+
+	@Autowired
+	private UserCommandFactory userCommandFactory;
 
 	@Test
 	@Transactional
@@ -158,17 +167,38 @@ class ProjectXmlRoundTripIT {
 	}
 
 	private User ensureProjectUserExists() throws NoSuchUserException {
-		return userRepository.findUserByUsername("project");
+		try {
+			return userRepository.findUserByUsername("project");
+		} catch (NoSuchUserException missing) {
+			createProjectUser();
+			return userRepository.findUserByUsername("project");
+		}
+	}
+
+	private void createProjectUser() {
+		try {
+			EditUserCommand command = userCommandFactory.newEditUserCommand();
+			command.setUsername("project");
+			command.setPassword("project");
+			command.setRepassword("project");
+			command.setName("Builtin Project User");
+			command.setEmailAddress("rreganjr@users.sourceforge.net");
+			command.setOrganizationName("Requel");
+			command.addUserRoleName(ProjectUserRole.getRoleName(ProjectUserRole.class));
+			command.addUserRolePermissionName(ProjectUserRole.getRoleName(ProjectUserRole.class),
+					ProjectUserRole.createProjects.getName());
+			commandHandler.execute(command);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to initialize project user for streaming round-trip test", e);
+		}
 	}
 
 	private void initializeBaselineData() {
-		if (BASELINE_BOOTSTRAPPED.compareAndSet(false, true)) {
-			userRolePermissionsInitializer.initialize();
-			stakeholderPermissionsInitializer.initialize();
-			adminUserInitializer.initialize();
-			assistantUserInitializer.initialize();
-			projectUserInitializer.initialize();
-		}
+		userRolePermissionsInitializer.initialize();
+		stakeholderPermissionsInitializer.initialize();
+		adminUserInitializer.initialize();
+		assistantUserInitializer.initialize();
+		projectUserInitializer.initialize();
 		ensureUserHasProjectRole("admin");
 		ensureUserHasProjectRole("assistant");
 		ensureUserHasProjectRole("project");
@@ -408,7 +438,8 @@ private UseCase createUseCase(Project project, String primaryActorName,
 
 	private Project importProject(byte[] exportedBytes, User importUser, String importedProjectName) throws Exception {
 		try (ByteArrayInputStream reimportStream = new ByteArrayInputStream(exportedBytes)) {
-			ImportProjectCommand importCommand = projectCommandFactory.newImportProjectCommand();
+			ImportProjectCommand importCommand = applicationContext.getBean(
+					"importProjectStreamingCommand", ImportProjectCommand.class);
 			importCommand.setAnalysisEnabled(false);
 			importCommand.setEditedBy(importUser);
 			importCommand.setName(importedProjectName);

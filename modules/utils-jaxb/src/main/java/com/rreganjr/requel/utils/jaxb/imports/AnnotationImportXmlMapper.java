@@ -19,7 +19,6 @@ public class AnnotationImportXmlMapper {
                 .mustBeResolved(mustBeResolved)
                 .positionExternalIds(new HashSet<>(xml.getPositionRefs()))
                 .annotatableExternalIds(new HashSet<>(xml.getAnnotatableRefs()))
-                .annotatableDiscriminator(xml.getAnnotatableDiscriminator())
                 .build();
     }
 }
