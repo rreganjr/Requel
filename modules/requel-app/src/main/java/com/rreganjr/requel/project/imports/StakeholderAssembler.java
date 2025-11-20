@@ -1,3 +1,25 @@
+/*
+ * $Id: $
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
+ *
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 package com.rreganjr.requel.project.imports;
 
 import com.rreganjr.requel.imports.AggregateAssembler;
@@ -5,6 +27,7 @@ import com.rreganjr.requel.imports.ImportException;
 import com.rreganjr.requel.imports.ImportUnitOfWork;
 import com.rreganjr.requel.imports.project.StakeholderImportDraft;
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.impl.NonUserStakeholderImpl;
 import com.rreganjr.requel.project.impl.UserStakeholderImpl;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
@@ -14,7 +37,7 @@ import org.springframework.util.StringUtils;
 /**
  * Assembles user stakeholders from drafts.
  */
-public class StakeholderAssembler implements AggregateAssembler<StakeholderImportDraft, UserStakeholderImpl> {
+public class StakeholderAssembler implements AggregateAssembler<StakeholderImportDraft, com.rreganjr.requel.project.Stakeholder> {
 
     private final Project project;
     private final UserRepository userRepository;
@@ -32,20 +55,27 @@ public class StakeholderAssembler implements AggregateAssembler<StakeholderImpor
     }
 
     @Override
-    public Class<UserStakeholderImpl> aggregateType() {
-        return UserStakeholderImpl.class;
+    public Class<com.rreganjr.requel.project.Stakeholder> aggregateType() {
+        return com.rreganjr.requel.project.Stakeholder.class;
     }
 
     @Override
-    public UserStakeholderImpl assemble(StakeholderImportDraft draft, ImportUnitOfWork unitOfWork) throws ImportException {
+    public com.rreganjr.requel.project.Stakeholder assemble(StakeholderImportDraft draft, ImportUnitOfWork unitOfWork) throws ImportException {
         if (draft == null) {
             throw new ImportException("stakeholder draft is required");
         }
-        User user = resolveUser(draft.getUserExternalId(), unitOfWork);
         com.rreganjr.platform.identity.User createdBy = resolveCreatedBy(draft, unitOfWork);
-
-        UserStakeholderImpl stakeholder = new UserStakeholderImpl(project, createdBy, user);
-        unitOfWork.register(UserStakeholderImpl.class, draft.getExternalId(), stakeholder);
+        com.rreganjr.requel.project.Stakeholder stakeholder;
+        if (draft.isUserStakeholder()) {
+            User user = resolveUser(draft.getUserExternalId(), unitOfWork);
+            stakeholder = new UserStakeholderImpl(project, createdBy, user);
+        } else {
+            stakeholder = new NonUserStakeholderImpl(project, createdBy, draft.getName());
+            ((NonUserStakeholderImpl) stakeholder).setText(draft.getText());
+        }
+        Class<?> registrationType = (stakeholder instanceof UserStakeholderImpl)
+                ? UserStakeholderImpl.class
+                : NonUserStakeholderImpl.class;
         unitOfWork.register(com.rreganjr.requel.project.Stakeholder.class, draft.getExternalId(), stakeholder);
         return stakeholder;
     }

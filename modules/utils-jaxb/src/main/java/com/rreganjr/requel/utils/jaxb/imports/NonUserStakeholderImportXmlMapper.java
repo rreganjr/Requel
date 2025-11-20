@@ -20,24 +20,18 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.validator;
+package com.rreganjr.requel.utils.jaxb.imports;
 
-public class InvalidStateException extends RuntimeException {
-    private final InvalidValue[] invalidValues;
+import com.rreganjr.requel.imports.ImportException;
+import com.rreganjr.requel.imports.project.NonUserStakeholderImportDraft;
 
-    public InvalidStateException(String message, InvalidValue[] invalidValues) {
-        super(message);
-        this.invalidValues = invalidValues != null ? invalidValues : new InvalidValue[0];
+public class NonUserStakeholderImportXmlMapper {
+
+    public NonUserStakeholderImportDraft toDraft(NonUserStakeholderImportXml xml) {
+        if (xml == null) {
+            throw new ImportException("non-user stakeholder XML payload is required");
+        }
+        return new NonUserStakeholderImportDraft(xml.getId(), xml.getCreatedBy(), xml.getName(),
+                xml.getText(), new java.util.HashSet<>(xml.getAnnotationRefs()));
     }
-
-    public InvalidStateException(Throwable cause, InvalidValue[] invalidValues) {
-        super(cause);
-        this.invalidValues = invalidValues != null ? invalidValues : new InvalidValue[0];
-    }
-
-    public InvalidStateException(String message) { this(message, null); }
-    public InvalidStateException(Throwable cause) { this(cause, null); }
-
-    public InvalidValue[] getInvalidValues() { return invalidValues; }
 }
-

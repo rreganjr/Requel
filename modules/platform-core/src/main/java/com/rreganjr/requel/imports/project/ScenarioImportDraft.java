@@ -1,3 +1,25 @@
+/*
+ * $Id: $
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
+ *
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 package com.rreganjr.requel.imports.project;
 
 import java.util.Collections;
@@ -16,6 +38,7 @@ public class ScenarioImportDraft {
     private final String scenarioType;
     private final Set<String> stepRefs;
     private final Set<String> annotationExternalIds;
+    private final boolean scenarioElement;
 
     private ScenarioImportDraft(Builder builder) {
         this.externalId = builder.externalId;
@@ -26,6 +49,7 @@ public class ScenarioImportDraft {
         this.stepRefs = Collections.unmodifiableSet(new HashSet<>(builder.stepRefs));
         this.annotationExternalIds =
                 Collections.unmodifiableSet(new HashSet<>(builder.annotationExternalIds));
+        this.scenarioElement = builder.scenarioElement;
     }
 
     public String getExternalId() {
@@ -54,6 +78,10 @@ public class ScenarioImportDraft {
         return annotationExternalIds;
     }
 
+    public boolean isScenarioElement() {
+        return scenarioElement;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -66,6 +94,7 @@ public class ScenarioImportDraft {
         private String scenarioType;
         private Set<String> stepRefs = new HashSet<>();
         private Set<String> annotationExternalIds = new HashSet<>();
+        private boolean scenarioElement = true;
 
         public Builder externalId(String externalId) {
             this.externalId = externalId;
@@ -103,6 +132,11 @@ public class ScenarioImportDraft {
             if (annotationExternalIds != null) {
                 this.annotationExternalIds.addAll(annotationExternalIds);
             }
+            return this;
+        }
+
+        public Builder scenarioElement(boolean scenarioElement) {
+            this.scenarioElement = scenarioElement;
             return this;
         }
 

@@ -31,9 +31,9 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import java.util.ArrayList;
 import java.util.List;
 
-@XmlRootElement(name = "position", namespace = "http://www.rreganjr.com/requel")
+@XmlRootElement(name = "nonuser-stakeholder", namespace = "http://www.rreganjr.com/requel")
 @XmlAccessorType(XmlAccessType.FIELD)
-public class PositionImportXml {
+public class NonUserStakeholderImportXml {
 
     @XmlAttribute(name = "id")
     private String id;
@@ -41,31 +41,19 @@ public class PositionImportXml {
     @XmlAttribute(name = "createdBy")
     private String createdBy;
 
+    @XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+    private String name;
+
     @XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
     private String text;
 
-    @XmlElementWrapper(name = "arguments", namespace = "http://www.rreganjr.com/requel")
-    @XmlElement(name = "argument", namespace = "http://www.rreganjr.com/requel")
-    private List<ArgumentImportXml> arguments = new ArrayList<>();
+    @XmlElementWrapper(name = "annotations", namespace = "http://www.rreganjr.com/requel")
+    @XmlElement(name = "annotationRef", namespace = "http://www.rreganjr.com/requel")
+    private List<String> annotationRefs = new ArrayList<>();
 
     public String getId() { return id; }
     public String getCreatedBy() { return createdBy; }
+    public String getName() { return name; }
     public String getText() { return text; }
-    public List<ArgumentImportXml> getArguments() { return arguments; }
-
-    @XmlAccessorType(XmlAccessType.FIELD)
-    public static class ArgumentImportXml {
-        @XmlAttribute(name = "id")
-        private String id;
-        @XmlAttribute(name = "createdBy")
-        private String createdBy;
-        @XmlAttribute(name = "supportLevel")
-        private String supportLevel;
-        @XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
-        private String text;
-        public String getId() { return id; }
-        public String getCreatedBy() { return createdBy; }
-        public String getSupportLevel() { return supportLevel; }
-        public String getText() { return text; }
-    }
+    public List<String> getAnnotationRefs() { return annotationRefs; }
 }

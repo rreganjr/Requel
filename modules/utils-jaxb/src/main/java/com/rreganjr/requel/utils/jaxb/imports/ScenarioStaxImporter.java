@@ -1,3 +1,25 @@
+/*
+ * $Id: $
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
+ *
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 package com.rreganjr.requel.utils.jaxb.imports;
 
 import com.rreganjr.requel.imports.ImportException;
@@ -38,11 +60,13 @@ public class ScenarioStaxImporter {
             List<ScenarioImportDraft> drafts = new ArrayList<>();
 
             while (reader.hasNext()) {
-                if (reader.getEventType() == XMLStreamConstants.START_ELEMENT
+                int eventType = reader.getEventType();
+                if (eventType == XMLStreamConstants.START_ELEMENT
                         && NS.equals(reader.getNamespaceURI())
-                        && "scenario".equals(reader.getLocalName())) {
+                        && ("scenario".equals(reader.getLocalName()) || "step".equals(reader.getLocalName()))) {
+                    boolean scenarioElement = "scenario".equals(reader.getLocalName());
                     ScenarioImportXml scenarioXml = unmarshaller.unmarshal(reader, ScenarioImportXml.class).getValue();
-                    drafts.add(mapper.toDraft(scenarioXml));
+                    drafts.add(mapper.toDraft(scenarioXml, scenarioElement));
                     continue;
                 }
                 reader.next();

@@ -1,3 +1,25 @@
+/*
+ * $Id: $
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
+ *
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.command.CommandHandler;
@@ -6,6 +28,7 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.imports.ImportException;
 import com.rreganjr.requel.imports.ImportUnitOfWork;
 import com.rreganjr.requel.imports.project.ActorImportDraft;
+import com.rreganjr.requel.imports.project.ScenarioImportDraft;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
@@ -154,15 +177,21 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         com.rreganjr.requel.utils.jaxb.imports.StakeholderStaxImporter.StakeholderReadResult stakeholders =
                 stakeholderStaxImporter.readStakeholders(new ByteArrayInputStream(xmlBytes));
         stakeholders.users().forEach(draft -> userAssembler.assemble(draft, unitOfWork));
-        stakeholders.stakeholders().forEach(draft -> stakeholderAssembler.assemble(draft, unitOfWork));
+        stakeholders.stakeholders().forEach(draft -> {
+            var stakeholder = stakeholderAssembler.assemble(draft, unitOfWork);
+            recordAnnotationLinks(annotationLinks, stakeholder, draft.getAnnotationExternalIds());
+        });
 
         // Import scenarios (steps).
         List<com.rreganjr.requel.imports.project.ScenarioImportDraft> scenarioDrafts =
                 scenarioStaxImporter.readScenarios(new ByteArrayInputStream(xmlBytes));
         scenarioDrafts.forEach(draft -> {
-            var scenario = scenarioAssembler.assemble(draft, unitOfWork);
-            recordAnnotationLinks(annotationLinks, scenario, draft.getAnnotationExternalIds());
+            var step = scenarioAssembler.assemble(draft, unitOfWork);
+            recordAnnotationLinks(annotationLinks, step, draft.getAnnotationExternalIds());
         });
+        scenarioDrafts.stream()
+                .filter(ScenarioImportDraft::isScenarioElement)
+                .forEach(draft -> scenarioAssembler.attachSteps(draft, unitOfWork));
 
         // Import use cases (needs actors, goals, stories, scenarios).
         List<com.rreganjr.requel.imports.project.UseCaseImportDraft> useCaseDrafts =

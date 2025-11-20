@@ -1,3 +1,25 @@
+/*
+ * $Id: $
+ *
+ * Copyright 2025 Ron Regan Jr. All Rights Reserved.
+ *
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 package com.rreganjr.requel.project.imports;
 
 import com.rreganjr.requel.imports.AggregateAssembler;
@@ -5,8 +27,9 @@ import com.rreganjr.requel.imports.ImportException;
 import com.rreganjr.requel.imports.ImportUnitOfWork;
 import com.rreganjr.requel.imports.project.ScenarioImportDraft;
 import com.rreganjr.requel.project.Project;
-import com.rreganjr.requel.project.impl.ScenarioImpl;
 import com.rreganjr.requel.project.ScenarioType;
+import com.rreganjr.requel.project.impl.ScenarioImpl;
+import com.rreganjr.requel.project.impl.StepImpl;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import java.util.Optional;
@@ -15,7 +38,7 @@ import org.springframework.util.StringUtils;
 /**
  * Assembles scenarios/steps from drafts.
  */
-public class ScenarioAssembler implements AggregateAssembler<ScenarioImportDraft, ScenarioImpl> {
+public class ScenarioAssembler implements AggregateAssembler<ScenarioImportDraft, StepImpl> {
 
     private final Project project;
     private final UserRepository userRepository;
@@ -33,28 +56,42 @@ public class ScenarioAssembler implements AggregateAssembler<ScenarioImportDraft
     }
 
     @Override
-    public Class<ScenarioImpl> aggregateType() {
-        return ScenarioImpl.class;
+    public Class<StepImpl> aggregateType() {
+        return StepImpl.class;
     }
 
     @Override
-    public ScenarioImpl assemble(ScenarioImportDraft draft, ImportUnitOfWork unitOfWork) throws ImportException {
+    public StepImpl assemble(ScenarioImportDraft draft, ImportUnitOfWork unitOfWork) throws ImportException {
         if (draft == null) {
             throw new ImportException("scenario draft is required");
         }
         User createdBy = resolveCreatedBy(draft, unitOfWork);
-        ScenarioType type = ScenarioType.valueOf(draft.getScenarioType());
-        ScenarioImpl scenario = new ScenarioImpl(project, createdBy, draft.getName(), draft.getDescription(), type);
-        unitOfWork.register(ScenarioImpl.class, draft.getExternalId(), scenario);
-        unitOfWork.register(com.rreganjr.requel.project.Scenario.class, draft.getExternalId(), scenario);
+        ScenarioType type;
+        try {
+            type = ScenarioType.valueOf(draft.getScenarioType());
+        } catch (Exception e) {
+            // treat step defaults as Primary
+            type = ScenarioType.Primary;
+        }
+        StepImpl step;
+        if (draft.isScenarioElement()) {
+            ScenarioImpl scenario = new ScenarioImpl(project, createdBy, draft.getName(), draft.getDescription(), type);
+            unitOfWork.register(ScenarioImpl.class, draft.getExternalId(), scenario);
+            unitOfWork.register(com.rreganjr.requel.project.Scenario.class, draft.getExternalId(), scenario);
+            step = scenario;
+        } else {
+            step = new StepImpl(project, createdBy, draft.getName(), draft.getDescription(), type);
+        }
+        unitOfWork.register(StepImpl.class, draft.getExternalId(), step);
+        unitOfWork.register(com.rreganjr.requel.project.Step.class, draft.getExternalId(), step);
+        return step;
+    }
 
-        // Step refs are linked via the unit-of-work if present; steps are also scenarios in this model.
-        draft.getStepRefs().forEach(stepId -> {
-            Optional<ScenarioImpl> step = unitOfWork.resolve(ScenarioImpl.class, stepId);
-            step.ifPresent(scenario::addStep);
+    public void attachSteps(ScenarioImportDraft draft, ImportUnitOfWork unitOfWork) {
+        unitOfWork.resolve(ScenarioImpl.class, draft.getExternalId()).ifPresent(scenario -> {
+            draft.getStepRefs().forEach(stepId -> unitOfWork.resolve(StepImpl.class, stepId)
+                    .ifPresent(scenario::addStep));
         });
-
-        return scenario;
     }
 
     private User resolveCreatedBy(ScenarioImportDraft draft, ImportUnitOfWork unitOfWork) {
