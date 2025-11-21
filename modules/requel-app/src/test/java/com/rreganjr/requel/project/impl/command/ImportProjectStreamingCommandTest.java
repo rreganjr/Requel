@@ -45,7 +45,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.Set;
+
+import com.rreganjr.requel.user.impl.repository.init.ProjectUserInitializer;
 import org.junit.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * Integration test that exercises the StAX-based streaming import using the
@@ -53,10 +56,15 @@ import org.junit.Test;
  */
 public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCase {
 
+
+    @Autowired
+    private ProjectUserInitializer projectUserInitializer;
+
     @Test
     public void streamingImportLoadsDocSample() throws Exception {
         ImportProjectCommand command = (ImportProjectCommand) applicationContext.getBean(
                 "importProjectStreamingCommand");
+        projectUserInitializer.initialize();
         User creator = getUserRepository().findUserByUsername("project");
         String projectName = "Streaming Sample " + System.currentTimeMillis();
 

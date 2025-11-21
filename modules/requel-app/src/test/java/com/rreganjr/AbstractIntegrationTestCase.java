@@ -4,10 +4,7 @@
  */
 package com.rreganjr;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.net.URISyntaxException;
-import java.net.URL;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -22,16 +19,15 @@ import junit.framework.AssertionFailedError;
 
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.AbstractJUnit4SpringContextTests;
-//import org.springframework.test.jpa.AbstractJpaTests;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
-import com.rreganjr.nlp.dictionary.command.DictionaryCommandFactory;
 import com.rreganjr.platform.exception.EntityException;
+import com.rreganjr.requel.Application;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.DomainAdminUserRole;
@@ -53,12 +49,13 @@ import com.rreganjr.requel.user.exception.NoSuchUserException;
  * 
  * @author ron
  */
+@SpringBootTest(classes = Application.class)
+@ActiveProfiles("test")
 public abstract class AbstractIntegrationTestCase extends AbstractJUnit4SpringContextTests {
 	protected static final Logger log = Logger.getLogger(AbstractIntegrationTestCase.class);
 
 	private ProjectCommandFactory projectCommandFactory;
 	private UserCommandFactory userCommandFactory;
-	private DictionaryCommandFactory dictionaryCommandFactory;
 	private AnnotationCommandFactory annotationCommandFactory;
 	private UserRepository userRepository;
 	private ProjectRepository projectRepository;
@@ -69,20 +66,17 @@ public abstract class AbstractIntegrationTestCase extends AbstractJUnit4SpringCo
 
 	protected AbstractIntegrationTestCase() {
 		super();
-		File webInfDir = new File(getInstanceBaseDirectory(), "WEB-INF");
-		File classesDir = new File(webInfDir, "classes");
-		File databasePropertiesFile = new File(classesDir, "db.properties");
-		initDatabase(databasePropertiesFile);
+		try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("db.properties")) {
+			if (inputStream == null) {
+				throw new IllegalStateException("db.properties not found on the test classpath");
+			}
+			Properties dbProperties = new Properties();
+			dbProperties.load(inputStream);
+			initDatabase(dbProperties);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to initialize test database", e);
+		}
 		//setPopulateProtectedVariables(true);
-	}
-
-	protected DictionaryCommandFactory getDictionaryCommandFactory() {
-		return dictionaryCommandFactory;
-	}
-
-	@Autowired
-	protected void setDictionaryCommandFactory(DictionaryCommandFactory dictionaryCommandFactory) {
-		this.dictionaryCommandFactory = dictionaryCommandFactory;
 	}
 
 	protected ProjectCommandFactory getProjectCommandFactory() {
@@ -180,45 +174,10 @@ public abstract class AbstractIntegrationTestCase extends AbstractJUnit4SpringCo
 //		initializer.initialize();
 	}
 
-	// TODO: this is what I wanted to do, but it won't work so I had to move the
-	// db.properties
-	// into the classpath >:(
-	protected Object[] getPropertyLocations() {
-		File webInfDir = new File(getInstanceBaseDirectory(), "WEB-INF");
-		File databasePropertiesFile = new File(webInfDir, "db.properties");
-		return new Resource[] { new FileSystemResource(databasePropertiesFile.toURI().toString()) };
-	}
-
-//	@Override
-	protected String[] getConfigLocations() {
-		File webInfDir = new File(getInstanceBaseDirectory(), "WEB-INF");
-		return new String[] { new File(webInfDir, "assistantConfig.xml").toURI().toString(),
-				new File(webInfDir, "commandHandlerConfig.xml").toURI().toString(),
-				new File(webInfDir, "lemmatizerConfig.xml").toURI().toString(),
-				new File(webInfDir, "testConfig.xml").toURI().toString(),
-				new File(webInfDir, "uiFrameworkConfig.xml").toURI().toString(),
-				new File(webInfDir, "uiAnnotationConfig.xml").toURI().toString(),
-				new File(webInfDir, "uiProjectConfig.xml").toURI().toString(),
-				new File(webInfDir, "uiUserConfig.xml").toURI().toString(),
-				new File(webInfDir, "uiNLPConfig.xml").toURI().toString(),
-				new File(webInfDir, "uiMainConfig.xml").toURI().toString() };
-	}
-
 	/**
 	 * @return a File reference to the war directory of the instance
 	 * @throws URISyntaxException
 	 */
-	protected File getInstanceBaseDirectory() {
-		try {
-			URL log4jConfigPath = getClass().getClassLoader().getResource("log4j.properties");
-			File log4jConfigFile = new File(log4jConfigPath.toURI()); // the
-			// file up one to classes, one to WEB-INF, one to the root
-			return log4jConfigFile.getParentFile().getParentFile().getParentFile();
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
-
 	/**
 	 * Test whether two byte arrays are equal by comparing the byte value of
 	 * each array element in the 'expected' array to the coresponding array
@@ -529,11 +488,8 @@ public abstract class AbstractIntegrationTestCase extends AbstractJUnit4SpringCo
 		}
 	}
 
-	private void initDatabase(File databasePropertiesFile) {
-		Properties dbProperties = new Properties();
+	private void initDatabase(Properties dbProperties) {
 		try {
-			FileInputStream fis = new FileInputStream(databasePropertiesFile);
-			dbProperties.load(fis);
 
 			// make sure the driver is loaded
 			Class.forName(dbProperties.getProperty("db.driver"));

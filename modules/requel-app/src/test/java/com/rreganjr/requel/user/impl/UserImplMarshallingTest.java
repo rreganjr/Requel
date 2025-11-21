@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test;
 import com.rreganjr.requel.project.DomainAdminUserRole;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.user.impl.SystemAdminUserRole;
-import com.rreganjr.requel.user.UserRolePermission;
+import com.rreganjr.requel.user.impl.JpaUserRolePermission;
 
 class UserImplMarshallingTest {
 
@@ -46,7 +46,7 @@ class UserImplMarshallingTest {
 		JAXBContext context = JAXBContext.newInstance(
 				UserImpl.class,
 				OrganizationImpl.class,
-				UserRolePermission.class,
+				JpaUserRolePermission.class,
 				SystemAdminUserRole.class,
 				ProjectUserRole.class,
 				DomainAdminUserRole.class);
