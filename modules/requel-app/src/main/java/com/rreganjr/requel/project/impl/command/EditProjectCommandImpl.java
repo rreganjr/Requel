@@ -181,8 +181,8 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 
 		// TODO: use a command to create the stakeholder
 		// create a stakeholder for assistant
-		User assistantUser = getUserRepository().findUserByUsername("assistant");
-		getProjectRepository().persist(new UserStakeholderImpl(projectImpl, user, (com.rreganjr.requel.user.User)assistantUser));
+		com.rreganjr.requel.user.User assistantUser = getUserRepository().findUserByUsername("assistant");
+		getProjectRepository().persist(new UserStakeholderImpl(projectImpl, user, assistantUser));
 
 		ProjectUserRole role = user.getRoleForType(ProjectUserRole.class);
 		role.getActiveProjects().add(projectImpl);

@@ -29,6 +29,7 @@ import com.rreganjr.requel.imports.project.ActorImportDraft;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.impl.ActorImpl;
+import com.rreganjr.requel.project.impl.GlossaryTermImpl;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import java.util.Optional;
@@ -77,6 +78,8 @@ public class ActorAssembler implements AggregateAssembler<ActorImportDraft, Acto
             });
         });
 
+        attachGlossaryTerms(actor, draft.getGlossaryTermExternalIds(), unitOfWork);
+
         // Cache the assembled actor for later references (e.g., use cases)
         unitOfWork.register(ActorImpl.class, draft.getExternalId(), actor);
         unitOfWork.register(com.rreganjr.requel.project.Actor.class, draft.getExternalId(), actor);
@@ -96,5 +99,13 @@ public class ActorAssembler implements AggregateAssembler<ActorImportDraft, Acto
             }
         }
         return defaultCreatedBy;
+    }
+
+    private void attachGlossaryTerms(ActorImpl actor, java.util.Set<String> termIds, ImportUnitOfWork unitOfWork) {
+        termIds.forEach(termId -> unitOfWork.resolve(GlossaryTermImpl.class, termId)
+                .ifPresent(term -> {
+                    actor.getGlossaryTerms().add(term);
+                    term.getReferers().add(actor);
+                }));
     }
 }

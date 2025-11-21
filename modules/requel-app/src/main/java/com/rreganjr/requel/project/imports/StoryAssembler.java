@@ -30,6 +30,7 @@ import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.impl.StoryImpl;
+import com.rreganjr.requel.project.impl.GlossaryTermImpl;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import java.util.Optional;
@@ -90,6 +91,8 @@ public class StoryAssembler implements AggregateAssembler<StoryImportDraft, Stor
             });
         });
 
+        attachGlossaryTerms(story, draft.getGlossaryTermExternalIds(), unitOfWork);
+
         return story;
     }
 
@@ -106,5 +109,13 @@ public class StoryAssembler implements AggregateAssembler<StoryImportDraft, Stor
             }
         }
         return defaultCreatedBy;
+    }
+
+    private void attachGlossaryTerms(StoryImpl story, java.util.Set<String> termIds, ImportUnitOfWork unitOfWork) {
+        termIds.forEach(termId -> unitOfWork.resolve(GlossaryTermImpl.class, termId)
+                .ifPresent(term -> {
+                    story.getGlossaryTerms().add(term);
+                    term.getReferers().add(story);
+                }));
     }
 }

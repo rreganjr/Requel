@@ -60,9 +60,11 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.EditNoteCommand;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.NonUserStakeholder;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.ScenarioType;
@@ -74,6 +76,7 @@ import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
+import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.EditNonUserStakeholderCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditScenarioCommand;
@@ -85,6 +88,7 @@ import com.rreganjr.requel.project.command.ExportProjectCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.repository.init.StakeholderPermissionsInitializer;
+import com.rreganjr.requel.project.impl.GlossaryTermImpl;
 
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.repository.init.AdminUserInitializer;
@@ -186,6 +190,33 @@ class ProjectXmlStreamingRoundTripIT {
 		ProjectSnapshot reimportedSnapshot = snapshotProject(reimportedProject);
 		System.out.println("Re-imported project annotations: " + reimportedSnapshot.annotationCount());
 		assertSnapshotsEquivalent(originalSnapshot, reimportedSnapshot);
+	}
+
+	@Test
+	@Transactional
+	void importingSampleXmlPreservesCanonicalGlossaryTerms() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		byte[] sampleXml = Files.readAllBytes(Path.of("doc", "samples", "Requel.xml"));
+		String importedProjectName = "Sample Import " + UUID.randomUUID();
+		Project imported = importProject(sampleXml, projectUser, importedProjectName);
+
+		GlossaryTerm alias = imported.getGlossaryTerms().stream()
+				.filter(term -> "Pee Pee Snow Cone".equals(term.getName()))
+				.findFirst()
+				.orElseThrow(() -> new AssertionError("Alias glossary term not imported"));
+		GlossaryTerm canonical = imported.getGlossaryTerms().stream()
+				.filter(term -> "Yellow Snow".equals(term.getName()))
+				.findFirst()
+				.orElseThrow(() -> new AssertionError("Canonical glossary term not imported"));
+
+		assertThat(alias.getCanonicalTerm())
+				.as("Alias term canonical reference")
+				.isNotNull()
+				.isEqualTo(canonical);
+		assertThat(canonical.getAlternateTerms())
+				.as("Canonical term alternates include alias")
+				.contains(alias);
 	}
 
 	private User ensureProjectUserExists() throws NoSuchUserException {
@@ -321,6 +352,13 @@ class ProjectXmlStreamingRoundTripIT {
 
 		NonUserStakeholder regulator = findNonUserStakeholderByName(refreshed, nonUserStakeholderName);
 		addNote(refreshed, regulator, creator, "Non-user stakeholder note");
+
+		GlossaryTerm glossaryTerm = createGlossaryTerm(refreshed, "Term " + uniqueifier,
+				"A sample glossary definition.", creator);
+		linkGlossaryTermToEntities(glossaryTerm,
+				findActorByName(refreshed, actorName),
+				findGoalByName(refreshed, goalName),
+				findStoryByName(refreshed, storyName));
 
 		addNote(refreshed, refreshed, creator, "Project note");
 
@@ -539,9 +577,18 @@ private UseCase createUseCase(Project project, String primaryActorName,
 						countAnnotationsFor(allAnnotations, nonUserStakeholder)))
 				.collect(Collectors.toSet());
 
+		Set<GlossaryTermSummary> glossaryTerms = project.getGlossaryTerms()
+				.stream()
+				.map(term -> new GlossaryTermSummary(
+						term.getName(),
+						term.getText(),
+						term.getCanonicalTerm() != null ? term.getCanonicalTerm().getName() : null,
+						countAnnotationsFor(allAnnotations, term)))
+				.collect(Collectors.toSet());
+
 		return new ProjectSnapshot(organizationName, createdByUsername, annotationCount, actorSummaries,
 				goalSummaries, storySummaries, scenarioSummaries, useCaseSummaries, userStakeholders,
-				nonUserStakeholders);
+				nonUserStakeholders, glossaryTerms);
 	}
 
 	private void assertSnapshotsEquivalent(ProjectSnapshot expected, ProjectSnapshot actual) {
@@ -573,9 +620,12 @@ private UseCase createUseCase(Project project, String primaryActorName,
 		assertThat(actual.userStakeholders())
 				.as("User stakeholders")
 				.containsExactlyInAnyOrderElementsOf(expected.userStakeholders());
-		assertThat(actual.nonUserStakeholders())
-				.as("Non-user stakeholders")
-				.containsExactlyInAnyOrderElementsOf(expected.nonUserStakeholders());
+			assertThat(actual.nonUserStakeholders())
+					.as("Non-user stakeholders")
+					.containsExactlyInAnyOrderElementsOf(expected.nonUserStakeholders());
+			assertThat(actual.glossaryTerms())
+					.as("Glossary terms")
+					.containsExactlyInAnyOrderElementsOf(expected.glossaryTerms());
 	}
 
 	private void annotateCreatorStakeholder(Project project, User creator) throws Exception {
@@ -718,6 +768,25 @@ private UseCase createUseCase(Project project, String primaryActorName,
 				.orElseThrow(() -> new IllegalStateException("Non-user stakeholder not found: " + name));
 	}
 
+	private GlossaryTerm createGlossaryTerm(Project project, String name, String text, User creator) throws Exception {
+		EditGlossaryTermCommand command = projectCommandFactory.newEditGlossaryTermCommand();
+		command.setAnalysisEnabled(false);
+		command.setEditedBy(creator);
+		command.setProjectOrDomain(project);
+		command.setName(name);
+		command.setText(text);
+		command = commandHandler.execute(command);
+		assertThat(command.getGlossaryTerm()).as("Created glossary term").isNotNull();
+		return command.getGlossaryTerm();
+	}
+
+	private void linkGlossaryTermToEntities(GlossaryTerm term, ProjectOrDomainEntity... entities) {
+		for (ProjectOrDomainEntity entity : entities) {
+			entity.getGlossaryTerms().add(term);
+			((GlossaryTermImpl) term).getReferers().add(entity);
+		}
+	}
+
 	private String typeName(ScenarioType type) {
 		return type != null ? type.name() : null;
 	}
@@ -738,8 +807,11 @@ private UseCase createUseCase(Project project, String primaryActorName,
 
 	private record NonUserStakeholderSummary(String name, String text, int annotationCount) {}
 
+	private record GlossaryTermSummary(String name, String text, String canonicalTermName, int annotationCount) {}
+
 	private record ProjectSnapshot(String organizationName, String createdByUsername, int annotationCount,
 			Set<EntitySummary> actors, Set<EntitySummary> goals, Set<StorySummary> stories,
 			Set<ScenarioSummary> scenarios, Set<UseCaseSummary> useCases,
-			Set<UserStakeholderSummary> userStakeholders, Set<NonUserStakeholderSummary> nonUserStakeholders) {}
+			Set<UserStakeholderSummary> userStakeholders, Set<NonUserStakeholderSummary> nonUserStakeholders,
+			Set<GlossaryTermSummary> glossaryTerms) {}
 }

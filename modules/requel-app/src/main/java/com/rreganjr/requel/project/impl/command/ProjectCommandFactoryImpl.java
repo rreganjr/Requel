@@ -103,7 +103,7 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	@Override
 	public ImportProjectCommand newImportProjectCommand() {
 		return (ImportProjectCommand) getCreationStrategy().newInstance(
-				ImportProjectCommandImpl.class);
+				ImportProjectStreamingCommandImpl.class);
 	}
 
 	@Override

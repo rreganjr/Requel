@@ -31,6 +31,7 @@ import com.rreganjr.requel.project.GoalRelationType;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.impl.GoalImpl;
 import com.rreganjr.requel.project.impl.GoalRelationImpl;
+import com.rreganjr.requel.project.impl.GlossaryTermImpl;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import java.util.Optional;
@@ -69,6 +70,7 @@ public class GoalAssembler implements AggregateAssembler<GoalImportDraft, GoalIm
 
         User createdBy = resolveCreatedBy(draft, unitOfWork);
         GoalImpl goal = new GoalImpl(project, createdBy, draft.getName(), draft.getDescription());
+        attachGlossaryTerms(goal, draft.getGlossaryTermExternalIds(), unitOfWork);
 
         unitOfWork.register(GoalImpl.class, draft.getExternalId(), goal);
         unitOfWork.register(Goal.class, draft.getExternalId(), goal);
@@ -108,5 +110,13 @@ public class GoalAssembler implements AggregateAssembler<GoalImportDraft, GoalIm
             }
         }
         return defaultCreatedBy;
+    }
+
+    private void attachGlossaryTerms(GoalImpl goal, java.util.Set<String> termIds, ImportUnitOfWork unitOfWork) {
+        termIds.forEach(termId -> unitOfWork.resolve(GlossaryTermImpl.class, termId)
+                .ifPresent(term -> {
+                    goal.getGlossaryTerms().add(term);
+                    term.getReferers().add(goal);
+                }));
     }
 }

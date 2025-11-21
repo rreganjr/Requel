@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<project xmlns="http://www.rreganjr.com/requel" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" createdBy="USR_1" dateCreated="2009-01-04T00:00:00" id="POD_1" revision="21" xsi:schemaLocation="http://www.rreganjr.com/requel http://requel.sourceforge.net/integration/1.0/project.xsd">
+<project xmlns="http://www.rreganjr.com/requel" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" createdBy="USR_1" dateCreated="2009-01-04T00:00:00" id="POD_1" revision="21" xsi:schemaLocation="http://www.rreganjr.com/requel https://requel.sourceforge.net/integration/1.0/project.xsd">
     <actors>
         <actor id="ACT_1" createdBy="USR_1" dateCreated="2009-01-05T00:00:00" revision="24">
             <annotations>
@@ -106,7 +106,20 @@
             </steps>
         </scenario>
     </scenarios>
-    <glossary/>
+    <glossary>
+        <term canonicalTerm="TRM_52" id="TRM_53" createdBy="USR_1" dateCreated="2025-11-20T14:25:52" revision="2">
+            <annotations/>
+            <glossaryTerms/>
+            <text>Yuck</text>
+            <name>Pee Pee Snow Cone</name>
+        </term>
+        <term id="TRM_52" createdBy="USR_1" dateCreated="2025-11-20T14:25:26" revision="2">
+            <annotations/>
+            <glossaryTerms/>
+            <text>Don't eat it</text>
+            <name>Yellow Snow</name>
+        </term>
+    </glossary>
     <goals>
         <goal id="GOL_1" createdBy="USR_1" dateCreated="2009-01-04T00:00:00" revision="20">
             <annotations>
