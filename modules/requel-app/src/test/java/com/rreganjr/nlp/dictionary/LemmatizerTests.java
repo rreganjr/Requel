@@ -25,14 +25,19 @@ package com.rreganjr.nlp.dictionary;
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * Test the Lemmatizer
  * 
  * @author ron
  */
+@RunWith(SpringRunner.class)
 public class LemmatizerTests extends AbstractIntegrationTestCase {
 
+	@Test
 	public void testLemmatize() {
 		NLPProcessor<NLPText> lemmatizer = getNlpProcessorFactory().getLemmatizer();
 		// standard suffix replacing tests

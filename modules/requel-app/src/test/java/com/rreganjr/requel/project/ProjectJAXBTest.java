@@ -39,12 +39,17 @@ import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.platform.identity.User;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * @author ron
  */
+@RunWith(SpringRunner.class)
 public class ProjectJAXBTest extends AbstractIntegrationTestCase {
 
+	@Test
 	public void testJaxb() throws Exception {
 		long uniqueifier = System.currentTimeMillis();
 		String projectName = "Test Project " + uniqueifier;

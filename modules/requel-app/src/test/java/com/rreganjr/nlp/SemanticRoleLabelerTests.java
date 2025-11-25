@@ -12,22 +12,24 @@ import com.rreganjr.nlp.dictionary.*;
 import com.rreganjr.nlp.impl.srl.SemanticRoleCollector;
 import com.rreganjr.nlp.impl.srl.SemanticRoleCollectorFunction;
 import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * @author ron
  */
+@RunWith(SpringRunner.class)
 public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 
-	/**
-	 */
-	public SemanticRoleLabelerTests() {
-		super();
+	@Test
+	public void loadDictionaryOnce() throws Exception {
+		ensureDictionaryLoaded();
 	}
 
-	/**
-	 *
-	 */
+	@Test
 	public void testProcessing1() {
+		try { ensureDictionaryLoaded(); } catch (Exception e) { throw new RuntimeException(e); }
 		NLPProcessor<NLPText> semanticRoleLabeler = getNlpProcessorFactory()
 				.getSemanticRoleLabeler();
 		String sentence = "The user enters some information.";
@@ -56,6 +58,7 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 	/**
 	 * 
 	 */
+	@Test
 	public void testProcessing1a() throws Exception {
 		try {
 			NLPProcessor<NLPText> semanticRoleLabeler = getNlpProcessorFactory()
@@ -87,6 +90,7 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 	/**
 	 * 
 	 */
+	@Test
 	public void testProcessing1b() throws Exception {
 		try {
 			NLPProcessor<NLPText> semanticRoleLabeler = getNlpProcessorFactory()
@@ -117,6 +121,7 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 	/**
 	 * 
 	 */
+	@Test
 	public void testProcessing1c() throws Exception {
 		try {
 			NLPProcessor<NLPText> semanticRoleLabeler = getNlpProcessorFactory()
@@ -147,6 +152,7 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 	/**
 	 *
 	 */
+	@Test
 	public void testProcessing2() {
 		NLPProcessor<NLPText> semanticRoleLabeler = getNlpProcessorFactory()
 				.getSemanticRoleLabeler();

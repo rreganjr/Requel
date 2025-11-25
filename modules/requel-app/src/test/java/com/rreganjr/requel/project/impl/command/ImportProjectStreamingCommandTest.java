@@ -27,7 +27,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.rreganjr.AbstractIntegrationTestCase;
-import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.impl.LexicalIssue;
 import com.rreganjr.requel.annotation.Position;
@@ -47,25 +47,35 @@ import java.util.Optional;
 import java.util.Set;
 
 import com.rreganjr.requel.user.impl.repository.init.ProjectUserInitializer;
+import com.rreganjr.requel.user.command.UserCommandFactory;
+import com.rreganjr.requel.user.command.EditUserCommand;
+import com.rreganjr.requel.project.ProjectUserRole;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * Integration test that exercises the StAX-based streaming import using the
  * large example project stored under doc/samples/Requel.xml.
  */
+@RunWith(SpringRunner.class)
 public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCase {
 
 
     @Autowired
     private ProjectUserInitializer projectUserInitializer;
+    @Autowired
+    private UserCommandFactory userCommandFactory;
 
     @Test
     public void streamingImportLoadsDocSample() throws Exception {
         ImportProjectCommand command = (ImportProjectCommand) applicationContext.getBean(
                 "importProjectStreamingCommand");
         projectUserInitializer.initialize();
+        ensureDictionaryLoaded();
         User creator = getUserRepository().findUserByUsername("project");
+        ensureAssistantHasProjectRole();
         String projectName = "Streaming Sample " + System.currentTimeMillis();
 
         command.setEditedBy(creator);
@@ -131,6 +141,19 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
         org.junit.Assert.assertEquals("position text retained",
                 "Add \"the project elements\" to the project glossary.", glossaryPosition.getText());
         assertTrue("position has no arguments", glossaryPosition.getArguments().isEmpty());
+    }
+
+    private void ensureAssistantHasProjectRole() throws Exception {
+        User assistant = getUserRepository().findUserByUsername("assistant");
+        boolean hasRole = assistant.getUserRoles().stream()
+                .anyMatch(role -> role instanceof ProjectUserRole);
+        if (!hasRole) {
+            EditUserCommand cmd = userCommandFactory.newEditUserCommand();
+            cmd.setEditedBy(assistant);
+            cmd.setUser(assistant);
+            cmd.addUserRoleName(ProjectUserRole.getRoleName(ProjectUserRole.class));
+            getCommandHandler().execute(cmd);
+        }
     }
 
     private void assertActorAnnotations(Project project, String actorName, int expectedAnnotationCount) {

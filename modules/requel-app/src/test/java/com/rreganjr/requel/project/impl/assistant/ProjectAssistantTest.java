@@ -10,10 +10,14 @@ import java.io.InputStream;
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.platform.identity.User;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * @author ron
  */
+@RunWith(SpringRunner.class)
 public class ProjectAssistantTest extends AbstractIntegrationTestCase {
 
 	public static final String testProjectXmlFile = "xml/testProject.xml";
@@ -23,9 +27,11 @@ public class ProjectAssistantTest extends AbstractIntegrationTestCase {
 	 * 
 	 * @throws Exception
 	 */
+	@Test
 	public void testProjectAssistant() throws Exception {
 		long uniqueifier = System.currentTimeMillis();
 		String projectName = "Test Project " + uniqueifier;
+		ensureDictionaryLoaded();
 		InputStream projectXmlInputStream = getClass().getClassLoader().getResourceAsStream(
 				testProjectXmlFile);
 		ImportProjectCommand command = getProjectCommandFactory().newImportProjectCommand();

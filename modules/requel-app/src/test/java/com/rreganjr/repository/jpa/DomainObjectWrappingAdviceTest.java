@@ -22,7 +22,10 @@
 
 package com.rreganjr.repository.jpa;
 
-import junit.framework.Assert;
+import org.junit.Assert;
+import org.junit.Test;
+import org.springframework.test.context.junit4.SpringRunner;
+import org.junit.runner.RunWith;
 import net.sf.echopm.EchoPMApp;
 
 
@@ -78,8 +81,10 @@ import com.rreganjr.requel.user.impl.repository.init.UserRolePermissionsInitiali
 /**
  * @author ron
  */
+@RunWith(SpringRunner.class)
 public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase {
 
+	@Test
 	public void testPointCutA() throws Exception {
 		String pointCutExpression = "this(com.rreganjr.requel.utils.repository.EntityInitializer+)";
 		AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut(
@@ -102,6 +107,7 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 		Assert.assertTrue(AopUtils.canApply(ajexp, AbstractSystemInitializer.class, false));
 	}
 
+	@Test
 	public void testPointCutB() throws Exception {
 		String pointCutExpression = "within(com.rreganjr.requel..*)";
 		AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut(

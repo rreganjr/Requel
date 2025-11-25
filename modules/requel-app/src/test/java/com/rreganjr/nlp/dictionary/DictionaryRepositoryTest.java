@@ -16,17 +16,27 @@ import com.rreganjr.nlp.dictionary.command.ExportDictionaryCommand;
 import com.rreganjr.nlp.dictionary.impl.command.ExportDictionaryCommandImpl;
 import com.rreganjr.nlp.dictionary.impl.command.ImportDictionaryCommandImpl;
 import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * @author ron
  */
+@RunWith(SpringRunner.class)
 public class DictionaryRepositoryTest extends AbstractIntegrationTestCase {
 
 	/**
 	 * Test method for
 	 * {@link com.rreganjr.nlp.dictionary.DictionaryRepository#findWord(java.lang.String)}.
 	 */
+	@Test
 	public void testGetWord() {
+		try {
+			ensureDictionaryLoaded();
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 		Word word = getDictionaryRepository().findWord("search");
 		Assert.assertEquals("search", word.getLemma());
 		for (Sense sense : word.getSenses()) {
@@ -34,12 +44,19 @@ public class DictionaryRepositoryTest extends AbstractIntegrationTestCase {
 		}
 	}
 
+	@Test
 	public void testGetDictionary() {
+		try {
+			ensureDictionaryLoaded();
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 		Dictionary dictionary = getDictionaryRepository().getDictionary("a", "b");
 		Assert.assertTrue(dictionary.getWords().first().getLemma().compareTo("a") >= 0);
 		Assert.assertTrue(dictionary.getWords().last().getLemma().compareTo("b") < 0);
 	}
 
+	@Test
 	public void testRangedExportDictionaryCommand() throws Exception {
 		ExportDictionaryCommand exportDictionary = new ExportDictionaryCommandImpl(
 				getDictionaryRepository());
@@ -54,6 +71,7 @@ public class DictionaryRepositoryTest extends AbstractIntegrationTestCase {
 		System.out.println("export file: " + file.getAbsolutePath());
 	}
 
+	@Test
 	public void testFullExportDictionaryCommand() throws Exception {
 		ExportDictionaryCommand exportDictionary = new ExportDictionaryCommandImpl(
 				getDictionaryRepository());
@@ -66,6 +84,7 @@ public class DictionaryRepositoryTest extends AbstractIntegrationTestCase {
 		System.out.println("export file: " + file.getAbsolutePath());
 	}
 
+	@Test
 	public void testImportDictionaryCommand() throws Exception {
 		ImportDictionaryCommandImpl importDictionary = new ImportDictionaryCommandImpl(
 				getDictionaryRepository());
@@ -76,6 +95,7 @@ public class DictionaryRepositoryTest extends AbstractIntegrationTestCase {
 		getCommandHandler().execute(importDictionary);
 	}
 	
+	@Test
 	public void testGetLowestCommonHypernyms() throws Exception {
 		
 	}

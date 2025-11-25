@@ -7,10 +7,14 @@ package com.rreganjr.nlp;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.nlp.dictionary.*;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * @author ron
  */
+@RunWith(SpringRunner.class)
 public class WordSenseDisambiguatorTests extends AbstractIntegrationTestCase {
 	private static final String TEST_SENTENCE_1 = "I charged the purchase on my credit card.";
 	private static final String TEST_SENTENCE_2 = "I charged in to the bar.";
@@ -27,14 +31,17 @@ public class WordSenseDisambiguatorTests extends AbstractIntegrationTestCase {
 	 * Test method for
 	 * {@link com.rreganjr.nlp.impl.wsd.SimpleLeskWSD#process(NLPText)}.
 	 */
+	@Test
 	public void testSentence1() {
 		report(process(getNlpProcessorFactory().createNLPText(TEST_SENTENCE_1)));
 	}
 
+	@Test
 	public void testSentence2() {
 		report(process(getNlpProcessorFactory().createNLPText(TEST_SENTENCE_2)));
 	}
 
+	@Test
 	public void testSentence3() {
 		report(process(getNlpProcessorFactory().createNLPText(TEST_SENTENCE_3)));
 	}

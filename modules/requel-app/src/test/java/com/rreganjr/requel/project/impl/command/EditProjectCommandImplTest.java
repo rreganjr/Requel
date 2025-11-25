@@ -32,9 +32,14 @@ import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.platform.identity.User;
 import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.test.context.junit4.SpringRunner;
 
+@RunWith(SpringRunner.class)
 public class EditProjectCommandImplTest extends AbstractIntegrationTestCase {
 
+	@Test
 	public void testProjectCreation() throws Exception {
 		long uniqueifier = System.currentTimeMillis();
 		String projectName = "Test Project " + uniqueifier;

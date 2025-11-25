@@ -31,12 +31,16 @@ import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.platform.identity.User;
 import org.junit.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * Test the GoalAssistant
  * 
  * @author ron
  */
+@RunWith(SpringRunner.class)
 public class GoalAssistantTest extends AbstractIntegrationTestCase {
 
 	/**
@@ -44,6 +48,7 @@ public class GoalAssistantTest extends AbstractIntegrationTestCase {
 	 * 
 	 * @throws Exception
 	 */
+	@Test
 	public void testGoalAssistantGoalNameIssue() throws Exception {
 		long uniqueifier = System.currentTimeMillis();
 		String projectName = "Test Project " + uniqueifier;

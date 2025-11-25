@@ -8,11 +8,16 @@ package com.rreganjr.nlp.dictionary;
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.nlp.impl.StanfordNameEntityRecognizer;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.test.context.junit4.SpringRunner;
 
 
 /**
  * @author ron
  */
+@RunWith(SpringRunner.class)
 public class NERTests extends AbstractIntegrationTestCase {
 
 	private StanfordNameEntityRecognizer nameEntityRecognizer;
@@ -26,9 +31,10 @@ public class NERTests extends AbstractIntegrationTestCase {
 		super();
 	}
 
-	@Override
-	protected void onSetUp() throws Exception {
+	@Before
+	public void onSetUp() throws Exception {
 		super.onSetUp();
+		ensureDictionaryLoaded();
 		nameEntityRecognizer = new StanfordNameEntityRecognizer(getDictionaryRepository());
 		Word personWord = getDictionaryRepository().findWord("person", PartOfSpeech.NOUN);
 		personSense = personWord.getSense(PartOfSpeech.NOUN, 1);
@@ -41,6 +47,7 @@ public class NERTests extends AbstractIntegrationTestCase {
 		organizationSense = organizationWord.getSense(PartOfSpeech.NOUN, 1);
 	}
 
+	@Test
 	public void testNER() {
 		String sentence = "Nellymoser will design and develop a Streaming Audio and Video product for Virgin Mobile USA's first EVDO device.";
 		NLPText text = process(sentence);
@@ -62,6 +69,7 @@ public class NERTests extends AbstractIntegrationTestCase {
 		}
 	}
 
+	@Test
 	public void testNER2() {
 		String sentence = "The streaming video product will be a new VMU-branded service designed by Nellymoser and approved by VMU.";
 		NLPText text = process(sentence);
@@ -77,6 +85,7 @@ public class NERTests extends AbstractIntegrationTestCase {
 		}
 	}
 
+	@Test
 	public void testNER3() {
 		String sentence = "John is the CEO of Nellymoser.";
 		NLPText text = process(sentence);

@@ -131,7 +131,6 @@ public class Word implements Comparable<Word>, Serializable {
 	 * @return
 	 */
 	@Transient
-	@XmlTransient
 	public Set<Sense> getSenses(PartOfSpeech pos) {
 		Set<Sense> senses = new HashSet<Sense>(getSenses().size());
 		for (Sense sense : getSenses()) {
@@ -148,7 +147,6 @@ public class Word implements Comparable<Word>, Serializable {
 	 * @return A specific sense by part of speech and rank
 	 */
 	@Transient
-	@XmlTransient
 	public Sense getSense(PartOfSpeech pos, Integer rank) {
 		for (Sense sense : getSenses(pos)) {
 			if (rank.equals(sense.getRank())) {

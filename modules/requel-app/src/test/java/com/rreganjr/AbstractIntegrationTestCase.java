@@ -14,7 +14,10 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.zip.GZIPInputStream;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.rreganjr.requel.user.impl.OrganizationImpl;
 import junit.framework.AssertionFailedError;
 
 import org.apache.log4j.Logger;
@@ -22,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.AbstractJUnit4SpringContextTests;
+import org.junit.Before;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
@@ -34,13 +38,21 @@ import com.rreganjr.requel.project.DomainAdminUserRole;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.nlp.dictionary.command.ImportDictionaryCommand;
+
+import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.impl.repository.init.AdminUserInitializer;
+import com.rreganjr.requel.user.impl.repository.init.AssistantUserInitializer;
+import com.rreganjr.requel.user.impl.repository.init.ProjectUserInitializer;
+import com.rreganjr.requel.user.impl.repository.init.UserRolePermissionsInitializer;
+import com.rreganjr.requel.project.impl.repository.init.StakeholderPermissionsInitializer;
+import com.rreganjr.requel.user.command.EditUserCommand;
+import com.rreganjr.requel.user.command.UserCommandFactory;
 import com.rreganjr.requel.user.impl.AbstractUserRole;
 import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRole;
 import com.rreganjr.requel.user.UserRolePermission;
-import com.rreganjr.requel.user.command.EditUserCommand;
-import com.rreganjr.requel.user.command.UserCommandFactory;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
 
 /**
@@ -55,7 +67,7 @@ public abstract class AbstractIntegrationTestCase extends AbstractJUnit4SpringCo
 	protected static final Logger log = Logger.getLogger(AbstractIntegrationTestCase.class);
 
 	private ProjectCommandFactory projectCommandFactory;
-	private UserCommandFactory userCommandFactory;
+    private UserCommandFactory userCommandFactory;
 	private AnnotationCommandFactory annotationCommandFactory;
 	private UserRepository userRepository;
 	private ProjectRepository projectRepository;
@@ -63,6 +75,13 @@ public abstract class AbstractIntegrationTestCase extends AbstractJUnit4SpringCo
 	private AnnotationRepository annotationRepository;
 	private CommandHandler commandHandler;
 	private NLPProcessorFactory nlpProcessorFactory;
+	private AdminUserInitializer adminUserInitializer;
+	private AssistantUserInitializer assistantUserInitializer;
+	private ProjectUserInitializer projectUserInitializer;
+	private UserRolePermissionsInitializer userRolePermissionsInitializer;
+	private StakeholderPermissionsInitializer stakeholderPermissionsInitializer;
+
+	private static final AtomicBoolean baselineInitialized = new AtomicBoolean(false);
 
 	protected AbstractIntegrationTestCase() {
 		super();
@@ -92,10 +111,6 @@ public abstract class AbstractIntegrationTestCase extends AbstractJUnit4SpringCo
 		return userCommandFactory;
 	}
 
-	@Autowired
-	protected void setUserCommandFactory(UserCommandFactory userCommandFactory) {
-		this.userCommandFactory = userCommandFactory;
-	}
 
 	protected UserRepository getUserRepository() {
 		return userRepository;
@@ -155,9 +170,104 @@ public abstract class AbstractIntegrationTestCase extends AbstractJUnit4SpringCo
 		return nlpProcessorFactory;
 	}
 
+    @Before
+    public void initializeBaselineData() throws Exception {
+        boolean first = baselineInitialized.compareAndSet(false, true);
+        if (first) {
+            if (userRolePermissionsInitializer != null) {
+                userRolePermissionsInitializer.initialize();
+            }
+            if (stakeholderPermissionsInitializer != null) {
+                stakeholderPermissionsInitializer.initialize();
+			}
+			if (adminUserInitializer != null) {
+				adminUserInitializer.initialize();
+			}
+			if (assistantUserInitializer != null) {
+				assistantUserInitializer.initialize();
+			}
+            if (projectUserInitializer != null) {
+                projectUserInitializer.initialize();
+            }
+            try { grantProjectRoleIfMissing("admin"); } catch (Exception e) { log.warn("grant admin project role failed", e); baselineInitialized.set(false); }
+            try { grantProjectRoleIfMissing("project"); } catch (Exception e) { log.warn("grant project user role failed", e); baselineInitialized.set(false); }
+            try { grantProjectRoleIfMissing("assistant"); } catch (Exception e) { log.warn("grant assistant role failed", e); baselineInitialized.set(false); }
+        }
+    }
+
+	@Autowired
+	protected void setAdminUserInitializer(AdminUserInitializer initializer) {
+		this.adminUserInitializer = initializer;
+	}
+
+	@Autowired
+	protected void setAssistantUserInitializer(AssistantUserInitializer initializer) {
+		this.assistantUserInitializer = initializer;
+	}
+
+	@Autowired
+	protected void setProjectUserInitializer(ProjectUserInitializer initializer) {
+		this.projectUserInitializer = initializer;
+	}
+
+	@Autowired
+	protected void setUserRolePermissionsInitializer(UserRolePermissionsInitializer initializer) {
+		this.userRolePermissionsInitializer = initializer;
+	}
+
+	@Autowired
+	protected void setStakeholderPermissionsInitializer(StakeholderPermissionsInitializer initializer) {
+		this.stakeholderPermissionsInitializer = initializer;
+	}
+
+    @Autowired
+    protected void setUserCommandFactory(UserCommandFactory userCommandFactory) {
+        this.userCommandFactory = userCommandFactory;
+    }
+
+    private void grantProjectRoleIfMissing(String username) throws Exception {
+        User user = getUserRepository().findUserByUsername(username);
+        boolean hasRole = user.getUserRoles().stream()
+                .anyMatch(role -> role instanceof ProjectUserRole);
+        if (!hasRole) {
+            if (user.getOrganization() == null || user.getOrganization().getName() == null) {
+                user.setOrganization(new OrganizationImpl("Requel"));
+            }
+            EditUserCommand cmd = userCommandFactory.newEditUserCommand();
+            cmd.setEditedBy(user);
+            cmd.setUser(user);
+            cmd.addUserRoleName(ProjectUserRole.getRoleName(ProjectUserRole.class));
+            getCommandHandler().execute(cmd);
+        }
+    }
+
 	@Autowired
 	protected void setNlpProcessorFactory(NLPProcessorFactory nlpProcessorFactory) {
 		this.nlpProcessorFactory = nlpProcessorFactory;
+	}
+
+	protected synchronized void ensureDictionaryLoaded() throws Exception {
+		boolean hasWords = getDictionaryRepository().findWords() != null
+				&& !getDictionaryRepository().findWords().isEmpty();
+		if (hasWords) {
+			return;
+		}
+
+		ImportDictionaryCommand importDictionary =
+				(ImportDictionaryCommand) applicationContext.getBean("importDictionaryCommand");
+		InputStream in = getClass().getClassLoader()
+				.getResourceAsStream("nlp/dictionary/dictionary.xml.gz");
+		if (in == null) {
+			throw new IllegalStateException("nlp/dictionary/dictionary.xml.gz not found on classpath");
+		}
+		importDictionary.setInputStream(new GZIPInputStream(in));
+		getCommandHandler().execute(importDictionary);
+
+		// verify load succeeded so tests fail fast with a clear message
+		if (getDictionaryRepository().findWords() == null
+				|| getDictionaryRepository().findWords().isEmpty()) {
+			throw new IllegalStateException("Dictionary import completed but repository is still empty");
+		}
 	}
 
 //	@Override

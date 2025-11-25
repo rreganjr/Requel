@@ -72,10 +72,10 @@ public class ImportDictionaryCommandImpl extends AbstractDictionaryCommand imple
 	 */
 	@Override
 	public void execute() {
+		// NOTE: the annotation classes need to be explicitly supplied to
+		// the newInstance or an IllegalAnnotationExceptions will occur for
+		// AbstractProjectOrDomainEntity.getAnnotations()
 		try {
-			// NOTE: the annotation classes need to be explicitly supplied to
-			// the newInstance or an IllegalAnnotationExceptions will occur for
-			// AbstractProjectOrDomainEntity.getAnnotations()
 			JAXBContext context = JAXBContext
 					.newInstance(ExportDictionaryCommandImpl.CLASSES_FOR_JAXB);
 			Unmarshaller unmarshaller = context.createUnmarshaller();
@@ -90,10 +90,12 @@ public class ImportDictionaryCommandImpl extends AbstractDictionaryCommand imple
 					getDictionaryRepository().persist(word);
 				} catch (Exception e) {
 					log.error("could not save word '" + word.getLemma() + "': " + e, e);
+					throw e;
 				}
 			}
 		} catch (Exception e) {
-			log.error(e, e);
+			// Propagate so callers (tests) fail fast with a useful stack trace
+			throw new RuntimeException("Failed to import dictionary", e);
 		}
 	}
 }
