@@ -185,14 +185,15 @@ public abstract class AbstractIntegrationTestCase extends AbstractJUnit4SpringCo
 			}
 			if (assistantUserInitializer != null) {
 				assistantUserInitializer.initialize();
-			}
+            }
             if (projectUserInitializer != null) {
                 projectUserInitializer.initialize();
             }
-            try { grantProjectRoleIfMissing("admin"); } catch (Exception e) { log.warn("grant admin project role failed", e); baselineInitialized.set(false); }
-            try { grantProjectRoleIfMissing("project"); } catch (Exception e) { log.warn("grant project user role failed", e); baselineInitialized.set(false); }
-            try { grantProjectRoleIfMissing("assistant"); } catch (Exception e) { log.warn("grant assistant role failed", e); baselineInitialized.set(false); }
         }
+        // Always ensure the key users have ProjectUserRole; idempotent and cheap.
+        try { grantProjectRoleIfMissing("admin"); } catch (Exception e) { log.warn("grant admin project role failed", e); }
+        try { grantProjectRoleIfMissing("project"); } catch (Exception e) { log.warn("grant project user role failed", e); }
+        try { grantProjectRoleIfMissing("assistant"); } catch (Exception e) { log.warn("grant assistant role failed", e); }
     }
 
 	@Autowired
@@ -230,12 +231,19 @@ public abstract class AbstractIntegrationTestCase extends AbstractJUnit4SpringCo
         boolean hasRole = user.getUserRoles().stream()
                 .anyMatch(role -> role instanceof ProjectUserRole);
         if (!hasRole) {
+            // Make sure mandatory fields survive the updateUser() pass.
             if (user.getOrganization() == null || user.getOrganization().getName() == null) {
                 user.setOrganization(new OrganizationImpl("Requel"));
             }
             EditUserCommand cmd = userCommandFactory.newEditUserCommand();
             cmd.setEditedBy(user);
             cmd.setUser(user);
+            cmd.setUsername(user.getUsername());
+            cmd.setName(user.getName());
+            cmd.setEmailAddress(user.getEmailAddress());
+            cmd.setPhoneNumber(user.getPhoneNumber());
+            cmd.setOrganizationName(user.getOrganization().getName());
+            cmd.setEditable(user.isEditable());
             cmd.addUserRoleName(ProjectUserRole.getRoleName(ProjectUserRole.class));
             getCommandHandler().execute(cmd);
         }

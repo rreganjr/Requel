@@ -47,6 +47,12 @@ public class AnnotationImportXml {
     @XmlAttribute(name = "mustBeResolved")
     private Boolean mustBeResolved;
 
+    @XmlAttribute(name = "word")
+    private String word;
+
+    @XmlAttribute(name = "propertyName")
+    private String annotatablePropertyName;
+
     @XmlElementWrapper(name = "positions", namespace = "http://www.rreganjr.com/requel")
     @XmlElement(name = "positionRef", namespace = "http://www.rreganjr.com/requel")
     private List<String> positionRefs = new ArrayList<>();
@@ -60,6 +66,8 @@ public class AnnotationImportXml {
     public String getCreatedBy() { return createdBy; }
     public String getText() { return text; }
     public Boolean getMustBeResolved() { return mustBeResolved; }
+    public String getWord() { return word; }
+    public String getAnnotatablePropertyName() { return annotatablePropertyName; }
     public List<String> getPositionRefs() { return positionRefs; }
     public List<String> getAnnotatableRefs() { return annotatableRefs; }
 }

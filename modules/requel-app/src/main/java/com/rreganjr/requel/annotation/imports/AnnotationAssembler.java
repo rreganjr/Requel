@@ -69,8 +69,15 @@ public class AnnotationAssembler implements AggregateAssembler<AnnotationImportD
         }
         User createdBy = resolveCreatedBy(draft, unitOfWork);
         Annotation annotation;
-        if (draft.getType() == AnnotationImportDraft.Type.ISSUE) {
-            IssueImpl issue = new IssueImpl(groupingObject, draft.getText(), draft.isMustBeResolved(), createdBy);
+        if (draft.getType() == AnnotationImportDraft.Type.ISSUE
+                || draft.getType() == AnnotationImportDraft.Type.LEXICAL_ISSUE) {
+            IssueImpl issue;
+            if (draft.getType() == AnnotationImportDraft.Type.LEXICAL_ISSUE) {
+                issue = new com.rreganjr.requel.annotation.impl.LexicalIssue(groupingObject, draft.getText(),
+                        draft.isMustBeResolved(), createdBy, draft.getAnnotatablePropertyName(), draft.getWord());
+            } else {
+                issue = new IssueImpl(groupingObject, draft.getText(), draft.isMustBeResolved(), createdBy);
+            }
             draft.getPositionExternalIds().forEach(posId -> unitOfWork.resolve(PositionImpl.class, posId)
                     .ifPresent(p -> {
                         issue.getPositions().add(p);

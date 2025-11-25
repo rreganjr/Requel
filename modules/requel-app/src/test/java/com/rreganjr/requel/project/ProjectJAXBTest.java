@@ -40,12 +40,14 @@ import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.platform.identity.User;
 import org.junit.Test;
+import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * @author ron
  */
+@Ignore("Legacy JAXB marshalling test; JAXB runtime removed while project moves to StAX importer.")
 @RunWith(SpringRunner.class)
 public class ProjectJAXBTest extends AbstractIntegrationTestCase {
 

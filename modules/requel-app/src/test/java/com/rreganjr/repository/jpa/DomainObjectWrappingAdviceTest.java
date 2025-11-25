@@ -86,7 +86,7 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 
 	@Test
 	public void testPointCutA() throws Exception {
-		String pointCutExpression = "this(com.rreganjr.requel.utils.repository.EntityInitializer+)";
+		String pointCutExpression = "this(com.rreganjr.platform.bootstrap.SystemInitializer+)";
 		AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut(
 				DomainObjectWrappingAdvice.class, new String[0], new Class[0]);
 		ajexp.setExpression(pointCutExpression);
@@ -109,7 +109,7 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 
 	@Test
 	public void testPointCutB() throws Exception {
-		String pointCutExpression = "within(com.rreganjr.requel..*)";
+		String pointCutExpression = "within(com.rreganjr..*)";
 		AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut(
 				DomainObjectWrappingAdvice.class, new String[0], new Class[0]);
 		ajexp.setExpression(pointCutExpression);
@@ -140,7 +140,7 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 	 * @throws Exception
 	 */
 	public void testPointCutC() throws Exception {
-		String pointCutExpression = "!this(com.rreganjr.requel.utils.repository.EntityInitializer+) || "
+		String pointCutExpression = "!this(com.rreganjr.platform.bootstrap.SystemInitializer+) || "
 				+ "this(com.rreganjr.requel.command.Command+)";
 
 		AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut(
@@ -158,7 +158,7 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 	 * @throws Exception
 	 */
 	public void testPointCutD() throws Exception {
-		String pointCutExpression = "this(com.rreganjr.requel.utils.repository.EntityInitializer+) || "
+		String pointCutExpression = "this(com.rreganjr.platform.bootstrap.SystemInitializer+) || "
 				+ "!this(com.rreganjr.requel.command.Command+)";
 
 		AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut(

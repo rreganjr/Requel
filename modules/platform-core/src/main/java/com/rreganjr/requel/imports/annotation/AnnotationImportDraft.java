@@ -28,7 +28,7 @@ import java.util.Objects;
 import java.util.Set;
 
 public class AnnotationImportDraft {
-    public enum Type { NOTE, ISSUE }
+    public enum Type { NOTE, ISSUE, LEXICAL_ISSUE }
 
     private final String externalId;
     private final String createdByExternalId;
@@ -37,6 +37,8 @@ public class AnnotationImportDraft {
     private final boolean mustBeResolved;
     private final Set<String> positionExternalIds;
     private final Set<String> annotatableExternalIds;
+    private final String word;
+    private final String annotatablePropertyName;
 
     private AnnotationImportDraft(Builder builder) {
         this.externalId = builder.externalId;
@@ -46,6 +48,8 @@ public class AnnotationImportDraft {
         this.mustBeResolved = builder.mustBeResolved;
         this.positionExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.positionExternalIds));
         this.annotatableExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.annotatableExternalIds));
+        this.word = builder.word;
+        this.annotatablePropertyName = builder.annotatablePropertyName;
     }
 
     public String getExternalId() { return externalId; }
@@ -55,6 +59,8 @@ public class AnnotationImportDraft {
     public boolean isMustBeResolved() { return mustBeResolved; }
     public Set<String> getPositionExternalIds() { return positionExternalIds; }
     public Set<String> getAnnotatableExternalIds() { return annotatableExternalIds; }
+    public String getWord() { return word; }
+    public String getAnnotatablePropertyName() { return annotatablePropertyName; }
 
     public static Builder builder() { return new Builder(); }
 
@@ -66,6 +72,8 @@ public class AnnotationImportDraft {
         private boolean mustBeResolved = false;
         private Set<String> positionExternalIds = new HashSet<>();
         private Set<String> annotatableExternalIds = new HashSet<>();
+        private String word;
+        private String annotatablePropertyName;
 
         public Builder externalId(String externalId) { this.externalId = externalId; return this; }
         public Builder createdByExternalId(String createdByExternalId) { this.createdByExternalId = createdByExternalId; return this; }
@@ -74,6 +82,8 @@ public class AnnotationImportDraft {
         public Builder mustBeResolved(boolean mustBeResolved) { this.mustBeResolved = mustBeResolved; return this; }
         public Builder positionExternalIds(Set<String> ids) { if (ids != null) this.positionExternalIds.addAll(ids); return this; }
         public Builder annotatableExternalIds(Set<String> ids) { if (ids != null) this.annotatableExternalIds.addAll(ids); return this; }
+        public Builder word(String word) { this.word = word; return this; }
+        public Builder annotatablePropertyName(String name) { this.annotatablePropertyName = name; return this; }
         public AnnotationImportDraft build() {
             Objects.requireNonNull(text, "annotation text is required");
             Objects.requireNonNull(type, "annotation type is required");

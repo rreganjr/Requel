@@ -38,10 +38,14 @@ public class PositionImportXmlMapper {
                 .map(arg -> new PositionImportDraft.ArgumentDraft(arg.getId(), arg.getCreatedBy(),
                         arg.getText(), arg.getSupportLevel()))
                 .collect(Collectors.toList());
+        String text = xml.getText();
+        if (text == null || text.isBlank()) {
+            text = xml.getProposedWord(); // fallback for changeSpellingPosition
+        }
         return PositionImportDraft.builder()
                 .externalId(xml.getId())
                 .createdByExternalId(xml.getCreatedBy())
-                .text(xml.getText())
+                .text(text)
                 .argumentExternalIds(new HashSet<>())
                 .arguments(argumentDrafts)
                 .build();

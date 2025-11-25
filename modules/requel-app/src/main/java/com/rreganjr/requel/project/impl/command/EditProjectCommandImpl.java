@@ -184,7 +184,13 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 		com.rreganjr.requel.user.User assistantUser = getUserRepository().findUserByUsername("assistant");
 		getProjectRepository().persist(new UserStakeholderImpl(projectImpl, user, assistantUser));
 
-		ProjectUserRole role = user.getRoleForType(ProjectUserRole.class);
+		// Ensure the creator carries a ProjectUserRole so activeProjects can be tracked.
+		com.rreganjr.requel.user.User requelUser = (com.rreganjr.requel.user.User) user;
+		if (!requelUser.hasRole(ProjectUserRole.class)) {
+			requelUser.grantRole(ProjectUserRole.class);
+			getUserRepository().merge(requelUser);
+		}
+		ProjectUserRole role = requelUser.getRoleForType(ProjectUserRole.class);
 		role.getActiveProjects().add(projectImpl);
 
 		addBuiltinReportGenerator(projectImpl, user);

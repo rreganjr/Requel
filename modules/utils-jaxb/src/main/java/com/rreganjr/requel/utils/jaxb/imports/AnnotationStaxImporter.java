@@ -68,7 +68,7 @@ public class AnnotationStaxImporter {
                         continue;
                     } else if ("lexicalIssue".equals(reader.getLocalName())) {
                         AnnotationImportXml xml = unmarshaller.unmarshal(reader, AnnotationImportXml.class).getValue();
-                        drafts.add(mapper.toDraft(xml, AnnotationImportDraft.Type.ISSUE));
+                        drafts.add(mapper.toDraft(xml, AnnotationImportDraft.Type.LEXICAL_ISSUE));
                         continue;
                     }
                 }

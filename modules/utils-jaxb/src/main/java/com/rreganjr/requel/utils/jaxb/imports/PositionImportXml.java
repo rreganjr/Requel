@@ -44,6 +44,9 @@ public class PositionImportXml {
     @XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
     private String text;
 
+    @XmlAttribute(name = "proposedWord")
+    private String proposedWord;
+
     @XmlElementWrapper(name = "arguments", namespace = "http://www.rreganjr.com/requel")
     @XmlElement(name = "argument", namespace = "http://www.rreganjr.com/requel")
     private List<ArgumentImportXml> arguments = new ArrayList<>();
@@ -51,6 +54,7 @@ public class PositionImportXml {
     public String getId() { return id; }
     public String getCreatedBy() { return createdBy; }
     public String getText() { return text; }
+    public String getProposedWord() { return proposedWord; }
     public List<ArgumentImportXml> getArguments() { return arguments; }
 
     @XmlAccessorType(XmlAccessType.FIELD)

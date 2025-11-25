@@ -39,6 +39,8 @@ public class AnnotationImportXmlMapper {
                 .text(xml.getText())
                 .type(type)
                 .mustBeResolved(mustBeResolved)
+                .word(xml.getWord())
+                .annotatablePropertyName(xml.getAnnotatablePropertyName())
                 .positionExternalIds(new HashSet<>(xml.getPositionRefs()))
                 .annotatableExternalIds(new HashSet<>(xml.getAnnotatableRefs()))
                 .build();

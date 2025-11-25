@@ -61,11 +61,17 @@ public class PositionStaxImporter {
 
             while (reader.hasNext()) {
                 if (reader.getEventType() == XMLStreamConstants.START_ELEMENT
-                        && NS.equals(reader.getNamespaceURI())
-                        && "position".equals(reader.getLocalName())) {
-                    PositionImportXml xml = unmarshaller.unmarshal(reader, PositionImportXml.class).getValue();
-                    drafts.add(mapper.toDraft(xml));
-                    continue;
+                        && NS.equals(reader.getNamespaceURI())) {
+                    String local = reader.getLocalName();
+                    if ("position".equals(local)
+                            || "changeSpellingPosition".equals(local)
+                            || "addWordToDictionaryPosition".equals(local)
+                            || "addGlossaryTermPosition".equals(local)
+                            || "addActorPosition".equals(local)) {
+                        PositionImportXml xml = unmarshaller.unmarshal(reader, PositionImportXml.class).getValue();
+                        drafts.add(mapper.toDraft(xml));
+                        continue;
+                    }
                 }
                 reader.next();
             }

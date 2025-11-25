@@ -289,7 +289,18 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         } catch (NoSuchUserException e) {
             log.warn("The assistant user doesn't exist and could not be added as a stakeholder to " + targetProject.getName());
         }
-        targetProject.getStakeholders().forEach(Stakeholder::ensureProjectMembership);
+        targetProject.getStakeholders().forEach(stakeholder -> {
+            try {
+                stakeholder.ensureProjectMembership();
+            } catch (com.rreganjr.requel.user.exception.NoSuchRoleForUserException e) {
+                if (stakeholder instanceof UserStakeholder) {
+                    log.warn("Stakeholder user missing ProjectUserRole; skipping membership enforcement for "
+                            + ((UserStakeholder) stakeholder).getUser().getUsername(), e);
+                } else {
+                    log.warn("Stakeholder missing ProjectUserRole; skipping membership enforcement", e);
+                }
+            }
+        });
 
         if (targetProject.getReportGenerators().isEmpty()) {
             addBuiltinReportGenerator(targetProject, createdBy);
