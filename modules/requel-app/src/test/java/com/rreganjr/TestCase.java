@@ -15,7 +15,7 @@ import junit.framework.AssertionFailedError;
 /**
  * @author ron
  */
-public class TestCase extends junit.framework.TestCase {
+public abstract class TestCase extends junit.framework.TestCase {
 
 	public TestCase() {
 		super();
