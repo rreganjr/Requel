@@ -125,7 +125,9 @@ public class GlossaryTermImpl extends AbstractTextEntity implements GlossaryTerm
 	@XmlIDREF
 	@XmlAttribute(name = "canonicalTerm")
 	@XmlJavaTypeAdapter(GlossaryTerm2GlossaryTermImplAdapter.class)
-	@ManyToOne(targetEntity = GlossaryTermImpl.class, cascade = { CascadeType.REFRESH }, fetch = FetchType.EAGER, optional = true)
+	@ManyToOne(targetEntity = GlossaryTermImpl.class,
+			cascade = { CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REFRESH },
+			fetch = FetchType.EAGER, optional = true)
 	@Override
 	public GlossaryTerm getCanonicalTerm() {
 		return canonicalTerm;

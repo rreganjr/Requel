@@ -36,6 +36,7 @@ import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Story;
+import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.impl.ProjectImpl;
@@ -141,6 +142,38 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
         org.junit.Assert.assertEquals("position text retained",
                 "Add \"the project elements\" to the project glossary.", glossaryPosition.getText());
         assertTrue("position has no arguments", glossaryPosition.getArguments().isEmpty());
+    }
+
+    /**
+     * Ensure the importing user is granted stakeholder membership with permissions on the imported project.
+     */
+    @Test
+    public void importingUserGetsStakeholderPermissions() throws Exception {
+        ImportProjectCommand command = (ImportProjectCommand) applicationContext.getBean("importProjectCommand");
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        User creator = getUserRepository().findUserByUsername("project");
+
+        command.setEditedBy(creator);
+        command.setAnalysisEnabled(false);
+        command.setName("Import Stakeholder Test " + System.currentTimeMillis());
+        try (InputStream inputStream = Files.newInputStream(resolveSampleXml())) {
+            command.setInputStream(inputStream);
+            command = getCommandHandler().execute(command);
+        }
+
+        Project imported = command.getProject();
+        Optional<UserStakeholder> maybeStakeholder = imported.getStakeholders().stream()
+                .filter(s -> s instanceof UserStakeholder us && us.matchesUser(creator))
+                .map(s -> (UserStakeholder) s)
+                .findFirst();
+        assertTrue("importing user added as stakeholder", maybeStakeholder.isPresent());
+
+        UserStakeholder stakeholder = maybeStakeholder.get();
+        int granted = stakeholder.getStakeholderPermissions().size();
+        int available = getProjectRepository().findAvailableStakeholderPermissions().size();
+        org.junit.Assert.assertTrue("available stakeholder permissions should be seeded", available > 0);
+        org.junit.Assert.assertEquals("importing user receives full stakeholder permissions", available, granted);
     }
 
     private void ensureAssistantHasProjectRole() throws Exception {

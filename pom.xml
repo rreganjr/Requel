@@ -65,6 +65,8 @@
         <module>modules/user-domain</module>
         <module>modules/user-jpa</module>
         <module>modules/dictionary-jpa</module>
+        <module>modules/annotation-domain</module>
+        <module>modules/annotation-jpa</module>
         <module>modules/requel-app</module>
     </modules>
 </project>

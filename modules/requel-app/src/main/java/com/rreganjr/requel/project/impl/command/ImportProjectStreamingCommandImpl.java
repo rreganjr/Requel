@@ -431,20 +431,36 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
     private record ProjectMetadata(String organizationName, String description) {}
 
     private void addUserAsStakeholder(Project project, User user, User editedBy) {
-        if (user == null || !user.hasRole(ProjectUserRole.class)) {
+        if (user == null) {
             return;
         }
-        boolean exists = project.getStakeholders().stream().anyMatch(stakeholder -> stakeholder.matchesUser(user));
-        if (exists) {
+        // Ensure the importing user has the project role so stakeholder permissions can be granted.
+        if (!user.hasRole(ProjectUserRole.class) && user instanceof com.rreganjr.requel.user.impl.UserImpl ui) {
+            ui.grantRole(ProjectUserRole.class);
+            getUserRepository().persist((com.rreganjr.requel.user.User) ui);
+        }
+        if (!user.hasRole(ProjectUserRole.class)) {
+            log.warn("Stakeholder user missing ProjectUserRole; skipping membership enforcement for " + user.getUsername());
             return;
         }
-        UserStakeholder creatorStakeholder = new UserStakeholderImpl(project, editedBy,
-                (com.rreganjr.requel.user.User) user);
-        getProjectRepository().persist(creatorStakeholder);
+        UserStakeholder creatorStakeholder = project.getStakeholders().stream()
+                .filter(stakeholder -> stakeholder.matchesUser(user))
+                .map(stakeholder -> (UserStakeholder) stakeholder)
+                .findFirst()
+                .orElseGet(() -> {
+                    UserStakeholder created = new UserStakeholderImpl(project, editedBy,
+                            (com.rreganjr.requel.user.User) user);
+                    getProjectRepository().persist(created);
+                    project.getStakeholders().add(created);
+                    return created;
+                });
+
+        // Grant any missing permissions.
         for (StakeholderPermission permission : getProjectRepository().findAvailableStakeholderPermissions()) {
-            creatorStakeholder.grantStakeholderPermission(permission);
+            if (!creatorStakeholder.getStakeholderPermissions().contains(permission)) {
+                creatorStakeholder.grantStakeholderPermission(permission);
+            }
         }
-        project.getStakeholders().add(creatorStakeholder);
         creatorStakeholder.ensureProjectMembership();
     }
 
