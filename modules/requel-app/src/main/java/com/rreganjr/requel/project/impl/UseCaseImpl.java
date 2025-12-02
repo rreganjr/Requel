@@ -47,10 +47,6 @@ import jakarta.xml.bind.annotation.XmlType;
 import org.hibernate.annotations.SortNatural;
 import jakarta.validation.constraints.NotEmpty;
 import org.xml.sax.SAXException;
-
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
-
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectOrDomain;
@@ -59,8 +55,6 @@ import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
 
 import com.rreganjr.requel.user.UserRepository;
-import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
-
 /**
  * @author ron
  */
@@ -235,41 +229,4 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 		return getName().compareToIgnoreCase(o.getName());
 	}
 
-	/**
-	 * This is for JAXB to patchup the parent/child relationship and to patchup
-	 * existing persistent objects for the objects that are attached directly to
-	 * this object.
-	 * 
-	 * @param userRepository
-	 * @param defaultCreatedByUser -
-	 *            the user to be set as the created by if no user is supplied.
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
-	 */
-	public void afterUnmarshal(final UserRepository userRepository, User defaultCreatedByUser) {
-		UnmarshallingContext.getInstance().addPatcher(
-				new JAXBCreatedEntityPatcher(userRepository, this, defaultCreatedByUser));
-		UnmarshallingContext.getInstance().addPatcher(new Patcher() {
-			@Override
-			public void run() throws SAXException {
-				try {
-					for (Goal goal : getGoals()) {
-						goal.getReferers().add(UseCaseImpl.this);
-					}
-					for (Actor actor : getActors()) {
-						actor.getReferers().add(UseCaseImpl.this);
-					}
-					if (getPrimaryActor() != null) {
-						getPrimaryActor().getReferers().add(UseCaseImpl.this);
-					}
-					for (Story story : getStories()) {
-						story.getReferers().add(UseCaseImpl.this);
-					}
-				} catch (RuntimeException e) {
-					throw e;
-				} catch (Exception e) {
-					throw new SAXException(e);
-				}
-			}
-		});
-	}
 }

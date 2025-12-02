@@ -79,9 +79,5 @@ public abstract class AbstractTextEntity extends AbstractProjectOrDomainEntity i
 	 * 
 	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
-	public void afterUnmarshal() {
-		if (getText() != null) {
-			setText(getText().trim());
-		}
-	}
+
 }

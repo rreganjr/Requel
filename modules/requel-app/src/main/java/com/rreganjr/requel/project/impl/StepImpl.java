@@ -178,30 +178,6 @@ public class StepImpl extends AbstractTextEntity implements Step {
 		return getName().compareToIgnoreCase(o.getName());
 	}
 
-	/**
-	 * This is for JAXB to patchup the parent/child relationship and to patchup
-	 * existing persistent objects for the objects that are attached directly to
-	 * this object.
-	 * 
-	 * @param userRepository
-	 * @param defaultCreatedByUser -
-	 *            the user to be set as the created by if no user is supplied.
-	 * @param parent
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
-	 */
-	@Override
-	public void afterUnmarshal(UserRepository userRepository, User defaultCreatedByUser,
-			Object parent) {
-		if (parent instanceof ProjectOrDomainEntity) {
-			super.afterUnmarshal(userRepository, defaultCreatedByUser, null);
-		} else if (parent instanceof ProjectOrDomain) {
-			super.afterUnmarshal(userRepository, defaultCreatedByUser, parent);
-		} else {
-			throw new RuntimeException("Unexpected parent type "
-					+ parent.getClass().getSimpleName() + " for " + getClass().getSimpleName()
-					+ " named: " + getName());
-		}
-	}
 
 	/**
 	 * This class is used by JAXB to convert the ScenarioType of a Scenario into

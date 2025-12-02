@@ -39,20 +39,15 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import org.hibernate.annotations.SortNatural;
 
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
-
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.impl.AbstractAnnotation;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalRelation;
 import com.rreganjr.requel.project.GoalRelationType;
 import com.rreganjr.platform.identity.User;
-import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
 import com.rreganjr.requel.utils.jaxb.DateAdapter;
-import com.rreganjr.requel.annotation.JAXBAnnotatablePatcher;
-import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
 
 /**
  * @author ron
@@ -341,22 +336,6 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 	/**
 	 * This is for JAXB to patchup the parent/child relationship and to patchup
 	 * existing persistent objects for the objects that are attached directly to
-	 * this object.
-	 * 
-	 * @param userRepository
-	 * @param defaultCreatedByUser -
-	 *            the user to be set as the created by if no user is supplied.
-	 * @param parent
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
-	 */
-	public void afterUnmarshal(final UserRepository userRepository, User defaultCreatedByUser,
-			Object parent) {
-		setFromGoal((Goal) parent);
-		UnmarshallingContext.getInstance().addPatcher(new JAXBAnnotatablePatcher(this));
-		UnmarshallingContext.getInstance().addPatcher(
-				new JAXBCreatedEntityPatcher(userRepository, this, defaultCreatedByUser));
-	}
-
 	/**
 	 * This class is used by JAXB to convert the GoalRelationType of a
 	 * GoalRelation into a string for an attribute in the xml file and the

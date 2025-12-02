@@ -20,6 +20,8 @@
  */
 package com.rreganjr.nlp.impl;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +31,7 @@ import opennlp.tools.sentdetect.SentenceDetectorME;
 
 import opennlp.tools.sentdetect.SentenceModel;
 import opennlp.tools.util.Span;
+import opennlp.tools.util.InvalidFormatException;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
@@ -82,7 +85,19 @@ public class Sentencizer extends AbstractOpenNLPTool<NLPText> {
 						PROP_ENGLISH_SENTENCE_DETECTOR_MODEL_FILE,
 						PROP_ENGLISH_SENTENCE_DETECTOR_MODEL_FILE_DEFAULT);
 
-				sentenceDetector = new SentenceDetectorME(new SentenceModel("en", readGISModel(modelFile), true, null));
+				try (InputStream in = Sentencizer.class.getClassLoader().getResourceAsStream(modelFile)) {
+					if (in == null) {
+						throw new IOException("Sentence model not found on classpath: " + modelFile);
+					}
+					try {
+						SentenceModel model = new SentenceModel(in);
+						sentenceDetector = new SentenceDetectorME(model);
+					} catch (InvalidFormatException ife) {
+						// Older bundled model lacks manifest.properties; fall back to a simple rule-based splitter
+						log.warn("Falling back to simple sentence splitter because model is in legacy format: " + modelFile, ife);
+						sentenceDetector = new SimpleSentenceDetector();
+					}
+				}
 			} catch (Exception e) {
 				sentenceDetector = null;
 				throw ApplicationException.failedToInitializeComponent(getClass(), e);
@@ -144,5 +159,36 @@ public class Sentencizer extends AbstractOpenNLPTool<NLPText> {
 			return trimmedSentences;
 		}
 		return null;
+	}
+
+	/**
+	 * Very small fallback splitter used when the OpenNLP model cannot be loaded (e.g., legacy binary format).
+	 */
+	private static final class SimpleSentenceDetector implements SentenceDetector {
+		@Override
+		public String[] sentDetect(String text) {
+			if (text == null || text.isEmpty()) {
+				return new String[0];
+			}
+			// Split on common sentence terminators while preserving the delimiter with the sentence.
+			return text.split("(?<=[.!?])\\s+");
+		}
+
+		@Override
+		public Span[] sentPosDetect(String text) {
+			String[] sentences = sentDetect(text);
+			Span[] spans = new Span[sentences.length];
+			int cursor = 0;
+			for (int i = 0; i < sentences.length; i++) {
+				String s = sentences[i];
+				int start = text.indexOf(s, cursor);
+				if (start < 0) {
+					start = cursor;
+				}
+				spans[i] = new Span(start, start + s.length());
+				cursor = start + s.length();
+			}
+			return spans;
+		}
 	}
 }

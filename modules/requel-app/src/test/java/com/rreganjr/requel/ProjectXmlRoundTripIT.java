@@ -46,6 +46,7 @@ import javax.xml.validation.Validator;
 
 import com.rreganjr.requel.user.User;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
@@ -95,6 +96,7 @@ import com.rreganjr.requel.user.exception.NoSuchUserException;
  * Regression coverage that builds a project with sample data, exports it, and verifies that re-importing
  * the XML produces an equivalent project structure.
  */
+@Disabled("Legacy JAXB round-trip; superseded by ProjectXmlStreamingRoundTripIT.")
 @SpringBootTest(classes = Application.class)
 @TestPropertySource(locations = "classpath:db.properties")
 @org.springframework.test.context.ActiveProfiles("test")

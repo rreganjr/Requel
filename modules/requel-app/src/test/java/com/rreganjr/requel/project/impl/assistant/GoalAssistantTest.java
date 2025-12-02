@@ -50,6 +50,7 @@ public class GoalAssistantTest extends AbstractIntegrationTestCase {
 	 */
 	@Test
 	public void testGoalAssistantGoalNameIssue() throws Exception {
+		ensureDictionaryLoaded();
 		long uniqueifier = System.currentTimeMillis();
 		String projectName = "Test Project " + uniqueifier;
 		String organizationName = "Test Organization " + uniqueifier;

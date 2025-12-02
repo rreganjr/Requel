@@ -45,15 +45,10 @@ import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
-
 import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.ArgumentPositionSupportLevel;
 import com.rreganjr.requel.annotation.Position;
-import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.UserImpl;
-import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
-
 /**
  * @author ron
  */
@@ -233,17 +228,7 @@ public class ArgumentImpl implements Argument, Serializable {
 	 * This is for JAXB to patchup the parent/child relationship.
 	 * 
 	 * @param userRepository
-	 * @param defaultCreatedByUser -
-	 *            the user to be set as the created by if no user is supplied.
-	 * @param parent
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
-	public void afterUnmarshal(UserRepository userRepository, User defaultCreatedByUser,
-			Object parent) {
-		setPosition((Position) parent);
-		UnmarshallingContext.getInstance().addPatcher(
-				new JAXBCreatedEntityPatcher(userRepository, this, defaultCreatedByUser));
-	}
 
 	/**
 	 * This class is used by JAXB to convert the id of an entity into an xml id

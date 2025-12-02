@@ -41,16 +41,10 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
-import org.xml.sax.SAXException;
-
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.annotation.impl.PositionImpl.Position2PositionImplAdapter;
 import com.rreganjr.platform.identity.User;
-import com.rreganjr.requel.user.UserRepository;
-import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.impl.UserImpl;
 
 /**
@@ -204,31 +198,4 @@ public class IssueImpl extends AbstractAnnotation implements Issue {
 		this.resolvedDate = resolvedDate;
 	}
 
-	/**
-	 * This is for JAXB to patchup the parent/child relationship and swap the
-	 * resolved by user with an existing user.
-	 * 
-	 * @param userRepository
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
-	 */
-	public void afterUnmarshal(final UserRepository userRepository) {
-		UnmarshallingContext.getInstance().addPatcher(new Patcher() {
-			@Override
-			public void run() throws SAXException {
-				try {
-					if (getResolvedByUser() != null) {
-						User existingUser = userRepository.findUserByUsername(getResolvedByUser()
-								.getUsername());
-						setResolvedByUser(existingUser);
-					}
-					// fix up the positions reference to the issue
-					for (Position position : getPositions()) {
-						position.getIssues().add(IssueImpl.this);
-					}
-				} catch (NoSuchUserException e) {
-					// the new user will be persisted automatically
-				}
-			}
-		});
-	}
 }

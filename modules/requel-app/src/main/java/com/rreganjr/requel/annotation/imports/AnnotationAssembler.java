@@ -23,7 +23,6 @@
 package com.rreganjr.requel.annotation.imports;
 
 import com.rreganjr.requel.annotation.Annotation;
-import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.impl.IssueImpl;
 import com.rreganjr.requel.annotation.impl.NoteImpl;
 import com.rreganjr.requel.annotation.impl.PositionImpl;

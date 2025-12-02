@@ -60,15 +60,10 @@ import org.hibernate.annotations.AnyDiscriminator;
 import org.hibernate.annotations.AnyKeyJavaClass;
 import org.hibernate.annotations.ManyToAny;
 
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
-
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.platform.identity.User;
-import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.UserImpl;
-import com.rreganjr.requel.utils.jaxb.JAXBAnnotationGroupedByPatcher;
-import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
 
 /**
  * @author ron
@@ -275,24 +270,6 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	 */
 	public void beforeUnmarshal() {
 		setType(getClass().getName());
-	}
-
-	/**
-	 * This is for JAXB to patchup the parent/child relationship and swap the
-	 * creator with an existing user.
-	 * 
-	 * @param userRepository
-	 * @param defaultCreatedByUser -
-	 *            the user to be set as the created by if no user is supplied.
-	 * @param annotatable
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
-	 */
-	public void afterUnmarshal(UserRepository userRepository, User defaultCreatedByUser,
-			Object annotatable) {
-		UnmarshallingContext.getInstance().addPatcher(
-				new JAXBCreatedEntityPatcher(userRepository, this, defaultCreatedByUser));
-		UnmarshallingContext.getInstance().addPatcher(
-				new JAXBAnnotationGroupedByPatcher(this, (Annotatable) annotatable));
 	}
 
 	/**

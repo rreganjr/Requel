@@ -84,7 +84,7 @@ import org.springframework.util.StringUtils;
  * New streaming-based import command that avoids JAXB afterUnmarshal hooks.
  * Currently, processes actors via StAX + assemblers; other aggregates will follow.
  */
-@Controller("importProjectStreamingCommand")
+@Controller("importProjectCommand")
 @Scope("prototype")
 public class ImportProjectStreamingCommandImpl extends AbstractEditProjectCommand implements ImportProjectCommand {
 

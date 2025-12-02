@@ -64,10 +64,7 @@ import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
 
-import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.UserImpl;
-import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 
 /**
  * @author ron
@@ -286,15 +283,7 @@ public class PositionImpl implements Position, Serializable {
 	 * This is for JAXB to patchup the parent/child relationship.
 	 * 
 	 * @param userRepository
-	 * @param defaultCreatedByUser -
-	 *            the user to be set as the created by if no user is supplied.
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
-	public void afterUnmarshal(UserRepository userRepository, User defaultCreatedByUser) {
-		UnmarshallingContext.getInstance().addPatcher(
-				new JAXBCreatedEntityPatcher(userRepository, this, defaultCreatedByUser));
-	}
-
 	/**
 	 * This class is used by JAXB to convert the id of an entity into an xml id
 	 * string that will be distinct from other entity xml id strings by the use

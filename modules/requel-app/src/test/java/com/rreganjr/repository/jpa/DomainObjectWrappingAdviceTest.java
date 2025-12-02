@@ -24,8 +24,6 @@ package com.rreganjr.repository.jpa;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.springframework.test.context.junit4.SpringRunner;
-import org.junit.runner.RunWith;
 import net.sf.echopm.EchoPMApp;
 
 
@@ -52,7 +50,6 @@ import com.rreganjr.requel.project.impl.command.EditGoalCommandImpl;
 import com.rreganjr.requel.project.impl.command.EditProjectCommandImpl;
 import com.rreganjr.requel.project.impl.command.EditUserStakeholderCommandImpl;
 import com.rreganjr.requel.project.impl.command.ExportProjectCommandImpl;
-import com.rreganjr.requel.project.impl.command.ImportProjectCommandImpl;
 import com.rreganjr.requel.project.impl.command.RemoveGoalFromGoalContainerCommandImpl;
 import com.rreganjr.requel.project.impl.command.ResolveIssueWithAddGlossaryTermPositionCommandImpl;
 import com.rreganjr.requel.project.impl.repository.init.StakeholderPermissionsInitializer;
@@ -81,11 +78,10 @@ import com.rreganjr.requel.user.impl.repository.init.UserRolePermissionsInitiali
 /**
  * @author ron
  */
-@RunWith(SpringRunner.class)
 public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase {
 
 	@Test
-	public void testPointCutA() throws Exception {
+	public void testPointCutA() {
 		String pointCutExpression = "this(com.rreganjr.platform.bootstrap.SystemInitializer+)";
 		AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut(
 				DomainObjectWrappingAdvice.class, new String[0], new Class[0]);
@@ -108,7 +104,7 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 	}
 
 	@Test
-	public void testPointCutB() throws Exception {
+	public void testPointCutB() {
 		String pointCutExpression = "within(com.rreganjr..*)";
 		AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut(
 				DomainObjectWrappingAdvice.class, new String[0], new Class[0]);
@@ -136,10 +132,8 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 	/**
 	 * Test that the pointcut expression for the DomainObjectWrappingAdvice
 	 * class is applicable to UI components, but not in commands.
-	 * 
-	 * @throws Exception
 	 */
-	public void testPointCutC() throws Exception {
+	public void testPointCutC() {
 		String pointCutExpression = "!this(com.rreganjr.platform.bootstrap.SystemInitializer+) || "
 				+ "this(com.rreganjr.requel.command.Command+)";
 
@@ -154,10 +148,8 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 	/**
 	 * Test that the pointcut expression for the DomainObjectWrappingAdvice
 	 * class is applicable to UI components, but not in commands.
-	 * 
-	 * @throws Exception
 	 */
-	public void testPointCutD() throws Exception {
+	public void testPointCutD() {
 		String pointCutExpression = "this(com.rreganjr.platform.bootstrap.SystemInitializer+) || "
 				+ "!this(com.rreganjr.requel.command.Command+)";
 
@@ -168,7 +160,6 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 		Assert.assertFalse(AopUtils.canApply(ajexp, AddGoalToGoalContainerCommandImpl.class, false));
 		Assert.assertFalse(AopUtils.canApply(ajexp, EditGoalCommandImpl.class, false));
 		Assert.assertFalse(AopUtils.canApply(ajexp, EditProjectCommandImpl.class, false));
-		Assert.assertFalse(AopUtils.canApply(ajexp, ImportProjectCommandImpl.class, false));
 		Assert.assertFalse(AopUtils.canApply(ajexp, RemoveGoalFromGoalContainerCommandImpl.class, false));
 
 		Assert.assertFalse(AopUtils.canApply(ajexp, EditGlossaryTermCommandImpl.class, false));
@@ -192,10 +183,8 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 	/**
 	 * Test that the pointcut expression for the DomainObjectWrappingAdvice
 	 * class is applicable to UI components, but not in commands.
-	 * 
-	 * @throws Exception
 	 */
-	public void testPointCutE() throws Exception {
+	public void testPointCutE() {
 		String pointCutExpression = "within(com.rreganjr.requel..*) && !within(com.rreganjr.requel.command.Command+)";
 		AspectJExpressionPointcut ajexp = new AspectJExpressionPointcut(
 				DomainObjectWrappingAdvice.class, new String[0], new Class[0]);
@@ -204,7 +193,6 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 		Assert.assertFalse(AopUtils.canApply(ajexp, AddGoalToGoalContainerCommandImpl.class, false));
 		Assert.assertFalse(AopUtils.canApply(ajexp, EditGoalCommandImpl.class, false));
 		Assert.assertFalse(AopUtils.canApply(ajexp, EditProjectCommandImpl.class, false));
-		Assert.assertFalse(AopUtils.canApply(ajexp, ImportProjectCommandImpl.class, false));
 		Assert.assertFalse(AopUtils.canApply(ajexp, RemoveGoalFromGoalContainerCommandImpl.class, false));
 
 		Assert.assertFalse(AopUtils.canApply(ajexp, EditGlossaryTermCommandImpl.class, false));
@@ -240,10 +228,8 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 	/**
 	 * Test that the pointcut expression for the DomainObjectWrappingAdvice
 	 * class is applicable to UI components, but not in commands.
-	 * 
-	 * @throws Exception
 	 */
-	public void testPointCut() throws Exception {
+	public void testPointCut() {
 		String pointCutExpression = "within(com.rreganjr.requel..*) && !within("
 				+ Command.class.getName() + "+)  && !within(" + SystemInitializer.class.getName()
 				+ "+)";
@@ -254,7 +240,6 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 		Assert.assertFalse(AopUtils.canApply(ajexp, AddGoalToGoalContainerCommandImpl.class, false));
 		Assert.assertFalse(AopUtils.canApply(ajexp, EditGoalCommandImpl.class, false));
 		Assert.assertFalse(AopUtils.canApply(ajexp, EditProjectCommandImpl.class, false));
-		Assert.assertFalse(AopUtils.canApply(ajexp, ImportProjectCommandImpl.class, false));
 		Assert.assertFalse(AopUtils.canApply(ajexp, RemoveGoalFromGoalContainerCommandImpl.class, false));
 
 		Assert.assertFalse(AopUtils.canApply(ajexp, EditGlossaryTermCommandImpl.class, false));
@@ -287,8 +272,7 @@ public class DomainObjectWrappingAdviceTest extends AbstractIntegrationTestCase 
 		Assert.assertTrue(AopUtils.canApply(ajexp, NonUserStakeholderEditorPanel.class, false));
 		Assert.assertTrue(AopUtils.canApply(ajexp, LoginController.class, false));
 		// TODO: why does AbstractRequelAnnotationEditorPanel not match?
-		// Assert.assertTrue(AopUtils.canApply(ajexp,
-		// AbstractRequelAnnotationEditorPanel.class, false));
+		// Assert.assertTrue(AopUtils.canApply(ajexp, AbstractRequelAnnotationEditorPanel.class, false));
 		Assert.assertTrue(AopUtils.canApply(ajexp, ArgumentEditorPanel.class, false));
 		Assert.assertTrue(AopUtils.canApply(ajexp, IssueEditorPanel.class, false));
 		Assert.assertTrue(AopUtils.canApply(ajexp, PositionEditorPanel.class, false));

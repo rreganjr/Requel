@@ -29,11 +29,7 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlType;
 
 import org.hibernate.annotations.SortNatural;
-import org.xml.sax.SAXException;
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
-
-import com.rreganjr.requel.project.impl.ProjectImpl;
+import org.xml.sax.SAXException;import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.requel.user.impl.AbstractUserRole;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
@@ -173,31 +169,4 @@ public class ProjectUserRole extends AbstractUserRole {
 		return true;
 	}
 
-	/**
-	 * This is for JAXB to patchup the parent/child relationship.
-	 * 
-	 * @param userRepository
-	 * @param parent
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
-	 */
-	public void afterUnmarshal(final UserRepository userRepository, Object parent) {
-		User domainParent = User2UserImplAdapter.resolveDomain((User) parent);
-		setUser(domainParent != null ? domainParent : (User) parent);
-		UnmarshallingContext.getInstance().addPatcher(new Patcher() {
-			@Override
-			public void run() throws SAXException {
-				User resolvedUser = User2UserImplAdapter.resolveDomain(getUser());
-				if (resolvedUser != null) {
-					try {
-						User existingUser = userRepository
-								.findUserByUsername(resolvedUser.getUsername());
-						setUser(existingUser);
-					} catch (NoSuchUserException e) {
-					}
-				} else {
-					throw new SAXException("ProjectUserRole missing User");
-				}
-			}
-		});
-	}
 }

@@ -499,7 +499,7 @@ private UseCase createUseCase(Project project, String primaryActorName,
 	private Project importProject(byte[] exportedBytes, User importUser, String importedProjectName) throws Exception {
 		try (ByteArrayInputStream reimportStream = new ByteArrayInputStream(exportedBytes)) {
 			ImportProjectCommand importCommand = applicationContext.getBean(
-					"importProjectStreamingCommand", ImportProjectCommand.class);
+					"importProjectCommand", ImportProjectCommand.class);
 			importCommand.setAnalysisEnabled(false);
 			importCommand.setEditedBy(importUser);
 			importCommand.setName(importedProjectName);

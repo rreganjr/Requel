@@ -128,13 +128,7 @@ public class ProjectTeamImpl extends AbstractProjectOrDomainEntity implements Pr
 	 * 
 	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
-	public void afterUnmarshal() {
-		for (Stakeholder stakeholder : getMembers()) {
-			if (stakeholder.isUserStakeholder()) {
-				((UserStakeholderImpl) stakeholder).setTeam(this);
-			}
-		}
-	}
+
 
 	@Override
 	public int compareTo(ProjectTeam o) {

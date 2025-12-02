@@ -177,18 +177,6 @@ public class GlossaryTermImpl extends AbstractTextEntity implements GlossaryTerm
 		this.referers = referersToThisTerm;
 	}
 
-	/**
-	 * This is for JAXB to fixup the parent child relationship with the
-	 * canonical term.
-	 * 
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
-	 */
-	@Override
-	public void afterUnmarshal() {
-		if (getCanonicalTerm() != null) {
-			getCanonicalTerm().getAlternateTerms().add(this);
-		}
-	}
 
 	@Override
 	public int compareTo(GlossaryTerm o) {

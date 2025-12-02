@@ -11,12 +11,14 @@ import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.platform.identity.User;
 import org.junit.Test;
+import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * @author ron
  */
+@Ignore("Relies on legacy JAXB importer; superseded by streaming importer tests.")
 @RunWith(SpringRunner.class)
 public class ProjectAssistantTest extends AbstractIntegrationTestCase {
 

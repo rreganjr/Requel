@@ -62,8 +62,6 @@ import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
-
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
 import org.hibernate.annotations.SortNatural;
 import org.hibernate.annotations.Where;
 
@@ -82,9 +80,7 @@ import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
-import com.rreganjr.requel.utils.jaxb.DateAdapter;
-import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
-import jakarta.validation.constraints.NotEmpty;
+import com.rreganjr.requel.utils.jaxb.DateAdapter;import jakarta.validation.constraints.NotEmpty;
 
 /**
  * @author ron
@@ -459,14 +455,6 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 		return true;
 	}
 
-	/**
-	 * This is for JAXB to patchup the type
-	 * 
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
-	 */
-	public void beforeUnmarshal() {
-		setType(getClass().getName());
-	}
 
 	/**
 	 * This is for JAXB to patchup existing persistent objects for the objects
@@ -477,14 +465,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 	 *            the user to be set as the created by if no user is supplied.
 	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
 	 */
-	public void afterUnmarshal(UserRepository userRepository, User defaultCreatedByUser) {
-		UnmarshallingContext.getInstance().addPatcher(
-				new JAXBCreatedEntityPatcher(userRepository, this, defaultCreatedByUser));
-		// update the references to goals
-		for (Goal goal : getGoals()) {
-			goal.getReferers().add(AbstractProjectOrDomain.this);
-		}
-	}
+
 
 	/**
 	 * This class is used by JAXB to convert the id of an entity into an xml id

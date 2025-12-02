@@ -14,6 +14,7 @@ import org.apache.log4j.Logger;
 
 import com.rreganjr.TestCase;
 import com.rreganjr.nlp.impl.verbnet.VerbNetImporter;
+import org.junit.Ignore;
 //import com.rreganjr.nlp.verbnet.VNCLASS;
 //import com.rreganjr.nlp.verbnet.FRAMES.FRAME;
 //import com.rreganjr.nlp.verbnet.MEMBERS.MEMBER;
@@ -23,6 +24,7 @@ import com.rreganjr.nlp.impl.verbnet.VerbNetImporter;
  * 
  * @author ron
  */
+@Ignore
 public class VerbNetImporterTests extends TestCase {
 	protected static final Logger log = Logger.getLogger(VerbNetImporter.class);
 

@@ -42,10 +42,6 @@ import jakarta.xml.bind.annotation.XmlType;
 
 import org.xml.sax.SAXException;
 
-
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
-
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
@@ -61,8 +57,6 @@ import com.rreganjr.requel.user.Organization;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.OrganizationImpl;
 import com.rreganjr.requel.user.JAXBOrganizedEntityPatcher;
-import com.rreganjr.requel.annotation.JAXBAnnotatablePatcher;
-
 /**
  * @author ron
  */
@@ -198,49 +192,5 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 		return getName().compareToIgnoreCase(o.getName());
 	}
 
-	/**
-	 * This is for JAXB to patchup existing persistent objects for the objects
-	 * that are attached directly to this object.
-	 * 
-	 * @param userRepository
-	 * @param defaultCreatedByUser -
-	 *            the user to be set as the created by if no user is supplied.
-	 * @param parent
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
-	 */
-	@Override
-	public void afterUnmarshal(UserRepository userRepository, User defaultCreatedByUser) {
-		super.afterUnmarshal(userRepository, defaultCreatedByUser);
-		UnmarshallingContext.getInstance().addPatcher(new JAXBAnnotatablePatcher(this));
-		UnmarshallingContext.getInstance().addPatcher(
-				new JAXBOrganizedEntityPatcher(userRepository, this));
-		UnmarshallingContext.getInstance().addPatcher(new Patcher() {
-			@Override
-			public void run() throws SAXException {
-				try {
-					if (ProjectImpl.this.getCreatedBy() != null) {
-						ProjectUserRole projectUserRole = ProjectImpl.this.getCreatedBy()
-								.getRoleForType(ProjectUserRole.class);
-						if (projectUserRole != null) {
-							projectUserRole.getActiveProjects().add(ProjectImpl.this);
-						}
-					}
-				} catch (RuntimeException e) {
-					throw e;
-				} catch (Exception e) {
-					throw new SAXException(e);
-				}
-			}
-		});
-	}
 
-	/**
-	 * @param name -
-	 *            project name that overrides the name in the xml file.
-	 */
-	public void afterUnmarshal(String name) {
-		if ((name != null) && !name.trim().equals("")) {
-			setName(name);
-		}
-	}
 }

@@ -71,7 +71,7 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
     @Test
     public void streamingImportLoadsDocSample() throws Exception {
         ImportProjectCommand command = (ImportProjectCommand) applicationContext.getBean(
-                "importProjectStreamingCommand");
+                "importProjectCommand");
         projectUserInitializer.initialize();
         ensureDictionaryLoaded();
         User creator = getUserRepository().findUserByUsername("project");

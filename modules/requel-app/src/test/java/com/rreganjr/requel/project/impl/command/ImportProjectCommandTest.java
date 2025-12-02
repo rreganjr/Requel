@@ -13,12 +13,14 @@ import com.rreganjr.requel.project.impl.assistant.LexicalAssistant;
 import com.rreganjr.requel.project.impl.assistant.ProjectAssistant;
 import com.rreganjr.platform.identity.User;
 import org.junit.Test;
+import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * @author ron
  */
+@Ignore("Legacy JAXB importer removed; replaced by ImportProjectStreamingCommandTest.")
 @RunWith(SpringRunner.class)
 public class ImportProjectCommandTest extends AbstractIntegrationTestCase {
 

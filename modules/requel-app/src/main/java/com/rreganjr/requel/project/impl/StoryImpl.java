@@ -58,10 +58,6 @@ import org.hibernate.annotations.SortNatural;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import org.xml.sax.SAXException;
-
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
-
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectOrDomain;
@@ -70,8 +66,6 @@ import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.StoryType;
 
 import com.rreganjr.requel.user.UserRepository;
-import com.rreganjr.requel.utils.jaxb.JAXBCreatedEntityPatcher;
-
 /**
  * A story describes an interaction with the system as prose.
  * 
@@ -213,38 +207,6 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 		return getName().compareToIgnoreCase(o.getName());
 	}
 
-	/**
-	 * This is for JAXB to patchup the parent/child relationship and to patchup
-	 * existing persistent objects for the objects that are attached directly to
-	 * this object.
-	 * 
-	 * @param userRepository
-	 * @param defaultCreatedByUser -
-	 *            the user to be set as the created by if no user is supplied.
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
-	 */
-	public void afterUnmarshal(final UserRepository userRepository, User defaultCreatedByUser) {
-		UnmarshallingContext.getInstance().addPatcher(
-				new JAXBCreatedEntityPatcher(userRepository, this, defaultCreatedByUser));
-		UnmarshallingContext.getInstance().addPatcher(new Patcher() {
-			@Override
-			public void run() throws SAXException {
-				try {
-					// update the references to goals
-					for (Goal goal : getGoals()) {
-						goal.getReferers().add(StoryImpl.this);
-					}
-					for (Actor actor : getActors()) {
-						actor.getReferers().add(StoryImpl.this);
-					}
-				} catch (RuntimeException e) {
-					throw e;
-				} catch (Exception e) {
-					throw new SAXException(e);
-				}
-			}
-		});
-	}
 
 	/**
 	 * This class is used by JAXB to convert the StoryType of a Story into a

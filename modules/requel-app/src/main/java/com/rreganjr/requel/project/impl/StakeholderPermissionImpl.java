@@ -39,10 +39,6 @@ import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import org.xml.sax.SAXException;
-
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
-import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
-
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.StakeholderPermission;
 import com.rreganjr.requel.project.StakeholderPermissionType;
@@ -186,7 +182,7 @@ public class StakeholderPermissionImpl implements StakeholderPermission {
 	 * @return A unique key for the permission
 	 */
 	public static final String generatePermissionKey(Class<?> entityType,
-			StakeholderPermissionType permissionType) {
+													 StakeholderPermissionType permissionType) {
 		return entityType.getName() + "[" + permissionType.toString() + "]";
 	}
 
@@ -194,7 +190,7 @@ public class StakeholderPermissionImpl implements StakeholderPermission {
 	 * This class is used by JAXB to convert the StakeholderPermissionType of a
 	 * StakeholderPermission into a string for an attribute in the xml file and
 	 * the reverse when unmartialing.
-	 * 
+	 *
 	 * @author ron
 	 */
 	@XmlTransient
@@ -212,13 +208,6 @@ public class StakeholderPermissionImpl implements StakeholderPermission {
 		}
 	}
 
-	/**
-	 * This class is used by JAXB to convert the StakeholderPermissionType of a
-	 * StakeholderPermission into a string for an attribute in the xml file and
-	 * the reverse when unmartialing.
-	 * 
-	 * @author ron
-	 */
 	@XmlTransient
 	public static class StakeholderEntityTypeAdapter extends XmlAdapter<String, Class<?>> {
 
@@ -231,35 +220,5 @@ public class StakeholderPermissionImpl implements StakeholderPermission {
 		public String marshal(Class<?> type) throws Exception {
 			return type.getName();
 		}
-	}
-
-	/**
-	 * This is for JAXB to patchup the parent/child relationship and to patchup
-	 * existing persistent objects for the objects that are attached directly to
-	 * this object.
-	 * 
-	 * @param projectRepository
-	 * @param parent -
-	 *            the stakeholder that should be granted the permission.
-	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
-	 */
-	public void afterUnmarshal(final ProjectRepository projectRepository, final Object parent) {
-		UnmarshallingContext.getInstance().addPatcher(new Patcher() {
-			@Override
-			public void run() throws SAXException {
-				try {
-					StakeholderPermission permission = StakeholderPermissionImpl.this;
-					((UserStakeholder) parent).getStakeholderPermissions().remove(permission);
-					StakeholderPermission existingPermission = projectRepository
-							.findStakeholderPermission(permission.getEntityType(), permission
-									.getPermissionType());
-					((UserStakeholder) parent).getStakeholderPermissions().add(existingPermission);
-				} catch (RuntimeException e) {
-					throw e;
-				} catch (Exception e) {
-					throw new SAXException(e);
-				}
-			}
-		});
 	}
 }
