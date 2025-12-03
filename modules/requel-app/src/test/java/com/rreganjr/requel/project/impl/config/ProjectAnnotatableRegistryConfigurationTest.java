@@ -45,11 +45,11 @@ public class ProjectAnnotatableRegistryConfigurationTest {
 		initializer.afterPropertiesSet();
 
 		assertTrue(annotatableRegistry
-				.resolveEntityType("com.rreganjr.requel.project.Project")
+				.resolveEntityType("Project")
 				.map(ProjectImpl.class::equals)
 				.orElse(false));
 
-		assertEquals("com.rreganjr.requel.project.Project",
+		assertEquals("Project",
 				groupingRegistry.resolveDiscriminator(ProjectImpl.class).orElse(null));
 	}
 }

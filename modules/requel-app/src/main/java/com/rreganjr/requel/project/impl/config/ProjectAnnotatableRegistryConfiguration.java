@@ -58,23 +58,23 @@ public class ProjectAnnotatableRegistryConfiguration {
 
 	static {
 		final Map<String, Class<? extends Annotatable>> mappings = new LinkedHashMap<>();
-		mappings.put("com.rreganjr.requel.project.Project", ProjectImpl.class);
-		mappings.put("com.rreganjr.requel.project.ProjectTeam", ProjectTeamImpl.class);
-		mappings.put("com.rreganjr.requel.project.Goal", GoalImpl.class);
-		mappings.put("com.rreganjr.requel.project.GoalRelation", GoalRelationImpl.class);
-		mappings.put("com.rreganjr.requel.project.UseCase", UseCaseImpl.class);
-		mappings.put("com.rreganjr.requel.project.Scenario", ScenarioImpl.class);
-		mappings.put("com.rreganjr.requel.project.Step", StepImpl.class);
-		mappings.put("com.rreganjr.requel.project.Story", StoryImpl.class);
-		mappings.put("com.rreganjr.requel.project.Actor", ActorImpl.class);
-		mappings.put("com.rreganjr.requel.project.GlossaryTerm", GlossaryTermImpl.class);
-		mappings.put("com.rreganjr.requel.project.NonUserStakeholder", NonUserStakeholderImpl.class);
-		mappings.put("com.rreganjr.requel.project.UserStakeholder", UserStakeholderImpl.class);
+		mappings.put("Project", ProjectImpl.class);
+		mappings.put("ProjectTeam", ProjectTeamImpl.class);
+		mappings.put("Goal", GoalImpl.class);
+		mappings.put("GoalRelation", GoalRelationImpl.class);
+		mappings.put("UseCase", UseCaseImpl.class);
+		mappings.put("Scenario", ScenarioImpl.class);
+		mappings.put("Step", StepImpl.class);
+		mappings.put("Story", StoryImpl.class);
+		mappings.put("Actor", ActorImpl.class);
+		mappings.put("GlossaryTerm", GlossaryTermImpl.class);
+		mappings.put("NonUserStakeholder", NonUserStakeholderImpl.class);
+		mappings.put("UserStakeholder", UserStakeholderImpl.class);
 		PROJECT_ANNOTATABLE_TYPES = Collections.unmodifiableMap(mappings);
 		ProjectAnnotatableMetadataContributor.registerAnnotatableTypes(PROJECT_ANNOTATABLE_TYPES);
 
 		final Map<String, Class<?>> groupingMappings = new LinkedHashMap<>();
-		groupingMappings.put("com.rreganjr.requel.project.Project", ProjectImpl.class);
+		groupingMappings.put("Project", ProjectImpl.class);
 		PROJECT_GROUPING_TYPES = Collections.unmodifiableMap(groupingMappings);
 		ProjectAnnotatableMetadataContributor.registerGroupingTypes(PROJECT_GROUPING_TYPES);
 	}
