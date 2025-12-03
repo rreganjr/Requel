@@ -22,13 +22,11 @@
  */
 package com.rreganjr.requel.utils.jaxb;
 
+import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
-
 import org.springframework.stereotype.Component;
-
-import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 
 /**
  * Centralizes registration of shared JAXB adapters so domain entities do not
