@@ -479,6 +479,16 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>project-domain</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>project-jpa</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
         </dependency>

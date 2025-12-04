@@ -31,6 +31,16 @@
                         <release>${java.version}</release>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.2.5</version>
+                    <configuration>
+                        <!-- Avoid build failures in modules with no matching tests when -Dtest is used -->
+                        <failIfNoTests>false</failIfNoTests>
+                        <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -67,6 +77,9 @@
         <module>modules/dictionary-jpa</module>
         <module>modules/annotation-domain</module>
         <module>modules/annotation-jpa</module>
+        <module>modules/project-domain</module>
+        <module>modules/project-jpa</module>
+        <module>modules/nlp-jpa</module>
         <module>modules/requel-app</module>
     </modules>
 </project>
