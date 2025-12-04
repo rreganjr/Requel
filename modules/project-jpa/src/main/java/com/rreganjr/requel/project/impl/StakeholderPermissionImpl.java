@@ -39,7 +39,6 @@ import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import org.xml.sax.SAXException;
-import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.StakeholderPermission;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.UserStakeholder;

@@ -26,8 +26,6 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlType;
 
 import com.rreganjr.requel.annotation.impl.PositionImpl;
-import com.rreganjr.requel.annotation.impl.command.AnnotationCommandFactoryImpl;
-import com.rreganjr.requel.project.impl.command.ResolveIssueWithAddGlossaryTermPositionCommandImpl;
 import com.rreganjr.platform.identity.User;
 
 /**
@@ -42,13 +40,6 @@ import com.rreganjr.platform.identity.User;
 @XmlType(name = "addGlossaryTermPosition", namespace = "http://www.rreganjr.com/requel")
 public class AddGlossaryTermPosition extends PositionImpl {
 	static final long serialVersionUID = 0L;
-
-	// TODO: use spring to register the command for the positions, or make the
-	// position class implement the command
-	static {
-		AnnotationCommandFactoryImpl.addPositionResolverCommand(AddGlossaryTermPosition.class,
-				ResolveIssueWithAddGlossaryTermPositionCommandImpl.class);
-	}
 
 	/**
 	 * @param text

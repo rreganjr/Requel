@@ -92,9 +92,9 @@ public class Sentencizer extends AbstractOpenNLPTool<NLPText> {
 					try {
 						SentenceModel model = new SentenceModel(in);
 						sentenceDetector = new SentenceDetectorME(model);
-					} catch (InvalidFormatException ife) {
-						// Older bundled model lacks manifest.properties; fall back to a simple rule-based splitter
-						log.warn("Falling back to simple sentence splitter because model is in legacy format: " + modelFile, ife);
+					} catch (Exception ife) {
+						// Older bundled model may lack manifest.properties or be in legacy format; fall back to simple splitter
+						log.warn("Falling back to simple sentence splitter because model could not be read: " + modelFile, ife);
 						sentenceDetector = new SimpleSentenceDetector();
 					}
 				}
