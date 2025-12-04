@@ -31,6 +31,7 @@ public class PositionImportDraft {
     private final String externalId;
     private final String createdByExternalId;
     private final String text;
+    private final String positionType;
     private final Set<String> argumentExternalIds;
     private final java.util.List<ArgumentDraft> arguments;
 
@@ -38,6 +39,7 @@ public class PositionImportDraft {
         this.externalId = builder.externalId;
         this.createdByExternalId = builder.createdByExternalId;
         this.text = builder.text;
+        this.positionType = builder.positionType;
         this.argumentExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.argumentExternalIds));
         this.arguments = java.util.List.copyOf(builder.arguments);
     }
@@ -54,6 +56,15 @@ public class PositionImportDraft {
         return text;
     }
 
+    /**
+     * XML element/local-name that identifies the specific position subclass
+     * (e.g. addActorPosition, addGlossaryTermPosition). May be null for the
+     * generic base position.
+     */
+    public String getPositionType() {
+        return positionType;
+    }
+
     public Set<String> getArgumentExternalIds() {
         return argumentExternalIds;
     }
@@ -68,6 +79,7 @@ public class PositionImportDraft {
         private String externalId;
         private String createdByExternalId;
         private String text;
+        private String positionType;
         private Set<String> argumentExternalIds = new HashSet<>();
         private java.util.List<ArgumentDraft> arguments = new java.util.ArrayList<>();
 
@@ -79,6 +91,9 @@ public class PositionImportDraft {
         }
         public Builder text(String text) {
             this.text = text; return this;
+        }
+        public Builder positionType(String positionType) {
+            this.positionType = positionType; return this;
         }
         public Builder argumentExternalIds(Set<String> ids) {
             if (ids != null) this.argumentExternalIds.addAll(ids);

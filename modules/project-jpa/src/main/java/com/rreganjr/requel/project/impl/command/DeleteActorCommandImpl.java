@@ -88,6 +88,28 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 	public void execute() throws Exception {
 		Actor actor = getRepository().get(getActor());
 		User editedBy = getRepository().get(getEditedBy());
+
+		// Proactively clear annotation join rows for this actor to avoid FK RESTRICT errors.
+		try {
+			if (getRepository() instanceof com.rreganjr.repository.jpa.AbstractJpaRepository jpaRepo) {
+				Object actorId = jpaRepo.getEntityManager().getEntityManagerFactory()
+						.getPersistenceUnitUtil().getIdentifier(actor);
+				if (actorId != null) {
+					// Some rows were written with short discriminators (e.g. "Actor") and others with
+					// the FQN. Use a broad delete by id to guarantee cleanup regardless of the stored
+					// discriminator value.
+					jpaRepo.getEntityManager()
+							.createNativeQuery(
+									"delete from annotation_annotatable where annotatable_id = :id")
+							.setParameter("id", actorId)
+							.executeUpdate();
+					jpaRepo.getEntityManager().flush();
+				}
+			}
+		} catch (Exception ex) {
+			log.warn("Failed early cleanup of annotation_annotatable rows for actor", ex);
+		}
+
 		Set<Annotation> annotations = new HashSet<Annotation>(actor.getAnnotations());
 		for (Annotation annotation : annotations) {
 			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
@@ -130,6 +152,11 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 			getCommandHandler().execute(deletePositionCommand);
 		} catch (NoSuchPositionException e) {
 		}
+
+		// Ensure all relationship rows are flushed before deleting the actor so FK
+		// constraints on annotation_annotatable (and others) don't block the delete.
+		getRepository().flush();
+
 		actor.getProjectOrDomain().getActors().remove(actor);
 		getRepository().delete(actor);
 	}

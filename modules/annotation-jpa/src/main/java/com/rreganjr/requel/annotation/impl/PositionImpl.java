@@ -132,7 +132,7 @@ public class PositionImpl implements Position, Serializable {
 	}
 
 	@Column(name = "position_type", insertable = false, updatable = false)
-	protected String getType() {
+	public String getType() {
 		return type;
 	}
 

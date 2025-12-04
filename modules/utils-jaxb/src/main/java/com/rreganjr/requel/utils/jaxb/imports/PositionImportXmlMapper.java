@@ -31,6 +31,10 @@ import java.util.stream.Collectors;
 public class PositionImportXmlMapper {
 
     public PositionImportDraft toDraft(PositionImportXml xml) {
+        return toDraft(xml, null);
+    }
+
+    public PositionImportDraft toDraft(PositionImportXml xml, String elementName) {
         if (xml == null) {
             throw new ImportException("position XML payload is required");
         }
@@ -46,6 +50,7 @@ public class PositionImportXmlMapper {
                 .externalId(xml.getId())
                 .createdByExternalId(xml.getCreatedBy())
                 .text(text)
+                .positionType(elementName)
                 .argumentExternalIds(new HashSet<>())
                 .arguments(argumentDrafts)
                 .build();

@@ -84,10 +84,15 @@ public class UserAssembler implements AggregateAssembler<UserImportDraft, com.rr
             // create a new user below
         }
 
-        Organization org = resolveOrganization(draft.getOrganizationName());
+        Organization org = resolveOrganization(draft.getOrganizationName(), unitOfWork);
         UserImpl user = new UserImpl(draft.getUsername(), "imported", draft.getName(), draft.getEmail(), null, org, draft.isEditable());
         hydratePassword(user, draft);
         hydrateRoles(user, draft.getRoles());
+        ensureDefaultRole(user);
+
+        // Persist the new user immediately so downstream associations (e.g., UserStakeholder)
+        // don’t reference a transient instance.
+        user = (UserImpl) userRepository.persist(user);
 
         unitOfWork.register(com.rreganjr.requel.user.User.class, draft.getExternalId(), user);
         unitOfWork.register(com.rreganjr.requel.user.User.class, draft.getUsername(), user);
@@ -95,12 +100,24 @@ public class UserAssembler implements AggregateAssembler<UserImportDraft, com.rr
         return user;
     }
 
-    private Organization resolveOrganization(String name) {
+    private Organization resolveOrganization(String name, ImportUnitOfWork unitOfWork) {
         if (StringUtils.hasText(name)) {
+            // First consult the import cache
+            if (unitOfWork != null) {
+                Optional<Organization> cached = unitOfWork.resolve(Organization.class, name);
+                if (cached.isPresent()) {
+                    return cached.get();
+                }
+            }
             try {
                 return userRepository.findOrganizationByName(name);
             } catch (Exception ignored) {
-                return new OrganizationImpl(name);
+                OrganizationImpl org = new OrganizationImpl(name);
+                org = (OrganizationImpl) userRepository.persist(org);
+                if (unitOfWork != null) {
+                    unitOfWork.register(Organization.class, name, org);
+                }
+                return org;
             }
         }
         return null;
@@ -143,6 +160,16 @@ public class UserAssembler implements AggregateAssembler<UserImportDraft, com.rr
                     user.grantRole(SystemAdminUserRole.class);
                 }
             }
+        }
+    }
+
+    /**
+     * Ensure we satisfy validation that a user must have at least one role.
+     * If nothing was provided in the XML, default to ProjectUserRole.
+     */
+    private void ensureDefaultRole(UserImpl user) {
+        if (user.getUserRoles() == null || user.getUserRoles().isEmpty()) {
+            user.grantRole(ProjectUserRole.class);
         }
     }
 }

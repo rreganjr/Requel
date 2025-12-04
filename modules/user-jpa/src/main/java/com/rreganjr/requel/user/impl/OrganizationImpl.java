@@ -65,7 +65,7 @@ public class OrganizationImpl implements Organization, Serializable {
 	}
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	protected Long getId() {
 		return id;
 	}

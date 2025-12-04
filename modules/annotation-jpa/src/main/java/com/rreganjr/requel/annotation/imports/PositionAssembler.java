@@ -60,7 +60,7 @@ public class PositionAssembler implements AggregateAssembler<PositionImportDraft
             throw new ImportException("position draft is required");
         }
         User createdBy = resolveCreatedBy(draft, unitOfWork);
-        PositionImpl position = new PositionImpl(draft.getText(), createdBy);
+        PositionImpl position = createPosition(draft, createdBy);
         unitOfWork.register(PositionImpl.class, draft.getExternalId(), position);
         unitOfWork.register(com.rreganjr.requel.annotation.Position.class, draft.getExternalId(), position);
         draft.getArguments().forEach(argDraft -> {
@@ -70,6 +70,14 @@ public class PositionAssembler implements AggregateAssembler<PositionImportDraft
             position.getArguments().add(argument);
         });
         return position;
+    }
+
+    /**
+     * Factory hook so downstream modules (e.g., project-jpa) can instantiate
+     * specialized Position subclasses based on the draft metadata.
+     */
+    protected PositionImpl createPosition(PositionImportDraft draft, User createdBy) {
+        return new PositionImpl(draft.getText(), createdBy);
     }
 
     private User resolveCreatedBy(PositionImportDraft draft, ImportUnitOfWork unitOfWork) {

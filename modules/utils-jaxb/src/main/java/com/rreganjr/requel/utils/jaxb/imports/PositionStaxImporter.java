@@ -69,7 +69,7 @@ public class PositionStaxImporter {
                             || "addGlossaryTermPosition".equals(local)
                             || "addActorPosition".equals(local)) {
                         PositionImportXml xml = unmarshaller.unmarshal(reader, PositionImportXml.class).getValue();
-                        drafts.add(mapper.toDraft(xml));
+                        drafts.add(mapper.toDraft(xml, local));
                         continue;
                     }
                 }

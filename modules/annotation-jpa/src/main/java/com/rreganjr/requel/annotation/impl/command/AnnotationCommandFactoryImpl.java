@@ -26,6 +26,8 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.ClassUtils;
+import org.hibernate.proxy.HibernateProxy;
 
 import com.rreganjr.command.AbstractCommandFactory;
 import com.rreganjr.command.CommandFactoryStrategy;
@@ -59,12 +61,17 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 	// TODO: move the configuration to spring
 	// Map of position types to resolver command types for those positions.
 	private static final Map<Class<? extends Position>, Class<? extends ResolveIssueCommand>> positionToResolverCommand = new HashMap<Class<? extends Position>, Class<? extends ResolveIssueCommand>>();
+	private static final Map<String, Class<? extends ResolveIssueCommand>> entityNameToResolver = new HashMap<String, Class<? extends ResolveIssueCommand>>();
 	static {
-		positionToResolverCommand.put(PositionImpl.class, ResolveIssueCommandImpl.class);
-		positionToResolverCommand.put(ChangeSpellingPosition.class,
-				ResolveIssueWithChangeSpellingPositionCommandImpl.class);
-		positionToResolverCommand.put(AddWordToDictionaryPosition.class,
-				ResolveIssueWithAddWordToDictionaryPositionCommandImpl.class);
+		register(PositionImpl.class, ResolveIssueCommandImpl.class);
+		register(ChangeSpellingPosition.class, ResolveIssueWithChangeSpellingPositionCommandImpl.class);
+		register(AddWordToDictionaryPosition.class, ResolveIssueWithAddWordToDictionaryPositionCommandImpl.class);
+	}
+
+	private static void register(Class<? extends Position> positionType,
+			Class<? extends ResolveIssueCommand> commandType) {
+		positionToResolverCommand.put(positionType, commandType);
+		entityNameToResolver.put(positionType.getName(), commandType);
 	}
 
 	/**
@@ -75,7 +82,7 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 	 */
 	public static void addPositionResolverCommand(Class<? extends Position> positionType,
 			Class<? extends ResolveIssueCommand> commandType) {
-		positionToResolverCommand.put(positionType, commandType);
+		register(positionType, commandType);
 	}
 
 	/**
@@ -105,7 +112,32 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 
 	@Override
 	public ResolveIssueCommand newResolveIssueCommand(Position position) {
-		Class<?> positionType = position.getClass();
+		// First, if it's a Hibernate proxy, use the entity name (preserves subclass info)
+		if (position instanceof HibernateProxy) {
+			String entityName = ((HibernateProxy) position).getHibernateLazyInitializer()
+					.getEntityName();
+			Class<? extends ResolveIssueCommand> resolver = entityNameToResolver.get(entityName);
+			if (resolver != null) {
+				return (ResolveIssueCommand) getCreationStrategy().newInstance(resolver);
+			}
+		}
+
+		// Second, try the discriminator value stored on PositionImpl (helps when proxies are
+		// unwrapped to PositionImpl but retain subclass discriminator text).
+		if (position instanceof PositionImpl) {
+			String discriminator = ((PositionImpl) position).getType();
+			if (discriminator != null) {
+				Class<? extends ResolveIssueCommand> resolver = entityNameToResolver
+						.get(discriminator);
+				if (resolver != null) {
+					return (ResolveIssueCommand) getCreationStrategy().newInstance(resolver);
+				}
+			}
+		}
+
+		// unwrap any CGLIB/Hibernate proxies to the user class
+		Class<?> positionType = ClassUtils.getUserClass(position);
+
 		while (positionType != null) {
 			Class<? extends ResolveIssueCommand> resolverClass = positionToResolverCommand
 					.get(positionType);

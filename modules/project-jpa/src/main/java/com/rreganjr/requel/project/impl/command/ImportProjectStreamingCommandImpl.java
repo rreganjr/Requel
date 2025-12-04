@@ -173,7 +173,8 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         ReportGeneratorAssembler reportAssembler = new ReportGeneratorAssembler(targetProject, createdBy);
         UserAssembler userAssembler = new UserAssembler(getUserRepository());
         StakeholderAssembler stakeholderAssembler = new StakeholderAssembler(targetProject, getUserRepository(), createdBy);
-        PositionAssembler positionAssembler = new PositionAssembler(getUserRepository(), createdBy);
+        com.rreganjr.requel.project.imports.ProjectPositionAssembler positionAssembler =
+                new com.rreganjr.requel.project.imports.ProjectPositionAssembler(getUserRepository(), createdBy);
         AnnotationAssembler annotationAssembler = new AnnotationAssembler(getUserRepository(), createdBy, targetProject,
                 annotationLinks);
 

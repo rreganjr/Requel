@@ -35,6 +35,8 @@ public class UserRoleImportXmlMapper {
             return List.of();
         }
         List<UserRoleImportDraft> drafts = new ArrayList<>();
+        Set<String> fallbackPermissions = new HashSet<>();
+
         for (Object roleObj : xml.getRoles()) {
             if (roleObj instanceof UserRoleImportXml.ProjectUserRoleXml projectRole) {
                 drafts.add(new UserRoleImportDraft(
@@ -44,9 +46,22 @@ public class UserRoleImportXmlMapper {
                 drafts.add(new UserRoleImportDraft(
                         "com.rreganjr.requel.user.impl.SystemAdminUserRole",
                         Set.of()));
+            } else if (roleObj instanceof UserRoleImportXml.UserPermissionContainer container) {
+                // Legacy format: userPermissions directly under userRoles
+                fallbackPermissions.addAll(permissionNames(container));
+            } else if (roleObj instanceof UserRoleImportXml.UserPermissionXml perm) {
+                if (perm.getName() != null) {
+                    fallbackPermissions.add(perm.getName());
+                }
             } else {
                 // unknown role type; skip
             }
+        }
+        // Legacy safeguard: if no roles parsed, assume ProjectUserRole with any collected permissions
+        if (drafts.isEmpty()) {
+            drafts.add(new UserRoleImportDraft(
+                    "com.rreganjr.requel.project.ProjectUserRole",
+                    fallbackPermissions));
         }
         return drafts;
     }
