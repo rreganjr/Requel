@@ -39,10 +39,12 @@ The monorepo will grow a `/modules` directory with one Maven module per package 
 | Feature | `service-impl`               | Spring MVC controllers & wiring (current `ProjectXmlController`, future REST endpoints). | `service-api`, `project-jpa`, `command-core` |
 | Application | `requel-app`                 | New Spring Boot module containing `Application`, configuration, main resources, Docker build, and integration tests. This is the only module depending on UI. | All above as needed |
 
-**Current status snapshot (Oct 2025):**
-- `platform-core`, `platform-identity`, `user-domain`, `user-jpa`, and `requel-app` modules already exist. Core JPA utilities and the generic `DomainObjectWrapper` live in `platform-core`; the user-domain split pulled `UserAwareDomainObjectWrapper` into `user-jpa` alongside the entity implementations.
-- The identity module now limits itself to identity primitives and password helpers. Follow-up work should replace lingering JPA annotations in `user-domain` and introduce the planned `UserReference` abstraction.
-- Command infrastructure (`DefaultCommandHandler`) moved with the user domain for now; we still plan to relocate it into `command-core` once exception handling is untangled.
+**Current status snapshot (Dec 2025):**
+- Modules in place: `platform-core`, `platform-identity`, `user-domain`, `user-jpa`, `dictionary-jpa`, `annotation-domain`, `annotation-jpa`, `project-domain`, `project-jpa`, `nlp-jpa`, and `requel-app`.
+- Annotation mapping is decoupled: `annotation-domain` owns the registries; `project-jpa` supplies `ProjectAnnotatableRegistryConfiguration` and `ProjectAnnotatableMetadataContributor`. Any/M@Any mappings are covered by an integration test (`AnnotationAnyMappingTest`).
+- NLP interface cleanup: all callers now use `NLPProcessorFactory`; a new `getPosTagger()` is exposed; the factory no longer requires a Spring context to instantiate processors (test-friendly fallback).
+- The legacy JAXB importer has been retired; the streaming importer is the active path. Schema resources moved to classpath for tests.
+- The identity module remains slim (primitives + password helpers). Follow-up: replace lingering JPA annotations in `user-domain` and introduce `UserReference`.
 
 ### 3.1 New package conventions
 - Move cross-cutting types from `com.rreganjr.requel` root into `com.rreganjr.platform` (for core) and `com.rreganjr.requel.bootstrap` (for bootstrapping).
@@ -129,9 +131,8 @@ The monorepo will grow a `/modules` directory with one Maven module per package 
 - **Database migration strategy**: Evaluate introducing Flyway alongside (or instead of) the current `SystemInitializer` beans. Flyway brings versioned, repeatable migrations with checksum validation, easier CI drift detection, and module-specific migration folders. Initializers still cover non-SQL bootstrap tasks (seeding default users, dynamic permission wiring), so a hybrid approach may be appropriate—Flyway handles schema and static data, while lightweight initializers orchestrate programmatic seeding that depends on services.
 
 ## 9. Immediate Next Steps
-- Add regression coverage that exports/imports `doc/samples/Requel.xml` against the refactored modules to guard the XML contract.
-- Prototype `platform-core` extraction (move exceptions, `SystemInitializer`) and ensure existing tests still pass.
-- Prototype the Spring-driven annotatable mapping configuration (§4.2.1) so `AbstractAnnotation` no longer hard-codes project entities before the annotation module split.
-- Prepare Maven parent/child POM skeletons to unblock gradual module migration.
-- Draft architectural diagrams (plantuml) illustrating the intended dependency graph for inclusion in project docs.
-- Decide whether to pilot Flyway alongside the existing initializers in an early module (e.g., `user-jpa`) to validate the hybrid migration approach before committing project-wide.
+1) Service/UI layering: carve out `service-api` and `service-impl` from `requel-app`; point Echo2 UI only at the API.
+2) NLP optionality: add Spring bean config in `nlp-jpa` (qualifiers per processor) and conditional autoconfig so the app can start without NLP on the classpath.
+3) Finish identity cleanup: replace remaining JPA annotations in `user-domain` with `UserReference`, keep persistence details in `user-jpa`.
+4) CI/coverage: ensure round-trip import/export tests run in the default suite; add a “no-NLP” context boot smoke test.
+5) Docs: refresh module diagrams (plantuml) to reflect the current module graph and the new annotation/NLP boundaries.
