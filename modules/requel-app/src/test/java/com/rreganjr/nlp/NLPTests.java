@@ -32,20 +32,19 @@ import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
 import com.rreganjr.nlp.dictionary.NLPProcessor;
 import com.rreganjr.nlp.dictionary.NLPText;
 import com.rreganjr.nlp.dictionary.ParseTag;
+import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
-import com.rreganjr.nlp.impl.OpenNLPTagger;
-import com.rreganjr.nlp.impl.OpenNLPTokenizer;
-import com.rreganjr.nlp.impl.Sentencizer;
-import com.rreganjr.nlp.impl.StanfordLexicalizedParser;
+import com.rreganjr.nlp.impl.NLPProcessorFactoryImpl;
 import org.junit.Ignore;
 
 @Ignore("Legacy OpenNLP/Stanford pipeline now out-of-sync with bundled models; disable until NLP stack is refreshed.")
 public abstract class NLPTests extends TestCase {
 
-	private final NLPProcessor<NLPText> parser = new StanfordLexicalizedParser();
-	private final NLPProcessor<NLPText> sentencizer = new Sentencizer();
-	private final NLPProcessor<NLPText> tokenizer = new OpenNLPTokenizer();
-	private final NLPProcessor<NLPText> posTagger = new OpenNLPTagger();
+	private final NLPProcessorFactory processorFactory = new NLPProcessorFactoryImpl();
+	private final NLPProcessor<NLPText> parser = processorFactory.getParser();
+	private final NLPProcessor<NLPText> sentencizer = processorFactory.getSentencizer();
+	private final NLPProcessor<NLPText> tokenizer = processorFactory.getTokenizer();
+	private final NLPProcessor<NLPText> posTagger = processorFactory.getPosTagger();
 
 	private NLPText process(String sentence) {
 		NLPText text = new NLPTextImpl(sentence);

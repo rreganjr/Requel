@@ -24,22 +24,23 @@ package com.rreganjr.nlp;
 
 import com.rreganjr.TestCase;
 import com.rreganjr.nlp.dictionary.NLPProcessor;
+import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import com.rreganjr.nlp.impl.ConstituentTreePrinter;
 import com.rreganjr.nlp.impl.DependencyPrimaryVerbFinder;
 import com.rreganjr.nlp.impl.DependencyPrinter;
 import com.rreganjr.nlp.impl.DependencySubjectFinder;
-import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
-import com.rreganjr.nlp.impl.Sentencizer;
-import com.rreganjr.nlp.impl.StanfordLexicalizedParser;
+import com.rreganjr.nlp.impl.NLPProcessorFactoryImpl;
 import com.rreganjr.nlp.impl.StringNLPTextWalker;
 import org.junit.Ignore;
 
 @Ignore("Depends on legacy Stanford parser models; currently broken. Disable until NLP stack is refreshed.")
 public abstract class NLPTextTests extends TestCase {
 
-	private final NLPProcessor<NLPText> parser = new StanfordLexicalizedParser();
-	private final NLPProcessor<NLPText> sentencizer = new Sentencizer();
+	private final NLPProcessorFactory processorFactory = new NLPProcessorFactoryImpl();
+	private final NLPProcessor<NLPText> parser = processorFactory.getParser();
+	private final NLPProcessor<NLPText> sentencizer = processorFactory.getSentencizer();
 	private final StringNLPTextWalker treePrinter = new StringNLPTextWalker(
 			new ConstituentTreePrinter(500, true));
 	private final StringNLPTextWalker dependencyPrinter = new StringNLPTextWalker(

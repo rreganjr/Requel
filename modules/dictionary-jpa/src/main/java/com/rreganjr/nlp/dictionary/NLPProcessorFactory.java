@@ -112,6 +112,12 @@ public interface NLPProcessorFactory {
 	public NLPProcessor<NLPText> getTokenizer();
 
 	/**
+	 * @return an NLPProcessor that takes an NLPText (tokens expected) and assigns
+	 *         part-of-speech tags to each token.
+	 */
+	public NLPProcessor<NLPText> getPosTagger();
+
+	/**
 	 * @return an NLPProcessor that takes a NLPText object and indicates the
 	 *         semantic roles: including primary verb, agent, patient and theme
 	 *         of the constituents.

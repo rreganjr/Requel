@@ -164,6 +164,11 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 		return getParser();
 	}
 
+	@Override
+	public NLPProcessor<NLPText> getPosTagger() {
+		return newInstance(OpenNLPTagger.class);
+	}
+
 	/**
 	 * @see NLPProcessorFactory#getParser()
 	 */
@@ -225,7 +230,15 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 	}
 
 	protected <T> T newInstance(Class<T> processorType) {
-		return (T) getApplicationContext().getAutowireCapableBeanFactory()
-				.createBean(processorType);
+		if (getApplicationContext() != null) {
+			return (T) getApplicationContext().getAutowireCapableBeanFactory()
+					.createBean(processorType);
+		}
+		try {
+			// Fallback for tests that construct the factory outside Spring
+			return processorType.getDeclaredConstructor().newInstance();
+		} catch (Exception ex) {
+			throw new NLPProcessorException("Failed to instantiate processor " + processorType, ex);
+		}
 	}
 }
