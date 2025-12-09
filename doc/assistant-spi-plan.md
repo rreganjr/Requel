@@ -1,30 +1,63 @@
 # Assistant SPI Plan
 
 ## Goals
-- Allow third parties (or future internal modules) to plug in new “assistants” that analyze Requel data and optionally emit feedback.
+- Allow third parties (or future internal modules) to plug in new “assistants” that analyze project data and perform some action by having a simple SPI
+- Actions may be 
+  - to directly alter project state. This is not ideal but should be possible.
+  - Add notes and issues to project entities where issues have positions that will change project state, i.e. a user reviews and chooses what should happen.
+  - interaction with an external service, for example schedule a meeting, send an email or Slack message, create a Jira ticket or github issue
 - Keep existing annotation-based assistants working, but make the SPI general enough for non-annotation actions (e.g., schedule meetings, call external services).
-- Enable swapping the current NLP-backed `LexicalAssistant` for newer AI backends (e.g., ChatGPT/Codex) without changing the rest of the app.
+- Support various kinds of analysis, not just NLP/Lexical
+- Enable swapping the current NLP-backed `LexicalAssistant` analysis for newer AI backends (e.g., ChatGPT/Codex) without changing the rest of the app.
 
 ## Current State
 - Assistants live in `project-jpa` (`AbstractAssistant`, `LexicalAssistant`, `GoalAssistant`, etc.).
-- Public interface is effectively `TypedAssistant<T>` (get/set entity + analyze). Everything else is concrete.
+- `AbstractAssistant` is the root of all the assistants with support for adding annotations: note, issue, and positions on issues. It has a `createMessage` helper for generating messages from a resource bundle of message templates.
+- Public interface is effectively `TypedAssistant<T>` (get/set entity + analyze). Everything else is concrete. Note nothing implements this interface
+- `TypedAssistant<T>` is effectively dead code today—nothing references it.
 - `AssistantFacade` constructs `LexicalAssistant` and wires it into other assistants; assistants directly depend on `LexicalAssistant`, `AnnotationCommandFactory`, `NLPProcessorFactory`, etc.
 - Feedback path is primarily annotations (issues/notes/positions) created via the annotation command factory.
-- `TypedAssistant<T>` is effectively dead code today—nothing references it.
 - `AssistantFacade` is invoked from project commands after edits/imports; it manually instantiates a `LexicalAssistant` and the concrete assistants per entity type (goal, story, actor, use case, scenario/step, project).
-
+- `ProjectOrDomainEntityAssistant` is the root of the assistants for project entities: goals, actors, etc.
+- `TextEntityAssistant` extends `ProjectOrDomainEntityAssistant` and is the basis for all the other assistants, it basically converts text data to an NLPText for analysis
+- the entity assistants only deal with NLP processing of text, `ProjectOrDomainEntityAssistant` does the primary work in `analyze()` using a `LexicalAssistant` to analyze various text properties on project entities
+- The `LexicalAssistant` doesn't really follow the Assistant interface, it is more of a facade for various NLP analysis
+- 
 ## Proposed SPI
-1) Define a stable assistant contract in a neutral module (e.g., `assistant-api`) replacing the unused `TypedAssistant<T>`:
-   - `AssistantContext` (project/domain reference, user performing analysis, resource bundle/locale, optional services map).
-   - `RequelAssistant<T>` (name chosen to avoid clashes with other libraries) with methods:
-     - `Class<T> targetType()`
-     - `void setContext(AssistantContext ctx)`
-     - `void setTarget(T target)`
-     - `AssistantResult analyze()`
-   - `AssistantResult` carrying:
-     - Optional list of `AnnotationAction` (create/update/remove annotations/positions) OR a generic `List<AssistantMessage>` for UI/logging.
-     - Optional `List<ExternalAction>` (e.g., webhook calls, calendar events).
-     - Severity/summary metadata.
+  1) Define a stable assistant contract in a neutral module (e.g., `assistant-api`) replacing the unused `TypedAssistant<T>`:
+     - `AssistantContext` (project/domain reference, identity `User` from `platform-identity`, resource bundle/locale, optional services map, optional `AssistantRole` for auth).
+       - `AnnotationAPI` maybe the methods are directly on the context, maybe the grouping object is taken from the context project/domain reference and not passed in
+       ```
+          public interface AnnotationAPI {
+            Note addNote(Object groupingObject, User assistantUser, Annotatable thingBeingAnalyzed, String noteText) throws Exception
+            void addIssue(ProjectOrDomain projectOrDomain, User assistantUser, ProjectOrDomainEntity thingBeingAnalyzed, String issueText) throws Exception
+            Position addSimplePositionToIssue(ProjectOrDomain projectOrDomain, User assistantUser, Issue issue, String positionText) throws Exception
+            void removeAnnotation(Annotation annotation, Annotatable annotatable) throws Exception       
+       ```
+     - `RequelAssistant<T>` (name chosen to avoid clashes with other libraries) with methods:
+       - `Class<T> targetType()`
+       - `void setContext(AssistantContext ctx)`
+       - `void setTarget(T target)`
+       - `AssistantResult analyze()`
+     - `AssistantResult` carrying:
+       - `List<AnnotationAction>`: normalized requests to create/update/remove annotations/positions (applied by the façade via `AnnotationCommandFactory`).
+       - `List<AssistantMessage>`: human-readable findings for UI/logging when no annotation is desired (e.g., “Glossary candidate: ‘data lake’”).
+       - `List<ExternalAction>` (optional): side effect intents such as “POST to webhook” or “schedule meeting”; execution is up to the app/approver.
+       - Metadata: severity, summary, source assistant id.
+     - Example:
+       ```
+       AssistantResult result = AssistantResult.builder()
+         .summary("Lexical analysis completed")
+         .severity(INFO)
+         .annotationAction(AnnotationAction.createIssue(issueText="Unknown word 'datalaek'",
+                                                       mustResolve=true,
+                                                       annotatable=goalId))
+         .annotationAction(AnnotationAction.createPosition(positionText="Add 'data lake' to glossary",
+                                                           issueRef=issueId))
+         .message(AssistantMessage.info("Candidate glossary term: data lake"))
+         .build();
+       ```
+       The façade applies `AnnotationAction`s through existing command handlers; messages can be rendered in UI logs; `ExternalAction`s can be queued for approval.
 
 2) Integration in the app:
    - `AssistantRegistry` (or reuse `AssistantFacade`) discovers all `Assistant<?>` beans.
@@ -52,7 +85,26 @@
 5) (Optional) Add a sample “AIAssistant” that uses the SPI but returns only `AssistantMessage` to demonstrate non-annotation usage.
 
 ## Open questions
-- Where to host `assistant-api`? Likely a small module above `platform-core` but below `project-jpa`. Requires `User`/locale context; consider a lightweight `UserRef` to avoid pulling `user-jpa`.
+- Where to host `assistant-api`? Likely a small module above `platform-core` but below `project-jpa`. Requires `User`/locale context; use `platform-identity` `User` (or a `UserRef`) to avoid `user-jpa` dependency.
+  -  should it be assistant-api or assistant-spi? the assistant context will need access to annotations, for user we can use the identity User instead of the full user
 - How to serialize/display `AssistantResult` in the UI (Echo)? Possibly adapt existing annotation views, and add a simple message list for non-annotation results.
+  - for the most part we don't display assistant results, errors get logged, the only way you know an assistant did anything is via the annotations added to the project
+  - maybe we should have an assistant-activity table
 - Governance of external actions: do we execute automatically or require user approval?
+  - currently the only approval is the checkbox when importing, because assistants add issues with positions, the user takes an action via the posistion, but that doesn't account for sending emails, scheduling things or creating data in other systems, adding user approval of individual actions will be tedious, and as there are no external assistants yet, it's not a big concern, but maybe after we migrate the UI we can have an assistant management panel.
 - Rate limits/cost for ChatGPT/OpenAI integrations (need config flags and error handling).
+  - let's worry about this when we get to it.
+
+---
+## Architectural critique / questions
+- **Module boundaries:** Confirm whether `assistant-api` can depend only on `platform-core` + a minimal `identity` abstraction; pulling in `user-jpa` would reintroduce cycles. Do we need a `UserRef` type to avoid JPA entities in the SPI?
+- **Assistant roles/authorization:** Define an `AssistantRole` concept (akin to `ProjectRole`) in the SPI to drive which assistants can run and what data they can emit; tie this into the security/privacy controls.
+- **Discovery/Wiring:** Plan assumes Spring bean discovery. Should we support non-Spring consumers (e.g., CLI tools) via a simple registry/factory as well?
+- **Result application:** Applying `AnnotationAction` via command handlers preserves rules/transactions, but we need idempotency/dup detection to avoid duplicate issues/positions on repeated runs.
+- **External actions safety:** How will we authorize/confirm `ExternalAction`s (webhooks, calendar updates)? Consider an approval queue and audit trail.
+- **Performance/async:** `AssistantFacade` currently spawns threads per analysis. Should the SPI specify async execution contracts (futures, events) or leave it to the caller?
+- **AI error handling:** For AI-backed assistants, define behavior on API failures/timeouts (partial results? warnings in `AssistantMessage`? retries?).
+- **Testing hooks:** Provide a test double for `TextAnalysisService`/`RequelAssistant` to keep integration tests fast and deterministic; define a baseline “noop” assistant for empty environments.
+- **Security/privacy:** If assistants call external services with project text, we need opt-in flags, redaction rules, and clear data-handling docs.
+- **UI surfacing:** How will Echo render `AssistantMessage` and present approval for `ExternalAction`s? Do we need a standard DTO for the client?
+- **Versioning/compatibility:** If third parties ship assistants, how will we version the SPI to avoid breaking them on releases?
