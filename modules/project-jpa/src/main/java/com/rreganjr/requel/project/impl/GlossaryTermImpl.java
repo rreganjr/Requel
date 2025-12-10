@@ -1,0 +1,190 @@
+/*
+ * $Id$
+ * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ * 
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.project.impl;
+
+import java.util.Set;
+import java.util.TreeSet;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlID;
+import jakarta.xml.bind.annotation.XmlIDREF;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+
+import jakarta.persistence.DiscriminatorType;
+
+import org.hibernate.annotations.AnyDiscriminator;
+import org.hibernate.annotations.AnyDiscriminatorValue;
+import org.hibernate.annotations.AnyKeyJavaClass;
+import org.hibernate.annotations.ManyToAny;
+import org.hibernate.annotations.SortComparator;
+import org.hibernate.annotations.SortNatural;
+import jakarta.validation.constraints.NotEmpty;
+
+import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.ProjectOrDomain;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.platform.identity.User;
+
+/**
+ * Implementation of a Glossary Term.
+ * 
+ * @author ron
+ */
+@Entity
+@Table(name = "terms", uniqueConstraints = { @UniqueConstraint(columnNames = {
+		"projectordomain_id", "name" }) })
+@XmlRootElement(name = "term", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "term", namespace = "http://www.rreganjr.com/requel")
+public class GlossaryTermImpl extends AbstractTextEntity implements GlossaryTerm,
+		Comparable<GlossaryTerm> {
+	static final long serialVersionUID = 0L;
+
+	private GlossaryTerm canonicalTerm;
+	private Set<GlossaryTerm> alternateTerms = new TreeSet<GlossaryTerm>();
+	private Set<ProjectOrDomainEntity> referers = new TreeSet<ProjectOrDomainEntity>(
+			new ProjectOrDomainEntityComparator());
+
+	/**
+	 * @param projectOrDomain
+	 * @param name
+	 * @param createdBy
+	 */
+	public GlossaryTermImpl(ProjectOrDomain projectOrDomain, String name, User createdBy) {
+		setProjectOrDomain(projectOrDomain);
+		setName(name);
+		setCreatedBy(createdBy);
+	}
+
+	protected GlossaryTermImpl() {
+		// for hibernate
+	}
+
+	@Override
+	@Column(nullable = false, unique = false)
+	@NotEmpty(message = "a unique name is required.")
+	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	public String getName() {
+		return super.getName();
+	}
+
+	// hack for JAXB to set the name, for some reason it won't use the inherited
+	// method.
+	@Override
+	public void setName(String name) {
+		super.setName(name);
+	}
+
+	@Transient
+	@XmlID
+	@XmlAttribute(name = "id")
+	public String getXmlId() {
+		return "TRM_" + getId();
+	}
+
+	@Transient
+	@XmlTransient
+	@Override
+	public String getDescription() {
+		return "Term: " + getName();
+	}
+
+	@XmlIDREF
+	@XmlAttribute(name = "canonicalTerm")
+	@XmlJavaTypeAdapter(GlossaryTerm2GlossaryTermImplAdapter.class)
+	@ManyToOne(targetEntity = GlossaryTermImpl.class,
+			cascade = { CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REFRESH },
+			fetch = FetchType.EAGER, optional = true)
+	@Override
+	public GlossaryTerm getCanonicalTerm() {
+		return canonicalTerm;
+	}
+
+	/**
+	 * @param canonicalTerm
+	 */
+	public void setCanonicalTerm(GlossaryTerm canonicalTerm) {
+		this.canonicalTerm = canonicalTerm;
+	}
+
+	@XmlTransient
+	@Override
+	@OneToMany(targetEntity = GlossaryTermImpl.class, cascade = { CascadeType.PERSIST,
+			CascadeType.MERGE, CascadeType.REFRESH }, fetch = FetchType.LAZY, mappedBy = "canonicalTerm")
+	@SortNatural
+	public Set<GlossaryTerm> getAlternateTerms() {
+		return alternateTerms;
+	}
+
+	protected void setAlternateTerms(Set<GlossaryTerm> alternateTerms) {
+		this.alternateTerms = alternateTerms;
+	}
+
+	@XmlTransient
+	@Column(name = "referer_type", length = 255, nullable = false)
+	@ManyToAny(fetch = FetchType.LAZY)
+	@AnyDiscriminator(DiscriminatorType.STRING)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Project", entity = ProjectImpl.class)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Actor", entity = ActorImpl.class)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.NonUserStakeholder", entity = NonUserStakeholderImpl.class)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.UserStakeholder", entity = UserStakeholderImpl.class)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Goal", entity = GoalImpl.class)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Scenario", entity = ScenarioImpl.class)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Step", entity = StepImpl.class)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.UseCase", entity = UseCaseImpl.class)
+	@AnyDiscriminatorValue(discriminator = "com.rreganjr.requel.project.Story", entity = StoryImpl.class)
+	@AnyKeyJavaClass(Long.class)
+	@JoinTable(name = "terms_referers",
+			joinColumns = @JoinColumn(name = "term_id"),
+			inverseJoinColumns = @JoinColumn(name = "referer_id"))
+	@SortComparator(ProjectOrDomainEntityComparator.class)
+	public Set<ProjectOrDomainEntity> getReferers() {
+		return referers;
+	}
+
+	protected void setReferers(Set<ProjectOrDomainEntity> referersToThisTerm) {
+		this.referers = referersToThisTerm;
+	}
+
+
+	@Override
+	public int compareTo(GlossaryTerm o) {
+		int projectCompare = (getProjectOrDomain().getName().compareTo(o.getProjectOrDomain()
+				.getName()));
+		int nameCompare = (getName().compareTo(o.getName()));
+		return (projectCompare != 0 ? projectCompare : nameCompare);
+	}
+}

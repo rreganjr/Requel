@@ -1,0 +1,72 @@
+/*
+ * $Id$
+ * Copyright 2008, 2009 Ron Regan Jr. All Rights Reserved.
+ *
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.annotation.spi;
+
+import java.util.Map;
+import java.util.Optional;
+
+import com.rreganjr.requel.annotation.Annotatable;
+
+/**
+ * Registry that tracks the mapping between Annotation discriminators and the
+ * corresponding {@link Annotatable} entity implementations.
+ *
+ * <p>The registry is intended as the single source of truth for the polymorphic
+ * {@code @Any} mapping used by {@code AbstractAnnotation}. Domain modules that
+ * provide new annotatable entities should contribute registrations via Spring
+ * configuration rather than modifying the annotation implementation package.</p>
+ *
+ * @author ron
+ */
+public interface AnnotatableTypeRegistry {
+
+	/**
+	 * Register an annotatable entity for the supplied discriminator.
+	 *
+	 * @param discriminator the value stored in the annotation table
+	 * @param entityType the entity class that implements {@link Annotatable}
+	 * @throws IllegalArgumentException if the discriminator or entity class are already bound
+	 *             to a different mapping
+	 */
+	void registerAnnotatableType(String discriminator, Class<? extends Annotatable> entityType);
+
+	/**
+	 * Resolve the entity type for the supplied discriminator.
+	 *
+	 * @param discriminator the stored discriminator value
+	 * @return optional containing the entity type, or empty if not registered
+	 */
+	Optional<Class<? extends Annotatable>> resolveEntityType(String discriminator);
+
+	/**
+	 * Resolve the discriminator configured for the supplied entity type.
+	 *
+	 * @param entityType the entity class
+	 * @return optional containing the discriminator, or empty if not registered
+	 */
+	Optional<String> resolveDiscriminator(Class<?> entityType);
+
+	/**
+	 * @return an immutable snapshot of the registered discriminator mappings
+	 */
+	Map<String, Class<? extends Annotatable>> getRegisteredAnnotatableTypes();
+}

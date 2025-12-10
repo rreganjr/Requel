@@ -1,0 +1,650 @@
+/*
+ * $Id$
+ * Copyright 2008, 2009, 2018 Ron Regan Jr. All Rights Reserved.
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.user.impl;
+
+import java.io.Serializable;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.util.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import jakarta.persistence.Version;
+import jakarta.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementRef;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
+import jakarta.xml.bind.annotation.XmlID;
+import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
+import jakarta.xml.bind.annotation.XmlType;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+
+import com.rreganjr.platform.identity.Role;
+import com.rreganjr.platform.identity.password.PasswordHasher;
+import com.rreganjr.platform.identity.password.PasswordHasher.HashedPassword;
+import com.rreganjr.requel.user.*;
+import org.apache.commons.lang3.StringUtils;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
+import org.xml.sax.SAXException;
+
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.UnmarshallingContext;
+import org.glassfish.jaxb.runtime.v2.runtime.unmarshaller.Patcher;
+
+import com.rreganjr.repository.jpa.EntityProxyInterceptor;
+import com.rreganjr.requel.user.exception.NoSuchRoleForUserException;
+import com.rreganjr.requel.user.exception.NoSuchUserException;
+import com.rreganjr.requel.user.exception.UserEntityException;
+import com.rreganjr.requel.user.JAXBOrganizedEntityPatcher;
+import com.rreganjr.requel.user.impl.User2UserImplAdapter;
+
+/**
+ * @author ron
+ */
+@Entity
+@Table(name = "users")
+@XmlRootElement(name = "user", namespace = "http://www.rreganjr.com/requel")
+@XmlType(name = "user", propOrder = { "username", "encryptedPassword", "passwordSalt", "passwordEncryptingAlgorithmName", "passwordEncryptingIterations", "name", "emailAddress",
+		"phoneNumber", "organization", "userRoles", "editable" }, namespace = "http://www.rreganjr.com/requel")
+public class UserImpl implements User, Serializable {
+	static final long serialVersionUID = 0L;
+
+	/**
+	 * Algorithm to use for new users or when a user changes their password. This should be
+	 * periodically changed as Java supports new methods.
+	 */
+	private static final String PREFERRED_PASSWORD_ENCRYPTING_ALGORITHM = "PBKDF2WITHHMACSHA512";
+
+	/**
+	 * Default algorithm to support passwords encrypted in old releases.
+	 */
+	private static final String DEFAULT_PASSWORD_ENCRYPTING_ALGORITHM = "MD5";
+
+	/**
+	 * Default password salt to support passwords encoded before salt was supported.
+	 */
+	private static final String DEFAULT_PASSWORD_SALT = "";
+
+	/**
+	 * Default password encryption iteration count based on original value.
+	 */
+	private static final String DEFAULT_PASSWORD_ENCRYPTING_ITERATIONS = "50000";
+
+	private static final Integer PREFERRED_PASSWORD_ENCRYPTING_ITERATIONS = 50000;
+
+	/**
+	 * Have a maximum password length so that a huge password can't be supplied as a DOS attack
+	 * thanks to comments on
+	 * https://nakedsecurity.sophos.com/2013/11/20/serious-security-how-to-store-your-users-passwords-safely/
+	 */
+	static final Integer MAX_PASSWORD_LENGTH = 128;
+
+	private Long id;
+	private String name;
+	private String username;
+	private String encryptedPassword;
+	private String passwordSalt;
+	private String passwordEncryptingAlgorithmName;
+	private Integer passwordEncryptingIterations;
+	private String emailAddress;
+	private String phoneNumber;
+	private Organization organization;
+	private boolean editable = true;
+	private Set<UserRole> userRoles;
+	// start at 1 so hibernate recognizes the new
+	// instance as the initial value and not stale.
+	private int version = 1;
+
+	/**
+	 * @param username - used for login and as an alias that isn't email or real name.
+	 * @param password - required for login
+	 * @param name - full name or something like that
+	 * @param emailAddress - distinct from username so it can be kept private if desired or shared so that users can
+	 *                     communicate outside the system, also the system will send emails to this address.
+	 * @param phoneNumber - if users need to communicate quickly, maybe the system could send text messages?
+	 * @param organization - a group or company.
+	 * @param editable - if the user can change their own data, non-editable for guests.
+	 */
+	public UserImpl(String username, String password, String name, String emailAddress,
+					String phoneNumber, Organization organization, Boolean editable) {
+		setUsername(username);
+		setPasswordSalt(makePasswordSalt());
+		setPasswordEncryptingAlgorithmName(PREFERRED_PASSWORD_ENCRYPTING_ALGORITHM);
+		setEmailAddress(emailAddress);
+		setOrganization(organization);
+		setName(name);
+		setPhoneNumber(phoneNumber);
+		setEditable(editable);
+		setUserRoles(new TreeSet<>(UserRole.UserRoleComparator.INSTANCE));
+
+		resetPassword(password);
+	}
+
+	protected UserImpl() {
+		// for hibernate
+	}
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	@XmlID
+	@XmlAttribute(name = "id")
+	@XmlJavaTypeAdapter(IdAdapter.class)
+	public Long getId() {
+		return id;
+	}
+
+	protected void setId(Long id) {
+		this.id = id;
+	}
+
+	@Version
+	protected int getVersion() {
+		return version;
+	}
+
+	protected void setVersion(int version) {
+		this.version = version;
+	}
+
+	@XmlElement(name = "name", defaultValue = "", required = true, namespace = "http://www.rreganjr.com/requel")
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	@Column(unique = true, nullable = false)
+	@NotEmpty(message = "username is required.")
+	@XmlElement(name = "username", required = true, namespace = "http://www.rreganjr.com/requel")
+	public String getUsername() {
+		return username;
+	}
+
+	public void setUsername(String username) {
+		this.username = username;
+	}
+
+	@Transient
+	@Override
+	public String getDisplayName() {
+		if (getName() != null) {
+			return getName() + " [" + getUsername() + "]";
+		}
+		return getUsername();
+	}
+
+	@Transient
+	public boolean isPassword(String password) {
+		boolean matches;
+		// because validation rules could change between when a user set their password and when they login don't check
+		// the validity, but do check for length to insulate from DOS attacks that try to pass invalid huge passwords.
+		// Note 128 was the original maximum length so that value is hard coded in case the max is later lowered a user
+		// that set a password when 128 was valid will still be able to login.
+		if (getEncryptedPassword() != null && password != null && password.length() <= Math.max(MAX_PASSWORD_LENGTH,128)) {
+			matches = getEncryptedPassword().equals(encryptPassword(password));
+			if (matches && (
+					!(PREFERRED_PASSWORD_ENCRYPTING_ALGORITHM.equals(getPasswordEncryptingAlgorithmName())) ||
+					!(PREFERRED_PASSWORD_ENCRYPTING_ITERATIONS.equals(getPasswordEncryptingIterations())))) {
+				_resetPassword(password);
+			}
+		} else {
+			matches = false;
+		}
+		return matches;
+	}
+
+	/**
+	 * Reset the user's password if the new password meets the password validation constraints.
+	 * 
+	 * @param password - a string that can't be empty or only whitespace
+	 */
+	@Override
+	public final void resetPassword(String password) {
+		if (isValidPassword(password)) {
+			_resetPassword(password);
+		} else {
+			// This is needed because hibernate checks nullability before
+			// doing validation and throws a PropertyValueException for
+			// the password without validating the rest of the properties.
+			if (getEncryptedPassword() == null) {
+				setEncryptedPassword("");
+			}
+		}
+	}
+
+	private  void _resetPassword(String password) {
+		// When resetting a password use the preferred algorithm and a new salt value.
+		HashedPassword hashed = PasswordHasher.hashWithPreferredSettings(password);
+		setPasswordEncryptingAlgorithmName(hashed.algorithm());
+		setPasswordEncryptingIterations(hashed.iterations());
+		setPasswordSalt(hashed.salt());
+		setEncryptedPassword(hashed.value());
+	}
+
+	/**
+	 * @return a semi-random value to use for password salt.
+	 */
+	private static String makePasswordSalt() {
+		return PasswordHasher.generateSalt();
+	}
+
+	/**
+	 * @param password - the password from the user
+	 * Delegates password hashing to {@link PasswordHasher}.
+	 * @return The encoded password as a hexadecimal sequence
+	 * based on code from https://howtodoinjava.com/security/how-to-generate-secure-password-hash-md5-sha-pbkdf2-bcrypt-examples/
+	 */
+	private String encryptPassword(String password) {
+		String algorithmName = StringUtils.defaultIfEmpty(getPasswordEncryptingAlgorithmName(), DEFAULT_PASSWORD_ENCRYPTING_ALGORITHM);
+		String salt = StringUtils.defaultIfEmpty(getPasswordSalt(), DEFAULT_PASSWORD_SALT);
+		Integer iterations = (getPasswordEncryptingIterations() == null ? Integer.parseInt(DEFAULT_PASSWORD_ENCRYPTING_ITERATIONS) : getPasswordEncryptingIterations());
+		return PasswordHasher.hash(password, algorithmName, salt, iterations);
+	}
+
+	/**
+	 * Test that password matches the rules:
+	 * not null or empty or only white space and less than {@link #MAX_PASSWORD_LENGTH}
+	 * @param password - the password
+	 * @return true if the supplied password passes the validation rules.
+	 */
+	@Transient
+	private boolean isValidPassword(String password) {
+		return (password != null) && (password.trim().length() > 0) && password.length() <= MAX_PASSWORD_LENGTH;
+	}
+
+	@Column(name="hashed_password", nullable = false)
+	@NotEmpty(message = "password is required and both fields must match.")
+	@XmlElement(name = "password", required = true, namespace = "http://www.rreganjr.com/requel")
+	public String getEncryptedPassword() {
+		return encryptedPassword;
+	}
+
+	public void setEncryptedPassword(String encryptedPassword) {
+		this.encryptedPassword = encryptedPassword;
+	}
+
+	@XmlElement(name = "passwordSalt", namespace = "http://www.rreganjr.com/requel", defaultValue = DEFAULT_PASSWORD_SALT)
+	public String getPasswordSalt() {
+		return passwordSalt;
+	}
+
+	public void setPasswordSalt(String passwordSalt) {
+		this.passwordSalt = passwordSalt;
+	}
+
+	@XmlElement(name = "passwordEncryptingAlgorithm", namespace = "http://www.rreganjr.com/requel", defaultValue = DEFAULT_PASSWORD_ENCRYPTING_ALGORITHM)
+	public String getPasswordEncryptingAlgorithmName() {
+		return passwordEncryptingAlgorithmName;
+	}
+
+	public void setPasswordEncryptingAlgorithmName(String passwordEncryptingAlgorithmName) {
+		this.passwordEncryptingAlgorithmName = passwordEncryptingAlgorithmName;
+	}
+
+	@XmlElement(name = "passwordEncryptingIterations", namespace = "http://www.rreganjr.com/requel", defaultValue = DEFAULT_PASSWORD_ENCRYPTING_ITERATIONS)
+	public Integer getPasswordEncryptingIterations() {
+		return passwordEncryptingIterations;
+	}
+
+	public void setPasswordEncryptingIterations(Integer passwordEncryptingIterations) {
+		this.passwordEncryptingIterations = passwordEncryptingIterations;
+	}
+
+	@Column(nullable = false)
+	@Email
+	@NotEmpty(message = "email address is required.")
+	@XmlElement(name = "emailAddress", namespace = "http://www.rreganjr.com/requel")
+	public String getEmailAddress() {
+		return emailAddress;
+	}
+
+	public void setEmailAddress(String emailAddress) {
+		this.emailAddress = emailAddress;
+	}
+
+	@Pattern(regexp = "^((?:\\([2-9]\\d{2}\\)\\ ?|[2-9]\\d{2}(?:\\-?|\\ ?))[2-9]\\d{2}[- ]?\\d{4})?$", message = "must be a valid 10 digit phone number or empty.")
+	@XmlElement(name = "phoneNumber", namespace = "http://www.rreganjr.com/requel")
+	public String getPhoneNumber() {
+		return phoneNumber;
+	}
+
+	public void setPhoneNumber(String phoneNumber) {
+		if (StringUtils.isBlank(phoneNumber)) {
+			this.phoneNumber = null;
+		} else {
+			this.phoneNumber = phoneNumber.trim();
+		}
+	}
+
+	@XmlElementRef(type = OrganizationImpl.class, namespace = "http://www.rreganjr.com/requel")
+	@ManyToOne(targetEntity = OrganizationImpl.class, cascade = { CascadeType.MERGE,
+			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.EAGER, optional = false)
+	public Organization getOrganization() {
+		return organization;
+	}
+
+	public void setOrganization(Organization organization) {
+		this.organization = organization;
+	}
+
+	/**
+	 *
+	 * @return true if this can change their information. this is mainly to prevent guests from changing accounts.
+	 */
+	@XmlElement(name = "editable", namespace = "http://www.rreganjr.com/requel")
+	public boolean isEditable() {
+		return editable;
+	}
+
+	public void setEditable(boolean editable) {
+		this.editable = editable;
+	}
+
+	@XmlElementWrapper(name = "userRoles", namespace = "http://www.rreganjr.com/requel")
+	@XmlElementRef(type = AbstractUserRole.class)
+	@OneToMany(targetEntity = AbstractUserRole.class, cascade = { CascadeType.MERGE,
+			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.EAGER)
+	@JoinTable(name = "users_user_roles", joinColumns = { @JoinColumn(name = "user_id") },
+            inverseJoinColumns = { @JoinColumn(name = "role_id") })
+	@Size(min = 1, message = "one or more roles must be selected.")
+	public Set<UserRole> getUserRoles() {
+		return userRoles;
+	}
+
+	protected void setUserRoles(Set<UserRole> userRoles) {
+		this.userRoles = userRoles;
+	}
+
+	/**
+	 *
+	 * @param userRoleType the type of role to retrieve.
+	 * @param <T> the type of role.
+	 * @return The role for the type supplied.
+	 * @throws NoSuchRoleForUserException if the user doesn't have the role.
+	 */
+	@Override
+	@Transient
+	public <T extends Role> T getRoleForType(Class<T> userRoleType)
+			throws NoSuchRoleForUserException {
+		for (UserRole role : getUserRoles()) {
+			if (userRoleType.isAssignableFrom(role.getClass())) {
+				return userRoleType.cast(role);
+			}
+		}
+		throw NoSuchRoleForUserException.forUserRoleTypeName(this, userRoleType);
+	}
+
+	/**
+	 *
+	 * @param userRoleType the type of role to check.
+	 * @return true if the user was {@link #grantRole(Class)}ed the role.
+	 */
+	@Override
+	@Transient
+	public boolean hasRole(Class<? extends Role> userRoleType) {
+		try {
+			getRoleForType(userRoleType);
+			return true;
+		} catch (NoSuchRoleForUserException e) {
+			return false;
+		}
+	}
+
+	/**
+	 * If the user doesn't already have the role it will be granted to the user.
+	 * @param userRoleType - The type of role to grant.
+	 * @throws UserEntityException if role can't be granted.
+	 */
+	public void grantRole(Class<? extends UserRole> userRoleType) {
+		if (!hasRole(userRoleType)) {
+			UserRole role;
+			Constructor<? extends UserRole> constructor;
+			try {
+				constructor = userRoleType.getConstructor(User.class);
+				role = constructor.newInstance(this);
+			} catch (NoSuchMethodException e) {
+				try {
+					constructor = userRoleType.getConstructor();
+					role = constructor.newInstance();
+				} catch (Exception e2) {
+					throw UserEntityException.exceptionGrantingRole(userRoleType, this, e2);
+				}
+			} catch (Exception e) {
+				throw UserEntityException.exceptionGrantingRole(userRoleType, this, e);
+			}
+			getUserRoles().add(role);
+		}
+	}
+
+	/**
+	 * If the user has a role of the specified type, the role will be removed.
+	 * @param userRoleType - The type of role to remove.
+	 * @throws UserEntityException if the role can't be revoked.
+	 */
+	public void revokeRole(Class<? extends UserRole> userRoleType) {
+		if (hasRole(userRoleType)) {
+			UserRole role = getRoleForType(userRoleType);
+			getUserRoles().remove(role);
+			try {
+				Method setUser = role.getClass().getDeclaredMethod("setUser", User.class);
+				setUser.setAccessible(true);
+				setUser.invoke(role, new Object[] { null });
+			} catch (NoSuchMethodException e) {
+				// expected if the role is shared by multiple users
+			} catch (Exception e) {
+				throw UserEntityException.exceptionRevokingRole(userRoleType, this, e);
+			}
+		}
+	}
+
+	/**
+	 *
+	 * @param other - an other {@link User} object
+	 * @return true if both user's have non-null {@link #getId()} that are equal, otherwise false.
+	 */
+	@Override
+	public boolean equalsById(User other) {
+		return getId() != null &&
+			((UserImpl) other).getId() != null &&
+			getId().equals(((UserImpl)other).getId());
+	}
+
+	/**
+	 *
+	 * @param obj - any type of object
+	 * @return true if the supplied obj is a {@link User} object and both objects have a non null {@link #getId()} that
+	 * 				is equal or if{@link #getUsername()} are equal (null or not), otherwise false.
+	 */
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null) {
+			return false;
+		}
+		if (!User.class.isAssignableFrom(obj.getClass())) {
+			return false;
+		}
+		final UserImpl other = (UserImpl) obj;
+		if ((getId() != null) && other.getId() != null) {
+			return getId().equals(other.getId());
+		}
+		if (getUsername() == null) {
+			return other.getUsername() == null;
+		} else {
+			return getUsername().equals(other.getUsername());
+		}
+	}
+
+	@Override
+	public int compareTo(com.rreganjr.platform.identity.User o) {
+		return getUsername().compareToIgnoreCase(o.getUsername());
+	}
+
+	private Integer tmpHashCode = null;
+
+	/**
+	 * hashcode is by id if defined or username if not, but once it is calculated for a user it won't change while
+	 * the object exists. this is because if the object is in a {@link HashMap} or {@link HashSet} if you change a
+	 * value that changes the hashcode the object won't be found.
+	 * @return a hashcode for this object that won't change once returned.
+	 */
+	@Override
+	public int hashCode() {
+		if (tmpHashCode == null) {
+			if (getId() != null) {
+				tmpHashCode = getId().hashCode();
+			}
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((getUsername() == null) ? 0 : getUsername().hashCode());
+			tmpHashCode = result;
+		}
+		return tmpHashCode;
+	}
+
+	@Override
+	public String toString() {
+		return User.class.getName() + "[" + getId() + "]: " + getUsername();
+	}
+
+	/**
+	 * This is for JAXB to patch-up existing persistent objects for the objects
+	 * that are attached directly to this object.
+	 * 
+	 * @param userRepository - pass in user repository to patch up relationship with an organization.
+	 * @see com.rreganjr.requel.utils.jaxb.UnmarshallerListener
+	 */
+	public void afterUnmarshal(UserRepository userRepository) {
+		UnmarshallingContext context = UnmarshallingContext.getInstance();
+		context.addPatcher(new JAXBOrganizedEntityPatcher(userRepository, this));
+		context.addPatcher(new Patcher() {
+			@Override
+			public void run() throws SAXException {
+				try {
+					normalizeIdentityFields();
+					String normalizedUsername = getUsername();
+					if (StringUtils.isBlank(normalizedUsername)) {
+						return;
+					}
+					try {
+						User existing = userRepository.findUserByUsername(normalizedUsername);
+						if (existing != null) {
+							User resolved = existing;
+							if (EntityProxyInterceptor.isEntityProxy(resolved)) {
+								resolved = EntityProxyInterceptor.unwrap(resolved);
+							}
+							User2UserImplAdapter.registerReplacement(UserImpl.this, resolved);
+							if (resolved instanceof UserImpl existingUser) {
+								adoptExistingState(existingUser);
+							}
+						}
+					} catch (NoSuchUserException e) {
+						// new user definition – keep imported state
+					}
+				} catch (RuntimeException e) {
+					throw e;
+				} catch (Exception e) {
+					throw new SAXException(e);
+				}
+			}
+		});
+	}
+
+	private void normalizeIdentityFields() {
+		if (StringUtils.isBlank(getUsername())) {
+			setUsername(null);
+		} else {
+			String trimmedUsername = getUsername().trim();
+			if (!trimmedUsername.equals(getUsername())) {
+				setUsername(trimmedUsername);
+			}
+		}
+		// phone number normalization already handled in setter; reuse it for trimming.
+		setPhoneNumber(getPhoneNumber());
+	}
+
+	private void adoptExistingState(UserImpl existingUser) {
+		setId(existingUser.getId());
+		setVersion(existingUser.getVersion());
+		setUsername(existingUser.getUsername());
+		setName(existingUser.getName());
+		setEmailAddress(existingUser.getEmailAddress());
+		setPhoneNumber(existingUser.getPhoneNumber());
+		setEditable(existingUser.isEditable());
+		setOrganization(existingUser.getOrganization());
+		setEncryptedPassword(existingUser.getEncryptedPassword());
+		setPasswordSalt(existingUser.getPasswordSalt());
+		setPasswordEncryptingAlgorithmName(existingUser.getPasswordEncryptingAlgorithmName());
+		setPasswordEncryptingIterations(existingUser.getPasswordEncryptingIterations());
+		Set<UserRole> existingRoles = existingUser.getUserRoles();
+		if (existingRoles != null) {
+			Set<UserRole> normalizedRoles = new TreeSet<>(UserRole.UserRoleComparator.INSTANCE);
+			normalizedRoles.addAll(existingRoles);
+			setUserRoles(normalizedRoles);
+		} else {
+			setUserRoles(new TreeSet<>(UserRole.UserRoleComparator.INSTANCE));
+		}
+	}
+
+	/**
+	 * This class is used by JAXB to convert the id of an entity into an xml id
+	 * string that will be distinct from other entity xml id strings by the use
+	 * of a prefix.
+	 * 
+	 * @author ron
+	 */
+	@XmlTransient
+	public static class IdAdapter extends XmlAdapter<String, Long> {
+		private static final String prefix = "USR_";
+
+		@Override
+		public Long unmarshal(String id) throws Exception {
+			return null; // Long.valueOf(id.substring(prefix.length()));
+		}
+
+		@Override
+		public String marshal(Long id) throws Exception {
+			if (id != null) {
+				return prefix + id.toString();
+			}
+			return "";
+		}
+	}
+}
