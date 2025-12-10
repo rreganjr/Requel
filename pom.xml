@@ -80,6 +80,12 @@
         <module>modules/project-domain</module>
         <module>modules/project-jpa</module>
         <module>modules/nlp-jpa</module>
+        <module>modules/ui-core</module>
+        <module>modules/annotation-ui</module>
+        <module>modules/project-ui</module>
+        <module>modules/user-ui</module>
+        <module>modules/nlp-ui</module>
+        <module>modules/ui-assets</module>
         <module>modules/requel-app</module>
     </modules>
 </project>

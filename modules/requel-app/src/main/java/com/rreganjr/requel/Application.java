@@ -36,6 +36,7 @@ import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ImportResource;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -44,11 +45,23 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import com.rreganjr.requel.ui.config.UiCoreConfiguration;
+import com.rreganjr.requel.ui.annotation.config.AnnotationUiConfiguration;
+import com.rreganjr.requel.ui.project.config.ProjectUiConfiguration;
+import com.rreganjr.requel.ui.user.config.UserUiConfiguration;
+import com.rreganjr.nlp.ui.config.NlpUiConfiguration;
 
 @SpringBootApplication
 @ServletComponentScan
 @EntityScan( basePackages = {"com.rreganjr.requel", "com.rreganjr.nlp"} )
 @ImportResource( {"classpath:application-config.xml"} )
+@Import({
+        UiCoreConfiguration.class,
+        AnnotationUiConfiguration.class,
+        ProjectUiConfiguration.class,
+        UserUiConfiguration.class,
+        NlpUiConfiguration.class
+})
 public class Application extends SpringBootServletInitializer {
 
     @Bean
