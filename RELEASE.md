@@ -1,4 +1,4 @@
-# Release Checklist (v1.1.0)
+# Release Checklist (v1.2.0)
 
 1. **Sync master**
    ```bash
@@ -13,8 +13,8 @@
 
 3. **Tag**
    ```bash
-   git tag -a v1.1.0 -m "UI modularization and cleanup"
-   git push origin v1.0.0
+   git tag -a v1.2.0 -m "UI modularization and cleanup"
+   git push origin v1.2.0
    ```
 
 4. **Fast iterative build (skips echo transform/tests)**
@@ -24,7 +24,7 @@
 
 5. **Run locally**
    ```bash
-   java -jar modules/requel-app/target/requel-app-1.1.0.jar
+   java -jar modules/requel-app/target/requel-app-1.2.0.jar
    # then visit http://localhost:8080/
    ```
 
@@ -61,8 +61,8 @@
    ```
    Manual alternative:
    ```bash
-   docker build -t rreganjr/requel:1.1.0 .
-   docker run -p 8080:8080 rreganjr/requel:1.1.0
+   docker build -t rreganjr/requel:1.2.0 .
+   docker run -p 8080:8080 rreganjr/requel:1.2.0
    ```
 
 8. **Smoke checks**
