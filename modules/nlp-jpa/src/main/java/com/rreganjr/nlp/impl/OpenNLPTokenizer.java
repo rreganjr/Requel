@@ -29,6 +29,7 @@ import com.rreganjr.ResourceBundleHelper;
 import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
 import com.rreganjr.nlp.dictionary.NLPText;
 import opennlp.tools.tokenize.TokenizerModel;
+import java.io.InputStream;
 
 /**
  * @author ron
@@ -59,7 +60,9 @@ public class OpenNLPTokenizer extends AbstractOpenNLPTool<NLPText> {
 			String modelFile = resourceBundleHelper.getString(PROP_ENGLISH_TOKENIZER_MODEL_FILE,
 					PROP_ENGLISH_TOKENIZER_MODEL_FILE_DEFAULT);
 
-			tokenizer = new TokenizerME(new TokenizerModel("en", readGISModel(modelFile), true));
+			InputStream modelStream = OpenNLPTokenizer.class.getClassLoader()
+					.getResourceAsStream(modelFile);
+			tokenizer = new TokenizerME(new TokenizerModel(modelStream));
 		} catch (Exception e) {
 			tokenizer = null;
 			throw new ExceptionInInitializerError(e);
@@ -86,7 +89,9 @@ public class OpenNLPTokenizer extends AbstractOpenNLPTool<NLPText> {
 						PROP_ENGLISH_TOKENIZER_MODEL_FILE,
 						PROP_ENGLISH_TOKENIZER_MODEL_FILE_DEFAULT);
 
-				tokenizer = new TokenizerME(new TokenizerModel("en", readGISModel(modelFile), true));
+				InputStream modelStream = OpenNLPTokenizer.class.getClassLoader()
+						.getResourceAsStream(modelFile);
+				tokenizer = new TokenizerME(new TokenizerModel(modelStream));
 			} catch (Exception e) {
 				tokenizer = null;
 				throw ApplicationException.failedToInitializeComponent(getClass(), e);

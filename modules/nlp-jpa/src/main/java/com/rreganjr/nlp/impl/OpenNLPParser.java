@@ -20,23 +20,28 @@
  */
 package com.rreganjr.nlp.impl;
 
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import com.rreganjr.nlp.dictionary.NLPProcessor;
-import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
-import opennlp.model.MaxentModel;
-import opennlp.tools.chunker.ChunkerME;
-import opennlp.tools.parser.HeadRules;
-import opennlp.tools.parser.Parse;
-import opennlp.tools.parser.chunking.Parser;
-import opennlp.tools.util.Sequence;
-import opennlp.tools.util.Span;
-import com.rreganjr.platform.ApplicationException;
 import com.rreganjr.ResourceBundleHelper;
 import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
 import com.rreganjr.nlp.dictionary.NLPText;
 import com.rreganjr.nlp.dictionary.ParseTag;
+import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
+import com.rreganjr.platform.ApplicationException;
+import opennlp.tools.chunker.ChunkerModel;
+import opennlp.tools.ml.model.MaxentModel;
+import opennlp.tools.parser.Parse;
+import opennlp.tools.parser.Parser;
+import opennlp.tools.parser.ParserFactory;
+import opennlp.tools.parser.ParserModel;
+import opennlp.tools.parser.ParserType;
+import opennlp.tools.parser.lang.en.HeadRules;
+import opennlp.tools.parser.AbstractBottomUpParser;
+import opennlp.tools.util.Span;
 
 /**
  * @author ron
@@ -118,18 +123,24 @@ public class OpenNLPParser extends OpenNLPTagger {
 	private synchronized void init() {
 		if (parser == null) {
 			try {
-				ResourceBundleHelper resourceBundleHelper = new ResourceBundleHelper(
-						OpenNLPParser.class.getName());
+				ResourceBundleHelper resourceBundleHelper = new ResourceBundleHelper(OpenNLPParser.class.getName());
 
-				//String headRulesFile = resourceBundleHelper.getString(PROP_PARSER_HEAD_RULES_FILE, PROP_PARSER_HEAD_RULES_FILE_DEFAULT);
-				//String headRulesPath = URLDecoder.decode(OpenNLPParser.class.getClassLoader().getResource(headRulesFile).getPath(), "utf8");
-				HeadRules headRules = null;
+				String headRulesFile = resourceBundleHelper.getString(PROP_PARSER_HEAD_RULES_FILE, PROP_PARSER_HEAD_RULES_FILE_DEFAULT);
+				InputStream headRulesStream = OpenNLPParser.class.getClassLoader().getResourceAsStream(headRulesFile);
+				HeadRules headRules = new HeadRules(new InputStreamReader(headRulesStream));
 
 				String chunkerModelFile = resourceBundleHelper.getString(PROP_PARSER_CHUNKER_MODEL_FILE, PROP_PARSER_CHUNKER_MODEL_FILE_DEFAULT);
-				Chunker chunker = new Chunker(readGISModel(chunkerModelFile));
+				InputStream chunkerModelStream = OpenNLPParser.class.getClassLoader().getResourceAsStream(chunkerModelFile);
+				ChunkerModel chunkerModel = new ChunkerModel(chunkerModelStream);
+
 				String buildModelFile = resourceBundleHelper.getString(PROP_PARSER_BUILD_MODEL_FILE, PROP_PARSER_BUILD_MODEL_FILE_DEFAULT);
 				String checkModelFile = resourceBundleHelper.getString(PROP_PARSER_CHECK_MODEL_FILE, PROP_PARSER_CHECK_MODEL_FILE_DEFAULT);
-				parser = new Parser(readGISModel(buildModelFile), readGISModel(checkModelFile), getTagger(), chunker, headRules);
+				MaxentModel buildModel = readGISModel(buildModelFile);
+				MaxentModel checkModel = readGISModel(checkModelFile);
+				MaxentModel attachModel = null;
+
+				ParserModel parserModel = new ParserModel("en", buildModel, checkModel, attachModel, getPosModel(), chunkerModel, headRules, ParserType.CHUNKING);
+				parser = ParserFactory.create(parserModel);
 			} catch (Exception e) {
 				parser = null;
 				throw ApplicationException.failedToInitializeComponent(getClass(), e);
@@ -162,7 +173,7 @@ public class OpenNLPParser extends OpenNLPTagger {
 			}
 			Parse topNode = new Parse(sentence, new Span(0, sentence.length()), "INC", 1.0, null);
 			for (int i = 0; i < spans.length; i++) {
-				topNode.insert(new Parse(sentence, spans[i], Parser.TOK_NODE, 1.0, 0));
+				topNode.insert(new Parse(sentence, spans[i], AbstractBottomUpParser.TOK_NODE, 1.0, 0));
 			}
 			parse = parser.parse(topNode);
 			if (parse != null) {
@@ -185,7 +196,7 @@ public class OpenNLPParser extends OpenNLPTagger {
 			parent.getChildren().add(node);
 			wordIndexCounter.incr();
 		} else {
-			if (Parser.TOP_NODE.equals(parse.getType())) {
+			if (AbstractBottomUpParser.TOP_NODE.equals(parse.getType())) {
 				// skip the root
 				parent.setParseTag(ParseTag.ROOT);
 				node = parent;
@@ -212,18 +223,4 @@ public class OpenNLPParser extends OpenNLPTagger {
 		}
 	}
 
-	private static class Chunker extends ChunkerME implements opennlp.tools.chunker.Chunker {
-
-		private Chunker(MaxentModel mod) {
-			super(mod);
-		}
-
-		public Sequence[] topKSequences(List sentence, List tags) {
-			return beam.bestSequences(10, (String[])sentence.toArray(), new Object[] { tags });
-		}
-
-		public Sequence[] topKSequences(String[] sentence, String[] tags, double minSequenceScore) {
-			return beam.bestSequences(10, sentence, new Object[] { tags }, minSequenceScore);
-		}
-	}
 }

@@ -25,11 +25,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.GZIPInputStream;
 
-import opennlp.maxent.GISModel;
-import opennlp.maxent.io.BinaryGISModelReader;
-import opennlp.maxent.io.GISModelReader;
-
 import org.apache.log4j.Logger;
+import opennlp.tools.ml.maxent.GISModel;
+import opennlp.tools.ml.maxent.io.BinaryGISModelReader;
+import opennlp.tools.ml.maxent.io.GISModelReader;
 
 import com.rreganjr.nlp.dictionary.NLPProcessor;
 
