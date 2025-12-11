@@ -146,10 +146,18 @@ docker compose up
 ## 8. Tag the Release in Git
 
 ```bash
+# Set a temporary repo-local identity so the tag is authored as rreganjr
+git config user.name "rreganjr"
+git config user.email "11188410+rreganjr@users.noreply.github.com"
+
 git checkout master
 git merge update-spring-boot-3
 git tag v1.2.0
 git push origin master --tags
+
+# Optional: remove the temporary identity
+git config --unset user.name
+git config --unset user.email
 ```
 
 ## 9. Publish GitHub Release
