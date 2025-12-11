@@ -36,7 +36,7 @@ DROP TABLE IF EXISTS `actors`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `actors` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `date_created` datetime(6) DEFAULT NULL,
   `version` int NOT NULL,
   `text` longtext,
@@ -74,13 +74,8 @@ CREATE TABLE `actors_glossary_terms` (
   CONSTRAINT `FKtdl6b6jttrtaycgjbjdokvdil` FOREIGN KEY (`actor_impl_id`) REFERENCES `actors` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `actors_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `actors_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `annotation_annotatable`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -142,7 +137,7 @@ DROP TABLE IF EXISTS `categorydef`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `categorydef` (
-  `categoryid` bigint NOT NULL,
+  `categoryid` bigint NOT NULL AUTO_INCREMENT,
   `name` varchar(32) DEFAULT NULL,
   `pos` varchar(2) DEFAULT NULL,
   PRIMARY KEY (`categoryid`)
@@ -170,7 +165,7 @@ DROP TABLE IF EXISTS `goal_relations`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `goal_relations` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `date_created` datetime(6) DEFAULT NULL,
   `relation_type` enum('Conflicts','Supports') DEFAULT NULL,
   `version` int NOT NULL,
@@ -198,18 +193,13 @@ CREATE TABLE `goal_relations_annotations` (
   CONSTRAINT `FKicld2fw5kg0ycm4lce7vx57m9` FOREIGN KEY (`annotations_id`) REFERENCES `annotations` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `goal_relations_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `goal_relations_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `goals`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `goals` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `date_created` datetime(6) DEFAULT NULL,
   `version` int NOT NULL,
   `text` longtext,
@@ -258,18 +248,13 @@ CREATE TABLE `goals_goalcontainers` (
   CONSTRAINT `FKmtm3ovfmp8cr54yw46ejf6ktq` FOREIGN KEY (`goal_id`) REFERENCES `goals` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `goals_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `goals_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `lexlinkref`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `lexlinkref` (
-  `linkid` bigint NOT NULL,
+  `linkid` bigint NOT NULL AUTO_INCREMENT,
   `synset1id` bigint NOT NULL,
   `synset2id` bigint NOT NULL,
   `word1id` bigint NOT NULL,
@@ -290,7 +275,7 @@ DROP TABLE IF EXISTS `linkdef`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `linkdef` (
-  `linkid` bigint NOT NULL,
+  `linkid` bigint NOT NULL AUTO_INCREMENT,
   `name` varchar(255) DEFAULT NULL,
   `recurses` char(1) NOT NULL,
   PRIMARY KEY (`linkid`),
@@ -328,19 +313,14 @@ CREATE TABLE `organizations` (
   UNIQUE KEY `UKp9pbw3flq9hkay8hdx3ypsldy` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `organizations_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `organizations_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `pods`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `pods` (
   `type` varchar(255) NOT NULL,
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `date_created` datetime(6) DEFAULT NULL,
   `name` varchar(255) NOT NULL,
   `text` longtext,
@@ -380,13 +360,8 @@ CREATE TABLE `pods_scenarios` (
   CONSTRAINT `FKn8xfht833jryogwufjgge3lib` FOREIGN KEY (`scenarios_id`) REFERENCES `scenarios` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `pods_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `pods_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `position_issue`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -431,7 +406,7 @@ DROP TABLE IF EXISTS `reports`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `reports` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `date_created` datetime(6) DEFAULT NULL,
   `version` int NOT NULL,
   `text` longtext,
@@ -469,13 +444,8 @@ CREATE TABLE `reports_glossary_terms` (
   CONSTRAINT `FKkky467f8jyhy63jdaphmouc9h` FOREIGN KEY (`report_generator_impl_id`) REFERENCES `reports` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `reports_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `reports_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `scenario_steps`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -494,7 +464,7 @@ DROP TABLE IF EXISTS `scenarios`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `scenarios` (
   `type` varchar(255) NOT NULL,
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `date_created` datetime(6) DEFAULT NULL,
   `version` int NOT NULL,
   `text` longtext,
@@ -533,35 +503,25 @@ CREATE TABLE `scenarios_glossary_terms` (
   CONSTRAINT `FKmnfjfhy6542e0ybeskv5xvunb` FOREIGN KEY (`glossary_terms_id`) REFERENCES `terms` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `scenarios_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `scenarios_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `semcor_file`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `semcor_file` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `file` varchar(255) DEFAULT NULL,
   `section` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `semcor_file_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `semcor_file_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `semcor_sentence`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `semcor_sentence` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `snum` bigint DEFAULT NULL,
   `file_id` bigint NOT NULL,
   PRIMARY KEY (`id`),
@@ -569,18 +529,13 @@ CREATE TABLE `semcor_sentence` (
   CONSTRAINT `FKb77sj8vsvh7y6t5ynmysay3sx` FOREIGN KEY (`file_id`) REFERENCES `semcor_file` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `semcor_sentence_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `semcor_sentence_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `semcor_sentence_word`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `semcor_sentence_word` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `word_index` int DEFAULT NULL,
   `parse_tag` enum('ADJP','ADVP','CC','CD','CONJP','DT','EX','FRAG','FW','IN','INTJ','JJ','JJR','JJS','LS','LST','MD','NAC','NN','NNP','NNPS','NNS','NP','NX','PDT','POS','PP','PRN','PRP','PRP$','PRT','PUNC_DOLLAR','PUNC_DQUOTE','PUNC_NON_TERMINATOR','PUNC_SQUOTE','PUNC_TERMINATOR','QP','RB','RBR','RBS','ROOT','RP','RRC','S','SBAR','SBARQ','SINV','SQ','SYM','TO','UCP','UH','VB','VBD','VBG','VBN','VBP','VBZ','VP','WDT','WHADJP','WHAVP','WHNP','WHPP','WP','WP$','WRB','X') DEFAULT NULL,
   `text` varchar(255) DEFAULT NULL,
@@ -599,13 +554,8 @@ CREATE TABLE `semcor_sentence_word` (
   CONSTRAINT `FKkhi5rkqquwk62xg5tbbovn4fi` FOREIGN KEY (`sense_id`, `word_id`) REFERENCES `sense` (`synsetid`, `wordid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `semcor_sentence_word_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `semcor_sentence_word_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `semlinkref`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -654,7 +604,7 @@ DROP TABLE IF EXISTS `stakeholders`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `stakeholders` (
   `stakeholder_type` varchar(255) NOT NULL,
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `date_created` datetime(6) DEFAULT NULL,
   `version` int NOT NULL,
   `name` varchar(255) DEFAULT NULL,
@@ -722,18 +672,13 @@ CREATE TABLE `stakeholders_permissions` (
   CONSTRAINT `FKlekedvh4pqm5yott8y07p9avc` FOREIGN KEY (`stakeholder_permission_id`) REFERENCES `stakeholder_permissions` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `stakeholders_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `stakeholders_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `stories`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `stories` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `date_created` datetime(6) DEFAULT NULL,
   `version` int NOT NULL,
   `text` longtext,
@@ -772,13 +717,8 @@ CREATE TABLE `stories_glossary_terms` (
   CONSTRAINT `FKq1wbnqibg4v1hsk72hnaa0241` FOREIGN KEY (`story_impl_id`) REFERENCES `stories` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `stories_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `stories_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `story_actors`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -818,7 +758,7 @@ DROP TABLE IF EXISTS `synset`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `synset` (
-  `synsetid` bigint NOT NULL,
+  `synsetid` bigint NOT NULL AUTO_INCREMENT,
   `definition` varchar(1000) DEFAULT NULL,
   `pos` varchar(2) DEFAULT NULL,
   `categoryid` bigint NOT NULL,
@@ -831,7 +771,7 @@ DROP TABLE IF EXISTS `synset_definition_word`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `synset_definition_word` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `word_index` int DEFAULT NULL,
   `parse_tag` enum('ADJP','ADVP','CC','CD','CONJP','DT','EX','FRAG','FW','IN','INTJ','JJ','JJR','JJS','LS','LST','MD','NAC','NN','NNP','NNPS','NNS','NP','NX','PDT','POS','PP','PRN','PRP','PRP$','PRT','PUNC_DOLLAR','PUNC_DQUOTE','PUNC_NON_TERMINATOR','PUNC_SQUOTE','PUNC_TERMINATOR','QP','RB','RBR','RBS','ROOT','RP','RRC','S','SBAR','SBARQ','SINV','SQ','SYM','TO','UCP','UH','VB','VBD','VBG','VBN','VBP','VBZ','VP','WDT','WHADJP','WHAVP','WHNP','WHPP','WP','WP$','WRB','X') DEFAULT NULL,
   `text` varchar(255) DEFAULT NULL,
@@ -850,13 +790,8 @@ CREATE TABLE `synset_definition_word` (
   CONSTRAINT `FKl5yphwf7x3jym14fjdlndcpys` FOREIGN KEY (`synset_id`) REFERENCES `synset` (`synsetid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `synset_definition_word_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `synset_definition_word_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `synset_subsumer_counts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -886,7 +821,7 @@ DROP TABLE IF EXISTS `teams`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `teams` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `date_created` datetime(6) DEFAULT NULL,
   `version` int NOT NULL,
   `name` varchar(255) NOT NULL,
@@ -923,18 +858,13 @@ CREATE TABLE `teams_glossary_terms` (
   CONSTRAINT `FKn3l04m6q2cb7s21sn0n5nijrq` FOREIGN KEY (`project_team_impl_id`) REFERENCES `teams` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `teams_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `teams_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `terms`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `terms` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `date_created` datetime(6) DEFAULT NULL,
   `version` int NOT NULL,
   `text` longtext,
@@ -986,13 +916,8 @@ CREATE TABLE `terms_referers` (
   CONSTRAINT `FKfbuq9lgyptoec9elhkd84e8nm` FOREIGN KEY (`term_id`) REFERENCES `terms` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `terms_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `terms_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `usecase_actors`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -1033,7 +958,7 @@ DROP TABLE IF EXISTS `usecases`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `usecases` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `date_created` datetime(6) DEFAULT NULL,
   `version` int NOT NULL,
   `text` longtext,
@@ -1077,37 +1002,27 @@ CREATE TABLE `usecases_glossary_terms` (
   CONSTRAINT `FKcxe9jqb8pgm8n9u8ervqmb26c` FOREIGN KEY (`glossary_terms_id`) REFERENCES `terms` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `usecases_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `usecases_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `user_role_permissions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_role_permissions` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `name` varchar(50) NOT NULL,
   `role_type` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `UKmnjpg0c4hhycrot1lemlcf4x3` (`name`,`role_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `user_role_permissions_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `user_role_permissions_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `user_roles`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_roles` (
   `role_type` varchar(255) NOT NULL,
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `version` int NOT NULL,
   `user_id` bigint DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -1139,18 +1054,13 @@ CREATE TABLE `user_roles_permissions` (
   CONSTRAINT `FKkcmdnphr7j0ovbt9f9kj5q2sr` FOREIGN KEY (`user_role_permission_id`) REFERENCES `user_role_permissions` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `user_roles_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `user_roles_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `users`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `users` (
-  `id` bigint NOT NULL,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `editable` bit(1) NOT NULL,
   `email_address` varchar(255) NOT NULL,
   `hashed_password` varchar(255) NOT NULL,
@@ -1168,13 +1078,8 @@ CREATE TABLE `users` (
   CONSTRAINT `FKqpugllwvyv37klq7ft9m8aqxk` FOREIGN KEY (`organization_id`) REFERENCES `organizations` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `users_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `users_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `users_user_roles`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -1191,7 +1096,7 @@ DROP TABLE IF EXISTS `vnclass`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vnclass` (
-  `classid` bigint NOT NULL,
+  `classid` bigint NOT NULL AUTO_INCREMENT,
   `class` varchar(32) DEFAULT NULL,
   `parentid` bigint DEFAULT NULL,
   PRIMARY KEY (`classid`),
@@ -1203,7 +1108,7 @@ DROP TABLE IF EXISTS `vnframedef`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vnframedef` (
-  `frameid` bigint NOT NULL,
+  `frameid` bigint NOT NULL AUTO_INCREMENT,
   `description1` varchar(64) DEFAULT NULL,
   `description2` varchar(64) DEFAULT NULL,
   `number` varchar(16) DEFAULT NULL,
@@ -1217,7 +1122,7 @@ DROP TABLE IF EXISTS `vnframeref`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vnframeref` (
-  `framerefid` bigint NOT NULL,
+  `framerefid` bigint NOT NULL AUTO_INCREMENT,
   `frameid` bigint NOT NULL,
   `synsetid` bigint NOT NULL,
   `wordid` bigint NOT NULL,
@@ -1231,18 +1136,13 @@ CREATE TABLE `vnframeref` (
   CONSTRAINT `FKkhxdot0eh2l3f0nq9emj0j5vw` FOREIGN KEY (`synsetid`, `wordid`) REFERENCES `sense` (`synsetid`, `wordid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `vnframeref_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `vnframeref_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `vnroleref`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vnroleref` (
-  `rolerefid` bigint NOT NULL,
+  `rolerefid` bigint NOT NULL AUTO_INCREMENT,
   `selrestrs` varchar(255) NOT NULL,
   `classid` bigint NOT NULL,
   `roletypeid` bigint NOT NULL,
@@ -1253,18 +1153,13 @@ CREATE TABLE `vnroleref` (
   CONSTRAINT `FKmyyhld9vhyhlb06a5v0g3qil1` FOREIGN KEY (`roletypeid`) REFERENCES `vnroletype` (`roletypeid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `vnroleref_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `vnroleref_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `vnroleselres`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vnroleselres` (
-  `roleselresid` bigint NOT NULL,
+  `roleselresid` bigint NOT NULL AUTO_INCREMENT,
   `include` varchar(255) DEFAULT NULL,
   `rolerefid` bigint NOT NULL,
   `roletypeid` bigint NOT NULL,
@@ -1275,36 +1170,26 @@ CREATE TABLE `vnroleselres` (
   CONSTRAINT `FKaeshx7ywhc9f4hc8aslxoob04` FOREIGN KEY (`roletypeid`) REFERENCES `vnselres` (`vnselresid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `vnroleselres_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `vnroleselres_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `vnroletype`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vnroletype` (
-  `roletypeid` bigint NOT NULL,
+  `roletypeid` bigint NOT NULL AUTO_INCREMENT,
   `semrole` enum('ACTOR','ACTOR1','ACTOR2','AGENT','ASSET','ATTRIBUTE','BENEFICIARY','CAUSE','DESTINATION','EXPERIENCER','EXTENT','INSTRUMENT','LOCATION','MATERIAL','OBLIQUE','PARTICIPANT','PATIENT','PATIENT1','PATIENT2','PREDICATE','PRODUCT','PROPOSITION','RECIPIENT','SOURCE','STIMULUS','THEME','THEME1','THEME2','TIME','TOPIC','VALUE','VERB') NOT NULL,
   `type` varchar(255) NOT NULL,
   PRIMARY KEY (`roletypeid`),
   UNIQUE KEY `UK578wkfgqijt8r6xis08c3029x` (`type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `vnroletype_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `vnroletype_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `vnselres`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vnselres` (
-  `vnselresid` bigint NOT NULL,
+  `vnselresid` bigint NOT NULL AUTO_INCREMENT,
   `name` varchar(255) DEFAULT NULL,
   `linkid` bigint DEFAULT NULL,
   `synsetid` bigint NOT NULL,
@@ -1315,31 +1200,21 @@ CREATE TABLE `vnselres` (
   CONSTRAINT `FKhwp3q3biwna2i1np24r2glk6m` FOREIGN KEY (`linkid`) REFERENCES `linkdef` (`linkid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `vnselres_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `vnselres_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `word`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `word` (
-  `wordid` bigint NOT NULL,
+  `wordid` bigint NOT NULL AUTO_INCREMENT,
   `lemma` varchar(80) NOT NULL,
   `phonetic_code` varchar(80) DEFAULT NULL,
   PRIMARY KEY (`wordid`),
   UNIQUE KEY `UK1ri15gaw0ns42jjs3bphg377f` (`lemma`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `word_seq`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `word_seq` (
-  `next_val` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 --
 -- WARNING: can't read the INFORMATION_SCHEMA.libraries table. It's most probably an old server 8.4.6.
 --

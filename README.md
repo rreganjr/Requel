@@ -17,6 +17,13 @@ Pass in the database setting parameters like this:
 * **jdbc url** --spring.datasource.url=\<url\>
 * **username** --spring.datasource.username=\<username\>
 * **password** --spring.datasource.password=\<password\>
+
+If you already have an existing Requel database (created before Flyway was introduced), run once with these Flyway baseline flags so the schema is registered and the identity fixes apply:
+
+* `-e SPRING_FLYWAY_BASELINE_ON_MIGRATE=true`
+* `-e SPRING_FLYWAY_BASELINE_VERSION=1`
+
+Remove these after the first successful start; subsequent runs should omit them.
  
 Optionally pass the service port like this:
 
@@ -68,3 +75,26 @@ docker run --name requel --net=requel-net -p8181:8080 -d \
   --spring.datasource.password=pa33w0rd
 ```
 Then access the app http://localhost:8181/ (host MySQL exposed on port 3307)
+
+### Database initialization and upgrades
+
+- **Fresh database**: nothing extra to pass. Flyway runs `V1__init.sql` (now emits proper `AUTO_INCREMENT` PKs and no `*_seq` tables). `V2__identity_cleanup.sql` is a no-op on a clean schema.
+- **Existing database** (pre-Flyway or older schema with sequence tables):
+  - If `flyway_schema_history` already exists, just start the new image; Flyway will run `V2__identity_cleanup.sql` to drop legacy `*_seq` tables and set PKs to `AUTO_INCREMENT`.
+  - If there is no `flyway_schema_history`, start once with:
+    ```
+    -e SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
+    -e SPRING_FLYWAY_BASELINE_VERSION=1
+    ```
+    This baselines your current schema as version 1, then applies `V2__identity_cleanup.sql`. Remove these env vars after the first successful start.
+  - Example first start against an existing DB:
+    ```bash
+    docker run --name requel --net=requel-net -p8181:8080 -d \
+      -e SPRING_FLYWAY_BASELINE_ON_MIGRATE=true \
+      -e SPRING_FLYWAY_BASELINE_VERSION=1 \
+      rreganjr/requel:1.2.0 \
+      --spring.datasource.url=jdbc:mysql://requelDB:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC \
+      --spring.datasource.username=root \
+      --spring.datasource.password=pa33w0rd
+    ```
+    On subsequent starts, omit the two `SPRING_FLYWAY_*` env vars.
