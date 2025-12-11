@@ -143,25 +143,9 @@ networks:
 docker compose up
 ```
 
-## 8. Tag the Release in Git
+## 8. Tag the Release in GitHub
 
-```bash
-# Set a temporary repo-local identity so the tag is authored as rreganjr
-git config user.name "rreganjr"
-git config user.email "11188410+rreganjr@users.noreply.github.com"
-
-git checkout master
-git merge update-spring-boot-3
-git tag v1.2.0
-git push origin master --tags
-
-# Optional: remove the temporary identity
-git config --unset user.name
-git config --unset user.email
-```
-
-## 9. Publish GitHub Release
-
-1. Draft a release on GitHub using tag `v1.2.0`.
-2. Attach `target/Requel-1.2.0.jar` built earlier.
-3. Highlight key notes (Java 17 requirement, Spring Boot 3 upgrade, Docker tag).
+1) Open https://github.com/rreganjr/Requel → “Releases” → “Draft a new release”.
+2) In “Choose a tag”, type `v1.2.0` (or your version) and select “Create new tag on publish”.
+3) Target branch: `master`. Publish. This creates the tag server-side—no local auth hassles.
+4) highlight key updates
