@@ -29,22 +29,22 @@ Note for zsh users: quote the JDBC URL (because of the `?`) or prefix the comman
 ```bash
 # macOS (uses /usr/libexec/java_home)
 JAVA_HOME=$(/usr/libexec/java_home -v 17) PATH="$JAVA_HOME/bin:$PATH" \
-java -jar ./target/Requel-1.1.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.datasource.username=root --spring.datasource.password='password' --server.port=8081
+java -jar ./target/Requel-1.2.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.datasource.username=root --spring.datasource.password='password' --server.port=8081
 
 # Linux (set JAVA_HOME manually)
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 export PATH="$JAVA_HOME/bin:$PATH"
-java -jar ./target/Requel-1.1.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.datasource.username=root --spring.datasource.password='password' --server.port=8081
+java -jar ./target/Requel-1.2.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.datasource.username=root --spring.datasource.password='password' --server.port=8081
 
 # Windows PowerShell
 $env:JAVA_HOME="C:\\Program Files\\Java\\jdk-17"
 $env:Path="${env:JAVA_HOME}\\bin;${env:Path}"
-java -jar .\target\Requel-1.1.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.datasource.username=root --spring.datasource.password='password' --server.port=8081
+java -jar .\target\Requel-1.2.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.datasource.username=root --spring.datasource.password='password' --server.port=8081
 
 # Windows Command Prompt
 set JAVA_HOME=C:\\Program Files\\Java\\jdk-17
 set PATH=%JAVA_HOME%\\bin;%PATH%
-java -jar .\target\Requel-1.1.0.jar "--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC" --spring.datasource.username=root --spring.datasource.password=password --server.port=8081
+java -jar .\target\Requel-1.2.0.jar "--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC" --spring.datasource.username=root --spring.datasource.password=password --server.port=8081
 ```
 
 Then access the app http://localhost:8081/
@@ -60,9 +60,9 @@ docker network create requel-net || true
 # MySQL 8.4 container (maps host port 3307)
 docker run --name requelDB --net=requel-net -p3307:3306 -e MYSQL_ROOT_PASSWORD=pa33w0rd -d mysql:8.4
 
-# Requel 1.1.0 image (Java 17 base), connecting to MySQL 8
+# Requel 1.2.0 image (Java 17 base), connecting to MySQL 8
 docker run --name requel --net=requel-net -p8181:8080 -d \
-  rreganjr/requel:1.1.0 \
+  rreganjr/requel:1.2.0 \
   --spring.datasource.url=jdbc:mysql://requelDB:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC \
   --spring.datasource.username=root \
   --spring.datasource.password=pa33w0rd
