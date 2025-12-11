@@ -44,6 +44,29 @@
             </plugins>
         </pluginManagement>
         <plugins>
+            <!-- Enforce Java 17 for the build to fail fast if an older JDK is used -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.4.1</version>
+                <executions>
+                    <execution>
+                        <id>enforce-java</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[17,)</version>
+                                    <message>Build requires JDK 17+. Set JAVA_HOME to a 17 JDK.</message>
+                                </requireJavaVersion>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-toolchains-plugin</artifactId>
@@ -87,5 +110,5 @@
         <module>modules/nlp-ui</module>
         <module>modules/ui-assets</module>
         <module>modules/requel-app</module>
-    </modules>
+  </modules>
 </project>
