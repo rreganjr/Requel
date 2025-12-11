@@ -84,7 +84,7 @@ private Set<JpaUserRolePermission> userRolePermissions = new HashSet<>();
 	}
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	protected Long getId() {
 		return id;
 	}

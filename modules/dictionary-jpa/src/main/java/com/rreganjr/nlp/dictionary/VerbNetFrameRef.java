@@ -51,7 +51,7 @@ public class VerbNetFrameRef implements Comparable<VerbNetFrameRef>, Serializabl
 	}
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "framerefid", unique = true, nullable = false)
 	public Long getId() {
 		return this.id;

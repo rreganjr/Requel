@@ -45,7 +45,7 @@ public class VerbNetRole implements java.io.Serializable, Comparable<VerbNetRole
 	}
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "roletypeid", unique = true, nullable = false)
 	public Long getId() {
 		return this.id;

@@ -74,7 +74,7 @@ public class StakeholderPermissionImpl implements StakeholderPermission {
 	}
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	protected Long getId() {
 		return id;
 	}

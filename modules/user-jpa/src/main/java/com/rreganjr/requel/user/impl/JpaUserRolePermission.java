@@ -78,7 +78,7 @@ public class JpaUserRolePermission implements UserRolePermission {
 	}
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@XmlAttribute(name = "id")
 	@XmlJavaTypeAdapter(IdAdapter.class)
 	protected Long getId() {

@@ -62,7 +62,7 @@ public class VerbNetSelectionRestrictionType implements
 	}
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "vnselresid", unique = true, nullable = false)
 	public Long getId() {
 		return id;

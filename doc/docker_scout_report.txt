@@ -1,0 +1,732 @@
+rregan_platformq@admin-MacBook-Pro Requel % docker scout cves local://rreganjr/requel:1.2.0
+    i New version 1.18.4 available (installed version is 1.18.3) at https://github.com/docker/scout-cli
+    ✓ SBOM of image already cached, 385 packages indexed
+    ✗ Detected 35 vulnerable packages with a total of 62 vulnerabilities
+
+
+## Overview
+
+                    │         Analyzed Image
+────────────────────┼──────────────────────────────────
+  Target            │  local://rreganjr/requel:1.2.0
+    digest          │  e0a2605bfaa3
+    platform        │ linux/arm64
+    vulnerabilities │    5C    18H    23M    22L
+    size            │ 826 MB
+    packages        │ 385
+
+
+## Packages and Vulnerabilities
+
+   3C     3H     0M     1L  log4j/log4j 1.2.17
+pkg:maven/log4j/log4j@1.2.17
+
+    ✗ CRITICAL CVE-2022-23307 [Deserialization of Untrusted Data]
+      https://scout.docker.com/v/CVE-2022-23307
+      Affected range : <=1.2.17
+      Fixed version  : not fixed
+      CVSS Score     : 9.8
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
+
+    ✗ CRITICAL CVE-2022-23305 [Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')]
+      https://scout.docker.com/v/CVE-2022-23305
+      Affected range : <=1.2.17
+      Fixed version  : not fixed
+      CVSS Score     : 9.8
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
+
+    ✗ CRITICAL CVE-2019-17571 [Deserialization of Untrusted Data]
+      https://scout.docker.com/v/CVE-2019-17571
+      Affected range : >=1.2
+                     : <=1.2.17
+      Fixed version  : not fixed
+      CVSS Score     : 9.8
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
+
+    ✗ HIGH CVE-2022-23302 [Deserialization of Untrusted Data]
+      https://scout.docker.com/v/CVE-2022-23302
+      Affected range : <=1.2.17
+      Fixed version  : not fixed
+      CVSS Score     : 8.8
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H
+
+    ✗ HIGH CVE-2023-26464 [Uncontrolled Resource Consumption]
+      https://scout.docker.com/v/CVE-2023-26464
+      Affected range : >=1.0.4
+                     : <2.0
+      Fixed version  : 2.0
+      CVSS Score     : 7.5
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H
+
+    ✗ HIGH CVE-2021-4104 [Deserialization of Untrusted Data]
+      https://scout.docker.com/v/CVE-2021-4104
+      Affected range : >=1.2.0
+                     : <=1.2.17
+      Fixed version  : not fixed
+      CVSS Score     : 7.5
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H
+
+    ✗ LOW CVE-2020-9488 [OWASP Top Ten 2017 Category A9 - Using Components with Known Vulnerabilities]
+      https://scout.docker.com/v/CVE-2020-9488
+      Affected range : <2.12.3
+      Fixed version  : 2.12.3, 2.13.2
+      CVSS Score     : 3.7
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N
+
+
+   1C     5H     4M     4L  org.apache.tomcat.embed/tomcat-embed-core 10.1.30
+pkg:maven/org.apache.tomcat.embed/tomcat-embed-core@10.1.30
+
+    ✗ CRITICAL CVE-2025-24813  CISA KEV  [Path Equivalence: 'file.name' (Internal Dot)]
+      https://scout.docker.com/v/CVE-2025-24813
+      Affected range : >=10.1.0-M1
+                     : <10.1.35
+      Fixed version  : 10.1.35
+      CVSS Score     : 9.2
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:A
+
+    ✗ HIGH CVE-2025-48988 [Allocation of Resources Without Limits or Throttling]
+      https://scout.docker.com/v/CVE-2025-48988
+      Affected range : >=10.1.0-M1
+                     : <=10.1.41
+      Fixed version  : 10.1.42
+      CVSS Score     : 8.7
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N
+
+    ✗ HIGH CVE-2025-55752 [Relative Path Traversal]
+      https://scout.docker.com/v/CVE-2025-55752
+      Affected range : >=10.1.0-M1
+                     : <10.1.45
+      Fixed version  : 10.1.45
+      CVSS Score     : 7.7
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:P/PR:L/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N
+
+    ✗ HIGH CVE-2025-48989 [Improper Resource Shutdown or Release]
+      https://scout.docker.com/v/CVE-2025-48989
+      Affected range : >=10.1.0-M1
+                     : <10.1.44
+      Fixed version  : 10.1.44
+      CVSS Score     : 7.5
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H
+
+    ✗ HIGH CVE-2024-56337 [Time-of-check Time-of-use (TOCTOU) Race Condition]
+      https://scout.docker.com/v/CVE-2024-56337
+      Affected range : >=10.1.0-M1
+                     : <10.1.34
+      Fixed version  : 10.1.34
+      CVSS Score     : 7.2
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:U
+
+    ✗ HIGH CVE-2024-50379 [Time-of-check Time-of-use (TOCTOU) Race Condition]
+      https://scout.docker.com/v/CVE-2024-50379
+      Affected range : >=10.1.0-M1
+                     : <10.1.34
+      Fixed version  : 10.1.34
+      CVSS Score     : 7.2
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:U
+
+    ✗ MEDIUM CVE-2025-31650 [Incomplete Cleanup]
+      https://scout.docker.com/v/CVE-2025-31650
+      Affected range : >=10.1.10
+                     : <10.1.40
+      Fixed version  : 10.1.40
+      CVSS Score     : 6.6
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N/E:U
+
+    ✗ MEDIUM CVE-2024-52317 [Inadequate Encryption Strength]
+      https://scout.docker.com/v/CVE-2024-52317
+      Affected range : >=10.1.27
+                     : <10.1.31
+      Fixed version  : 10.1.31
+      CVSS Score     : 6.5
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N
+
+    ✗ MEDIUM CVE-2025-49125 [Authentication Bypass Using an Alternate Path or Channel]
+      https://scout.docker.com/v/CVE-2025-49125
+      Affected range : >=10.1.0-M1
+                     : <=10.1.41
+      Fixed version  : 10.1.42
+      CVSS Score     : 6.3
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N
+
+    ✗ MEDIUM CVE-2025-49124 [Untrusted Search Path]
+      https://scout.docker.com/v/CVE-2025-49124
+      Affected range : >=10.1.0
+                     : <10.1.42
+      Fixed version  : 10.1.42
+      CVSS Score     : 4.8
+      CVSS Vector    : CVSS:4.0/AV:L/AC:L/AT:P/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:U
+
+    ✗ LOW CVE-2025-31651 [Improper Encoding or Escaping of Output]
+      https://scout.docker.com/v/CVE-2025-31651
+      Affected range : >=10.1.10
+                     : <10.1.40
+      Fixed version  : 10.1.40
+      CVSS Score     : 2.7
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N/E:U
+
+    ✗ LOW CVE-2025-61795 [Improper Resource Shutdown or Release]
+      https://scout.docker.com/v/CVE-2025-61795
+      Affected range : >=10.1.0-M1
+                     : <10.1.47
+      Fixed version  : 10.1.47
+      CVSS Score     : 2.3
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:P/PR:L/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N/E:U
+
+    ✗ LOW CVE-2025-55754 [Improper Neutralization of Escape, Meta, or Control Sequences]
+      https://scout.docker.com/v/CVE-2025-55754
+      Affected range : >=10.1.0-M1
+                     : <10.1.45
+      Fixed version  : 10.1.45
+      CVSS Score     : 2.1
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:A/VC:L/VI:L/VA:L/SC:N/SI:N/SA:N
+
+    ✗ LOW CVE-2025-46701 [Improper Handling of Case Sensitivity]
+      https://scout.docker.com/v/CVE-2025-46701
+      Affected range : >=10.1.0-M1
+                     : <10.1.41
+      Fixed version  : 10.1.41
+      CVSS Score     : 1.7
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N/E:U/U:Clear
+
+
+   1C     0H     0M     0L  org.springframework.security/spring-security-web 6.3.3
+pkg:maven/org.springframework.security/spring-security-web@6.3.3
+
+    ✗ CRITICAL CVE-2024-38821 [Improper Authorization]
+      https://scout.docker.com/v/CVE-2024-38821
+      Affected range : >=6.3.0
+                     : <6.3.4
+      Fixed version  : 6.3.4
+      CVSS Score     : 9.3
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N
+
+
+   0C     3H     0M     0L  commons-beanutils/commons-beanutils 1.8.3
+pkg:maven/commons-beanutils/commons-beanutils@1.8.3
+
+    ✗ HIGH CVE-2025-48734 [Improper Access Control]
+      https://scout.docker.com/v/CVE-2025-48734
+      Affected range : >=1.0
+                     : <=1.10.1
+      Fixed version  : 1.11.0
+      CVSS Score     : 8.8
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H
+
+    ✗ HIGH CVE-2019-10086 [Deserialization of Untrusted Data]
+      https://scout.docker.com/v/CVE-2019-10086
+      Affected range : <1.9.4
+      Fixed version  : 1.9.4
+      CVSS Score     : 7.3
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L
+
+    ✗ HIGH CVE-2014-0114 [Improper Input Validation]
+      https://scout.docker.com/v/CVE-2014-0114
+      Affected range : >=1.8.0
+                     : <1.9.4
+      Fixed version  : 1.9.4
+
+
+   0C     1H     1M     0L  org.springframework/spring-webmvc 6.1.13
+pkg:maven/org.springframework/spring-webmvc@6.1.13
+
+    ✗ HIGH CVE-2024-38819 [Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')]
+      https://scout.docker.com/v/CVE-2024-38819
+      Affected range : >=6.1.0
+                     : <6.1.14
+      Fixed version  : 6.1.14
+      CVSS Score     : 7.5
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N
+
+    ✗ MEDIUM CVE-2025-41242 [Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')]
+      https://scout.docker.com/v/CVE-2025-41242
+      Affected range : >=6.1.0
+                     : <=6.1.21
+      Fixed version  : not fixed
+      CVSS Score     : 5.9
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N
+
+
+   0C     1H     1M     0L  org.springframework/spring-core 6.1.13
+pkg:maven/org.springframework/spring-core@6.1.13
+
+    ✗ HIGH CVE-2025-41249 [Improper Authorization]
+      https://scout.docker.com/v/CVE-2025-41249
+      Affected range : >=6.0.0
+                     : <=6.1.22
+      Fixed version  : not fixed
+      CVSS Score     : 7.5
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N
+
+    ✗ MEDIUM CVE-2024-38827 [OWASP Top Ten 2017 Category A9 - Using Components with Known Vulnerabilities]
+      https://scout.docker.com/v/CVE-2024-38827
+      Affected range : <6.1.14
+      Fixed version  : 6.1.14
+      CVSS Score     : 4.8
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N
+
+
+   0C     1H     0M     0L  org.springframework.boot/spring-boot 3.3.4
+pkg:maven/org.springframework.boot/spring-boot@3.3.4
+
+    ✗ HIGH CVE-2025-22235 [Improper Input Validation]
+      https://scout.docker.com/v/CVE-2025-22235
+      Affected range : >=3.3.0
+                     : <=3.3.10
+      Fixed version  : 3.3.11
+      CVSS Score     : 7.3
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L
+
+
+   0C     1H     0M     0L  org.apache.commons/commons-fileupload2-core 2.0.0-M1
+pkg:maven/org.apache.commons/commons-fileupload2-core@2.0.0-M1
+
+    ✗ HIGH CVE-2025-48976 [Allocation of Resources Without Limits or Throttling]
+      https://scout.docker.com/v/CVE-2025-48976
+      Affected range : >=2.0.0-M1
+                     : <2.0.0-M4
+      Fixed version  : 2.0.0-M4
+      CVSS Score     : 8.7
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N
+
+
+   0C     1H     0M     0L  net.minidev/json-smart 2.5.1
+pkg:maven/net.minidev/json-smart@2.5.1
+
+    ✗ HIGH CVE-2024-57699 [Uncontrolled Recursion]
+      https://scout.docker.com/v/CVE-2024-57699
+      Affected range : >=2.5.0
+                     : <2.5.2
+      Fixed version  : 2.5.2
+      CVSS Score     : 7.5
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H
+
+
+   0C     1H     0M     0L  org.springframework.security/spring-security-crypto 6.3.3
+pkg:maven/org.springframework.security/spring-security-crypto@6.3.3
+
+    ✗ HIGH CVE-2025-22228 [Improper Authentication]
+      https://scout.docker.com/v/CVE-2025-22228
+      Affected range : >=6.3.0
+                     : <6.3.8
+      Fixed version  : 6.3.8
+      CVSS Score     : 7.4
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N
+
+
+   0C     1H     0M     0L  com.google.protobuf/protobuf-java 3.25.1
+pkg:maven/com.google.protobuf/protobuf-java@3.25.1
+
+    ✗ HIGH CVE-2024-7254 [Improper Input Validation]
+      https://scout.docker.com/v/CVE-2024-7254
+      Affected range : <3.25.5
+      Fixed version  : 3.25.5
+      CVSS Score     : 8.7
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N
+
+
+   0C     0H     4M     0L  libpng1.6 1.6.37-3build5
+pkg:deb/ubuntu/libpng1.6@1.6.37-3build5?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ MEDIUM CVE-2025-65018
+      https://scout.docker.com/v/CVE-2025-65018
+      Affected range : >=0
+      Fixed version  : not fixed
+
+    ✗ MEDIUM CVE-2025-64720
+      https://scout.docker.com/v/CVE-2025-64720
+      Affected range : >=0
+      Fixed version  : not fixed
+
+    ✗ MEDIUM CVE-2025-64506
+      https://scout.docker.com/v/CVE-2025-64506
+      Affected range : >=0
+      Fixed version  : not fixed
+
+    ✗ MEDIUM CVE-2025-64505
+      https://scout.docker.com/v/CVE-2025-64505
+      Affected range : >=0
+      Fixed version  : not fixed
+
+
+   0C     0H     2M     1L  org.springframework/spring-context 6.1.13
+pkg:maven/org.springframework/spring-context@6.1.13
+
+    ✗ MEDIUM CVE-2024-38820 [Improper Handling of Case Sensitivity]
+      https://scout.docker.com/v/CVE-2024-38820
+      Affected range : >=6.1.0
+                     : <6.1.14
+      Fixed version  : 6.1.14
+      CVSS Score     : 5.3
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N
+
+    ✗ MEDIUM CVE-2024-38827 [OWASP Top Ten 2017 Category A9 - Using Components with Known Vulnerabilities]
+      https://scout.docker.com/v/CVE-2024-38827
+      Affected range : <6.1.14
+      Fixed version  : 6.1.14
+      CVSS Score     : 4.8
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N
+
+    ✗ LOW CVE-2025-22233 [Improper Input Validation]
+      https://scout.docker.com/v/CVE-2025-22233
+      Affected range : >=6.1.0
+                     : <=6.1.19
+      Fixed version  : 6.1.20
+      CVSS Score     : 3.1
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:L/A:N
+
+
+   0C     0H     2M     1L  ch.qos.logback/logback-core 1.5.8
+pkg:maven/ch.qos.logback/logback-core@1.5.8
+
+    ✗ MEDIUM CVE-2025-11226 [Improper Input Validation]
+      https://scout.docker.com/v/CVE-2025-11226
+      Affected range : >=1.4.0
+                     : <1.5.19
+      Fixed version  : 1.5.19
+      CVSS Score     : 5.9
+      CVSS Vector    : CVSS:4.0/AV:L/AC:L/AT:P/PR:H/UI:P/VC:H/VI:L/VA:L/SC:H/SI:L/SA:L
+
+    ✗ MEDIUM CVE-2024-12798 [Improper Neutralization of Special Elements used in an Expression Language Statement ('Expression Language Injection')]
+      https://scout.docker.com/v/CVE-2024-12798
+      Affected range : >=1.4.0
+                     : <1.5.13
+      Fixed version  : 1.5.13
+      CVSS Score     : 5.9
+      CVSS Vector    : CVSS:4.0/AV:L/AC:L/AT:P/PR:L/UI:P/VC:L/VI:H/VA:L/SC:L/SI:H/SA:L/RE:L/U:Clear
+
+    ✗ LOW CVE-2024-12801 [Server-Side Request Forgery (SSRF)]
+      https://scout.docker.com/v/CVE-2024-12801
+      Affected range : >=1.4.0
+                     : <1.5.13
+      Fixed version  : 1.5.13
+      CVSS Score     : 2.4
+      CVSS Vector    : CVSS:4.0/AV:L/AC:L/AT:P/PR:L/UI:P/VC:L/VI:N/VA:L/SC:H/SI:H/SA:H/V:D/U:Clear
+
+
+   0C     0H     2M     0L  org.springframework/spring-web 6.1.13
+pkg:maven/org.springframework/spring-web@6.1.13
+
+    ✗ MEDIUM CVE-2025-41234 [Improper Neutralization of CRLF Sequences in HTTP Headers ('HTTP Request/Response Splitting')]
+      https://scout.docker.com/v/CVE-2025-41234
+      Affected range : >=6.1.0
+                     : <6.1.21
+      Fixed version  : 6.1.21
+      CVSS Score     : 6.5
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:L/UI:R/S:C/C:H/I:L/A:N
+
+    ✗ MEDIUM CVE-2024-38820 [Improper Handling of Case Sensitivity]
+      https://scout.docker.com/v/CVE-2024-38820
+      Affected range : >=6.1.0
+                     : <6.1.14
+      Fixed version  : 6.1.14
+      CVSS Score     : 5.3
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N
+
+
+   0C     0H     1M     0L  pam 1.4.0-11ubuntu2.6
+pkg:deb/ubuntu/pam@1.4.0-11ubuntu2.6?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ MEDIUM CVE-2025-8941
+      https://scout.docker.com/v/CVE-2025-8941
+      Affected range : >=0
+      Fixed version  : not fixed
+
+
+   0C     0H     1M     0L  org.springframework.security/spring-security-core 6.3.3
+pkg:maven/org.springframework.security/spring-security-core@6.3.3
+
+    ✗ MEDIUM CVE-2024-38827 [Authorization Bypass Through User-Controlled Key]
+      https://scout.docker.com/v/CVE-2024-38827
+      Affected range : >=6.3.0
+                     : <6.3.5
+      Fixed version  : 6.3.5
+      CVSS Score     : 6.3
+      CVSS Vector    : CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N
+
+
+   0C     0H     1M     0L  org.springframework/spring-expression 6.1.13
+pkg:maven/org.springframework/spring-expression@6.1.13
+
+    ✗ MEDIUM CVE-2024-38827 [OWASP Top Ten 2017 Category A9 - Using Components with Known Vulnerabilities]
+      https://scout.docker.com/v/CVE-2024-38827
+      Affected range : <6.1.14
+      Fixed version  : 6.1.14
+      CVSS Score     : 4.8
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N
+
+
+   0C     0H     1M     0L  org.springframework/spring-beans 6.1.13
+pkg:maven/org.springframework/spring-beans@6.1.13
+
+    ✗ MEDIUM CVE-2024-38827 [OWASP Top Ten 2017 Category A9 - Using Components with Known Vulnerabilities]
+      https://scout.docker.com/v/CVE-2024-38827
+      Affected range : <6.1.14
+      Fixed version  : 6.1.14
+      CVSS Score     : 4.8
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N
+
+
+   0C     0H     1M     0L  org.springframework/spring-jdbc 6.1.13
+pkg:maven/org.springframework/spring-jdbc@6.1.13
+
+    ✗ MEDIUM CVE-2024-38827 [OWASP Top Ten 2017 Category A9 - Using Components with Known Vulnerabilities]
+      https://scout.docker.com/v/CVE-2024-38827
+      Affected range : <6.1.14
+      Fixed version  : 6.1.14
+      CVSS Score     : 4.8
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N
+
+
+   0C     0H     1M     0L  tar 1.34+dfsg-1ubuntu0.1.22.04.2
+pkg:deb/ubuntu/tar@1.34%2Bdfsg-1ubuntu0.1.22.04.2?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ MEDIUM CVE-2025-45582
+      https://scout.docker.com/v/CVE-2025-45582
+      Affected range : >=0
+      Fixed version  : not fixed
+
+
+   0C     0H     1M     0L  wget 1.21.2-2ubuntu1.1
+pkg:deb/ubuntu/wget@1.21.2-2ubuntu1.1?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ MEDIUM CVE-2021-31879
+      https://scout.docker.com/v/CVE-2021-31879
+      Affected range : >=0
+      Fixed version  : not fixed
+      CVSS Score     : 6.1
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N
+
+
+   0C     0H     0M     2L  curl 7.81.0-1ubuntu1.21
+pkg:deb/ubuntu/curl@7.81.0-1ubuntu1.21?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ LOW CVE-2025-9086
+      https://scout.docker.com/v/CVE-2025-9086
+      Affected range : >=0
+      Fixed version  : not fixed
+
+    ✗ LOW CVE-2025-0167
+      https://scout.docker.com/v/CVE-2025-0167
+      Affected range : >=0
+      Fixed version  : not fixed
+
+
+   0C     0H     0M     2L  shadow 1:4.8.1-2ubuntu2.2
+pkg:deb/ubuntu/shadow@1%3A4.8.1-2ubuntu2.2?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ LOW CVE-2023-29383
+      https://scout.docker.com/v/CVE-2023-29383
+      Affected range : >=0
+      Fixed version  : not fixed
+      CVSS Score     : 3.3
+      CVSS Vector    : CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:L/A:N
+
+    ✗ LOW CVE-2024-56433
+      https://scout.docker.com/v/CVE-2024-56433
+      Affected range : >=0
+      Fixed version  : not fixed
+
+
+   0C     0H     0M     1L  ncurses 6.3-2ubuntu0.1
+pkg:deb/ubuntu/ncurses@6.3-2ubuntu0.1?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ LOW CVE-2023-50495
+      https://scout.docker.com/v/CVE-2023-50495
+      Affected range : >=0
+      Fixed version  : not fixed
+      CVSS Score     : 6.5
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H
+
+
+   0C     0H     0M     1L  gnupg2 2.2.27-3ubuntu2.4
+pkg:deb/ubuntu/gnupg2@2.2.27-3ubuntu2.4?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ LOW CVE-2022-3219
+      https://scout.docker.com/v/CVE-2022-3219
+      Affected range : >=0
+      Fixed version  : not fixed
+      CVSS Score     : 3.3
+      CVSS Vector    : CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L
+
+
+   0C     0H     0M     1L  org.xmlunit/xmlunit-core 2.9.1
+pkg:maven/org.xmlunit/xmlunit-core@2.9.1
+
+    ✗ LOW CVE-2024-31573
+      https://scout.docker.com/v/CVE-2024-31573
+      Affected range : <2.10.0
+      Fixed version  : 2.10.0
+
+
+   0C     0H     0M     1L  pcre3 2:8.39-13ubuntu0.22.04.1
+pkg:deb/ubuntu/pcre3@2%3A8.39-13ubuntu0.22.04.1?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ LOW CVE-2017-11164
+      https://scout.docker.com/v/CVE-2017-11164
+      Affected range : >=0
+      Fixed version  : not fixed
+      CVSS Score     : 7.5
+      CVSS Vector    : CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H
+
+
+   0C     0H     0M     1L  libzstd 1.4.8+dfsg-3build1
+pkg:deb/ubuntu/libzstd@1.4.8%2Bdfsg-3build1?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ LOW CVE-2022-4899
+      https://scout.docker.com/v/CVE-2022-4899
+      Affected range : >=0
+      Fixed version  : not fixed
+      CVSS Score     : 7.5
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H
+
+
+   0C     0H     0M     1L  openssl 3.0.2-0ubuntu1.20
+pkg:deb/ubuntu/openssl@3.0.2-0ubuntu1.20?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ LOW CVE-2024-41996
+      https://scout.docker.com/v/CVE-2024-41996
+      Affected range : >=0
+      Fixed version  : not fixed
+
+
+   0C     0H     0M     1L  systemd 249.11-0ubuntu3.17
+pkg:deb/ubuntu/systemd@249.11-0ubuntu3.17?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ LOW CVE-2023-7008
+      https://scout.docker.com/v/CVE-2023-7008
+      Affected range : >=0
+      Fixed version  : not fixed
+      CVSS Score     : 5.9
+      CVSS Vector    : CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N
+
+
+   0C     0H     0M     1L  gcc-12 12.3.0-1ubuntu1~22.04.2
+pkg:deb/ubuntu/gcc-12@12.3.0-1ubuntu1~22.04.2?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ LOW CVE-2022-27943
+      https://scout.docker.com/v/CVE-2022-27943
+      Affected range : >=0
+      Fixed version  : not fixed
+      CVSS Score     : 5.5
+      CVSS Vector    : CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H
+
+
+   0C     0H     0M     1L  coreutils 8.32-4.1ubuntu1.2
+pkg:deb/ubuntu/coreutils@8.32-4.1ubuntu1.2?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ LOW CVE-2016-2781
+      https://scout.docker.com/v/CVE-2016-2781
+      Affected range : >=0
+      Fixed version  : not fixed
+      CVSS Score     : 6.5
+      CVSS Vector    : CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:C/C:N/I:H/A:N
+
+
+   0C     0H     0M     1L  libgcrypt20 1.9.4-3ubuntu3
+pkg:deb/ubuntu/libgcrypt20@1.9.4-3ubuntu3?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ LOW CVE-2024-2236
+      https://scout.docker.com/v/CVE-2024-2236
+      Affected range : >=0
+      Fixed version  : not fixed
+
+
+   0C     0H     0M     1L  pcre2 10.39-3ubuntu0.1
+pkg:deb/ubuntu/pcre2@10.39-3ubuntu0.1?os_distro=jammy&os_name=ubuntu&os_version=22.04
+
+    ✗ LOW CVE-2022-41409
+      https://scout.docker.com/v/CVE-2022-41409
+      Affected range : >=0
+      Fixed version  : not fixed
+      CVSS Score     : 7.5
+      CVSS Vector    : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H
+
+
+
+68 vulnerabilities found in 35 packages
+  CRITICAL  5
+  HIGH      18
+  MEDIUM    23
+  LOW       22
+
+
+What's next:
+    View base image update recommendations → docker scout recommendations local://rreganjr/requel:1.2.0
+
+
+rregan_platformq@admin-MacBook-Pro Requel % docker scout recommendations local://rreganjr/requel:1.2.0
+    i New version 1.18.4 available (installed version is 1.18.3) at https://github.com/docker/scout-cli
+    ✓ SBOM of image already cached, 385 packages indexed
+
+    i Base image was auto-detected. To get more accurate recommendations, build images with max-mode provenance attestations.
+      Review docs.docker.com ↗ for more information.
+      Alternatively, use  docker scout recommendations --tag <base image tag>  to pass a specific base image tag.
+
+  Target   │  local://rreganjr/requel:1.2.0
+    digest │  e0a2605bfaa3
+
+## Recommended fixes
+
+  Base image is  eclipse-temurin:17-jre-jammy
+
+  Name            │  17-jre-jammy
+  Digest          │  sha256:2298b7311714a87240006252cf84e75f20d4e5f299da8773f955329a75d6bbac
+  Vulnerabilities │    0C     0H     7M    14L
+  Pushed          │ 3 weeks ago
+  Size            │ 90 MB
+  Packages        │ 202
+  Flavor          │ ubuntu
+  OS              │ 22.04
+  Runtime         │ 17.0.17_10
+
+
+  │ The base image is also available under the supported tag(s)  17.0.17_10-jre-jammy . If you want to display recommendations specifically for a different
+  │ tag, please re-run the command using the  --tag  flag.
+
+
+
+Refresh base image
+  Rebuild the image using a newer base image version. Updating this may result in breaking changes.
+
+  ✓ This image version is up to date.
+
+
+Change base image
+  The list displays new recommended tags in descending order, where the top results are rated as most suitable.
+
+
+              Tag              │                        Details                        │   Pushed    │       Vulnerabilities
+───────────────────────────────┼───────────────────────────────────────────────────────┼─────────────┼──────────────────────────────
+   25-jre-jammy                │ Benefits:                                             │ 3 weeks ago │    0C     0H     6M    12L
+  Major runtime version update │ • Same OS detected                                    │             │                  -1     -2
+  Also known as:               │ • Image contains 39 fewer packages                    │             │
+  • 25.0.1_8-jre-jammy         │ • Major runtime version update                        │             │
+                               │ • Tag was pushed more recently                        │             │
+                               │ • Image has similar size                              │             │
+                               │ • Image introduces no new vulnerability but removes 3 │             │
+                               │                                                       │             │
+                               │ Image details:                                        │             │
+                               │ • Size: 100 MB                                        │             │
+                               │ • Flavor: ubuntu                                      │             │
+                               │ • OS: 22.04                                           │             │
+                               │ • Runtime: 25.0.1_8                                   │             │
+                               │                                                       │             │
+                               │                                                       │             │
+                               │                                                       │             │
+   21-jre-jammy                │ Benefits:                                             │ 3 weeks ago │    0C     0H     7M    14L
+  Major runtime version update │ • Same OS detected                                    │             │
+  Also known as:               │ • Major runtime version update                        │             │
+  • 21.0.9_10-jre-jammy        │ • Tag was pushed more recently                        │             │
+                               │ • Image has similar size                              │             │
+                               │ • Image has same number of vulnerabilities            │             │
+                               │ • Image contains equal number of packages             │             │
+                               │                                                       │             │
+                               │ Image details:                                        │             │
+                               │ • Size: 96 MB                                         │             │
+                               │ • Flavor: ubuntu                                      │             │
+                               │ • OS: 22.04                                           │             │
+                               │ • Runtime: 21.0.9_10                                  │             │
+                               │                                                       │             │
+                               │                                                       │             │
+                               │

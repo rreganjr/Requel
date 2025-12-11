@@ -57,7 +57,7 @@ public class VerbNetRoleRef implements Serializable {
 	}
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "rolerefid", unique = true, nullable = false)
 	public Long getId() {
 		return this.id;

@@ -79,7 +79,7 @@ public class Word implements Comparable<Word>, Serializable {
 
 	@Id
 	@Column(name = "wordid", unique = true, nullable = false)
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@XmlID
 	@XmlAttribute(name = "id")
 	@XmlJavaTypeAdapter(IdAdapter.class)
