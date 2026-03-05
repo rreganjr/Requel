@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Requel [Run App]",
+      "request": "launch",
+      "mainClass": "com.rreganjr.requel.Application",
+      "projectName": "requel-app",
+      "args": "--server.port=8081",
+      "vmArgs": "-Dspring.devtools.restart.enabled=false"
+    }
+  ]
+}
