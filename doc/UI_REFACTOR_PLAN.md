@@ -49,7 +49,7 @@ The Echo2 framework is a legacy Java RIA that renders server-side components ove
 | **Edit Argument** | `ArgumentEditorPanel` | Form: text, supports/opposes |
 | **Edit Note** | `NoteEditorPanel` | Form: text |
 | **Selector Dialogs** | `*SelectorPanel` (6 total) | Modal tables for picking actors, goals, stories, use cases, scenarios, terms |
-| **NLP Parser** | `ParserPanel`, `NLPNavigatorPanel` | NLP analysis tool (admin/debug) |
+| **NLP Parser** | `ParserPanel`, `NLPNavigatorPanel` | NLP analysis tool (admin/debug) — not migrated to Angular, see Section 8 |
 
 ### 2.2 Existing API Surface
 
@@ -276,14 +276,66 @@ These don't fit the command dispatch pattern — auth is infrastructure, and imp
 
 ### 3.2 Frontend: Angular SPA (`requel-angular/`)
 
-Standalone Angular project (separate from Maven build) served as static assets:
+Standalone Angular project (separate from Maven build) served as static assets. Uses **Angular 21** and **PrimeNG 21**.
+
+#### Versions
+
+| Library | Version | Notes |
+|---|---|---|
+| **Angular** | 21.x | Current stable. Standalone components by default (no NgModules). Signals-based reactivity. Vitest as default test runner. |
+| **PrimeNG** | 21.x | Tracks Angular's major version. Requires `@angular/core ^21.0`. Uses standalone component imports and signals. |
+| **Node.js** | 18+ | Required by Angular CLI |
+
+PrimeNG aligns its major version with Angular — PrimeNG 19 targets Angular 19, PrimeNG 20 targets Angular 20, etc. Always use matching majors.
+
+#### Angular 21 Conventions
+
+The Angular project uses modern Angular 21 conventions throughout:
+
+- **Standalone components** — no `NgModule` declarations. Each component imports its dependencies directly via the `imports` array in `@Component()`. PrimeNG 21 components are imported the same way.
+- **Signals** — use `signal()`, `computed()`, and `effect()` for reactive state instead of RxJS `BehaviorSubject` where possible. PrimeNG 21 is signal-aware.
+- **`app.config.ts`** — application configuration via `provideRouter()`, `provideHttpClient()`, `provideAnimationsAsync()`, `providePrimeNG()`. No `AppModule`.
+- **Functional guards and interceptors** — route guards and HTTP interceptors as functions, not classes.
+- **Vitest** — default test runner in Angular 21, replaces Karma/Jasmine.
+
+#### Why PrimeNG
+
+PrimeNG (MIT license, maintained by PrimeTek) is chosen because Requel's UI is data-table-heavy — every navigator screen is a sortable, filterable table, and several screens need tree or tree-table views. PrimeNG provides these out of the box:
+
+- **`p-table`** — sorting, filtering, pagination, row expansion, lazy loading, virtual scrolling, column reorder, Excel export. Replaces all NavigatorPanel tables.
+- **`p-treeTable`** — hierarchical data in tabular format with sorting/filtering/pagination. Maps to scenario step tree-tables.
+- **`p-tree`** — tree view with built-in drag-and-drop (`draggableNodes`/`droppableNodes`). Maps to project sidebar tree and scenario step reordering.
+- **`p-dialog`** — modal dialogs for entity selectors.
+- **`p-autoComplete`** — typeahead for organization combo and entity search.
+- **`p-tabView`** — tab strip for open editor panels.
+
+PrimeNG is design-agnostic with free themes (Aura, Lara, Nora) and ships Material/Bootstrap/Fluent theme presets. All 90+ components are included in the open-source MIT package — premium add-ons (theme designer, PrimeBlocks templates) are optional and not needed.
+
+#### Reference Links
+
+**Angular 21:**
+- Docs: https://angular.dev/
+- Releases: https://angular.dev/reference/releases
+- Signals guide: https://angular.dev/guide/signals
+
+**PrimeNG 21:**
+- Official docs: https://primeng.org/
+- Installation: https://primeng.org/installation
+- Table: https://primeng.org/table
+- TreeTable: https://primeng.org/treetable
+- Tree: https://primeng.org/tree
+- LTS support: https://primeng.org/lts
+- GitHub: https://github.com/primefaces/primeng
+- npm: `npm install primeng @primeng/themes primeicons`
+
+#### Project Structure
 
 ```
 requel-angular/
   src/
     app/
-      core/           → auth service, HTTP interceptors, guards
-      shared/         → annotation components, pagination, entity table
+      core/           → auth service, HTTP interceptors, guards, CommandService
+      shared/         → annotation components, entity table wrapper, selector dialog
       features/
         auth/         → login, edit-account
         users/        → user list, user editor
@@ -297,20 +349,22 @@ requel-angular/
         terms/        → glossary list, term editor
         documents/    → document list, document editor
         issues/       → open issues, issue/position/argument editors
-        nlp/          → parser panel (admin only)
       models/         → TypeScript interfaces matching API DTOs
 ```
 
-### 3.3 Shared Components (Angular)
+### 3.3 Shared Components (Angular + PrimeNG)
 
-These patterns repeat across nearly every screen and should be built once:
+These patterns repeat across nearly every screen and should be built once. Each maps to specific PrimeNG components:
 
-- **Entity list table** — sortable columns, pagination, Edit/Add/Delete buttons (replaces all NavigatorPanels)
-- **Annotations section** — issue/note table with Add Issue/Add Note, nested position/argument editing (appears on every editor)
-- **Entity selector dialog** — modal with searchable table for picking related entities (replaces all SelectorPanels)
-- **Organization combo** — typeahead dropdown (appears on user and project forms)
-- **Project tree nav** — sidebar tree with project → sub-item hierarchy
-- **Tab strip** — for open editor panels (the current Echo2 tab bar behavior)
+| Shared Component | PrimeNG Base | Description |
+|---|---|---|
+| **Entity list table** | `p-table` with sorting, pagination, selection | Sortable columns, pagination, Edit/Add/Delete toolbar. Wraps `p-table` with standard column config and action buttons. Replaces all NavigatorPanels. |
+| **Annotations section** | `p-table` with row expansion | Issue/note table with Add Issue/Add Note. Row expansion shows positions; nested expansion shows arguments. Appears on every editor. |
+| **Entity selector dialog** | `p-dialog` + `p-table` with global filter | Modal with searchable, selectable table for picking related entities (goals, actors, stories, etc.). Replaces all SelectorPanels. |
+| **Organization combo** | `p-autoComplete` | Typeahead dropdown that searches existing orgs or allows free-text entry. Used on user and project forms. |
+| **Project tree nav** | `p-tree` | Sidebar tree with project → sub-item hierarchy. Click navigates to the entity list or editor. |
+| **Tab strip** | `p-tabView` | Open editor panels as closeable tabs, matching the current Echo2 tab bar behavior. |
+| **Scenario step tree** | `p-tree` with `draggableNodes` | Drag-and-drop reorderable tree for scenario steps with type indicators (normal, alternate, exception). |
 
 ### 3.4 Authentication
 
@@ -322,6 +376,94 @@ Replace Echo2 session-based login with stateless JWT authentication:
   - `POST /api/auth/login` — accepts `{ username, password }`, returns `{ token, user }`
   - `GET /api/auth/me` — validates JWT, returns `UserDto` (for restoring state on page load if token is still in memory)
   - No logout endpoint — client discards the token
+
+### 3.5 Real-Time Updates: SSE Event Stream
+
+User-initiated commands return results synchronously — the `CommandResult` gives immediate feedback. But background processing (NLP `AnalysisInvokingCommandHandler` adding issues/notes after writes, or other users editing concurrently) needs a push mechanism so clients see changes without manual refresh.
+
+#### Approach: Commands return results + SSE for background events
+
+```
+User clicks "Save Goal"
+  → POST /api/commands/EditGoal
+  → returns CommandResult { entity: GoalDto } immediately
+  → UI updates from the response
+
+Meanwhile, AnalysisInvokingCommandHandler runs NLP in the background...
+  → NLP agent adds an Issue to the Goal
+  → SSE pushes: { event: "AnnotationAdded", entityType: "Goal", entityId: 7, ... }
+  → UI merges the new annotation or re-fetches the entity
+```
+
+The command response is the user's "receipt" for their own action. The SSE stream only carries events the user didn't initiate — background processing results, other users' edits, analysis completion.
+
+#### SSE Endpoint
+
+```
+GET /api/events/stream    → SSE connection, authenticated via JWT (passed as query param
+                            since EventSource doesn't support Authorization headers)
+```
+
+The connection is established on login and held open. Spring Boot implements this via `SseEmitter` (servlet) or `Flux<ServerSentEvent>` (WebFlux). SSE auto-reconnects on network interruption.
+
+#### Event Types
+
+```json
+{ "event": "EntityUpdated",    "entityType": "Goal",    "entityId": 7,   "updatedBy": "assistant" }
+{ "event": "EntityCreated",    "entityType": "Issue",   "entityId": 42,  "parentType": "Goal", "parentId": 7 }
+{ "event": "EntityDeleted",    "entityType": "Story",   "entityId": 15 }
+{ "event": "AnnotationAdded",  "entityType": "Goal",    "entityId": 7,   "annotationId": 42 }
+{ "event": "AnalysisComplete", "entityType": "Project", "entityId": 1 }
+```
+
+Events are lightweight notifications, not full entity payloads. The Angular client handles them by either:
+- **Invalidate and re-fetch** — mark the affected entity as stale, re-fetch via its GET endpoint. Simpler, more robust, avoids duplicating DTO shapes in events.
+- **Merge directly** — if the event includes the changed entity data. Faster but couples event shape to DTO shape.
+
+Recommendation: **invalidate and re-fetch** for simplicity. The data volumes are small (project-scoped entity lists in the tens to low hundreds), so the extra GET is negligible.
+
+#### Angular Implementation
+
+An `EventStreamService` connects on login, parses SSE events, and exposes them as a signal or observable that feature components subscribe to:
+
+```typescript
+@Injectable({ providedIn: 'root' })
+export class EventStreamService {
+  private eventSource: EventSource | null = null;
+  private _events = signal<ServerEvent | null>(null);
+  readonly events = this._events.asReadonly();
+
+  connect(token: string) {
+    this.eventSource = new EventSource(`/api/events/stream?token=${token}`);
+    this.eventSource.onmessage = (e) => this._events.set(JSON.parse(e.data));
+  }
+
+  disconnect() {
+    this.eventSource?.close();
+    this.eventSource = null;
+  }
+}
+```
+
+Feature components use `effect()` to react to events relevant to their current view — e.g., the goal editor watches for `AnnotationAdded` events where `entityType === 'Goal'` and `entityId` matches, then re-fetches annotations.
+
+#### Why SSE over WebSocket
+
+- **Unidirectional** — the client only needs to receive push events; it already sends commands via POST. No need for bidirectional WebSocket.
+- **Auto-reconnect** — the `EventSource` API reconnects automatically on network interruption.
+- **Simpler infrastructure** — works through HTTP proxies and load balancers without special configuration. No WebSocket upgrade handshake.
+- **Spring Boot native** — `SseEmitter` in servlet stack, `Flux<ServerSentEvent>` in WebFlux. No additional dependencies.
+
+#### Backend: Publishing Events
+
+When a command executes, the `CommandHandler` (or `AnalysisInvokingCommandHandler`) publishes a domain event to an in-process event bus (Spring `ApplicationEventPublisher`). An SSE adapter listens for these events and pushes them to connected `SseEmitter` instances. This keeps event publishing decoupled from the SSE transport:
+
+```
+CommandHandler.execute(command)
+  → repository.save(entity)
+  → applicationEventPublisher.publishEvent(new EntityUpdatedEvent("Goal", 7, "assistant"))
+  → SseEventBridge listens, pushes to all connected SseEmitters
+```
 
 ## 4. Migration Strategy: Screen-by-Screen
 
@@ -346,13 +488,26 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
    - CORS configuration for Angular dev server
 3. Update existing per-domain factories (`ProjectCommandFactory`, `UserCommandFactory`, `AnnotationCommandFactory`) to register their command types via `@PostConstruct`
 4. Implement auth endpoints: `POST /api/auth/login` → `{ token, user }`, `GET /api/auth/me` → `UserDto`
+5. SSE event stream infrastructure:
+   - `ServerEvent` record (event type, entityType, entityId, updatedBy)
+   - `SseEventBridge` — Spring `@EventListener` that listens for domain events and pushes to connected `SseEmitter` instances
+   - `GET /api/events/stream` endpoint — authenticated via JWT query param, returns `SseEmitter`
 
 **Frontend work:**
-1. Scaffold Angular project with routing, Angular Material or PrimeNG for UI components
-2. `CommandService` — generic service for `POST /api/commands/{type}` calls
-3. Auth module: login page, auth service, HTTP interceptor, route guards
-4. Main layout: header bar (Edit Account, User Guide, Logout), sidebar placeholder, content area
-5. Verify login → protected route → logout flow works end-to-end
+1. Scaffold Angular 21 project: `ng new requel-angular --style=scss --routing` (standalone by default, no NgModules)
+2. Install PrimeNG 21: `npm install primeng @primeng/themes primeicons`
+3. Configure `app.config.ts`:
+   ```typescript
+   provideRouter(routes),
+   provideHttpClient(withInterceptors([authInterceptor])),
+   provideAnimationsAsync(),
+   providePrimeNG({ theme: { preset: Aura } })
+   ```
+4. `CommandService` — injectable service using `HttpClient` + signals for state. Generic `execute<T>(commandType, input): Signal<CommandResult<T>>` method for `POST /api/commands/{type}` calls.
+5. Auth: login page (standalone component importing PrimeNG `InputText`, `Password`, `Button`), `AuthService` (JWT stored as `signal<string | null>`), functional HTTP interceptor (`authInterceptor`), functional route guard (`authGuard`)
+6. `EventStreamService` — connects to `GET /api/events/stream` on login, exposes events as a signal. Disconnects on logout/token expiry.
+7. Main layout: standalone `AppLayout` component with `p-menubar` (Edit Account, User Guide, Logout), sidebar `p-tree`, content area with `p-tabView`
+8. Verify login → protected route → SSE connection → logout flow works end-to-end
 
 **Auth endpoints (these remain conventional REST, not commands):**
 ```
@@ -584,22 +739,22 @@ No logout endpoint — the Angular app discards the JWT from memory.
 
 ---
 
-### Phase 9: Open Issues + NLP
+### Phase 9: Open Issues
 
-**Goal:** Project-wide open issues view and NLP analysis tools.
+**Goal:** Project-wide open issues view.
 
 **Backend work — Commands:**
 1. `AnalyzeProject` → `ApiCommand<AnalyzeProjectInput>` — fields: projectId (triggers NLP analysis)
 
 **Backend work — Queries:**
 1. `GET /api/projects/{id}/open-issues` → aggregated open issues across all entities
-2. `GET /api/nlp/parse?text=...` → NLP analysis endpoint (admin only)
 
 **Frontend work:**
 1. Open Issues page (read-only table linking to annotated entities)
-2. NLP parser page (admin-only, if needed)
 
-**Echo2 panels replaced:** `ProjectOpenIssuesNavigatorPanel`, `ParserPanel`, `NLPNavigatorPanel`
+**Echo2 panels replaced:** `ProjectOpenIssuesNavigatorPanel`
+
+**Not migrated:** `ParserPanel`, `NLPNavigatorPanel` — the NLP parser is an admin/debug tool that doesn't need an Angular equivalent. NLP analysis continues to run automatically via `AnalysisInvokingCommandHandler` after writes; the parser UI is dropped.
 
 ---
 
@@ -608,11 +763,12 @@ No logout endpoint — the Angular app discards the JWT from memory.
 **Goal:** Remove Echo2 entirely.
 
 1. Remove Echo2 servlet registration from `Application.java`
-2. Remove Maven modules: `ui-core`, `project-ui`, `annotation-ui`, `user-ui`, `nlp-ui`, `ui-assets`
+2. Remove Echo2 UI Maven modules: `ui-core`, `project-ui`, `annotation-ui`, `user-ui`, `nlp-ui`, `ui-assets`
 3. Remove Echo2 transform scripts and `exec-maven-plugin` configuration
 4. Remove Echo2 JARs from dependencies (echo2, echopm, echopointng, echo2-filetransfer)
-5. Serve Angular build output as static resources from Spring Boot (or deploy separately)
-6. Update `CLAUDE.md`, `RELEASE.md`, `README.md`
+5. Integrate Angular build into Maven: copy `ng build` output to `src/main/resources/static/` (via `frontend-maven-plugin` or build script) so the JAR serves the Angular app at `/`
+6. Configure Spring Boot to forward non-API routes to `index.html` (Angular client-side routing)
+7. Update `CLAUDE.md`, `RELEASE.md`, `README.md`
 
 ## 5. API Design Conventions
 
@@ -645,7 +801,11 @@ GET /api/projects/{id}/documents/{did}/output → generated document
 GET /api/projects/{id}/open-issues            → aggregated open issues
 GET /api/projects/{id}/export                 → XML export
 GET /api/annotations?entityType=&entityId=    → annotations for any entity
-GET /api/nlp/parse?text=                      → NLP analysis (admin)
+```
+
+**Event stream (SSE):**
+```
+GET /api/events/stream?token={jwt}            → SSE connection for real-time background events
 ```
 
 **Special cases (not through command dispatch):**
@@ -793,6 +953,15 @@ Angular is chosen because:
 - Built-in routing, forms, HTTP client, and dependency injection reduce library shopping
 - Component architecture maps cleanly to the existing panel structure
 
+### PrimeNG vs. other UI component libraries
+PrimeNG is chosen over Angular Material and Taiga UI because:
+- **Tables are the heart of this app.** Every navigator screen is a sortable, filterable, paginated data table. PrimeNG's `p-table` provides all of this out of the box; Angular Material's `mat-table` requires manual assembly of sorting/filtering/pagination from CDK primitives.
+- **Tree-table support.** Scenario steps and hierarchical data need a tree-table component. PrimeNG has `p-treeTable` built in; Angular Material has no native tree-table (open issue [#13616](https://github.com/angular/components/issues/13616) never resolved). Taiga UI has no tree-table either.
+- **Tree drag-and-drop.** PrimeNG's `p-tree` supports `draggableNodes`/`droppableNodes` natively for scenario step reordering; Angular Material's `mat-tree` requires custom CDK drag integration.
+- **Design-agnostic.** PrimeNG doesn't impose Material Design — free themes (Aura, Lara, Nora) plus Material/Bootstrap/Fluent presets available.
+- **MIT licensed, fully open source.** All 90+ components free. Premium add-ons (theme designer, PrimeBlocks) are optional and not needed.
+- **Tradeoff: bundle size.** PrimeNG is larger than Angular Material or Taiga UI, but tree-shakeable. For a requirements management tool, initial load size is not a primary concern.
+
 ### Monorepo vs. separate repo for Angular
 **Recommendation: subdirectory within this repo** (`requel-angular/`). Keeps everything together for a single-developer project. The Angular project has its own `package.json` and build pipeline, independent of Maven.
 
@@ -806,6 +975,12 @@ Both Echo2 and Angular can run simultaneously during migration:
 ### JWT authentication (stateless, no sessions)
 JWT with `Authorization: Bearer` header, no server-side sessions. This keeps the backend fully stateless — no session store, no sticky sessions, no shared session data if multiple instances run behind a load balancer. Token expiry is 8 hours with no refresh token; users re-authenticate when the token expires. JWT is stored in memory (Angular service field), not `localStorage` or cookies, so it's cleared on page refresh. The tradeoff is that a page refresh requires re-login, which is acceptable for a requirements tool that isn't used in long uninterrupted sessions.
 
+### Real-time updates: SSE with invalidate-and-refetch
+Commands return results synchronously — the user gets immediate feedback for their own actions. Background events (NLP agent adding annotations, other users' edits) push to the client via Server-Sent Events (SSE) rather than WebSocket. SSE is unidirectional (server→client), auto-reconnects, works through proxies, and requires no additional dependencies beyond Spring Boot's `SseEmitter`. Events are lightweight notifications (entity type + ID), not full payloads — the client re-fetches affected entities via their existing GET endpoints. This avoids coupling event shapes to DTO shapes and keeps the stream simple. The alternative — reading all results from the stream (pure event-sourcing style) — was rejected because it adds command correlation complexity, latency on the write path, and error handling for missing events, all without UX benefit for a synchronous command-based system.
+
+### Deployment: static from Spring Boot
+Angular build output (`ng build` → `dist/`) is served as static resources from the Spring Boot JAR. Single artifact, single process, single Docker container. No CORS configuration needed in production since frontend and API are same-origin. The alternative — deploying Angular separately via nginx/S3/CDN — adds infrastructure complexity (reverse proxy, CORS, two deploy targets) without benefit for a single-developer, single-server tool. During development, Angular's dev server runs on port 4200 with hot reload and proxies API calls to Spring Boot — the dev experience is the same either way.
+
 ### Phasing priorities
 The phases are ordered by dependency (auth first, then entities, then cross-cutting features). The annotation system (Phase 7) is deliberately late because it touches every editor — building it after the editors exist avoids rework. However, editor forms should include an "Annotations" placeholder from Phase 2 onward so the layout is correct.
 
@@ -813,7 +988,7 @@ The phases are ordered by dependency (auth first, then entities, then cross-cutt
 
 | Phase | Scope | Commands | Queries | Angular Components | Relative Size |
 |-------|-------|----------|---------|-------------------|---------------|
-| 0 | Foundation | 0 | 1 (auth/me) | 4 (login, layout, guard, CommandService) | Medium (infrastructure) |
+| 0 | Foundation | 0 | 1 (auth/me) + SSE stream | 5 (login, layout, guard, CommandService, EventStreamService) | Medium-Large (infrastructure) |
 | 1 | Users | 2 | 4 | 4 (list, editor, org combo, roles) | Small |
 | 2 | Projects | 2 (+import) | 4 | 6 (list, new, import, edit, tree, export) | Medium |
 | 3 | Stakeholders | 4 | 1 | 4 (list, user-add, non-user-add, edit) | Small |
@@ -822,15 +997,15 @@ The phases are ordered by dependency (auth first, then entities, then cross-cutt
 | 6 | Scenarios | 3 | 2 | 3 (list, editor, step tree) | Large (step tree) |
 | 7 | Annotations | 6 | 1 | 5 (table, issue, position, argument, note) | Large (retrofitting) |
 | 8 | Terms + Docs | 6 | 5 | 5 (2 lists, 2 editors, doc viewer) | Medium |
-| 9 | Issues + NLP | 1 | 2 | 2 (issues view, parser) | Small |
+| 9 | Open Issues | 1 | 1 | 1 (issues view) | Small |
 | 10 | Cleanup | 0 | 0 | 0 | Small (deletion) |
 
-**Totals:** ~37 command types, ~28 query endpoints, ~42 Angular components
+**Totals:** ~37 command types, ~27 query endpoints + SSE stream, ~41 Angular components
 
 ## 8. Open Questions
 
-1. **UI component library** — Angular Material, PrimeNG, or Taiga UI? PrimeNG has the richest table/tree components out of the box, which matters for this data-heavy app.
-2. **Real-time updates** — Echo2 has server-push for concurrent editing. Do we need WebSocket support for multi-user scenarios, or is polling/manual refresh acceptable initially?
-3. **NLP panel priority** — The NLP parser is an admin/debug tool. It could be deferred indefinitely or built as a minimal page.
-4. **Document generation** — The current "Run" button generates HTML via XSLT. Decide whether to preserve XSLT-based generation or move to a template engine.
-5. **Deployment model** — Serve Angular as static resources from Spring Boot (`/static/`), or deploy separately (nginx, S3, etc.)?
+1. ~~**UI component library** — Angular Material, PrimeNG, or Taiga UI?~~ **Decided: PrimeNG.** Best fit for data-table-heavy UI. See Section 6 tradeoffs.
+2. ~~**Real-time updates** — Echo2 has server-push for concurrent editing. Do we need WebSocket support for multi-user scenarios, or is polling/manual refresh acceptable initially?~~ **Decided: SSE event stream.** Commands return results synchronously; SSE pushes background events (NLP, other users). Invalidate-and-refetch pattern. See Sections 3.5 and 6.
+3. ~~**NLP panel priority** — The NLP parser is an admin/debug tool. It could be deferred indefinitely or built as a minimal page.~~ **Decided: Not migrated.** NLP analysis runs automatically via `AnalysisInvokingCommandHandler`; the parser debug UI is dropped from the Angular app.
+4. ~~**Document generation** — The current "Run" button generates HTML via XSLT. Decide whether to preserve XSLT-based generation or move to a template engine.~~ **Decided: Keep XSLT for now.** The Angular app will call the existing XSLT-based generation and display the output. Replacing XSLT with a different template engine is a separate future effort.
+5. ~~**Deployment model** — Serve Angular as static resources from Spring Boot (`/static/`), or deploy separately (nginx, S3, etc.)?~~ **Decided: Static from Spring Boot.** Angular build output served from the Spring Boot JAR. Single artifact, single process, no CORS in production, no extra infrastructure. During development, Angular dev server runs separately on port 4200 with hot reload. See Section 6.
