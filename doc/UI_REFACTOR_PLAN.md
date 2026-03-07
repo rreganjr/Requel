@@ -8,7 +8,7 @@ The Echo2 framework is a legacy Java RIA that renders server-side components ove
 - Clean separation between backend API and frontend rendering
 - A command-based API that maps directly to the existing domain command pattern
 - Query endpoints for reads, command dispatch for writes (CQRS)
-- Independent deployment and development cycles for frontend and backend
+- Independent development cycles (Angular dev server on port 4200, Spring Boot on 8081) with single-artifact deployment
 
 ## 2. Current State
 
@@ -148,8 +148,8 @@ The write side uses a **composite CommandFactory** pattern: a top-level `Command
 │  │    AnnotationCommandFactory → NewIssue, NewNote, ...          │ │
 │  │                                                               │ │
 │  │  Commands ──implement──▶ ApiCommand<T>.applyInput(T input)    │ │
-│  │  CommandHandler ──▶ Repository ──▶ JPA                        │ │
-│  │  AnalysisInvokingCommandHandler triggers NLP after writes     │ │
+│  │  Handler chain: RetryOnLockFailures → ExceptionMapping       │ │
+│  │    → AuthorizingCommandHandler → AnalysisInvoking → Default  │ │
 │  └───────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -268,11 +268,10 @@ This mirrors how the Echo2 panels already work — they use CommandFactory/Comma
 
 ```
 POST /api/auth/login                  → returns JWT + UserDto
-POST /api/auth/logout                 → client-side only (discard token)
 POST /api/projects/import             → multipart file upload
 ```
 
-These don't fit the command dispatch pattern — auth is infrastructure, and import involves file upload that needs multipart handling. Note that logout is entirely client-side (discard the JWT); no server endpoint is needed since tokens are stateless.
+These don't fit the command dispatch pattern — auth is infrastructure, and import involves file upload that needs multipart handling. Logout is entirely client-side (discard the JWT from memory); no server endpoint is needed since tokens are stateless.
 
 ### 3.2 Frontend: Angular SPA (`requel-angular/`)
 
@@ -280,13 +279,26 @@ Standalone Angular project (separate from Maven build) served as static assets. 
 
 #### Versions
 
-| Library | Version | Notes |
-|---|---|---|
-| **Angular** | 21.x | Current stable. Standalone components by default (no NgModules). Signals-based reactivity. Vitest as default test runner. |
-| **PrimeNG** | 21.x | Tracks Angular's major version. Requires `@angular/core ^21.0`. Uses standalone component imports and signals. |
-| **Node.js** | 18+ | Required by Angular CLI |
+| Layer | Library | Version | Notes |
+|---|---|---|---|
+| **Backend** | Java | 17 | Required by Spring Boot 3.x |
+| | Spring Boot | 3.3.x | From parent POM. `service-api`/`service-impl` inherit from the same parent. |
+| | Spring Security | (from starter) | `spring-boot-starter-security`, servlet filter chain |
+| | JWT | jjwt (`io.jsonwebtoken:jjwt-api` + impl) | HS256 signing, 8-hour expiry, claims: sub, roles, exp |
+| | Maven | 3.6.3+ | Build tool |
+| **Frontend** | Angular | 21.x | Standalone components, signals, Vitest |
+| | PrimeNG | 21.x | Tracks Angular major. Requires `@angular/core ^21.0`. |
+| | Node.js | 18+ (20 LTS recommended) | Required by Angular CLI |
 
 PrimeNG aligns its major version with Angular — PrimeNG 19 targets Angular 19, PrimeNG 20 targets Angular 20, etc. Always use matching majors.
+
+#### Environment Configuration
+
+| Setting | Dev | Production | Source |
+|---|---|---|---|
+| **JWT signing secret** | Config default (e.g. `requel.jwt.secret` in `application.properties`) | Environment variable or external config — **never hardcoded** | Spring Boot config |
+| **API base URL** | `http://localhost:8081` (Angular `proxy.conf.json` proxies `/api` to Spring Boot) | Same-origin (static from JAR) — no config needed | Angular `environment.ts` / proxy |
+| **CORS allowed origins** | `http://localhost:4200` (Angular dev server) | Disabled or restricted to single origin (same-origin after Phase 10) | Spring Security CORS config |
 
 #### Angular 21 Conventions
 
@@ -334,7 +346,7 @@ PrimeNG is design-agnostic with free themes (Aura, Lara, Nora) and ships Materia
 requel-angular/
   src/
     app/
-      core/           → auth service, HTTP interceptors, guards, CommandService
+      core/           → auth service, HTTP interceptors, guards, CommandService, EventStreamService
       shared/         → annotation components, entity table wrapper, selector dialog
       features/
         auth/         → login, edit-account
@@ -368,14 +380,94 @@ These patterns repeat across nearly every screen and should be built once. Each 
 
 ### 3.4 Authentication
 
-Replace Echo2 session-based login with stateless JWT authentication:
+Replace Echo2's app-level login (which bypasses Spring Security entirely — the existing `WebSecurityConfig` uses `anyRequest().permitAll()`) with real HTTP-level JWT authentication.
 
-- **Backend:** Spring Security configured as stateless (no `HttpSession`). A JWT filter extracts and validates the token from the `Authorization: Bearer <token>` header on every request. Token is signed with a server-side secret (HS256) and carries the username and roles as claims. Expiry: 8 hours — no refresh tokens, user re-authenticates when the token expires.
-- **Frontend:** Angular `HttpInterceptor` adds the `Authorization` header to every outgoing request. JWT stored in memory (service field) — not `localStorage`, not cookies — so it's cleared on page refresh. Route guards check token presence and expiry (decode the `exp` claim client-side). On 401 response, redirect to login.
-- **Endpoints:**
-  - `POST /api/auth/login` — accepts `{ username, password }`, returns `{ token, user }`
-  - `GET /api/auth/me` — validates JWT, returns `UserDto` (for restoring state on page load if token is still in memory)
-  - No logout endpoint — client discards the token
+#### Backend: Spring Security and JWT
+
+**Request-level security:**
+```
+Public (no token required):
+  POST /api/auth/login
+  GET  /actuator/health          (if exposed)
+
+Authenticated (valid JWT required):
+  All other /api/**              (commands, queries, SSE stream, /api/auth/me)
+```
+
+Configuration: `requestMatchers("/api/auth/login").permitAll()` and `requestMatchers("/api/**").authenticated()`. Static resources (Angular app at `/`) are public.
+
+**JWT filter:**
+- Runs as the first filter in the Spring Security filter chain (before `UsernamePasswordAuthenticationFilter`).
+- On each request to `/api/**`: extracts `Authorization: Bearer <token>` header, validates signature (HS256) and expiry using jjwt.
+- On success: creates an `Authentication` (e.g. `UsernamePasswordAuthenticationToken`) with the username as principal and roles as authorities, sets `SecurityContextHolder.getContext().setAuthentication(...)`.
+- On invalid/missing token for authenticated paths: returns **401 Unauthorized**.
+
+**Login endpoint — password verification:**
+- `POST /api/auth/login` accepts `{ username, password }`.
+- Loads user via `UserRepository.findUserByUsername(username)`.
+- Verifies password using the **existing** mechanism: `user.isPassword(rawPassword)` — same as the current `LoginCommandImpl`.
+- On success: generates JWT and returns `{ token, user: UserDto }`.
+
+**JWT claim convention:**
+```json
+{
+  "sub": "ron",
+  "roles": ["SYSTEM_ADMIN"],
+  "permissions": ["createProjects", "inviteUsers"],
+  "exp": 1741305600
+}
+```
+- `sub` — username (matches `UserRepository.findUserByUsername`)
+- `roles` — authority strings derived from domain role classes: `SystemAdminUserRole` → `"SYSTEM_ADMIN"`, `ProjectUserRole` → `"PROJECT_USER"`
+- `permissions` — role-level permission names from `UserRolePermission.getName()` (e.g. `"createProjects"`, `"inviteUsers"`). Angular uses these for UX decisions (show "New Project" button)
+- `exp` — expiry (now + 8 hours, seconds since epoch)
+- On failure: returns **401 Unauthorized**.
+- Password storage format is unchanged from the current system. If passwords are not currently hashed, that is a separate task outside this migration.
+
+**Resolving current user for commands:**
+Echo2 passes the current user into every command via `setEditedBy(getCurrentUser())`. The API must do the same:
+- After JWT validation, the filter sets the principal (username) in `SecurityContext`.
+- The `CommandController` (or a shared `CurrentUserResolver` service) resolves the principal to a domain `User` via `UserRepository.findUserByUsername(principal)`.
+- Before calling `commandHandler.execute(command)`, sets `command.setEditedBy(currentUser)`.
+- Query controllers use the same resolution when filtering by user (e.g. "projects for current user").
+
+#### Angular: Token Handling and Auth Flow
+
+**Token storage:** `AuthService` holds the JWT as `private readonly token = signal<string | null>(null)`. Not persisted — cleared on page refresh, user must re-login.
+
+**Login flow:**
+1. User submits credentials → `POST /api/auth/login`
+2. On success: `this.token.set(response.token)`, store `UserDto` in a `currentUser` signal (for header display, role checks)
+3. Connect `EventStreamService` to SSE stream
+
+**Logout flow:**
+1. `this.token.set(null)`, clear `currentUser`
+2. Disconnect `EventStreamService`
+3. Navigate to login page
+
+**App initialization (tab still alive after backgrounding):**
+1. If token is in memory (no page refresh occurred), call `GET /api/auth/me` to refresh the `UserDto`
+2. If `/api/auth/me` returns 401 (token expired), clear token and redirect to login
+
+**HTTP interceptor (`authInterceptor`):**
+- Adds `Authorization: Bearer <token>` to every outgoing `/api` request
+- On 401 response from any endpoint: clears token, disconnects SSE, redirects to login
+
+**Route guard (`authGuard`):**
+- Reads token from `AuthService`, decodes JWT payload (base64), checks `exp` claim (seconds since epoch)
+- If token missing or expired: clear token, redirect to login
+- If valid: allow navigation
+
+**SSE authentication:**
+The SSE stream uses **fetch-based streaming** (not `EventSource`), so the JWT is sent in the standard `Authorization: Bearer` header — no token in URL. This eliminates the `EventSource` header limitation that would otherwise expose the JWT in server access logs and browser history. See Section 3.5 for the full fetch-based streaming architecture.
+
+#### Endpoints
+
+```
+POST /api/auth/login    → { username, password } → { token, user: UserDto }
+GET  /api/auth/me       → validates JWT → UserDto (current user)
+```
+No logout endpoint — client discards the token from memory.
 
 ### 3.5 Real-Time Updates: SSE Event Stream
 
@@ -391,79 +483,396 @@ User clicks "Save Goal"
 
 Meanwhile, AnalysisInvokingCommandHandler runs NLP in the background...
   → NLP agent adds an Issue to the Goal
-  → SSE pushes: { event: "AnnotationAdded", entityType: "Goal", entityId: 7, ... }
-  → UI merges the new annotation or re-fetches the entity
+  → SSE pushes: { eventType: "Data", targetType: "Goal", targetId: 7, payload: GoalDto }
+  → UI merges the payload or re-fetches the entity
 ```
 
-The command response is the user's "receipt" for their own action. The SSE stream only carries events the user didn't initiate — background processing results, other users' edits, analysis completion.
+The command response is the user's "receipt" for their own action. The SSE stream carries events the user didn't initiate — background processing results, other users' edits, analysis completion.
 
-#### SSE Endpoint
+#### Architecture Overview
+
+The SSE system uses a **session-based subscription model**. The client opens a single HTTP streaming connection, subscribes to specific targets (e.g., a project or entity), and receives events only for those targets. The server tracks sessions and subscriptions and pushes events to the correct `SseEmitter` instances.
+
+Key concepts:
+- **Stream session** — a server-side session (UUID) that owns one `SseEmitter` and a set of subscriptions. Created when the client opens the stream, persisted in-memory.
+- **Subscription** — a `targetType:targetId` pair (e.g., `Project:1`, `Goal:7`). Subscriptions can be included in the initial stream URL or added/removed dynamically via REST endpoints while the stream is open.
+- **Event envelope** — all SSE data is JSON with `eventType`, `targetType`, `targetId`, and `payload` fields.
+
+#### SSE Endpoints
 
 ```
-GET /api/events/stream    → SSE connection, authenticated via JWT (passed as query param
-                            since EventSource doesn't support Authorization headers)
+GET    /api/events/stream?subscribe=Project:1&subscribe=Goal:7
+                                     → opens SSE connection, creates session, returns SseEmitter
+                                     → server sends Session event first, then initial payloads
+                                     → authenticated via JWT in Authorization header (native fetch,
+                                       not EventSource — see Angular Implementation below)
+
+POST   /api/events/stream/subscriptions
+       Header: X-Session-Id: {sessionId}
+       Body:   { "targetType": "Goal", "targetId": 7 }
+                                     → add subscription to existing session
+                                     → server sends initial payload for the new target on the stream
+
+DELETE /api/events/stream/subscriptions
+       Header: X-Session-Id: {sessionId}
+       Body:   { "targetType": "Goal", "targetId": 7 }
+                                     → remove subscription from session
+
+DELETE /api/events/stream/connection
+       Header: X-Session-Id: {sessionId}
+                                     → graceful server-side close: completes SseEmitter so browser
+                                       gets a clean end-of-stream (avoids half-closed connections
+                                       in Safari/Firefox)
 ```
 
-The connection is established on login and held open. Spring Boot implements this via `SseEmitter` (servlet) or `Flux<ServerSentEvent>` (WebFlux). SSE auto-reconnects on network interruption.
+#### Event Envelope
 
-#### Event Types
+All SSE data is sent as JSON in `data:` lines:
 
 ```json
-{ "event": "EntityUpdated",    "entityType": "Goal",    "entityId": 7,   "updatedBy": "assistant" }
-{ "event": "EntityCreated",    "entityType": "Issue",   "entityId": 42,  "parentType": "Goal", "parentId": 7 }
-{ "event": "EntityDeleted",    "entityType": "Story",   "entityId": 15 }
-{ "event": "AnnotationAdded",  "entityType": "Goal",    "entityId": 7,   "annotationId": 42 }
-{ "event": "AnalysisComplete", "entityType": "Project", "entityId": 1 }
+{ "eventType": "Session",          "payload": { "sessionId": "uuid-here" } }
+{ "eventType": "Data",             "targetType": "Goal",    "targetId": 7,  "payload": { ... } }
+{ "eventType": "TargetDeleted",    "targetType": "Story",   "targetId": 15 }
+{ "eventType": "SESSION_EXPIRED" }
 ```
 
-Events are lightweight notifications, not full entity payloads. The Angular client handles them by either:
-- **Invalidate and re-fetch** — mark the affected entity as stale, re-fetch via its GET endpoint. Simpler, more robust, avoids duplicating DTO shapes in events.
-- **Merge directly** — if the event includes the changed entity data. Faster but couples event shape to DTO shape.
+Event types:
+- **Session** — sent immediately after connection opens, carries the server-assigned `sessionId` for subsequent subscription management calls.
+- **Data** — a target was created or updated. Payload is the full DTO (invalidate-and-refetch is still an option, but full payloads avoid the extra round-trip).
+- **TargetDeleted** — a subscribed target was deleted. Payload is null.
+- **SESSION_EXPIRED** — JWT has expired (with grace period). Client should re-authenticate.
 
-Recommendation: **invalidate and re-fetch** for simplicity. The data volumes are small (project-scoped entity lists in the tens to low hundreds), so the extra GET is negligible.
+#### Server-Side Architecture
 
-#### Angular Implementation
+**`StreamService`** — manages stream sessions, `SseEmitter` lifecycle, keep-alive, and session expiry.
 
-An `EventStreamService` connects on login, parses SSE events, and exposes them as a signal or observable that feature components subscribe to:
+```java
+@Service
+public class StreamService {
+
+    // In-memory map: sessionId → EmitterHolder (SseEmitter + scheduled futures)
+    private final ConcurrentHashMap<String, EmitterHolder> localEmitters = new ConcurrentHashMap<>();
+
+    /**
+     * Create a new stream session or reattach to an existing one.
+     * Sends Session event first, then initial payloads for each subscription.
+     */
+    public SseEmitter createStream(String existingSessionId, User user,
+                                    Long jwtExpiresAtEpochMs,
+                                    List<SubscriptionRef> initialSubscriptions) {
+        String sessionId = existingSessionId != null
+                ? existingSessionId : UUID.randomUUID().toString();
+
+        SseEmitter emitter = new SseEmitter(-1L); // no timeout (Jakarta Servlet 6.0+)
+
+        // Schedule 30-second keep-alive comments to prevent proxy/browser timeouts
+        ScheduledFuture<?> keepAlive = scheduler.scheduleAtFixedRate(
+                () -> sendKeepAlive(sessionId), new Date(), 30_000L);
+
+        // Schedule session expiry: JWT expiry + 5-minute grace period
+        ScheduledFuture<?> expiryFuture = jwtExpiresAtEpochMs != null
+                ? scheduler.schedule(() -> sendSessionExpiredAndClose(sessionId),
+                                     new Date(jwtExpiresAtEpochMs + 5 * 60_000))
+                : null;
+
+        localEmitters.put(sessionId, new EmitterHolder(emitter, keepAlive, expiryFuture));
+
+        // Send Session event, then initial payloads
+        sendEvent(sessionId, StreamEventEnvelope.session(sessionId));
+        for (SubscriptionRef ref : initialSubscriptions) {
+            sendInitialPayload(sessionId, ref);
+        }
+
+        // Register callbacks for cleanup
+        emitter.onCompletion(() -> onEmitterDone(sessionId));
+        emitter.onTimeout(() -> onEmitterDone(sessionId));
+        emitter.onError(e -> onEmitterDone(sessionId));
+
+        return emitter;
+    }
+}
+```
+
+Key behaviors:
+- **Keep-alive** — sends SSE comment (`:`-prefixed) every 30 seconds to prevent proxies and browsers from closing idle connections.
+- **Session expiry** — when the JWT expires (plus a 5-minute grace period), sends a `SESSION_EXPIRED` event and completes the emitter. The client re-authenticates and reconnects.
+- **Graceful close** — `DELETE /api/events/stream/connection` calls `emitter.complete()`, which sends a clean end-of-stream. This is critical for Safari and Firefox, which leave connections in a half-closed state when the client aborts a `ReadableStream` via `AbortController`.
+- **Stale holder guard** — `onEmitterDone` only cleans up if the holder is still the active one for that session (avoids a stale callback wiping a new connection on reconnect).
+
+**`StreamSessionStore`** — tracks sessions and their subscriptions. For Requel (single instance), this is in-memory. We could use Redis for multi-instance deployments, but Requel doesn't need that complexity:
+
+```java
+// In-memory session store (could be upgraded to Redis later if needed)
+@Service
+public class StreamSessionStore {
+    private final ConcurrentHashMap<String, StreamSessionData> sessions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Set<String>> targetToSessions = new ConcurrentHashMap<>();
+
+    // targetToSessions: "Project:7" → { "session-uuid-1", "session-uuid-2" }
+    // Used by pushToSubscribedSessions to find which emitters to push to.
+}
+```
+
+**`StreamEventPublisher`** — called by domain code (command handlers, NLP assistants) to push events to subscribed sessions:
+
+```java
+public interface StreamEventPublisher {
+    void publishTargetUpdate(String targetType, Long targetId, Object payload);
+    void publishTargetDeleted(String targetType, Long targetId);
+}
+```
+
+**Publishing flow:**
+```
+AnalysisInvokingCommandHandler → command.invokeAnalysis()
+  → NLP assistant creates Issue on Goal
+  → streamEventPublisher.publishTargetUpdate("Goal", 7, goalDto)
+  → StreamService.pushToSubscribedSessions("Goal", 7, goalDto)
+    → looks up sessionIds subscribed to "Goal:7"
+    → sends Data event via each session's SseEmitter
+```
+
+#### Angular Implementation: Fetch-Based Streaming
+
+We use **native `fetch()` with `ReadableStream`** instead of the browser's `EventSource` API. This solves the key limitation of `EventSource`: it does not support custom headers (Authorization), forcing JWT into the URL. With fetch-based streaming, the JWT stays in the `Authorization` header.
+
+The implementation shall follow the algorithm using Angular signals. It handles:
+
+- **Connection lifecycle** — `idle → connecting → open → closed/error` state machine
+- **Session management** — tracks server-assigned `sessionId` from the Session event
+- **Dynamic subscriptions** — subscribe/unsubscribe while connected (POST/DELETE to subscriptions endpoint)
+- **Late subscriber reconciliation** — subscribers added between URL construction and Session event receipt are registered via POST after the session is established
+- **Exponential backoff reconnect** — starts at 1s, doubles each attempt, caps at 30s. Resets on successful connection.
+- **Generation counter** — prevents stale `getConnection()` calls from interfering with newer ones (e.g., old call's cleanup triggering reconnect after a new connection has opened)
+- **Graceful server-side disconnect** — `DELETE /api/events/stream/connection` asks the server to `emitter.complete()`, giving the browser a clean end-of-stream. This avoids the half-closed connection state Safari and Firefox leave behind when `AbortController.abort()` is used alone.
+- **Identity-safe unsubscribe** — the unsubscribe closure only removes its own Map entry, preventing a stale unsubscribe (from component teardown during navigation) from deleting a newer subscription.
+- **Cache-busting** — `_t` timestamp param prevents browsers from reusing stale connections from previously aborted streams.
+
+**Connection state machine:**
+```
+idle ──subscribe()──→ connecting ──Session event──→ open
+ ↑                        ↑                          │
+ │                        │                    (stream ends)
+ └──(0 subscribers)───── closed ←──error/timeout─────┘
+                            │
+                     (backoff reconnect)
+                            │
+                            └──→ connecting
+```
+
+**`EventStreamService`:**
 
 ```typescript
 @Injectable({ providedIn: 'root' })
 export class EventStreamService {
-  private eventSource: EventSource | null = null;
-  private _events = signal<ServerEvent | null>(null);
-  readonly events = this._events.asReadonly();
+  private authService = inject(AuthService);
 
-  connect(token: string) {
-    this.eventSource = new EventSource(`/api/events/stream?token=${token}`);
-    this.eventSource.onmessage = (e) => this._events.set(JSON.parse(e.data));
+  // Connection state
+  readonly connectionState = signal<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
+  readonly sessionId = signal<string | null>(null);
+
+  // Internal state
+  private subscribers = new Map<string, SubscriptionEntry>();
+  private abortController: AbortController | null = null;
+  private activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  private reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private sessionExpired = false;
+  private reconnectAttempt = 0;
+  private connectionGeneration = 0;
+  private urlSubscriberKeys: Set<string> | null = null;
+
+  /**
+   * Subscribe to events for a target. Opens the stream if not connected.
+   * Returns an unsubscribe function (call in component's DestroyRef).
+   */
+  subscribe<T>(
+    targetType: string,
+    targetId: string | number,
+    handlers: StreamSubscribeHandlers<T>
+  ): () => void {
+    const key = `${targetType}:${targetId}`;
+    const entry = { targetType, targetId, handlers };
+    this.subscribers.set(key, entry);
+
+    if (this.connectionState() === 'open' && this.sessionId()) {
+      this.addSubscriptionServer(targetType, targetId);
+    } else if (this.connectionState() !== 'connecting') {
+      this.getConnection();
+    }
+    // else: connecting — subscriber is in the Map and will be picked up by
+    // buildStreamUrl() or late-subscriber reconciliation after Session event.
+
+    // Identity-safe unsubscribe: only remove if this is the same entry
+    return () => {
+      if (this.subscribers.get(key) !== entry) return; // stale
+      this.subscribers.delete(key);
+      if (this.sessionId()) {
+        this.removeSubscriptionServer(targetType, targetId);
+      }
+      if (this.subscribers.size === 0) {
+        this.closeConnection();
+      }
+    };
   }
 
-  disconnect() {
-    this.eventSource?.close();
-    this.eventSource = null;
+  /**
+   * Open the SSE stream using native fetch + ReadableStream.
+   * Reads SSE text blocks, parses JSON, dispatches to subscribers.
+   */
+  private async getConnection(): Promise<void> {
+    if (this.subscribers.size === 0) return;
+    const myGeneration = ++this.connectionGeneration;
+    this.connectionState.set('connecting');
+
+    // Graceful teardown of previous connection
+    this.disconnectServer();
+    this.sessionId.set(null);
+    await this.releaseReader();
+    this.abortController?.abort();
+
+    if (myGeneration !== this.connectionGeneration) return; // superseded
+
+    this.abortController = new AbortController();
+    const url = this.buildStreamUrl();
+    this.urlSubscriberKeys = new Set(this.subscribers.keys());
+
+    const token = this.authService.token();
+    const res = await fetch(url, {
+      signal: this.abortController.signal,
+      headers: {
+        'Accept': 'text/event-stream',
+        'Authorization': `Bearer ${token}`
+      },
+      cache: 'no-store'
+    });
+
+    if (myGeneration !== this.connectionGeneration) return;
+    if (!res.ok || !res.body) { /* error → reconnect */ return; }
+
+    this.activeReader = res.body.getReader();
+    await this.readStream(this.activeReader, myGeneration);
+
+    // Stream ended — reconnect if still current generation and have subscribers
+    if (myGeneration === this.connectionGeneration && this.subscribers.size > 0) {
+      this.sessionId.set(null);
+      this.scheduleReconnect();
+    }
+  }
+
+  /**
+   * Read SSE text from the stream, split on double-newline, parse JSON.
+   */
+  private async readStream(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    generation: number
+  ): Promise<void> {
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const blocks = buffer.split(/\r?\n\r?\n/);
+      buffer = blocks.pop() ?? '';
+      for (const block of blocks) {
+        if (!block.trim()) continue;
+        const parsed = this.parseSSEBlock(block);
+        if (parsed && !this.processEvent(parsed)) return;
+      }
+    }
   }
 }
 ```
 
-Feature components use `effect()` to react to events relevant to their current view — e.g., the goal editor watches for `AnnotationAdded` events where `entityType === 'Goal'` and `entityId` matches, then re-fetches annotations.
+**Component usage:**
+```typescript
+@Component({ /* ... */ })
+export class GoalEditorComponent implements OnInit {
+  private eventStream = inject(EventStreamService);
+  private destroyRef = inject(DestroyRef);
+  projectId = input.required<number>();
+  goalId = input.required<number>();
+
+  ngOnInit() {
+    // Subscribe to goal-level events
+    const unsub = this.eventStream.subscribe<GoalDto>(
+      'Goal', this.goalId(),
+      {
+        onData: (payload, messageType) => {
+          if (messageType === 'deleted') {
+            // navigate away or show message
+          } else if (payload) {
+            this.goal.set(payload); // update the signal with new data
+          }
+        },
+        onError: (err) => console.error('Stream error', err),
+      }
+    );
+    this.destroyRef.onDestroy(unsub);
+  }
+}
+```
 
 #### Why SSE over WebSocket
 
 - **Unidirectional** — the client only needs to receive push events; it already sends commands via POST. No need for bidirectional WebSocket.
-- **Auto-reconnect** — the `EventSource` API reconnects automatically on network interruption.
 - **Simpler infrastructure** — works through HTTP proxies and load balancers without special configuration. No WebSocket upgrade handshake.
-- **Spring Boot native** — `SseEmitter` in servlet stack, `Flux<ServerSentEvent>` in WebFlux. No additional dependencies.
+- **Spring Boot native** — `SseEmitter` in servlet stack. No additional dependencies.
+
+#### Why Fetch-Based Streaming over EventSource
+
+- **Authorization header** — `EventSource` does not support custom headers. With fetch, the JWT stays in the `Authorization` header rather than being exposed in a URL query parameter.
+- **Full control** — `AbortController` for cancellation, `ReadableStream` for incremental parsing, generation counters for stale connection handling.
+- **Browser compatibility** — native `fetch` with `ReadableStream` is supported in all modern browsers. The SSE text format (`data:` lines separated by `\n\n`) is trivial to parse manually.
 
 #### Backend: Publishing Events
 
-When a command executes, the `CommandHandler` (or `AnalysisInvokingCommandHandler`) publishes a domain event to an in-process event bus (Spring `ApplicationEventPublisher`). An SSE adapter listens for these events and pushes them to connected `SseEmitter` instances. This keeps event publishing decoupled from the SSE transport:
+When a command executes, domain code publishes events through `StreamEventPublisher`. This keeps event publishing decoupled from the SSE transport:
 
 ```
-CommandHandler.execute(command)
-  → repository.save(entity)
-  → applicationEventPublisher.publishEvent(new EntityUpdatedEvent("Goal", 7, "assistant"))
-  → SseEventBridge listens, pushes to all connected SseEmitters
+AnalysisInvokingCommandHandler.execute(command)
+  → command.execute() + command.invokeAnalysis()
+  → NLP assistant adds Issue to Goal
+  → streamEventPublisher.publishTargetUpdate("Goal", 7, goalDto)
+  → StreamService looks up sessions subscribed to "Goal:7"
+  → sends Data event via each session's SseEmitter
 ```
+
+For Requel (single server instance), `StreamEventPublisher` pushes directly to local `SseEmitter` instances. The interface is designed so that a Redis pub/sub layer can be added later for multi-instance deployments without changing the publishing code.
+
+### 3.6 Authorization
+
+Echo2 enforces authorization at the domain level — commands and panels check domain roles (`user.hasRole(SystemAdminUserRole.class)`) and stakeholder context (`project.getUserStakeholder(user)` for edit permissions). These are not HTTP-level checks. The Angular migration preserves this approach and adds HTTP-level gating.
+
+#### Backend: Two layers
+
+**1. Endpoint-level (Spring Security):**
+- User administration endpoints (`GET /api/users`, `POST /api/commands/NewUser`, `POST /api/commands/EditUser`) require the `SystemAdmin` role — enforced via `@PreAuthorize("hasRole('SYSTEM_ADMIN')")` or equivalent.
+- All other authenticated endpoints are open to any logged-in user; fine-grained checks happen at the domain layer.
+
+**2. Domain-level (command handler chain + query filtering):**
+- Currently, most authorization is enforced by Echo2 UI panels (`isReadOnlyMode()`, `isShowDelete()`), **not** in commands. Only `EditUserCommandImpl` explicitly checks `hasRole(SystemAdminUserRole)`. When the UI becomes Angular, this server-side panel enforcement disappears.
+- The new architecture adds an **`AuthorizingCommandHandler`** to the command handler chain. Each command declares its authorization requirement (system role, role permission, or stakeholder permission) via an `AuthorizableCommand` interface. The handler checks the requirement before the command enters the transactional boundary.
+- Query endpoints filter results by user access — e.g. `GET /api/projects` returns only projects where the user is a stakeholder (or all projects for SystemAdmin). A `ProjectAccessChecker` service enforces this.
+- See `doc/AUTH_ARCH.md` for the full design.
+
+This means the API layer gates admin endpoints at the Spring Security level and delegates fine-grained authorization to the `AuthorizingCommandHandler` (for commands) and `ProjectAccessChecker` (for queries).
+
+#### Angular: Role-based visibility
+
+The `UserDto` returned by `POST /api/auth/login` and `GET /api/auth/me` includes `roles: string[]`. Angular uses these for UI-level visibility:
+
+| Feature | Required Role | Implementation |
+|---|---|---|
+| Users tab (list, create, edit users) | `SystemAdmin` | Route guard on `/users/**` |
+| Role editing in user form | `SystemAdmin` | Conditional field visibility |
+| All project features | Any authenticated user | Default — stakeholder filtering is backend-only |
+
+Role checks in Angular are for **UX only** (hiding irrelevant UI). The backend enforces all authorization; Angular never trusts client-side role checks for security.
+
+#### Detailed Authorization Architecture
+
+The full authorization design — including `AuthorizingCommandHandler` in the command handler chain, `AuthorizableCommand` / `ProjectScopedCommand` interfaces, `AuthorizationRequirement` sealed types, query-level `ProjectAccessChecker`, and Angular `PermissionService` — is documented in **`doc/AUTH_ARCH.md`**.
 
 ## 4. Migration Strategy: Screen-by-Screen
 
@@ -483,15 +892,28 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 2. Create `service-impl` module with:
    - `CommandFactory` composite facade — delegates to per-domain factories, provides `getInputType(type)` and `newCommand(type, input)`
    - `CommandController` — `POST /api/commands/{commandType}`, uses `CommandFactory` + `CommandHandler`
-   - Spring Security config (stateless, no session) with JWT filter
-   - JWT utility: token generation (HS256, 8-hour expiry), validation, claim extraction
-   - CORS configuration for Angular dev server
+   - Spring Security config: stateless, JWT filter before `UsernamePasswordAuthenticationFilter`, public path for `/api/auth/login`, authenticated for all other `/api/**`
+   - JWT utility (jjwt): token generation (HS256, 8-hour expiry, claims: sub/roles/exp), validation, claim extraction
+   - `CurrentUserResolver` — resolves JWT principal (username) to domain `User` via `UserRepository.findUserByUsername`; used by `CommandController` to call `command.setEditedBy(currentUser)` before execute
+   - CORS configuration: `allowedOrigins` includes `http://localhost:4200` for dev; same-origin in production
 3. Update existing per-domain factories (`ProjectCommandFactory`, `UserCommandFactory`, `AnnotationCommandFactory`) to register their command types via `@PostConstruct`
-4. Implement auth endpoints: `POST /api/auth/login` → `{ token, user }`, `GET /api/auth/me` → `UserDto`
-5. SSE event stream infrastructure:
-   - `ServerEvent` record (event type, entityType, entityId, updatedBy)
-   - `SseEventBridge` — Spring `@EventListener` that listens for domain events and pushes to connected `SseEmitter` instances
-   - `GET /api/events/stream` endpoint — authenticated via JWT query param, returns `SseEmitter`
+4. Implement auth endpoints:
+   - `POST /api/auth/login` — loads user by username, verifies password via existing `user.isPassword()`, issues JWT
+   - `GET /api/auth/me` — validates JWT, returns `UserDto`
+5. SSE event stream infrastructure (session-based subscription model, see Section 3.5):
+   - `StreamEventEnvelope` — event envelope DTO with `eventType`, `targetType`, `targetId`, `payload` (factory methods: `session()`, `data()`, `targetDeleted()`, `sessionExpired()`)
+   - `StreamSessionStore` — in-memory session + subscription tracking (`ConcurrentHashMap<sessionId, SessionData>`, reverse index `targetType:targetId → Set<sessionId>`)
+   - `StreamService` — manages `SseEmitter` lifecycle, keep-alive (30s comment), session expiry (JWT exp + 5 min grace), graceful close (`emitter.complete()`), push-to-subscribed-sessions
+   - `StreamEventPublisher` interface + `StreamEventPublisherImpl` — called by domain code to push target updates and deletes to subscribed sessions
+   - `StreamController` — endpoints: `GET /api/events/stream` (open stream with initial subscriptions), `POST /api/events/stream/subscriptions` (add), `DELETE /api/events/stream/subscriptions` (remove), `DELETE /api/events/stream/connection` (graceful close)
+   - `StreamConfig` — dedicated `TaskScheduler` for keep-alive and session expiry (thread pool, prefix "stream-")
+6. Authorization infrastructure (see `doc/AUTH_ARCH.md`):
+   - `AuthorizableCommand` interface — commands declare `getAuthorizationRequirement()`
+   - `AuthorizationRequirement` sealed interface — `RequiresSystemRole`, `RequiresRolePermission`, `RequiresStakeholderPermission`
+   - `ProjectScopedCommand` interface — exposes `getProject()` for stakeholder permission checks
+   - `AuthorizingCommandHandler` — added to handler chain between `ExceptionMappingCommandHandler` and `AnalysisInvokingCommandHandler`
+   - `AuthorizationException` — mapped to 403 Forbidden
+   - `ProjectAccessChecker` — verifies stakeholder membership for query endpoints
 
 **Frontend work:**
 1. Scaffold Angular 21 project: `ng new requel-angular --style=scss --routing` (standalone by default, no NgModules)
@@ -505,7 +927,7 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
    ```
 4. `CommandService` — injectable service using `HttpClient` + signals for state. Generic `execute<T>(commandType, input): Signal<CommandResult<T>>` method for `POST /api/commands/{type}` calls.
 5. Auth: login page (standalone component importing PrimeNG `InputText`, `Password`, `Button`), `AuthService` (JWT stored as `signal<string | null>`), functional HTTP interceptor (`authInterceptor`), functional route guard (`authGuard`)
-6. `EventStreamService` — connects to `GET /api/events/stream` on login, exposes events as a signal. Disconnects on logout/token expiry.
+6. `EventStreamService` — fetch-based SSE streaming service (see Section 3.5). Connection lifecycle (idle/connecting/open/closed/error), session tracking, dynamic subscribe/unsubscribe, late-subscriber reconciliation, exponential backoff reconnect, generation counter for stale connection prevention, graceful server-side disconnect, identity-safe unsubscribe, SSE text parsing via `ReadableStream`.
 7. Main layout: standalone `AppLayout` component with `p-menubar` (Edit Account, User Guide, Logout), sidebar `p-tree`, content area with `p-tabView`
 8. Verify login → protected route → SSE connection → logout flow works end-to-end
 
@@ -526,11 +948,11 @@ No logout endpoint — the Angular app discards the JWT from memory.
 
 **Backend work — Commands:**
 1. Add `ApiCommand<NewUserInput>` to `NewUserCommand` — fields: username, password, name, email, org, phone, roles
-2. Add `ApiCommand<EditUserInput>` to `EditUserCommand` — same fields, plus userId
+2. Add `ApiCommand<EditUserInput>` to `EditUserCommand` — same fields, plus userId, version
 3. Register both in `UserCommandFactory.registerCommands()`
 
 **Backend work — Queries:**
-1. `GET /api/users` → list all users (UserDto[])
+1. `GET /api/users` → paginated list of all users
 2. `GET /api/users/{id}` → single user detail
 3. `GET /api/organizations` → org list for dropdown
 4. `GET /api/roles` → available role definitions
@@ -551,22 +973,24 @@ No logout endpoint — the Angular app discards the JWT from memory.
 
 **Backend work — Commands:**
 1. Add `ApiCommand<NewProjectInput>` to `NewProjectCommand` — fields: name, description, organizationName
-2. Add `ApiCommand<EditProjectInput>` to `EditProjectCommand` — fields: projectId, name, description, organizationName
+2. Add `ApiCommand<EditProjectInput>` to `EditProjectCommand` — fields: projectId, name, description, organizationName, version
 3. `ImportProject` command — special handling: multipart upload via `POST /api/projects/import` (not through command dispatch since it involves file upload)
 
 **Backend work — Queries:**
-1. `GET /api/projects` → list all projects for current user
-2. `GET /api/projects/{id}` → full project detail
+1. `GET /api/projects` → paginated list, filtered by `ProjectAccessChecker`: returns only projects where current user is a stakeholder (or all projects for SystemAdmin)
+2. `GET /api/projects/{id}` → full project detail (requires stakeholder membership or SystemAdmin)
 3. `GET /api/projects/{id}/tree` → tree structure for sidebar (child entity counts)
 4. `GET /api/projects/{id}/export` → XML download (adapt existing `ProjectXmlController`)
+5. `GET /api/projects/{id}/my-permissions` → current user's stakeholder permissions for this project (see `doc/AUTH_ARCH.md` §4.2)
 
 **Frontend work:**
-1. Project list page with New/Import buttons
+1. Project list page with New/Import buttons ("New Project" shown only if `canCreateProjects` from JWT permissions)
 2. New Project form (name, description, org combo)
 3. Import Project form (file upload, rename, enable analysis)
 4. Edit Project form (name, description, org, createdBy, annotations — annotations placeholder until Phase 7)
 5. Project tree sidebar component — clicking items routes to sub-pages
 6. Export button triggers download
+7. `PermissionService` — fetches `GET /api/projects/{id}/my-permissions` on project load, caches per project, exposes `hasPermission(projectId, entityType, permissionType)` as signals. System roles and role-level permissions read from JWT. See `doc/AUTH_ARCH.md` §4.3.
 
 **Echo2 panels replaced:** `ProjectNavigatorPanel`, `ProjectOverviewPanel`, `ProjectImportPanel`, `ProjectNavigatorTreeNodeFactory`
 
@@ -579,11 +1003,11 @@ No logout endpoint — the Angular app discards the JWT from memory.
 **Backend work — Commands:**
 1. Add `ApiCommand<AddUserStakeholderInput>` to `AddUserStakeholderCommand` — fields: projectId, userId
 2. Add `ApiCommand<AddNonUserStakeholderInput>` to `NewNonUserStakeholderCommand` — fields: projectId, name, description
-3. Add `ApiCommand<EditUserStakeholderInput>` / `EditNonUserStakeholderInput` to edit commands
-4. Add `ApiCommand<RemoveStakeholderInput>` to remove command
+3. Add `ApiCommand<EditUserStakeholderInput>` / `EditNonUserStakeholderInput` to edit commands — include version
+4. Add `ApiCommand<RemoveStakeholderInput>` to remove command — include version
 
 **Backend work — Queries:**
-1. `GET /api/projects/{id}/stakeholders` → list (StakeholderDto[])
+1. `GET /api/projects/{id}/stakeholders` → paginated list
 
 **Frontend work:**
 1. Stakeholder list table (Name, User?, Team, Email, Phone, Created By, Date)
@@ -601,17 +1025,17 @@ No logout endpoint — the Angular app discards the JWT from memory.
 
 **Backend work — Commands:**
 1. `NewGoal` → `ApiCommand<NewGoalInput>` — fields: projectId, name, text
-2. `EditGoal` → `ApiCommand<EditGoalInput>` — fields: goalId, name, text
-3. `EditGoalRelations` → `ApiCommand<EditGoalRelationsInput>` — fields: goalId, supportingGoalIds[], conflictingGoalIds[]
-4. `DeleteGoal` → `ApiCommand<DeleteGoalInput>` — fields: goalId
+2. `EditGoal` → `ApiCommand<EditGoalInput>` — fields: goalId, name, text, version
+3. `EditGoalRelations` → `ApiCommand<EditGoalRelationsInput>` — fields: goalId, supportingGoalIds[], conflictingGoalIds[], version
+4. `DeleteGoal` → `ApiCommand<DeleteGoalInput>` — fields: goalId, version
 5. `NewStory` → `ApiCommand<NewStoryInput>` — fields: projectId, name, text, type
-6. `EditStory` → `ApiCommand<EditStoryInput>` — fields: storyId, name, text, type
-7. `DeleteStory` → `ApiCommand<DeleteStoryInput>` — fields: storyId
+6. `EditStory` → `ApiCommand<EditStoryInput>` — fields: storyId, name, text, type, version
+7. `DeleteStory` → `ApiCommand<DeleteStoryInput>` — fields: storyId, version
 
 **Backend work — Queries:**
-1. `GET /api/projects/{id}/goals` → list (GoalDto[])
+1. `GET /api/projects/{id}/goals` → paginated list
 2. `GET /api/projects/{id}/goals/{gid}` → single goal with relations
-3. `GET /api/projects/{id}/stories` → list (StoryDto[])
+3. `GET /api/projects/{id}/stories` → paginated list
 4. `GET /api/projects/{id}/stories/{sid}` → single story
 
 **Frontend work:**
@@ -630,11 +1054,11 @@ No logout endpoint — the Angular app discards the JWT from memory.
 
 **Backend work — Commands:**
 1. `NewActor` → `ApiCommand<NewActorInput>` — fields: projectId, name, description
-2. `EditActor` → `ApiCommand<EditActorInput>` — fields: actorId, name, description
-3. `DeleteActor` → `ApiCommand<DeleteActorInput>`
+2. `EditActor` → `ApiCommand<EditActorInput>` — fields: actorId, name, description, version
+3. `DeleteActor` → `ApiCommand<DeleteActorInput>` — fields: actorId, version
 4. `NewUseCase` → `ApiCommand<NewUseCaseInput>` — fields: projectId, name, description, primaryActorId
-5. `EditUseCase` → `ApiCommand<EditUseCaseInput>` — fields: useCaseId, name, description, primaryActorId, goalIds[], storyIds[], scenarioIds[]
-6. `DeleteUseCase` → `ApiCommand<DeleteUseCaseInput>`
+5. `EditUseCase` → `ApiCommand<EditUseCaseInput>` — fields: useCaseId, name, description, primaryActorId, goalIds[], storyIds[], scenarioIds[], version
+6. `DeleteUseCase` → `ApiCommand<DeleteUseCaseInput>` — fields: useCaseId, version
 
 **Backend work — Queries:**
 1. `GET /api/projects/{id}/actors` → list
@@ -661,8 +1085,8 @@ No logout endpoint — the Angular app discards the JWT from memory.
 
 **Backend work — Commands:**
 1. `NewScenario` → `ApiCommand<NewScenarioInput>` — fields: projectId, name, type
-2. `EditScenario` → `ApiCommand<EditScenarioInput>` — fields: scenarioId, name, type, steps[] (tree as nested DTOs)
-3. `DeleteScenario` → `ApiCommand<DeleteScenarioInput>`
+2. `EditScenario` → `ApiCommand<EditScenarioInput>` — fields: scenarioId, name, type, steps[] (tree as nested DTOs), version
+3. `DeleteScenario` → `ApiCommand<DeleteScenarioInput>` — fields: scenarioId, version
 
 **Backend work — Queries:**
 1. `GET /api/projects/{id}/scenarios` → list
@@ -676,7 +1100,7 @@ No logout endpoint — the Angular app discards the JWT from memory.
 
 **Echo2 panels replaced:** `ScenarioNavigatorPanel`, `ScenarioEditorPanel`, `ScenarioSelectorPanel`, `ScenarioEditorTreeNodeFactory`, `ScenarioStepEditorTreeNodeFactory`
 
-**Note:** The step tree is the most complex UI component in Requel. Consider using a tree library (e.g., Angular CDK drag-drop) or a custom component. Start simple — flat ordered list with type labels — and iterate toward a tree editor.
+**Note:** The step tree is the most complex UI component in Requel. Use PrimeNG's `p-tree` with `draggableNodes`/`droppableNodes` as the foundation. Start simple — flat ordered list with type labels — and iterate toward a full drag-and-drop tree editor.
 
 ---
 
@@ -686,9 +1110,9 @@ No logout endpoint — the Angular app discards the JWT from memory.
 
 **Backend work — Commands:**
 1. `NewIssue` → `ApiCommand<NewIssueInput>` — fields: entityType, entityId, text, mustBeResolved
-2. `EditIssue` → `ApiCommand<EditIssueInput>` — fields: issueId, text, status, mustBeResolved
+2. `EditIssue` → `ApiCommand<EditIssueInput>` — fields: issueId, text, status, mustBeResolved, version
 3. `NewNote` → `ApiCommand<NewNoteInput>` — fields: entityType, entityId, text
-4. `EditNote` → `ApiCommand<EditNoteInput>` — fields: noteId, text
+4. `EditNote` → `ApiCommand<EditNoteInput>` — fields: noteId, text, version
 5. `NewPosition` → `ApiCommand<NewPositionInput>` — fields: issueId, text
 6. `NewArgument` → `ApiCommand<NewArgumentInput>` — fields: positionId, text, supports (boolean)
 
@@ -715,10 +1139,10 @@ No logout endpoint — the Angular app discards the JWT from memory.
 
 **Backend work — Commands:**
 1. `NewGlossaryTerm` → `ApiCommand<NewGlossaryTermInput>` — fields: projectId, name, definition, canonicalTermId
-2. `EditGlossaryTerm` → `ApiCommand<EditGlossaryTermInput>` — fields: termId, name, definition, canonicalTermId
-3. `DeleteGlossaryTerm` → `ApiCommand<DeleteGlossaryTermInput>`
+2. `EditGlossaryTerm` → `ApiCommand<EditGlossaryTermInput>` — fields: termId, name, definition, canonicalTermId, version
+3. `DeleteGlossaryTerm` → `ApiCommand<DeleteGlossaryTermInput>` — fields: termId, version
 4. `NewDocument` → `ApiCommand<NewDocumentInput>` — fields: projectId, name, templateConfig
-5. `EditDocument` → `ApiCommand<EditDocumentInput>` — fields: documentId, name, templateConfig
+5. `EditDocument` → `ApiCommand<EditDocumentInput>` — fields: documentId, name, templateConfig, version
 6. `RunDocument` → `ApiCommand<RunDocumentInput>` — fields: documentId (triggers generation)
 
 **Backend work — Queries:**
@@ -803,9 +1227,12 @@ GET /api/projects/{id}/export                 → XML export
 GET /api/annotations?entityType=&entityId=    → annotations for any entity
 ```
 
-**Event stream (SSE):**
+**Event stream (SSE — session-based subscription model, see Section 3.5):**
 ```
-GET /api/events/stream?token={jwt}            → SSE connection for real-time background events
+GET    /api/events/stream?subscribe=Type:id   → opens SSE stream with initial subscriptions
+POST   /api/events/stream/subscriptions       → add subscription (X-Session-Id header)
+DELETE /api/events/stream/subscriptions       → remove subscription (X-Session-Id header)
+DELETE /api/events/stream/connection          → graceful server-side close (X-Session-Id header)
 ```
 
 **Special cases (not through command dispatch):**
@@ -816,87 +1243,39 @@ POST /api/projects/import             → multipart file upload
 
 ### Composite CommandFactory
 
-The write side is built around a composite `CommandFactory` that unifies command type lookup, creation, and input application into a single facade. This replaces a separate dispatcher + registry with one cohesive component.
-
-**Registration** — each per-domain factory registers its command types at startup:
-
-```java
-// In ProjectCommandFactory
-@PostConstruct
-void registerCommands() {
-    registry.register("NewGoal",  NewGoalInput.class,  this::newNewGoalCommand);
-    registry.register("EditGoal", EditGoalInput.class,  this::newEditGoalCommand);
-    registry.register("DeleteGoal", DeleteGoalInput.class, this::newDeleteGoalCommand);
-    // ...
-}
-
-// In UserCommandFactory
-@PostConstruct
-void registerCommands() {
-    registry.register("NewUser",  NewUserInput.class,  this::newNewUserCommand);
-    registry.register("EditUser", EditUserInput.class,  this::newEditUserCommand);
-}
-
-// In AnnotationCommandFactory
-@PostConstruct
-void registerCommands() {
-    registry.register("NewIssue", NewIssueInput.class, this::newNewIssueCommand);
-    // ...
-}
-```
-
-**Facade** — the top-level `CommandFactory` provides the unified entry point:
-
-```java
-public class CommandFactory {
-    private final CommandRegistry registry;  // populated by per-domain factories
-
-    public Class<?> getInputType(String commandType)   // for JSON deserialization
-    public Command newCommand(String commandType, Object input)  // create + applyInput
-}
-```
-
-**Controller** — thin HTTP layer:
-
-```java
-@PostMapping("/api/commands/{commandType}")
-public CommandResult execute(@PathVariable String commandType,
-                             @RequestBody JsonNode body) {
-    Class<?> inputType = commandFactory.getInputType(commandType);
-    Object input = objectMapper.treeToValue(body, inputType);
-    Command cmd = commandFactory.newCommand(commandType, input);
-    return commandHandler.execute(cmd);
-}
-```
-
-This keeps domain boundaries clean — each domain factory owns its registrations, the facade just delegates, and the controller is pure infrastructure.
+See Section 3.1 for the full architecture, code examples, and flow diagrams. In summary:
+- Per-domain factories register command types at startup via `@PostConstruct`
+- Top-level `CommandFactory` facade provides `getInputType(type)` and `newCommand(type, input)`
+- Thin `CommandController` handles deserialization and delegates to the facade + `CommandHandler`
 
 ### Command Response
 
-All commands return a `CommandResult`:
-```json
-{
-  "success": true,
-  "entity": { ... },          // updated entity as DTO (type varies per command)
-  "entityType": "Goal"        // discriminator for the Angular client
-}
-```
-
-On validation failure:
-```json
-{
-  "success": false,
-  "error": "Validation failed",
-  "violations": [
-    { "field": "name", "message": "a name is required." }
-  ]
-}
-```
+See Section 3.1 for response format examples. In summary:
+- Success: `{ success: true, entity: { ... }, entityType: "Goal" }`
+- Validation failure: `{ success: false, error: "...", violations: [{ field, message }] }`
 
 ### Query Response Patterns
-- List endpoints return `{ items: T[], total: number, page: number, pageSize: number }`
+- List endpoints return the standard paginated envelope: `{ items: T[], total: number, page: number, pageSize: number }`. All list endpoints in phases (e.g. `GET /api/users`, `GET /api/projects/{id}/goals`) use this envelope, not raw arrays.
 - Single-entity endpoints return the DTO directly
 - All entities include `id`, `createdBy`, `dateCreated`, `version` (for optimistic locking)
+
+### Optimistic Locking
+
+All mutating command inputs (`Edit*`, `Delete*`, relation edits) must include the entity's `version` field. The backend checks the version against the current database value before applying changes.
+
+**On version mismatch (concurrent edit detected):**
+```json
+HTTP 409 Conflict
+{
+  "success": false,
+  "error": "Conflict",
+  "message": "Entity was modified by another user. Please reload and try again.",
+  "currentVersion": 5,
+  "yourVersion": 3
+}
+```
+
+The Angular client handles 409 by prompting the user to reload the entity before retrying. This prevents lost updates when the NLP agent or another user modifies an entity concurrently.
 
 ### DTO Approach
 - DTOs are flat where possible (no deep nesting)
@@ -975,11 +1354,35 @@ Both Echo2 and Angular can run simultaneously during migration:
 ### JWT authentication (stateless, no sessions)
 JWT with `Authorization: Bearer` header, no server-side sessions. This keeps the backend fully stateless — no session store, no sticky sessions, no shared session data if multiple instances run behind a load balancer. Token expiry is 8 hours with no refresh token; users re-authenticate when the token expires. JWT is stored in memory (Angular service field), not `localStorage` or cookies, so it's cleared on page refresh. The tradeoff is that a page refresh requires re-login, which is acceptable for a requirements tool that isn't used in long uninterrupted sessions.
 
-### Real-time updates: SSE with invalidate-and-refetch
-Commands return results synchronously — the user gets immediate feedback for their own actions. Background events (NLP agent adding annotations, other users' edits) push to the client via Server-Sent Events (SSE) rather than WebSocket. SSE is unidirectional (server→client), auto-reconnects, works through proxies, and requires no additional dependencies beyond Spring Boot's `SseEmitter`. Events are lightweight notifications (entity type + ID), not full payloads — the client re-fetches affected entities via their existing GET endpoints. This avoids coupling event shapes to DTO shapes and keeps the stream simple. The alternative — reading all results from the stream (pure event-sourcing style) — was rejected because it adds command correlation complexity, latency on the write path, and error handling for missing events, all without UX benefit for a synchronous command-based system.
+### Real-time updates: SSE with session-based subscriptions
+Commands return results synchronously — the user gets immediate feedback for their own actions. Background events (NLP agent adding annotations, other users' edits) push to the client via Server-Sent Events (SSE) rather than WebSocket. SSE is unidirectional (server→client), works through proxies, and requires no additional dependencies beyond Spring Boot's `SseEmitter`. The client uses **fetch-based streaming** (not `EventSource`) so the JWT stays in the Authorization header rather than a URL query parameter. The stream uses a **session-based subscription model** the client subscribes to specific targets (`Project:1`, `Project:7`), and the server pushes only events for those targets. Subscriptions can be added/removed dynamically via REST endpoints while the stream is open. Events carry full DTO payloads where feasible, reducing round-trips. The client handles reconnect with exponential backoff, generation counters for stale connection prevention, and graceful server-side disconnect to avoid Safari/Firefox half-closed connection issues. See Section 3.5 for the complete architecture. The alternative — reading all results from the stream (pure event-sourcing style) — was rejected because it adds command correlation complexity, latency on the write path, and error handling for missing events, all without UX benefit for a synchronous command-based system.
 
 ### Deployment: static from Spring Boot
 Angular build output (`ng build` → `dist/`) is served as static resources from the Spring Boot JAR. Single artifact, single process, single Docker container. No CORS configuration needed in production since frontend and API are same-origin. The alternative — deploying Angular separately via nginx/S3/CDN — adds infrastructure complexity (reverse proxy, CORS, two deploy targets) without benefit for a single-developer, single-server tool. During development, Angular's dev server runs on port 4200 with hot reload and proxies API calls to Spring Boot — the dev experience is the same either way.
+
+### Identity migration dependency
+The UI refactor relies on the current user/password/role model. A separate `doc/IDENTITY_MIGRATION.md` plans to extract `platform-identity` with new `User`/`Role` interfaces, Spring Security `UserDetails` alignment, and role-to-authority remapping. To avoid duplicate auth work or contract churn mid-migration:
+- **The UI refactor pins to the current identity model.** Phase 0 auth (JWT filter, `CurrentUserResolver`, `user.isPassword()`) uses the existing `UserRepository` and domain `User` directly.
+- **If the identity migration runs concurrently**, the `CurrentUserResolver` and JWT claim mapping are the only touchpoints that need updating. The `ApiCommand<T>` interface and command inputs are identity-agnostic.
+- **Recommended sequencing:** complete at least Phases 0–2 of the UI refactor before starting the identity migration, so the auth layer is stable before the identity model changes underneath it.
+
+### Cutover and rollback
+During migration, Echo2 and Angular coexist — both hit the same Spring Boot backend and same database. The schema does not change (no new tables or migrations for the Angular frontend). This makes rollback straightforward:
+- **Rollback during Phases 0–9:** revert to the previous JAR (without `service-api`/`service-impl` modules). Echo2 continues to work as before. No data migration needed.
+- **Phase 10 (Echo2 removal) is the point of no return.** Before executing Phase 10:
+  - All screens must be verified in Angular (see Definition of Done below)
+  - Run the full integration test suite
+  - Confirm import/export round-trip works through the new API
+  - Keep the last Echo2-capable JAR as a rollback artifact for one release cycle
+- **No runtime toggle needed.** Echo2 on `/` and Angular on port 4200 (dev) or a different path are sufficient for coexistence. Feature flags add complexity without benefit for a single-developer project.
+
+### Definition of Done (per phase)
+Each phase is complete when:
+1. **Backend tests pass** — new command and query endpoint tests added, existing integration tests still green (`mvn -pl modules/requel-app -am test`)
+2. **Frontend tests pass** — component tests for new Angular screens (Vitest)
+3. **Smoke test** — manually verify the end-to-end flow for the phase's screens (create, edit, delete, list) through the Angular UI
+4. **Echo2 parity** — the Angular screen handles the same data and actions as the Echo2 panel it replaces (field-by-field comparison against the screen inventory in Section 2.1)
+5. **No regressions** — Echo2 panels not yet replaced still function correctly
 
 ### Phasing priorities
 The phases are ordered by dependency (auth first, then entities, then cross-cutting features). The annotation system (Phase 7) is deliberately late because it touches every editor — building it after the editors exist avoids rework. However, editor forms should include an "Annotations" placeholder from Phase 2 onward so the layout is correct.
@@ -988,9 +1391,9 @@ The phases are ordered by dependency (auth first, then entities, then cross-cutt
 
 | Phase | Scope | Commands | Queries | Angular Components | Relative Size |
 |-------|-------|----------|---------|-------------------|---------------|
-| 0 | Foundation | 0 | 1 (auth/me) + SSE stream | 5 (login, layout, guard, CommandService, EventStreamService) | Medium-Large (infrastructure) |
+| 0 | Foundation | 0 | 1 (auth/me) + SSE stream (4 endpoints) | 5 (login, layout, guard, CommandService, EventStreamService) | Medium-Large (infrastructure) |
 | 1 | Users | 2 | 4 | 4 (list, editor, org combo, roles) | Small |
-| 2 | Projects | 2 (+import) | 4 | 6 (list, new, import, edit, tree, export) | Medium |
+| 2 | Projects | 2 (+import) | 5 | 7 (list, new, import, edit, tree, export, PermissionService) | Medium |
 | 3 | Stakeholders | 4 | 1 | 4 (list, user-add, non-user-add, edit) | Small |
 | 4 | Goals + Stories | 7 | 4 | 5 (2 lists, 2 editors, selector dialog) | Medium |
 | 5 | Actors + Use Cases | 6 | 4 | 4 (2 lists, 2 editors) | Medium |
@@ -1000,12 +1403,16 @@ The phases are ordered by dependency (auth first, then entities, then cross-cutt
 | 9 | Open Issues | 1 | 1 | 1 (issues view) | Small |
 | 10 | Cleanup | 0 | 0 | 0 | Small (deletion) |
 
-**Totals:** ~37 command types, ~27 query endpoints + SSE stream, ~41 Angular components
+**Totals:** ~37 command types, ~28 query endpoints + SSE stream, ~42 Angular components
 
 ## 8. Open Questions
 
 1. ~~**UI component library** — Angular Material, PrimeNG, or Taiga UI?~~ **Decided: PrimeNG.** Best fit for data-table-heavy UI. See Section 6 tradeoffs.
-2. ~~**Real-time updates** — Echo2 has server-push for concurrent editing. Do we need WebSocket support for multi-user scenarios, or is polling/manual refresh acceptable initially?~~ **Decided: SSE event stream.** Commands return results synchronously; SSE pushes background events (NLP, other users). Invalidate-and-refetch pattern. See Sections 3.5 and 6.
+2. ~~**Real-time updates** — Echo2 has server-push for concurrent editing. Do we need WebSocket support for multi-user scenarios, or is polling/manual refresh acceptable initially?~~ **Decided: SSE event stream with session-based subscriptions.** Commands return results synchronously; SSE pushes background events (NLP, other users). Fetch-based streaming (not EventSource) keeps JWT in Authorization header. Session/subscription model. See Sections 3.5 and 6.
 3. ~~**NLP panel priority** — The NLP parser is an admin/debug tool. It could be deferred indefinitely or built as a minimal page.~~ **Decided: Not migrated.** NLP analysis runs automatically via `AnalysisInvokingCommandHandler`; the parser debug UI is dropped from the Angular app.
 4. ~~**Document generation** — The current "Run" button generates HTML via XSLT. Decide whether to preserve XSLT-based generation or move to a template engine.~~ **Decided: Keep XSLT for now.** The Angular app will call the existing XSLT-based generation and display the output. Replacing XSLT with a different template engine is a separate future effort.
 5. ~~**Deployment model** — Serve Angular as static resources from Spring Boot (`/static/`), or deploy separately (nginx, S3, etc.)?~~ **Decided: Static from Spring Boot.** Angular build output served from the Spring Boot JAR. Single artifact, single process, no CORS in production, no extra infrastructure. During development, Angular dev server runs separately on port 4200 with hot reload. See Section 6.
+6. **Password hashing** — Are passwords currently hashed in the database? The JWT login reuses the existing `user.isPassword()` verification, so the current format is unchanged. If passwords are stored in plaintext, introducing proper hashing (e.g. bcrypt) should be a separate task before or during the migration.
+7. **User Guide link** — The main layout header includes a "User Guide" link (carried over from Echo2). Is this a static external URL, a route within the Angular app, or something to be built? Needs clarification before Phase 0 layout work.
+8. **Observability** — Should we add baseline telemetry (command latency/error rates by type, query latency, active SSE connections, auth failure rates)? Spring Boot Actuator + Micrometer could provide this with minimal effort, but it's not required for initial functionality. Decide scope before or during Phase 0.
+9. **Optimistic locking — existing JPA support** — Do the current JPA entities already have a `@Version` field? If not, adding one requires a Flyway migration to add a `version` column to each entity table. This is a prerequisite for the 409 conflict handling described in Section 5.

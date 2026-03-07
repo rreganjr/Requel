@@ -87,6 +87,7 @@ The Echo2 UI is being replaced with an Angular SPA backed by a hybrid CQRS API:
 - **Reads:** `GET /api/...` — conventional query endpoints, ~28 total
 - **Composite CommandFactory:** per-domain factories (`ProjectCommandFactory`, `UserCommandFactory`, etc.) register their command types at startup; a top-level `CommandFactory` facade provides `newCommand(type, input)` entry point
 - **Domain integration:** existing Commands implement `ApiCommand<T>` interface for input mapping
+- **Authorization:** `AuthorizingCommandHandler` in handler chain checks `AuthorizableCommand.getAuthorizationRequirement()` before execute. See `doc/AUTH_ARCH.md`
 - Full architecture diagram and endpoint inventory in `doc/UI_REFACTOR_PLAN.md` Section 3.1
 
 ### Database
@@ -109,6 +110,8 @@ Echo2 JARs ship with `javax.*` namespaces and must be transformed to `jakarta.*`
 
 ## Key Documentation
 
+- `doc/UI_REFACTOR_PLAN.md` — Echo2→Angular migration plan, CQRS API, SSE streaming, phases
+- `doc/AUTH_ARCH.md` — authorization architecture: AuthorizingCommandHandler, permission model, Angular PermissionService
 - `doc/MODULARIZATION_PLAN.md` — module dependency graph, refactoring roadmap, package conventions
 - `doc/unmarshalling_plan.md` — JAXB import strategy, aggregate assembly
 - `doc/agents.md` — AI agent workflows, edit policies, guardrails
