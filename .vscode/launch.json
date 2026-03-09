@@ -9,6 +9,15 @@
       "projectName": "requel-app",
       "args": "--server.port=8081",
       "vmArgs": "-Dspring.devtools.restart.enabled=false"
+    },
+    {
+      "type": "node",
+      "name": "Angular [ng serve]",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/requel-angular",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["ng", "serve", "--open"],
+      "console": "integratedTerminal"
     }
   ]
 }
