@@ -80,7 +80,7 @@ public class RemoveAnnotationFromAnnotatableCommandImpl extends AbstractEditComm
 	}
 
 	@Override
-	protected User getEditedBy() {
+	public User getEditedBy() {
 		return editedBy;
 	}
 

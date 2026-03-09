@@ -140,7 +140,8 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 		this.editedBy = user;
 	}
 
-	protected User getEditedBy() {
+	@Override
+	public User getEditedBy() {
 		return editedBy;
 	}
 

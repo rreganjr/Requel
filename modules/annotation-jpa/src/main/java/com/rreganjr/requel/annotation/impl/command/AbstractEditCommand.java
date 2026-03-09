@@ -57,7 +57,8 @@ public abstract class AbstractEditCommand extends AbstractCommand implements Edi
 		this.editedBy = editedBy;
 	}
 
-	protected User getEditedBy() {
+	@Override
+	public User getEditedBy() {
 		return editedBy;
 	}
 

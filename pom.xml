@@ -109,6 +109,8 @@
         <module>modules/user-ui</module>
         <module>modules/nlp-ui</module>
         <module>modules/ui-assets</module>
+        <module>modules/service-api</module>
+        <module>modules/service-impl</module>
         <module>modules/requel-app</module>
   </modules>
 </project>

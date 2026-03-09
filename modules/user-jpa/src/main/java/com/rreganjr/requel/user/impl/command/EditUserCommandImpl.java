@@ -258,7 +258,7 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		this.editedBy = editedBy;
 	}
 
-	protected User getEditedBy() {
+	public User getEditedBy() {
 		return editedBy;
 	}
 }

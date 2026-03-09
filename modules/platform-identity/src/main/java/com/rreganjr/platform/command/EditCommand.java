@@ -31,8 +31,13 @@ import com.rreganjr.platform.identity.User;
 public interface EditCommand extends Command {
 
 	/**
+	 * @return the user making the change to the object being edited
+	 */
+	User getEditedBy();
+
+	/**
 	 * @param editedBy -
 	 *            the user making the change to the object being edited
 	 */
-	public void setEditedBy(User editedBy);
+	void setEditedBy(User editedBy);
 }

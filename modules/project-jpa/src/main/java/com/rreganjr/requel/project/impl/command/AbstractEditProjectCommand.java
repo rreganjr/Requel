@@ -61,7 +61,8 @@ public abstract class AbstractEditProjectCommand extends AbstractProjectCommand 
 		this.editedBy = editedBy;
 	}
 
-	protected User getEditedBy() {
+	@Override
+	public User getEditedBy() {
 		return editedBy;
 	}
 
