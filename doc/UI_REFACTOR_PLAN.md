@@ -883,6 +883,7 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 **Goal:** Establish the CQRS API modules and Angular project with auth working end-to-end.
 
 **Backend work:**
+0. Create Maven modules `service-api` and `service-impl` under `modules/`: add `pom.xml` for each inheriting from the parent POM, declare them as `<module>` entries in the parent, and wire dependencies (`service-impl` depends on `service-api`, `project-jpa`, `user-jpa`, `annotation-jpa`; `requel-app` depends on `service-impl`)
 1. Create `service-api` module with:
    - `ApiCommand<T>` interface
    - `CommandRegistration` record (commandType, inputClass, factoryMethod)
@@ -914,6 +915,13 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
    - `AuthorizingCommandHandler` — added to handler chain between `ExceptionMappingCommandHandler` and `AnalysisInvokingCommandHandler`
    - `AuthorizationException` — mapped to 403 Forbidden
    - `ProjectAccessChecker` — verifies stakeholder membership for query endpoints
+7. Observability baseline:
+   - Add `spring-boot-starter-actuator` dependency (includes Micrometer)
+   - Command execution timer/error counter by type (instrument in `CommandHandler` chain)
+   - Active SSE connections gauge (from `StreamService`)
+   - Auth failure counter (in JWT filter)
+   - Query endpoint latency (auto-instrumented by Spring MVC + Micrometer)
+   - Expose `/actuator/metrics` and `/actuator/health`
 
 **Frontend work:**
 1. Scaffold Angular 21 project: `ng new requel-angular --style=scss --routing` (standalone by default, no NgModules)
@@ -929,7 +937,8 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 5. Auth: login page (standalone component importing PrimeNG `InputText`, `Password`, `Button`), `AuthService` (JWT stored as `signal<string | null>`), functional HTTP interceptor (`authInterceptor`), functional route guard (`authGuard`)
 6. `EventStreamService` — fetch-based SSE streaming service (see Section 3.5). Connection lifecycle (idle/connecting/open/closed/error), session tracking, dynamic subscribe/unsubscribe, late-subscriber reconciliation, exponential backoff reconnect, generation counter for stale connection prevention, graceful server-side disconnect, identity-safe unsubscribe, SSE text parsing via `ReadableStream`.
 7. Main layout: standalone `AppLayout` component with `p-menubar` (Edit Account, User Guide, Logout), sidebar `p-tree`, content area with `p-tabView`
-8. Verify login → protected route → SSE connection → logout flow works end-to-end
+8. Configure `proxy.conf.json` to proxy `/api` requests to Spring Boot (port 8081) during development; add `environment.ts` / `environment.prod.ts` for any environment-specific settings
+9. Verify login → protected route → SSE connection → logout flow works end-to-end
 
 **Auth endpoints (these remain conventional REST, not commands):**
 ```
@@ -1224,6 +1233,7 @@ GET /api/projects/{id}/documents[/{did}]      → documents
 GET /api/projects/{id}/documents/{did}/output → generated document
 GET /api/projects/{id}/open-issues            → aggregated open issues
 GET /api/projects/{id}/export                 → XML export
+GET /api/projects/{id}/my-permissions         → current user's stakeholder permissions
 GET /api/annotations?entityType=&entityId=    → annotations for any entity
 ```
 

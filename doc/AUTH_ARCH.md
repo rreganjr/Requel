@@ -122,6 +122,8 @@ public interface AuthorizableCommand extends EditCommand {
 }
 ```
 
+**Implementation note — `getEditedBy()` gap:** The current `EditCommand` interface only exposes `setEditedBy(User)`. The getter (`getEditedBy()`) is declared as `protected` in each command base class (`AbstractEditProjectCommand`, `EditUserCommandImpl`, etc.) — not on the interface. The `AuthorizingCommandHandler` needs to read the user via `getEditedBy()`. Fix: add `User getEditedBy()` to the `EditCommand` interface and adjust the existing `protected` implementations to `public`. This is a safe change — all existing callers use `setEditedBy()`, and the getter is already implemented in every command hierarchy.
+
 `AuthorizationRequirement` is a sealed interface with variants for each authorization pattern:
 
 ```java
