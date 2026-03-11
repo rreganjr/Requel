@@ -1,7 +1,11 @@
 package com.rreganjr.requel.service.command;
 
+import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.service.api.CommandRegistry;
+import com.rreganjr.requel.service.api.dto.EditProjectInput;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,17 +22,39 @@ public class ProjectCommandRegistrar {
     private static final Logger log = LoggerFactory.getLogger(ProjectCommandRegistrar.class);
 
     private final ProjectCommandFactory factory;
+    private final ProjectRepository projectRepository;
     private final CommandRegistry registry;
 
-    public ProjectCommandRegistrar(ProjectCommandFactory factory, CommandRegistry registry) {
+    public ProjectCommandRegistrar(ProjectCommandFactory factory,
+                                   ProjectRepository projectRepository,
+                                   CommandRegistry registry) {
         this.factory = factory;
+        this.projectRepository = projectRepository;
         this.registry = registry;
     }
 
     @PostConstruct
     void registerCommands() {
         // Project
-        registry.register("EditProject", factory::newEditProjectCommand);
+        registry.register("EditProject", EditProjectInput.class,
+                factory::newEditProjectCommand,
+                (cmd, input) -> {
+                    EditProjectCommand c = (EditProjectCommand) cmd;
+                    EditProjectInput i = (EditProjectInput) input;
+
+                    // If projectName matches an existing project, set it for update; otherwise leave null for create
+                    if (i.projectName() != null) {
+                        try {
+                            c.setProject(projectRepository.findProjectByName(i.projectName()));
+                        } catch (NoSuchProjectException e) {
+                            // New project — leave project null, command will create
+                        }
+                    }
+
+                    if (i.name() != null) c.setName(i.name());
+                    if (i.description() != null) c.setText(i.description());
+                    if (i.organizationName() != null) c.setOrganizationName(i.organizationName());
+                });
         registry.register("ExportProject", factory::newExportProjectCommand);
         registry.register("ImportProject", factory::newImportProjectCommand);
 

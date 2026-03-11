@@ -42,6 +42,7 @@ public class ApiSecurityConfig {
                 .requestMatchers("/api/users/organizations").authenticated()
                 .requestMatchers("/api/users/**").hasRole("SystemAdminUserRole")
                 .requestMatchers("/api/commands/NewUser").hasRole("SystemAdminUserRole")
+                .requestMatchers("/api/projects/**").authenticated()
                 .requestMatchers("/api/**").authenticated()
             )
             .addFilterBefore(new JwtAuthenticationFilter(jwtService),

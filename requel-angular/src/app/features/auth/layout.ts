@@ -37,7 +37,9 @@ export class LayoutComponent {
   readonly menuItems = computed<MenuItem[]>(() => {
     const user = this.authService.user();
     const isAdmin = user?.roles?.includes('SystemAdminUserRole') ?? false;
-    const items: MenuItem[] = [];
+    const items: MenuItem[] = [
+      { label: 'Projects', icon: 'pi pi-folder', routerLink: '/projects' }
+    ];
 
     if (isAdmin) {
       items.push({

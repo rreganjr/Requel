@@ -6,6 +6,8 @@ import { DashboardComponent } from './features/auth/dashboard';
 import { UserListComponent } from './features/users/user-list';
 import { UserEditorComponent } from './features/users/user-editor';
 import { EditAccountComponent } from './features/users/edit-account';
+import { ProjectListComponent } from './features/projects/project-list';
+import { ProjectEditorComponent } from './features/projects/project-editor';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -18,7 +20,8 @@ export const routes: Routes = [
       { path: 'account', component: EditAccountComponent },
       { path: 'users', component: UserListComponent },
       { path: 'users/:username', component: UserEditorComponent },
-      // Phase 2+ routes added here: projects, goals, stories, actors, etc.
+      { path: 'projects', component: ProjectListComponent },
+      { path: 'projects/:name', component: ProjectEditorComponent },
     ]
   },
   { path: '**', redirectTo: '' }
