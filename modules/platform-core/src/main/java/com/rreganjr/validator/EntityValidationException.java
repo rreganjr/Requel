@@ -104,6 +104,12 @@ public class EntityValidationException extends EntityException {
 		super(entityType, entity, entityPropertyName, entityValue, actionType, format, messageArgs);
 	}
 
+	public EntityValidationException(Class<?> entityType, Object entity, String[] entityPropertyNames,
+			Object[] entityPropertyValues, EntityExceptionActionType actionType, String format,
+			Object... messageArgs) {
+		super(entityType, entity, entityPropertyNames, entityPropertyValues, actionType, format, messageArgs);
+	}
+
 	/**
 	 * @param cause
 	 * @param entityType

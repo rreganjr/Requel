@@ -34,6 +34,7 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.ServletComponentScan;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
+import org.springframework.core.annotation.Order;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -68,7 +69,7 @@ public class Application extends SpringBootServletInitializer {
     ServletRegistrationBean initEchoPMServlet() {
         ServletRegistrationBean echoPMServletRegisterBean = new ServletRegistrationBean();
         echoPMServletRegisterBean.setLoadOnStartup(1);
-        echoPMServletRegisterBean.addUrlMappings("/");
+        echoPMServletRegisterBean.addUrlMappings("/app/*");
         echoPMServletRegisterBean.setServlet(new EchoPMServlet());
         return echoPMServletRegisterBean;
     }
@@ -77,7 +78,7 @@ public class Application extends SpringBootServletInitializer {
     ServletRegistrationBean initEchoPMLogoutServlet() {
         ServletRegistrationBean echoPMServletRegisterBean = new ServletRegistrationBean();
         echoPMServletRegisterBean.setLoadOnStartup(1);
-        echoPMServletRegisterBean.addUrlMappings("/logout");
+        echoPMServletRegisterBean.addUrlMappings("/logout", "/app/logout");
         echoPMServletRegisterBean.setServlet(new EchoPMLogoutServlet());
         return echoPMServletRegisterBean;
     }
@@ -86,6 +87,7 @@ public class Application extends SpringBootServletInitializer {
     static class WebSecurityConfig {
 
         @Bean
+        @Order(2)
         SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
             //http://www.codesandnotes.be/2014/10/31/restful-authentication-using-spring-security-on-spring-boot-and-jquery-as-a-web-client/
             http

@@ -21,7 +21,6 @@ import java.util.List;
  * Stateless JWT-based auth, CORS for Angular dev server.
  */
 @Configuration
-@Order(1)
 public class ApiSecurityConfig {
 
     private final JwtService jwtService;
@@ -31,6 +30,7 @@ public class ApiSecurityConfig {
     }
 
     @Bean
+    @Order(1)
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/api/**")
@@ -39,8 +39,9 @@ public class ApiSecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
-                .requestMatchers("/api/users/**").hasRole("SYSTEM_ADMIN")
-                .requestMatchers("/api/commands/NewUser", "/api/commands/EditUser").hasRole("SYSTEM_ADMIN")
+                .requestMatchers("/api/users/organizations").authenticated()
+                .requestMatchers("/api/users/**").hasRole("SystemAdminUserRole")
+                .requestMatchers("/api/commands/NewUser").hasRole("SystemAdminUserRole")
                 .requestMatchers("/api/**").authenticated()
             )
             .addFilterBefore(new JwtAuthenticationFilter(jwtService),

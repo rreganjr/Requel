@@ -60,6 +60,7 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 	private String organizationName;
 	private Boolean editable = Boolean.TRUE;
 	private Set<String> userRoleNames = new HashSet<String>();
+	private boolean userRolesProvided = false;
 	private Map<String, Set<String>> userRolePermissionNames = new HashMap<String, Set<String>>();
 	private User editedBy;
 
@@ -120,16 +121,21 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		if (getEditedBy().hasRole(SystemAdminUserRole.class)) {
 			userImpl.setUsername(getUsername());
 			userImpl.setEditable(getEditable());
-			updateRoles(userImpl);
+			if (userRolesProvided) {
+				updateRoles(userImpl);
+			}
 		}
 		return getUserRepository().merge(userImpl);
 	}
 
 	private Organization getOrCreateOrganization(String organizationName) {
+		if (organizationName == null || organizationName.isBlank()) {
+			return null;
+		}
 		try {
-			return getUserRepository().findOrganizationByName(getOrganizationName());
+			return getUserRepository().findOrganizationByName(organizationName);
 		} catch (NoSuchOrganizationException e) {
-			return getUserRepository().persist(new OrganizationImpl(getOrganizationName()));
+			return getUserRepository().persist(new OrganizationImpl(organizationName));
 		}
 	}
 
@@ -232,10 +238,12 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 
 	public void setUserRoleNames(Set<String> userRoleNames) {
 		this.userRoleNames = userRoleNames;
+		this.userRolesProvided = true;
 	}
 
 	public void addUserRoleName(String userRoleName) {
 		userRoleNames.add(userRoleName);
+		this.userRolesProvided = true;
 	}
 
 	protected Map<String, Set<String>> getUserRolePermissionNames() {

@@ -75,6 +75,8 @@ public class ExceptionMapper {
                 new OptimisticLockExceptionAdapter());
 
 		addExceptionAdapter(EntityExistsException.class, new EntityExistsExceptionAdapter());
+		addExceptionAdapter(jakarta.validation.ConstraintViolationException.class,
+				new BeanValidationExceptionAdapter());
 	}
 
 	/**

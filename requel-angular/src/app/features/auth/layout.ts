@@ -36,24 +36,38 @@ export class LayoutComponent {
 
   readonly menuItems = computed<MenuItem[]>(() => {
     const user = this.authService.user();
-    return [
-      {
-        label: user?.name ?? user?.username ?? 'Account',
-        icon: 'pi pi-user',
+    const isAdmin = user?.roles?.includes('SystemAdminUserRole') ?? false;
+    const items: MenuItem[] = [];
+
+    if (isAdmin) {
+      items.push({
+        label: 'Admin',
+        icon: 'pi pi-cog',
         items: [
-          { label: 'Edit Account', icon: 'pi pi-cog', routerLink: '/account' },
-          { separator: true },
-          { label: 'Logout', icon: 'pi pi-sign-out', command: () => this.authService.logout() }
+          { label: 'Users', icon: 'pi pi-users', routerLink: '/users' }
         ]
-      },
-      {
-        label: 'Help',
-        icon: 'pi pi-question-circle',
-        items: [
-          { label: 'User Guide', icon: 'pi pi-book', url: '/doc/UserGuide.pdf', target: '_blank' }
-        ]
-      }
-    ];
+      });
+    }
+
+    items.push({
+      label: user?.name ?? user?.username ?? 'Account',
+      icon: 'pi pi-user',
+      items: [
+        { label: 'Edit Account', icon: 'pi pi-cog', routerLink: '/account' },
+        { separator: true },
+        { label: 'Logout', icon: 'pi pi-sign-out', command: () => this.authService.logout() }
+      ]
+    });
+
+    items.push({
+      label: 'Help',
+      icon: 'pi pi-question-circle',
+      items: [
+        { label: 'User Guide', icon: 'pi pi-book', url: '/doc/UserGuide.pdf', target: '_blank' }
+      ]
+    });
+
+    return items;
   });
 
   constructor(authService: AuthService) {

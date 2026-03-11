@@ -1,12 +1,11 @@
 package com.rreganjr.requel.service.auth;
 
-import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
 import com.rreganjr.requel.service.api.dto.LoginRequest;
 import com.rreganjr.requel.service.api.dto.LoginResponse;
 import com.rreganjr.requel.service.api.dto.UserDto;
 import com.rreganjr.requel.user.UserRepository;
-import com.rreganjr.requel.user.impl.UserImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -43,7 +42,7 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
             User user = userRepository.findUserByUsername(request.username());
-            if (user instanceof UserImpl impl && impl.isPassword(request.password())) {
+            if (user.isPassword(request.password())) {
                 var roles = userDtoMapper.getRoleStrings(user);
                 var permissions = userDtoMapper.getPermissionStrings(user);
                 String token = jwtService.generateToken(user, roles, permissions);

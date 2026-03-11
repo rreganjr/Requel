@@ -5,7 +5,7 @@ import com.rreganjr.requel.service.api.dto.UserDto;
 import com.rreganjr.requel.user.UserRole;
 import com.rreganjr.requel.user.UserRolePermission;
 import com.rreganjr.requel.user.impl.SystemAdminUserRole;
-import com.rreganjr.requel.user.impl.UserImpl;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -39,7 +39,7 @@ public class UserDtoMapper {
         return new UserDto(
                 user.getId(),
                 user.getUsername(),
-                user.getDisplayName(),
+                user instanceof com.rreganjr.requel.user.User u ? u.getName() : user.getDisplayName(),
                 user instanceof com.rreganjr.requel.user.User u ? u.getEmailAddress() : null,
                 user instanceof com.rreganjr.requel.user.User u ? u.getPhoneNumber() : null,
                 user instanceof com.rreganjr.requel.user.User u && u.getOrganization() != null
@@ -77,14 +77,22 @@ public class UserDtoMapper {
         return permissions;
     }
 
-    private String toRoleString(UserRole role) {
-        if (role instanceof SystemAdminUserRole) {
-            return "SYSTEM_ADMIN";
+    /**
+     * Resolve the real (non-proxied) class of a role. Handles both Hibernate proxies
+     * and Spring AOP CGLIB proxies (DomainObjectWrappingAdvice).
+     */
+    private static Class<?> unproxyRoleClass(UserRole role) {
+        Class<?> clazz = Hibernate.getClass(role);
+        // If still a CGLIB proxy, walk up to the first non-proxy superclass
+        while (clazz != null && clazz.getSimpleName().contains("$")) {
+            clazz = clazz.getSuperclass();
         }
-        // Derive from class name: ProjectUserRole -> PROJECT_USER
-        String name = role.getClass().getSimpleName();
-        return name.replace("UserRole", "")
-                .replaceAll("([a-z])([A-Z])", "$1_$2")
-                .toUpperCase();
+        return clazz != null ? clazz : role.getClass();
+    }
+
+    private String toRoleString(UserRole role) {
+        // Return class simple name — matches what /api/users/roles returns as roleName
+        // and what EditUserCommandImpl.updateRoles() expects in userRoleNames
+        return unproxyRoleClass(role).getSimpleName();
     }
 }

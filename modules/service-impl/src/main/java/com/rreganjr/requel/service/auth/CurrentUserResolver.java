@@ -1,6 +1,6 @@
 package com.rreganjr.requel.service.auth;
 
-import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;

@@ -5,9 +5,11 @@ import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.EditCommand;
+import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.service.api.CommandResult;
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
+import com.rreganjr.repository.jpa.BeanValidationException;
 import com.rreganjr.validator.EntityValidationException;
 import jakarta.persistence.OptimisticLockException;
 import org.slf4j.Logger;
@@ -59,6 +61,8 @@ public class CommandController {
             Command command = apiCommandFactory.newCommand(commandType, input);
             if (command instanceof EditCommand editCmd) {
                 editCmd.setEditedBy(currentUserResolver.resolve());
+            } else if (command instanceof EditUserCommand userCmd) {
+                userCmd.setEditedBy(currentUserResolver.resolve());
             }
 
             // Execute through the handler chain
@@ -78,10 +82,20 @@ public class CommandController {
                             "message", "Entity was modified by another user. Please reload and try again."));
         } catch (EntityValidationException e) {
             var violations = new java.util.ArrayList<CommandResult.FieldViolation>();
-            String[] propNames = e.getEntityPropertyNames();
-            if (propNames != null) {
-                for (String prop : propNames) {
-                    violations.add(new CommandResult.FieldViolation(prop, e.getMessage()));
+            if (e instanceof BeanValidationException bve) {
+                String[] propNames = bve.getEntityPropertyNames();
+                String[] fieldMessages = bve.getFieldMessages();
+                if (propNames != null) {
+                    for (int i = 0; i < propNames.length; i++) {
+                        violations.add(new CommandResult.FieldViolation(propNames[i], fieldMessages[i]));
+                    }
+                }
+            } else {
+                String[] propNames = e.getEntityPropertyNames();
+                if (propNames != null) {
+                    for (String prop : propNames) {
+                        violations.add(new CommandResult.FieldViolation(prop, e.getMessage()));
+                    }
                 }
             }
             if (violations.isEmpty()) {
@@ -95,7 +109,7 @@ public class CommandController {
         } catch (Exception e) {
             log.error("Command execution failed: {} - {}", commandType, e.getMessage(), e);
             return ResponseEntity.internalServerError()
-                    .body(ErrorResponse.of("INTERNAL_ERROR", "Command execution failed"));
+                    .body(ErrorResponse.of("INTERNAL_ERROR", e.getClass().getSimpleName() + ": " + e.getMessage()));
         }
     }
 }
