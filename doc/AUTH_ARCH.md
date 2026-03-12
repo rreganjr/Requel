@@ -432,7 +432,12 @@ The JWT token includes the user's system roles:
 }
 ```
 
-Angular reads these from the token for system-level UI decisions (show admin menu, show "New Project" button).
+Angular reads these from the token for system-level UI decisions:
+
+- **Admin sidebar panel**: visible only when `roles` contains `SYSTEM_ADMIN`
+- **Projects sidebar panel**: visible only when `roles` contains `PROJECT_USER` (or `SYSTEM_ADMIN`)
+- **New / Import buttons** (in Projects panel): visible only when `permissions` contains `createProjects`
+- **Project tree**: shows only projects where the user is a `UserStakeholder` (admins see all); the server-side `GET /api/projects` endpoint already filters by stakeholder membership
 
 ### 4.2 Project Permissions — Via API Endpoint
 

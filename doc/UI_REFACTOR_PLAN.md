@@ -986,20 +986,44 @@ No logout endpoint — the Angular app discards the JWT from memory.
 3. `ImportProject` command — special handling: multipart upload via `POST /api/projects/import` (not through command dispatch since it involves file upload)
 
 **Backend work — Queries:**
-1. `GET /api/projects` → paginated list, filtered by `ProjectAccessChecker`: returns only projects where current user is a stakeholder (or all projects for SystemAdmin)
+1. `GET /api/projects` → paginated list, filtered by `ProjectAccessChecker`: returns only projects where current user is a stakeholder (or all projects for SystemAdmin). Sorted by per-user recency (see activity tracking below). Supports a `limit` parameter for sidebar tree cap.
 2. `GET /api/projects/{id}` → full project detail (requires stakeholder membership or SystemAdmin)
 3. `GET /api/projects/{id}/tree` → tree structure for sidebar (child entity counts)
 4. `GET /api/projects/{id}/export` → XML download (adapt existing `ProjectXmlController`)
 5. `GET /api/projects/{id}/my-permissions` → current user's stakeholder permissions for this project (see `doc/AUTH_ARCH.md` §4.2)
+6. `GET /api/user-preferences` → current user's UI preferences
+7. `PUT /api/user-preferences` → update current user's UI preferences
+
+**Backend work — Project Activity Tracking:**
+
+The sidebar tree sorts projects by recent activity, filtered to entity types the
+user has stakeholder permissions for (see `doc/UI_DESIGN_GUIDE.md` §3.2.1).
+
+1. New `project_entity_activity` table: `(project_id, entity_type, last_activity_at)` — one row per project × entity type (~10 entity types × N projects)
+2. Upsert the appropriate row after any command that creates/edits/deletes a project entity. Can be done in the command handler chain (post-commit) or in the commands themselves.
+3. The `GET /api/projects` query joins the user's stakeholder permissions against `project_entity_activity` to compute `MAX(last_activity_at)` across only the entity types the user has permissions for. This becomes the sort key.
+
+**Backend work — User Preferences:**
+
+User preferences are a separate concern from the `User` entity (which handles
+identity, auth, and contact info). See `doc/UI_DESIGN_GUIDE.md` §3.2.3.
+
+1. New `UserPreferences` entity — its own aggregate, persisted in `user_preferences` table, 1:1 with User but not navigated from User
+2. New `UserPreferencesRepository` — simple CRUD
+3. Initial fields: `sidebarProjectLimit` (int, default 10), `sidebarProjectStaleness` (enum, default `3_MONTHS` — options: `1_MONTH`, `3_MONTHS`, `6_MONTHS`, `9_MONTHS`, `12_MONTHS`, `ALWAYS`)
+4. Query and update endpoints (items 6–7 above)
 
 **Frontend work:**
-1. Project list page with New/Import buttons ("New Project" shown only if `canCreateProjects` from JWT permissions)
-2. New Project form (name, description, org combo)
-3. Import Project form (file upload, rename, enable analysis)
-4. Edit Project form (name, description, org, createdBy, annotations — annotations placeholder until Phase 7)
-5. Project tree sidebar component — clicking items routes to sub-pages
-6. Export button triggers download
-7. `PermissionService` — fetches `GET /api/projects/{id}/my-permissions` on project load, caches per project, exposes `hasPermission(projectId, entityType, permissionType)` as signals. System roles and role-level permissions read from JWT. See `doc/AUTH_ARCH.md` §4.3.
+1. **Sidebar panel visibility**: Projects accordion panel visible only when user has `ProjectUserRole` (JWT role `PROJECT_USER`); Admin panel visible only for `SystemAdminUserRole` (JWT role `SYSTEM_ADMIN`)
+2. Project list page with New/Import buttons — both shown only if `canCreateProjects` from JWT permissions (import creates a new project)
+3. **Project tree filtering and ordering**: sidebar tree shows only projects where the current user is a `UserStakeholder` (admins see all), ordered by recent activity on entity types the user can see, capped at the user's `sidebarProjectLimit` preference (default 10), and filtered by the `sidebarProjectStaleness` threshold (projects with no relevant activity older than the threshold are hidden). "Show all" link below the tree opens the full list table.
+4. New Project form (name, description, org combo)
+5. Import Project form (file upload, rename, enable analysis)
+6. Edit Project form (name, description, org, createdBy, annotations — annotations placeholder until Phase 7)
+7. Project tree sidebar component — clicking items routes to sub-pages
+8. Export button triggers download
+9. `PermissionService` — fetches `GET /api/projects/{id}/my-permissions` on project load, caches per project, exposes `hasPermission(projectId, entityType, permissionType)` as signals. System roles and role-level permissions read from JWT. See `doc/AUTH_ARCH.md` §4.3.
+10. Load `UserPreferences` on login, cache client-side. Provide settings UI (future — initially just backend defaults).
 
 **Echo2 panels replaced:** `ProjectNavigatorPanel`, `ProjectOverviewPanel`, `ProjectImportPanel`, `ProjectNavigatorTreeNodeFactory`
 
