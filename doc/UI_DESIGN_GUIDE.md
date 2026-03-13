@@ -258,6 +258,8 @@ Used for: User editor, Project editor, Goal editor, Story editor, etc.
 - **Form layout**: Two-column grid for short fields, full-width for text areas
 - **Action bar**: Save and Cancel buttons at the bottom of the form
 - **Feedback**: Success/error messages displayed above the form using PrimeNG Message
+- **Unsaved changes guard**: All editors must protect against accidental data loss
+  when the user navigates away from a dirty form (see §7.10 Unsaved Changes Guard)
 
 #### 4.3 Annotation/Discussion View (future)
 Used for: IBIS-style issues, positions, arguments on any entity
@@ -443,6 +445,38 @@ Used in sidebar tree items to show entity counts:
 - Shows clear description of the action and its consequences
 - Primary button matches the action (e.g., "Delete" with danger severity)
 
+### 7.11 Unsaved Changes Guard
+
+All editor forms must handle navigation away from a dirty (modified) form. This
+applies to sidebar clicks, route changes, and any action that would replace the
+current editor content.
+
+**Behavior:**
+- **Form is clean** (no unsaved changes): navigation proceeds immediately — the
+  editor reloads with the new entity
+- **Form is dirty** (user has made changes): a confirmation dialog appears:
+  - **Header**: "Unsaved Changes"
+  - **Message**: "You have unsaved changes. Save before switching?"
+  - **"Save & Switch"** button: saves the current form, then navigates to the
+    new entity on success
+  - **"Cancel"** button: dismisses the dialog and returns the user to the
+    current (unsaved) form, restoring the original URL
+
+**Implementation pattern:**
+- Subscribe to `route.paramMap` (not `route.snapshot`) so the component reacts
+  to same-route param changes (e.g., `/projects/A` → `/projects/B` reuses the
+  component)
+- Track dirty state via Angular's `NgForm.dirty`
+- Use PrimeNG `ConfirmationService.confirm()` for the dialog
+- On cancel, navigate back to the original entity URL with `replaceUrl: true`
+  to clean up the browser history entry created by the sidebar click
+- After loading new data, call `form.markAsPristine()` to reset dirty state
+
+**Applies to:** Project editor, User editor, Stakeholder editor, Goal editor,
+Story editor, Actor editor, Use Case editor, Scenario editor, Glossary Term
+editor — all forms that allow editing and can be reached via sidebar or in-page
+navigation.
+
 ---
 
 ## 8. Spacing and Layout Tokens
@@ -563,3 +597,23 @@ requel-angular/src/
   renders the routed component
 - Entity editors receive context from route params (e.g., `/projects/:name`,
   `/projects/:projectName/goals/:goalName`)
+
+### Entity References: ID-Based, Not Name-Based
+
+The shift from name-based to id-based references is a recurring pattern when
+moving from server-side UI (Echo2) to client-server API (Angular + REST). Echo2
+worked with live Hibernate-managed entity references — identity was implicit in
+the object graph. The API layer serializes to JSON, so identity must be explicit.
+
+**Rule:** Every entity reference crossing the API boundary should use `id` for
+unambiguous identification. Use `name` only for display or when creating new
+entities that don't yet have an id.
+
+- Dropdowns that select existing entities should bind to the entity object (or
+  its `id`), not just the display name
+- Save payloads send `organizationId`, `projectId`, etc. — not name strings
+- DTOs always include `id` and `version` so the client can reference and
+  optimistically lock any entity it displays
+- When an entity might be new (e.g., a user types a new organization name into
+  an editable dropdown), the backend resolves `id` first, falling back to
+  find-or-create by name

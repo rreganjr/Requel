@@ -6,8 +6,11 @@ import java.util.Set;
 /**
  * Input DTO for the EditUser command. Used for both creating and updating users.
  * When username is provided but no existing user matches, a new user is created.
+ * The version field is required for updates to support optimistic locking.
  */
 public record EditUserInput(
+        Long id,
+        Integer version,
         String username,
         String password,
         String repassword,

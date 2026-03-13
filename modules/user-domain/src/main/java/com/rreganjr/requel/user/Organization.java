@@ -28,6 +28,11 @@ package com.rreganjr.requel.user;
  */
 public interface Organization extends Comparable<Organization> {
 	/**
+	 * @return the persistent identity of this organization.
+	 */
+	public Long getId();
+
+	/**
 	 * @return the name of the organization.
 	 */
 	public String getName();

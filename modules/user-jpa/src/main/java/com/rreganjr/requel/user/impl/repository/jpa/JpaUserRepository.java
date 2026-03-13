@@ -53,6 +53,7 @@ import com.rreganjr.repository.jpa.UserPropertyValueExceptionAdapter;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.user.impl.AbstractUserRole;
 import com.rreganjr.requel.user.Organization;
+import com.rreganjr.requel.user.impl.OrganizationImpl;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.UserRole;
@@ -147,6 +148,14 @@ public class JpaUserRepository extends AbstractJpaRepository implements UserRepo
 		} catch (Exception e) {
 			throw convertException(e, UserSet.class, null, EntityExceptionActionType.Reading);
 		}
+	}
+
+	public Organization findOrganizationById(Long id) {
+		OrganizationImpl org = getEntityManager().find(OrganizationImpl.class, id);
+		if (org == null) {
+			throw NoSuchOrganizationException.forName("id=" + id);
+		}
+		return org;
 	}
 
 	public Organization findOrganizationByName(String name) {

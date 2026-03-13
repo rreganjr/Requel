@@ -10,6 +10,11 @@ export interface UserDto {
   version: number;
 }
 
+export interface OrganizationDto {
+  id: number;
+  name: string;
+}
+
 export interface LoginRequest {
   username: string;
   password: string;

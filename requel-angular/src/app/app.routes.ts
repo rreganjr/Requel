@@ -8,6 +8,7 @@ import { UserEditorComponent } from './features/users/user-editor';
 import { EditAccountComponent } from './features/users/edit-account';
 import { ProjectListComponent } from './features/projects/project-list';
 import { ProjectEditorComponent } from './features/projects/project-editor';
+import { SettingsComponent } from './features/users/settings';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -18,6 +19,7 @@ export const routes: Routes = [
     children: [
       { path: '', component: DashboardComponent },
       { path: 'account', component: EditAccountComponent },
+      { path: 'settings', component: SettingsComponent },
       { path: 'users', component: UserListComponent },
       { path: 'users/:username', component: UserEditorComponent },
       { path: 'projects', component: ProjectListComponent },

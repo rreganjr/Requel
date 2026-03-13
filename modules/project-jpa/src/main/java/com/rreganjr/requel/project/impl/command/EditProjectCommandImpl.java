@@ -61,6 +61,7 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 
 	private String name;
 	private String description;
+	private Long organizationId;
 	private String organizationName;
 	private Project project;
 	private boolean analysisEnabled = true;
@@ -106,6 +107,14 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 		this.description = description;
 	}
 
+	protected Long getOrganizationId() {
+		return organizationId;
+	}
+
+	public void setOrganizationId(Long organizationId) {
+		this.organizationId = organizationId;
+	}
+
 	protected String getOrganizationName() {
 		return organizationName;
 	}
@@ -116,12 +125,7 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 
 	@Override
 	public void execute() {
-		Organization organization = null;
-		try {
-			organization = getUserRepository().findOrganizationByName(getOrganizationName());
-		} catch (NoSuchOrganizationException e) {
-			organization = getUserRepository().persist(new OrganizationImpl(getOrganizationName()));
-		}
+		Organization organization = resolveOrganization();
 		User user = getUserRepository().get(getEditedBy());
 		ProjectImpl projectImpl = (ProjectImpl) getProject();
 
@@ -196,6 +200,20 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 		addBuiltinReportGenerator(projectImpl, user);
 
 		return projectImpl;
+	}
+
+	private Organization resolveOrganization() {
+		if (getOrganizationId() != null) {
+			return getUserRepository().findOrganizationById(getOrganizationId());
+		}
+		if (getOrganizationName() != null) {
+			try {
+				return getUserRepository().findOrganizationByName(getOrganizationName());
+			} catch (NoSuchOrganizationException e) {
+				return getUserRepository().persist(new OrganizationImpl(getOrganizationName()));
+			}
+		}
+		return null;
 	}
 
 	private void addBuiltinReportGenerator(Project project, User user) {

@@ -1,4 +1,6 @@
 export interface ProjectDto {
+  id: number;
+  version: number;
   name: string;
   description: string | null;
   organizationName: string | null;
@@ -11,4 +13,17 @@ export interface ProjectDto {
   useCaseCount: number;
   scenarioCount: number;
   glossaryTermCount: number;
+}
+
+export interface ProjectPermissions {
+  isStakeholder: boolean;
+  canCreateProjects: boolean;
+  permissions: Record<string, string[]>;
+}
+
+export interface ProjectTreeNode {
+  id?: number;
+  type: string;
+  name: string;
+  children?: ProjectTreeNode[];
 }

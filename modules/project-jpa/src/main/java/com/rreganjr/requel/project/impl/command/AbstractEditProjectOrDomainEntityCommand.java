@@ -72,7 +72,8 @@ public abstract class AbstractEditProjectOrDomainEntityCommand extends AbstractE
 		this.projectOrDomain = projectOrDomain;
 	}
 
-	protected ProjectOrDomain getProjectOrDomain() {
+	@Override
+	public ProjectOrDomain getProjectOrDomain() {
 		return projectOrDomain;
 	}
 

@@ -14,8 +14,7 @@ export class CommandService {
   constructor(private http: HttpClient) {}
 
   /**
-   * Execute a command and return the result.
-   * The input object is serialized as JSON in the request body.
+   * Execute a command with a JSON body and return the result.
    */
   async execute<T = unknown>(commandType: string, input: Record<string, unknown> = {}): Promise<CommandResult<T>> {
     try {
@@ -26,26 +25,50 @@ export class CommandService {
         )
       );
     } catch (err) {
-      if (err instanceof HttpErrorResponse) {
-        const body = err.error as CommandResult<T> | ErrorResponse;
-        if ('success' in body) {
-          return body as CommandResult<T>;
-        }
-        return {
-          success: false,
-          commandType,
-          message: (body as ErrorResponse).message ?? err.message,
-          data: null,
-          violations: null
-        };
+      return this.handleError(err, commandType);
+    }
+  }
+
+  /**
+   * Execute a command with a file upload (multipart/form-data).
+   * The input DTO is sent as a JSON part ("input"), the file as a separate part ("file").
+   */
+  async executeWithFile<T = unknown>(commandType: string, input: Record<string, unknown>, file: File): Promise<CommandResult<T>> {
+    const formData = new FormData();
+    formData.append('input', new Blob([JSON.stringify(input)], { type: 'application/json' }));
+    formData.append('file', file);
+    try {
+      return await firstValueFrom(
+        this.http.post<CommandResult<T>>(
+          `${environment.apiBaseUrl}/commands/${commandType}`,
+          formData
+        )
+      );
+    } catch (err) {
+      return this.handleError(err, commandType);
+    }
+  }
+
+  private handleError<T>(err: unknown, commandType: string): CommandResult<T> {
+    if (err instanceof HttpErrorResponse) {
+      const body = err.error as CommandResult<T> | ErrorResponse;
+      if ('success' in body) {
+        return body as CommandResult<T>;
       }
       return {
         success: false,
-        commandType,
-        message: 'Network error',
-        data: null,
+        entityType: commandType,
+        error: (body as ErrorResponse).message ?? err.message,
+        entity: null,
         violations: null
       };
     }
+    return {
+      success: false,
+      entityType: commandType,
+      error: 'Network error',
+      entity: null,
+      violations: null
+    };
   }
 }

@@ -40,6 +40,7 @@ import jakarta.xml.bind.annotation.XmlIDREF;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlType;
 
+import org.hibernate.annotations.OptimisticLock;
 import org.xml.sax.SAXException;
 
 import com.rreganjr.requel.annotation.Annotation;
@@ -164,6 +165,7 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 	@ManyToMany(targetEntity = AbstractAnnotation.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@JoinTable(name = "project_annotations")
+	@OptimisticLock(excluded = true)
 	public Set<Annotation> getAnnotations() {
 		return annotations;
 	}

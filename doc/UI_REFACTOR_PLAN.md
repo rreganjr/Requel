@@ -264,14 +264,34 @@ Single-entity endpoints return the DTO directly. All entities include `id`, `cre
 
 This mirrors how the Echo2 panels already work — they use CommandFactory/CommandHandler for writes and Repositories for reads. The CQRS API simply makes that existing split explicit over HTTP.
 
+#### Multipart Command Dispatch
+
+Commands that accept file uploads use `multipart/form-data` through the same
+`/api/commands/{commandType}` endpoint. Spring's content-type routing dispatches
+to a separate handler method:
+
+- `application/json` → standard JSON body dispatch (existing)
+- `multipart/form-data` → JSON input as `@RequestPart("input")`, file as `@RequestPart("file")`
+
+Both paths converge into the same factory → handler chain flow. The registrar's
+input applicator bridges `MultipartFile` → domain command setters (e.g.,
+`MultipartFile.getInputStream()` → `ImportProjectCommand.setInputStream()`).
+`MultipartFile` never leaks into domain interfaces.
+
+The `CommandRegistration` record adds an optional `fileApplicator`
+(`BiConsumer<Command, MultipartFile>`) for commands that accept files. The
+`ApiCommandFactory` applies it when a file is present.
+
+On the Angular side, `CommandService` provides `executeWithFile()` which sends
+`FormData` with a JSON `input` part and a `file` part.
+
 #### Special Cases (Not Through Command Dispatch)
 
 ```
 POST /api/auth/login                  → returns JWT + UserDto
-POST /api/projects/import             → multipart file upload
 ```
 
-These don't fit the command dispatch pattern — auth is infrastructure, and import involves file upload that needs multipart handling. Logout is entirely client-side (discard the JWT from memory); no server endpoint is needed since tokens are stateless.
+Auth doesn't fit the command dispatch pattern — it's infrastructure. Logout is entirely client-side (discard the JWT from memory); no server endpoint is needed since tokens are stateless.
 
 ### 3.2 Frontend: Angular SPA (`requel-angular/`)
 
@@ -983,7 +1003,7 @@ No logout endpoint — the Angular app discards the JWT from memory.
 **Backend work — Commands:**
 1. Add `ApiCommand<NewProjectInput>` to `NewProjectCommand` — fields: name, description, organizationName
 2. Add `ApiCommand<EditProjectInput>` to `EditProjectCommand` — fields: projectId, name, description, organizationName, version
-3. `ImportProject` command — special handling: multipart upload via `POST /api/projects/import` (not through command dispatch since it involves file upload)
+3. `ImportProject` command — registered with `ImportProjectInput` DTO (name override, enable analysis) and a `fileApplicator` that bridges `MultipartFile.getInputStream()` → `ImportProjectCommand.setInputStream()`. Dispatched via `POST /api/commands/ImportProject` with `multipart/form-data` (JSON input part + file part) through the standard handler chain, including audit logging
 
 **Backend work — Queries:**
 1. `GET /api/projects` → paginated list, filtered by `ProjectAccessChecker`: returns only projects where current user is a stakeholder (or all projects for SystemAdmin). Sorted by per-user recency (see activity tracking below). Supports a `limit` parameter for sidebar tree cap.
@@ -994,14 +1014,41 @@ No logout endpoint — the Angular app discards the JWT from memory.
 6. `GET /api/user-preferences` → current user's UI preferences
 7. `PUT /api/user-preferences` → update current user's UI preferences
 
+**Backend work — Command Audit Log:**
+
+All successful command executions are logged to a `command_audit_log` table for both
+audit trail purposes and to drive project activity tracking (sidebar recency).
+
+1. `CommandMetadata` class (platform-core) — holds commandType (the URL dispatch string)
+   and the typed input DTO. A single `CommandMetadataAware` interface exposes
+   `get/setCommandMetadata()`. The `AbstractCommand` base class implements it, so all
+   commands in the hierarchy automatically carry metadata.
+2. `ApiCommandFactory.newCommand()` creates a `CommandMetadata` with the commandType and
+   input DTO, then stamps it on the command via `CommandMetadataAware`.
+3. `SensitiveFieldRedactor` utility — generic JSON key scanner that replaces values for
+   keys matching patterns like `password`, `repassword`, `secret`, `token`, `credential`
+   with `"[REDACTED]"`. No command-type-specific branching.
+4. `AuditingCommandHandler` — outermost wrapper in the handler chain. On successful
+   execution: extracts commandType and input from `CommandMetadata`, project ID from
+   `ProjectScopedCommand`, user ID from `EditCommand.getEditedBy()`, serializes the input
+   to JSON with redaction, and inserts a row. Uses `@Transactional(REQUIRES_NEW)` so
+   logging failures can't roll back the command. On exception: re-throws without logging.
+5. Handler chain becomes: `Auditing → CurrentUser → RetryOnLockFailures → ExceptionMapping → Authorizing → AnalysisInvoking → Default`
+6. `command_audit_log` table: `(id, user_id BIGINT, executed_at TIMESTAMP, command_type VARCHAR, command_class VARCHAR, project_name VARCHAR NULL, request_payload TEXT)` — user_id references user table for referential integrity if username changes. Uses project_name (not project_id) because the Project domain interface doesn't expose a public getId(); the API identifies projects by name throughout.
+
 **Backend work — Project Activity Tracking:**
 
 The sidebar tree sorts projects by recent activity, filtered to entity types the
 user has stakeholder permissions for (see `doc/UI_DESIGN_GUIDE.md` §3.2.1).
 
-1. New `project_entity_activity` table: `(project_id, entity_type, last_activity_at)` — one row per project × entity type (~10 entity types × N projects)
-2. Upsert the appropriate row after any command that creates/edits/deletes a project entity. Can be done in the command handler chain (post-commit) or in the commands themselves.
-3. The `GET /api/projects` query joins the user's stakeholder permissions against `project_entity_activity` to compute `MAX(last_activity_at)` across only the entity types the user has permissions for. This becomes the sort key.
+1. Activity data is derived from `command_audit_log` — the audit log's `project_id` and
+   `executed_at` columns provide project-level recency. The `command_type` can be mapped
+   to entity types for per-entity-type filtering.
+2. For performance, a materialized view or summary table `project_entity_activity`
+   (`project_id, entity_type, last_activity_at`) can be maintained from audit log data.
+3. The `GET /api/projects` query joins the user's stakeholder permissions against activity
+   data to compute `MAX(last_activity_at)` across only the entity types the user has
+   permissions for. This becomes the sort key.
 
 **Backend work — User Preferences:**
 
@@ -1269,10 +1316,14 @@ DELETE /api/events/stream/subscriptions       → remove subscription (X-Session
 DELETE /api/events/stream/connection          → graceful server-side close (X-Session-Id header)
 ```
 
+**Multipart commands (file upload through command dispatch):**
+```
+POST /api/commands/ImportProject      → multipart/form-data (JSON input + file)
+```
+
 **Special cases (not through command dispatch):**
 ```
 POST /api/auth/login                  → returns JWT + UserDto
-POST /api/projects/import             → multipart file upload
 ```
 
 ### Composite CommandFactory
@@ -1310,6 +1361,19 @@ HTTP 409 Conflict
 ```
 
 The Angular client handles 409 by prompting the user to reload the entity before retrying. This prevents lost updates when the NLP agent or another user modifies an entity concurrently.
+
+**Version excludes system-generated changes:** The `@Version` field only increments on user-initiated modifications. System-generated changes — such as annotations and glossary term associations added by the NLP `AnalysisInvokingCommandHandler` — are excluded from version checks via `@OptimisticLock(excluded = true)` on the `annotations` and `glossaryTerms` collections. This ensures that NLP analysis running after a command does not inflate the version, so the version returned to the client accurately reflects user edits only.
+
+### Entity References: ID-Based, Not Name-Based
+
+The shift from name-based to id-based references is a recurring pattern when moving from server-side UI (Echo2) to client-server API (Angular + REST). Echo2 worked with live Hibernate-managed entity references — identity was implicit in the object graph. The API layer serializes to JSON, so identity must be explicit. Every entity reference crossing the API boundary should use `id` for unambiguous identification, with `name` only for display or creating new entities.
+
+**Guidelines:**
+- All DTOs for persisted entities must include `id` and `version`
+- Input DTOs for edits/deletes must include `id` (to identify the target) and `version` (for optimistic locking)
+- References to related entities (e.g., a project's organization) use `id`, not `name` — names can change, and concurrent renames create race conditions
+- Dropdown/selector components should bind to `{ id, name }` objects, sending `id` on save
+- Creating a new related entity (e.g., typing a new organization name) is the one case where `name` is sent without an `id`
 
 ### DTO Approach
 - DTOs are flat where possible (no deep nesting)

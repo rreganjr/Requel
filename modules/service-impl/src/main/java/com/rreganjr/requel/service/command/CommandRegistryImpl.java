@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -26,15 +27,20 @@ public class CommandRegistryImpl implements CommandRegistry {
     @Override
     public <T> void register(String commandType, Class<T> inputClass,
                              Supplier<Command> factoryMethod,
-                             BiConsumer<Command, T> inputApplicator) {
-        var registration = new CommandRegistration<>(commandType, inputClass, factoryMethod, inputApplicator);
+                             BiConsumer<Command, T> inputApplicator,
+                             BiConsumer<Command, Object> fileApplicator,
+                             Function<Command, Object> resultExtractor) {
+        var registration = new CommandRegistration<>(commandType, inputClass, factoryMethod,
+                inputApplicator, fileApplicator, resultExtractor);
         var existing = registrations.putIfAbsent(commandType, registration);
         if (existing != null) {
             throw new IllegalStateException(
                     "Duplicate command type registration: " + commandType);
         }
-        log.debug("Registered command type: {} (input: {})", commandType,
-                inputClass == Void.class ? "none" : inputClass.getSimpleName());
+        log.debug("Registered command type: {} (input: {}, file: {}, result: {})", commandType,
+                inputClass == Void.class ? "none" : inputClass.getSimpleName(),
+                fileApplicator != null ? "yes" : "no",
+                resultExtractor != null ? "yes" : "no");
     }
 
     @Override

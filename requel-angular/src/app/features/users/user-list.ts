@@ -1,23 +1,36 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
+import { InputText } from 'primeng/inputtext';
 import { UserDto } from '../../models/user';
 import { UserService } from '../../core/user.service';
 
 @Component({
   selector: 'app-user-list',
   standalone: true,
-  imports: [TableModule, ButtonModule],
+  imports: [FormsModule, TableModule, ButtonModule, InputText],
   template: `
     <div class="user-list">
-      <div class="header">
+      <div class="page-header">
         <h2>Users</h2>
-        <p-button label="New User" icon="pi pi-plus" (onClick)="onNewUser()" />
+        <div class="page-actions">
+          <p-button label="New User" icon="pi pi-plus" (onClick)="onNewUser()" />
+        </div>
       </div>
 
-      <p-table [value]="users()" [loading]="loading()" [paginator]="true" [rows]="20"
-               [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)">
+      <div class="search-bar">
+        <span class="p-input-icon-left">
+          <i class="pi pi-search"></i>
+          <input pInputText [(ngModel)]="searchText" placeholder="Search users..."
+                 (input)="dt.filterGlobal(searchText(), 'contains')" />
+        </span>
+      </div>
+
+      <p-table #dt [value]="users()" [loading]="loading()" [paginator]="true" [rows]="20"
+               [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
+               [globalFilterFields]="['username', 'name', 'emailAddress', 'organizationName']">
         <ng-template #header>
           <tr>
             <th pSortableColumn="username">Username <p-sortIcon field="username" /></th>
@@ -43,14 +56,17 @@ import { UserService } from '../../core/user.service';
     </div>
   `,
   styles: [`
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    h2 { margin: 0; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .page-header h2 { margin: 0; }
+    .search-bar { margin-bottom: 1rem; }
+    .search-bar input { width: 300px; }
   `]
 })
 export class UserListComponent implements OnInit {
 
   readonly users = signal<UserDto[]>([]);
   readonly loading = signal(true);
+  readonly searchText = signal('');
 
   constructor(private userService: UserService, private router: Router) {}
 

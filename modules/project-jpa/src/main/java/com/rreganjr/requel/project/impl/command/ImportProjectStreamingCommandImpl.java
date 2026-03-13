@@ -38,6 +38,7 @@ import com.rreganjr.requel.project.StakeholderPermission;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
+import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.EditReportGeneratorCommand;
 import com.rreganjr.requel.project.impl.ProjectImpl;
@@ -334,7 +335,23 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
     }
 
     private String resolveProjectName() {
-        return name != null ? name : "Imported Project";
+        String baseName = name != null ? name : "Imported Project";
+        String candidate = baseName;
+        for (int i = 1; isProjectNameTaken(candidate); i++) {
+            // Strip existing trailing number+parens: "Foo (2)" → "Foo"
+            String stripped = baseName.replaceAll("\\s*\\(\\d+\\)$", "");
+            candidate = stripped + " (" + i + ")";
+        }
+        return candidate;
+    }
+
+    private boolean isProjectNameTaken(String projectName) {
+        try {
+            getProjectRepository().findProjectByName(projectName);
+            return true;
+        } catch (NoSuchProjectException e) {
+            return false;
+        }
     }
 
     private String createdByExternalId(User createdBy) {

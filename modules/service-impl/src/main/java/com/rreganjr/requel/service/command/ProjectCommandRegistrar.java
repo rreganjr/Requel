@@ -1,15 +1,22 @@
 package com.rreganjr.requel.service.command;
 
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.command.EditProjectCommand;
+import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.api.dto.EditProjectInput;
+import com.rreganjr.requel.service.api.dto.ImportProjectInput;
+import com.rreganjr.requel.service.api.dto.ProjectDto;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 /**
  * Registers all project domain command types with the CQRS command registry at startup.
@@ -53,10 +60,30 @@ public class ProjectCommandRegistrar {
 
                     if (i.name() != null) c.setName(i.name());
                     if (i.description() != null) c.setText(i.description());
+                    if (i.organizationId() != null) c.setOrganizationId(i.organizationId());
                     if (i.organizationName() != null) c.setOrganizationName(i.organizationName());
-                });
+                },
+                null, // no file
+                cmd -> toDto(((EditProjectCommand) cmd).getProject()));
         registry.register("ExportProject", factory::newExportProjectCommand);
-        registry.register("ImportProject", factory::newImportProjectCommand);
+        registry.register("ImportProject", ImportProjectInput.class,
+                factory::newImportProjectCommand,
+                (cmd, input) -> {
+                    ImportProjectCommand c = (ImportProjectCommand) cmd;
+                    ImportProjectInput i = (ImportProjectInput) input;
+                    if (i.name() != null && !i.name().isBlank()) c.setName(i.name());
+                    if (Boolean.TRUE.equals(i.enableAnalysis())) c.setAnalysisEnabled(true);
+                },
+                (cmd, file) -> {
+                    ImportProjectCommand c = (ImportProjectCommand) cmd;
+                    MultipartFile mf = (MultipartFile) file;
+                    try {
+                        c.setInputStream(mf.getInputStream());
+                    } catch (IOException e) {
+                        throw new IllegalStateException("Failed to read uploaded file", e);
+                    }
+                },
+                cmd -> toDto(((ImportProjectCommand) cmd).getProject()));
 
         // Stakeholders
         registry.register("EditUserStakeholder", factory::newEditUserStakeholderCommand);
@@ -114,5 +141,24 @@ public class ProjectCommandRegistrar {
         registry.register("RemoveUnneedLexicalIssues", factory::newRemoveUnneedLexicalIssuesCommand);
 
         log.info("Registered {} project command types", 37);
+    }
+
+    private static ProjectDto toDto(Project project) {
+        return new ProjectDto(
+                project.getId(),
+                project.getVersion(),
+                project.getName(),
+                project.getText(),
+                project.getOrganization() != null ? project.getOrganization().getName() : null,
+                project.getCreatedBy() != null ? project.getCreatedBy().getDisplayName() : null,
+                project.getStatus(),
+                project.getStakeholders().size(),
+                project.getGoals().size(),
+                project.getStories().size(),
+                project.getActors().size(),
+                project.getUseCases().size(),
+                project.getScenarios().size(),
+                project.getGlossaryTerms().size()
+        );
     }
 }

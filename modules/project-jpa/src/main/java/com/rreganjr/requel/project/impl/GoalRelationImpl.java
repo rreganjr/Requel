@@ -37,6 +37,7 @@ import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import org.hibernate.annotations.OptimisticLock;
 import org.hibernate.annotations.SortNatural;
 
 import com.rreganjr.requel.annotation.Annotation;
@@ -99,7 +100,8 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 	@XmlID
 	@XmlAttribute(name = "id")
 	@XmlJavaTypeAdapter(IdAdapter.class)
-	protected Long getId() {
+	@Override
+	public Long getId() {
 		return id;
 	}
 
@@ -108,7 +110,8 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 	}
 
 	@Version
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 
@@ -199,6 +202,7 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 	@ManyToMany(targetEntity = AbstractAnnotation.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@SortNatural
+	@OptimisticLock(excluded = true)
 	public Set<Annotation> getAnnotations() {
 		return annotations;
 	}

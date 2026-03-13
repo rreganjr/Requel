@@ -1,23 +1,37 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { ButtonModule } from 'primeng/button';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ConfirmationService } from 'primeng/api';
+import { Subscription } from 'rxjs';
 import { ProjectDto } from '../../models/project';
+import { OrganizationDto } from '../../models/user';
 import { ProjectService } from '../../core/project.service';
 import { UserService } from '../../core/user.service';
 import { CommandService } from '../../core/command.service';
+import { PermissionService } from '../../core/permission.service';
 
 @Component({
   selector: 'app-project-editor',
   standalone: true,
-  imports: [FormsModule, InputText, TextareaModule, ButtonModule, SelectModule, MessageModule],
+  imports: [FormsModule, InputText, TextareaModule, ButtonModule, SelectModule, MessageModule, ConfirmDialogModule],
+  providers: [ConfirmationService],
   template: `
     <div class="project-editor">
-      <h2>{{ isNew() ? 'New Project' : 'Edit Project: ' + originalName() }}</h2>
+      <div class="page-header">
+        <h2>{{ isNew() ? 'New Project' : 'Project: ' + originalName() }}</h2>
+        <div class="page-actions">
+          @if (!isNew()) {
+            <p-button icon="pi pi-download" label="Export" [outlined]="true"
+                      severity="secondary" size="small" (onClick)="onExport()" />
+          }
+        </div>
+      </div>
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
@@ -35,9 +49,9 @@ import { CommandService } from '../../core/command.service';
 
           <div class="field">
             <label for="org">Organization</label>
-            <p-select id="org" [(ngModel)]="organizationName" name="org"
-                      [options]="orgOptions()" [editable]="true"
-                      placeholder="Select or type organization" />
+            <p-select id="org" [(ngModel)]="selectedOrg" name="org"
+                      [options]="orgOptions()" optionLabel="label" optionValue="value"
+                      [editable]="true" placeholder="Select or type organization" />
           </div>
 
           <div class="field full-width">
@@ -55,9 +69,13 @@ import { CommandService } from '../../core/command.service';
         </div>
       </form>
     </div>
+
+    <p-confirmDialog />
   `,
   styles: [`
     .project-editor { max-width: 800px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .page-header h2 { margin: 0; }
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
     .field { display: flex; flex-direction: column; gap: 0.5rem; }
     .field label { font-weight: 500; }
@@ -66,50 +84,105 @@ import { CommandService } from '../../core/command.service';
     .actions { display: flex; gap: 0.5rem; }
   `]
 })
-export class ProjectEditorComponent implements OnInit {
+export class ProjectEditorComponent implements OnInit, OnDestroy {
+
+  @ViewChild('projectForm') projectForm!: NgForm;
 
   readonly isNew = signal(true);
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
-
-  // The original project name (used as the identifier for updates)
   readonly originalName = signal('');
+  private projectId: number | null = null;
+  private projectVersion: number | null = null;
 
   // Form fields
-  readonly name = signal('');
-  readonly description = signal('');
-  readonly organizationName = signal('');
+  name = '';
+  description = '';
+  selectedOrg: OrganizationDto | string | null = null;
 
   // Organization dropdown
-  readonly organizations = signal<string[]>([]);
+  readonly organizations = signal<OrganizationDto[]>([]);
   readonly orgOptions = computed(() =>
-    this.organizations().map(name => ({ label: name, value: name }))
+    this.organizations().map(org => ({ label: org.name, value: org }))
   );
+
+  private paramSub!: Subscription;
+  private pendingNavName: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private projectService: ProjectService,
     private userService: UserService,
-    private commandService: CommandService
+    private commandService: CommandService,
+    private permissionService: PermissionService,
+    private confirmationService: ConfirmationService
   ) {}
 
-  async ngOnInit(): Promise<void> {
-    const nameParam = this.route.snapshot.paramMap.get('name');
-    this.isNew.set(nameParam === 'new' || !nameParam);
+  ngOnInit(): void {
+    // Load orgs once
+    this.userService.listOrganizations().then(orgs => this.organizations.set(orgs));
+
+    // React to route param changes (handles sidebar project clicks)
+    this.paramSub = this.route.paramMap.subscribe(params => {
+      const nameParam = params.get('name');
+      const newIsNew = nameParam === 'new' || !nameParam;
+
+      // If form is dirty, confirm before switching
+      if (this.projectForm?.dirty && !newIsNew) {
+        this.pendingNavName = nameParam;
+        this.confirmationService.confirm({
+          message: 'You have unsaved changes. Save before switching?',
+          header: 'Unsaved Changes',
+          icon: 'pi pi-exclamation-triangle',
+          acceptLabel: 'Save & Switch',
+          rejectLabel: 'Cancel',
+          accept: () => this.saveAndSwitch(),
+          reject: () => {
+            // Stay on current form — navigate back to original
+            this.pendingNavName = null;
+            this.router.navigate(['/projects', this.originalName()], { replaceUrl: true });
+          }
+        });
+        return;
+      }
+
+      this.loadProject(nameParam);
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.paramSub?.unsubscribe();
+  }
+
+  private async loadProject(nameParam: string | null): Promise<void> {
+    const newIsNew = nameParam === 'new' || !nameParam;
+    this.isNew.set(newIsNew);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.loading.set(true);
 
     try {
-      const orgs = await this.userService.listOrganizations();
-      this.organizations.set(orgs);
-
-      if (!this.isNew() && nameParam) {
-        const project = await this.projectService.getProject(nameParam);
+      if (!newIsNew && nameParam) {
+        const [project] = await Promise.all([
+          this.projectService.getProject(nameParam),
+          this.permissionService.loadForProject(nameParam)
+        ]);
         this.populateForm(project);
+      } else {
+        this.projectId = null;
+        this.projectVersion = null;
+        this.originalName.set('');
+        this.name = '';
+        this.description = '';
+        this.selectedOrg = null;
       }
     } finally {
       this.loading.set(false);
+      // Reset form dirty state after load
+      setTimeout(() => this.projectForm?.form.markAsPristine());
     }
   }
 
@@ -119,29 +192,36 @@ export class ProjectEditorComponent implements OnInit {
     this.successMessage.set(null);
 
     try {
+      // Resolve organization: object = existing org by id, string = new org by name
+      const orgId = typeof this.selectedOrg === 'object' && this.selectedOrg ? this.selectedOrg.id : null;
+      const orgName = typeof this.selectedOrg === 'string' && this.selectedOrg ? this.selectedOrg : null;
+
       const input: Record<string, unknown> = {
+        id: this.projectId,
+        version: this.projectVersion,
         projectName: this.isNew() ? null : this.originalName(),
-        name: this.name(),
-        description: this.description() || null,
-        organizationName: this.organizationName() || null
+        name: this.name,
+        description: this.description || null,
+        organizationId: orgId,
+        organizationName: orgName
       };
 
       const result = await this.commandService.execute('EditProject', input);
       if (result.success) {
         this.successMessage.set('Project saved successfully.');
+        this.projectForm?.form.markAsPristine();
         if (this.isNew()) {
-          await this.router.navigate(['/projects', this.name()]);
+          await this.router.navigate(['/projects', this.name]);
         } else {
-          // If name changed, update the route
-          if (this.name() !== this.originalName()) {
-            await this.router.navigate(['/projects', this.name()]);
+          if (this.name !== this.originalName()) {
+            await this.router.navigate(['/projects', this.name]);
           }
-          this.originalName.set(this.name());
+          this.originalName.set(this.name);
         }
       } else if (result.violations?.length) {
         this.errorMessage.set(result.violations.map(v => v.message).join('; '));
       } else {
-        this.errorMessage.set(result.message ?? 'Save failed.');
+        this.errorMessage.set(result.error ?? 'Save failed.');
       }
     } catch (err: unknown) {
       this.errorMessage.set(err instanceof Error ? err.message : 'Save failed.');
@@ -150,14 +230,31 @@ export class ProjectEditorComponent implements OnInit {
     }
   }
 
+  onExport(): void {
+    const url = this.projectService.getExportUrl(this.originalName());
+    window.open(url, '_blank');
+  }
+
   onCancel(): void {
     this.router.navigate(['/projects']);
   }
 
   private populateForm(project: ProjectDto): void {
+    this.projectId = project.id;
+    this.projectVersion = project.version;
     this.originalName.set(project.name);
-    this.name.set(project.name);
-    this.description.set(project.description ?? '');
-    this.organizationName.set(project.organizationName ?? '');
+    this.name = project.name;
+    this.description = project.description ?? '';
+    // Match loaded org name to an OrganizationDto from the dropdown list
+    const matchedOrg = this.organizations().find(o => o.name === project.organizationName);
+    this.selectedOrg = matchedOrg ?? project.organizationName ?? null;
+  }
+
+  private async saveAndSwitch(): Promise<void> {
+    await this.onSave();
+    if (!this.errorMessage() && this.pendingNavName) {
+      await this.loadProject(this.pendingNavName);
+      this.pendingNavName = null;
+    }
   }
 }

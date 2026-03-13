@@ -1,25 +1,51 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ViewChild, ElementRef } from '@angular/core';
 import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
+import { MessageModule } from 'primeng/message';
+import { InputText } from 'primeng/inputtext';
 import { ProjectDto } from '../../models/project';
 import { ProjectService } from '../../core/project.service';
+import { AuthService } from '../../core/auth.service';
 
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [TableModule, ButtonModule],
+  imports: [FormsModule, TableModule, ButtonModule, MessageModule, InputText],
   template: `
     <div class="project-list">
-      <div class="header">
+      <div class="page-header">
         <h2>Projects</h2>
-        <div class="actions">
-          <p-button label="New Project" icon="pi pi-plus" (onClick)="onNewProject()" />
+        <div class="page-actions">
+          @if (canCreateProjects()) {
+            <p-button label="New Project" icon="pi pi-plus" (onClick)="onNewProject()" />
+            <p-button label="Import" icon="pi pi-upload" severity="secondary"
+                      [outlined]="true" [loading]="importing()" (onClick)="fileInput.click()" />
+            <input #fileInput type="file" accept=".xml" (change)="onImportFile($event)"
+                   style="display: none" />
+          }
         </div>
       </div>
 
-      <p-table [value]="projects()" [loading]="loading()" [paginator]="true" [rows]="20"
-               [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)">
+      @if (errorMessage()) {
+        <p-message severity="error" [text]="errorMessage()!" />
+      }
+      @if (successMessage()) {
+        <p-message severity="success" [text]="successMessage()!" />
+      }
+
+      <div class="search-bar">
+        <span class="p-input-icon-left">
+          <i class="pi pi-search"></i>
+          <input pInputText [(ngModel)]="searchText" placeholder="Search projects..."
+                 (input)="dt.filterGlobal(searchText(), 'contains')" />
+        </span>
+      </div>
+
+      <p-table #dt [value]="projects()" [loading]="loading()" [paginator]="true" [rows]="20"
+               [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
+               [globalFilterFields]="['name', 'organizationName', 'status', 'createdBy']">
         <ng-template #header>
           <tr>
             <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
@@ -51,25 +77,36 @@ import { ProjectService } from '../../core/project.service';
     </div>
   `,
   styles: [`
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .actions { display: flex; gap: 0.5rem; }
-    h2 { margin: 0; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .page-header h2 { margin: 0; }
+    .page-actions { display: flex; gap: 0.5rem; }
+    .search-bar { margin-bottom: 1rem; }
+    .search-bar input { width: 300px; }
   `]
 })
 export class ProjectListComponent implements OnInit {
 
   readonly projects = signal<ProjectDto[]>([]);
   readonly loading = signal(true);
+  readonly importing = signal(false);
+  readonly errorMessage = signal<string | null>(null);
+  readonly successMessage = signal<string | null>(null);
+  readonly searchText = signal('');
 
-  constructor(private projectService: ProjectService, private router: Router) {}
+  readonly canCreateProjects = signal(false);
+
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+
+  constructor(
+    private projectService: ProjectService,
+    private authService: AuthService,
+    private router: Router
+  ) {}
 
   async ngOnInit(): Promise<void> {
-    try {
-      const projects = await this.projectService.listProjects();
-      this.projects.set(projects);
-    } finally {
-      this.loading.set(false);
-    }
+    const user = this.authService.user();
+    this.canCreateProjects.set(user?.permissions?.includes('createProjects') ?? false);
+    await this.loadProjects();
   }
 
   onNewProject(): void {
@@ -80,6 +117,41 @@ export class ProjectListComponent implements OnInit {
     const project = Array.isArray(event.data) ? event.data[0] : event.data;
     if (project) {
       this.router.navigate(['/projects', project.name]);
+    }
+  }
+
+  async onImportFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    this.importing.set(true);
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+
+    try {
+      const result = await this.projectService.importProject(file);
+      if (result.success) {
+        this.successMessage.set('Project imported successfully.');
+        await this.loadProjects();
+      } else {
+        this.errorMessage.set(result.error ?? 'Import failed.');
+      }
+    } catch (err: unknown) {
+      this.errorMessage.set(err instanceof Error ? err.message : 'Import failed.');
+    } finally {
+      this.importing.set(false);
+      input.value = '';
+    }
+  }
+
+  private async loadProjects(): Promise<void> {
+    this.loading.set(true);
+    try {
+      const projects = await this.projectService.listProjects();
+      this.projects.set(projects);
+    } finally {
+      this.loading.set(false);
     }
   }
 }

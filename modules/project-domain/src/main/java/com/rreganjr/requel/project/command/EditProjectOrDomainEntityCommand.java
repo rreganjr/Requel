@@ -36,10 +36,15 @@ public interface EditProjectOrDomainEntityCommand extends AnalyzableEditCommand 
 
 	/**
 	 * Set the project or domain this entity is a part of.
-	 * 
+	 *
 	 * @param projectOrDomain
 	 */
 	public void setProjectOrDomain(ProjectOrDomain projectOrDomain);
+
+	/**
+	 * @return the project or domain this entity belongs to
+	 */
+	public ProjectOrDomain getProjectOrDomain();
 
 	/**
 	 * @param name

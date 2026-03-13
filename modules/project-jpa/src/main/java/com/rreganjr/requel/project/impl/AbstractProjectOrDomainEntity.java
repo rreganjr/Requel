@@ -35,6 +35,7 @@ import jakarta.xml.bind.annotation.XmlIDREF;
 import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import org.hibernate.annotations.OptimisticLock;
 import org.hibernate.annotations.SortNatural;
 
 import com.rreganjr.requel.annotation.Annotation;
@@ -79,7 +80,8 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	protected Long getId() {
+	@Override
+	public Long getId() {
 		return id;
 	}
 
@@ -89,7 +91,8 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 
 	@Version
 	@XmlAttribute(name = "revision", required = false)
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 
@@ -130,6 +133,7 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 	@ManyToMany(targetEntity = AbstractAnnotation.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@SortNatural
+	@OptimisticLock(excluded = true)
 	public Set<Annotation> getAnnotations() {
 		return annotations;
 	}
@@ -144,6 +148,7 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 	@ManyToMany(targetEntity = GlossaryTermImpl.class, cascade = { CascadeType.PERSIST,
 			CascadeType.REFRESH }, fetch = FetchType.LAZY)
 	@SortNatural
+	@OptimisticLock(excluded = true)
 	public Set<GlossaryTerm> getGlossaryTerms() {
 		return terms;
 	}

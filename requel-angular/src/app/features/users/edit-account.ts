@@ -98,10 +98,8 @@ export class EditAccountComponent implements OnInit {
   readonly password = signal('');
   readonly repassword = signal('');
 
-  readonly organizations = signal<string[]>([]);
-  readonly orgOptions = computed(() =>
-    this.organizations().map(name => ({ label: name, value: name }))
-  );
+  readonly organizations = signal<{label: string; value: string}[]>([]);
+  readonly orgOptions = computed(() => this.organizations());
 
   constructor(
     private authService: AuthService,
@@ -119,7 +117,7 @@ export class EditAccountComponent implements OnInit {
     }
     try {
       const orgs = await this.userService.listOrganizations();
-      this.organizations.set(orgs);
+      this.organizations.set(orgs.map(o => ({ label: o.name, value: o.name })));
     } catch {
       // org list is optional — dropdown still works as editable text input
     }
@@ -152,7 +150,7 @@ export class EditAccountComponent implements OnInit {
       } else if (result.violations?.length) {
         this.errorMessage.set(result.violations.map(v => v.message).join('; '));
       } else {
-        this.errorMessage.set(result.message ?? 'Save failed.');
+        this.errorMessage.set(result.error ?? 'Save failed.');
       }
     } catch (err: unknown) {
       this.errorMessage.set(err instanceof Error ? err.message : 'Save failed.');

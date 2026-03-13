@@ -131,6 +131,11 @@ public interface EditUserCommand extends Command {
 	public void addUserRolePermissionName(String userRoleName, String userRolePermissionName);
 
 	/**
+	 * @return the user invoking the command
+	 */
+	public User getEditedBy();
+
+	/**
 	 * @param editedBy -
 	 *            the user invoking the command
 	 */

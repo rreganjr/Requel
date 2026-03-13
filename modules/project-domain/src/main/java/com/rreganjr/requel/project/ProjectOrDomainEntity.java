@@ -34,6 +34,16 @@ import com.rreganjr.requel.annotation.Annotatable;
 public interface ProjectOrDomainEntity extends NamedEntity, Annotatable, CreatedEntity, Describable {
 
 	/**
+	 * @return the persistent identity of this entity.
+	 */
+	public Long getId();
+
+	/**
+	 * @return the optimistic-lock version; incremented on each user-initiated modification.
+	 */
+	public int getVersion();
+
+	/**
 	 * @return the project or domain that the entity is attached to.
 	 */
 	public ProjectOrDomain getProjectOrDomain();

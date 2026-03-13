@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ProjectDto(
+        Long id,
+        int version,
         String name,
         String description,
         String organizationName,

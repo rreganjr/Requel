@@ -35,6 +35,16 @@ public interface GoalRelation extends Annotatable, Comparable<GoalRelation>, Cre
 		Describable {
 
 	/**
+	 * @return the persistent identity of this goal relation.
+	 */
+	public Long getId();
+
+	/**
+	 * @return the optimistic-lock version; incremented on each user-initiated modification.
+	 */
+	public int getVersion();
+
+	/**
 	 * @return The goal that is the origin of the relationship.
 	 */
 	public Goal getFromGoal();

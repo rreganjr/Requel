@@ -1,5 +1,6 @@
 package com.rreganjr.requel.service.query;
 
+import com.rreganjr.requel.service.api.dto.OrganizationDto;
 import com.rreganjr.requel.service.api.dto.RoleDto;
 import com.rreganjr.requel.service.api.dto.UserDto;
 import com.rreganjr.requel.service.auth.UserDtoMapper;
@@ -54,12 +55,13 @@ public class UserQueryController {
     }
 
     /**
-     * GET /api/users/organizations — organization names for dropdown.
+     * GET /api/users/organizations — organizations for dropdown.
      */
     @GetMapping("/organizations")
-    public List<String> listOrganizations() {
-        return userRepository.getOrganizationNames().stream()
-                .sorted()
+    public List<OrganizationDto> listOrganizations() {
+        return userRepository.findOrganizations().stream()
+                .map(org -> new OrganizationDto(org.getId(), org.getName()))
+                .sorted(Comparator.comparing(OrganizationDto::name))
                 .toList();
     }
 

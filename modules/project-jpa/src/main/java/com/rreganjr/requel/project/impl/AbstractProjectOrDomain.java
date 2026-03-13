@@ -127,7 +127,8 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 	@XmlID
 	@XmlAttribute(name = "id")
 	@XmlJavaTypeAdapter(IdAdapter.class)
-	protected Long getId() {
+	@Override
+	public Long getId() {
 		return id;
 	}
 
@@ -137,7 +138,8 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 
 	@Version
 	@XmlAttribute(name = "revision", required = false)
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   - Spring config for the command handler chain (decorator pattern).
-  - Chain: RetryOnLockFailures → ExceptionMapping → Authorizing → AnalysisInvoking → Default
+  - Chain: Auditing → CurrentUser → RetryOnLockFailures → ExceptionMapping → Authorizing → AnalysisInvoking → Default
   -->
 <beans xmlns="http://www.springframework.org/schema/beans"
 		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -14,28 +14,46 @@
 			http://www.springframework.org/schema/tx https://www.springframework.org/schema/tx/spring-tx.xsd
 			http://www.springframework.org/schema/util https://www.springframework.org/schema/util/spring-util.xsd
 			">
+
 	<!-- create these nested so that only one CommandHandler class is exposed -->
-	<bean id="commandHandler" class="com.rreganjr.command.RetryOnLockFailuresCommandHandler" scope="singleton">
+	<bean id="commandHandler" class="com.rreganjr.requel.service.audit.AuditingCommandHandler" scope="singleton">
 		<constructor-arg index="0">
-			<bean class="com.rreganjr.command.ExceptionMappingCommandHandler" scope="singleton">
+			<bean class="com.rreganjr.requel.service.command.CurrentUserCommandHandler" scope="singleton">
 				<constructor-arg index="0">
-					<bean class="com.rreganjr.repository.jpa.ExceptionMapper"/>
-				</constructor-arg>
-				<constructor-arg index="1">
-					<bean class="com.rreganjr.requel.command.AuthorizingCommandHandler" scope="singleton">
+					<bean class="com.rreganjr.command.RetryOnLockFailuresCommandHandler" scope="singleton">
 						<constructor-arg index="0">
-							<bean class="com.rreganjr.requel.command.AnalysisInvokingCommandHandler" scope="singleton">
+							<bean class="com.rreganjr.command.ExceptionMappingCommandHandler" scope="singleton">
 								<constructor-arg index="0">
-									<bean class="com.rreganjr.command.DefaultCommandHandler" scope="singleton"/>
+									<bean class="com.rreganjr.repository.jpa.ExceptionMapper"/>
+								</constructor-arg>
+								<constructor-arg index="1">
+									<bean class="com.rreganjr.requel.command.AuthorizingCommandHandler" scope="singleton">
+										<constructor-arg index="0">
+											<bean class="com.rreganjr.requel.command.AnalysisInvokingCommandHandler" scope="singleton">
+												<constructor-arg index="0">
+													<bean class="com.rreganjr.command.DefaultCommandHandler" scope="singleton"/>
+												</constructor-arg>
+											</bean>
+										</constructor-arg>
+									</bean>
 								</constructor-arg>
 							</bean>
 						</constructor-arg>
+						<constructor-arg index="1">
+							<ref bean="projectRepository"/>
+						</constructor-arg>
 					</bean>
+				</constructor-arg>
+				<constructor-arg index="1">
+					<ref bean="currentUserResolver"/>
 				</constructor-arg>
 			</bean>
 		</constructor-arg>
 		<constructor-arg index="1">
-			<ref bean="projectRepository"/>
+			<ref bean="commandAuditLogRepository"/>
+		</constructor-arg>
+		<constructor-arg index="2">
+			<ref bean="sensitiveFieldRedactor"/>
 		</constructor-arg>
 	</bean>
 </beans>

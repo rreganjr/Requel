@@ -4,21 +4,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.platform.command.EditCommand;
-import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.service.api.CommandResult;
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
-import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import com.rreganjr.repository.jpa.BeanValidationException;
 import com.rreganjr.validator.EntityValidationException;
 import jakarta.persistence.OptimisticLockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,23 +31,40 @@ public class CommandController {
 
     private final ApiCommandFactory apiCommandFactory;
     private final CommandHandler commandHandler;
-    private final CurrentUserResolver currentUserResolver;
     private final ObjectMapper objectMapper;
 
     public CommandController(ApiCommandFactory apiCommandFactory,
                              CommandHandler commandHandler,
-                             CurrentUserResolver currentUserResolver,
                              ObjectMapper objectMapper) {
         this.apiCommandFactory = apiCommandFactory;
         this.commandHandler = commandHandler;
-        this.currentUserResolver = currentUserResolver;
         this.objectMapper = objectMapper;
     }
 
-    @PostMapping("/{commandType}")
-    public ResponseEntity<?> dispatch(
+    /**
+     * JSON-only command dispatch.
+     */
+    @PostMapping(value = "/{commandType}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> dispatchJson(
             @PathVariable String commandType,
             @RequestBody(required = false) Map<String, Object> rawInput) {
+        return dispatch(commandType, rawInput, null);
+    }
+
+    /**
+     * Multipart command dispatch — JSON input as a part, file as a part.
+     * Used for commands that accept file uploads (e.g., ImportProject).
+     */
+    @PostMapping(value = "/{commandType}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> dispatchMultipart(
+            @PathVariable String commandType,
+            @RequestPart(value = "input", required = false) Map<String, Object> rawInput,
+            @RequestPart(value = "file", required = false) MultipartFile file) {
+        return dispatch(commandType, rawInput, file);
+    }
+
+    private ResponseEntity<?> dispatch(String commandType, Map<String, Object> rawInput,
+                                       MultipartFile file) {
         try {
             // Deserialize raw JSON to the command's input DTO type (null for commands with no input mapping yet)
             Class<?> inputType = apiCommandFactory.getInputType(commandType);
@@ -57,19 +72,15 @@ public class CommandController {
                     ? objectMapper.convertValue(rawInput, inputType)
                     : null;
 
-            // Create and configure the command
-            Command command = apiCommandFactory.newCommand(commandType, input);
-            if (command instanceof EditCommand editCmd) {
-                editCmd.setEditedBy(currentUserResolver.resolve());
-            } else if (command instanceof EditUserCommand userCmd) {
-                userCmd.setEditedBy(currentUserResolver.resolve());
-            }
+            // Create and configure the command — editedBy is set by CurrentUserCommandHandler in the chain
+            Command command = apiCommandFactory.newCommand(commandType, input, file);
 
             // Execute through the handler chain
             commandHandler.execute(command);
 
-            // TODO: extract result entity/DTO from command when ApiCommand supports it
-            return ResponseEntity.ok(CommandResult.success(null, commandType));
+            // Extract result DTO via the registration's resultExtractor (null if not registered)
+            Object result = apiCommandFactory.extractResult(commandType, command);
+            return ResponseEntity.ok(CommandResult.success(result, commandType));
 
         } catch (AuthorizationException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -109,7 +120,7 @@ public class CommandController {
         } catch (Exception e) {
             log.error("Command execution failed: {} - {}", commandType, e.getMessage(), e);
             return ResponseEntity.internalServerError()
-                    .body(ErrorResponse.of("INTERNAL_ERROR", e.getClass().getSimpleName() + ": " + e.getMessage()));
+                    .body(ErrorResponse.of("INTERNAL_ERROR", "An unexpected error occurred. Please try again or contact support."));
         }
     }
 }

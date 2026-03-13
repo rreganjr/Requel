@@ -30,6 +30,8 @@ import com.rreganjr.requel.user.exception.NoSuchUserException;
  */
 public interface UserRepository extends com.rreganjr.repository.Repository {
 
+    Organization findOrganizationById(Long id) throws NoSuchOrganizationException;
+
     Organization findOrganizationByName(String name) throws NoSuchOrganizationException;
 
     Set<Organization> findOrganizations();

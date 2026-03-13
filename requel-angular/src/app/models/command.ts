@@ -1,8 +1,8 @@
 export interface CommandResult<T = unknown> {
   success: boolean;
-  commandType: string;
-  message: string | null;
-  data: T | null;
+  entityType: string | null;
+  entity: T | null;
+  error: string | null;
   violations: FieldViolation[] | null;
 }
 

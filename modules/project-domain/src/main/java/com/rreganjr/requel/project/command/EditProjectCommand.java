@@ -22,11 +22,12 @@ package com.rreganjr.requel.project.command;
 
 import com.rreganjr.requel.command.AnalyzableEditCommand;
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 
 /**
  * @author ron
  */
-public interface EditProjectCommand extends AnalyzableEditCommand {
+public interface EditProjectCommand extends AnalyzableEditCommand, ProjectScopedCommand {
 
 	/**
 	 * The name of the "name" field used to correlate to the field in an editor
@@ -45,7 +46,12 @@ public interface EditProjectCommand extends AnalyzableEditCommand {
 	public void setText(String description);
 
 	/**
-	 * @param organizationName
+	 * @param organizationId - the id of an existing organization
+	 */
+	public void setOrganizationId(Long organizationId);
+
+	/**
+	 * @param organizationName - the name of the organization (used to create a new one if organizationId is not set)
 	 */
 	public void setOrganizationName(String organizationName);
 

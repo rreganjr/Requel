@@ -30,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.requel.user.impl.AbstractUserRole;
 import com.rreganjr.requel.user.Organization;
@@ -77,11 +78,20 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 	 */
 	@Override
 	public void execute() {
+		boolean isAdmin = getEditedBy() != null && getEditedBy().hasRole(SystemAdminUserRole.class);
 		UserImpl userImpl = (UserImpl) getUser();
 		if (userImpl == null) {
+			// Only admins can create new users
+			if (!isAdmin) {
+				throw new AuthorizationException("Only administrators can create user accounts.");
+			}
 			userImpl = createUser();
 		} else {
-			userImpl = updateUser(userImpl);
+			// Non-admins can only edit their own account
+			if (!isAdmin && !userImpl.getUsername().equals(getEditedBy().getUsername())) {
+				throw new AuthorizationException("You can only edit your own account.");
+			}
+			userImpl = updateUser(userImpl, isAdmin);
 		}
 		setUser(userImpl);
 	}
@@ -105,7 +115,7 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		}
 	}
 
-	private UserImpl updateUser(UserImpl userImpl) {
+	private UserImpl updateUser(UserImpl userImpl, boolean isAdmin) {
 		Organization organization = getOrCreateOrganization(getOrganizationName());
 		userImpl.setName(getName());
 		if (!StringUtils.isEmpty(getPassword())) {
@@ -118,7 +128,7 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		userImpl.setEmailAddress(getEmailAddress());
 		userImpl.setPhoneNumber(getPhoneNumber());
 		userImpl.setOrganization(organization);
-		if (getEditedBy().hasRole(SystemAdminUserRole.class)) {
+		if (isAdmin) {
 			userImpl.setUsername(getUsername());
 			userImpl.setEditable(getEditable());
 			if (userRolesProvided) {

@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { UserDto } from '../models/user';
+import { OrganizationDto, UserDto } from '../models/user';
 import { RoleDto } from '../models/role';
 
 /**
@@ -25,9 +25,9 @@ export class UserService {
     );
   }
 
-  async listOrganizations(): Promise<string[]> {
+  async listOrganizations(): Promise<OrganizationDto[]> {
     return firstValueFrom(
-      this.http.get<string[]>(`${environment.apiBaseUrl}/users/organizations`)
+      this.http.get<OrganizationDto[]>(`${environment.apiBaseUrl}/users/organizations`)
     );
   }
 

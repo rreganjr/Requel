@@ -34,8 +34,18 @@ public interface ProjectOrDomain extends CreatedEntity, NamedEntity, Describable
 		ActorContainer, ScenarioContainer {
 
 	/**
+	 * @return the persistent identity of this project or domain.
+	 */
+	public Long getId();
+
+	/**
+	 * @return the optimistic-lock version; incremented on each user-initiated modification.
+	 */
+	public int getVersion();
+
+	/**
 	 * Change the name of the domain or project.
-	 * 
+	 *
 	 * @param name
 	 */
 	public void setName(String name);

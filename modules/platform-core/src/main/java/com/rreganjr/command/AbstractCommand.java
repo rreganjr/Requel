@@ -27,10 +27,11 @@ import com.rreganjr.repository.Repository;
 /**
  * @author ron
  */
-public abstract class AbstractCommand implements Command {
+public abstract class AbstractCommand implements Command, CommandMetadataAware {
 	protected static final Logger log = Logger.getLogger(AbstractCommand.class);
 
 	private final Repository repository;
+	private CommandMetadata commandMetadata;
 
 	protected AbstractCommand(Repository repository) {
 		this.repository = repository;
@@ -38,5 +39,15 @@ public abstract class AbstractCommand implements Command {
 
 	protected Repository getRepository() {
 		return repository;
+	}
+
+	@Override
+	public CommandMetadata getCommandMetadata() {
+		return commandMetadata;
+	}
+
+	@Override
+	public void setCommandMetadata(CommandMetadata commandMetadata) {
+		this.commandMetadata = commandMetadata;
 	}
 }
