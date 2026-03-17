@@ -1141,28 +1141,78 @@ Input DTOs are inherently separate because create/edit flows differ by type:
 
 ### Phase 4: Goals + Stories
 
-**Goal:** Goal and Story CRUD with cross-entity relationships.
+**Goal:** Goal and Story CRUD with cross-entity relationships. Introduces the shared
+entity selector dialog and the "Referenced by" pattern for cross-entity visibility.
+
+**Design Decisions:**
+- **Goal relations are inline** on the goal editor — a table of supporting/conflicting
+  goals with add/remove. Adding opens the shared entity selector to pick a goal and
+  relation type. No separate route for GoalRelation editing.
+- **"Referenced by" section** on the goal detail — lists all GoalContainers (Project,
+  UseCase, Scenario, Story, Actor, Stakeholder) that reference this goal. Cross-entity
+  visibility is a core feature of the system.
+- **All GoalContainers show associated goals** — the story editor includes a goals
+  sub-table (add/remove via entity selector). Same pattern will apply to actors, use
+  cases, scenarios, and stakeholders as their editors are built.
+- **Copy commands included** — both goals and stories support copy with auto-generated
+  unique names.
+- **Shared entity selector dialog** — built now as a reusable component. Takes an entity
+  type, fetches candidates from the project, provides search/filter, returns the selected
+  entity. Will be extended for new entity types in later phases.
+
+**DTO Design:**
+
+GoalDto includes relations and referers for the detail view:
+```java
+record GoalDto(Long id, int version, String name, String text, String createdBy,
+    List<GoalRelationDto> relationsFromThisGoal,
+    List<GoalRelationDto> relationsToThisGoal,
+    List<EntityReferenceDto> referencedBy)
+record GoalRelationDto(Long id, int version, Long goalId, String goalName,
+    String relationType)
+record EntityReferenceDto(String entityType, Long id, String name)
+```
+
+StoryDto includes goals and actors for the detail view:
+```java
+record StoryDto(Long id, int version, String name, String text, String storyType,
+    String createdBy, List<EntityReferenceDto> goals, List<EntityReferenceDto> actors)
+```
+
+`EntityReferenceDto` is a lightweight cross-entity pointer reused wherever entities
+reference other entities — goals, actors, stories, containers, etc.
 
 **Backend work — Commands:**
-1. `NewGoal` → `ApiCommand<NewGoalInput>` — fields: projectId, name, text
-2. `EditGoal` → `ApiCommand<EditGoalInput>` — fields: goalId, name, text, version
-3. `EditGoalRelations` → `ApiCommand<EditGoalRelationsInput>` — fields: goalId, supportingGoalIds[], conflictingGoalIds[], version
-4. `DeleteGoal` → `ApiCommand<DeleteGoalInput>` — fields: goalId, version
-5. `NewStory` → `ApiCommand<NewStoryInput>` — fields: projectId, name, text, type
-6. `EditStory` → `ApiCommand<EditStoryInput>` — fields: storyId, name, text, type, version
-7. `DeleteStory` → `ApiCommand<DeleteStoryInput>` — fields: storyId, version
+1. Wire `EditGoal` — fields: projectName, name, text, version. Resolve project,
+   find existing goal by name for edit.
+2. Wire `EditGoalRelation` — fields: projectName, fromGoalName, toGoalName, relationType,
+   version. Resolve project and goals by name.
+3. Wire `DeleteGoal` — fields: projectName, goalId, version.
+4. Wire `DeleteGoalRelation` — fields: projectName, goalRelationId, version.
+5. Wire `CopyGoal` — fields: projectName, goalId, newGoalName (optional).
+6. Wire `EditStory` — fields: projectName, name, text, storyTypeName, version.
+7. Wire `DeleteStory` — fields: projectName, storyId, version.
+8. Wire `CopyStory` — fields: projectName, storyId, newStoryName (optional).
 
 **Backend work — Queries:**
-1. `GET /api/projects/{id}/goals` → paginated list
-2. `GET /api/projects/{id}/goals/{gid}` → single goal with relations
-3. `GET /api/projects/{id}/stories` → paginated list
-4. `GET /api/projects/{id}/stories/{sid}` → single story
+1. `GET /api/projects/{name}/goals` → list of GoalDto (summary: no relations/referers)
+2. `GET /api/projects/{name}/goals/{id}` → single GoalDto with relations + referencedBy
+3. `GET /api/projects/{name}/stories` → list of StoryDto (summary)
+4. `GET /api/projects/{name}/stories/{id}` → single StoryDto with goals + actors
 
 **Frontend work:**
-1. Goals list table + goal editor form
-2. Goal relations section (select supporting/conflicting goals via selector dialog)
-3. Stories list table + story editor form (with type dropdown)
-4. Entity selector dialog (shared) — modal with searchable table for picking goals/stories
+1. **Shared entity selector dialog** — PrimeNG Dialog + Table, takes entity type and
+   project context, fetches candidates, provides search, emits selection. Reusable for
+   goals, stories, actors in future phases.
+2. **Goal list** — table (Name, Text preview, Created By), New/Copy buttons
+3. **Goal editor** — name, text, inline relations table (add/remove with entity selector),
+   "Referenced by" read-only list, copy/delete actions
+4. **Story list** — table (Name, Type, Text preview, Created By), New/Copy buttons
+5. **Story editor** — name, type dropdown, text, goals sub-table (add/remove via entity
+   selector), copy/delete actions
+6. Routes: `/projects/:name/goals`, `/projects/:name/goals/:id`,
+   `/projects/:name/stories`, `/projects/:name/stories/:id`
+7. Sidebar tree: clicking Goals/Stories group navigates to the list
 
 **Echo2 panels replaced:** `GoalNavigatorPanel`, `GoalEditorPanel`, `GoalRelationEditorPanel`, `GoalSelectorPanel`, `StoryNavigatorPanel`, `StoryEditorPanel`, `StorySelectorPanel`
 
@@ -1553,4 +1603,34 @@ The phases are ordered by dependency (auth first, then entities, then cross-cutt
 6. ~~**Password hashing** — Are passwords currently hashed in the database?~~ **Resolved: Yes, passwords are already hashed.** `UserImpl._resetPassword()` delegates to `PasswordHasher.hashWithPreferredSettings()`, which hashes with a per-user salt, configurable algorithm, and iteration count (stored in `passwordSalt`, `passwordEncryptingAlgorithmName`, `passwordEncryptingIterations` columns). `isPassword()` re-hashes the candidate password with the stored parameters and compares. The DB column is `hashed_password`. No migration needed; the JWT login endpoint simply calls `user.isPassword(rawPassword)` as-is.
 7. ~~**User Guide link** — The main layout header includes a "User Guide" link (carried over from Echo2).~~ **Resolved: Static PDF download.** The Echo2 UI serves `doc/UserGuide.pdf` via a `DownloadButton` (classpath-relative path `../../doc/UserGuide.pdf`). The Angular app will include a "User Guide" link in the header that opens/downloads this PDF from a static resource path (e.g. `/assets/UserGuide.pdf`). The PDF content will need updating after the UI migration to reflect the new Angular interface, but the basic concepts remain the same.
 8. ~~**Observability** — Should we add baseline telemetry?~~ **Decided: Minimal baseline in Phase 0.** Add Spring Boot Actuator (already a starter dependency) + Micrometer (included with Actuator, no extra dependency) for low-effort baseline metrics. Scope: command execution latency/error counts by type (via `CommandHandler` timing), query endpoint latency (Spring MVC auto-instrumented), active SSE connections (gauge from `StreamService`), auth failure rate (counter in JWT filter). All open-source/free. Expose via `/actuator/metrics` and `/actuator/health` (health is already public per §3.4). No external dashboarding tool required initially — metrics are queryable from the actuator endpoint. A Prometheus or Grafana stack can be added later if needed.
-9. ~~**Optimistic locking — existing JPA support** — Do the current JPA entities already have a `@Version` field?~~ **Resolved: Yes, fully in place.** All entity base classes (`AbstractProjectOrDomain`, `AbstractProjectOrDomainEntity`, `UserImpl`, `AbstractUserRole`, `OrganizationImpl`, `AbstractAnnotation`, `PositionImpl`, `ArgumentImpl`, `GoalRelationImpl`) have `@Version protected int version`. The Flyway V1__init.sql migration includes ``version` int NOT NULL` on all entity tables. No additional migration needed — the 409 conflict handling described in Section 5 can rely on the existing optimistic locking infrastructure.
+9. ~~**Optimistic locking — existing JPA support** — Do the current JPA entities already have a `@Version` field?~~ **Resolved: Yes, fully in place.**
+
+## 9. Known Issues and Workarounds
+
+### Hibernate 6.5 `@ManyToAny` collection removal bug
+
+**Symptom:** `UnknownParameterException: Unable to locate parameter '<table>.<column>' for RESTRICT - DELETE` thrown on transaction commit when any element is removed from a `@ManyToAny`-mapped collection.
+
+**Root cause:** Hibernate 6.5 generates a parameterized DELETE for `@ManyToAny` join table rows that uses a column-qualified parameter name (e.g. `goals_goalcontainers.goalcontainer_id`) which the JDBC layer cannot resolve. This is a regression in Hibernate 6.5.
+
+**Affected collections in this codebase:**
+
+| Collection | Entity | Join table | Columns |
+|---|---|---|---|
+| `AbstractAnnotation.annotatables` | `AbstractAnnotation` | `annotation_annotatable` | `annotation_id`, `annotatable_id` |
+| `GoalImpl.referers` | `GoalImpl` | `goals_goalcontainers` | `goal_id`, `goalcontainer_id` |
+
+More collections exist (`Actor.referers`, `Story.referers`, `UseCase.referers`, etc.) and will exhibit the same bug when remove operations are implemented for those entities.
+
+**Workaround pattern (applied to `RemoveAnnotationFromAnnotatableCommandImpl` and `RemoveGoalFromGoalContainerCommandImpl`):**
+
+1. Add a `removeXxxFromYyyJoinTable(Long xId, Long yId)` method to the relevant Repository interface.
+2. Implement it in the JPA repository using `getEntityManager().createNativeQuery("DELETE FROM ...")`.
+3. In the command `execute()`, instead of `collection.remove(element)`:
+   - Get entity IDs via `PersistenceUnitUtil.getIdentifier()`
+   - Call the native query method
+   - `em.refresh(entity)` to reload the `@ManyToAny` collection from DB (keeps the entity managed, so other collections referencing it remain valid)
+4. Continue with the refreshed entity for any subsequent `isEmpty()` checks or merges.
+   - **Do not use `detach + find`**: detaching leaves stale references in any other collection that already holds the entity, causing "detached entity passed to persist" on the next merge.
+
+**When this will appear again:** Any command that removes an element from a `@ManyToAny` collection — e.g. `RemoveActorFromActorContainer`, `RemoveStoryFromStoryContainer` (if those exist) — will need the same treatment. All entity base classes (`AbstractProjectOrDomain`, `AbstractProjectOrDomainEntity`, `UserImpl`, `AbstractUserRole`, `OrganizationImpl`, `AbstractAnnotation`, `PositionImpl`, `ArgumentImpl`, `GoalRelationImpl`) have `@Version protected int version`. The Flyway V1__init.sql migration includes ``version` int NOT NULL` on all entity tables. No additional migration needed — the 409 conflict handling described in Section 5 can rely on the existing optimistic locking infrastructure.

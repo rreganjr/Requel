@@ -419,4 +419,14 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 		}
 	}
 
+	@Override
+	public void removeGoalContainerFromGoalJoinTable(Long goalId, Long goalContainerId) {
+		getEntityManager()
+				.createNativeQuery(
+						"DELETE FROM goals_goalcontainers WHERE goal_id = :goalId AND goalcontainer_id = :containerId")
+				.setParameter("goalId", goalId)
+				.setParameter("containerId", goalContainerId)
+				.executeUpdate();
+	}
+
 }

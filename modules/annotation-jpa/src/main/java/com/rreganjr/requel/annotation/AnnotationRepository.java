@@ -115,7 +115,7 @@ public interface AnnotationRepository extends Repository {
 
 	/**
 	 * Find an note with the supplied annotatable.
-	 * 
+	 *
 	 * @param groupingObject -
 	 *            An object used as the "owner" of a group of annotations.
 	 * @param annotatable -
@@ -124,4 +124,14 @@ public interface AnnotationRepository extends Repository {
 	 * @return
 	 */
 	public Note findNote(Object groupingObject, Annotatable annotatable, String message);
+
+	/**
+	 * Remove a single row from the annotation_annotatable join table using a
+	 * native query. Required to work around a Hibernate 6.5 bug where
+	 * {@code @ManyToAny} collection removal generates invalid parameterized SQL.
+	 *
+	 * @param annotationId  the id of the annotation
+	 * @param annotatableId the id of the annotatable entity to unlink
+	 */
+	void removeAnnotatableFromAnnotationJoinTable(Long annotationId, Long annotatableId);
 }

@@ -2,6 +2,8 @@ package com.rreganjr.requel.service.api.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import java.util.List;
+
 /**
  * Unified DTO for both user and non-user stakeholders.
  * Uses nested type-specific objects rather than flat nullable fields —
@@ -14,6 +16,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  * @param createdBy           display name of the user who created this stakeholder
  * @param userDetails         non-null for user stakeholders; null for non-user
  * @param nonUserDetails      non-null for non-user stakeholders; null for user
+ * @param goals               goals this stakeholder is concerned with (null on list endpoints)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record StakeholderDto(
@@ -23,6 +26,7 @@ public record StakeholderDto(
         String type,
         String createdBy,
         UserStakeholderDetails userDetails,
-        NonUserStakeholderDetails nonUserDetails
+        NonUserStakeholderDetails nonUserDetails,
+        List<EntityReferenceDto> goals
 ) {
 }

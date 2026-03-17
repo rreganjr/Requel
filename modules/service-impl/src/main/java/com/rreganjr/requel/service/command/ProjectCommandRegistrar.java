@@ -8,25 +8,49 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.GoalContainer;
+import com.rreganjr.requel.project.GoalRelation;
 import com.rreganjr.requel.project.NonUserStakeholder;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.Stakeholder;
+import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UserStakeholder;
+import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
+import com.rreganjr.requel.project.command.CopyGoalCommand;
+import com.rreganjr.requel.project.command.CopyStoryCommand;
+import com.rreganjr.requel.project.command.DeleteGoalCommand;
+import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.DeleteStakeholderCommand;
+import com.rreganjr.requel.project.command.DeleteStoryCommand;
+import com.rreganjr.requel.project.command.EditGoalCommand;
+import com.rreganjr.requel.project.command.EditGoalRelationCommand;
 import com.rreganjr.requel.project.command.EditNonUserStakeholderCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
+import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.service.api.CommandRegistry;
+import com.rreganjr.requel.service.api.dto.AddGoalToGoalContainerInput;
+import com.rreganjr.requel.service.api.dto.CopyGoalInput;
+import com.rreganjr.requel.service.api.dto.CopyStoryInput;
+import com.rreganjr.requel.service.api.dto.DeleteGoalInput;
+import com.rreganjr.requel.service.api.dto.DeleteGoalRelationInput;
 import com.rreganjr.requel.service.api.dto.DeleteStakeholderInput;
+import com.rreganjr.requel.service.api.dto.DeleteStoryInput;
+import com.rreganjr.requel.service.api.dto.EditGoalInput;
+import com.rreganjr.requel.service.api.dto.EditGoalRelationInput;
 import com.rreganjr.requel.service.api.dto.EditNonUserStakeholderInput;
 import com.rreganjr.requel.service.api.dto.EditProjectInput;
+import com.rreganjr.requel.service.api.dto.EditStoryInput;
 import com.rreganjr.requel.service.api.dto.EditUserStakeholderInput;
 import com.rreganjr.requel.service.api.dto.ImportProjectInput;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
+import com.rreganjr.requel.service.api.dto.RemoveGoalFromGoalContainerInput;
 import com.rreganjr.requel.service.query.ProjectQueryController;
 
 import jakarta.annotation.PostConstruct;
@@ -149,20 +173,134 @@ public class ProjectCommandRegistrar {
                 });
 
         // Goals
-        registry.register("EditGoal", factory::newEditGoalCommand);
-        registry.register("EditGoalRelation", factory::newEditGoalRelationCommand);
-        registry.register("AddGoalToGoalContainer", factory::newAddGoalToGoalContainerCommand);
-        registry.register("RemoveGoalFromGoalContainer", factory::newRemoveGoalFromGoalContainerCommand);
-        registry.register("CopyGoal", factory::newCopyGoalCommand);
-        registry.register("DeleteGoal", factory::newDeleteGoalCommand);
-        registry.register("DeleteGoalRelation", factory::newDeleteGoalRelationCommand);
+        registry.register("EditGoal", EditGoalInput.class,
+                factory::newEditGoalCommand,
+                (cmd, input) -> {
+                    EditGoalCommand c = (EditGoalCommand) cmd;
+                    EditGoalInput i = (EditGoalInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    if (i.version() != null) {
+                        c.setGoal(findGoalByName(project, i.name()));
+                    } else {
+                        c.setGoalContainer(project);
+                    }
+                    c.setName(i.name());
+                    if (i.text() != null) c.setText(i.text());
+                },
+                null,
+                cmd -> ProjectQueryController.toGoalDetailDto(((EditGoalCommand) cmd).getGoal()));
+
+        registry.register("EditGoalRelation", EditGoalRelationInput.class,
+                factory::newEditGoalRelationCommand,
+                (cmd, input) -> {
+                    EditGoalRelationCommand c = (EditGoalRelationCommand) cmd;
+                    EditGoalRelationInput i = (EditGoalRelationInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setProjectOrDomain(project);
+                    c.setFromGoal(i.fromGoalName());
+                    c.setToGoal(i.toGoalName());
+                    c.setRelationType(i.relationType());
+                    if (i.version() != null) {
+                        // Find existing relation for edit
+                        GoalRelation existing = findGoalRelationById(project, i.fromGoalName(), i.toGoalName());
+                        if (existing != null) c.setGoalRelation(existing);
+                    }
+                });
+
+        registry.register("DeleteGoalRelation", DeleteGoalRelationInput.class,
+                factory::newDeleteGoalRelationCommand,
+                (cmd, input) -> {
+                    DeleteGoalRelationCommand c = (DeleteGoalRelationCommand) cmd;
+                    DeleteGoalRelationInput i = (DeleteGoalRelationInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setGoalRelation(findGoalRelationByIdFromProject(project, i.goalRelationId()));
+                });
+
+        registry.register("CopyGoal", CopyGoalInput.class,
+                factory::newCopyGoalCommand,
+                (cmd, input) -> {
+                    CopyGoalCommand c = (CopyGoalCommand) cmd;
+                    CopyGoalInput i = (CopyGoalInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setOriginalGoal(findGoalById(project, i.goalId()));
+                    if (i.newGoalName() != null) c.setNewGoalName(i.newGoalName());
+                },
+                null,
+                cmd -> ProjectQueryController.toGoalDetailDto(((CopyGoalCommand) cmd).getNewGoal()));
+
+        registry.register("DeleteGoal", DeleteGoalInput.class,
+                factory::newDeleteGoalCommand,
+                (cmd, input) -> {
+                    DeleteGoalCommand c = (DeleteGoalCommand) cmd;
+                    DeleteGoalInput i = (DeleteGoalInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setGoal(findGoalById(project, i.goalId()));
+                });
+
+        registry.register("AddGoalToGoalContainer", AddGoalToGoalContainerInput.class,
+                factory::newAddGoalToGoalContainerCommand,
+                (cmd, input) -> {
+                    AddGoalToGoalContainerCommand c = (AddGoalToGoalContainerCommand) cmd;
+                    AddGoalToGoalContainerInput i = (AddGoalToGoalContainerInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    GoalContainer container = findGoalContainerById(project, i.goalContainerId());
+                    c.setGoalContainer(container);
+                    c.setGoal(findGoalById(project, i.goalId()));
+                });
+
+        registry.register("RemoveGoalFromGoalContainer", RemoveGoalFromGoalContainerInput.class,
+                factory::newRemoveGoalFromGoalContainerCommand,
+                (cmd, input) -> {
+                    RemoveGoalFromGoalContainerCommand c = (RemoveGoalFromGoalContainerCommand) cmd;
+                    RemoveGoalFromGoalContainerInput i = (RemoveGoalFromGoalContainerInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    GoalContainer container = findGoalContainerById(project, i.goalContainerId());
+                    c.setGoalContainer(container);
+                    c.setGoal(findGoalById(project, i.goalId()));
+                });
 
         // Stories
-        registry.register("EditStory", factory::newEditStoryCommand);
+        registry.register("EditStory", EditStoryInput.class,
+                factory::newEditStoryCommand,
+                (cmd, input) -> {
+                    EditStoryCommand c = (EditStoryCommand) cmd;
+                    EditStoryInput i = (EditStoryInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    if (i.version() != null) {
+                        c.setStory(findStoryByName(project, i.name()));
+                    } else {
+                        c.setStoryContainer(project);
+                    }
+                    c.setName(i.name());
+                    if (i.text() != null) c.setText(i.text());
+                    if (i.storyTypeName() != null) c.setStoryTypeName(i.storyTypeName());
+                },
+                null,
+                cmd -> ProjectQueryController.toStoryDetailDto(((EditStoryCommand) cmd).getStory()));
+
+        registry.register("CopyStory", CopyStoryInput.class,
+                factory::newCopyStoryCommand,
+                (cmd, input) -> {
+                    CopyStoryCommand c = (CopyStoryCommand) cmd;
+                    CopyStoryInput i = (CopyStoryInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setOriginalStory(findStoryById(project, i.storyId()));
+                    if (i.newStoryName() != null) c.setNewStoryName(i.newStoryName());
+                },
+                null,
+                cmd -> ProjectQueryController.toStoryDetailDto(((CopyStoryCommand) cmd).getNewStory()));
+
+        registry.register("DeleteStory", DeleteStoryInput.class,
+                factory::newDeleteStoryCommand,
+                (cmd, input) -> {
+                    DeleteStoryCommand c = (DeleteStoryCommand) cmd;
+                    DeleteStoryInput i = (DeleteStoryInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setStory(findStoryById(project, i.storyId()));
+                });
+
         registry.register("AddStoryToStoryContainer", factory::newAddStoryToStoryContainerCommand);
         registry.register("RemoveStoryFromStoryContainer", factory::newRemoveStoryFromStoryContainerCommand);
-        registry.register("CopyStory", factory::newCopyStoryCommand);
-        registry.register("DeleteStory", factory::newDeleteStoryCommand);
 
         // Actors
         registry.register("EditActor", factory::newEditActorCommand);
@@ -226,6 +364,62 @@ public class ProjectCommandRegistrar {
             }
         }
         throw new IllegalArgumentException("Stakeholder not found: " + stakeholderId);
+    }
+
+    private static Goal findGoalById(Project project, Long goalId) {
+        for (Goal g : project.getGoals()) {
+            if (g.getId().equals(goalId)) return g;
+        }
+        throw new IllegalArgumentException("Goal not found: " + goalId);
+    }
+
+    private static GoalContainer findGoalContainerById(Project project, Long containerId) {
+        for (Stakeholder s : project.getStakeholders()) {
+            if (s.getId().equals(containerId)) return (GoalContainer) s;
+        }
+        for (Story s : project.getStories()) {
+            if (s.getId().equals(containerId)) return (GoalContainer) s;
+        }
+        // Actors and UseCases (Phase 5+) not yet handled
+        throw new IllegalArgumentException("GoalContainer not found: " + containerId);
+    }
+
+    private static Goal findGoalByName(Project project, String name) {
+        for (Goal g : project.getGoals()) {
+            if (g.getName().equals(name)) return g;
+        }
+        throw new IllegalArgumentException("Goal not found: " + name);
+    }
+
+    private static GoalRelation findGoalRelationById(Project project, String fromGoalName, String toGoalName) {
+        Goal fromGoal = findGoalByName(project, fromGoalName);
+        for (GoalRelation r : fromGoal.getRelationsFromThisGoal()) {
+            if (r.getToGoal().getName().equals(toGoalName)) return r;
+        }
+        return null;
+    }
+
+    private static GoalRelation findGoalRelationByIdFromProject(Project project, Long relationId) {
+        for (Goal g : project.getGoals()) {
+            for (GoalRelation r : g.getRelationsFromThisGoal()) {
+                if (r.getId().equals(relationId)) return r;
+            }
+        }
+        throw new IllegalArgumentException("GoalRelation not found: " + relationId);
+    }
+
+    private static Story findStoryById(Project project, Long storyId) {
+        for (Story s : project.getStories()) {
+            if (s.getId().equals(storyId)) return s;
+        }
+        throw new IllegalArgumentException("Story not found: " + storyId);
+    }
+
+    private static Story findStoryByName(Project project, String name) {
+        for (Story s : project.getStories()) {
+            if (s.getName().equals(name)) return s;
+        }
+        throw new IllegalArgumentException("Story not found: " + name);
     }
 
     private static ProjectDto toDto(Project project) {

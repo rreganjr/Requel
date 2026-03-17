@@ -11,6 +11,10 @@ import { ProjectEditorComponent } from './features/projects/project-editor';
 import { SettingsComponent } from './features/users/settings';
 import { StakeholderListComponent } from './features/stakeholders/stakeholder-list';
 import { StakeholderEditorComponent } from './features/stakeholders/stakeholder-editor';
+import { GoalListComponent } from './features/goals/goal-list';
+import { GoalEditorComponent } from './features/goals/goal-editor';
+import { StoryListComponent } from './features/stories/story-list';
+import { StoryEditorComponent } from './features/stories/story-editor';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -28,6 +32,10 @@ export const routes: Routes = [
       { path: 'projects/:name', component: ProjectEditorComponent },
       { path: 'projects/:name/stakeholders', component: StakeholderListComponent },
       { path: 'projects/:name/stakeholders/:stakeholderId', component: StakeholderEditorComponent },
+      { path: 'projects/:name/goals', component: GoalListComponent },
+      { path: 'projects/:name/goals/:goalId', component: GoalEditorComponent },
+      { path: 'projects/:name/stories', component: StoryListComponent },
+      { path: 'projects/:name/stories/:storyId', component: StoryEditorComponent },
     ]
   },
   { path: '**', redirectTo: '' }

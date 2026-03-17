@@ -206,4 +206,14 @@ public interface ProjectRepository extends Repository {
 	 */
 	public ReportGenerator findReportGeneratorByProjectOrDomainAndName(
 			ProjectOrDomain projectOrDomain, String name) throws EntityException;
+
+	/**
+	 * Remove a single row from the goals_goalcontainers join table using a
+	 * native query. Required to work around a Hibernate 6.5 bug where
+	 * {@code @ManyToAny} collection removal generates invalid parameterized SQL.
+	 *
+	 * @param goalId          the id of the goal
+	 * @param goalContainerId the id of the goal container to unlink
+	 */
+	void removeGoalContainerFromGoalJoinTable(Long goalId, Long goalContainerId);
 }

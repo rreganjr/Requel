@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { StakeholderDto } from '../models/stakeholder';
+import { StakeholderDto, StakeholderPermissionDto } from '../models/stakeholder';
 
 /**
  * Service for stakeholder query endpoints.
@@ -24,6 +24,14 @@ export class StakeholderService {
     return firstValueFrom(
       this.http.get<StakeholderDto>(
         `${environment.apiBaseUrl}/projects/${encodeURIComponent(projectName)}/stakeholders/${stakeholderId}`
+      )
+    );
+  }
+
+  async getAvailablePermissions(): Promise<StakeholderPermissionDto[]> {
+    return firstValueFrom(
+      this.http.get<StakeholderPermissionDto[]>(
+        `${environment.apiBaseUrl}/projects/stakeholder-permissions`
       )
     );
   }

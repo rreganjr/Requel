@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
@@ -7,21 +7,30 @@ import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { CheckboxModule } from 'primeng/checkbox';
+import { TableModule } from 'primeng/table';
 import { MessageModule } from 'primeng/message';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService } from 'primeng/api';
-import { StakeholderDto } from '../../models/stakeholder';
+import { StakeholderDto, StakeholderPermissionDto, UserStakeholderDetails } from '../../models/stakeholder';
+import { EntityReferenceDto } from '../../models/entity-reference';
 import { StakeholderService } from '../../core/stakeholder.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { UserService } from '../../core/user.service';
 import { PermissionService } from '../../core/permission.service';
+import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
+
+interface PermissionGroup {
+  entityType: string;
+  permissions: { key: string; type: string; checked: boolean }[];
+}
 
 @Component({
   selector: 'app-stakeholder-editor',
   standalone: true,
   imports: [FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
-            CheckboxModule, MessageModule, ConfirmDialogModule],
+            CheckboxModule, MessageModule, ConfirmDialogModule, TableModule,
+            EntitySelectorDialogComponent],
   providers: [ConfirmationService],
   template: `
     <div class="stakeholder-editor">
@@ -49,11 +58,45 @@ import { PermissionService } from '../../core/permission.service';
           <label for="username">User</label>
           <p-select id="username" [(ngModel)]="username" [options]="userOptions()"
                     optionLabel="label" optionValue="value"
-                    placeholder="Select a user" [filter]="true" />
+                    placeholder="Select a user" [filter]="true"
+                    [disabled]="!isNew()" />
+
+          @if (loadedUserDetails(); as ud) {
+            <label>Email</label>
+            <span class="readonly-field">{{ ud.emailAddress || '—' }}</span>
+
+            <label>Phone</label>
+            <span class="readonly-field">{{ ud.phoneNumber || '—' }}</span>
+          }
 
           <label for="team">Team</label>
           <input id="team" pInputText [(ngModel)]="teamName" placeholder="Team name" />
-        } @else {
+        }
+
+        @if (isUserType() && permissionGroups().length > 0) {
+          <div class="permissions-section">
+            <h3>Permissions</h3>
+            <div class="permission-grid">
+              <div class="permission-header"></div>
+              <div class="permission-header">Edit</div>
+              <div class="permission-header">Delete</div>
+              <div class="permission-header">Grant</div>
+              @for (group of permissionGroups(); track group.entityType) {
+                <div class="permission-entity">{{ group.entityType }}</div>
+                @for (type of ['Edit', 'Delete', 'Grant']; track type) {
+                  <div class="permission-check">
+                    @if (getPermission(group, type); as perm) {
+                      <p-checkbox [(ngModel)]="perm.checked" [binary]="true"
+                                  [name]="perm.key" />
+                    }
+                  </div>
+                }
+              }
+            </div>
+          </div>
+        }
+
+        @if (!isUserType()) {
           <label for="name">Name</label>
           <input id="name" pInputText [(ngModel)]="stakeholderName" placeholder="Stakeholder name" />
 
@@ -67,6 +110,49 @@ import { PermissionService } from '../../core/permission.service';
         <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()" />
       </div>
 
+      @if (!isNew()) {
+        <div class="section">
+          <div class="section-header">
+            <h3>Goals</h3>
+            @if (canEditGoals()) {
+              <p-button label="Add Goal" icon="pi pi-plus" size="small"
+                        [text]="true" (onClick)="showGoalSelector = true" />
+            }
+          </div>
+
+          <p-table [value]="goals()" [rowHover]="true">
+            <ng-template #header>
+              <tr>
+                <th>Name</th>
+                @if (canEditGoals()) { <th style="width:4rem"></th> }
+              </tr>
+            </ng-template>
+            <ng-template #body let-g>
+              <tr>
+                <td class="entity-link" (click)="onGoalClick(g)">{{ g.name }}</td>
+                @if (canEditGoals()) {
+                  <td>
+                    <p-button icon="pi pi-times" severity="danger" [text]="true"
+                              size="small" (onClick)="onRemoveGoal(g)" />
+                  </td>
+                }
+              </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+              <tr><td [attr.colspan]="canEditGoals() ? 2 : 1" class="empty-text">No goals assigned.</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+
+        <app-entity-selector-dialog
+          [visible]="showGoalSelector"
+          [projectName]="projectName"
+          entityType="Goal"
+          [excludeIds]="goalIds()"
+          (selected)="onGoalSelected($event)"
+          (closed)="showGoalSelector = false" />
+      }
+
       <p-confirmDialog />
     </div>
   `,
@@ -74,7 +160,19 @@ import { PermissionService } from '../../core/permission.service';
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .page-actions { display: flex; gap: 0.5rem; }
     .form-grid { display: grid; grid-template-columns: 120px 1fr; gap: 0.75rem 1rem; align-items: center; max-width: 600px; }
+    .readonly-field { color: var(--p-text-color); padding: 0.5rem 0; }
     .form-actions { margin-top: 1rem; }
+    .permissions-section { grid-column: 1 / -1; margin-top: 0.5rem; }
+    .permissions-section h3 { margin: 0 0 0.5rem 0; font-size: 1rem; }
+    .permission-grid { display: grid; grid-template-columns: 140px repeat(3, 60px); gap: 0.25rem 0.5rem; align-items: center; }
+    .permission-header { font-weight: 600; font-size: 0.85rem; text-align: center; }
+    .permission-entity { font-size: 0.9rem; }
+    .permission-check { text-align: center; }
+    .section { margin-top: 1.5rem; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .section-header h3 { margin: 0; }
+    .entity-link { cursor: pointer; color: var(--p-primary-color); text-decoration: underline; }
+    .empty-text { color: var(--p-text-secondary-color); font-style: italic; }
   `]
 })
 export class StakeholderEditorComponent implements OnInit, OnDestroy {
@@ -86,12 +184,17 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
   saving = signal(false);
   canDelete = signal(false);
   userOptions = signal<{ label: string; value: string }[]>([]);
+  loadedUserDetails = signal<UserStakeholderDetails | null>(null);
+  permissionGroups = signal<PermissionGroup[]>([]);
+  goals = signal<EntityReferenceDto[]>([]);
+  goalIds = computed(() => this.goals().map(g => g.id).filter((id): id is number => id != null));
 
   username = '';
   teamName = '';
   text = '';
+  showGoalSelector = false;
 
-  private projectName = '';
+  projectName = '';
   private stakeholderId: number | null = null;
   private version: number | null = null;
   private paramSub?: Subscription;
@@ -108,8 +211,9 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.paramSub = this.route.paramMap.subscribe(params => {
+    this.paramSub = this.route.paramMap.subscribe(async params => {
       this.projectName = params.get('name') ?? '';
+      await this.permissionService.loadForProject(this.projectName);
       this.canDelete.set(this.permissionService.canDelete('Stakeholder'));
 
       const idParam = params.get('stakeholderId') ?? '';
@@ -117,6 +221,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
         this.isNew.set(true);
         this.isUserType.set(true);
         this.loadUsers();
+        this.loadPermissions([]);
       } else if (idParam === 'new-nonuser') {
         this.isNew.set(true);
         this.isUserType.set(false);
@@ -147,17 +252,99 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
       this.stakeholderName.set(s.name);
       this.version = s.version;
       this.isUserType.set(s.type === 'user');
+      this.goals.set(s.goals ?? []);
 
       if (s.userDetails) {
+        this.loadedUserDetails.set(s.userDetails);
         this.username = s.userDetails.username;
         this.teamName = s.userDetails.teamName ?? '';
         await this.loadUsers();
+        await this.loadPermissions(s.userDetails.permissionKeys);
       } else if (s.nonUserDetails) {
         this.text = s.nonUserDetails.text;
       }
     } catch {
       this.errorMessage.set('Failed to load stakeholder.');
     }
+  }
+
+  canEditGoals(): boolean {
+    return this.permissionService.canEdit('Goal');
+  }
+
+  async onGoalSelected(goal: EntityReferenceDto): Promise<void> {
+    this.showGoalSelector = false;
+    try {
+      const result = await this.commandService.execute('AddGoalToGoalContainer', {
+        projectName: this.projectName,
+        goalContainerId: this.stakeholderId,
+        goalId: goal.id
+      });
+      if (result.success) {
+        this.goals.update(list => [...list, goal].sort((a, b) => a.name.localeCompare(b.name)));
+      } else {
+        this.errorMessage.set(result.error ?? 'Failed to add goal.');
+      }
+    } catch {
+      this.errorMessage.set('Failed to add goal.');
+    }
+  }
+
+  async onRemoveGoal(goal: EntityReferenceDto): Promise<void> {
+    try {
+      const result = await this.commandService.execute('RemoveGoalFromGoalContainer', {
+        projectName: this.projectName,
+        goalContainerId: this.stakeholderId,
+        goalId: goal.id
+      });
+      if (result.success) {
+        this.goals.update(list => list.filter(g => g.id !== goal.id));
+      } else {
+        this.errorMessage.set(result.error ?? 'Failed to remove goal.');
+      }
+    } catch {
+      this.errorMessage.set('Failed to remove goal.');
+    }
+  }
+
+  onGoalClick(goal: EntityReferenceDto): void {
+    this.router.navigate(['/projects', this.projectName, 'goals', goal.id]);
+  }
+
+  private async loadPermissions(selectedKeys: string[]): Promise<void> {
+    try {
+      const available = await this.stakeholderService.getAvailablePermissions();
+      const selectedSet = new Set(selectedKeys);
+
+      // Group by entity type
+      const groupMap = new Map<string, { key: string; type: string; checked: boolean }[]>();
+      for (const p of available) {
+        let group = groupMap.get(p.entityType);
+        if (!group) {
+          group = [];
+          groupMap.set(p.entityType, group);
+        }
+        group.push({ key: p.permissionKey, type: p.permissionType, checked: selectedSet.has(p.permissionKey) });
+      }
+
+      const groups: PermissionGroup[] = [...groupMap.entries()]
+          .map(([entityType, permissions]) => ({ entityType, permissions }))
+          .sort((a, b) => a.entityType.localeCompare(b.entityType));
+      this.permissionGroups.set(groups);
+    } catch {
+      this.errorMessage.set('Failed to load permissions.');
+    }
+  }
+
+  getPermission(group: PermissionGroup, type: string): { key: string; type: string; checked: boolean } | null {
+    return group.permissions.find(p => p.type === type) ?? null;
+  }
+
+  getSelectedPermissionKeys(): string[] {
+    return this.permissionGroups()
+        .flatMap(g => g.permissions)
+        .filter(p => p.checked)
+        .map(p => p.key);
   }
 
   async onSave(): Promise<void> {
@@ -171,7 +358,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
           projectName: this.projectName,
           username: this.username,
           teamName: this.teamName || null,
-          permissionKeys: [], // TODO: permission editor
+          permissionKeys: this.getSelectedPermissionKeys(),
         };
         if (this.version != null) input['version'] = this.version;
         const result = await this.commandService.execute('EditUserStakeholder', input);

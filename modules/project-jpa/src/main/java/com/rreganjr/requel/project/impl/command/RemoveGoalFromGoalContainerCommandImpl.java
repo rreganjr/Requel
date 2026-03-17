@@ -32,6 +32,7 @@ import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
+import com.rreganjr.requel.project.impl.repository.jpa.JpaProjectRepository;
 import com.rreganjr.requel.user.UserRepository;
 
 /**
@@ -83,11 +84,21 @@ public class RemoveGoalFromGoalContainerCommandImpl extends AbstractEditProjectC
 	public void execute() {
 		Goal removedGoal = getProjectRepository().get(getGoal());
 		GoalContainer removingContainer = getProjectRepository().get(getGoalContainer());
-		removedGoal.getReferers().remove(removingContainer);
-		removingContainer.getGoals().remove(removedGoal);
 
-		// replaced the supplied objects with the updated objects for retrieval.
-		removedGoal = getRepository().merge(removedGoal);
+		// Hibernate 6.5 bug: @ManyToAny collection removal generates invalid SQL for the
+		// goals_goalcontainers join table. Use a native query instead of
+		// removedGoal.getReferers().remove(removingContainer).
+		// Then refresh (not detach+reload) so the referers collection is reloaded while
+		// the same managed instance remains in removingContainer.getGoals().
+		JpaProjectRepository jpaRepo = (JpaProjectRepository) getProjectRepository();
+		jakarta.persistence.PersistenceUnitUtil puu = jpaRepo.getEntityManager()
+				.getEntityManagerFactory().getPersistenceUnitUtil();
+		Long goalId = (Long) puu.getIdentifier(removedGoal);
+		Long containerId = (Long) puu.getIdentifier(removingContainer);
+		jpaRepo.removeGoalContainerFromGoalJoinTable(goalId, containerId);
+		jpaRepo.getEntityManager().refresh(removedGoal);
+
+		removingContainer.getGoals().remove(removedGoal);
 		removingContainer = getRepository().merge(removingContainer);
 		setGoal(removedGoal);
 		setGoalContainer(removingContainer);

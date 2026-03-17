@@ -1,3 +1,5 @@
+import { EntityReferenceDto } from './entity-reference';
+
 export interface StakeholderDto {
   id: number;
   version: number;
@@ -6,6 +8,7 @@ export interface StakeholderDto {
   createdBy: string | null;
   userDetails: UserStakeholderDetails | null;
   nonUserDetails: NonUserStakeholderDetails | null;
+  goals?: EntityReferenceDto[];
 }
 
 export interface UserStakeholderDetails {
@@ -18,4 +21,10 @@ export interface UserStakeholderDetails {
 
 export interface NonUserStakeholderDetails {
   text: string;
+}
+
+export interface StakeholderPermissionDto {
+  permissionKey: string;
+  entityType: string;
+  permissionType: string;
 }

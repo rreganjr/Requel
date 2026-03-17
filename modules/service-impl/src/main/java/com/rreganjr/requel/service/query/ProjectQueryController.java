@@ -24,7 +24,10 @@ import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.GoalContainer;
+import com.rreganjr.requel.project.GoalRelation;
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectUserRole;
@@ -37,11 +40,16 @@ import com.rreganjr.requel.project.command.ExportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.project.NonUserStakeholder;
+import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.service.api.dto.GoalDto;
+import com.rreganjr.requel.service.api.dto.GoalRelationDto;
 import com.rreganjr.requel.service.api.dto.NonUserStakeholderDetails;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectPermissionsDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
 import com.rreganjr.requel.service.api.dto.StakeholderDto;
+import com.rreganjr.requel.service.api.dto.StakeholderPermissionDto;
+import com.rreganjr.requel.service.api.dto.StoryDto;
 import com.rreganjr.requel.service.api.dto.UserStakeholderDetails;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import com.rreganjr.requel.user.User;
@@ -96,6 +104,22 @@ public class ProjectQueryController {
         return projects.stream()
                 .map(this::toDto)
                 .sorted(Comparator.comparing(ProjectDto::name))
+                .toList();
+    }
+
+    /**
+     * GET /api/projects/stakeholder-permissions — catalog of all available stakeholder permissions.
+     * Returns the full permission matrix (entity type × permission type) so the
+     * stakeholder editor can render checkboxes.
+     * NOTE: This must be declared before /{name} to avoid the path variable matching "stakeholder-permissions".
+     */
+    @GetMapping("/stakeholder-permissions")
+    public List<StakeholderPermissionDto> listAvailablePermissions() {
+        return projectRepository.findAvailableStakeholderPermissions().stream()
+                .map(p -> new StakeholderPermissionDto(
+                        p.getPermissionKey(),
+                        p.getEntityType().getSimpleName(),
+                        p.getPermissionType().name()))
                 .toList();
     }
 
@@ -231,7 +255,7 @@ public class ProjectQueryController {
             requireProjectAccess(project);
             for (Stakeholder s : project.getStakeholders()) {
                 if (s.getId().equals(stakeholderId)) {
-                    return ResponseEntity.ok(toStakeholderDto(s));
+                    return ResponseEntity.ok(toStakeholderDetailDto(s));
                 }
             }
             return ResponseEntity.notFound().build();
@@ -241,6 +265,94 @@ public class ProjectQueryController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
     }
+
+    // ── Goals ──────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/projects/{name}/goals — list all goals (summary, no relations/referers).
+     */
+    @GetMapping("/{name}/goals")
+    public ResponseEntity<?> listGoals(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<GoalDto> dtos = project.getGoals().stream()
+                    .map(ProjectQueryController::toGoalSummaryDto)
+                    .sorted(Comparator.comparing(GoalDto::name))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/goals/{goalId} — single goal with relations and referencedBy.
+     */
+    @GetMapping("/{name}/goals/{goalId}")
+    public ResponseEntity<?> getGoal(@PathVariable String name, @PathVariable Long goalId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (Goal g : project.getGoals()) {
+                if (g.getId().equals(goalId)) {
+                    return ResponseEntity.ok(toGoalDetailDto(g));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    // ── Stories ────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/projects/{name}/stories — list all stories (summary).
+     */
+    @GetMapping("/{name}/stories")
+    public ResponseEntity<?> listStories(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<StoryDto> dtos = project.getStories().stream()
+                    .map(ProjectQueryController::toStorySummaryDto)
+                    .sorted(Comparator.comparing(StoryDto::name))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/stories/{storyId} — single story with goals and actors.
+     */
+    @GetMapping("/{name}/stories/{storyId}")
+    public ResponseEntity<?> getStory(@PathVariable String name, @PathVariable Long storyId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (Story s : project.getStories()) {
+                if (s.getId().equals(storyId)) {
+                    return ResponseEntity.ok(toStoryDetailDto(s));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────
 
     /**
      * Verify the current user is an admin or a stakeholder on the project.
@@ -310,7 +422,21 @@ public class ProjectQueryController {
                 stakeholder.isUserStakeholder() ? "user" : "non-user",
                 stakeholder.getCreatedBy() != null ? stakeholder.getCreatedBy().getDisplayName() : null,
                 userDetails,
-                nonUserDetails
+                nonUserDetails,
+                null
+        );
+    }
+
+    public static StakeholderDto toStakeholderDetailDto(Stakeholder stakeholder) {
+        StakeholderDto summary = toStakeholderDto(stakeholder);
+        List<EntityReferenceDto> goals = stakeholder.getGoals().stream()
+                .map(g -> new EntityReferenceDto("Goal", g.getId(), g.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+        return new StakeholderDto(
+                summary.id(), summary.version(), summary.name(), summary.type(),
+                summary.createdBy(), summary.userDetails(), summary.nonUserDetails(),
+                goals
         );
     }
 
@@ -331,5 +457,83 @@ public class ProjectQueryController {
                 project.getScenarios().size(),
                 project.getGlossaryTerms().size()
         );
+    }
+
+    // ── Goal/Story DTO mappers ────────────────────────────────────────
+
+    static GoalDto toGoalSummaryDto(Goal goal) {
+        return new GoalDto(
+                goal.getId(), goal.getVersion(), goal.getName(), goal.getText(),
+                goal.getCreatedBy() != null ? goal.getCreatedBy().getDisplayName() : null,
+                null, null, null);
+    }
+
+    public static GoalDto toGoalDetailDto(Goal goal) {
+        List<GoalRelationDto> fromRelations = goal.getRelationsFromThisGoal().stream()
+                .map(r -> new GoalRelationDto(r.getId(), r.getVersion(),
+                        r.getToGoal().getId(), r.getToGoal().getName(),
+                        r.getRelationType().name()))
+                .sorted(Comparator.comparing(GoalRelationDto::goalName))
+                .toList();
+
+        List<GoalRelationDto> toRelations = goal.getRelationsToThisGoal().stream()
+                .map(r -> new GoalRelationDto(r.getId(), r.getVersion(),
+                        r.getFromGoal().getId(), r.getFromGoal().getName(),
+                        r.getRelationType().name()))
+                .sorted(Comparator.comparing(GoalRelationDto::goalName))
+                .toList();
+
+        List<EntityReferenceDto> referers = goal.getReferers().stream()
+                .map(ProjectQueryController::toEntityReference)
+                .sorted(Comparator.comparing(EntityReferenceDto::entityType)
+                        .thenComparing(EntityReferenceDto::name))
+                .toList();
+
+        return new GoalDto(
+                goal.getId(), goal.getVersion(), goal.getName(), goal.getText(),
+                goal.getCreatedBy() != null ? goal.getCreatedBy().getDisplayName() : null,
+                fromRelations, toRelations, referers);
+    }
+
+    static StoryDto toStorySummaryDto(Story story) {
+        return new StoryDto(
+                story.getId(), story.getVersion(), story.getName(), story.getText(),
+                story.getStoryType().name(),
+                story.getCreatedBy() != null ? story.getCreatedBy().getDisplayName() : null,
+                null, null);
+    }
+
+    public static StoryDto toStoryDetailDto(Story story) {
+        List<EntityReferenceDto> goals = story.getGoals().stream()
+                .map(g -> new EntityReferenceDto("Goal", g.getId(), g.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+
+        List<EntityReferenceDto> actors = story.getActors().stream()
+                .map(a -> new EntityReferenceDto("Actor", a.getId(), a.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+
+        return new StoryDto(
+                story.getId(), story.getVersion(), story.getName(), story.getText(),
+                story.getStoryType().name(),
+                story.getCreatedBy() != null ? story.getCreatedBy().getDisplayName() : null,
+                goals, actors);
+    }
+
+    /**
+     * Convert a GoalContainer referer to an EntityReferenceDto.
+     * GoalContainer doesn't expose getId() — we check concrete types.
+     */
+    private static EntityReferenceDto toEntityReference(GoalContainer container) {
+        if (container instanceof ProjectOrDomainEntity entity) {
+            String typeName = entity.getProjectOrDomainEntityInterface().getSimpleName();
+            return new EntityReferenceDto(typeName, entity.getId(), entity.getName());
+        }
+        if (container instanceof ProjectOrDomain pod) {
+            return new EntityReferenceDto("Project", pod.getId(), pod.getName());
+        }
+        // Fallback for unknown container types
+        return new EntityReferenceDto("Unknown", null, container.getDescription());
     }
 }

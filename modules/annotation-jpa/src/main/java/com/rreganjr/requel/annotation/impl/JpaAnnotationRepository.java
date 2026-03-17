@@ -215,6 +215,16 @@ public class JpaAnnotationRepository extends AbstractJpaRepository implements An
 	}
 
 	@Override
+	public void removeAnnotatableFromAnnotationJoinTable(Long annotationId, Long annotatableId) {
+		getEntityManager()
+				.createNativeQuery(
+						"DELETE FROM annotation_annotatable WHERE annotation_id = :annId AND annotatable_id = :aId")
+				.setParameter("annId", annotationId)
+				.setParameter("aId", annotatableId)
+				.executeUpdate();
+	}
+
+	@Override
 	public Note findNote(Object groupingObject, Annotatable annotatable, String message) {
 		try {
 			// TODO: use named query so it can be configured externally
