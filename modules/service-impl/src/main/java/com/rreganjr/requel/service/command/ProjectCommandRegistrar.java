@@ -1,22 +1,35 @@
 package com.rreganjr.requel.service.command;
 
-import com.rreganjr.requel.project.Project;
-import com.rreganjr.requel.project.ProjectRepository;
-import com.rreganjr.requel.project.command.EditProjectCommand;
-import com.rreganjr.requel.project.command.ImportProjectCommand;
-import com.rreganjr.requel.project.command.ProjectCommandFactory;
-import com.rreganjr.requel.project.exception.NoSuchProjectException;
-import com.rreganjr.requel.service.api.CommandRegistry;
-import com.rreganjr.requel.service.api.dto.EditProjectInput;
-import com.rreganjr.requel.service.api.dto.ImportProjectInput;
-import com.rreganjr.requel.service.api.dto.ProjectDto;
-import jakarta.annotation.PostConstruct;
+import java.io.IOException;
+import java.util.HashSet;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
+import com.rreganjr.requel.project.NonUserStakeholder;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.Stakeholder;
+import com.rreganjr.requel.project.UserStakeholder;
+import com.rreganjr.requel.project.command.DeleteStakeholderCommand;
+import com.rreganjr.requel.project.command.EditNonUserStakeholderCommand;
+import com.rreganjr.requel.project.command.EditProjectCommand;
+import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
+import com.rreganjr.requel.project.command.ImportProjectCommand;
+import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.exception.NoSuchProjectException;
+import com.rreganjr.requel.service.api.CommandRegistry;
+import com.rreganjr.requel.service.api.dto.DeleteStakeholderInput;
+import com.rreganjr.requel.service.api.dto.EditNonUserStakeholderInput;
+import com.rreganjr.requel.service.api.dto.EditProjectInput;
+import com.rreganjr.requel.service.api.dto.EditUserStakeholderInput;
+import com.rreganjr.requel.service.api.dto.ImportProjectInput;
+import com.rreganjr.requel.service.api.dto.ProjectDto;
+import com.rreganjr.requel.service.query.ProjectQueryController;
+
+import jakarta.annotation.PostConstruct;
 
 /**
  * Registers all project domain command types with the CQRS command registry at startup.
@@ -86,9 +99,54 @@ public class ProjectCommandRegistrar {
                 cmd -> toDto(((ImportProjectCommand) cmd).getProject()));
 
         // Stakeholders
-        registry.register("EditUserStakeholder", factory::newEditUserStakeholderCommand);
-        registry.register("EditNonUserStakeholder", factory::newEditNonUserStakeholderCommand);
-        registry.register("DeleteStakeholder", factory::newDeleteStakeholderCommand);
+        registry.register("EditUserStakeholder", EditUserStakeholderInput.class,
+                factory::newEditUserStakeholderCommand,
+                (cmd, input) -> {
+                    EditUserStakeholderCommand c = (EditUserStakeholderCommand) cmd;
+                    EditUserStakeholderInput i = (EditUserStakeholderInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setProjectOrDomain(project);
+                    c.setUsername(i.username());
+                    if (i.teamName() != null) c.setTeamName(i.teamName());
+                    if (i.permissionKeys() != null) c.setStakeholderPermissions(new HashSet<>(i.permissionKeys()));
+                    // For edit: find existing stakeholder by project + username
+                    if (i.version() != null) {
+                        UserStakeholder existing = findUserStakeholderByUsername(project, i.username());
+                        if (existing != null) c.setStakeholder(existing);
+                    }
+                },
+                null, // no file
+                cmd -> ProjectQueryController.toStakeholderDto(
+                        ((EditUserStakeholderCommand) cmd).getStakeholder()));
+
+        registry.register("EditNonUserStakeholder", EditNonUserStakeholderInput.class,
+                factory::newEditNonUserStakeholderCommand,
+                (cmd, input) -> {
+                    EditNonUserStakeholderCommand c = (EditNonUserStakeholderCommand) cmd;
+                    EditNonUserStakeholderInput i = (EditNonUserStakeholderInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setProjectOrDomain(project);
+                    c.setName(i.name());
+                    if (i.text() != null) c.setText(i.text());
+                    // For edit: find existing non-user stakeholder by project + name
+                    if (i.version() != null) {
+                        NonUserStakeholder existing = findNonUserStakeholderByName(project, i.name());
+                        if (existing != null) c.setStakeholder(existing);
+                    }
+                },
+                null, // no file
+                cmd -> ProjectQueryController.toStakeholderDto(
+                        ((EditNonUserStakeholderCommand) cmd).getStakeholder()));
+
+        registry.register("DeleteStakeholder", DeleteStakeholderInput.class,
+                factory::newDeleteStakeholderCommand,
+                (cmd, input) -> {
+                    DeleteStakeholderCommand c = (DeleteStakeholderCommand) cmd;
+                    DeleteStakeholderInput i = (DeleteStakeholderInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    Stakeholder stakeholder = findStakeholderById(project, i.stakeholderId());
+                    c.setStakeholder(stakeholder);
+                });
 
         // Goals
         registry.register("EditGoal", factory::newEditGoalCommand);
@@ -141,6 +199,33 @@ public class ProjectCommandRegistrar {
         registry.register("RemoveUnneedLexicalIssues", factory::newRemoveUnneedLexicalIssuesCommand);
 
         log.info("Registered {} project command types", 37);
+    }
+
+    private static UserStakeholder findUserStakeholderByUsername(Project project, String username) {
+        for (Stakeholder s : project.getStakeholders()) {
+            if (s instanceof UserStakeholder us && us.getUser().getUsername().equals(username)) {
+                return us;
+            }
+        }
+        return null;
+    }
+
+    private static NonUserStakeholder findNonUserStakeholderByName(Project project, String name) {
+        for (Stakeholder s : project.getStakeholders()) {
+            if (s instanceof NonUserStakeholder nus && nus.getName().equals(name)) {
+                return nus;
+            }
+        }
+        return null;
+    }
+
+    private static Stakeholder findStakeholderById(Project project, Long stakeholderId) {
+        for (Stakeholder s : project.getStakeholders()) {
+            if (s.getId().equals(stakeholderId)) {
+                return s;
+            }
+        }
+        throw new IllegalArgumentException("Stakeholder not found: " + stakeholderId);
     }
 
     private static ProjectDto toDto(Project project) {

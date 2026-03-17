@@ -1080,20 +1080,60 @@ identity, auth, and contact info). See `doc/UI_DESIGN_GUIDE.md` §3.2.3.
 
 **Goal:** Stakeholder list and edit forms within a project.
 
+**DTO Design — Nested Polymorphism (Option C):**
+
+Stakeholders have two subtypes (`UserStakeholder`, `NonUserStakeholder`) with divergent
+fields. Rather than a flat DTO with many nullable fields (Option A) or fully separate DTOs
+and endpoints (Option B), we use a shared base with type-specific nested objects:
+
+```java
+record StakeholderDto(
+    Long id, int version, String name, String type,   // "user" or "non-user"
+    String createdBy, String dateCreated,
+    UserStakeholderDetails userDetails,                // null for non-user
+    NonUserStakeholderDetails nonUserDetails            // null for user
+)
+record UserStakeholderDetails(String username, String emailAddress,
+    String phoneNumber, String teamName, List<String> permissionKeys)
+record NonUserStakeholderDetails(String text)
+```
+
+**Why nested over flat:** TypeScript can't narrow a flat interface based on a string
+discriminator — all type-specific fields remain `T | null` even after checking `type`.
+With nesting, checking `stakeholder.userDetails != null` narrows the entire nested object
+to its well-typed shape. Angular templates use `?.` (safe navigation) naturally:
+`stakeholder.userDetails?.emailAddress` renders nothing when null, no explicit branching.
+The null boundary is at one point (the nested object) rather than spread across many fields.
+See `doc/UI_DESIGN_GUIDE.md` §14 "Polymorphic DTOs" for the general pattern.
+
+Input DTOs are inherently separate because create/edit flows differ by type:
+- `EditUserStakeholderInput` — projectName, username, teamName, permissionKeys[], version
+- `EditNonUserStakeholderInput` — projectName, name, text, version
+- `DeleteStakeholderInput` — stakeholderId, version
+
 **Backend work — Commands:**
-1. Add `ApiCommand<AddUserStakeholderInput>` to `AddUserStakeholderCommand` — fields: projectId, userId
-2. Add `ApiCommand<AddNonUserStakeholderInput>` to `NewNonUserStakeholderCommand` — fields: projectId, name, description
-3. Add `ApiCommand<EditUserStakeholderInput>` / `EditNonUserStakeholderInput` to edit commands — include version
-4. Add `ApiCommand<RemoveStakeholderInput>` to remove command — include version
+1. Wire `EditUserStakeholder` input applicator + result extractor — fields: projectName,
+   username, teamName, permissionKeys[], version. Resolve project by name, user by
+   username. For edit: resolve existing stakeholder by project + user.
+2. Wire `EditNonUserStakeholder` input applicator + result extractor — fields: projectName,
+   name, text, version. For edit: resolve existing stakeholder by project + name.
+3. Wire `DeleteStakeholder` input applicator — fields: stakeholderId, version. Look up
+   stakeholder by id from the project's stakeholder set.
 
 **Backend work — Queries:**
-1. `GET /api/projects/{id}/stakeholders` → paginated list
+1. `GET /api/projects/{name}/stakeholders` → list of `StakeholderDto` (both types, unified)
+2. `GET /api/projects/{name}/stakeholders/{id}` → single `StakeholderDto` with full details
 
 **Frontend work:**
-1. Stakeholder list table (Name, User?, Team, Email, Phone, Created By, Date)
-2. Add User Stakeholder dialog (pick from system users)
-3. Add Non-User Stakeholder form (name, description, goals)
-4. Edit stakeholder form
+1. `StakeholderDto` and detail interfaces in `models/stakeholder.ts`
+2. `stakeholder.service.ts` — list and get queries
+3. Stakeholder list component — unified table (Name, Type, Team, Email, Phone, Created By)
+   with "Add User" and "Add Non-User" buttons gated by `hasPermission(Stakeholder, Edit)`
+4. User stakeholder editor — username dropdown (from system users), team combo, permissions
+   checklist, goals placeholder
+5. Non-user stakeholder editor — name, description text, goals placeholder
+6. Routes: `/projects/:name/stakeholders` (list), `/projects/:name/stakeholders/:id` (edit)
+7. Sidebar tree: clicking "Stakeholders" group navigates to the stakeholder list
 
 **Echo2 panels replaced:** `StakeholderNavigatorPanel`, `UserStakeholderEditorPanel`, `NonUserStakeholderEditorPanel`
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ProjectDto, ProjectPermissions, ProjectTreeNode } from '../models/project';
 import { CommandResult } from '../models/command';
@@ -11,6 +11,14 @@ import { CommandService } from './command.service';
  */
 @Injectable({ providedIn: 'root' })
 export class ProjectService {
+
+  /** Emits when any mutation changes project entity counts (add/delete stakeholder, goal, etc.) */
+  private treeChanged$ = new Subject<void>();
+  readonly onTreeChanged = this.treeChanged$.asObservable();
+
+  notifyTreeChanged(): void {
+    this.treeChanged$.next();
+  }
 
   constructor(private http: HttpClient, private commandService: CommandService) {}
 

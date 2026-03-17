@@ -617,3 +617,54 @@ entities that don't yet have an id.
 - When an entity might be new (e.g., a user types a new organization name into
   an editable dropdown), the backend resolves `id` first, falling back to
   find-or-create by name
+
+### Polymorphic DTOs: Nested Type-Specific Objects
+
+When a domain entity has subtypes with divergent fields (e.g., `UserStakeholder`
+vs `NonUserStakeholder`), use a shared DTO with a `type` discriminator and nested
+type-specific detail objects — not a flat DTO with many nullable fields.
+
+**Pattern:**
+```typescript
+interface StakeholderDto {
+  id: number;
+  version: number;
+  name: string;
+  type: 'user' | 'non-user';
+  userDetails: UserStakeholderDetails | null;
+  nonUserDetails: NonUserStakeholderDetails | null;
+}
+interface UserStakeholderDetails {
+  username: string;          // all fields non-null within the nested type
+  emailAddress: string;
+  phoneNumber: string;
+  teamName: string | null;
+  permissionKeys: string[];
+}
+interface NonUserStakeholderDetails {
+  text: string;
+}
+```
+
+**Why nested over flat:**
+
+- **TypeScript narrowing works.** Checking `stakeholder.userDetails != null`
+  narrows the entire nested object. With a flat DTO, checking
+  `stakeholder.type === 'user'` does *not* narrow individual fields —
+  `emailAddress` remains `string | null` and requires `!` assertions or casts.
+- **One null boundary instead of many.** The null check happens at the nested
+  object level, not per-field. Inside the nested type, fields are non-null and
+  well-typed.
+- **Angular templates use `?.` naturally.** `stakeholder.userDetails?.email`
+  renders nothing when null — no explicit `*ngIf` or ternary needed for each
+  field in list views.
+- **Editors receive strongly-typed data.** A user-stakeholder editor component
+  receives `UserStakeholderDetails` as input — no bag of nullable fields to
+  filter through.
+
+**When to apply:** Any entity with inheritance or subtypes that cross the API
+boundary with different field sets. Input DTOs can remain separate per subtype
+since create/edit flows are inherently different.
+
+**Java side:** Use `@JsonInclude(JsonInclude.Include.NON_NULL)` on the outer
+record so the null nested object is omitted from JSON entirely.

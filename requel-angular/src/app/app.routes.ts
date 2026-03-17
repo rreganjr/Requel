@@ -9,6 +9,8 @@ import { EditAccountComponent } from './features/users/edit-account';
 import { ProjectListComponent } from './features/projects/project-list';
 import { ProjectEditorComponent } from './features/projects/project-editor';
 import { SettingsComponent } from './features/users/settings';
+import { StakeholderListComponent } from './features/stakeholders/stakeholder-list';
+import { StakeholderEditorComponent } from './features/stakeholders/stakeholder-editor';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -24,6 +26,8 @@ export const routes: Routes = [
       { path: 'users/:username', component: UserEditorComponent },
       { path: 'projects', component: ProjectListComponent },
       { path: 'projects/:name', component: ProjectEditorComponent },
+      { path: 'projects/:name/stakeholders', component: StakeholderListComponent },
+      { path: 'projects/:name/stakeholders/:stakeholderId', component: StakeholderEditorComponent },
     ]
   },
   { path: '**', redirectTo: '' }

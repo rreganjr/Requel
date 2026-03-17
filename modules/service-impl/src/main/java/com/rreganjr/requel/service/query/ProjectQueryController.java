@@ -36,9 +36,13 @@ import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.ExportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
+import com.rreganjr.requel.project.NonUserStakeholder;
+import com.rreganjr.requel.service.api.dto.NonUserStakeholderDetails;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectPermissionsDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
+import com.rreganjr.requel.service.api.dto.StakeholderDto;
+import com.rreganjr.requel.service.api.dto.UserStakeholderDetails;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.impl.SystemAdminUserRole;
@@ -197,6 +201,48 @@ public class ProjectQueryController {
     }
 
     /**
+     * GET /api/projects/{name}/stakeholders — list all stakeholders for a project.
+     */
+    @GetMapping("/{name}/stakeholders")
+    public ResponseEntity<?> listStakeholders(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<StakeholderDto> dtos = project.getStakeholders().stream()
+                    .map(ProjectQueryController::toStakeholderDto)
+                    .sorted(Comparator.comparing(StakeholderDto::name))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/stakeholders/{id} — single stakeholder detail.
+     */
+    @GetMapping("/{name}/stakeholders/{stakeholderId}")
+    public ResponseEntity<?> getStakeholder(@PathVariable String name,
+                                            @PathVariable Long stakeholderId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (Stakeholder s : project.getStakeholders()) {
+                if (s.getId().equals(stakeholderId)) {
+                    return ResponseEntity.ok(toStakeholderDto(s));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
      * Verify the current user is an admin or a stakeholder on the project.
      * Throws AuthorizationException if access is denied.
      */
@@ -235,6 +281,37 @@ public class ProjectQueryController {
         return entityManager
                 .createQuery("select p from ProjectImpl p order by p.name")
                 .getResultList();
+    }
+
+    public static StakeholderDto toStakeholderDto(Stakeholder stakeholder) {
+        UserStakeholderDetails userDetails = null;
+        NonUserStakeholderDetails nonUserDetails = null;
+
+        if (stakeholder instanceof UserStakeholder us) {
+            List<String> permissionKeys = us.getStakeholderPermissions().stream()
+                    .map(StakeholderPermission::getPermissionKey)
+                    .sorted()
+                    .toList();
+            userDetails = new UserStakeholderDetails(
+                    us.getDisplayUsername(),
+                    us.getDisplayEmailAddress(),
+                    us.getDisplayPhoneNumber(),
+                    us.getTeam() != null ? us.getTeam().getName() : null,
+                    permissionKeys
+            );
+        } else if (stakeholder instanceof NonUserStakeholder nus) {
+            nonUserDetails = new NonUserStakeholderDetails(nus.getText());
+        }
+
+        return new StakeholderDto(
+                stakeholder.getId(),
+                stakeholder.getVersion(),
+                stakeholder.getDisplayName(),
+                stakeholder.isUserStakeholder() ? "user" : "non-user",
+                stakeholder.getCreatedBy() != null ? stakeholder.getCreatedBy().getDisplayName() : null,
+                userDetails,
+                nonUserDetails
+        );
     }
 
     private ProjectDto toDto(Project project) {

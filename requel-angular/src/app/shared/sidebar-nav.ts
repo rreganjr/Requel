@@ -1,5 +1,6 @@
-import { Component, computed, OnInit, signal, ViewChild, ElementRef } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ElementRef } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { AccordionModule } from 'primeng/accordion';
 import { ButtonModule } from 'primeng/button';
 import { TreeModule } from 'primeng/tree';
@@ -125,7 +126,7 @@ import { ProjectDto, ProjectTreeNode } from '../models/project';
     }
   `]
 })
-export class SidebarNavComponent implements OnInit {
+export class SidebarNavComponent implements OnInit, OnDestroy {
 
   readonly loading = signal(false);
   private readonly projects = signal<ProjectDto[]>([]);
@@ -168,6 +169,7 @@ export class SidebarNavComponent implements OnInit {
   });
 
   @ViewChild('importInput') importInput!: ElementRef<HTMLInputElement>;
+  private treeSub?: Subscription;
 
   constructor(
     private authService: AuthService,
@@ -179,6 +181,11 @@ export class SidebarNavComponent implements OnInit {
     if (this.hasProjectRole()) {
       await this.loadProjects();
     }
+    this.treeSub = this.projectService.onTreeChanged.subscribe(() => this.loadProjects());
+  }
+
+  ngOnDestroy(): void {
+    this.treeSub?.unsubscribe();
   }
 
   onNewProject(): void {
@@ -204,8 +211,10 @@ export class SidebarNavComponent implements OnInit {
     if (!data) return;
     if (data.type === 'project') {
       this.router.navigate(['/projects', data.name]);
+    } else if (data.type === 'Stakeholders') {
+      this.router.navigate(['/projects', data.projectName, 'stakeholders']);
     }
-    // Entity group clicks will route to list tables in future phases
+    // Other entity group clicks will route to list tables in future phases
     // e.g., /projects/:name/goals, /projects/:name/stories
   }
 
