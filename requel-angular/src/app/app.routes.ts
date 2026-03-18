@@ -15,6 +15,8 @@ import { GoalListComponent } from './features/goals/goal-list';
 import { GoalEditorComponent } from './features/goals/goal-editor';
 import { StoryListComponent } from './features/stories/story-list';
 import { StoryEditorComponent } from './features/stories/story-editor';
+import { ActorListComponent } from './features/actors/actor-list';
+import { ActorEditorComponent } from './features/actors/actor-editor';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -36,6 +38,8 @@ export const routes: Routes = [
       { path: 'projects/:name/goals/:goalId', component: GoalEditorComponent },
       { path: 'projects/:name/stories', component: StoryListComponent },
       { path: 'projects/:name/stories/:storyId', component: StoryEditorComponent },
+      { path: 'projects/:name/actors', component: ActorListComponent },
+      { path: 'projects/:name/actors/:actorId', component: ActorEditorComponent },
     ]
   },
   { path: '**', redirectTo: '' }

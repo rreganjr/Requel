@@ -217,6 +217,8 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
       this.router.navigate(['/projects', data.projectName, 'goals']);
     } else if (data.type === 'Stories') {
       this.router.navigate(['/projects', data.projectName, 'stories']);
+    } else if (data.type === 'Actors') {
+      this.router.navigate(['/projects', data.projectName, 'actors']);
     }
     // Other entity group clicks will route to list tables in future phases
   }

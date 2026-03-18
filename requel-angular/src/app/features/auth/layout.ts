@@ -2,9 +2,10 @@ import { Component, computed } from '@angular/core';
 import { RouterOutlet, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { MenuModule } from 'primeng/menu';
+import { ToastModule } from 'primeng/toast';
 import { AuthService } from '../../core/auth.service';
 import { SidebarNavComponent } from '../../shared/sidebar-nav';
-import { MenuItem } from 'primeng/api';
+import { MenuItem, MessageService } from 'primeng/api';
 
 /**
  * Main application layout: fixed header + sidebar accordion + main content area.
@@ -13,8 +14,10 @@ import { MenuItem } from 'primeng/api';
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, ButtonModule, MenuModule, SidebarNavComponent],
+  imports: [RouterOutlet, RouterLink, ButtonModule, MenuModule, ToastModule, SidebarNavComponent],
+  providers: [MessageService],
   template: `
+    <p-toast />
     <div class="layout">
       <header class="app-header">
         <a routerLink="/" class="header-brand">

@@ -40,6 +40,7 @@ import com.rreganjr.requel.project.command.ExportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.project.NonUserStakeholder;
+import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GoalDto;
 import com.rreganjr.requel.service.api.dto.GoalRelationDto;
@@ -352,6 +353,49 @@ public class ProjectQueryController {
         }
     }
 
+    // ── Actors ─────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/projects/{name}/actors — list all actors (summary).
+     */
+    @GetMapping("/{name}/actors")
+    public ResponseEntity<?> listActors(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<ActorDto> dtos = project.getActors().stream()
+                    .map(ProjectQueryController::toActorSummaryDto)
+                    .sorted(Comparator.comparing(ActorDto::name))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/actors/{actorId} — single actor with goals.
+     */
+    @GetMapping("/{name}/actors/{actorId}")
+    public ResponseEntity<?> getActor(@PathVariable String name, @PathVariable Long actorId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (Actor a : project.getActors()) {
+                if (a.getId().equals(actorId)) {
+                    return ResponseEntity.ok(toActorDetailDto(a));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────
 
     /**
@@ -519,6 +563,26 @@ public class ProjectQueryController {
                 story.getStoryType().name(),
                 story.getCreatedBy() != null ? story.getCreatedBy().getDisplayName() : null,
                 goals, actors);
+    }
+
+    // ── Actor DTO mappers ─────────────────────────────────────────────
+
+    static ActorDto toActorSummaryDto(Actor actor) {
+        return new ActorDto(
+                actor.getId(), actor.getVersion(), actor.getName(), actor.getText(),
+                actor.getCreatedBy() != null ? actor.getCreatedBy().getDisplayName() : null,
+                null);
+    }
+
+    public static ActorDto toActorDetailDto(Actor actor) {
+        List<EntityReferenceDto> goals = actor.getGoals().stream()
+                .map(g -> new EntityReferenceDto("Goal", g.getId(), g.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+        return new ActorDto(
+                actor.getId(), actor.getVersion(), actor.getName(), actor.getText(),
+                actor.getCreatedBy() != null ? actor.getCreatedBy().getDisplayName() : null,
+                goals);
     }
 
     /**

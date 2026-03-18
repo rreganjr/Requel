@@ -9,7 +9,7 @@ import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { MessageModule } from 'primeng/message';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ConfirmationService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { GoalDto, GoalRelationDto } from '../../models/goal';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { GoalService } from '../../core/goal.service';
@@ -46,9 +46,6 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
-      }
-      @if (successMessage()) {
-        <p-message severity="success" [text]="successMessage()!" />
       }
 
       <div class="form-grid">
@@ -183,7 +180,7 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
     .entity-link { cursor: pointer; color: var(--p-primary-color); text-decoration: underline; }
     .relation-type-dialog { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
     .dialog-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); }
-    .dialog-content { position: relative; background: var(--p-surface-ground); padding: 1.5rem; border-radius: 8px; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .dialog-content { position: relative; background: var(--p-surface-0); padding: 1.5rem; border-radius: 8px; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .dialog-content h4 { margin: 0 0 1rem; }
     .dialog-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
   `]
@@ -193,7 +190,6 @@ export class GoalEditorComponent implements OnInit, OnDestroy {
   goalName = signal('');
   goal = signal<GoalDto | null>(null);
   errorMessage = signal<string | null>(null);
-  successMessage = signal<string | null>(null);
   saving = signal(false);
   canEdit = signal(false);
   canDelete = signal(false);
@@ -220,7 +216,8 @@ export class GoalEditorComponent implements OnInit, OnDestroy {
     private commandService: CommandService,
     private projectService: ProjectService,
     private permissionService: PermissionService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private messageService: MessageService
   ) {}
 
   ngOnInit(): void {
@@ -275,7 +272,6 @@ export class GoalEditorComponent implements OnInit, OnDestroy {
   async onSave(): Promise<void> {
     this.saving.set(true);
     this.errorMessage.set(null);
-    this.successMessage.set(null);
     try {
       const input: Record<string, unknown> = {
         projectName: this.projectName,
@@ -285,7 +281,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy {
       if (this.version != null) input['version'] = this.version;
       const result = await this.commandService.execute('EditGoal', input);
       if (result.success) {
-        this.successMessage.set('Goal saved.');
+        this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Goal saved.' });
         if (this.isNew()) {
           this.projectService.notifyTreeChanged();
           if (result.entity) {
@@ -360,6 +356,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy {
       relationType: this.newRelationType
     });
     if (result.success) {
+      this.messageService.add({ severity: 'success', summary: 'Relation added', detail: 'Goal relation added.' });
       await this.loadGoal();
     } else {
       this.errorMessage.set(result.error ?? 'Failed to add relation.');
@@ -373,6 +370,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy {
       version: relation.version
     });
     if (result.success) {
+      this.messageService.add({ severity: 'success', summary: 'Relation removed', detail: 'Goal relation removed.' });
       await this.loadGoal();
     } else {
       this.errorMessage.set(result.error ?? 'Failed to delete relation.');

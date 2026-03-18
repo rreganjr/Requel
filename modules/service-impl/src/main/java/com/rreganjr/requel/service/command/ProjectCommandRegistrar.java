@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
 import com.rreganjr.requel.project.GoalRelation;
@@ -20,10 +21,12 @@ import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
 import com.rreganjr.requel.project.command.CopyGoalCommand;
 import com.rreganjr.requel.project.command.CopyStoryCommand;
+import com.rreganjr.requel.project.command.DeleteActorCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.DeleteStakeholderCommand;
 import com.rreganjr.requel.project.command.DeleteStoryCommand;
+import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditGoalRelationCommand;
 import com.rreganjr.requel.project.command.EditNonUserStakeholderCommand;
@@ -35,13 +38,16 @@ import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.service.api.CommandRegistry;
+import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.AddGoalToGoalContainerInput;
 import com.rreganjr.requel.service.api.dto.CopyGoalInput;
 import com.rreganjr.requel.service.api.dto.CopyStoryInput;
+import com.rreganjr.requel.service.api.dto.DeleteActorInput;
 import com.rreganjr.requel.service.api.dto.DeleteGoalInput;
 import com.rreganjr.requel.service.api.dto.DeleteGoalRelationInput;
 import com.rreganjr.requel.service.api.dto.DeleteStakeholderInput;
 import com.rreganjr.requel.service.api.dto.DeleteStoryInput;
+import com.rreganjr.requel.service.api.dto.EditActorInput;
 import com.rreganjr.requel.service.api.dto.EditGoalInput;
 import com.rreganjr.requel.service.api.dto.EditGoalRelationInput;
 import com.rreganjr.requel.service.api.dto.EditNonUserStakeholderInput;
@@ -303,11 +309,36 @@ public class ProjectCommandRegistrar {
         registry.register("RemoveStoryFromStoryContainer", factory::newRemoveStoryFromStoryContainerCommand);
 
         // Actors
-        registry.register("EditActor", factory::newEditActorCommand);
+        registry.register("EditActor", EditActorInput.class,
+                factory::newEditActorCommand,
+                (cmd, input) -> {
+                    EditActorCommand c = (EditActorCommand) cmd;
+                    EditActorInput i = (EditActorInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    if (i.actorId() != null) {
+                        c.setActor(findActorById(project, i.actorId()));
+                    } else {
+                        c.setActorContainer(project);
+                    }
+                    c.setName(i.name());
+                    if (i.description() != null) c.setText(i.description());
+                    c.setProjectOrDomain(project);
+                },
+                null,
+                cmd -> ProjectQueryController.toActorDetailDto(((EditActorCommand) cmd).getActor()));
+
         registry.register("AddActorToActorContainer", factory::newAddActorToActorContainerCommand);
         registry.register("RemoveActorFromActorContainer", factory::newRemoveActorFromActorContainerCommand);
         registry.register("CopyActor", factory::newCopyActorCommand);
-        registry.register("DeleteActor", factory::newDeleteActorCommand);
+
+        registry.register("DeleteActor", DeleteActorInput.class,
+                factory::newDeleteActorCommand,
+                (cmd, input) -> {
+                    DeleteActorCommand c = (DeleteActorCommand) cmd;
+                    DeleteActorInput i = (DeleteActorInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setActor(findActorById(project, i.actorId()));
+                });
 
         // Use Cases & Scenarios
         registry.register("EditUseCase", factory::newEditUseCaseCommand);
@@ -380,8 +411,18 @@ public class ProjectCommandRegistrar {
         for (Story s : project.getStories()) {
             if (s.getId().equals(containerId)) return (GoalContainer) s;
         }
-        // Actors and UseCases (Phase 5+) not yet handled
+        for (Actor a : project.getActors()) {
+            if (a.getId().equals(containerId)) return (GoalContainer) a;
+        }
+        // UseCases (Phase 7) not yet handled
         throw new IllegalArgumentException("GoalContainer not found: " + containerId);
+    }
+
+    private static Actor findActorById(Project project, Long actorId) {
+        for (Actor a : project.getActors()) {
+            if (a.getId().equals(actorId)) return a;
+        }
+        throw new IllegalArgumentException("Actor not found: " + actorId);
     }
 
     private static Goal findGoalByName(Project project, String name) {

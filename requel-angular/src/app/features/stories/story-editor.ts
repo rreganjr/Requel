@@ -9,7 +9,7 @@ import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { MessageModule } from 'primeng/message';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ConfirmationService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { StoryDto } from '../../models/story';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { StoryService } from '../../core/story.service';
@@ -47,25 +47,26 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
-      @if (successMessage()) {
-        <p-message severity="success" [text]="successMessage()!" />
-      }
 
       <div class="form-grid">
         <label for="name">Name</label>
-        <input id="name" pInputText [(ngModel)]="name" placeholder="Story name" />
+        <input id="name" pInputText [(ngModel)]="name" placeholder="Story name"
+               (ngModelChange)="trackChanges()" />
 
         <label for="type">Type</label>
         <p-select id="type" [(ngModel)]="storyType" [options]="storyTypeOptions"
-                  optionLabel="label" optionValue="value" />
+                  optionLabel="label" optionValue="value"
+                  (ngModelChange)="trackChanges()" />
 
         <label for="text">Text</label>
         <textarea id="text" pTextarea [(ngModel)]="text" rows="8"
-                  placeholder="Story text"></textarea>
+                  placeholder="Story text"
+                  (ngModelChange)="trackChanges()"></textarea>
       </div>
 
       <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()" />
+        <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()"
+                  [disabled]="!isNew() && !hasChanges()" />
       </div>
 
       <!-- Goals sub-table -->
@@ -146,7 +147,6 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
   storyName = signal('');
   story = signal<StoryDto | null>(null);
   errorMessage = signal<string | null>(null);
-  successMessage = signal<string | null>(null);
   saving = signal(false);
   canEdit = signal(false);
   canDelete = signal(false);
@@ -155,6 +155,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
   text = '';
   storyType = 'Success';
   showGoalSelector = false;
+  hasChanges = signal(false);
   storyTypeOptions = [
     { label: 'Success', value: 'Success' },
     { label: 'Exception', value: 'Exception' }
@@ -163,6 +164,9 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
   projectName = '';
   private storyId: number | null = null;
   private version: number | null = null;
+  private originalName = '';
+  private originalText = '';
+  private originalStoryType = 'Success';
   private paramSub?: Subscription;
 
   constructor(
@@ -172,7 +176,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
     private commandService: CommandService,
     private projectService: ProjectService,
     private permissionService: PermissionService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private messageService: MessageService
   ) {}
 
   ngOnInit(): void {
@@ -211,9 +216,21 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
       this.text = s.text;
       this.storyType = s.storyType;
       this.version = s.version;
+      this.originalName = s.name;
+      this.originalText = s.text;
+      this.originalStoryType = s.storyType;
+      this.hasChanges.set(false);
     } catch {
       this.errorMessage.set('Failed to load story.');
     }
+  }
+
+  trackChanges(): void {
+    this.hasChanges.set(
+      this.name !== this.originalName ||
+      this.text !== this.originalText ||
+      this.storyType !== this.originalStoryType
+    );
   }
 
   existingGoalIds(): number[] {
@@ -225,7 +242,6 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
   async onSave(): Promise<void> {
     this.saving.set(true);
     this.errorMessage.set(null);
-    this.successMessage.set(null);
     try {
       const input: Record<string, unknown> = {
         projectName: this.projectName,
@@ -236,7 +252,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
       if (this.version != null) input['version'] = this.version;
       const result = await this.commandService.execute('EditStory', input);
       if (result.success) {
-        this.successMessage.set('Story saved.');
+        this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Story saved.' });
         if (this.isNew()) {
           this.projectService.notifyTreeChanged();
           if (result.entity) {
@@ -244,6 +260,10 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
             this.router.navigate(['/projects', this.projectName, 'stories', saved.id]);
           }
         } else {
+          this.originalName = this.name;
+          this.originalText = this.text;
+          this.originalStoryType = this.storyType;
+          this.hasChanges.set(false);
           await this.loadStory();
         }
       } else {
@@ -303,6 +323,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
         goalId: ref.id
       });
       if (result.success) {
+        this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
         this.story.update(s => s ? {
           ...s,
           goals: [...(s.goals ?? []), ref].sort((a, b) => a.name.localeCompare(b.name))
@@ -323,6 +344,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
         goalId: goalRef.id
       });
       if (result.success) {
+        this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });
         this.story.update(s => s ? {
           ...s,
           goals: (s.goals ?? []).filter(g => g.id !== goalRef.id)

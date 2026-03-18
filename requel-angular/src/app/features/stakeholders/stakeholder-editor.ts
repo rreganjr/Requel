@@ -10,7 +10,7 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { TableModule } from 'primeng/table';
 import { MessageModule } from 'primeng/message';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ConfirmationService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { StakeholderDto, StakeholderPermissionDto, UserStakeholderDetails } from '../../models/stakeholder';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { StakeholderService } from '../../core/stakeholder.service';
@@ -49,9 +49,6 @@ interface PermissionGroup {
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
-      @if (successMessage()) {
-        <p-message severity="success" [text]="successMessage()!" />
-      }
 
       <div class="form-grid">
         @if (isUserType()) {
@@ -70,7 +67,8 @@ interface PermissionGroup {
           }
 
           <label for="team">Team</label>
-          <input id="team" pInputText [(ngModel)]="teamName" placeholder="Team name" />
+          <input id="team" pInputText [(ngModel)]="teamName" placeholder="Team name"
+                 (ngModelChange)="trackChanges()" />
         }
 
         @if (isUserType() && permissionGroups().length > 0) {
@@ -87,7 +85,7 @@ interface PermissionGroup {
                   <div class="permission-check">
                     @if (getPermission(group, type); as perm) {
                       <p-checkbox [(ngModel)]="perm.checked" [binary]="true"
-                                  [name]="perm.key" />
+                                  [name]="perm.key" (onChange)="trackChanges()" />
                     }
                   </div>
                 }
@@ -98,16 +96,19 @@ interface PermissionGroup {
 
         @if (!isUserType()) {
           <label for="name">Name</label>
-          <input id="name" pInputText [(ngModel)]="stakeholderName" placeholder="Stakeholder name" />
+          <input id="name" pInputText [(ngModel)]="stakeholderName" placeholder="Stakeholder name"
+                 (ngModelChange)="trackChanges()" />
 
           <label for="text">Description</label>
           <textarea id="text" pTextarea [(ngModel)]="text" rows="4"
-                    placeholder="Description of this stakeholder"></textarea>
+                    placeholder="Description of this stakeholder"
+                    (ngModelChange)="trackChanges()"></textarea>
         }
       </div>
 
       <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()" />
+        <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()"
+                  [disabled]="!isNew() && !hasChanges()" />
       </div>
 
       @if (!isNew()) {
@@ -180,7 +181,6 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
   isUserType = signal(true);
   stakeholderName = signal('');
   errorMessage = signal<string | null>(null);
-  successMessage = signal<string | null>(null);
   saving = signal(false);
   canDelete = signal(false);
   userOptions = signal<{ label: string; value: string }[]>([]);
@@ -188,11 +188,17 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
   permissionGroups = signal<PermissionGroup[]>([]);
   goals = signal<EntityReferenceDto[]>([]);
   goalIds = computed(() => this.goals().map(g => g.id).filter((id): id is number => id != null));
+  hasChanges = signal(false);
 
   username = '';
   teamName = '';
   text = '';
   showGoalSelector = false;
+
+  private originalTeamName = '';
+  private originalPermissionKeys = '';
+  private originalName = '';
+  private originalText = '';
 
   projectName = '';
   private stakeholderId: number | null = null;
@@ -207,7 +213,8 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
     private projectService: ProjectService,
     private userService: UserService,
     private permissionService: PermissionService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private messageService: MessageService
   ) {}
 
   ngOnInit(): void {
@@ -258,13 +265,33 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
         this.loadedUserDetails.set(s.userDetails);
         this.username = s.userDetails.username;
         this.teamName = s.userDetails.teamName ?? '';
+        this.originalTeamName = this.teamName;
         await this.loadUsers();
         await this.loadPermissions(s.userDetails.permissionKeys);
+        this.originalPermissionKeys = this.getSelectedPermissionKeys().sort().join(',');
       } else if (s.nonUserDetails) {
         this.text = s.nonUserDetails.text;
+        this.originalName = s.name;
+        this.originalText = this.text;
       }
+      this.hasChanges.set(false);
     } catch {
       this.errorMessage.set('Failed to load stakeholder.');
+    }
+  }
+
+  trackChanges(): void {
+    if (this.isUserType()) {
+      const permKeys = this.getSelectedPermissionKeys().sort().join(',');
+      this.hasChanges.set(
+        this.teamName !== this.originalTeamName ||
+        permKeys !== this.originalPermissionKeys
+      );
+    } else {
+      this.hasChanges.set(
+        this.stakeholderName() !== this.originalName ||
+        this.text !== this.originalText
+      );
     }
   }
 
@@ -281,6 +308,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
         goalId: goal.id
       });
       if (result.success) {
+        this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
         this.goals.update(list => [...list, goal].sort((a, b) => a.name.localeCompare(b.name)));
       } else {
         this.errorMessage.set(result.error ?? 'Failed to add goal.');
@@ -298,6 +326,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
         goalId: goal.id
       });
       if (result.success) {
+        this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });
         this.goals.update(list => list.filter(g => g.id !== goal.id));
       } else {
         this.errorMessage.set(result.error ?? 'Failed to remove goal.');
@@ -350,7 +379,6 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
   async onSave(): Promise<void> {
     this.saving.set(true);
     this.errorMessage.set(null);
-    this.successMessage.set(null);
 
     try {
       if (this.isUserType()) {
@@ -363,13 +391,17 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
         if (this.version != null) input['version'] = this.version;
         const result = await this.commandService.execute('EditUserStakeholder', input);
         if (result.success) {
-          this.successMessage.set('Stakeholder saved.');
+          this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Stakeholder saved.' });
           if (this.isNew()) {
             this.projectService.notifyTreeChanged();
             if (result.entity) {
               const saved = result.entity as StakeholderDto;
               this.router.navigate(['..', saved.id], { relativeTo: this.route });
             }
+          } else {
+            this.originalTeamName = this.teamName;
+            this.originalPermissionKeys = this.getSelectedPermissionKeys().sort().join(',');
+            this.hasChanges.set(false);
           }
         } else {
           this.errorMessage.set(result.error ?? 'Save failed.');
@@ -383,13 +415,17 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
         if (this.version != null) input['version'] = this.version;
         const result = await this.commandService.execute('EditNonUserStakeholder', input);
         if (result.success) {
-          this.successMessage.set('Stakeholder saved.');
+          this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Stakeholder saved.' });
           if (this.isNew()) {
             this.projectService.notifyTreeChanged();
             if (result.entity) {
               const saved = result.entity as StakeholderDto;
               this.router.navigate(['..', saved.id], { relativeTo: this.route });
             }
+          } else {
+            this.originalName = this.stakeholderName();
+            this.originalText = this.text;
+            this.hasChanges.set(false);
           }
         } else {
           this.errorMessage.set(result.error ?? 'Save failed.');

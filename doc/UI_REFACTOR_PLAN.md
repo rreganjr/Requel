@@ -1218,59 +1218,106 @@ reference other entities — goals, actors, stories, containers, etc.
 
 ---
 
-### Phase 5: Actors + Use Cases
+### Phase 5: Actors
 
-**Goal:** Actors and use cases, which tie together actors, goals, stories, and scenarios.
+**Goal:** Actor CRUD with goals sub-section. Actors are referenced by use cases and stories;
+the "Referenced By" section is deferred to Phase 7 when use cases are built.
+
+**Design Decisions:**
+- **Goals sub-section** — same add/remove pattern as the stakeholder editor (`actor_goals` join
+  table; not `@ManyToAny`, so no Hibernate 6.5 workaround needed).
+- **"Referenced By" deferred** — actors are referenced by use cases and stories via
+  `actor_actorcontainers` (`@ManyToAny`). That section will be added in Phase 7 once use
+  cases exist in the Angular app.
+- **No separate NewActor command** — `EditActor` handles both create (actor=null) and update,
+  matching the existing pattern for goals and stories.
 
 **Backend work — Commands:**
-1. `NewActor` → `ApiCommand<NewActorInput>` — fields: projectId, name, description
-2. `EditActor` → `ApiCommand<EditActorInput>` — fields: actorId, name, description, version
-3. `DeleteActor` → `ApiCommand<DeleteActorInput>` — fields: actorId, version
-4. `NewUseCase` → `ApiCommand<NewUseCaseInput>` — fields: projectId, name, description, primaryActorId
-5. `EditUseCase` → `ApiCommand<EditUseCaseInput>` — fields: useCaseId, name, description, primaryActorId, goalIds[], storyIds[], scenarioIds[], version
-6. `DeleteUseCase` → `ApiCommand<DeleteUseCaseInput>` — fields: useCaseId, version
+1. Wire `EditActor` — fields: projectName, actorId (null = create), name, description, version.
+2. Wire `DeleteActor` — fields: projectName, actorId, version.
 
 **Backend work — Queries:**
-1. `GET /api/projects/{id}/actors` → list
-2. `GET /api/projects/{id}/actors/{aid}` → single actor
-3. `GET /api/projects/{id}/use-cases` → list
-4. `GET /api/projects/{id}/use-cases/{uid}` → single use case with related entities
+1. `GET /api/projects/{name}/actors` → list of ActorDto (summary)
+2. `GET /api/projects/{name}/actors/{id}` → single ActorDto with goals list
 
 **Frontend work:**
-1. Actors list + editor
-2. Use cases list + editor with:
-   - Primary actor selector (reuse entity selector dialog)
-   - Goals sub-table (add/remove goals)
-   - Stories sub-table (add/remove stories)
-   - Scenarios sub-table (add/remove scenarios)
-3. Actor selector dialog (shared)
+1. Actor list — table (Name, Description preview, Created By), New button
+2. Actor editor — name, description, goals sub-table (add/remove via entity selector)
+3. Routes: `/projects/:name/actors`, `/projects/:name/actors/:id`
+4. Sidebar tree: clicking Actors group navigates to the list
+5. Extend `findGoalContainerById()` in `ProjectCommandRegistrar` to include actors
 
-**Echo2 panels replaced:** `ActorNavigatorPanel`, `ActorEditorPanel`, `ActorSelectorPanel`, `UseCaseNavigatorPanel`, `UseCaseEditorPanel`, `UseCaseSelectorPanel`, add/remove controllers
+**Echo2 panels replaced:** `ActorNavigatorPanel`, `ActorEditorPanel`
 
 ---
 
 ### Phase 6: Scenarios
 
-**Goal:** Scenario CRUD with the step tree editor (the most complex UI).
+**Goal:** Scenario CRUD with the step tree editor (the most complex UI). Must be built before
+Use Cases because every UseCase has exactly one associated Scenario created at insert time.
 
 **Backend work — Commands:**
-1. `NewScenario` → `ApiCommand<NewScenarioInput>` — fields: projectId, name, type
-2. `EditScenario` → `ApiCommand<EditScenarioInput>` — fields: scenarioId, name, type, steps[] (tree as nested DTOs), version
-3. `DeleteScenario` → `ApiCommand<DeleteScenarioInput>` — fields: scenarioId, version
+1. Wire `EditScenario` — fields: projectName, scenarioId (null = create), name, type, version.
+   Step editing deferred to a follow-on iteration within this phase.
+2. Wire `DeleteScenario` — fields: projectName, scenarioId, version.
 
 **Backend work — Queries:**
-1. `GET /api/projects/{id}/scenarios` → list
-2. `GET /api/projects/{id}/scenarios/{sid}` → single scenario with step tree
+1. `GET /api/projects/{name}/scenarios` → list of ScenarioDto (summary)
+2. `GET /api/projects/{name}/scenarios/{id}` → single ScenarioDto with step tree
 
 **Frontend work:**
 1. Scenarios list + editor
-2. Scenario step tree component — drag-and-drop reordering, indent/outdent for alternate/exception paths
-3. Step type indicators (normal, alternate, exception)
-4. Scenario selector dialog (shared)
+2. Scenario step tree component — flat ordered list first with step type labels (normal,
+   alternate, exception), then iterate toward drag-and-drop indent/outdent tree
+3. Scenario selector dialog (shared, reused by use case editor in Phase 7)
 
 **Echo2 panels replaced:** `ScenarioNavigatorPanel`, `ScenarioEditorPanel`, `ScenarioSelectorPanel`, `ScenarioEditorTreeNodeFactory`, `ScenarioStepEditorTreeNodeFactory`
 
-**Note:** The step tree is the most complex UI component in Requel. Use PrimeNG's `p-tree` with `draggableNodes`/`droppableNodes` as the foundation. Start simple — flat ordered list with type labels — and iterate toward a full drag-and-drop tree editor.
+**Note:** The step tree is the most complex UI component in Requel. Use PrimeNG's `p-tree`
+with `draggableNodes`/`droppableNodes` as the foundation.
+
+---
+
+### Phase 7: Use Cases
+
+**Goal:** Use cases tie together actors, goals, stories, and scenarios. Depends on actors
+(Phase 5) and scenarios (Phase 6) being in place.
+
+**Design Decisions:**
+- **Primary actor — auto-create by name** — preserves the existing `EditUseCaseCommandImpl`
+  behavior where a typed actor name is looked up and created as a stub if not found. Better
+  UX than forcing the user to leave the use case editor to create the actor first.
+- **Scenario auto-created on insert** — every UseCase creates an empty linked Scenario at
+  insert time (domain invariant). The scenario becomes editable via the scenario editor route.
+- **"Referenced By" on actor editor** — the actor editor gets its "Referenced By" section
+  (use cases and stories) in this phase, now that use cases exist in the Angular app.
+- **All three sub-tables in scope** — `usecase_goals`, `usecase_actors`, `usecase_stories`
+  are regular `@ManyToMany` (not `@ManyToAny`), so no Hibernate 6.5 workaround needed.
+
+**Backend work — Commands:**
+1. Wire `EditUseCase` — fields: projectName, useCaseId (null = create), name, description,
+   primaryActorName (auto-create if not found), version.
+2. Wire `DeleteUseCase` — fields: projectName, useCaseId, version.
+3. Wire goal/story/actor add+remove for use cases (reuse `AddGoalToGoalContainer` /
+   `RemoveGoalFromGoalContainer` after extending `findGoalContainerById` for use cases;
+   add equivalent `AddActorToActorContainer` / `RemoveActorFromActorContainer` wiring).
+
+**Backend work — Queries:**
+1. `GET /api/projects/{name}/use-cases` → list of UseCaseDto (summary)
+2. `GET /api/projects/{name}/use-cases/{id}` → single UseCaseDto with goals, actors, stories,
+   linked scenario reference
+
+**Frontend work:**
+1. Use case list + editor with:
+   - Primary actor selector (entity selector dialog, typed name with auto-create fallback)
+   - Goals sub-table (add/remove)
+   - Stories sub-table (add/remove)
+   - Actors sub-table (additional actors, add/remove)
+   - Link to associated scenario (navigates to scenario editor)
+2. Use case selector dialog (shared)
+3. Add "Referenced By" section to actor editor (use cases + stories)
+
+**Echo2 panels replaced:** `UseCaseNavigatorPanel`, `UseCaseEditorPanel`, `UseCaseSelectorPanel`, add/remove controllers
 
 ---
 
