@@ -2,6 +2,7 @@ package com.rreganjr.requel.service.command;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.platform.command.AuthorizationException;
+import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.service.api.CommandResult;
@@ -114,6 +115,10 @@ public class CommandController {
             }
             return ResponseEntity.unprocessableEntity()
                     .body(CommandResult.validationFailure("Validation failed", violations));
+        } catch (EntityException e) {
+            log.warn("Command business rule violation: {} - {}", commandType, e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ErrorResponse.of("CONFLICT", e.getMessage()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(ErrorResponse.of("BAD_REQUEST", e.getMessage()));

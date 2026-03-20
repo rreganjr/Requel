@@ -17,6 +17,8 @@ import { StoryListComponent } from './features/stories/story-list';
 import { StoryEditorComponent } from './features/stories/story-editor';
 import { ActorListComponent } from './features/actors/actor-list';
 import { ActorEditorComponent } from './features/actors/actor-editor';
+import { ScenarioListComponent } from './features/scenarios/scenario-list';
+import { ScenarioEditorComponent } from './features/scenarios/scenario-editor';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -40,6 +42,8 @@ export const routes: Routes = [
       { path: 'projects/:name/stories/:storyId', component: StoryEditorComponent },
       { path: 'projects/:name/actors', component: ActorListComponent },
       { path: 'projects/:name/actors/:actorId', component: ActorEditorComponent },
+      { path: 'projects/:name/scenarios', component: ScenarioListComponent },
+      { path: 'projects/:name/scenarios/:scenarioId', component: ScenarioEditorComponent },
     ]
   },
   { path: '**', redirectTo: '' }

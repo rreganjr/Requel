@@ -219,6 +219,8 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
       this.router.navigate(['/projects', data.projectName, 'stories']);
     } else if (data.type === 'Actors') {
       this.router.navigate(['/projects', data.projectName, 'actors']);
+    } else if (data.type === 'Scenarios') {
+      this.router.navigate(['/projects', data.projectName, 'scenarios']);
     }
     // Other entity group clicks will route to list tables in future phases
   }
@@ -239,6 +241,7 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
       { label: 'Goals', type: 'Goals', count: project.goalCount, icon: 'pi pi-flag' },
       { label: 'Stories', type: 'Stories', count: project.storyCount, icon: 'pi pi-book' },
       { label: 'Actors', type: 'Actors', count: project.actorCount, icon: 'pi pi-user' },
+      { label: 'Scenarios', type: 'Scenarios', count: project.scenarioCount, icon: 'pi pi-list-check' },
       { label: 'Use Cases', type: 'Use Cases', count: project.useCaseCount, icon: 'pi pi-sitemap' },
       { label: 'Glossary', type: 'Glossary', count: project.glossaryTermCount, icon: 'pi pi-list' },
     ];

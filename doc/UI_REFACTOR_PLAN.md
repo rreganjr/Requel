@@ -392,7 +392,7 @@ These patterns repeat across nearly every screen and should be built once. Each 
 |---|---|---|
 | **Entity list table** | `p-table` with sorting, pagination, selection | Sortable columns, pagination, Edit/Add/Delete toolbar. Wraps `p-table` with standard column config and action buttons. Replaces all NavigatorPanels. |
 | **Annotations section** | `p-table` with row expansion | Issue/note table with Add Issue/Add Note. Row expansion shows positions; nested expansion shows arguments. Appears on every editor. |
-| **Entity selector dialog** | `p-dialog` + `p-table` with global filter | Modal with searchable, selectable table for picking related entities (goals, actors, stories, etc.). Replaces all SelectorPanels. |
+| **Entity selector dialog** | `p-dialog` + `p-table` with global filter | Modal with searchable, selectable table for picking related entities (goals, actors, stories, etc.). Replaces all SelectorPanels. Future: add `allowCreate` + `createLabel` inputs so callers can inline-create new entities from within the dialog (Phase 6 design decision deferred). |
 | **Organization combo** | `p-autoComplete` | Typeahead dropdown that searches existing orgs or allows free-text entry. Used on user and project forms. |
 | **Project tree nav** | `p-tree` | Sidebar tree with project → sub-item hierarchy. Click navigates to the entity list or editor. |
 | **Tab strip** | `p-tabView` | Open editor panels as closeable tabs, matching the current Echo2 tab bar behavior. |
@@ -1256,20 +1256,78 @@ the "Referenced By" section is deferred to Phase 7 when use cases are built.
 **Goal:** Scenario CRUD with the step tree editor (the most complex UI). Must be built before
 Use Cases because every UseCase has exactly one associated Scenario created at insert time.
 
+**Design Decisions:**
+- **Step type defaults to parent scenario type** — new steps inherit the parent scenario's
+  `scenarioType` at creation time. Steps are independent after that; changing the parent's
+  type does not retroactively update existing steps.
+- **Step type not shown inline in tree node** — type is edited via a per-step edit popup
+  (pencil button) along with the optional long-text description. This keeps the tree
+  uncluttered: just the step name is visible inline.
+- **Sub-scenario nodes are read-only in parent tree** — clicking navigates to that scenario's
+  own editor (router-based, URL changes, browser back works). Sub-scenarios are leaf nodes in
+  the parent tree; their steps are only visible when navigated into.
+- **Adding a sub-scenario uses `ScenarioSelectorDialogComponent`** — a scenario-specific
+  selector dialog that lists existing scenarios (excluding the current one and direct cycle
+  candidates) and includes an inline "New Scenario" creation form (name + type). This is
+  intentionally separate from `EntitySelectorDialogComponent` to keep cycle-detection and
+  creation logic out of the shared component.
+- **`EntitySelectorDialogComponent` future enhancement (Option A)** — a future phase should
+  add an optional `allowCreate: boolean` input and `createLabel: string` input to the shared
+  entity selector dialog. When enabled, a "New [type]" button at the top reveals an inline
+  creation form. This would allow goals, stories, and other entity selectors to create new
+  entities inline without leaving the parent editor. Not implemented in Phase 6 to keep the
+  shared component focused.
+- **Full step list on save** — `EditScenarioCommand` takes a full ordered list of
+  `EditScenarioStepCommand`s (and nested `EditScenarioCommand`s for sub-scenarios). The
+  Angular editor sends the complete ordered step list on every save. Step IDs are preserved
+  for existing steps (passed to `setStep()`); new plain steps have null stepId; new
+  sub-scenarios have `isScenario: true, stepId: null` (created inline by the registrar).
+- **Sub-scenario references in save payload** — for existing sub-scenario entries in the
+  step list, the registrar passes the existing `ScenarioImpl` to an `EditScenarioCommand`
+  with unchanged name/text/type, effectively a no-op that preserves the step list reference
+  after the parent's `getSteps().clear()` + rebuild.
+- **Copy included** — `CopyScenario` wired, same pattern as goals and stories.
+
+**Backend work — DTOs (new):**
+- `ScenarioDto` — `id, version, name, text, scenarioType, createdBy, steps: List<StepDto>`
+- `StepDto` — `id, version, name, text, scenarioType, isScenario, scenarioId`
+  (summary list omits steps)
+- `EditScenarioInput` — `projectName, scenarioId, name, text, scenarioTypeName, version,
+  steps: List<EditStepInput>`
+- `EditStepInput` — `stepId, name, text, scenarioTypeName, isScenario`
+- `DeleteScenarioInput` — `projectName, scenarioId, version`
+
 **Backend work — Commands:**
-1. Wire `EditScenario` — fields: projectName, scenarioId (null = create), name, type, version.
-   Step editing deferred to a follow-on iteration within this phase.
+1. Wire `EditScenario` — builds `List<EditScenarioStepCommand>` from `EditStepInput` list:
+   - `isScenario: false, stepId: null` → new `EditScenarioStepCommand` (creates `StepImpl`)
+   - `isScenario: false, stepId: N` → `EditScenarioStepCommand` with existing `StepImpl`
+   - `isScenario: true, stepId: null` → `EditScenarioCommand` with null scenario (creates
+     empty `ScenarioImpl`); added to parent's step list after execute
+   - `isScenario: true, stepId: N` → `EditScenarioCommand` referencing existing `ScenarioImpl`
+     (no-op update preserving name/text/type; keeps reference in step list after rebuild)
 2. Wire `DeleteScenario` — fields: projectName, scenarioId, version.
+3. Wire `CopyScenario` — fields: projectName, scenarioId.
 
 **Backend work — Queries:**
-1. `GET /api/projects/{name}/scenarios` → list of ScenarioDto (summary)
-2. `GET /api/projects/{name}/scenarios/{id}` → single ScenarioDto with step tree
+1. `GET /api/projects/{name}/scenarios` → list of ScenarioDto (summary, no steps)
+2. `GET /api/projects/{name}/scenarios/{id}` → single ScenarioDto with flat step list
+   (each entry includes `isScenario` flag and `scenarioId` for sub-scenario navigation)
 
 **Frontend work:**
-1. Scenarios list + editor
-2. Scenario step tree component — flat ordered list first with step type labels (normal,
-   alternate, exception), then iterate toward drag-and-drop indent/outdent tree
-3. Scenario selector dialog (shared, reused by use case editor in Phase 7)
+1. `ScenarioListComponent` — table: Name, Type, Created By; New button
+2. `ScenarioEditorComponent`:
+   - Name, type (p-select), text fields with change tracking
+   - Step tree using `p-tree` with `draggableNodes`/`droppableNodes`
+   - Plain step nodes: inline name `<input>`, edit popup button (name + type + text),
+     delete button, "add step below" (+) button
+   - Sub-scenario nodes: name as router link + navigate icon, delete-from-parent button
+   - Toolbar: "Add Step" (appends empty inline row), "Add Sub-scenario" (opens selector dialog)
+   - Save sends full ordered step list
+3. `ScenarioSelectorDialogComponent` — lists existing scenarios, excludes self and direct
+   cycle candidates; inline "New Scenario" creation form (name + type); reused by Phase 7
+   use case editor
+4. Routes: `/projects/:name/scenarios`, `/projects/:name/scenarios/:scenarioId`
+5. Sidebar nav: Scenarios click handler
 
 **Echo2 panels replaced:** `ScenarioNavigatorPanel`, `ScenarioEditorPanel`, `ScenarioSelectorPanel`, `ScenarioEditorTreeNodeFactory`, `ScenarioStepEditorTreeNodeFactory`
 

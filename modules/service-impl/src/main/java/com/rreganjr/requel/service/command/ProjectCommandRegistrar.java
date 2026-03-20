@@ -1,7 +1,9 @@
 package com.rreganjr.requel.service.command;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,15 +17,19 @@ import com.rreganjr.requel.project.GoalRelation;
 import com.rreganjr.requel.project.NonUserStakeholder;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Stakeholder;
+import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
 import com.rreganjr.requel.project.command.CopyGoalCommand;
+import com.rreganjr.requel.project.command.CopyScenarioCommand;
 import com.rreganjr.requel.project.command.CopyStoryCommand;
 import com.rreganjr.requel.project.command.DeleteActorCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
+import com.rreganjr.requel.project.command.DeleteScenarioCommand;
 import com.rreganjr.requel.project.command.DeleteStakeholderCommand;
 import com.rreganjr.requel.project.command.DeleteStoryCommand;
 import com.rreganjr.requel.project.command.EditActorCommand;
@@ -31,6 +37,8 @@ import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditGoalRelationCommand;
 import com.rreganjr.requel.project.command.EditNonUserStakeholderCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
+import com.rreganjr.requel.project.command.EditScenarioCommand;
+import com.rreganjr.requel.project.command.EditScenarioStepCommand;
 import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
@@ -41,13 +49,17 @@ import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.AddGoalToGoalContainerInput;
 import com.rreganjr.requel.service.api.dto.CopyGoalInput;
+import com.rreganjr.requel.service.api.dto.CopyScenarioInput;
 import com.rreganjr.requel.service.api.dto.CopyStoryInput;
 import com.rreganjr.requel.service.api.dto.DeleteActorInput;
+import com.rreganjr.requel.service.api.dto.DeleteScenarioInput;
 import com.rreganjr.requel.service.api.dto.DeleteGoalInput;
 import com.rreganjr.requel.service.api.dto.DeleteGoalRelationInput;
 import com.rreganjr.requel.service.api.dto.DeleteStakeholderInput;
 import com.rreganjr.requel.service.api.dto.DeleteStoryInput;
 import com.rreganjr.requel.service.api.dto.EditActorInput;
+import com.rreganjr.requel.service.api.dto.EditScenarioInput;
+import com.rreganjr.requel.service.api.dto.EditStepInput;
 import com.rreganjr.requel.service.api.dto.EditGoalInput;
 import com.rreganjr.requel.service.api.dto.EditGoalRelationInput;
 import com.rreganjr.requel.service.api.dto.EditNonUserStakeholderInput;
@@ -342,14 +354,97 @@ public class ProjectCommandRegistrar {
 
         // Use Cases & Scenarios
         registry.register("EditUseCase", factory::newEditUseCaseCommand);
-        registry.register("EditScenario", factory::newEditScenarioCommand);
+
+        registry.register("EditScenario", EditScenarioInput.class,
+                factory::newEditScenarioCommand,
+                (cmd, input) -> {
+                    EditScenarioCommand c = (EditScenarioCommand) cmd;
+                    EditScenarioInput i = (EditScenarioInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setProjectOrDomain(project);
+                    if (i.scenarioId() != null) {
+                        c.setScenario(findScenarioById(project, i.scenarioId()));
+                    }
+                    if (i.name() != null) c.setName(i.name());
+                    if (i.text() != null) c.setText(i.text());
+                    if (i.scenarioTypeName() != null) c.setScenarioTypeName(i.scenarioTypeName());
+
+                    List<EditScenarioStepCommand> stepCmds = new ArrayList<>();
+                    if (i.steps() != null) {
+                        for (EditStepInput si : i.steps()) {
+                            if (si.isScenario() && si.stepId() == null) {
+                                // New sub-scenario — create inline
+                                EditScenarioCommand subCmd = (EditScenarioCommand) factory.newEditScenarioCommand();
+                                subCmd.setProjectOrDomain(project);
+                                subCmd.setName(si.name());
+                                if (si.text() != null) subCmd.setText(si.text());
+                                subCmd.setScenarioTypeName(si.scenarioTypeName() != null ? si.scenarioTypeName() : "Primary");
+                                subCmd.setStepCommands(new ArrayList<>());
+                                stepCmds.add(subCmd);
+                            } else if (si.isScenario()) {
+                                // Existing sub-scenario reference — pass through as a step update
+                                // using EditScenarioStepCommand so we don't clear its own step list
+                                EditScenarioStepCommand subCmd = factory.newEditScenarioStepCommand();
+                                Scenario existingSub = findScenarioById(project, si.stepId());
+                                subCmd.setProjectOrDomain(project);
+                                subCmd.setStep(existingSub);
+                                subCmd.setName(si.name() != null ? si.name() : existingSub.getName());
+                                subCmd.setText(si.text() != null ? si.text() : existingSub.getText());
+                                subCmd.setScenarioTypeName(si.scenarioTypeName() != null
+                                        ? si.scenarioTypeName() : existingSub.getType().name());
+                                stepCmds.add(subCmd);
+                            } else if (si.stepId() == null) {
+                                // New plain step
+                                EditScenarioStepCommand stepCmd = factory.newEditScenarioStepCommand();
+                                stepCmd.setProjectOrDomain(project);
+                                stepCmd.setName(si.name());
+                                if (si.text() != null) stepCmd.setText(si.text());
+                                stepCmd.setScenarioTypeName(si.scenarioTypeName() != null ? si.scenarioTypeName() : "Primary");
+                                stepCmds.add(stepCmd);
+                            } else {
+                                // Existing plain step
+                                EditScenarioStepCommand stepCmd = factory.newEditScenarioStepCommand();
+                                Step existingStep = findStepByIdAcrossScenarios(project, si.stepId());
+                                stepCmd.setProjectOrDomain(project);
+                                stepCmd.setStep(existingStep);
+                                stepCmd.setName(si.name() != null ? si.name() : existingStep.getName());
+                                stepCmd.setText(si.text() != null ? si.text() : existingStep.getText());
+                                stepCmd.setScenarioTypeName(si.scenarioTypeName() != null
+                                        ? si.scenarioTypeName() : existingStep.getType().name());
+                                stepCmds.add(stepCmd);
+                            }
+                        }
+                    }
+                    c.setStepCommands(stepCmds);
+                },
+                null,
+                cmd -> ProjectQueryController.toScenarioDetailDto(((EditScenarioCommand) cmd).getScenario()));
+
+        registry.register("CopyScenario", CopyScenarioInput.class,
+                factory::newCopyScenarioCommand,
+                (cmd, input) -> {
+                    CopyScenarioCommand c = (CopyScenarioCommand) cmd;
+                    CopyScenarioInput i = (CopyScenarioInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setOriginalScenario(findScenarioById(project, i.scenarioId()));
+                },
+                null,
+                cmd -> ProjectQueryController.toScenarioDetailDto(((CopyScenarioCommand) cmd).getNewScenario()));
+
+        registry.register("DeleteScenario", DeleteScenarioInput.class,
+                factory::newDeleteScenarioCommand,
+                (cmd, input) -> {
+                    DeleteScenarioCommand c = (DeleteScenarioCommand) cmd;
+                    DeleteScenarioInput i = (DeleteScenarioInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setScenario(findScenarioById(project, i.scenarioId()));
+                });
+
         registry.register("EditScenarioStep", factory::newEditScenarioStepCommand);
         registry.register("CopyUseCase", factory::newCopyUseCaseCommand);
-        registry.register("CopyScenario", factory::newCopyScenarioCommand);
         registry.register("CopyScenarioStep", factory::newCopyScenarioStepCommand);
         registry.register("ConvertStepToScenario", factory::newConvertStepToScenarioCommand);
         registry.register("DeleteUseCase", factory::newDeleteUseCaseCommand);
-        registry.register("DeleteScenario", factory::newDeleteScenarioCommand);
         registry.register("DeleteScenarioStep", factory::newDeleteScenarioStepCommand);
 
         // Glossary
@@ -461,6 +556,22 @@ public class ProjectCommandRegistrar {
             if (s.getName().equals(name)) return s;
         }
         throw new IllegalArgumentException("Story not found: " + name);
+    }
+
+    private static Scenario findScenarioById(Project project, Long scenarioId) {
+        for (Scenario s : project.getScenarios()) {
+            if (s.getId().equals(scenarioId)) return s;
+        }
+        throw new IllegalArgumentException("Scenario not found: " + scenarioId);
+    }
+
+    private static Step findStepByIdAcrossScenarios(Project project, Long stepId) {
+        for (Scenario s : project.getScenarios()) {
+            for (Step step : s.getSteps()) {
+                if (step.getId().equals(stepId)) return step;
+            }
+        }
+        throw new IllegalArgumentException("Step not found: " + stepId);
     }
 
     private static ProjectDto toDto(Project project) {

@@ -23,6 +23,8 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
 import com.rreganjr.requel.project.GoalRelation;
@@ -41,6 +43,8 @@ import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.project.NonUserStakeholder;
 import com.rreganjr.requel.service.api.dto.ActorDto;
+import com.rreganjr.requel.service.api.dto.ScenarioDto;
+import com.rreganjr.requel.service.api.dto.StepDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GoalDto;
 import com.rreganjr.requel.service.api.dto.GoalRelationDto;
@@ -396,6 +400,47 @@ public class ProjectQueryController {
         }
     }
 
+    /**
+     * GET /api/projects/{name}/scenarios — list of scenarios (no steps).
+     */
+    @GetMapping("/{name}/scenarios")
+    public ResponseEntity<?> listScenarios(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<ScenarioDto> dtos = project.getScenarios().stream()
+                    .map(ProjectQueryController::toScenarioSummaryDto)
+                    .sorted(Comparator.comparing(ScenarioDto::name))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/scenarios/{scenarioId} — single scenario with step list.
+     */
+    @GetMapping("/{name}/scenarios/{scenarioId}")
+    public ResponseEntity<?> getScenario(@PathVariable String name, @PathVariable Long scenarioId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (Scenario s : project.getScenarios()) {
+                if (s.getId().equals(scenarioId)) {
+                    return ResponseEntity.ok(toScenarioDetailDto(s));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────
 
     /**
@@ -583,6 +628,34 @@ public class ProjectQueryController {
                 actor.getId(), actor.getVersion(), actor.getName(), actor.getText(),
                 actor.getCreatedBy() != null ? actor.getCreatedBy().getDisplayName() : null,
                 goals);
+    }
+
+    static ScenarioDto toScenarioSummaryDto(Scenario scenario) {
+        return new ScenarioDto(
+                scenario.getId(), scenario.getVersion(), scenario.getName(), scenario.getText(),
+                scenario.getType() != null ? scenario.getType().name() : null,
+                scenario.getCreatedBy() != null ? scenario.getCreatedBy().getDisplayName() : null,
+                null);
+    }
+
+    public static ScenarioDto toScenarioDetailDto(Scenario scenario) {
+        List<StepDto> steps = new ArrayList<>();
+        for (Step step : scenario.getSteps()) {
+            boolean isScenario = step instanceof Scenario;
+            steps.add(new StepDto(
+                    step.getId(),
+                    step.getVersion(),
+                    step.getName(),
+                    step.getText(),
+                    step.getType() != null ? step.getType().name() : null,
+                    isScenario,
+                    isScenario ? step.getId() : null));
+        }
+        return new ScenarioDto(
+                scenario.getId(), scenario.getVersion(), scenario.getName(), scenario.getText(),
+                scenario.getType() != null ? scenario.getType().name() : null,
+                scenario.getCreatedBy() != null ? scenario.getCreatedBy().getDisplayName() : null,
+                steps);
     }
 
     /**
