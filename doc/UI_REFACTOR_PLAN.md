@@ -1342,38 +1342,74 @@ with `draggableNodes`/`droppableNodes` as the foundation.
 (Phase 5) and scenarios (Phase 6) being in place.
 
 **Design Decisions:**
-- **Primary actor — auto-create by name** — preserves the existing `EditUseCaseCommandImpl`
-  behavior where a typed actor name is looked up and created as a stub if not found. Better
-  UX than forcing the user to leave the use case editor to create the actor first.
+- **Primary actor — `p-autoComplete` with auto-create** — as the user types, filter existing
+  project actors client-side (loaded list, no extra query). If the user finishes typing with
+  no selection, `EditUseCaseCommandImpl` auto-creates the actor on the server. This is the
+  first use of `p-autoComplete` in the Angular app. Better UX than forcing the user to leave
+  the editor to create the actor first.
+- **Scenario section — link + summary, start simple** — show the use case's linked scenario
+  as a navigation link with its step count and type. The linked scenario is always present
+  (auto-created by `EditUseCaseCommandImpl` on insert). Do not embed the scenario editor
+  inline for Phase 7; refine later if needed. The primary scenario's sub-scenarios carry
+  `Alternative`/`Exception` types — the full scenario tree is accessible via the scenario
+  editor route.
+- **Goals/actors/stories sub-tables** — same add/remove pattern as the goals section in the
+  stakeholder editor: entity selector dialog to add, remove button per row.
 - **Scenario auto-created on insert** — every UseCase creates an empty linked Scenario at
   insert time (domain invariant). The scenario becomes editable via the scenario editor route.
 - **"Referenced By" on actor editor** — the actor editor gets its "Referenced By" section
   (use cases and stories) in this phase, now that use cases exist in the Angular app.
-- **All three sub-tables in scope** — `usecase_goals`, `usecase_actors`, `usecase_stories`
-  are regular `@ManyToMany` (not `@ManyToAny`), so no Hibernate 6.5 workaround needed.
+- **All three sub-tables use regular `@ManyToMany`** — `usecase_goals`, `usecase_actors`,
+  `usecase_stories` are not `@ManyToAny`, so no Hibernate 6.5 native-query workaround needed.
 
-**Backend work — Commands:**
-1. Wire `EditUseCase` — fields: projectName, useCaseId (null = create), name, description,
-   primaryActorName (auto-create if not found), version.
+**Backend work — DTOs (new in `service-api`):**
+- `UseCaseDto` — `id, version, name, text, primaryActorName, createdBy, scenarioId,
+  scenarioName, goals: List<GoalDto>, actors: List<ActorDto>, stories: List<StoryDto>`
+  (summary list omits goals/actors/stories)
+- `EditUseCaseInput` — `projectName, useCaseId, name, text, primaryActorName, version`
+- `DeleteUseCaseInput` — `projectName, useCaseId, version`
+- `CopyUseCaseInput` — `projectName, useCaseId`
+- `AddStoryToStoryContainerInput` — `projectName, storyContainerId, storyId`
+- `RemoveStoryFromStoryContainerInput` — `projectName, storyContainerId, storyId`
+- `AddActorToActorContainerInput` — `projectName, actorContainerId, actorId`
+- `RemoveActorFromActorContainerInput` — `projectName, actorContainerId, actorId`
+
+**Backend work — Commands (in `ProjectCommandRegistrar`):**
+1. Wire `EditUseCase` — fields: projectName, useCaseId (null = create), name, text,
+   primaryActorName (auto-create if not found by `EditUseCaseCommandImpl`), version.
 2. Wire `DeleteUseCase` — fields: projectName, useCaseId, version.
-3. Wire goal/story/actor add+remove for use cases (reuse `AddGoalToGoalContainer` /
-   `RemoveGoalFromGoalContainer` after extending `findGoalContainerById` for use cases;
-   add equivalent `AddActorToActorContainer` / `RemoveActorFromActorContainer` wiring).
+3. Wire `CopyUseCase` — fields: projectName, useCaseId.
+4. Wire `AddStoryToStoryContainer` / `RemoveStoryFromStoryContainer` — currently registered
+   as no-arg stubs. Need `AddStoryToStoryContainerInput` DTO and a `findStoryContainerById`
+   helper (searches `Stakeholder`s, `UseCase`s, and `Project` itself — all implement
+   `StoryContainer`).
+5. Wire `AddActorToActorContainer` / `RemoveActorFromActorContainer` — same pattern; need
+   `AddActorToActorContainerInput` DTO and a `findActorContainerById` helper (searches
+   `UseCase`s and `Project` — actors do not live on stakeholders).
+6. Extend `findGoalContainerById` to include `UseCase`s (currently has
+   `// UseCases (Phase 7) not yet handled` comment).
 
 **Backend work — Queries:**
-1. `GET /api/projects/{name}/use-cases` → list of UseCaseDto (summary)
+1. `GET /api/projects/{name}/use-cases` → list of UseCaseDto (summary, no sub-tables)
 2. `GET /api/projects/{name}/use-cases/{id}` → single UseCaseDto with goals, actors, stories,
-   linked scenario reference
+   and linked scenario reference (id + name)
 
 **Frontend work:**
-1. Use case list + editor with:
-   - Primary actor selector (entity selector dialog, typed name with auto-create fallback)
-   - Goals sub-table (add/remove)
-   - Stories sub-table (add/remove)
-   - Actors sub-table (additional actors, add/remove)
-   - Link to associated scenario (navigates to scenario editor)
-2. Use case selector dialog (shared)
-3. Add "Referenced By" section to actor editor (use cases + stories)
+1. `UseCaseListComponent` — table: Name, Primary Actor, Created By; New button
+2. `UseCaseEditorComponent`:
+   - Name + text fields with change tracking
+   - Primary actor field: `p-autoComplete` filtering project actors client-side; free-text
+     allowed (server auto-creates if no match)
+   - Scenario section: read-only link to associated scenario (name + step count badge),
+     navigates to scenario editor
+   - Goals sub-table (add via `EntitySelectorDialogComponent`, remove button per row)
+   - Stories sub-table (add via `EntitySelectorDialogComponent`, remove button per row)
+   - Actors sub-table — additional actors beyond primary (add/remove)
+   - Copy, Delete, Save with change tracking
+3. `UseCaseSelectorDialogComponent` — lists existing use cases; reused by future phases
+4. Routes: `/projects/:name/use-cases`, `/projects/:name/use-cases/:useCaseId`
+5. Sidebar nav: Use Cases click handler
+6. Add "Referenced By" section to actor editor (use cases + stories)
 
 **Echo2 panels replaced:** `UseCaseNavigatorPanel`, `UseCaseEditorPanel`, `UseCaseSelectorPanel`, add/remove controllers
 
