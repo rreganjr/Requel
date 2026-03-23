@@ -95,9 +95,6 @@ interface StepNodeData {
             <h3>Steps</h3>
             @if (canEdit()) {
               <div class="section-actions">
-                <p-button label="Add Step" icon="pi pi-plus" size="small"
-                          severity="secondary" [outlined]="true"
-                          (onClick)="addStep()" />
                 <p-button label="Add Sub-scenario" icon="pi pi-sitemap" size="small"
                           severity="secondary" [outlined]="true"
                           (onClick)="showScenarioSelector = true" />
@@ -105,14 +102,16 @@ interface StepNodeData {
             }
           </div>
 
-          @if (stepNodes().length === 0) {
-            <p class="empty-text">No steps yet. Use the buttons above to add steps.</p>
-          } @else {
-            <div cdkDropList [cdkDropListDisabled]="!canEdit()"
-                 (cdkDropListDropped)="onDrop($event)"
-                 class="step-list">
-              @for (step of stepNodes(); track step) {
-                <div cdkDrag class="step-row">
+          <div cdkDropList [cdkDropListDisabled]="!canEdit()"
+               (cdkDropListDropped)="onDrop($event)"
+               class="step-list">
+            @if (canEdit()) {
+              <div class="add-step-row" (click)="addStepAt(0)">
+                <i class="pi pi-plus"></i> Add step
+              </div>
+            }
+            @for (step of stepNodes(); track step) {
+              <div cdkDrag class="step-row">
                   @if (canEdit()) {
                     <span cdkDragHandle class="drag-handle" pTooltip="Drag to reorder" tooltipPosition="left">
                       <i class="pi pi-bars"></i>
@@ -151,8 +150,12 @@ interface StepNodeData {
                   <div *cdkDragPlaceholder class="step-row-placeholder"></div>
                 </div>
               }
-            </div>
-          }
+            @if (canEdit()) {
+              <div class="add-step-row" (click)="addStep()">
+                <i class="pi pi-plus"></i> Add step
+              </div>
+            }
+          </div>
 
           @if (stepsSaveNeeded()) {
             <div class="steps-save-note">
@@ -226,6 +229,16 @@ interface StepNodeData {
       border: 2px dashed var(--p-primary-300, #93b4fb);
       border-radius: 4px; flex: 1;
     }
+
+    .add-step-row {
+      display: flex; align-items: center; justify-content: center; gap: 0.35rem;
+      padding: 0.3rem; cursor: pointer;
+      font-size: 0.8rem; color: var(--p-text-secondary-color);
+      border-bottom: 1px dashed var(--p-surface-200);
+      transition: background 0.15s, color 0.15s;
+    }
+    .add-step-row:last-child { border-bottom: none; border-top: 1px dashed var(--p-surface-200); }
+    .add-step-row:hover { background: var(--p-surface-50); color: var(--p-primary-color); }
 
     .drag-handle {
       cursor: grab; color: var(--p-text-secondary-color);
@@ -386,6 +399,17 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy {
       stepId: null, name: '', text: null,
       scenarioType: this.scenarioType, isScenario: false, isNew: true
     }]);
+    this.stepsSaveNeeded.set(true);
+    this.hasChanges.set(true);
+  }
+
+  addStepAt(index: number): void {
+    const steps = [...this.stepNodes()];
+    steps.splice(index, 0, {
+      stepId: null, name: '', text: null,
+      scenarioType: this.scenarioType, isScenario: false, isNew: true
+    });
+    this.stepNodes.set(steps);
     this.stepsSaveNeeded.set(true);
     this.hasChanges.set(true);
   }
