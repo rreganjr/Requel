@@ -102,6 +102,36 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
           [visible]="showGoalSelector"
           (selected)="onGoalSelected($event)"
           (closed)="showGoalSelector = false" />
+
+        <!-- Referenced By -->
+        <div class="goals-section">
+          <div class="section-header">
+            <h3>Referenced By</h3>
+          </div>
+          @if (referencedByUseCases().length === 0 && referencedByStories().length === 0) {
+            <p class="empty-text">Not referenced by any use case or story.</p>
+          }
+          @if (referencedByUseCases().length > 0) {
+            <p class="ref-label">Use Cases</p>
+            <p-table [value]="referencedByUseCases()" styleClass="p-datatable-sm">
+              <ng-template pTemplate="body" let-ref>
+                <tr>
+                  <td><a class="entity-link" (click)="navigate('use-cases', ref.id)">{{ ref.name }}</a></td>
+                </tr>
+              </ng-template>
+            </p-table>
+          }
+          @if (referencedByStories().length > 0) {
+            <p class="ref-label">Stories</p>
+            <p-table [value]="referencedByStories()" styleClass="p-datatable-sm">
+              <ng-template pTemplate="body" let-ref>
+                <tr>
+                  <td><a class="entity-link" (click)="navigate('stories', ref.id)">{{ ref.name }}</a></td>
+                </tr>
+              </ng-template>
+            </p-table>
+          }
+        </div>
       }
     </div>
 
@@ -117,6 +147,7 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
     .section-header h3 { margin: 0; }
     .entity-link { color: var(--p-primary-color); cursor: pointer; text-decoration: underline; }
     .empty-text { color: var(--p-text-muted-color); font-style: italic; }
+    .ref-label { font-weight: 600; font-size: 0.85rem; margin: 0.5rem 0 0.25rem; color: var(--p-text-secondary-color); }
   `]
 })
 export class ActorEditorComponent implements OnInit, OnDestroy {
@@ -128,6 +159,8 @@ export class ActorEditorComponent implements OnInit, OnDestroy {
   errorMessage = signal<string | null>(null);
   goals = signal<EntityReferenceDto[]>([]);
   goalIds = computed(() => this.goals().map(g => g.id).filter((id): id is number => id !== null));
+  referencedByUseCases = signal<EntityReferenceDto[]>([]);
+  referencedByStories = signal<EntityReferenceDto[]>([]);
   showGoalSelector = false;
 
   name = '';
@@ -188,6 +221,8 @@ export class ActorEditorComponent implements OnInit, OnDestroy {
       this.text = a.text ?? '';
       this.version = a.version;
       this.goals.set(a.goals ?? []);
+      this.referencedByUseCases.set(a.referencedByUseCases ?? []);
+      this.referencedByStories.set(a.referencedByStories ?? []);
       this.originalName = a.name;
       this.originalText = a.text ?? '';
       this.hasChanges.set(false);
@@ -255,7 +290,8 @@ export class ActorEditorComponent implements OnInit, OnDestroy {
       const result = await this.commandService.execute('AddGoalToGoalContainer', {
         projectName: this.projectName,
         goalContainerId: this.actorId,
-        goalId: goal.id
+        goalId: goal.id,
+        containerType: 'Actor'
       });
       if (result.success) {
         this.goals.update(list => [...list, goal].sort((a, b) => a.name.localeCompare(b.name)));
@@ -273,7 +309,8 @@ export class ActorEditorComponent implements OnInit, OnDestroy {
       const result = await this.commandService.execute('RemoveGoalFromGoalContainer', {
         projectName: this.projectName,
         goalContainerId: this.actorId,
-        goalId: goal.id
+        goalId: goal.id,
+        containerType: 'Actor'
       });
       if (result.success) {
         this.goals.update(list => list.filter(g => g.id !== goal.id));
@@ -288,6 +325,10 @@ export class ActorEditorComponent implements OnInit, OnDestroy {
 
   onGoalClick(goalId: number): void {
     this.router.navigate(['/projects', this.projectName, 'goals', goalId]);
+  }
+
+  navigate(type: string, id: number): void {
+    this.router.navigate(['/projects', this.projectName, type, id]);
   }
 
   onBack(): void {

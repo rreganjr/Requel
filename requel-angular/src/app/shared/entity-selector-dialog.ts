@@ -7,6 +7,7 @@ import { InputText } from 'primeng/inputtext';
 import { EntityReferenceDto } from '../models/entity-reference';
 import { GoalService } from '../core/goal.service';
 import { StoryService } from '../core/story.service';
+import { ActorService } from '../core/actor.service';
 
 /**
  * Shared dialog for selecting an entity from a project.
@@ -75,7 +76,8 @@ export class EntitySelectorDialogComponent implements OnChanges {
 
   constructor(
     private goalService: GoalService,
-    private storyService: StoryService
+    private storyService: StoryService,
+    private actorService: ActorService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -100,6 +102,11 @@ export class EntitySelectorDialogComponent implements OnChanges {
         case 'Story': {
           const stories = await this.storyService.listStories(this.projectName);
           refs = stories.map(s => ({ entityType: 'Story', id: s.id, name: s.name }));
+          break;
+        }
+        case 'Actor': {
+          const actors = await this.actorService.listActors(this.projectName);
+          refs = actors.map(a => ({ entityType: 'Actor', id: a.id, name: a.name }));
           break;
         }
       }

@@ -32,6 +32,7 @@ import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveActorFromActorContainerCommand;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
+import com.rreganjr.requel.project.impl.repository.jpa.JpaProjectRepository;
 import com.rreganjr.requel.user.UserRepository;
 
 /**
@@ -83,11 +84,18 @@ public class RemoveActorFromActorContainerCommandImpl extends AbstractEditProjec
 	public void execute() {
 		Actor removedActor = getProjectRepository().get(getActor());
 		ActorContainer removingContainer = getProjectRepository().get(getActorContainer());
-		removedActor.getReferers().remove(removingContainer);
-		removingContainer.getActors().remove(removedActor);
 
-		// replaced the supplied objects with the updated objects for retrieval.
-		removedActor = getRepository().merge(removedActor);
+		// Hibernate 6.5 bug: @ManyToAny collection removal generates invalid SQL for the
+		// actor_actorcontainers join table. Use a native DELETE instead.
+		JpaProjectRepository jpaRepo = (JpaProjectRepository) getProjectRepository();
+		jakarta.persistence.PersistenceUnitUtil puu = jpaRepo.getEntityManager()
+				.getEntityManagerFactory().getPersistenceUnitUtil();
+		Long actorId = (Long) puu.getIdentifier(removedActor);
+		Long containerId = (Long) puu.getIdentifier(removingContainer);
+		jpaRepo.removeActorContainerFromActorJoinTable(actorId, containerId);
+		jpaRepo.getEntityManager().refresh(removedActor);
+
+		removingContainer.getActors().remove(removedActor);
 		removingContainer = getRepository().merge(removingContainer);
 		setActor(removedActor);
 		setActorContainer(removingContainer);

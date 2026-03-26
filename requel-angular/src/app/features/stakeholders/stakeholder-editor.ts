@@ -305,7 +305,8 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
       const result = await this.commandService.execute('AddGoalToGoalContainer', {
         projectName: this.projectName,
         goalContainerId: this.stakeholderId,
-        goalId: goal.id
+        goalId: goal.id,
+        containerType: 'Stakeholder'
       });
       if (result.success) {
         this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
@@ -323,7 +324,8 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
       const result = await this.commandService.execute('RemoveGoalFromGoalContainer', {
         projectName: this.projectName,
         goalContainerId: this.stakeholderId,
-        goalId: goal.id
+        goalId: goal.id,
+        containerType: 'Stakeholder'
       });
       if (result.success) {
         this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });

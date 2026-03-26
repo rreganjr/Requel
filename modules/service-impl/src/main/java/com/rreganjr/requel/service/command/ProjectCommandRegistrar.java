@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.ActorContainer;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
 import com.rreganjr.requel.project.GoalRelation;
@@ -21,17 +22,23 @@ import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.Story;
+import com.rreganjr.requel.project.StoryContainer;
+import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.UserStakeholder;
+import com.rreganjr.requel.project.command.AddActorToActorContainerCommand;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
+import com.rreganjr.requel.project.command.AddStoryToStoryContainerCommand;
 import com.rreganjr.requel.project.command.CopyGoalCommand;
 import com.rreganjr.requel.project.command.CopyScenarioCommand;
 import com.rreganjr.requel.project.command.CopyStoryCommand;
+import com.rreganjr.requel.project.command.CopyUseCaseCommand;
 import com.rreganjr.requel.project.command.DeleteActorCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.DeleteScenarioCommand;
 import com.rreganjr.requel.project.command.DeleteStakeholderCommand;
 import com.rreganjr.requel.project.command.DeleteStoryCommand;
+import com.rreganjr.requel.project.command.DeleteUseCaseCommand;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditGoalRelationCommand;
@@ -40,23 +47,30 @@ import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditScenarioCommand;
 import com.rreganjr.requel.project.command.EditScenarioStepCommand;
 import com.rreganjr.requel.project.command.EditStoryCommand;
+import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.command.RemoveActorFromActorContainerCommand;
 import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
+import com.rreganjr.requel.project.command.RemoveStoryFromStoryContainerCommand;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.api.dto.ActorDto;
+import com.rreganjr.requel.service.api.dto.AddActorToActorContainerInput;
 import com.rreganjr.requel.service.api.dto.AddGoalToGoalContainerInput;
+import com.rreganjr.requel.service.api.dto.AddStoryToStoryContainerInput;
 import com.rreganjr.requel.service.api.dto.CopyGoalInput;
 import com.rreganjr.requel.service.api.dto.CopyScenarioInput;
 import com.rreganjr.requel.service.api.dto.CopyStoryInput;
+import com.rreganjr.requel.service.api.dto.CopyUseCaseInput;
 import com.rreganjr.requel.service.api.dto.DeleteActorInput;
 import com.rreganjr.requel.service.api.dto.DeleteScenarioInput;
 import com.rreganjr.requel.service.api.dto.DeleteGoalInput;
 import com.rreganjr.requel.service.api.dto.DeleteGoalRelationInput;
 import com.rreganjr.requel.service.api.dto.DeleteStakeholderInput;
 import com.rreganjr.requel.service.api.dto.DeleteStoryInput;
+import com.rreganjr.requel.service.api.dto.DeleteUseCaseInput;
 import com.rreganjr.requel.service.api.dto.EditActorInput;
 import com.rreganjr.requel.service.api.dto.EditScenarioInput;
 import com.rreganjr.requel.service.api.dto.EditStepInput;
@@ -65,10 +79,13 @@ import com.rreganjr.requel.service.api.dto.EditGoalRelationInput;
 import com.rreganjr.requel.service.api.dto.EditNonUserStakeholderInput;
 import com.rreganjr.requel.service.api.dto.EditProjectInput;
 import com.rreganjr.requel.service.api.dto.EditStoryInput;
+import com.rreganjr.requel.service.api.dto.EditUseCaseInput;
 import com.rreganjr.requel.service.api.dto.EditUserStakeholderInput;
 import com.rreganjr.requel.service.api.dto.ImportProjectInput;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
+import com.rreganjr.requel.service.api.dto.RemoveActorFromActorContainerInput;
 import com.rreganjr.requel.service.api.dto.RemoveGoalFromGoalContainerInput;
+import com.rreganjr.requel.service.api.dto.RemoveStoryFromStoryContainerInput;
 import com.rreganjr.requel.service.query.ProjectQueryController;
 
 import jakarta.annotation.PostConstruct;
@@ -261,7 +278,7 @@ public class ProjectCommandRegistrar {
                     AddGoalToGoalContainerCommand c = (AddGoalToGoalContainerCommand) cmd;
                     AddGoalToGoalContainerInput i = (AddGoalToGoalContainerInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
-                    GoalContainer container = findGoalContainerById(project, i.goalContainerId());
+                    GoalContainer container = findGoalContainerById(project, i.goalContainerId(), i.containerType());
                     c.setGoalContainer(container);
                     c.setGoal(findGoalById(project, i.goalId()));
                 });
@@ -272,7 +289,7 @@ public class ProjectCommandRegistrar {
                     RemoveGoalFromGoalContainerCommand c = (RemoveGoalFromGoalContainerCommand) cmd;
                     RemoveGoalFromGoalContainerInput i = (RemoveGoalFromGoalContainerInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
-                    GoalContainer container = findGoalContainerById(project, i.goalContainerId());
+                    GoalContainer container = findGoalContainerById(project, i.goalContainerId(), i.containerType());
                     c.setGoalContainer(container);
                     c.setGoal(findGoalById(project, i.goalId()));
                 });
@@ -317,8 +334,25 @@ public class ProjectCommandRegistrar {
                     c.setStory(findStoryById(project, i.storyId()));
                 });
 
-        registry.register("AddStoryToStoryContainer", factory::newAddStoryToStoryContainerCommand);
-        registry.register("RemoveStoryFromStoryContainer", factory::newRemoveStoryFromStoryContainerCommand);
+        registry.register("AddStoryToStoryContainer", AddStoryToStoryContainerInput.class,
+                factory::newAddStoryToStoryContainerCommand,
+                (cmd, input) -> {
+                    AddStoryToStoryContainerCommand c = (AddStoryToStoryContainerCommand) cmd;
+                    AddStoryToStoryContainerInput i = (AddStoryToStoryContainerInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setStoryContainer(findStoryContainerById(project, i.storyContainerId()));
+                    c.setStory(findStoryById(project, i.storyId()));
+                });
+
+        registry.register("RemoveStoryFromStoryContainer", RemoveStoryFromStoryContainerInput.class,
+                factory::newRemoveStoryFromStoryContainerCommand,
+                (cmd, input) -> {
+                    RemoveStoryFromStoryContainerCommand c = (RemoveStoryFromStoryContainerCommand) cmd;
+                    RemoveStoryFromStoryContainerInput i = (RemoveStoryFromStoryContainerInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setStoryContainer(findStoryContainerById(project, i.storyContainerId()));
+                    c.setStory(findStoryById(project, i.storyId()));
+                });
 
         // Actors
         registry.register("EditActor", EditActorInput.class,
@@ -339,8 +373,25 @@ public class ProjectCommandRegistrar {
                 null,
                 cmd -> ProjectQueryController.toActorDetailDto(((EditActorCommand) cmd).getActor()));
 
-        registry.register("AddActorToActorContainer", factory::newAddActorToActorContainerCommand);
-        registry.register("RemoveActorFromActorContainer", factory::newRemoveActorFromActorContainerCommand);
+        registry.register("AddActorToActorContainer", AddActorToActorContainerInput.class,
+                factory::newAddActorToActorContainerCommand,
+                (cmd, input) -> {
+                    AddActorToActorContainerCommand c = (AddActorToActorContainerCommand) cmd;
+                    AddActorToActorContainerInput i = (AddActorToActorContainerInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setActorContainer(findActorContainerById(project, i.actorContainerId()));
+                    c.setActor(findActorById(project, i.actorId()));
+                });
+
+        registry.register("RemoveActorFromActorContainer", RemoveActorFromActorContainerInput.class,
+                factory::newRemoveActorFromActorContainerCommand,
+                (cmd, input) -> {
+                    RemoveActorFromActorContainerCommand c = (RemoveActorFromActorContainerCommand) cmd;
+                    RemoveActorFromActorContainerInput i = (RemoveActorFromActorContainerInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setActorContainer(findActorContainerById(project, i.actorContainerId()));
+                    c.setActor(findActorById(project, i.actorId()));
+                });
         registry.register("CopyActor", factory::newCopyActorCommand);
 
         registry.register("DeleteActor", DeleteActorInput.class,
@@ -353,7 +404,23 @@ public class ProjectCommandRegistrar {
                 });
 
         // Use Cases & Scenarios
-        registry.register("EditUseCase", factory::newEditUseCaseCommand);
+        registry.register("EditUseCase", EditUseCaseInput.class,
+                factory::newEditUseCaseCommand,
+                (cmd, input) -> {
+                    EditUseCaseCommand c = (EditUseCaseCommand) cmd;
+                    EditUseCaseInput i = (EditUseCaseInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setProjectOrDomain(project);
+                    if (i.useCaseId() != null) {
+                        c.setUseCase(findUseCaseById(project, i.useCaseId()));
+                    }
+                    c.setName(i.name());
+                    if (i.text() != null) c.setText(i.text());
+                    if (i.primaryActorName() != null) c.setPrimaryActorName(i.primaryActorName());
+                    c.setStepCommands(new ArrayList<>());
+                },
+                null,
+                cmd -> ProjectQueryController.toUseCaseDetailDto(((EditUseCaseCommand) cmd).getUseCase()));
 
         registry.register("EditScenario", EditScenarioInput.class,
                 factory::newEditScenarioCommand,
@@ -441,10 +508,26 @@ public class ProjectCommandRegistrar {
                 });
 
         registry.register("EditScenarioStep", factory::newEditScenarioStepCommand);
-        registry.register("CopyUseCase", factory::newCopyUseCaseCommand);
+        registry.register("CopyUseCase", CopyUseCaseInput.class,
+                factory::newCopyUseCaseCommand,
+                (cmd, input) -> {
+                    CopyUseCaseCommand c = (CopyUseCaseCommand) cmd;
+                    CopyUseCaseInput i = (CopyUseCaseInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setOriginalUseCase(findUseCaseById(project, i.useCaseId()));
+                },
+                null,
+                cmd -> ProjectQueryController.toUseCaseDetailDto(((CopyUseCaseCommand) cmd).getNewUseCase()));
         registry.register("CopyScenarioStep", factory::newCopyScenarioStepCommand);
         registry.register("ConvertStepToScenario", factory::newConvertStepToScenarioCommand);
-        registry.register("DeleteUseCase", factory::newDeleteUseCaseCommand);
+        registry.register("DeleteUseCase", DeleteUseCaseInput.class,
+                factory::newDeleteUseCaseCommand,
+                (cmd, input) -> {
+                    DeleteUseCaseCommand c = (DeleteUseCaseCommand) cmd;
+                    DeleteUseCaseInput i = (DeleteUseCaseInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setUseCase(findUseCaseById(project, i.useCaseId()));
+                });
         registry.register("DeleteScenarioStep", factory::newDeleteScenarioStepCommand);
 
         // Glossary
@@ -499,7 +582,35 @@ public class ProjectCommandRegistrar {
         throw new IllegalArgumentException("Goal not found: " + goalId);
     }
 
-    private static GoalContainer findGoalContainerById(Project project, Long containerId) {
+    private static GoalContainer findGoalContainerById(Project project, Long containerId, String containerType) {
+        // When the caller knows the entity type, skip straight to that collection to avoid
+        // ID collisions between entity types (all tables use per-table auto-increment).
+        if ("UseCase".equalsIgnoreCase(containerType)) {
+            for (UseCase uc : project.getUseCases()) {
+                if (uc.getId().equals(containerId)) return (GoalContainer) uc;
+            }
+            throw new IllegalArgumentException("UseCase GoalContainer not found: " + containerId);
+        }
+        if ("Story".equalsIgnoreCase(containerType)) {
+            for (Story s : project.getStories()) {
+                if (s.getId().equals(containerId)) return (GoalContainer) s;
+            }
+            throw new IllegalArgumentException("Story GoalContainer not found: " + containerId);
+        }
+        if ("Actor".equalsIgnoreCase(containerType)) {
+            for (Actor a : project.getActors()) {
+                if (a.getId().equals(containerId)) return (GoalContainer) a;
+            }
+            throw new IllegalArgumentException("Actor GoalContainer not found: " + containerId);
+        }
+        if ("Stakeholder".equalsIgnoreCase(containerType) || "UserStakeholder".equalsIgnoreCase(containerType)
+                || "NonUserStakeholder".equalsIgnoreCase(containerType)) {
+            for (Stakeholder s : project.getStakeholders()) {
+                if (s.getId().equals(containerId)) return (GoalContainer) s;
+            }
+            throw new IllegalArgumentException("Stakeholder GoalContainer not found: " + containerId);
+        }
+        // Fall back: search all (legacy path, may hit ID collisions)
         for (Stakeholder s : project.getStakeholders()) {
             if (s.getId().equals(containerId)) return (GoalContainer) s;
         }
@@ -509,8 +620,36 @@ public class ProjectCommandRegistrar {
         for (Actor a : project.getActors()) {
             if (a.getId().equals(containerId)) return (GoalContainer) a;
         }
-        // UseCases (Phase 7) not yet handled
+        for (UseCase uc : project.getUseCases()) {
+            if (uc.getId().equals(containerId)) return (GoalContainer) uc;
+        }
         throw new IllegalArgumentException("GoalContainer not found: " + containerId);
+    }
+
+    private static StoryContainer findStoryContainerById(Project project, Long containerId) {
+        if (project.getId().equals(containerId)) return project;
+        for (Stakeholder s : project.getStakeholders()) {
+            if (s.getId().equals(containerId)) return (StoryContainer) s;
+        }
+        for (UseCase uc : project.getUseCases()) {
+            if (uc.getId().equals(containerId)) return uc;
+        }
+        throw new IllegalArgumentException("StoryContainer not found: " + containerId);
+    }
+
+    private static ActorContainer findActorContainerById(Project project, Long containerId) {
+        if (project.getId().equals(containerId)) return project;
+        for (UseCase uc : project.getUseCases()) {
+            if (uc.getId().equals(containerId)) return uc;
+        }
+        throw new IllegalArgumentException("ActorContainer not found: " + containerId);
+    }
+
+    private static UseCase findUseCaseById(Project project, Long useCaseId) {
+        for (UseCase uc : project.getUseCases()) {
+            if (uc.getId().equals(useCaseId)) return uc;
+        }
+        throw new IllegalArgumentException("UseCase not found: " + useCaseId);
     }
 
     private static Actor findActorById(Project project, Long actorId) {

@@ -320,7 +320,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
       const result = await this.commandService.execute('AddGoalToGoalContainer', {
         projectName: this.projectName,
         goalContainerId: this.storyId,
-        goalId: ref.id
+        goalId: ref.id,
+        containerType: 'Story'
       });
       if (result.success) {
         this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
@@ -341,7 +342,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
       const result = await this.commandService.execute('RemoveGoalFromGoalContainer', {
         projectName: this.projectName,
         goalContainerId: this.storyId,
-        goalId: goalRef.id
+        goalId: goalRef.id,
+        containerType: 'Story'
       });
       if (result.success) {
         this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });

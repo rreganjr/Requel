@@ -7,4 +7,6 @@ export interface ActorDto {
   text: string | null;
   createdBy: string | null;
   goals: EntityReferenceDto[] | null;
+  referencedByUseCases: EntityReferenceDto[] | null;
+  referencedByStories: EntityReferenceDto[] | null;
 }

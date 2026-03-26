@@ -216,4 +216,39 @@ public interface ProjectRepository extends Repository {
 	 * @param goalContainerId the id of the goal container to unlink
 	 */
 	void removeGoalContainerFromGoalJoinTable(Long goalId, Long goalContainerId);
+
+	/**
+	 * Insert a single row into the goals_goalcontainers join table using a
+	 * native query. Required to work around a Hibernate 6.5 bug where
+	 * {@code @ManyToAny} collection insertion generates invalid parameterized SQL.
+	 *
+	 * @param goalId              the id of the goal
+	 * @param goalContainerId     the id of the goal container to link
+	 * @param goalContainerType   the discriminator string for the container type
+	 */
+	void addGoalContainerToGoalJoinTable(Long goalId, Long goalContainerId, String goalContainerType);
+
+	/**
+	 * Remove a single row from the actor_actorcontainers join table using a native query.
+	 * Workaround for the Hibernate 6.5 {@code @ManyToAny} bug.
+	 */
+	void removeActorContainerFromActorJoinTable(Long actorId, Long actorContainerId);
+
+	/**
+	 * Insert a single row into the actor_actorcontainers join table using a native query.
+	 * Workaround for the Hibernate 6.5 {@code @ManyToAny} bug.
+	 */
+	void addActorContainerToActorJoinTable(Long actorId, Long actorContainerId, String actorContainerType);
+
+	/**
+	 * Remove a single row from the story_storycontainers join table using a native query.
+	 * Workaround for the Hibernate 6.5 {@code @ManyToAny} bug.
+	 */
+	void removeStoryContainerFromStoryJoinTable(Long storyId, Long storyContainerId);
+
+	/**
+	 * Insert a single row into the story_storycontainers join table using a native query.
+	 * Workaround for the Hibernate 6.5 {@code @ManyToAny} bug.
+	 */
+	void addStoryContainerToStoryJoinTable(Long storyId, Long storyContainerId, String storyContainerType);
 }

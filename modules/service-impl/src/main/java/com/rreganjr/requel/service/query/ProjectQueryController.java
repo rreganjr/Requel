@@ -50,6 +50,7 @@ import com.rreganjr.requel.service.api.dto.GoalDto;
 import com.rreganjr.requel.service.api.dto.GoalRelationDto;
 import com.rreganjr.requel.service.api.dto.NonUserStakeholderDetails;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
+import com.rreganjr.requel.service.api.dto.UseCaseDto;
 import com.rreganjr.requel.service.api.dto.ProjectPermissionsDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
 import com.rreganjr.requel.service.api.dto.StakeholderDto;
@@ -441,6 +442,47 @@ public class ProjectQueryController {
         }
     }
 
+    /**
+     * GET /api/projects/{name}/use-cases — list of use cases (summary, no sub-tables).
+     */
+    @GetMapping("/{name}/use-cases")
+    public ResponseEntity<?> listUseCases(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<UseCaseDto> dtos = project.getUseCases().stream()
+                    .map(ProjectQueryController::toUseCaseSummaryDto)
+                    .sorted(Comparator.comparing(UseCaseDto::name))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/use-cases/{useCaseId} — single use case with sub-tables.
+     */
+    @GetMapping("/{name}/use-cases/{useCaseId}")
+    public ResponseEntity<?> getUseCase(@PathVariable String name, @PathVariable Long useCaseId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (UseCase uc : project.getUseCases()) {
+                if (uc.getId().equals(useCaseId)) {
+                    return ResponseEntity.ok(toUseCaseDetailDto(uc));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────
 
     /**
@@ -616,7 +658,7 @@ public class ProjectQueryController {
         return new ActorDto(
                 actor.getId(), actor.getVersion(), actor.getName(), actor.getText(),
                 actor.getCreatedBy() != null ? actor.getCreatedBy().getDisplayName() : null,
-                null);
+                null, null, null);
     }
 
     public static ActorDto toActorDetailDto(Actor actor) {
@@ -624,10 +666,20 @@ public class ProjectQueryController {
                 .map(g -> new EntityReferenceDto("Goal", g.getId(), g.getName()))
                 .sorted(Comparator.comparing(EntityReferenceDto::name))
                 .toList();
+        List<EntityReferenceDto> referencedByUseCases = actor.getReferers().stream()
+                .filter(r -> r instanceof UseCase)
+                .map(r -> new EntityReferenceDto("UseCase", ((UseCase) r).getId(), ((UseCase) r).getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
+        List<EntityReferenceDto> referencedByStories = actor.getReferers().stream()
+                .filter(r -> r instanceof Story)
+                .map(r -> new EntityReferenceDto("Story", ((Story) r).getId(), ((Story) r).getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name))
+                .toList();
         return new ActorDto(
                 actor.getId(), actor.getVersion(), actor.getName(), actor.getText(),
                 actor.getCreatedBy() != null ? actor.getCreatedBy().getDisplayName() : null,
-                goals);
+                goals, referencedByUseCases, referencedByStories);
     }
 
     static ScenarioDto toScenarioSummaryDto(Scenario scenario) {
@@ -656,6 +708,47 @@ public class ProjectQueryController {
                 scenario.getType() != null ? scenario.getType().name() : null,
                 scenario.getCreatedBy() != null ? scenario.getCreatedBy().getDisplayName() : null,
                 steps);
+    }
+
+    public static UseCaseDto toUseCaseSummaryDto(UseCase uc) {
+        return new UseCaseDto(
+                uc.getId(), uc.getVersion(), uc.getName(), uc.getText(),
+                uc.getPrimaryActor() != null ? uc.getPrimaryActor().getName() : null,
+                uc.getCreatedBy() != null ? uc.getCreatedBy().getDisplayName() : null,
+                uc.getScenario() != null ? uc.getScenario().getId() : null,
+                uc.getScenario() != null ? uc.getScenario().getName() : null,
+                uc.getScenario() != null ? uc.getScenario().getSteps().size() : null,
+                null, null, null);
+    }
+
+    public static UseCaseDto toUseCaseDetailDto(UseCase uc) {
+        List<GoalDto> goals = uc.getGoals().stream()
+                .map(g -> new GoalDto(g.getId(), g.getVersion(), g.getName(), g.getText(),
+                        g.getCreatedBy() != null ? g.getCreatedBy().getDisplayName() : null,
+                        null, null, null))
+                .sorted(Comparator.comparing(GoalDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        List<ActorDto> actors = uc.getActors().stream()
+                .map(a -> new ActorDto(a.getId(), a.getVersion(), a.getName(), a.getText(),
+                        a.getCreatedBy() != null ? a.getCreatedBy().getDisplayName() : null,
+                        null, null, null))
+                .sorted(Comparator.comparing(ActorDto::name))
+                .toList();
+        List<StoryDto> stories = uc.getStories().stream()
+                .map(s -> new StoryDto(s.getId(), s.getVersion(), s.getName(), s.getText(),
+                        s.getStoryType() != null ? s.getStoryType().name() : null,
+                        s.getCreatedBy() != null ? s.getCreatedBy().getDisplayName() : null,
+                        null, null))
+                .sorted(Comparator.comparing(StoryDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        return new UseCaseDto(
+                uc.getId(), uc.getVersion(), uc.getName(), uc.getText(),
+                uc.getPrimaryActor() != null ? uc.getPrimaryActor().getName() : null,
+                uc.getCreatedBy() != null ? uc.getCreatedBy().getDisplayName() : null,
+                uc.getScenario() != null ? uc.getScenario().getId() : null,
+                uc.getScenario() != null ? uc.getScenario().getName() : null,
+                uc.getScenario() != null ? uc.getScenario().getSteps().size() : null,
+                goals, actors, stories);
     }
 
     /**

@@ -31,7 +31,12 @@ import com.rreganjr.requel.project.ActorContainer;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.command.AddActorToActorContainerCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.impl.GoalImpl;
+import com.rreganjr.requel.project.impl.ProjectImpl;
+import com.rreganjr.requel.project.impl.StoryImpl;
+import com.rreganjr.requel.project.impl.UseCaseImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
+import com.rreganjr.requel.project.impl.repository.jpa.JpaProjectRepository;
 import com.rreganjr.requel.user.UserRepository;
 
 /**
@@ -83,13 +88,28 @@ public class AddActorToActorContainerCommandImpl extends AbstractEditProjectComm
 	public void execute() {
 		Actor addedActor = getProjectRepository().get(getActor());
 		ActorContainer addingContainer = getProjectRepository().get(getActorContainer());
-		addedActor.getReferers().add(addingContainer);
-		addingContainer.getActors().add(addedActor);
 
-		// replaced the supplied objects with the updated objects for retrieval.
-		addedActor = getProjectRepository().merge(addedActor);
-		addingContainer = getProjectRepository().merge(addingContainer);
+		// Hibernate 6.5 bug: @ManyToAny collection insertion generates invalid SQL for the
+		// actor_actorcontainers join table. Use a native INSERT instead.
+		JpaProjectRepository jpaRepo = (JpaProjectRepository) getProjectRepository();
+		jakarta.persistence.PersistenceUnitUtil puu = jpaRepo.getEntityManager()
+				.getEntityManagerFactory().getPersistenceUnitUtil();
+		Long actorId = (Long) puu.getIdentifier(addedActor);
+		Long containerId = (Long) puu.getIdentifier(addingContainer);
+		jpaRepo.addActorContainerToActorJoinTable(actorId, containerId, actorContainerDiscriminator(addingContainer));
+		jpaRepo.getEntityManager().refresh(addedActor);
+
+		addingContainer.getActors().add(addedActor);
+		addingContainer = getRepository().merge(addingContainer);
 		setActor(addedActor);
 		setActorContainer(addingContainer);
+	}
+
+	private static String actorContainerDiscriminator(ActorContainer container) {
+		if (container instanceof ProjectImpl)  return "com.rreganjr.requel.project.Project";
+		if (container instanceof UseCaseImpl)  return "com.rreganjr.requel.project.UseCase";
+		if (container instanceof GoalImpl)     return "com.rreganjr.requel.project.Goal";
+		if (container instanceof StoryImpl)    return "com.rreganjr.requel.project.Story";
+		throw new IllegalStateException("Unknown ActorContainer type: " + container.getClass().getName());
 	}
 }

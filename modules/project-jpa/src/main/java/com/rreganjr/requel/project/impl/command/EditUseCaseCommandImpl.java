@@ -115,33 +115,37 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 		User editedBy = getRepository().get(getEditedBy());
 		UseCaseImpl usecaseImpl = (UseCaseImpl) getUseCase();
 
-		// check for uniqueness
-		try {
-			UseCase existing = getProjectRepository().findUseCaseByProjectOrDomainAndName(
-					projectOrDomain, getName());
-			if (usecaseImpl == null) {
-				throw EntityException.uniquenessConflict(UseCase.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Creating);
-			} else if (!existing.equals(usecaseImpl)) {
-				throw EntityException.uniquenessConflict(UseCase.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Updating);
+		// check for uniqueness (skip when name is absent — edit-only-description scenario)
+		if (getName() != null && !getName().trim().isEmpty()) {
+			try {
+				UseCase existing = getProjectRepository().findUseCaseByProjectOrDomainAndName(
+						projectOrDomain, getName());
+				if (usecaseImpl == null) {
+					throw EntityException.uniquenessConflict(UseCase.class, existing, FIELD_NAME,
+							EntityExceptionActionType.Creating);
+				} else if (!existing.equals(usecaseImpl)) {
+					throw EntityException.uniquenessConflict(UseCase.class, existing, FIELD_NAME,
+							EntityExceptionActionType.Updating);
+				}
+			} catch (NoSuchEntityException e) {
 			}
-		} catch (NoSuchEntityException e) {
 		}
 
-		Actor primaryActor;
-		try {
-			primaryActor = getProjectRepository().findActorByProjectOrDomainAndName(
-					projectOrDomain, getPrimaryActorName());
-		} catch (NoSuchActorException e) {
-			EditActorCommand editActorCommand = getProjectCommandFactory().newEditActorCommand();
-			editActorCommand.setName(getPrimaryActorName());
-			editActorCommand.setActorContainer(projectOrDomain);
-			editActorCommand.setEditedBy(editedBy);
-			editActorCommand.setProjectOrDomain(projectOrDomain);
-			// don't analyze the actor because it only has a name at this point.
-			editActorCommand.setAnalysisEnabled(false);
-			primaryActor = getCommandHandler().execute(editActorCommand).getActor();
+		Actor primaryActor = null;
+		if (getPrimaryActorName() != null && !getPrimaryActorName().trim().isEmpty()) {
+			try {
+				primaryActor = getProjectRepository().findActorByProjectOrDomainAndName(
+						projectOrDomain, getPrimaryActorName());
+			} catch (NoSuchActorException e) {
+				EditActorCommand editActorCommand = getProjectCommandFactory().newEditActorCommand();
+				editActorCommand.setName(getPrimaryActorName());
+				editActorCommand.setActorContainer(projectOrDomain);
+				editActorCommand.setEditedBy(editedBy);
+				editActorCommand.setProjectOrDomain(projectOrDomain);
+				// don't analyze the actor because it only has a name at this point.
+				editActorCommand.setAnalysisEnabled(false);
+				primaryActor = getCommandHandler().execute(editActorCommand).getActor();
+			}
 		}
 
 		if (usecaseImpl == null) {

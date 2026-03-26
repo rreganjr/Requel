@@ -31,7 +31,15 @@ import com.rreganjr.requel.project.GoalContainer;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.impl.ActorImpl;
+import com.rreganjr.requel.project.impl.NonUserStakeholderImpl;
+import com.rreganjr.requel.project.impl.ProjectImpl;
+import com.rreganjr.requel.project.impl.ScenarioImpl;
+import com.rreganjr.requel.project.impl.StoryImpl;
+import com.rreganjr.requel.project.impl.UseCaseImpl;
+import com.rreganjr.requel.project.impl.UserStakeholderImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
+import com.rreganjr.requel.project.impl.repository.jpa.JpaProjectRepository;
 import com.rreganjr.requel.user.UserRepository;
 
 /**
@@ -83,13 +91,38 @@ public class AddGoalToGoalContainerCommandImpl extends AbstractEditProjectComman
 	public void execute() {
 		Goal addedGoal = getProjectRepository().get(getGoal());
 		GoalContainer addingContainer = getProjectRepository().get(getGoalContainer());
-		addedGoal.getReferers().add(addingContainer);
-		addingContainer.getGoals().add(addedGoal);
 
-		// replaced the supplied objects with the updated objects for retrieval.
-		addedGoal = getProjectRepository().merge(addedGoal);
-		addingContainer = getProjectRepository().merge(addingContainer);
+		// Hibernate 6.5 bug: @ManyToAny collection insertion generates invalid SQL for the
+		// goals_goalcontainers join table. Use a native INSERT instead of
+		// addedGoal.getReferers().add(addingContainer).
+		// Then refresh so the referers collection is reloaded on the managed instance.
+		JpaProjectRepository jpaRepo = (JpaProjectRepository) getProjectRepository();
+		jakarta.persistence.PersistenceUnitUtil puu = jpaRepo.getEntityManager()
+				.getEntityManagerFactory().getPersistenceUnitUtil();
+		Long goalId = (Long) puu.getIdentifier(addedGoal);
+		Long containerId = (Long) puu.getIdentifier(addingContainer);
+		String containerType = goalContainerDiscriminator(addingContainer);
+		jpaRepo.addGoalContainerToGoalJoinTable(goalId, containerId, containerType);
+		jpaRepo.getEntityManager().refresh(addedGoal);
+
+		addingContainer.getGoals().add(addedGoal);
+		addingContainer = getRepository().merge(addingContainer);
 		setGoal(addedGoal);
 		setGoalContainer(addingContainer);
+	}
+
+	/**
+	 * Returns the @AnyDiscriminatorValue string for the given GoalContainer instance,
+	 * matching the discriminator values declared on GoalImpl.getReferers().
+	 */
+	private static String goalContainerDiscriminator(GoalContainer container) {
+		if (container instanceof ProjectImpl)            return "com.rreganjr.requel.project.Project";
+		if (container instanceof UseCaseImpl)            return "com.rreganjr.requel.project.UseCase";
+		if (container instanceof ScenarioImpl)           return "com.rreganjr.requel.project.Scenario";
+		if (container instanceof StoryImpl)              return "com.rreganjr.requel.project.Story";
+		if (container instanceof ActorImpl)              return "com.rreganjr.requel.project.Actor";
+		if (container instanceof NonUserStakeholderImpl) return "com.rreganjr.requel.project.NonUserStakeholder";
+		if (container instanceof UserStakeholderImpl)    return "com.rreganjr.requel.project.UserStakeholder";
+		throw new IllegalStateException("Unknown GoalContainer type: " + container.getClass().getName());
 	}
 }

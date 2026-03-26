@@ -31,7 +31,12 @@ import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.command.AddStoryToStoryContainerCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.impl.ActorImpl;
+import com.rreganjr.requel.project.impl.GoalImpl;
+import com.rreganjr.requel.project.impl.ProjectImpl;
+import com.rreganjr.requel.project.impl.UseCaseImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
+import com.rreganjr.requel.project.impl.repository.jpa.JpaProjectRepository;
 import com.rreganjr.requel.user.UserRepository;
 
 /**
@@ -83,13 +88,28 @@ public class AddStoryToStoryContainerCommandImpl extends AbstractEditProjectComm
 	public void execute() {
 		Story addedStory = getRepository().get(getStory());
 		StoryContainer addingContainer = getRepository().get(getStoryContainer());
-		addedStory.getReferers().add(addingContainer);
-		addingContainer.getStories().add(addedStory);
 
-		// replaced the supplied objects with the updated objects for retrieval.
-		addedStory = getRepository().merge(addedStory);
+		// Hibernate 6.5 bug: @ManyToAny collection insertion generates invalid SQL for the
+		// story_storycontainers join table. Use a native INSERT instead.
+		JpaProjectRepository jpaRepo = (JpaProjectRepository) getProjectRepository();
+		jakarta.persistence.PersistenceUnitUtil puu = jpaRepo.getEntityManager()
+				.getEntityManagerFactory().getPersistenceUnitUtil();
+		Long storyId = (Long) puu.getIdentifier(addedStory);
+		Long containerId = (Long) puu.getIdentifier(addingContainer);
+		jpaRepo.addStoryContainerToStoryJoinTable(storyId, containerId, storyContainerDiscriminator(addingContainer));
+		jpaRepo.getEntityManager().refresh(addedStory);
+
+		addingContainer.getStories().add(addedStory);
 		addingContainer = getRepository().merge(addingContainer);
 		setStory(addedStory);
 		setStoryContainer(addingContainer);
+	}
+
+	private static String storyContainerDiscriminator(StoryContainer container) {
+		if (container instanceof ProjectImpl)  return "com.rreganjr.requel.project.Project";
+		if (container instanceof ActorImpl)    return "com.rreganjr.requel.project.Actor";
+		if (container instanceof GoalImpl)     return "com.rreganjr.requel.project.Goal";
+		if (container instanceof UseCaseImpl)  return "com.rreganjr.requel.project.UseCase";
+		throw new IllegalStateException("Unknown StoryContainer type: " + container.getClass().getName());
 	}
 }

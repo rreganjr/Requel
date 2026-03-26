@@ -429,4 +429,57 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 				.executeUpdate();
 	}
 
+	@Override
+	public void addGoalContainerToGoalJoinTable(Long goalId, Long goalContainerId, String goalContainerType) {
+		getEntityManager()
+				.createNativeQuery(
+						"INSERT IGNORE INTO goals_goalcontainers (goal_id, goalcontainer_id, goalcontainer_type) VALUES (:goalId, :containerId, :containerType)")
+				.setParameter("goalId", goalId)
+				.setParameter("containerId", goalContainerId)
+				.setParameter("containerType", goalContainerType)
+				.executeUpdate();
+	}
+
+	@Override
+	public void removeActorContainerFromActorJoinTable(Long actorId, Long actorContainerId) {
+		getEntityManager()
+				.createNativeQuery(
+						"DELETE FROM actor_actorcontainers WHERE actor_id = :actorId AND actorcontainer_id = :containerId")
+				.setParameter("actorId", actorId)
+				.setParameter("containerId", actorContainerId)
+				.executeUpdate();
+	}
+
+	@Override
+	public void addActorContainerToActorJoinTable(Long actorId, Long actorContainerId, String actorContainerType) {
+		getEntityManager()
+				.createNativeQuery(
+						"INSERT IGNORE INTO actor_actorcontainers (actor_id, actorcontainer_id, actorcontainer_type) VALUES (:actorId, :containerId, :containerType)")
+				.setParameter("actorId", actorId)
+				.setParameter("containerId", actorContainerId)
+				.setParameter("containerType", actorContainerType)
+				.executeUpdate();
+	}
+
+	@Override
+	public void removeStoryContainerFromStoryJoinTable(Long storyId, Long storyContainerId) {
+		getEntityManager()
+				.createNativeQuery(
+						"DELETE FROM story_storycontainers WHERE story_id = :storyId AND storycontainer_id = :containerId")
+				.setParameter("storyId", storyId)
+				.setParameter("containerId", storyContainerId)
+				.executeUpdate();
+	}
+
+	@Override
+	public void addStoryContainerToStoryJoinTable(Long storyId, Long storyContainerId, String storyContainerType) {
+		getEntityManager()
+				.createNativeQuery(
+						"INSERT IGNORE INTO story_storycontainers (story_id, storycontainer_id, storycontainer_type) VALUES (:storyId, :containerId, :containerType)")
+				.setParameter("storyId", storyId)
+				.setParameter("containerId", storyContainerId)
+				.setParameter("containerType", storyContainerType)
+				.executeUpdate();
+	}
+
 }
