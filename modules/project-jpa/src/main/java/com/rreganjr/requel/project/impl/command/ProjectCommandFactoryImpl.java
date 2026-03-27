@@ -28,7 +28,9 @@ import com.rreganjr.command.AbstractCommandFactory;
 import com.rreganjr.command.CommandFactoryStrategy;
 import com.rreganjr.requel.project.command.AddActorToActorContainerCommand;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
+import com.rreganjr.requel.project.command.AddScenarioToUseCaseCommand;
 import com.rreganjr.requel.project.command.AddStoryToStoryContainerCommand;
+import com.rreganjr.requel.project.command.RemoveScenarioFromUseCaseCommand;
 import com.rreganjr.requel.project.command.ConvertStepToScenarioCommand;
 import com.rreganjr.requel.project.command.CopyActorCommand;
 import com.rreganjr.requel.project.command.CopyGoalCommand;
@@ -200,6 +202,16 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	@Override
 	public EditUseCaseCommand newEditUseCaseCommand() {
 		return (EditUseCaseCommand) getCreationStrategy().newInstance(EditUseCaseCommandImpl.class);
+	}
+
+	@Override
+	public AddScenarioToUseCaseCommand newAddScenarioToUseCaseCommand() {
+		return (AddScenarioToUseCaseCommand) getCreationStrategy().newInstance(AddScenarioToUseCaseCommandImpl.class);
+	}
+
+	@Override
+	public RemoveScenarioFromUseCaseCommand newRemoveScenarioFromUseCaseCommand() {
+		return (RemoveScenarioFromUseCaseCommand) getCreationStrategy().newInstance(RemoveScenarioFromUseCaseCommandImpl.class);
 	}
 
 	@Override

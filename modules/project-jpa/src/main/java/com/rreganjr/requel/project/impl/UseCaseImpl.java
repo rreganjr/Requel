@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl;
 
+import java.util.Comparator;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -71,6 +72,7 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 	private Set<Actor> actors = new TreeSet<Actor>();
 	private Set<Story> stories = new TreeSet<Story>();
 	private Scenario scenario;
+	private Set<Scenario> additionalScenarios = new TreeSet<>(Comparator.comparing(Scenario::getName, Comparator.nullsLast(Comparator.naturalOrder())));
 
 	/**
 	 * Create a use case.
@@ -222,6 +224,21 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 
 	public void setScenario(Scenario scenario) {
 		this.scenario = scenario;
+	}
+
+	@Override
+	@XmlTransient
+	@ManyToMany(targetEntity = ScenarioImpl.class, cascade = { CascadeType.MERGE,
+			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.LAZY)
+	@JoinTable(name = "usecase_scenarios",
+			joinColumns = @JoinColumn(name = "usecase_id"),
+			inverseJoinColumns = @JoinColumn(name = "scenario_id"))
+	public Set<Scenario> getAdditionalScenarios() {
+		return additionalScenarios;
+	}
+
+	public void setAdditionalScenarios(Set<Scenario> additionalScenarios) {
+		this.additionalScenarios = additionalScenarios;
 	}
 
 	@Override

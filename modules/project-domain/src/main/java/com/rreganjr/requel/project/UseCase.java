@@ -35,4 +35,9 @@ public interface UseCase extends TextEntity, GoalContainer, ActorContainer, Stor
 	 * @return
 	 */
 	public Scenario getScenario();
+
+	/**
+	 * @return Additional (non-primary) scenarios for this use case, e.g. Alternative and Exception flows.
+	 */
+	public java.util.Set<Scenario> getAdditionalScenarios();
 }

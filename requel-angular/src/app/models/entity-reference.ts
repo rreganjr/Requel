@@ -6,4 +6,5 @@ export interface EntityReferenceDto {
   entityType: string;
   id: number | null;
   name: string;
+  typeName?: string;
 }

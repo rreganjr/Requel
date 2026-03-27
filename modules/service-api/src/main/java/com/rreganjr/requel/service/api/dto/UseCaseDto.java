@@ -16,5 +16,6 @@ public record UseCaseDto(
         Integer scenarioStepCount,
         List<GoalDto> goals,
         List<ActorDto> actors,
-        List<StoryDto> stories
+        List<StoryDto> stories,
+        List<ScenarioDto> additionalScenarios
 ) {}

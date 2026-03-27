@@ -16,6 +16,7 @@ import { UseCaseDto } from '../../models/use-case';
 import { GoalDto } from '../../models/goal';
 import { ActorDto } from '../../models/actor';
 import { StoryDto } from '../../models/story';
+import { ScenarioDto } from '../../models/scenario';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { UseCaseService } from '../../core/use-case.service';
 import { ActorService } from '../../core/actor.service';
@@ -81,20 +82,52 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
                   [disabled]="!isNew() && !hasChanges()" />
       </div>
 
-      <!-- Scenario section -->
-      @if (!isNew() && useCase()?.scenarioId) {
+      <!-- Scenarios section -->
+      @if (!isNew()) {
         <div class="section">
-          <h3>Scenario</h3>
-          <div class="scenario-link-row">
-            <a class="entity-link" (click)="navigateToScenario()">
-              {{ useCase()?.scenarioName ?? 'Unnamed Scenario' }}
-            </a>
-            @if (useCase()?.scenarioStepCount != null) {
-              <span class="step-count-badge">{{ useCase()!.scenarioStepCount }} steps</span>
+          <div class="section-header">
+            <h3>Scenarios</h3>
+            @if (canEdit()) {
+              <p-button label="Add Scenario" icon="pi pi-plus" size="small"
+                        severity="secondary" [outlined]="true"
+                        (onClick)="showScenarioSelector = true" />
             }
           </div>
+          <p-table [value]="allScenarios()" styleClass="p-datatable-sm" [rowHover]="true">
+            <ng-template pTemplate="header">
+              <tr><th>Name</th><th>Type</th><th style="width:4rem"></th></tr>
+            </ng-template>
+            <ng-template pTemplate="body" let-s>
+              <tr>
+                <td>
+                  <a class="entity-link" (click)="navigateTo('scenarios', s.id)">{{ s.name }}</a>
+                </td>
+                <td>{{ s.scenarioType }}</td>
+                <td>
+                  @if (canEdit() && s.scenarioType !== 'Primary') {
+                    <p-button icon="pi pi-times" severity="danger" [text]="true"
+                              size="small" pTooltip="Remove scenario"
+                              (onClick)="removeScenario(s)" />
+                  }
+                </td>
+              </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="3" style="text-align:center">No scenario yet. Save the use case to create one.</td></tr>
+            </ng-template>
+          </p-table>
         </div>
+
       }
+
+      <app-entity-selector-dialog
+        [visible]="showScenarioSelector"
+        [projectName]="projectName"
+        entityType="Scenario"
+        [excludeIds]="scenarioIds()"
+        [excludeTypes]="excludeScenarioTypes()"
+        (selected)="addScenario($event)"
+        (closed)="showScenarioSelector = false" />
 
       <!-- Goals sub-table -->
       @if (!isNew()) {
@@ -241,11 +274,7 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
     .section-header h3 { margin: 0; }
     .entity-link { cursor: pointer; color: var(--p-primary-color); text-decoration: underline; }
-    .scenario-link-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; }
-    .step-count-badge {
-      font-size: 0.75rem; padding: 0.15rem 0.5rem;
-      background: var(--p-surface-200); border-radius: 10px;
-    }
+    .no-scenario-hint { color: var(--p-text-muted-color); font-style: italic; margin: 0.5rem 0; }
   `]
 })
 export class UseCaseEditorComponent implements OnInit, OnDestroy {
@@ -260,12 +289,27 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
   goals = signal<GoalDto[]>([]);
   stories = signal<StoryDto[]>([]);
   actors = signal<ActorDto[]>([]);
+  additionalScenarios = signal<ScenarioDto[]>([]);
   actorSuggestions = signal<string[]>([]);
+
+  // Primary scenario row + additional scenarios combined for the table
+  allScenarios = computed<ScenarioDto[]>(() => {
+    const uc = this.useCase();
+    const primary: ScenarioDto[] = uc?.scenarioId
+      ? [{ id: uc.scenarioId, version: 0, name: uc.scenarioName ?? 'Primary Scenario',
+           text: null, scenarioType: 'Primary', createdBy: null, steps: null }]
+      : [];
+    return [...primary, ...this.additionalScenarios()];
+  });
 
   // Derived id sets used as excludeIds for the entity selector dialogs
   goalIds = computed(() => this.goals().map(g => g.id).filter((id): id is number => id != null));
   storyIds = computed(() => this.stories().map(s => s.id).filter((id): id is number => id != null));
   actorIds = computed(() => this.actors().map(a => a.id).filter((id): id is number => id != null));
+  // Exclude primary scenario + already-added additional scenarios from the selector
+  scenarioIds = computed(() => this.allScenarios().map(s => s.id).filter((id): id is number => id != null));
+  // Exclude 'Primary' type from selector once a primary scenario exists
+  excludeScenarioTypes = computed(() => this.allScenarios().some(s => s.scenarioType === 'Primary') ? ['Primary'] : []);
 
   name = '';
   text = '';
@@ -273,6 +317,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
   showGoalSelector = false;
   showStorySelector = false;
   showActorSelector = false;
+  showScenarioSelector = false;
 
   projectName = '';
   private useCaseId: number | null = null;
@@ -338,6 +383,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
       this.goals.set(uc.goals ?? []);
       this.stories.set(uc.stories ?? []);
       this.actors.set(uc.actors ?? []);
+      this.additionalScenarios.set(uc.additionalScenarios ?? []);
     } catch {
       this.errorMessage.set('Failed to load use case.');
     }
@@ -402,6 +448,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
       this.goals.set(uc.goals ?? []);
       this.stories.set(uc.stories ?? []);
       this.actors.set(uc.actors ?? []);
+      this.additionalScenarios.set(uc.additionalScenarios ?? []);
     } catch {
       this.errorMessage.set('Failed to refresh.');
     }
@@ -458,6 +505,27 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
     });
     if (result.success) await this.refreshCollections();
     else this.errorMessage.set(result.error ?? 'Failed to remove actor.');
+  }
+
+  async addScenario(ref: EntityReferenceDto): Promise<void> {
+    this.showScenarioSelector = false;
+    const result = await this.commandService.execute('AddScenarioToUseCase', {
+      projectName: this.projectName,
+      useCaseId: this.useCaseId,
+      scenarioId: ref.id
+    });
+    if (result.success) await this.refreshCollections();
+    else this.errorMessage.set(result.error ?? 'Failed to add scenario.');
+  }
+
+  async removeScenario(scenario: ScenarioDto): Promise<void> {
+    const result = await this.commandService.execute('RemoveScenarioFromUseCase', {
+      projectName: this.projectName,
+      useCaseId: this.useCaseId,
+      scenarioId: scenario.id
+    });
+    if (result.success) await this.refreshCollections();
+    else this.errorMessage.set(result.error ?? 'Failed to remove scenario.');
   }
 
   navigateToScenario(): void {

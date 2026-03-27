@@ -1,13 +1,15 @@
-import { Component, EventEmitter, Input, OnChanges, Output, signal, SimpleChanges } from '@angular/core';
+import { Component, computed, EventEmitter, Input, OnChanges, Output, signal, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
+import { SelectModule } from 'primeng/select';
 import { EntityReferenceDto } from '../models/entity-reference';
 import { GoalService } from '../core/goal.service';
 import { StoryService } from '../core/story.service';
 import { ActorService } from '../core/actor.service';
+import { ScenarioService } from '../core/scenario.service';
 
 /**
  * Shared dialog for selecting an entity from a project.
@@ -26,7 +28,7 @@ import { ActorService } from '../core/actor.service';
 @Component({
   selector: 'app-entity-selector-dialog',
   standalone: true,
-  imports: [FormsModule, DialogModule, TableModule, ButtonModule, InputText],
+  imports: [FormsModule, DialogModule, TableModule, ButtonModule, InputText, SelectModule],
   template: `
     <p-dialog [header]="'Select ' + entityType" [(visible)]="visible"
               [modal]="true" appendTo="body" [style]="{ width: '500px' }" (onHide)="closed.emit()">
@@ -36,29 +38,42 @@ import { ActorService } from '../core/actor.service';
           <input pInputText [(ngModel)]="searchText" placeholder="Search..."
                  (input)="dt.filterGlobal(searchText(), 'contains')" />
         </span>
+        @if (hasTypes()) {
+          <p-select [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event)"
+                    [options]="typeOptions()" optionLabel="label" optionValue="value"
+                    placeholder="All Types" styleClass="type-filter-select" />
+        }
       </div>
 
-      <p-table #dt [value]="entities()" [loading]="loading()" [paginator]="true" [rows]="10"
+      <p-table #dt [value]="displayedEntities()" [loading]="loading()" [paginator]="true" [rows]="10"
                [rowHover]="true" selectionMode="single" (onRowSelect)="onSelect($event)"
-               [globalFilterFields]="['name']">
+               [globalFilterFields]="hasTypes() ? ['name', 'typeName'] : ['name']">
         <ng-template #header>
           <tr>
             <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
+            @if (hasTypes()) {
+              <th pSortableColumn="typeName">Type <p-sortIcon field="typeName" /></th>
+            }
           </tr>
         </ng-template>
         <ng-template #body let-e>
           <tr [pSelectableRow]="e">
             <td>{{ e.name }}</td>
+            @if (hasTypes()) {
+              <td>{{ e.typeName }}</td>
+            }
           </tr>
         </ng-template>
         <ng-template #emptymessage>
-          <tr><td class="text-center">No {{ entityType.toLowerCase() }}s found.</td></tr>
+          <tr><td [attr.colspan]="hasTypes() ? 2 : 1" class="text-center">No {{ entityType.toLowerCase() }}s found.</td></tr>
         </ng-template>
       </p-table>
     </p-dialog>
   `,
   styles: [`
-    .search-bar { margin-bottom: 0.75rem; }
+    .search-bar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
+    .search-bar span { flex: 1; }
+    :host ::ng-deep .type-filter-select { min-width: 130px; }
     .text-center { text-align: center; }
   `]
 })
@@ -67,17 +82,35 @@ export class EntitySelectorDialogComponent implements OnChanges {
   @Input() projectName = '';
   @Input() entityType = 'Goal';
   @Input() excludeIds: number[] = [];
+  /** typeName values to hide entirely from the list (e.g. ['Primary'] when one already exists). */
+  @Input() excludeTypes: string[] = [];
   @Output() selected = new EventEmitter<EntityReferenceDto>();
   @Output() closed = new EventEmitter<void>();
 
   entities = signal<EntityReferenceDto[]>([]);
   loading = signal(false);
   searchText = signal('');
+  typeFilter = signal('');
+
+  hasTypes = computed(() => this.entities().some(e => e.typeName != null));
+
+  /** Unique type options derived from the loaded entities, for the filter dropdown. */
+  typeOptions = computed(() => {
+    const types = [...new Set(this.entities().map(e => e.typeName).filter((t): t is string => t != null))].sort();
+    return [{ label: 'All Types', value: '' }, ...types.map(t => ({ label: t, value: t }))];
+  });
+
+  /** entities after applying the type filter dropdown selection. */
+  displayedEntities = computed(() => {
+    const filter = this.typeFilter();
+    return filter ? this.entities().filter(e => e.typeName === filter) : this.entities();
+  });
 
   constructor(
     private goalService: GoalService,
     private storyService: StoryService,
-    private actorService: ActorService
+    private actorService: ActorService,
+    private scenarioService: ScenarioService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -89,9 +122,11 @@ export class EntitySelectorDialogComponent implements OnChanges {
   private async loadEntities(): Promise<void> {
     this.loading.set(true);
     this.searchText.set('');
+    this.typeFilter.set('');
     try {
       let refs: EntityReferenceDto[] = [];
       const excludeSet = new Set(this.excludeIds);
+      const excludeTypeSet = new Set(this.excludeTypes);
 
       switch (this.entityType) {
         case 'Goal': {
@@ -109,9 +144,18 @@ export class EntitySelectorDialogComponent implements OnChanges {
           refs = actors.map(a => ({ entityType: 'Actor', id: a.id, name: a.name }));
           break;
         }
+        case 'Scenario': {
+          const scenarios = await this.scenarioService.listScenarios(this.projectName);
+          refs = scenarios.map(s => ({ entityType: 'Scenario', id: s.id, name: s.name, typeName: s.scenarioType ?? undefined }));
+          break;
+        }
       }
 
-      this.entities.set(refs.filter(r => r.id != null && !excludeSet.has(r.id)));
+      this.entities.set(refs.filter(r =>
+        r.id != null &&
+        !excludeSet.has(r.id) &&
+        (excludeTypeSet.size === 0 || r.typeName == null || !excludeTypeSet.has(r.typeName))
+      ));
     } finally {
       this.loading.set(false);
     }

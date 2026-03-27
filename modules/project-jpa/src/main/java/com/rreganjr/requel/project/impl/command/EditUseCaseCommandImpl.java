@@ -188,6 +188,10 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 			// the scenario will be analyzed when the use case is analyzed.
 			editScenarioCommand.setAnalysisEnabled(false);
 			editScenarioCommand = getCommandHandler().execute(editScenarioCommand);
+			if (usecaseImpl.getScenario() == null) {
+				usecaseImpl.setScenario(editScenarioCommand.getScenario());
+				usecaseImpl = getProjectRepository().merge(usecaseImpl);
+			}
 		}
 		if (projectOrDomain != null) {
 			projectOrDomain.getUseCases().add(usecaseImpl);

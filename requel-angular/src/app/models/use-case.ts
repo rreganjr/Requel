@@ -1,6 +1,7 @@
 import { GoalDto } from './goal';
 import { ActorDto } from './actor';
 import { StoryDto } from './story';
+import { ScenarioDto } from './scenario';
 
 export interface UseCaseDto {
   id: number;
@@ -15,6 +16,7 @@ export interface UseCaseDto {
   goals: GoalDto[] | null;
   actors: ActorDto[] | null;
   stories: StoryDto[] | null;
+  additionalScenarios: ScenarioDto[] | null;
 }
 
 export interface EditUseCaseInput {

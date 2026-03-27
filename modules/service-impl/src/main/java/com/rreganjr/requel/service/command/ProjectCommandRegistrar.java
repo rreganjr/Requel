@@ -27,6 +27,7 @@ import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.AddActorToActorContainerCommand;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
+import com.rreganjr.requel.project.command.AddScenarioToUseCaseCommand;
 import com.rreganjr.requel.project.command.AddStoryToStoryContainerCommand;
 import com.rreganjr.requel.project.command.CopyGoalCommand;
 import com.rreganjr.requel.project.command.CopyScenarioCommand;
@@ -53,12 +54,14 @@ import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveActorFromActorContainerCommand;
 import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
+import com.rreganjr.requel.project.command.RemoveScenarioFromUseCaseCommand;
 import com.rreganjr.requel.project.command.RemoveStoryFromStoryContainerCommand;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.AddActorToActorContainerInput;
 import com.rreganjr.requel.service.api.dto.AddGoalToGoalContainerInput;
+import com.rreganjr.requel.service.api.dto.AddScenarioToUseCaseInput;
 import com.rreganjr.requel.service.api.dto.AddStoryToStoryContainerInput;
 import com.rreganjr.requel.service.api.dto.CopyGoalInput;
 import com.rreganjr.requel.service.api.dto.CopyScenarioInput;
@@ -85,6 +88,7 @@ import com.rreganjr.requel.service.api.dto.ImportProjectInput;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.RemoveActorFromActorContainerInput;
 import com.rreganjr.requel.service.api.dto.RemoveGoalFromGoalContainerInput;
+import com.rreganjr.requel.service.api.dto.RemoveScenarioFromUseCaseInput;
 import com.rreganjr.requel.service.api.dto.RemoveStoryFromStoryContainerInput;
 import com.rreganjr.requel.service.query.ProjectQueryController;
 
@@ -421,6 +425,30 @@ public class ProjectCommandRegistrar {
                 },
                 null,
                 cmd -> ProjectQueryController.toUseCaseDetailDto(((EditUseCaseCommand) cmd).getUseCase()));
+
+        registry.register("AddScenarioToUseCase", AddScenarioToUseCaseInput.class,
+                factory::newAddScenarioToUseCaseCommand,
+                (cmd, input) -> {
+                    AddScenarioToUseCaseCommand c = (AddScenarioToUseCaseCommand) cmd;
+                    AddScenarioToUseCaseInput i = (AddScenarioToUseCaseInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setUseCase(findUseCaseById(project, i.useCaseId()));
+                    c.setScenario(findScenarioById(project, i.scenarioId()));
+                },
+                null,
+                cmd -> ProjectQueryController.toUseCaseDetailDto(((AddScenarioToUseCaseCommand) cmd).getUseCase()));
+
+        registry.register("RemoveScenarioFromUseCase", RemoveScenarioFromUseCaseInput.class,
+                factory::newRemoveScenarioFromUseCaseCommand,
+                (cmd, input) -> {
+                    RemoveScenarioFromUseCaseCommand c = (RemoveScenarioFromUseCaseCommand) cmd;
+                    RemoveScenarioFromUseCaseInput i = (RemoveScenarioFromUseCaseInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setUseCase(findUseCaseById(project, i.useCaseId()));
+                    c.setScenario(findScenarioById(project, i.scenarioId()));
+                },
+                null,
+                cmd -> ProjectQueryController.toUseCaseDetailDto(((RemoveScenarioFromUseCaseCommand) cmd).getUseCase()));
 
         registry.register("EditScenario", EditScenarioInput.class,
                 factory::newEditScenarioCommand,

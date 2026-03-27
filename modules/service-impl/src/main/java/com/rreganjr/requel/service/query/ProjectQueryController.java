@@ -718,7 +718,7 @@ public class ProjectQueryController {
                 uc.getScenario() != null ? uc.getScenario().getId() : null,
                 uc.getScenario() != null ? uc.getScenario().getName() : null,
                 uc.getScenario() != null ? uc.getScenario().getSteps().size() : null,
-                null, null, null);
+                null, null, null, null);
     }
 
     public static UseCaseDto toUseCaseDetailDto(UseCase uc) {
@@ -741,6 +741,13 @@ public class ProjectQueryController {
                         null, null))
                 .sorted(Comparator.comparing(StoryDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
+        List<ScenarioDto> additionalScenarios = uc.getAdditionalScenarios().stream()
+                .map(s -> new ScenarioDto(s.getId(), s.getVersion(), s.getName(), s.getText(),
+                        s.getType() != null ? s.getType().name() : null,
+                        s.getCreatedBy() != null ? s.getCreatedBy().getDisplayName() : null,
+                        null))
+                .sorted(Comparator.comparing(ScenarioDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
         return new UseCaseDto(
                 uc.getId(), uc.getVersion(), uc.getName(), uc.getText(),
                 uc.getPrimaryActor() != null ? uc.getPrimaryActor().getName() : null,
@@ -748,7 +755,7 @@ public class ProjectQueryController {
                 uc.getScenario() != null ? uc.getScenario().getId() : null,
                 uc.getScenario() != null ? uc.getScenario().getName() : null,
                 uc.getScenario() != null ? uc.getScenario().getSteps().size() : null,
-                goals, actors, stories);
+                goals, actors, stories, additionalScenarios);
     }
 
     /**
