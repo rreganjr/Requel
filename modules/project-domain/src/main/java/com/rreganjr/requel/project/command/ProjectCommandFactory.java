@@ -146,6 +146,8 @@ public interface ProjectCommandFactory extends CommandFactory {
 
 	public RemoveScenarioFromUseCaseCommand newRemoveScenarioFromUseCaseCommand();
 
+	public SetPrimaryScenarioOnUseCaseCommand newSetPrimaryScenarioOnUseCaseCommand();
+
 	/**
 	 * @return a new EditScenarioCommand for creating or editing a scenario.
 	 */

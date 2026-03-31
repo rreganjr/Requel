@@ -17,12 +17,14 @@ import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
+import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
 @Component({
   selector: 'app-goal-editor',
   standalone: true,
   imports: [FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
-            TableModule, MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent],
+            TableModule, MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
+            AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
     <div class="goal-editor">
@@ -164,6 +166,12 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
         </div>
       }
 
+      <app-annotations-section
+        [projectName]="projectName"
+        entityType="Goal"
+        [entityId]="goalId"
+        [canEdit]="canEdit()" />
+
       <p-confirmDialog />
     </div>
   `,
@@ -205,7 +213,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy {
   ];
 
   projectName = '';
-  private goalId: number | null = null;
+  goalId: number | null = null;
   private version: number | null = null;
   private paramSub?: Subscription;
 

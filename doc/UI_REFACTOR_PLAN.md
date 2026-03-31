@@ -898,6 +898,43 @@ The full authorization design — including `AuthorizingCommandHandler` in the c
 
 Each phase delivers a working increment. The Angular app and Echo2 app can coexist during migration — serve Angular on a different port or path, both talking to the same database.
 
+### Progress Tracker (branch: `38-migrate-ui-from-echo2-to-angular`)
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| 0 — Foundation | **Done** | Login, layout, auth/JWT, CommandService, EventStreamService, routes, PermissionService, CORS. SSE service exists but not wired into editors for live refresh — editors use direct API calls only. |
+| 1 — Users | **Done** | User list, user editor, edit account, settings page with user preferences (staleness threshold). |
+| 2 — Projects | **Done** | Project list, project editor, import (file upload), export, sidebar nav. Audit log (`AuditingCommandHandler`/`CommandAuditLog`) implemented. Sidebar staleness/recency ordering: backend `UserPreferences` + `SidebarProjectStaleness` exist; sidebar filtering by staleness not yet active in the Angular sidebar component. |
+| 3 — Stakeholders | **Done** | Stakeholder list, user-stakeholder editor, non-user-stakeholder editor with goals sub-table. |
+| 4 — Goals + Stories | **Done** | Goal list, goal editor (relations + referenced-by), story list, story editor (goals sub-table). `EntitySelectorDialogComponent` built and extended beyond original spec (sortable Type column, `excludeTypes`, `includeTypes`, type filter dropdown). |
+| 5 — Actors | **Done** | Actor list, actor editor (goals sub-table, referenced-by use cases + stories). `CopyActor` not implemented — no Copy button on actor editor. |
+| 6 — Scenarios | **Done** | Scenario list, scenario editor with step tree. Step tree uses CDK drag-drop (not `p-tree` as planned) — works well. `ScenarioSelectorDialogComponent` built. |
+| 7 — Use Cases | **Done** | Use case list, use case editor (primary actor autocomplete, goals/stories/actors sub-tables, primary scenario section with step display, additional scenarios section). Expanded beyond original plan — see deviations below. `UseCaseSelectorDialogComponent` not built (not yet needed). |
+| 7 — Annotations | **Not started** | Issues, Positions, Arguments, Notes. All editors have no annotations section yet. |
+| 8 — Terms + Documents | **Not started** | Glossary and document generation screens. |
+| 9 — Open Issues | **Not started** | Project-wide open issues view. |
+| 10 — Echo2 Removal | **Not started** | Depends on all screens being verified. |
+
+#### Deviations from original plan (code is the direction)
+
+- **Scenario section on use case editor** was "simple link + step count" in the plan. Implemented as a split Primary / Additional design with full step list inline and create/select/open-in-editor actions. Plan updated to match.
+- **`EntitySelectorDialogComponent`** gained `excludeTypes`, `includeTypes`, a sortable Type column, and a type filter dropdown — well beyond the original spec. Plan updated.
+- **Additional scenarios on use cases** — not in the original plan. Added `usecase_scenarios` join table (Flyway V5), `AddScenarioToUseCase`/`RemoveScenarioFromUseCase` commands, `SetPrimaryScenarioOnUseCaseCommand`. Plan updated.
+- **`UseCaseDto`** gained `additionalScenarios: List<ScenarioDto>` and `scenarioStepCount` fields beyond the original spec.
+- **Scenario step tree** uses Angular CDK drag-drop instead of PrimeNG `p-tree`. Works correctly; plan note updated.
+- **SSE not wired into editors** — the `EventStreamService` exists and connects, but no editor subscribes to entity-level events for live refresh. Background NLP updates are not pushed to open editors. This was a planned capability in Phase 0; remains as future work.
+- **Sidebar staleness filtering** — backend infrastructure is in place (`UserPreferences`, `SidebarProjectStaleness`) but the Angular sidebar component does not yet filter/sort projects by recency. Remains as future work.
+
+#### What remains to do (in priority order)
+
+1. **Phase 7 — Annotations** — the highest-impact gap; touches every editor already built
+2. **Phase 8 — Terms (Glossary) + Documents** — completes the project content model
+3. **Phase 9 — Open Issues** — project-wide issues view
+4. **Sidebar staleness/recency** — wire backend preferences into sidebar project filtering
+5. **SSE live refresh** — wire `EventStreamService` into editors for background NLP annotation push
+6. **CopyActor** — small gap from Phase 5
+7. **Phase 10 — Echo2 Removal** — final cutover after all screens verified
+
 ### Phase 0: Foundation (API + Angular scaffold)
 
 **Goal:** Establish the CQRS API modules and Angular project with auth working end-to-end.
@@ -1347,12 +1384,25 @@ with `draggableNodes`/`droppableNodes` as the foundation.
   no selection, `EditUseCaseCommandImpl` auto-creates the actor on the server. This is the
   first use of `p-autoComplete` in the Angular app. Better UX than forcing the user to leave
   the editor to create the actor first.
-- **Scenario section — link + summary, start simple** — show the use case's linked scenario
-  as a navigation link with its step count and type. The linked scenario is always present
-  (auto-created by `EditUseCaseCommandImpl` on insert). Do not embed the scenario editor
-  inline for Phase 7; refine later if needed. The primary scenario's sub-scenarios carry
-  `Alternative`/`Exception` types — the full scenario tree is accessible via the scenario
-  editor route.
+- **Scenario section — split Primary and Additional** — the use case editor shows two
+  separate scenario sections:
+  - **Primary Scenario**: always one, auto-created on first save with the use case name and
+    type `Primary`. Shows the scenario name (navigation link), step count, a step list table
+    (loaded via `GET /api/projects/{name}/scenarios/{id}`), and an "Open in Editor" button.
+    When no primary exists: two action buttons — "Create New" (triggers `EditUseCase` which
+    auto-creates a primary scenario, then navigates to the scenario editor) and "Select
+    Existing" (opens `EntitySelectorDialogComponent` filtered to `includeTypes=['Primary']`,
+    then calls `SetPrimaryScenarioOnUseCaseCommand` to link the chosen scenario).
+  - **Additional Scenarios**: a table of alternative/exception/etc. scenarios with Name,
+    Type columns and a remove (×) button. "Add Scenario" opens the entity selector filtered
+    to `excludeTypes=['Primary']`. Backed by a `usecase_scenarios` join table (Flyway V5
+    migration) and `AddScenarioToUseCase` / `RemoveScenarioFromUseCase` commands.
+  - `EntitySelectorDialogComponent` gains `includeTypes: string[]` input (whitelist filter)
+    alongside the existing `excludeTypes` (blacklist). The type filter dropdown and sortable
+    Type column in the selector popup apply to scenario pickers where type data is available.
+- **`SetPrimaryScenarioOnUseCaseCommand`** — new command linking an existing scenario as
+  the primary of a use case (`useCaseImpl.setScenario(scenarioImpl); merge`). Registered as
+  `SetPrimaryScenarioOnUseCase` with `SetPrimaryScenarioInput(projectName, useCaseId, scenarioId)`.
 - **Goals/actors/stories sub-tables** — same add/remove pattern as the goals section in the
   stakeholder editor: entity selector dialog to add, remove button per row.
 - **Scenario auto-created on insert** — every UseCase creates an empty linked Scenario at
@@ -1400,8 +1450,9 @@ with `draggableNodes`/`droppableNodes` as the foundation.
    - Name + text fields with change tracking
    - Primary actor field: `p-autoComplete` filtering project actors client-side; free-text
      allowed (server auto-creates if no match)
-   - Scenario section: read-only link to associated scenario (name + step count badge),
-     navigates to scenario editor
+   - Primary Scenario section: name link + step count + step list table; "Create New" and
+     "Select Existing" buttons when no primary is set; "Open in Editor" button when present
+   - Additional Scenarios sub-table: Add (entity selector, Primary type excluded) + remove per row
    - Goals sub-table (add via `EntitySelectorDialogComponent`, remove button per row)
    - Stories sub-table (add via `EntitySelectorDialogComponent`, remove button per row)
    - Actors sub-table — additional actors beyond primary (add/remove)

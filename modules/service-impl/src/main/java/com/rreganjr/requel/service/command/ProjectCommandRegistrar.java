@@ -55,6 +55,7 @@ import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveActorFromActorContainerCommand;
 import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
 import com.rreganjr.requel.project.command.RemoveScenarioFromUseCaseCommand;
+import com.rreganjr.requel.project.command.SetPrimaryScenarioOnUseCaseCommand;
 import com.rreganjr.requel.project.command.RemoveStoryFromStoryContainerCommand;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.service.api.CommandRegistry;
@@ -89,6 +90,7 @@ import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.RemoveActorFromActorContainerInput;
 import com.rreganjr.requel.service.api.dto.RemoveGoalFromGoalContainerInput;
 import com.rreganjr.requel.service.api.dto.RemoveScenarioFromUseCaseInput;
+import com.rreganjr.requel.service.api.dto.SetPrimaryScenarioInput;
 import com.rreganjr.requel.service.api.dto.RemoveStoryFromStoryContainerInput;
 import com.rreganjr.requel.service.query.ProjectQueryController;
 
@@ -449,6 +451,18 @@ public class ProjectCommandRegistrar {
                 },
                 null,
                 cmd -> ProjectQueryController.toUseCaseDetailDto(((RemoveScenarioFromUseCaseCommand) cmd).getUseCase()));
+
+        registry.register("SetPrimaryScenarioOnUseCase", SetPrimaryScenarioInput.class,
+                factory::newSetPrimaryScenarioOnUseCaseCommand,
+                (cmd, input) -> {
+                    SetPrimaryScenarioOnUseCaseCommand c = (SetPrimaryScenarioOnUseCaseCommand) cmd;
+                    SetPrimaryScenarioInput i = (SetPrimaryScenarioInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setUseCase(findUseCaseById(project, i.useCaseId()));
+                    c.setScenario(findScenarioById(project, i.scenarioId()));
+                },
+                null,
+                cmd -> ProjectQueryController.toUseCaseDetailDto(((SetPrimaryScenarioOnUseCaseCommand) cmd).getUseCase()));
 
         registry.register("EditScenario", EditScenarioInput.class,
                 factory::newEditScenarioCommand,

@@ -16,12 +16,14 @@ import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
+import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
 @Component({
   selector: 'app-actor-editor',
   standalone: true,
   imports: [FormsModule, ButtonModule, InputText, TextareaModule, TableModule,
-            MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent],
+            MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
+            AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
     <div class="actor-editor">
@@ -135,6 +137,12 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
       }
     </div>
 
+    <app-annotations-section
+      [projectName]="projectName"
+      entityType="Actor"
+      [entityId]="actorId"
+      [canEdit]="canEdit()" />
+
     <p-confirmDialog />
   `,
   styles: [`
@@ -172,7 +180,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy {
   private originalText = '';
   hasChanges = signal(false);
 
-  private actorId: number | null = null;
+  actorId: number | null = null;
   private paramSub?: Subscription;
 
   constructor(

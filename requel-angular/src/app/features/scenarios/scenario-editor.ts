@@ -18,6 +18,7 @@ import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { ScenarioSelectorDialogComponent, ScenarioRef } from '../../shared/scenario-selector-dialog';
+import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
 const SCENARIO_TYPE_OPTIONS = [
   { label: 'Primary', value: 'Primary' },
@@ -41,7 +42,7 @@ interface StepNodeData {
   standalone: true,
   imports: [FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             MessageModule, ConfirmDialogModule, TooltipModule, DragDropModule,
-            ScenarioSelectorDialogComponent],
+            ScenarioSelectorDialogComponent, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
     <div class="scenario-editor">
@@ -197,6 +198,12 @@ interface StepNodeData {
         (selected)="onSubScenarioSelected($event)"
         (closed)="showScenarioSelector = false" />
 
+      <app-annotations-section
+        [projectName]="projectName"
+        entityType="Scenario"
+        [entityId]="scenarioId"
+        [canEdit]="canEdit()" />
+
       <p-confirmDialog />
     </div>
   `,
@@ -293,7 +300,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy {
   editingText = '';
 
   projectName = '';
-  private scenarioId: number | null = null;
+  scenarioId: number | null = null;
   private version: number | null = null;
   private originalName = '';
   private originalText = '';

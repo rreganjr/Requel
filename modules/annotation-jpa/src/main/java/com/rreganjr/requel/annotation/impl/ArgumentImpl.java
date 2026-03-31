@@ -93,7 +93,7 @@ public class ArgumentImpl implements Argument, Serializable {
 	@XmlID
 	@XmlAttribute(name = "id")
 	@XmlJavaTypeAdapter(IdAdapter.class)
-	protected Long getId() {
+	public Long getId() {
 		return id;
 	}
 

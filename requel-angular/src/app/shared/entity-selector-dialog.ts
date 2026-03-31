@@ -84,6 +84,8 @@ export class EntitySelectorDialogComponent implements OnChanges {
   @Input() excludeIds: number[] = [];
   /** typeName values to hide entirely from the list (e.g. ['Primary'] when one already exists). */
   @Input() excludeTypes: string[] = [];
+  /** When non-empty, show ONLY entities whose typeName is in this list (e.g. ['Primary'] for the primary selector). */
+  @Input() includeTypes: string[] = [];
   @Output() selected = new EventEmitter<EntityReferenceDto>();
   @Output() closed = new EventEmitter<void>();
 
@@ -151,10 +153,12 @@ export class EntitySelectorDialogComponent implements OnChanges {
         }
       }
 
+      const includeTypeSet = new Set(this.includeTypes);
       this.entities.set(refs.filter(r =>
         r.id != null &&
         !excludeSet.has(r.id) &&
-        (excludeTypeSet.size === 0 || r.typeName == null || !excludeTypeSet.has(r.typeName))
+        (excludeTypeSet.size === 0 || r.typeName == null || !excludeTypeSet.has(r.typeName)) &&
+        (includeTypeSet.size === 0 || (r.typeName != null && includeTypeSet.has(r.typeName)))
       ));
     } finally {
       this.loading.set(false);

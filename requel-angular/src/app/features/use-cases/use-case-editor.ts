@@ -20,17 +20,19 @@ import { ScenarioDto } from '../../models/scenario';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { UseCaseService } from '../../core/use-case.service';
 import { ActorService } from '../../core/actor.service';
+import { ScenarioService } from '../../core/scenario.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
+import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
 @Component({
   selector: 'app-use-case-editor',
   standalone: true,
   imports: [FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
             ConfirmDialogModule, TableModule, TooltipModule, AutoCompleteModule,
-            EntitySelectorDialogComponent],
+            EntitySelectorDialogComponent, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
     <div class="use-case-editor">
@@ -82,29 +84,76 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
                   [disabled]="!isNew() && !hasChanges()" />
       </div>
 
-      <!-- Scenarios section -->
+      <!-- Primary Scenario section -->
       @if (!isNew()) {
         <div class="section">
           <div class="section-header">
-            <h3>Scenarios</h3>
+            <h3>Primary Scenario</h3>
+          </div>
+          @if (!useCase()?.scenarioId) {
+            <p class="no-scenario-hint">No primary scenario yet.</p>
+            @if (canEdit()) {
+              <div class="primary-scenario-actions">
+                <p-button label="Create New" icon="pi pi-plus" size="small"
+                          pTooltip="Create a primary scenario using the use case name"
+                          (onClick)="createPrimaryScenario()" [loading]="saving()" />
+                <p-button label="Select Existing" icon="pi pi-search" size="small"
+                          severity="secondary" [outlined]="true"
+                          pTooltip="Pick an existing Primary-type scenario"
+                          (onClick)="showPrimaryScenarioSelector = true" />
+              </div>
+            }
+          } @else {
+            <div class="primary-scenario-card">
+              <div class="primary-scenario-name">
+                <a class="entity-link" (click)="navigateTo('scenarios', useCase()!.scenarioId!)">
+                  {{ useCase()!.scenarioName ?? 'Primary Scenario' }}
+                </a>
+                <span class="step-count">({{ useCase()!.scenarioStepCount ?? 0 }} steps)</span>
+                <p-button label="Open in Editor" icon="pi pi-arrow-right" size="small"
+                          severity="secondary" [outlined]="true"
+                          (onClick)="navigateTo('scenarios', useCase()!.scenarioId!)" />
+              </div>
+              @if (primaryScenario()?.steps?.length) {
+                <p-table [value]="primaryScenario()!.steps!" styleClass="p-datatable-sm" [rowHover]="false">
+                  <ng-template pTemplate="header">
+                    <tr><th style="width:2.5rem">#</th><th>Step</th><th style="width:8rem">Type</th></tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-step let-i="rowIndex">
+                    <tr>
+                      <td>{{ i + 1 }}</td>
+                      <td>{{ step.name }}</td>
+                      <td>{{ step.scenarioType }}</td>
+                    </tr>
+                  </ng-template>
+                </p-table>
+              } @else {
+                <p class="no-scenario-hint">No steps yet — open in editor to add them.</p>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Additional Scenarios section -->
+        <div class="section">
+          <div class="section-header">
+            <h3>Additional Scenarios</h3>
             @if (canEdit()) {
               <p-button label="Add Scenario" icon="pi pi-plus" size="small"
                         severity="secondary" [outlined]="true"
                         (onClick)="showScenarioSelector = true" />
             }
           </div>
-          <p-table [value]="allScenarios()" styleClass="p-datatable-sm" [rowHover]="true">
+          <p-table [value]="additionalScenarios()" styleClass="p-datatable-sm" [rowHover]="true">
             <ng-template pTemplate="header">
               <tr><th>Name</th><th>Type</th><th style="width:4rem"></th></tr>
             </ng-template>
             <ng-template pTemplate="body" let-s>
               <tr>
-                <td>
-                  <a class="entity-link" (click)="navigateTo('scenarios', s.id)">{{ s.name }}</a>
-                </td>
+                <td><a class="entity-link" (click)="navigateTo('scenarios', s.id)">{{ s.name }}</a></td>
                 <td>{{ s.scenarioType }}</td>
                 <td>
-                  @if (canEdit() && s.scenarioType !== 'Primary') {
+                  @if (canEdit()) {
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
                               size="small" pTooltip="Remove scenario"
                               (onClick)="removeScenario(s)" />
@@ -113,19 +162,29 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
               </tr>
             </ng-template>
             <ng-template pTemplate="emptymessage">
-              <tr><td colspan="3" style="text-align:center">No scenario yet. Save the use case to create one.</td></tr>
+              <tr><td colspan="3" style="text-align:center">No additional scenarios.</td></tr>
             </ng-template>
           </p-table>
         </div>
-
       }
 
+      <!-- Primary scenario selector (shows only Primary-type scenarios) -->
+      <app-entity-selector-dialog
+        [visible]="showPrimaryScenarioSelector"
+        [projectName]="projectName"
+        entityType="Scenario"
+        [excludeIds]="primaryScenarioExcludeIds()"
+        [includeTypes]="['Primary']"
+        (selected)="selectPrimaryScenario($event)"
+        (closed)="showPrimaryScenarioSelector = false" />
+
+      <!-- Additional scenario selector (excludes Primary-type and already-added scenarios) -->
       <app-entity-selector-dialog
         [visible]="showScenarioSelector"
         [projectName]="projectName"
         entityType="Scenario"
-        [excludeIds]="scenarioIds()"
-        [excludeTypes]="excludeScenarioTypes()"
+        [excludeIds]="additionalScenarioIds()"
+        [excludeTypes]="['Primary']"
         (selected)="addScenario($event)"
         (closed)="showScenarioSelector = false" />
 
@@ -262,6 +321,12 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
         (selected)="addActorToList($event)"
         (closed)="showActorSelector = false" />
 
+      <app-annotations-section
+        [projectName]="projectName"
+        entityType="UseCase"
+        [entityId]="useCaseId"
+        [canEdit]="canEdit()" />
+
       <p-confirmDialog />
     </div>
   `,
@@ -275,6 +340,10 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
     .section-header h3 { margin: 0; }
     .entity-link { cursor: pointer; color: var(--p-primary-color); text-decoration: underline; }
     .no-scenario-hint { color: var(--p-text-muted-color); font-style: italic; margin: 0.5rem 0; }
+    .primary-scenario-actions { display: flex; gap: 0.5rem; margin-top: 0.25rem; }
+    .primary-scenario-card { display: flex; flex-direction: column; gap: 0.5rem; }
+    .primary-scenario-name { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .step-count { color: var(--p-text-muted-color); font-size: 0.875rem; }
   `]
 })
 export class UseCaseEditorComponent implements OnInit, OnDestroy {
@@ -290,26 +359,23 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
   stories = signal<StoryDto[]>([]);
   actors = signal<ActorDto[]>([]);
   additionalScenarios = signal<ScenarioDto[]>([]);
+  primaryScenario = signal<ScenarioDto | null>(null);
   actorSuggestions = signal<string[]>([]);
-
-  // Primary scenario row + additional scenarios combined for the table
-  allScenarios = computed<ScenarioDto[]>(() => {
-    const uc = this.useCase();
-    const primary: ScenarioDto[] = uc?.scenarioId
-      ? [{ id: uc.scenarioId, version: 0, name: uc.scenarioName ?? 'Primary Scenario',
-           text: null, scenarioType: 'Primary', createdBy: null, steps: null }]
-      : [];
-    return [...primary, ...this.additionalScenarios()];
-  });
 
   // Derived id sets used as excludeIds for the entity selector dialogs
   goalIds = computed(() => this.goals().map(g => g.id).filter((id): id is number => id != null));
   storyIds = computed(() => this.stories().map(s => s.id).filter((id): id is number => id != null));
   actorIds = computed(() => this.actors().map(a => a.id).filter((id): id is number => id != null));
-  // Exclude primary scenario + already-added additional scenarios from the selector
-  scenarioIds = computed(() => this.allScenarios().map(s => s.id).filter((id): id is number => id != null));
-  // Exclude 'Primary' type from selector once a primary scenario exists
-  excludeScenarioTypes = computed(() => this.allScenarios().some(s => s.scenarioType === 'Primary') ? ['Primary'] : []);
+  // Exclude already-selected primary ID from the primary selector
+  primaryScenarioExcludeIds = computed(() => {
+    const id = this.useCase()?.scenarioId;
+    return id != null ? [id] : [];
+  });
+  // Exclude primary ID + additional scenario IDs from the additional selector
+  additionalScenarioIds = computed(() => [
+    ...this.primaryScenarioExcludeIds(),
+    ...this.additionalScenarios().map(s => s.id).filter((id): id is number => id != null)
+  ]);
 
   name = '';
   text = '';
@@ -318,9 +384,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
   showStorySelector = false;
   showActorSelector = false;
   showScenarioSelector = false;
+  showPrimaryScenarioSelector = false;
 
   projectName = '';
-  private useCaseId: number | null = null;
+  useCaseId: number | null = null;
   private version: number | null = null;
   private originalName = '';
   private originalText = '';
@@ -334,6 +401,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
     private location: Location,
     private useCaseService: UseCaseService,
     private actorService: ActorService,
+    private scenarioService: ScenarioService,
     private commandService: CommandService,
     private projectService: ProjectService,
     private permissionService: PermissionService,
@@ -384,6 +452,11 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
       this.stories.set(uc.stories ?? []);
       this.actors.set(uc.actors ?? []);
       this.additionalScenarios.set(uc.additionalScenarios ?? []);
+      if (uc.scenarioId) {
+        this.primaryScenario.set(await this.scenarioService.getScenario(this.projectName, uc.scenarioId));
+      } else {
+        this.primaryScenario.set(null);
+      }
     } catch {
       this.errorMessage.set('Failed to load use case.');
     }
@@ -445,10 +518,16 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
   private async refreshCollections(): Promise<void> {
     try {
       const uc = await this.useCaseService.getUseCase(this.projectName, this.useCaseId!);
+      this.useCase.set(uc);
       this.goals.set(uc.goals ?? []);
       this.stories.set(uc.stories ?? []);
       this.actors.set(uc.actors ?? []);
       this.additionalScenarios.set(uc.additionalScenarios ?? []);
+      if (uc.scenarioId) {
+        this.primaryScenario.set(await this.scenarioService.getScenario(this.projectName, uc.scenarioId));
+      } else {
+        this.primaryScenario.set(null);
+      }
     } catch {
       this.errorMessage.set('Failed to refresh.');
     }
@@ -507,6 +586,47 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
     else this.errorMessage.set(result.error ?? 'Failed to remove actor.');
   }
 
+  /** Save the use case — the backend auto-creates a primary scenario with the use case name. */
+  async createPrimaryScenario(): Promise<void> {
+    this.saving.set(true);
+    this.errorMessage.set(null);
+    try {
+      const input: Record<string, unknown> = {
+        projectName: this.projectName,
+        name: this.name,
+        text: this.text || null,
+        primaryActorName: this.primaryActorName || null,
+        useCaseId: this.useCaseId,
+        version: this.version
+      };
+      const result = await this.commandService.execute('EditUseCase', input);
+      if (result.success) {
+        const saved = result.entity as UseCaseDto;
+        await this.refreshCollections();
+        if (saved.scenarioId) {
+          this.router.navigate(['/projects', this.projectName, 'scenarios', saved.scenarioId]);
+        }
+      } else {
+        this.errorMessage.set(result.error ?? 'Failed to create primary scenario.');
+      }
+    } catch {
+      this.errorMessage.set('An unexpected error occurred.');
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  async selectPrimaryScenario(ref: EntityReferenceDto): Promise<void> {
+    this.showPrimaryScenarioSelector = false;
+    const result = await this.commandService.execute('SetPrimaryScenarioOnUseCase', {
+      projectName: this.projectName,
+      useCaseId: this.useCaseId,
+      scenarioId: ref.id
+    });
+    if (result.success) await this.refreshCollections();
+    else this.errorMessage.set(result.error ?? 'Failed to set primary scenario.');
+  }
+
   async addScenario(ref: EntityReferenceDto): Promise<void> {
     this.showScenarioSelector = false;
     const result = await this.commandService.execute('AddScenarioToUseCase', {
@@ -526,13 +646,6 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
     });
     if (result.success) await this.refreshCollections();
     else this.errorMessage.set(result.error ?? 'Failed to remove scenario.');
-  }
-
-  navigateToScenario(): void {
-    const uc = this.useCase();
-    if (uc?.scenarioId) {
-      this.router.navigate(['/projects', this.projectName, 'scenarios', uc.scenarioId]);
-    }
   }
 
   navigateTo(type: string, id: number): void {

@@ -123,7 +123,7 @@ public class PositionImpl implements Position, Serializable {
 	@XmlID
 	@XmlAttribute(name = "id")
 	@XmlJavaTypeAdapter(IdAdapter.class)
-	protected Long getId() {
+	public Long getId() {
 		return id;
 	}
 
