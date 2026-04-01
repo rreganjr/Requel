@@ -14,13 +14,28 @@ import java.util.function.Supplier;
 public interface CommandRegistry {
 
     /**
-     * Full registration: input class, factory, input applicator, file applicator, result extractor.
+     * Full registration: all fields including optional commandBuilder.
+     * When commandBuilder is non-null it is used in place of factoryMethod + inputApplicator —
+     * it receives the raw deserialized input and returns a fully-configured command.
+     * Use this for polymorphic commands where the correct subtype depends on the input.
      */
     <T> void register(String commandType, Class<T> inputClass,
                       Supplier<Command> factoryMethod,
                       BiConsumer<Command, T> inputApplicator,
                       BiConsumer<Command, Object> fileApplicator,
-                      Function<Command, Object> resultExtractor);
+                      Function<Command, Object> resultExtractor,
+                      Function<Object, Command> commandBuilder);
+
+    /**
+     * Standard registration: input class, factory, input applicator, file applicator, result extractor.
+     */
+    default <T> void register(String commandType, Class<T> inputClass,
+                              Supplier<Command> factoryMethod,
+                              BiConsumer<Command, T> inputApplicator,
+                              BiConsumer<Command, Object> fileApplicator,
+                              Function<Command, Object> resultExtractor) {
+        register(commandType, inputClass, factoryMethod, inputApplicator, fileApplicator, resultExtractor, null);
+    }
 
     /**
      * Register with input + file applicators, no result extractor.
@@ -29,7 +44,7 @@ public interface CommandRegistry {
                               Supplier<Command> factoryMethod,
                               BiConsumer<Command, T> inputApplicator,
                               BiConsumer<Command, Object> fileApplicator) {
-        register(commandType, inputClass, factoryMethod, inputApplicator, fileApplicator, null);
+        register(commandType, inputClass, factoryMethod, inputApplicator, fileApplicator, null, null);
     }
 
     /**
@@ -38,14 +53,27 @@ public interface CommandRegistry {
     default <T> void register(String commandType, Class<T> inputClass,
                               Supplier<Command> factoryMethod,
                               BiConsumer<Command, T> inputApplicator) {
-        register(commandType, inputClass, factoryMethod, inputApplicator, null, null);
+        register(commandType, inputClass, factoryMethod, inputApplicator, null, null, null);
     }
 
     /**
      * Register with no input mapping (placeholder for future DTO wiring).
      */
     default void register(String commandType, Supplier<Command> factoryMethod) {
-        register(commandType, Void.class, factoryMethod, null, null, null);
+        register(commandType, Void.class, factoryMethod, null, null, null, null);
+    }
+
+    /**
+     * Register a command whose type depends on the input (polymorphic factory).
+     * The commandBuilder function receives the deserialized input and must return
+     * a fully-configured command ready for the handler chain.
+     */
+    default <T> void registerWithBuilder(String commandType, Class<T> inputClass,
+                                         Function<T, Command> commandBuilder,
+                                         Function<Command, Object> resultExtractor) {
+        @SuppressWarnings("unchecked")
+        Function<Object, Command> erased = input -> commandBuilder.apply((T) input);
+        register(commandType, inputClass, null, null, null, resultExtractor, erased);
     }
 
     /**

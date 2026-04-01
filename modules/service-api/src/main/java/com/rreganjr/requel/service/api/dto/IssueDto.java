@@ -12,6 +12,7 @@ public record IssueDto(
         boolean mustBeResolved,
         boolean resolved,
         String resolvedBy,
+        String resolvedByPosition,
         String createdBy,
         List<PositionDto> positions
 ) {

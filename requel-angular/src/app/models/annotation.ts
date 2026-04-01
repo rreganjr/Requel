@@ -11,6 +11,7 @@ export interface PositionDto {
   version: number;
   text: string;
   createdBy: string | null;
+  positionType: string;
   arguments: ArgumentDto[];
 }
 
@@ -28,6 +29,7 @@ export interface IssueDto {
   mustBeResolved: boolean;
   resolved: boolean;
   resolvedBy: string | null;
+  resolvedByPosition: string | null;
   createdBy: string | null;
   positions: PositionDto[];
 }

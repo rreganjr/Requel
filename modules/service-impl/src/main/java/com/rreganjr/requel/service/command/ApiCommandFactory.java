@@ -51,9 +51,15 @@ public class ApiCommandFactory {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Command newCommand(String commandType, Object input, Object file) {
         CommandRegistration reg = registry.lookup(commandType);
-        Command cmd = (Command) reg.factoryMethod().get();
-        if (reg.inputApplicator() != null && input != null) {
-            reg.inputApplicator().accept(cmd, input);
+        Command cmd;
+        if (reg.commandBuilder() != null) {
+            // Polymorphic path: command type depends on input (e.g. ResolveIssue)
+            cmd = (Command) reg.commandBuilder().apply(input);
+        } else {
+            cmd = (Command) reg.factoryMethod().get();
+            if (reg.inputApplicator() != null && input != null) {
+                reg.inputApplicator().accept(cmd, input);
+            }
         }
         if (reg.fileApplicator() != null && file != null) {
             reg.fileApplicator().accept(cmd, file);

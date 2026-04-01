@@ -33,6 +33,7 @@ import com.rreganjr.requel.service.api.dto.EditPositionInput;
 import com.rreganjr.requel.service.api.dto.IssueDto;
 import com.rreganjr.requel.service.api.dto.NoteDto;
 import com.rreganjr.requel.service.api.dto.PositionDto;
+import com.rreganjr.requel.service.api.dto.ResolveIssueInput;
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
@@ -176,10 +177,28 @@ public class AnnotationCommandRegistrar {
                     c.setArgument(entityManager.find(ArgumentImpl.class, i.argumentId()));
                 });
 
+        // Resolve issue — polymorphic: correct command subtype depends on position type
+        registry.registerWithBuilder("ResolveIssue", ResolveIssueInput.class,
+                (ResolveIssueInput input) -> {
+                    PositionImpl position = entityManager.find(PositionImpl.class, input.positionId());
+                    if (position == null) {
+                        throw new IllegalArgumentException("Position not found: " + input.positionId());
+                    }
+                    IssueImpl issue = entityManager.find(IssueImpl.class, input.issueId());
+                    if (issue == null) {
+                        throw new IllegalArgumentException("Issue not found: " + input.issueId());
+                    }
+                    var cmd = factory.newResolveIssueCommand(position);
+                    cmd.setPosition(position);
+                    cmd.setIssue(issue);
+                    return cmd;
+                },
+                null);
+
         // Cleanup
         registry.register("RemoveAnnotationFromAnnotatable", factory::newRemoveAnnotationFromAnnotatableCommand);
 
-        log.info("Registered {} annotation command types", 12);
+        log.info("Registered {} annotation command types", 13);
     }
 
     private Annotatable loadAnnotatable(String entityType, Long entityId) {
@@ -229,6 +248,7 @@ public class AnnotationCommandRegistrar {
                 impl.isMustBeResolved(),
                 impl.isResolved(),
                 impl.getResolvedByUser() != null ? impl.getResolvedByUser().getDisplayName() : null,
+                impl.getResolvedByPosition() != null ? impl.getResolvedByPosition().getText() : null,
                 impl.getCreatedBy() != null ? impl.getCreatedBy().getDisplayName() : null,
                 positions
         );
@@ -241,11 +261,14 @@ public class AnnotationCommandRegistrar {
                 .sorted(Comparator.naturalOrder())
                 .map(AnnotationCommandRegistrar::toArgumentDto)
                 .toList();
+        // Simple class name used by the UI to label and dispatch the correct resolve variant
+        String positionType = impl.getClass().getSimpleName();
         return new PositionDto(
                 impl.getId(),
                 0,
                 impl.getText(),
                 impl.getCreatedBy() != null ? impl.getCreatedBy().getDisplayName() : null,
+                positionType,
                 arguments
         );
     }

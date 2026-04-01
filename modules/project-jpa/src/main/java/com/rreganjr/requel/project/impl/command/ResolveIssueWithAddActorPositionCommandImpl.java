@@ -41,8 +41,7 @@ import com.rreganjr.requel.project.impl.AddActorPosition;
 import com.rreganjr.platform.identity.User;
 
 /**
- * This resolves an issue with the specified position by adding a word or phrase
- * to the project glossary.
+ * This resolves an issue with the specified position by adding an actor to the project.
  * 
  * @author ron
  */

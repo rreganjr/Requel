@@ -29,18 +29,20 @@ public class CommandRegistryImpl implements CommandRegistry {
                              Supplier<Command> factoryMethod,
                              BiConsumer<Command, T> inputApplicator,
                              BiConsumer<Command, Object> fileApplicator,
-                             Function<Command, Object> resultExtractor) {
+                             Function<Command, Object> resultExtractor,
+                             Function<Object, Command> commandBuilder) {
         var registration = new CommandRegistration<>(commandType, inputClass, factoryMethod,
-                inputApplicator, fileApplicator, resultExtractor);
+                inputApplicator, fileApplicator, resultExtractor, commandBuilder);
         var existing = registrations.putIfAbsent(commandType, registration);
         if (existing != null) {
             throw new IllegalStateException(
                     "Duplicate command type registration: " + commandType);
         }
-        log.debug("Registered command type: {} (input: {}, file: {}, result: {})", commandType,
+        log.debug("Registered command type: {} (input: {}, file: {}, result: {}, builder: {})", commandType,
                 inputClass == Void.class ? "none" : inputClass.getSimpleName(),
                 fileApplicator != null ? "yes" : "no",
-                resultExtractor != null ? "yes" : "no");
+                resultExtractor != null ? "yes" : "no",
+                commandBuilder != null ? "yes" : "no");
     }
 
     @Override

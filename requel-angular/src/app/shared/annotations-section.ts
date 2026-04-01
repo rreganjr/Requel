@@ -88,6 +88,15 @@ import { AnnotationService } from '../core/annotation.service';
                           (onClick)="deleteIssue(issue)" />
               }
             </div>
+            @if (issue.resolved && issue.resolvedByPosition) {
+              <div class="resolution-row">
+                <span class="resolution-label">Resolution:</span>
+                <span class="resolution-text">{{ issue.resolvedByPosition }}</span>
+                @if (issue.resolvedBy) {
+                  <span class="annotation-creator">by {{ issue.resolvedBy }}</span>
+                }
+              </div>
+            }
 
             <!-- Positions -->
             @for (pos of issue.positions; track pos.id) {
@@ -96,6 +105,11 @@ import { AnnotationService } from '../core/annotation.service';
                   <span class="annotation-badge position-badge">Position</span>
                   <span class="annotation-text">{{ pos.text }}</span>
                   <span class="annotation-creator">{{ pos.createdBy }}</span>
+                  @if (canEdit && !issue.resolved) {
+                    <p-button [label]="resolveLabel(pos.positionType)" icon="pi pi-check-circle"
+                              size="small" severity="success" [outlined]="true"
+                              (onClick)="resolveIssue(issue, pos)" />
+                  }
                   @if (canEdit) {
                     <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
                               (onClick)="deletePosition(pos)" />
@@ -194,6 +208,9 @@ import { AnnotationService } from '../core/annotation.service';
     .arg-against { background: var(--p-red-100, #fee2e2); color: var(--p-red-700, #b91c1c); }
     .arg-neutral { background: var(--p-surface-200); color: var(--p-text-secondary-color); }
     .must-resolve-badge { font-size: 0.65rem; background: var(--p-red-100, #fee2e2); color: var(--p-red-700); padding: 0.1rem 0.4rem; border-radius: 3px; }
+    .resolution-row { display: flex; align-items: baseline; gap: 0.4rem; margin-top: 0.25rem; font-size: 0.8rem; flex-wrap: wrap; }
+    .resolution-label { font-weight: 600; color: var(--p-green-700, #15803d); white-space: nowrap; }
+    .resolution-text { color: var(--p-text-color); font-style: italic; }
 
     .annotation-text { flex: 1; }
     .annotation-creator { font-size: 0.75rem; color: var(--p-text-secondary-color); white-space: nowrap; }
@@ -352,5 +369,26 @@ export class AnnotationsSectionComponent implements OnChanges {
 
   formatSupportLevel(level: string): string {
     return SUPPORT_LEVEL_OPTIONS.find(o => o.value === level)?.label ?? level;
+  }
+
+  resolveLabel(positionType: string): string {
+    switch (positionType) {
+      case 'AddWordToDictionaryPosition': return 'Add to Dictionary';
+      case 'ChangeSpellingPosition': return 'Fix Spelling';
+      case 'AddActorPosition': return 'Add as Actor';
+      case 'AddGlossaryTermPosition': return 'Add to Glossary';
+      default: return 'Ignore';
+    }
+  }
+
+  async resolveIssue(issue: IssueDto, pos: PositionDto): Promise<void> {
+    if (!this.entityId) return;
+    const result = await this.annotationService.resolveIssue(this.projectName, issue.id, pos.id);
+    if (result.success) {
+      this.messageService.add({ severity: 'success', summary: 'Issue resolved', life: 3000 });
+      await this.load();
+    } else {
+      this.messageService.add({ severity: 'error', summary: 'Error', detail: result.error ?? 'Failed to resolve issue.' });
+    }
   }
 }

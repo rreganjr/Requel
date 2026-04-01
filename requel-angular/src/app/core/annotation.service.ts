@@ -49,4 +49,8 @@ export class AnnotationService {
   deleteArgument(projectName: string, argumentId: number) {
     return this.commandService.execute('DeleteArgument', { projectName, argumentId });
   }
+
+  resolveIssue(projectName: string, issueId: number, positionId: number) {
+    return this.commandService.execute('ResolveIssue', { projectName, issueId, positionId });
+  }
 }

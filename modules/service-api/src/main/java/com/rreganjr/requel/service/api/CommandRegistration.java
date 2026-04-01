@@ -15,6 +15,13 @@ import java.util.function.Supplier;
  * command (e.g., MultipartFile → InputStream). The result extractor converts
  * the command's domain entity result into an API DTO for the response.
  * <p>
+ * For polymorphic commands where the correct command type depends on the input
+ * (e.g. ResolveIssue dispatches to different subcommands based on position type),
+ * use {@code commandBuilder} instead of {@code factoryMethod + inputApplicator}.
+ * When {@code commandBuilder} is non-null, it is called with the deserialized input
+ * and must return a fully-configured command; the factoryMethod and inputApplicator
+ * are ignored.
+ * <p>
  * This keeps input/output mapping external to the domain command, so existing
  * commands don't need modification. MultipartFile and DTO types never leak
  * into domain interfaces.
@@ -25,6 +32,8 @@ import java.util.function.Supplier;
  * @param inputApplicator  maps the deserialized input DTO onto the command; null if no input mapping
  * @param fileApplicator   maps a multipart file onto the command; null if the command doesn't accept files
  * @param resultExtractor  extracts and converts the command result to an API DTO; null if no result
+ * @param commandBuilder   alternative to factoryMethod+inputApplicator: builds a fully-configured
+ *                         command from the raw input object; null for standard commands
  */
 public record CommandRegistration<T>(
         String commandType,
@@ -32,6 +41,7 @@ public record CommandRegistration<T>(
         Supplier<Command> factoryMethod,
         BiConsumer<Command, T> inputApplicator,
         BiConsumer<Command, Object> fileApplicator,
-        Function<Command, Object> resultExtractor
+        Function<Command, Object> resultExtractor,
+        Function<Object, Command> commandBuilder
 ) {
 }
