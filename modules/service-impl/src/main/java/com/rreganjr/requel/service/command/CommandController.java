@@ -5,8 +5,11 @@ import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.requel.project.command.EditProjectOrDomainEntityCommand;
 import com.rreganjr.requel.service.api.CommandResult;
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
+import com.rreganjr.requel.service.stream.StreamEventPublisher;
 import com.rreganjr.repository.jpa.BeanValidationException;
 import com.rreganjr.validator.EntityValidationException;
 import jakarta.persistence.OptimisticLockException;
@@ -15,9 +18,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.ReflectionUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.lang.reflect.Method;
 import java.util.Map;
 
 /**
@@ -30,16 +35,22 @@ public class CommandController {
 
     private static final Logger log = LoggerFactory.getLogger(CommandController.class);
 
+    /** Sentinel project ID used as a broadcast channel for "any project changed". */
+    private static final long PROJECT_BROADCAST_ID = 0L;
+
     private final ApiCommandFactory apiCommandFactory;
     private final CommandHandler commandHandler;
     private final ObjectMapper objectMapper;
+    private final StreamEventPublisher streamEventPublisher;
 
     public CommandController(ApiCommandFactory apiCommandFactory,
                              CommandHandler commandHandler,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper,
+                             StreamEventPublisher streamEventPublisher) {
         this.apiCommandFactory = apiCommandFactory;
         this.commandHandler = commandHandler;
         this.objectMapper = objectMapper;
+        this.streamEventPublisher = streamEventPublisher;
     }
 
     /**
@@ -78,6 +89,9 @@ public class CommandController {
 
             // Execute through the handler chain
             commandHandler.execute(command);
+
+            // Notify subscribers of project-level changes so the sidebar refreshes counts
+            publishProjectChangedIfScoped(command);
 
             // Extract result DTO via the registration's resultExtractor (null if not registered)
             Object result = apiCommandFactory.extractResult(commandType, command);
@@ -126,6 +140,27 @@ public class CommandController {
             log.error("Command execution failed: {} - {}", commandType, e.getMessage(), e);
             return ResponseEntity.internalServerError()
                     .body(ErrorResponse.of("INTERNAL_ERROR", "An unexpected error occurred. Please try again or contact support."));
+        }
+    }
+
+    /**
+     * If the command is project-scoped, publish a broadcast Project event so
+     * all sidebar sessions subscribed to {@code Project:0} reload their counts.
+     * Non-project commands (e.g. user management) are silently skipped.
+     */
+    private void publishProjectChangedIfScoped(Command command) {
+        try {
+            Object entity = null;
+            if (command instanceof ProjectScopedCommand psc) {
+                entity = psc.getProject();
+            } else if (command instanceof EditProjectOrDomainEntityCommand podCmd) {
+                entity = podCmd.getProjectOrDomain();
+            }
+            if (entity != null) {
+                streamEventPublisher.publishTargetUpdate("Project", PROJECT_BROADCAST_ID, Map.of("type", "refresh"));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to publish project-changed SSE event: {}", e.getMessage());
         }
     }
 }

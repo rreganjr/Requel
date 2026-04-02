@@ -17,6 +17,7 @@ public record ProjectDto(
         int actorCount,
         int useCaseCount,
         int scenarioCount,
-        int glossaryTermCount
+        int glossaryTermCount,
+        int reportGeneratorCount
 ) {
 }

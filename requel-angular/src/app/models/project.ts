@@ -13,6 +13,7 @@ export interface ProjectDto {
   useCaseCount: number;
   scenarioCount: number;
   glossaryTermCount: number;
+  reportGeneratorCount: number;
 }
 
 export interface ProjectPermissions {

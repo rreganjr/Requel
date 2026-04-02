@@ -7,6 +7,7 @@ import { TreeModule } from 'primeng/tree';
 import { BadgeModule } from 'primeng/badge';
 import { TreeNode } from 'primeng/api';
 import { AuthService } from '../core/auth.service';
+import { EventStreamService } from '../core/event-stream.service';
 import { ProjectService } from '../core/project.service';
 import { ProjectDto, ProjectTreeNode } from '../models/project';
 
@@ -170,9 +171,11 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
 
   @ViewChild('importInput') importInput!: ElementRef<HTMLInputElement>;
   private treeSub?: Subscription;
+  private sseProjectSub?: Subscription;
 
   constructor(
     private authService: AuthService,
+    private eventStreamService: EventStreamService,
     private projectService: ProjectService,
     private router: Router
   ) {}
@@ -182,10 +185,18 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
       await this.loadProjects();
     }
     this.treeSub = this.projectService.onTreeChanged.subscribe(() => this.loadProjects());
+    // Reload project counts when any project-scoped command succeeds (SSE broadcast)
+    this.sseProjectSub = this.eventStreamService.events$
+      .subscribe(envelope => {
+        if (envelope.targetType === 'Project') {
+          this.loadProjects();
+        }
+      });
   }
 
   ngOnDestroy(): void {
     this.treeSub?.unsubscribe();
+    this.sseProjectSub?.unsubscribe();
   }
 
   onNewProject(): void {
@@ -223,6 +234,10 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
       this.router.navigate(['/projects', data.projectName, 'scenarios']);
     } else if (data.type === 'Use Cases') {
       this.router.navigate(['/projects', data.projectName, 'use-cases']);
+    } else if (data.type === 'Glossary') {
+      this.router.navigate(['/projects', data.projectName, 'terms']);
+    } else if (data.type === 'Reports') {
+      this.router.navigate(['/projects', data.projectName, 'reports']);
     }
   }
 
@@ -245,6 +260,7 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
       { label: 'Scenarios', type: 'Scenarios', count: project.scenarioCount, icon: 'pi pi-list-check' },
       { label: 'Use Cases', type: 'Use Cases', count: project.useCaseCount, icon: 'pi pi-sitemap' },
       { label: 'Glossary', type: 'Glossary', count: project.glossaryTermCount, icon: 'pi pi-list' },
+      { label: 'Reports', type: 'Reports', count: project.reportGeneratorCount, icon: 'pi pi-file' },
     ];
     return groups.map(g => ({
       label: `${g.label} (${g.count})`,

@@ -23,6 +23,8 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.ReportGenerator;
+import com.rreganjr.requel.project.command.GenerateReportCommand;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.Goal;
@@ -46,6 +48,8 @@ import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.ScenarioDto;
 import com.rreganjr.requel.service.api.dto.StepDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
+import com.rreganjr.requel.service.api.dto.ReportGeneratorDto;
 import com.rreganjr.requel.service.api.dto.GoalDto;
 import com.rreganjr.requel.service.api.dto.GoalRelationDto;
 import com.rreganjr.requel.service.api.dto.NonUserStakeholderDetails;
@@ -195,6 +199,7 @@ public class ProjectQueryController {
             tree.add(treeGroup("Actors", project.getActors(), Actor::getName));
             tree.add(treeGroup("Use Cases", project.getUseCases(), UseCase::getName));
             tree.add(treeGroup("Glossary", project.getGlossaryTerms(), GlossaryTerm::getName));
+            tree.add(treeGroup("Reports", project.getReportGenerators(), ReportGenerator::getName));
 
             return ResponseEntity.ok(tree);
         } catch (NoSuchProjectException e) {
@@ -586,7 +591,8 @@ public class ProjectQueryController {
                 project.getActors().size(),
                 project.getUseCases().size(),
                 project.getScenarios().size(),
-                project.getGlossaryTerms().size()
+                project.getGlossaryTerms().size(),
+                project.getReportGenerators().size()
         );
     }
 
@@ -756,6 +762,165 @@ public class ProjectQueryController {
                 uc.getScenario() != null ? uc.getScenario().getName() : null,
                 uc.getScenario() != null ? uc.getScenario().getSteps().size() : null,
                 goals, actors, stories, additionalScenarios);
+    }
+
+    /**
+     * GET /api/projects/{name}/terms — list of glossary terms (no alternates/referers).
+     */
+    @GetMapping("/{name}/terms")
+    public ResponseEntity<?> listTerms(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<GlossaryTermDto> dtos = project.getGlossaryTerms().stream()
+                    .map(ProjectQueryController::toGlossaryTermSummaryDto)
+                    .sorted(Comparator.comparing(GlossaryTermDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/terms/{termId} — single term with alternates and referers.
+     */
+    @GetMapping("/{name}/terms/{termId}")
+    public ResponseEntity<?> getTerm(@PathVariable String name, @PathVariable Long termId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (GlossaryTerm t : project.getGlossaryTerms()) {
+                if (t.getId().equals(termId)) {
+                    return ResponseEntity.ok(toGlossaryTermDetailDto(t));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    public static GlossaryTermDto toGlossaryTermSummaryDto(GlossaryTerm t) {
+        return new GlossaryTermDto(
+                t.getId(), t.getVersion(), t.getName(), t.getText(),
+                t.getCreatedBy() != null ? t.getCreatedBy().getDisplayName() : null,
+                t.getCanonicalTerm() != null ? t.getCanonicalTerm().getId() : null,
+                t.getCanonicalTerm() != null ? t.getCanonicalTerm().getName() : null,
+                null, null);
+    }
+
+    public static GlossaryTermDto toGlossaryTermDetailDto(GlossaryTerm t) {
+        List<EntityReferenceDto> alternates = t.getAlternateTerms().stream()
+                .map(a -> new EntityReferenceDto("GlossaryTerm", a.getId(), a.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        List<EntityReferenceDto> referers = t.getReferers().stream()
+                .map(e -> new EntityReferenceDto(
+                        e.getProjectOrDomainEntityInterface().getSimpleName(), e.getId(), e.getName()))
+                .sorted(Comparator.comparing(EntityReferenceDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        return new GlossaryTermDto(
+                t.getId(), t.getVersion(), t.getName(), t.getText(),
+                t.getCreatedBy() != null ? t.getCreatedBy().getDisplayName() : null,
+                t.getCanonicalTerm() != null ? t.getCanonicalTerm().getId() : null,
+                t.getCanonicalTerm() != null ? t.getCanonicalTerm().getName() : null,
+                alternates, referers);
+    }
+
+    /**
+     * GET /api/projects/{name}/reports — list of report generators (no XSLT text).
+     */
+    @GetMapping("/{name}/reports")
+    public ResponseEntity<?> listReports(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<ReportGeneratorDto> dtos = project.getReportGenerators().stream()
+                    .map(ProjectQueryController::toReportGeneratorSummaryDto)
+                    .sorted(Comparator.comparing(ReportGeneratorDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/reports/{reportId} — single report generator with XSLT text.
+     */
+    @GetMapping("/{name}/reports/{reportId}")
+    public ResponseEntity<?> getReport(@PathVariable String name, @PathVariable Long reportId) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            for (ReportGenerator r : project.getReportGenerators()) {
+                if (r.getId().equals(reportId)) {
+                    return ResponseEntity.ok(toReportGeneratorDetailDto(r));
+                }
+            }
+            return ResponseEntity.notFound().build();
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/reports/{reportId}/run — run the XSLT transform and stream HTML output.
+     */
+    @GetMapping("/{name}/reports/{reportId}/run")
+    public void runReport(@PathVariable String name, @PathVariable Long reportId,
+                          HttpServletResponse response) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            ReportGenerator rg = null;
+            for (ReportGenerator r : project.getReportGenerators()) {
+                if (r.getId().equals(reportId)) {
+                    rg = r;
+                    break;
+                }
+            }
+            if (rg == null) {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
+            String filename = rg.getName().replaceAll("[^a-zA-Z0-9._-]", "_") + ".html";
+            response.setContentType("text/html; charset=UTF-8");
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+
+            GenerateReportCommand cmd = projectCommandFactory.newGenerateReportCommand();
+            cmd.setReportGenerator(rg);
+            cmd.setOutputStream(response.getOutputStream());
+            commandHandler.execute(cmd);
+        } catch (NoSuchProjectException e) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+        } catch (AuthorizationException e) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        } catch (Exception e) {
+            log.error("Failed to generate report {}/{}: {}", name, reportId, e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public static ReportGeneratorDto toReportGeneratorSummaryDto(ReportGenerator r) {
+        return new ReportGeneratorDto(
+                r.getId(), r.getVersion(), r.getName(), null,
+                r.getCreatedBy() != null ? r.getCreatedBy().getDisplayName() : null);
+    }
+
+    public static ReportGeneratorDto toReportGeneratorDetailDto(ReportGenerator r) {
+        return new ReportGeneratorDto(
+                r.getId(), r.getVersion(), r.getName(), r.getText(),
+                r.getCreatedBy() != null ? r.getCreatedBy().getDisplayName() : null);
     }
 
     /**

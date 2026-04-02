@@ -1,9 +1,10 @@
-import { Component, computed } from '@angular/core';
+import { Component, computed, OnInit } from '@angular/core';
 import { RouterOutlet, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { MenuModule } from 'primeng/menu';
 import { ToastModule } from 'primeng/toast';
 import { AuthService } from '../../core/auth.service';
+import { EventStreamService } from '../../core/event-stream.service';
 import { SidebarNavComponent } from '../../shared/sidebar-nav';
 import { MenuItem, MessageService } from 'primeng/api';
 
@@ -108,9 +109,10 @@ import { MenuItem, MessageService } from 'primeng/api';
     }
   `]
 })
-export class LayoutComponent {
+export class LayoutComponent implements OnInit {
 
   private readonly authService: AuthService;
+  private readonly eventStreamService: EventStreamService;
 
   readonly accountMenuItems = computed<MenuItem[]>(() => {
     const user = this.authService.user();
@@ -127,7 +129,14 @@ export class LayoutComponent {
     ];
   });
 
-  constructor(authService: AuthService) {
+  constructor(authService: AuthService, eventStreamService: EventStreamService) {
     this.authService = authService;
+    this.eventStreamService = eventStreamService;
+  }
+
+  ngOnInit(): void {
+    // Open SSE connection, subscribed to the project broadcast channel so the
+    // sidebar can reload counts whenever any project-scoped command completes.
+    this.eventStreamService.connect(['Project:0']);
   }
 }

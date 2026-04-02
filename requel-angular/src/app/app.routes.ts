@@ -21,6 +21,10 @@ import { ScenarioListComponent } from './features/scenarios/scenario-list';
 import { ScenarioEditorComponent } from './features/scenarios/scenario-editor';
 import { UseCaseListComponent } from './features/use-cases/use-case-list';
 import { UseCaseEditorComponent } from './features/use-cases/use-case-editor';
+import { TermListComponent } from './features/terms/term-list';
+import { TermEditorComponent } from './features/terms/term-editor';
+import { ReportListComponent } from './features/reports/report-list';
+import { ReportEditorComponent } from './features/reports/report-editor';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -48,6 +52,10 @@ export const routes: Routes = [
       { path: 'projects/:name/scenarios/:scenarioId', component: ScenarioEditorComponent },
       { path: 'projects/:name/use-cases', component: UseCaseListComponent },
       { path: 'projects/:name/use-cases/:useCaseId', component: UseCaseEditorComponent },
+      { path: 'projects/:name/terms', component: TermListComponent },
+      { path: 'projects/:name/terms/:termId', component: TermEditorComponent },
+      { path: 'projects/:name/reports', component: ReportListComponent },
+      { path: 'projects/:name/reports/:reportId', component: ReportEditorComponent },
     ]
   },
   { path: '**', redirectTo: '' }

@@ -33,7 +33,13 @@ import com.rreganjr.requel.project.command.CopyGoalCommand;
 import com.rreganjr.requel.project.command.CopyScenarioCommand;
 import com.rreganjr.requel.project.command.CopyStoryCommand;
 import com.rreganjr.requel.project.command.CopyUseCaseCommand;
+import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.command.DeleteActorCommand;
+import com.rreganjr.requel.project.command.DeleteReportGeneratorCommand;
+import com.rreganjr.requel.project.command.EditReportGeneratorCommand;
+import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
+import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.DeleteScenarioCommand;
@@ -92,6 +98,12 @@ import com.rreganjr.requel.service.api.dto.RemoveGoalFromGoalContainerInput;
 import com.rreganjr.requel.service.api.dto.RemoveScenarioFromUseCaseInput;
 import com.rreganjr.requel.service.api.dto.SetPrimaryScenarioInput;
 import com.rreganjr.requel.service.api.dto.RemoveStoryFromStoryContainerInput;
+import com.rreganjr.requel.service.api.dto.DeleteGlossaryTermInput;
+import com.rreganjr.requel.service.api.dto.DeleteReportGeneratorInput;
+import com.rreganjr.requel.service.api.dto.EditGlossaryTermInput;
+import com.rreganjr.requel.service.api.dto.EditReportGeneratorInput;
+import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
+import com.rreganjr.requel.service.api.dto.ReportGeneratorDto;
 import com.rreganjr.requel.service.query.ProjectQueryController;
 
 import jakarta.annotation.PostConstruct;
@@ -573,21 +585,68 @@ public class ProjectCommandRegistrar {
         registry.register("DeleteScenarioStep", factory::newDeleteScenarioStepCommand);
 
         // Glossary
-        registry.register("EditGlossaryTerm", factory::newEditGlossaryTermCommand);
+        registry.register("EditGlossaryTerm", EditGlossaryTermInput.class,
+                factory::newEditGlossaryTermCommand,
+                (cmd, input) -> {
+                    EditGlossaryTermCommand c = (EditGlossaryTermCommand) cmd;
+                    EditGlossaryTermInput i = (EditGlossaryTermInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setProjectOrDomain(project);
+                    if (i.termId() != null) {
+                        c.setGlossaryTerm(findTermById(project, i.termId()));
+                    }
+                    c.setName(i.name());
+                    if (i.text() != null) c.setText(i.text());
+                    if (i.canonicalTermId() != null) {
+                        c.setCanonicalTerm(findTermById(project, i.canonicalTermId()));
+                    }
+                },
+                null,
+                cmd -> ProjectQueryController.toGlossaryTermDetailDto(((EditGlossaryTermCommand) cmd).getGlossaryTerm()));
+
+        registry.register("DeleteGlossaryTerm", DeleteGlossaryTermInput.class,
+                factory::newDeleteGlossaryTermCommand,
+                (cmd, input) -> {
+                    DeleteGlossaryTermCommand c = (DeleteGlossaryTermCommand) cmd;
+                    DeleteGlossaryTermInput i = (DeleteGlossaryTermInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setGlossaryTerm(findTermById(project, i.termId()));
+                });
+
         registry.register("EditAddWordToGlossaryPosition", factory::newEditAddWordToGlossaryPositionCommand);
         registry.register("EditAddActorToProjectPosition", factory::newEditAddActorToProjectPositionCommand);
         registry.register("ReplaceGlossaryTerm", factory::newReplaceGlossaryTermCommand);
-        registry.register("DeleteGlossaryTerm", factory::newDeleteGlossaryTermCommand);
 
         // Reports
-        registry.register("EditReportGenerator", factory::newEditReportGeneratorCommand);
+        registry.register("EditReportGenerator", EditReportGeneratorInput.class,
+                factory::newEditReportGeneratorCommand,
+                (cmd, input) -> {
+                    EditReportGeneratorCommand c = (EditReportGeneratorCommand) cmd;
+                    EditReportGeneratorInput i = (EditReportGeneratorInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setProjectOrDomain(project);
+                    if (i.reportId() != null) {
+                        c.setReportGenerator(findReportGeneratorById(project, i.reportId()));
+                    }
+                    c.setName(i.name());
+                    if (i.text() != null) c.setText(i.text());
+                },
+                null,
+                cmd -> ProjectQueryController.toReportGeneratorDetailDto(((EditReportGeneratorCommand) cmd).getReportGenerator()));
         registry.register("GenerateReport", factory::newGenerateReportCommand);
-        registry.register("DeleteReportGenerator", factory::newDeleteReportGeneratorCommand);
+        registry.register("DeleteReportGenerator", DeleteReportGeneratorInput.class,
+                factory::newDeleteReportGeneratorCommand,
+                (cmd, input) -> {
+                    DeleteReportGeneratorCommand c = (DeleteReportGeneratorCommand) cmd;
+                    DeleteReportGeneratorInput i = (DeleteReportGeneratorInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setReportGenerator(findReportGeneratorById(project, i.reportId()));
+                });
 
         // NLP cleanup
         registry.register("RemoveUnneedLexicalIssues", factory::newRemoveUnneedLexicalIssuesCommand);
 
-        log.info("Registered {} project command types", 37);
+        log.info("Registered {} project command types", 40);
     }
 
     private static UserStakeholder findUserStakeholderByUsername(Project project, String username) {
@@ -701,6 +760,20 @@ public class ProjectCommandRegistrar {
         throw new IllegalArgumentException("Actor not found: " + actorId);
     }
 
+    private static GlossaryTerm findTermById(Project project, Long termId) {
+        for (GlossaryTerm t : project.getGlossaryTerms()) {
+            if (t.getId().equals(termId)) return t;
+        }
+        throw new IllegalArgumentException("GlossaryTerm not found: " + termId);
+    }
+
+    private static ReportGenerator findReportGeneratorById(Project project, Long reportId) {
+        for (ReportGenerator r : project.getReportGenerators()) {
+            if (r.getId().equals(reportId)) return r;
+        }
+        throw new IllegalArgumentException("ReportGenerator not found: " + reportId);
+    }
+
     private static Goal findGoalByName(Project project, String name) {
         for (Goal g : project.getGoals()) {
             if (g.getName().equals(name)) return g;
@@ -770,7 +843,8 @@ public class ProjectCommandRegistrar {
                 project.getActors().size(),
                 project.getUseCases().size(),
                 project.getScenarios().size(),
-                project.getGlossaryTerms().size()
+                project.getGlossaryTerms().size(),
+                project.getReportGenerators().size()
         );
     }
 }

@@ -911,7 +911,7 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 | 6 — Scenarios | **Done** | Scenario list, scenario editor with step tree. Step tree uses CDK drag-drop (not `p-tree` as planned) — works well. `ScenarioSelectorDialogComponent` built. |
 | 7 — Use Cases | **Done** | Use case list, use case editor (primary actor autocomplete, goals/stories/actors sub-tables, primary scenario section with step display, additional scenarios section). Expanded beyond original plan — see deviations below. `UseCaseSelectorDialogComponent` not built (not yet needed). |
 | 7 — Annotations | **Done** | Issues, Positions, Arguments, Notes. Shared `AnnotationsSectionComponent` wired into all editors (goal, story, actor, scenario, use case). `ResolveIssue` polymorphic dispatch added beyond plan — see deviations. |
-| 8 — Terms + Documents | **Not started** | Glossary and document generation screens. |
+| 8 — Terms + Documents | **Done** | Glossary terms list + editor (canonical selector, alternate terms, referers, annotations). Report generator list + editor (XSLT upload, Run/download via dedicated GET endpoint, dirty tracking, annotations). `reportGeneratorCount` added to `ProjectDto`. Reports node added to sidebar. |
 | 9 — Open Issues | **Not started** | Project-wide open issues view. |
 | 10 — Echo2 Removal | **Not started** | Depends on all screens being verified. |
 
@@ -924,17 +924,17 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 - **Scenario step tree** uses Angular CDK drag-drop instead of PrimeNG `p-tree`. Works correctly; plan note updated.
 - **Phase 7a — Annotations core** implemented as planned: shared `AnnotationsSectionComponent`, full CRUD for notes/issues/positions/arguments, `GET /api/annotations` query endpoint, wired into all editors.
 - **Phase 7b — ResolveIssue polymorphic dispatch** added beyond plan: positions created by NLP analysis carry a `positionType` (simple class name) so the UI can render action-specific resolve buttons ("Add to Dictionary", "Fix Spelling", "Add as Actor", "Add to Glossary", "Ignore"). The `CommandRegistry`/`CommandRegistration` gained a `commandBuilder: Function<Object, Command>` path for input-dependent command creation; `ResolveIssue` uses this so the correct subcommand (`ResolveIssueWithAddWordToDictionary`, etc.) is dispatched at runtime. Resolved issues display the text of the chosen position as a "Resolution:" line.
-- **SSE not wired into editors** — the `EventStreamService` exists and connects, but no editor subscribes to entity-level events for live refresh. Background NLP updates are not pushed to open editors. This was a planned capability in Phase 0; remains as future work.
+- **SSE sidebar project count refresh** — `CommandController` now publishes a `Project:0` broadcast SSE event after any project-scoped command succeeds (using `StreamEventPublisher`). `LayoutComponent` opens the SSE connection on init with `subscribe=Project:0`. `SidebarNavComponent` subscribes to `EventStreamService.events$` and calls `loadProjects()` when a `Project` event arrives. This means adding a glossary term, resolving an NLP issue, or any other project mutation automatically refreshes the sidebar entity counts without a manual API poll.
+- **SSE not wired into entity editors** — the `EventStreamService` is connected but no individual editor subscribes to entity-level events for live refresh. Background NLP updates are not pushed to open editors. Remains as future work.
 - **Sidebar staleness filtering** — backend infrastructure is in place (`UserPreferences`, `SidebarProjectStaleness`) but the Angular sidebar component does not yet filter/sort projects by recency. Remains as future work.
 
 #### What remains to do (in priority order)
 
-1. **Phase 8 — Terms (Glossary) + Documents** — completes the project content model
-2. **Phase 9 — Open Issues** — project-wide issues view
-3. **Sidebar staleness/recency** — wire backend preferences into sidebar project filtering
-4. **SSE live refresh** — wire `EventStreamService` into editors for background NLP annotation push
-5. **CopyActor** — small gap from Phase 5
-6. **Phase 10 — Echo2 Removal** — final cutover after all screens verified
+1. **Phase 9 — Open Issues** — project-wide open issues view
+2. **Sidebar staleness/recency** — wire backend preferences into sidebar project filtering
+3. **SSE live refresh for editors** — wire `EventStreamService` into entity editors for background NLP annotation push (sidebar refresh is now done via `Project:0` broadcast)
+4. **CopyActor** — small gap from Phase 5
+5. **Phase 10 — Echo2 Removal** — final cutover after all screens verified
 
 ### Phase 0: Foundation (API + Angular scaffold)
 
