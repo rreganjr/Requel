@@ -48,7 +48,11 @@ import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.ScenarioDto;
 import com.rreganjr.requel.service.api.dto.StepDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.annotation.Annotation;
+import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.impl.IssueImpl;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
+import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ReportGeneratorDto;
 import com.rreganjr.requel.service.api.dto.GoalDto;
 import com.rreganjr.requel.service.api.dto.GoalRelationDto;
@@ -921,6 +925,42 @@ public class ProjectQueryController {
         return new ReportGeneratorDto(
                 r.getId(), r.getVersion(), r.getName(), r.getText(),
                 r.getCreatedBy() != null ? r.getCreatedBy().getDisplayName() : null);
+    }
+
+    /**
+     * GET /api/projects/{name}/open-issues — all unresolved issues across every project entity.
+     * Used by the project-wide Open Issues view.
+     */
+    @GetMapping("/{name}/open-issues")
+    public ResponseEntity<?> getOpenIssues(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+
+            List<OpenIssueDto> issues = new ArrayList<>();
+            for (ProjectOrDomainEntity entity : project.getProjectEntities()) {
+                String entityType = entity.getProjectOrDomainEntityInterface().getSimpleName();
+                for (Annotation annotation : entity.getAnnotations()) {
+                    if (annotation instanceof IssueImpl issue && issue.getResolvedByPosition() == null) {
+                        issues.add(new OpenIssueDto(
+                                issue.getId(),
+                                issue.getText(),
+                                issue.isMustBeResolved(),
+                                entityType,
+                                entity.getId(),
+                                entity.getName()));
+                    }
+                }
+            }
+            issues.sort(Comparator.comparing(OpenIssueDto::entityType)
+                    .thenComparing(OpenIssueDto::entityName)
+                    .thenComparing(OpenIssueDto::issueText));
+            return ResponseEntity.ok(issues);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
     }
 
     /**

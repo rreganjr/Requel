@@ -912,7 +912,7 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 | 7 — Use Cases | **Done** | Use case list, use case editor (primary actor autocomplete, goals/stories/actors sub-tables, primary scenario section with step display, additional scenarios section). Expanded beyond original plan — see deviations below. `UseCaseSelectorDialogComponent` not built (not yet needed). |
 | 7 — Annotations | **Done** | Issues, Positions, Arguments, Notes. Shared `AnnotationsSectionComponent` wired into all editors (goal, story, actor, scenario, use case). `ResolveIssue` polymorphic dispatch added beyond plan — see deviations. |
 | 8 — Terms + Documents | **Done** | Glossary terms list + editor (canonical selector, alternate terms, referers, annotations). Report generator list + editor (XSLT upload, Run/download via dedicated GET endpoint, dirty tracking, annotations). `reportGeneratorCount` added to `ProjectDto`. Reports node added to sidebar. |
-| 9 — Open Issues | **Not started** | Project-wide open issues view. |
+| 9 — Open Issues | **Done** | `GET /api/projects/{name}/open-issues` aggregates unresolved issues across all project entities. `OpenIssuesComponent`: sortable/filterable table, must-resolve badge count, click-to-navigate to the annotated entity's editor. Open Issues node added to sidebar (no count — computed on demand). |
 | 10 — Echo2 Removal | **Not started** | Depends on all screens being verified. |
 
 #### Deviations from original plan (code is the direction)
@@ -930,11 +930,12 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 
 #### What remains to do (in priority order)
 
-1. **Phase 9 — Open Issues** — project-wide open issues view
+1. **Phase 10 — Echo2 Removal** — final cutover after all screens verified
 2. **Sidebar staleness/recency** — wire backend preferences into sidebar project filtering
 3. **SSE live refresh for editors** — wire `EventStreamService` into entity editors for background NLP annotation push (sidebar refresh is now done via `Project:0` broadcast)
 4. **CopyActor** — small gap from Phase 5
-5. **Phase 10 — Echo2 Removal** — final cutover after all screens verified
+5. **`permissionService.loadForProject()` missing from term-list and term-editor** — navigating directly via the sidebar skips the project editor, leaving permissions unloaded; New Term and Delete buttons stay hidden. Same bug fixed in report components (Phase 8).
+6. **Phase 10 — Echo2 Removal** — final cutover after all screens verified
 
 ### Phase 0: Foundation (API + Angular scaffold)
 

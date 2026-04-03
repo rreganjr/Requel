@@ -43,14 +43,12 @@ public class PositionImportXmlMapper {
                         arg.getText(), arg.getSupportLevel()))
                 .collect(Collectors.toList());
         String text = xml.getText();
-        if (text == null || text.isBlank()) {
-            text = xml.getProposedWord(); // fallback for changeSpellingPosition
-        }
         return PositionImportDraft.builder()
                 .externalId(xml.getId())
                 .createdByExternalId(xml.getCreatedBy())
                 .text(text)
                 .positionType(elementName)
+                .proposedWord(xml.getProposedWord())
                 .argumentExternalIds(new HashSet<>())
                 .arguments(argumentDrafts)
                 .build();

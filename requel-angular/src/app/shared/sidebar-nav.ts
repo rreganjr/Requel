@@ -238,6 +238,8 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
       this.router.navigate(['/projects', data.projectName, 'terms']);
     } else if (data.type === 'Reports') {
       this.router.navigate(['/projects', data.projectName, 'reports']);
+    } else if (data.type === 'OpenIssues') {
+      this.router.navigate(['/projects', data.projectName, 'open-issues']);
     }
   }
 
@@ -261,9 +263,10 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
       { label: 'Use Cases', type: 'Use Cases', count: project.useCaseCount, icon: 'pi pi-sitemap' },
       { label: 'Glossary', type: 'Glossary', count: project.glossaryTermCount, icon: 'pi pi-list' },
       { label: 'Reports', type: 'Reports', count: project.reportGeneratorCount, icon: 'pi pi-file' },
+      { label: 'Open Issues', type: 'OpenIssues', count: -1, icon: 'pi pi-exclamation-circle' },
     ];
     return groups.map(g => ({
-      label: `${g.label} (${g.count})`,
+      label: g.count >= 0 ? `${g.label} (${g.count})` : g.label,
       icon: g.icon,
       leaf: true,
       data: { type: g.type, projectName: project.name }

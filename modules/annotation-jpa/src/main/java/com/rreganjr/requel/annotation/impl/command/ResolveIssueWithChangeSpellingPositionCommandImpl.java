@@ -101,28 +101,17 @@ public class ResolveIssueWithChangeSpellingPositionCommandImpl extends ResolveIs
 			throws Exception {
 		String textToChange = getTextToChange(annotatable);
 
-		if (textToChange.contains(fromWord)) {
+		if (textToChange != null && textToChange.contains(fromWord)) {
 			// TODO: need better determination for proper case
 			// of word changing to.
 			if (Character.isUpperCase(fromWord.charAt(0))) {
 				toWord = toWord.substring(0, 1).toUpperCase() + toWord.substring(1);
 			}
 
-			StringBuilder sb = new StringBuilder(textToChange.length() - fromWord.length()
-					+ toWord.length());
-			int start = textToChange.indexOf(fromWord);
-			while (start != -1) {
-				sb.setLength(0);
-				int end = start + fromWord.length();
-				sb.append(textToChange.substring(0, start));
-				sb.append(toWord);
-				sb.append(textToChange.substring(end));
-				textToChange = sb.toString();
-				start = textToChange.indexOf(fromWord);
-			}
-			// TODO: should this use a command or will it always be invoked from
-			// inside a command?
-			setChangedText(annotatable, textToChange);
+			// Use String.replace to avoid an infinite loop when toWord contains
+			// fromWord (e.g. "act" -> "action"). String.replace operates on the
+			// original string positions, so it never re-scans replaced text.
+			setChangedText(annotatable, textToChange.replace(fromWord, toWord));
 		}
 	}
 

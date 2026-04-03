@@ -32,6 +32,7 @@ public class PositionImportDraft {
     private final String createdByExternalId;
     private final String text;
     private final String positionType;
+    private final String proposedWord;
     private final Set<String> argumentExternalIds;
     private final java.util.List<ArgumentDraft> arguments;
 
@@ -40,6 +41,7 @@ public class PositionImportDraft {
         this.createdByExternalId = builder.createdByExternalId;
         this.text = builder.text;
         this.positionType = builder.positionType;
+        this.proposedWord = builder.proposedWord;
         this.argumentExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.argumentExternalIds));
         this.arguments = java.util.List.copyOf(builder.arguments);
     }
@@ -65,6 +67,10 @@ public class PositionImportDraft {
         return positionType;
     }
 
+    public String getProposedWord() {
+        return proposedWord;
+    }
+
     public Set<String> getArgumentExternalIds() {
         return argumentExternalIds;
     }
@@ -80,6 +86,7 @@ public class PositionImportDraft {
         private String createdByExternalId;
         private String text;
         private String positionType;
+        private String proposedWord;
         private Set<String> argumentExternalIds = new HashSet<>();
         private java.util.List<ArgumentDraft> arguments = new java.util.ArrayList<>();
 
@@ -94,6 +101,9 @@ public class PositionImportDraft {
         }
         public Builder positionType(String positionType) {
             this.positionType = positionType; return this;
+        }
+        public Builder proposedWord(String proposedWord) {
+            this.proposedWord = proposedWord; return this;
         }
         public Builder argumentExternalIds(Set<String> ids) {
             if (ids != null) this.argumentExternalIds.addAll(ids);

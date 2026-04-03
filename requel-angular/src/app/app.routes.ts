@@ -25,6 +25,7 @@ import { TermListComponent } from './features/terms/term-list';
 import { TermEditorComponent } from './features/terms/term-editor';
 import { ReportListComponent } from './features/reports/report-list';
 import { ReportEditorComponent } from './features/reports/report-editor';
+import { OpenIssuesComponent } from './features/open-issues/open-issues';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -56,6 +57,7 @@ export const routes: Routes = [
       { path: 'projects/:name/terms/:termId', component: TermEditorComponent },
       { path: 'projects/:name/reports', component: ReportListComponent },
       { path: 'projects/:name/reports/:reportId', component: ReportEditorComponent },
+      { path: 'projects/:name/open-issues', component: OpenIssuesComponent },
     ]
   },
   { path: '**', redirectTo: '' }

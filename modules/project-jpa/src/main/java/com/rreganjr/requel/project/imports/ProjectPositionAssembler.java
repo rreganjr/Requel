@@ -54,7 +54,7 @@ public class ProjectPositionAssembler extends PositionAssembler {
 			case "addGlossaryTermPosition":
 				return new AddGlossaryTermPosition(draft.getText(), createdBy);
 			case "changeSpellingPosition":
-				return new ChangeSpellingPosition(draft.getText(), createdBy, draft.getText());
+				return new ChangeSpellingPosition(draft.getText(), createdBy, draft.getProposedWord());
 			case "addWordToDictionaryPosition":
 				return new AddWordToDictionaryPosition(draft.getText(), createdBy);
 			default:

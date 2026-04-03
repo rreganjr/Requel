@@ -1,41 +1,72 @@
-Add scenarios to use case — phase 7a
+Add open issues view; fix spelling issue resolution — infinite loop and wrong replacement word
 
-Adds the ability to associate scenarios with a use case: one primary (auto-created on save)
-and zero or more additional scenarios picked from a popup selector.
+## Open Issues view
 
-## Backend
+Added a project-wide view of all unresolved annotation issues, accessible from
+the sidebar under each project and at `/projects/:name/open-issues`.
 
-**New join table**
-- `V5__usecase_scenarios.sql` — Flyway migration creating the `usecase_scenarios` many-to-many join table
+**Backend**
+- `OpenIssueDto.java` — new record: `issueId`, `issueText`, `mustBeResolved`,
+  `entityType`, `entityId`, `entityName`
+- `ProjectQueryController.java` — new `GET /api/projects/{name}/open-issues`
+  endpoint: walks all project entities, collects their unresolved issues, and
+  returns them sorted by entity type → entity name → issue text
+- `app.routes.ts` — added route `projects/:name/open-issues`
 
-**Domain**
-- `UseCase.java` — added `getAdditionalScenarios()` to the interface
-- `UseCaseImpl.java` — added `additionalScenarios` as a `@ManyToMany` collection backed by the join table
-- `ProjectCommandFactory.java` — added factory methods for the two new commands
-- `AddScenarioToUseCaseCommand.java` — new command interface: links an existing scenario to a use case
-- `RemoveScenarioFromUseCaseCommand.java` — new command interface: unlinks a scenario from a use case
+**Angular**
+- `open-issues.ts` — `OpenIssuesComponent`: paginated, sortable, globally
+  filterable table of issues; badge showing must-resolve count; clicking an
+  entity name navigates to its editor; maps entity type names to route segments
+  via a `ENTITY_ROUTES` lookup table
+- `sidebar-nav.ts` — added "Open Issues" as a fixed child node (no count) under
+  each project in the tree; `onNodeSelect` handles `OpenIssues` type to
+  navigate to the new route
 
-**Command implementations**
-- `AddScenarioToUseCaseCommandImpl.java` — fetches use case and scenario by ID, adds to `additionalScenarios`, merges
-- `RemoveScenarioFromUseCaseCommandImpl.java` — removes scenario from `additionalScenarios`, merges
-- `ProjectCommandFactoryImpl.java` — wired up the two new command implementations
-- `EditUseCaseCommandImpl.java` — fixed: after executing `EditScenarioCommand`, now links the new scenario back to the use case when `scenario` was previously null (fixes existing use cases imported with `scenario_id = NULL`)
+---
 
-**API**
-- `AddScenarioToUseCaseInput.java` — new DTO: `projectName`, `useCaseId`, `scenarioId`
-- `RemoveScenarioFromUseCaseInput.java` — new DTO: `projectName`, `useCaseId`, `scenarioId`
-- `UseCaseDto.java` — added `additionalScenarios: List<ScenarioDto>`
-- `ProjectCommandRegistrar.java` — registered `AddScenarioToUseCase` and `RemoveScenarioFromUseCase` commands; fixed `EditUseCase` registration to set an empty `stepCommands` list (prevented NPE in `EditScenarioCommandImpl`)
-- `ProjectQueryController.java` — `toUseCaseDetailDto` now populates `additionalScenarios`; fixed `toUseCaseSummaryDto` constructor arity
+Two bugs in the "Fix Spelling" position resolution path, both triggered when
+resolving a LexicalIssue via a ChangeSpellingPosition through the REST command API.
 
-## Angular
+## Bug 1: Request hangs indefinitely (infinite loop)
 
-**Models**
-- `entity-reference.ts` — added optional `typeName` field to `EntityReferenceDto`
-- `use-case.ts` — added `additionalScenarios: ScenarioDto[] | null` to `UseCaseDto`
+`ResolveIssueWithChangeSpellingPositionCommandImpl.fixSpelling()` used a
+`while (indexOf(fromWord) >= 0)` loop to replace occurrences. When `toWord`
+contains `fromWord` (e.g. "act" → "action", "is" → "this"), the search from
+position 0 finds the replacement and loops forever. The Java thread pegs CPU
+at 100%; the browser/proxy eventually drops the connection and Spring logs a
+socket exception — manifesting as a hang until timeout.
 
-**Shared**
-- `entity-selector-dialog.ts` — added sortable Type column (shown only when entities have types); added `excludeTypes` input to filter entire type classes from the list (used to block adding a second Primary); added type filter dropdown in the search bar for narrowing by type; Scenario case populates `typeName` from `scenarioType`
+**Fix:** Replaced the while-loop with `String.replace(fromWord, toWord)`.
+Java's `String.replace(CharSequence, CharSequence)` uses `Matcher.replaceAll()`
+which advances past each matched position and never re-scans replaced text,
+making it immune to this class of infinite loop. Also added a null guard on the
+value returned from the reflective property getter.
 
-**Use-case editor**
-- `use-case-editor.ts` — added Scenarios section with Name/Type table and X button (Primary row is not removable); `+ Add Scenario` opens the entity selector; `allScenarios` computed merges primary scenario row with `additionalScenarios`; `excludeScenarioTypes` computed passes `['Primary']` to the selector once a primary exists
+**File:** `modules/annotation-jpa/.../command/ResolveIssueWithChangeSpellingPositionCommandImpl.java`
+
+## Bug 2: Wrong replacement text (full description stored as proposed word)
+
+After the hang was fixed, applying a spelling correction replaced the misspelled
+word with the full human-readable position description (e.g. "Change the word
+''s' to 's'") instead of just the proposed replacement word ("s").
+
+Root cause: `ChangeSpellingPosition` has two distinct fields — `text` (the
+human-readable description) and `proposedWord` (the actual replacement word,
+stored in `proposed_word`). During XML project import, the import pipeline
+dropped `proposedWord` before it could reach the assembler:
+
+- `PositionImportXml` — had `proposedWord` (read from XML attribute), OK
+- `PositionImportXmlMapper` — read `xml.getProposedWord()` but never stored it
+- `PositionImportDraft` — had no `proposedWord` field, so it was silently lost
+- `ProjectPositionAssembler` — had no way to access it; fell back to `draft.getText()`
+
+This caused every `ChangeSpellingPosition` created via import to have
+`proposed_word = text` in the database (372 corrupt records in the live DB).
+
+**Fix (code):**
+- `PositionImportDraft.java` — added `proposedWord` field, getter, and builder method
+- `PositionImportXmlMapper.java` — wired `.proposedWord(xml.getProposedWord())` into the draft builder; removed the dead `text` fallback that was masking the missing field
+- `ProjectPositionAssembler.java` — `changeSpellingPosition` case now passes `draft.getProposedWord()` instead of `draft.getText()`
+
+**Fix (data):**
+- `V6__fix_change_spelling_proposed_word.sql` — Flyway migration that corrects all existing corrupt records by extracting the proposed word from the description text using `SUBSTRING_INDEX(SUBSTRING_INDEX(text, ' to "', -1), '"', 1)`
