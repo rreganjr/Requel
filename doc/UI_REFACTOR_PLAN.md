@@ -914,7 +914,7 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 | 8 — Terms + Documents | **Done** | Glossary terms list + editor (canonical selector, alternate terms, referers, annotations). Report generator list + editor (XSLT upload, Run/download via dedicated GET endpoint, dirty tracking, annotations). `reportGeneratorCount` added to `ProjectDto`. Reports node added to sidebar. |
 | 9 — Open Issues | **Done** | `GET /api/projects/{name}/open-issues` aggregates unresolved issues across all project entities. `OpenIssuesComponent`: sortable/filterable table, must-resolve badge count, click-to-navigate to the annotated entity's editor. Open Issues node added to sidebar (no count — computed on demand). |
 | 10 — Echo2 Removal | **Done** | All 8 sub-steps complete. Echo2 fully removed. Angular served from JAR. |
-| 11 — Polish + Security Hardening | **Not started** | Codex review findings: 401 vs 403 interceptor, SSE ownership, admin/admin removal (post-Phase 10), user editor permission over-grant, user editor paramMap + optimistic locking, encodeURIComponent consistency, bundle size / lazy loading, 5 failing integration tests. See Phase 11 section. |
+| 11 — Polish + Security Hardening | **In progress** | Done: 401/403 interceptor, admin/admin removal, encodeURIComponent consistency, user editor permission over-grant, user editor paramMap, user editor id/version, 9 failing integration tests (4 root causes). Remaining: SSE session ownership (#2), bundle size/lazy loading (#8), shared dirty-editor (#11), shared list scaffold (#12). |
 
 #### Deviations from original plan (code is the direction)
 
@@ -1572,34 +1572,23 @@ with `draggableNodes`/`droppableNodes` as the foundation.
 
 #### Security fixes
 
-1. **401 vs 403 in auth interceptor** (`requel-angular/src/app/core/auth.interceptor.ts:21`)
-   - Current code logs the user out on both 401 and 403. A 403 means the session is valid but the user lacks permission — logging out is wrong and makes authorization bugs look like session expiry.
-   - Fix: only call `authService.logout()` on 401. On 403, surface a toast/snackbar "You don't have permission to do that" and let the UI stay active.
+1. ✅ **401 vs 403 in auth interceptor** — **Done.** Changed `err.status === 401 || err.status === 403` to `err.status === 401` only. Added comment explaining the distinction. 403 is now left for individual components to surface.
 
 2. **SSE session ownership** (`StreamController`, `StreamService`)
    - `sessionId` is accepted from the caller without any check that it belongs to the authenticated user. Any authenticated user that learns another session's ID can hijack its subscriptions or close it.
    - Fix: in `StreamController`, resolve the session owner from the JWT principal and reject requests where the caller's username does not match the session owner stored in `StreamService`. Also pass the JWT expiry time into `createStream()` so the server-side expiry scheduler is wired correctly (currently always passed as `0L`).
 
-3. **Hard-coded `admin/admin` in-memory account** (`Application.java:89-109`)
-   - The in-memory `admin/admin` user is registered in the non-API Spring Security chain alongside `permitAll()`. After Echo2 removal (Phase 10) the non-API chain has no legitimate use — the Angular app talks only to `/api/**`. Tighten the non-API chain to deny all non-API traffic and remove the in-memory account; all auth goes through the JWT-protected `/api/**` chain.
+3. ✅ **Hard-coded `admin/admin` in-memory account** — **Done in Phase 10.** `WebSecurityConfig` and the in-memory `admin/admin` bean were removed from `Application.java` as part of the Echo2 removal. All auth now goes through `ApiSecurityConfig` / JWT.
 
 #### Bug fixes
 
-4. **User editor permission over-grant** (`user-editor.ts:239-241`, `UserDtoMapper.java:24-49`)
-   - `populateForm()` copies the full flat `permissions` list from `UserDto` into every selected role. `UserDtoMapper` builds that flat list by concatenating all roles' permissions. A multi-role user therefore accumulates permissions from role A onto role B after an unrelated save.
-   - Fix: `UserDto` should carry `Map<String, List<String>> permissionsByRole` instead of (or in addition to) the flat list. `populateForm()` should seed `selectedPermissions[roleName]` from the per-role entry, not the flat union.
+4. ✅ **User editor permission over-grant** — **Done.** Added `Map<String, List<String>> permissionsByRole` to `UserDto` (Java record + Angular model). `UserDtoMapper.toDto()` now builds per-role map. `populateForm()` seeds `selectedPermissions[roleName]` from `user.permissionsByRole[roleName]` instead of the flat union list.
 
-5. **User editor uses `route.snapshot` instead of `paramMap`** (`user-editor.ts:155`)
-   - The user editor reads params once at construction time via `route.snapshot`, so navigating `/users/A → /users/B` on the same route outlet leaves stale data on screen. All other entity editors use `route.paramMap.subscribe`.
-   - Fix: convert `ngOnInit` to subscribe to `route.paramMap`, matching the pattern in `goal-editor`, `story-editor`, etc. Add an unsaved-changes confirmation (same pattern as `project-editor`) so edits are not silently dropped on navigation.
+5. ✅ **User editor uses `route.snapshot` instead of `paramMap`** — **Done.** Converted `ngOnInit` to use `paramMap.subscribe` + private `loadData()`. Added `OnDestroy` + `paramSub?.unsubscribe()`, matching the pattern in all other entity editors.
 
-6. **User editor missing `id` and `version` on save** (`user-editor.ts:191-201`, `UserCommandRegistrar.java:38-65`)
-   - `EditUserInput` declares `id` and `version` as required for updates but the editor never sends them and `UserDtoMapper` hard-codes version to `0`. Concurrent edits are not protected by optimistic locking the way project edits are.
-   - Fix: load and carry `id` and `version` from the fetched `UserDto`; include them in the command payload on save. Wire them through `UserCommandRegistrar`.
+6. ✅ **User editor missing `id` and `version` on save** — **Done.** Added `userId`/`userVersion` private fields, populated in `populateForm()` from `UserDto.id`/`UserDto.version`. Save payload now includes both. `UserDtoMapper` reads real version from `UserImpl.getVersion()` (exposed via `User` interface, made public on `UserImpl`) instead of hard-coding `0`.
 
-7. **`encodeURIComponent` missing from several services**
-   - `term.service.ts`, `use-case.service.ts`, `report.service.ts`, and `open-issues.ts` interpolate raw `projectName` directly into URL strings. `actor.service.ts`, `goal.service.ts`, `project.service.ts`, `scenario.service.ts`, `stakeholder.service.ts`, and `story.service.ts` all correctly use `encodeURIComponent`. Projects with spaces or reserved characters will fail in the unencoded paths.
-   - Fix: apply `encodeURIComponent(projectName)` consistently in the missing services. Consider extracting a shared `projectUrl(name: string, ...segments: string[])` helper in `environment` or a `url.util.ts` so this cannot drift again.
+7. ✅ **`encodeURIComponent` consistency** — **Done.** Extracted `projectApiUrl(projectName, ...segments)` helper in `core/api-url.ts` — encodes project name and all path segments. Updated `term.service.ts`, `use-case.service.ts`, `report.service.ts` (including `downloadReport`), and `open-issues.ts` to use it. Removed now-unused `environment` and `base` string imports from affected services.
 
 #### Build / test health
 
@@ -1607,18 +1596,16 @@ with `draggableNodes`/`droppableNodes` as the foundation.
    - `npm run build` reports a 1.62 MB initial bundle against the configured 1.00 MB budget. Primary driver is eager imports of every feature component in `app.routes.ts`.
    - Fix: convert feature routes to `loadComponent`-based lazy loading. Each feature directory becomes its own chunk loaded on demand.
 
-9. **Five failing integration tests** (`requel-app` test suite)
-   - The following tests fail with `NoSuchUserException`, indicating the test dataset no longer seeds the user the tests expect:
-     - `AnnotationAnyMappingTest.loadsAnnotatableViaAnyMapping`
-     - `GoalAssistantTest.testGoalAssistantGoalNameIssue`
-     - `EditProjectCommandImplTest.testProjectCreation`
-     - `ImportProjectStreamingCommandTest.importingUserGetsStakeholderPermissions`
-     - `ImportProjectStreamingCommandTest.streamingImportLoadsDocSample`
-   - Investigate whether a recent schema or fixture change removed the expected user, then fix the test setup or the production code path that creates it.
+9. ✅ **Failing integration tests** — **Done.** Four root causes fixed:
+   - **Echo2 UI XML configs still imported**: `application-config.xml` still had `<import>` for 6 `ui*Config.xml` files referencing Echo2 classes. Removed all 6 imports.
+   - **Missing `UpdatedEntityNotifier` bean**: `AssistantFacade` required this interface, previously provided by Echo2 UI. Added `NoOpUpdatedEntityNotifier @Component` in `project-jpa` (Angular client fetches updated state via REST; no push notification needed from assistant layer).
+   - **`DatabaseInitializationListener` never ran**: Used `@WebListener` which requires `@ServletComponentScan` (removed during Echo2 cleanup). Replaced with `DatabaseInitializationRunner @Component` using `@EventListener(ApplicationReadyEvent.class)` — fires in both production and test contexts.
+   - **`EditUserCommandImpl` blocked bootstrap user creation**: Authorization check threw `AuthorizationException("Only administrators can create user accounts.")` when `editedBy == null` (no security context during initializer run). Fixed to allow creation when `editedBy` is null (system bootstrap context). The fix: `if (!isAdmin && getEditedBy() != null)`.
+   - **`PositionImportDraft` required non-null `text`**: Old XML files have `changeSpellingPosition` elements without a `<text>` child (text was always generated at runtime). Removed the `requireNonNull` check.
 
 #### Refactor opportunities (lower priority, do after the above)
 
-10. **Normalize API URL construction** — extract a `projectUrl(name, ...segments)` helper used by all services; eliminates the encoding drift and the mix of `environment.apiBaseUrl` vs. hard-coded `'/api'` prefixes.
+10. ✅ **Normalize API URL construction** — **Done with item 7.** `core/api-url.ts` is the single source of truth for project-scoped API URLs.
 
 11. **Shared dirty-editor pattern** — `project-editor`, `story-editor`, `scenario-editor`, `use-case-editor`, and `stakeholder-editor` all hand-roll unsaved-changes tracking. `user-editor` and `edit-account` have none. Extract a shared `UnsavedChangesGuard` or composable service so the behavior is consistent and maintained in one place.
 

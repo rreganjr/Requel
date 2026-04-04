@@ -27,6 +27,7 @@ export interface UserDto {
   organizationName: string | null;
   roles: string[];
   permissions: string[];
+  permissionsByRole: Record<string, string[]> | null;
   version: number;
 }
 

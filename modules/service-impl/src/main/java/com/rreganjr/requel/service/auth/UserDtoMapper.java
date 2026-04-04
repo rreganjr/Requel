@@ -29,7 +29,9 @@ import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Maps domain User entities to UserDto records.
@@ -44,17 +46,24 @@ public class UserDtoMapper {
     public UserDto toDto(User user) {
         List<String> roles = new ArrayList<>();
         List<String> permissions = new ArrayList<>();
+        Map<String, List<String>> permissionsByRole = new HashMap<>();
 
         if (user instanceof com.rreganjr.requel.user.User requelUser) {
             for (UserRole role : requelUser.getUserRoles()) {
-                roles.add(toRoleString(role));
+                String roleName = toRoleString(role);
+                roles.add(roleName);
+                List<String> rolePerms = new ArrayList<>();
                 for (UserRolePermission perm : role.getAvailableUserRolePermissions()) {
                     if (role.hasUserRolePermission(perm)) {
                         permissions.add(perm.getName());
+                        rolePerms.add(perm.getName());
                     }
                 }
+                permissionsByRole.put(roleName, rolePerms);
             }
         }
+
+        int version = user instanceof com.rreganjr.requel.user.User u ? u.getVersion() : 0;
 
         return new UserDto(
                 user.getId(),
@@ -66,7 +75,8 @@ public class UserDtoMapper {
                         ? u.getOrganization().getName() : null,
                 roles,
                 permissions,
-                0 // version not exposed on public interface; will be available via entity metadata
+                permissionsByRole,
+                version
         );
     }
 

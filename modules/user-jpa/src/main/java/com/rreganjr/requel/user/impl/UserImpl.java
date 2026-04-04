@@ -170,8 +170,9 @@ public class UserImpl implements User, Serializable {
 		this.id = id;
 	}
 
+	@Override
 	@Version
-	protected int getVersion() {
+	public int getVersion() {
 		return version;
 	}
 

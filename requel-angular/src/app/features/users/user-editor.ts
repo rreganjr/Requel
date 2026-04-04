@@ -18,8 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal, computed } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { InputText } from 'primeng/inputtext';
 import { Password } from 'primeng/password';
@@ -138,7 +139,7 @@ import { CommandService } from '../../core/command.service';
     .actions { display: flex; gap: 0.5rem; }
   `]
 })
-export class UserEditorComponent implements OnInit {
+export class UserEditorComponent implements OnInit, OnDestroy {
 
   readonly isNew = signal(true);
   readonly loading = signal(true);
@@ -155,6 +156,10 @@ export class UserEditorComponent implements OnInit {
   readonly password = signal('');
   readonly repassword = signal('');
 
+  // Identity for optimistic locking
+  private userId: number | null = null;
+  private userVersion: number = 0;
+
   // Roles & permissions
   readonly availableRoles = signal<RoleDto[]>([]);
   selectedRoleNames: string[] = [];
@@ -164,6 +169,8 @@ export class UserEditorComponent implements OnInit {
   readonly organizations = signal<{label: string; value: string}[]>([]);
   readonly orgOptions = computed(() => this.organizations());
 
+  private paramSub?: Subscription;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -171,10 +178,22 @@ export class UserEditorComponent implements OnInit {
     private commandService: CommandService
   ) {}
 
-  async ngOnInit(): Promise<void> {
-    const usernameParam = this.route.snapshot.paramMap.get('username');
-    this.isNew.set(usernameParam === 'new' || !usernameParam);
+  ngOnInit(): void {
+    this.paramSub = this.route.paramMap.subscribe(params => {
+      const usernameParam = params.get('username');
+      this.isNew.set(usernameParam === 'new' || !usernameParam);
+      this.loadData(usernameParam);
+    });
+  }
 
+  ngOnDestroy(): void {
+    this.paramSub?.unsubscribe();
+  }
+
+  private async loadData(usernameParam: string | null): Promise<void> {
+    this.loading.set(true);
+    this.userId = null;
+    this.userVersion = 0;
     try {
       // Load reference data in parallel
       const [roles, orgs] = await Promise.all([
@@ -210,6 +229,8 @@ export class UserEditorComponent implements OnInit {
 
     try {
       const input: Record<string, unknown> = {
+        id: this.userId,
+        version: this.userVersion,
         username: this.username(),
         name: this.name(),
         emailAddress: this.emailAddress(),
@@ -249,16 +270,17 @@ export class UserEditorComponent implements OnInit {
   }
 
   private populateForm(user: UserDto): void {
+    this.userId = user.id ?? null;
+    this.userVersion = user.version ?? 0;
     this.username.set(user.username);
     this.name.set(user.name ?? '');
     this.emailAddress.set(user.emailAddress ?? '');
     this.phoneNumber.set(user.phoneNumber ?? '');
     this.organizationName.set(user.organizationName ?? '');
     this.selectedRoleNames = [...user.roles];
-    // Permissions come as flat list — need to map back to per-role structure
-    // For now, assign all permissions to all selected roles (refined in Phase 1 polish)
+    // Seed per-role permissions from the server's permissionsByRole map
     for (const roleName of user.roles) {
-      this.selectedPermissions[roleName] = [...user.permissions];
+      this.selectedPermissions[roleName] = [...(user.permissionsByRole?.[roleName] ?? [])];
     }
   }
 }

@@ -24,8 +24,10 @@ import { tap } from 'rxjs';
 import { AuthService } from './auth.service';
 
 /**
- * Functional HTTP interceptor that adds the JWT Bearer token to all API requests
- * and handles 401/403 responses by redirecting to login.
+ * Functional HTTP interceptor that adds the JWT Bearer token to all API requests.
+ * - 401 Unauthorized: session is invalid or expired → log out.
+ * - 403 Forbidden: session is valid but the user lacks permission → do not log out;
+ *   let the calling component surface the error to the user.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
@@ -38,7 +40,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(outReq).pipe(
     tap({
       error: (err) => {
-        if ((err.status === 401 || err.status === 403) && !req.url.includes('/auth/login')) {
+        if (err.status === 401 && !req.url.includes('/auth/login')) {
           authService.logout();
         }
       }

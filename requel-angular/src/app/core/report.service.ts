@@ -24,12 +24,10 @@ import { firstValueFrom } from 'rxjs';
 import { ReportGeneratorDto } from '../models/report';
 import { CommandService } from './command.service';
 import { AuthService } from './auth.service';
-import { environment } from '../../environments/environment';
+import { projectApiUrl } from './api-url';
 
 @Injectable({ providedIn: 'root' })
 export class ReportService {
-  private readonly base = '/api/projects';
-
   constructor(
     private http: HttpClient,
     private commandService: CommandService,
@@ -37,11 +35,11 @@ export class ReportService {
   ) {}
 
   listReports(projectName: string): Promise<ReportGeneratorDto[]> {
-    return firstValueFrom(this.http.get<ReportGeneratorDto[]>(`${this.base}/${projectName}/reports`));
+    return firstValueFrom(this.http.get<ReportGeneratorDto[]>(projectApiUrl(projectName, 'reports')));
   }
 
   getReport(projectName: string, reportId: number): Promise<ReportGeneratorDto> {
-    return firstValueFrom(this.http.get<ReportGeneratorDto>(`${this.base}/${projectName}/reports/${reportId}`));
+    return firstValueFrom(this.http.get<ReportGeneratorDto>(projectApiUrl(projectName, 'reports', reportId)));
   }
 
   saveReport(projectName: string, reportId: number | null, name: string, text: string | null) {
@@ -58,7 +56,7 @@ export class ReportService {
    */
   async downloadReport(projectName: string, reportId: number, reportName: string): Promise<void> {
     const token = this.authService.token();
-    const url = `${environment.apiBaseUrl}/projects/${projectName}/reports/${reportId}/run`;
+    const url = projectApiUrl(projectName, 'reports', reportId, 'run');
     const response = await fetch(url, {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });

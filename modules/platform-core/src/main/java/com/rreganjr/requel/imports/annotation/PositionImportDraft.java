@@ -22,7 +22,6 @@ package com.rreganjr.requel.imports.annotation;
 
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 
 public class PositionImportDraft {
@@ -122,7 +121,6 @@ public class PositionImportDraft {
             return this;
         }
         public PositionImportDraft build() {
-            Objects.requireNonNull(text, "position text is required");
             return new PositionImportDraft(this);
         }
     }

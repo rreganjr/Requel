@@ -23,6 +23,7 @@ package com.rreganjr.requel.service.api.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.util.List;
+import java.util.Map;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record UserDto(
@@ -34,6 +35,7 @@ public record UserDto(
         String organizationName,
         List<String> roles,
         List<String> permissions,
+        Map<String, List<String>> permissionsByRole,
         int version
 ) {
 }

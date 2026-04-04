@@ -23,19 +23,18 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { GlossaryTermDto } from '../models/term';
 import { CommandService } from './command.service';
+import { projectApiUrl } from './api-url';
 
 @Injectable({ providedIn: 'root' })
 export class TermService {
-  private readonly base = '/api/projects';
-
   constructor(private http: HttpClient, private commandService: CommandService) {}
 
   listTerms(projectName: string): Promise<GlossaryTermDto[]> {
-    return firstValueFrom(this.http.get<GlossaryTermDto[]>(`${this.base}/${projectName}/terms`));
+    return firstValueFrom(this.http.get<GlossaryTermDto[]>(projectApiUrl(projectName, 'terms')));
   }
 
   getTerm(projectName: string, termId: number): Promise<GlossaryTermDto> {
-    return firstValueFrom(this.http.get<GlossaryTermDto>(`${this.base}/${projectName}/terms/${termId}`));
+    return firstValueFrom(this.http.get<GlossaryTermDto>(projectApiUrl(projectName, 'terms', termId)));
   }
 
   saveTerm(projectName: string, termId: number | null, name: string, text: string | null, canonicalTermId: number | null) {

@@ -18,21 +18,18 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
-import { UseCaseDto } from '../models/use-case';
-import { projectApiUrl } from './api-url';
 
-@Injectable({ providedIn: 'root' })
-export class UseCaseService {
-  constructor(private http: HttpClient) {}
-
-  listUseCases(projectName: string): Promise<UseCaseDto[]> {
-    return firstValueFrom(this.http.get<UseCaseDto[]>(projectApiUrl(projectName, 'use-cases')));
-  }
-
-  getUseCase(projectName: string, useCaseId: number): Promise<UseCaseDto> {
-    return firstValueFrom(this.http.get<UseCaseDto>(projectApiUrl(projectName, 'use-cases', useCaseId)));
-  }
+/**
+ * Build a project-scoped API URL, encoding the project name so that names
+ * with spaces or reserved characters produce valid URLs.
+ *
+ * Examples:
+ *   projectApiUrl('My Project', 'goals')         → '/api/projects/My%20Project/goals'
+ *   projectApiUrl('My Project', 'goals', '42')   → '/api/projects/My%20Project/goals/42'
+ */
+export function projectApiUrl(projectName: string, ...segments: (string | number)[]): string {
+  const base = `/api/projects/${encodeURIComponent(projectName)}`;
+  return segments.length > 0
+    ? `${base}/${segments.map(s => encodeURIComponent(String(s))).join('/')}`
+    : base;
 }

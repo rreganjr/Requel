@@ -81,8 +81,8 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		boolean isAdmin = getEditedBy() != null && getEditedBy().hasRole(SystemAdminUserRole.class);
 		UserImpl userImpl = (UserImpl) getUser();
 		if (userImpl == null) {
-			// Only admins can create new users
-			if (!isAdmin) {
+			// Only admins can create new users; null editedBy = system bootstrap (initializers)
+			if (!isAdmin && getEditedBy() != null) {
 				throw new AuthorizationException("Only administrators can create user accounts.");
 			}
 			userImpl = createUser();

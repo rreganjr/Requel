@@ -23,6 +23,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { projectApiUrl } from '../../core/api-url';
 import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
@@ -157,7 +158,7 @@ export class OpenIssuesComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     try {
       const data = await firstValueFrom(
-        this.http.get<OpenIssueDto[]>(`/api/projects/${this.projectName}/open-issues`)
+        this.http.get<OpenIssueDto[]>(projectApiUrl(this.projectName, 'open-issues'))
       );
       this.issues.set(data);
       this.mustResolveCount.set(data.filter(i => i.mustBeResolved).length);

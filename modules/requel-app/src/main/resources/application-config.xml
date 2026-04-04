@@ -14,10 +14,4 @@
 	<import resource="spring/commandHandlerConfig.xml" />
 	<import resource="spring/jpaConfig.xml" />
 	<import resource="spring/lemmatizerConfig.xml" />
-	<import resource="spring/uiAnnotationConfig.xml" />
-	<import resource="spring/uiFrameworkConfig.xml" />
-	<import resource="spring/uiMainConfig.xml" />
-	<import resource="spring/uiNLPConfig.xml" />
-	<import resource="spring/uiProjectConfig.xml" />
-	<import resource="spring/uiUserConfig.xml" />
 </beans>
