@@ -166,6 +166,7 @@ export class TermEditorComponent implements OnInit, OnDestroy {
     this.paramSub = this.route.paramMap.subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       const idParam = params.get('termId');
+      await this.permissionService.loadForProject(this.projectName);
       this.canEdit.set(this.permissionService.canEdit('GlossaryTerm'));
       this.canDelete.set(this.permissionService.canDelete('GlossaryTerm'));
 
