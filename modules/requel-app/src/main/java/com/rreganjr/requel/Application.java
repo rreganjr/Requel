@@ -22,103 +22,17 @@
  */
 package com.rreganjr.requel;
 
-
-import net.sf.echopm.EchoPMLogoutServlet;
-import net.sf.echopm.EchoPMServlet;
-import nextapp.echo2.webcontainer.filetransfer.CommonsFileUpload2JakartaProvider;
-import nextapp.echo2.webcontainer.filetransfer.MultipartUploadSPI;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.web.servlet.ServletComponentScan;
-import org.springframework.boot.web.servlet.ServletRegistrationBean;
-import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
-import org.springframework.core.annotation.Order;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ImportResource;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-import org.springframework.security.web.SecurityFilterChain;
-import com.rreganjr.requel.ui.config.UiCoreConfiguration;
-import com.rreganjr.requel.ui.annotation.config.AnnotationUiConfiguration;
-import com.rreganjr.requel.ui.project.config.ProjectUiConfiguration;
-import com.rreganjr.requel.ui.user.config.UserUiConfiguration;
-import com.rreganjr.nlp.ui.config.NlpUiConfiguration;
 
 @SpringBootApplication
-@ServletComponentScan
-@EntityScan( basePackages = {"com.rreganjr.requel", "com.rreganjr.nlp"} )
-@ImportResource( {"classpath:application-config.xml"} )
-@Import({
-        UiCoreConfiguration.class,
-        AnnotationUiConfiguration.class,
-        ProjectUiConfiguration.class,
-        UserUiConfiguration.class,
-        NlpUiConfiguration.class
-})
-public class Application extends SpringBootServletInitializer {
-
-    @Bean
-    ServletRegistrationBean initEchoPMServlet() {
-        ServletRegistrationBean echoPMServletRegisterBean = new ServletRegistrationBean();
-        echoPMServletRegisterBean.setLoadOnStartup(1);
-        echoPMServletRegisterBean.addUrlMappings("/app/*");
-        echoPMServletRegisterBean.setServlet(new EchoPMServlet());
-        return echoPMServletRegisterBean;
-    }
-
-    @Bean
-    ServletRegistrationBean initEchoPMLogoutServlet() {
-        ServletRegistrationBean echoPMServletRegisterBean = new ServletRegistrationBean();
-        echoPMServletRegisterBean.setLoadOnStartup(1);
-        echoPMServletRegisterBean.addUrlMappings("/logout", "/app/logout");
-        echoPMServletRegisterBean.setServlet(new EchoPMLogoutServlet());
-        return echoPMServletRegisterBean;
-    }
-
-    @Configuration
-    static class WebSecurityConfig {
-
-        @Bean
-        @Order(2)
-        SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-            //http://www.codesandnotes.be/2014/10/31/restful-authentication-using-spring-security-on-spring-boot-and-jquery-as-a-web-client/
-            http
-                    .httpBasic(Customizer.withDefaults())
-                    .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
-                    .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
-                    .anonymous(Customizer.withDefaults())
-                    .csrf(csrf -> csrf.disable());
-            return http.build();
-        }
-
-        @Bean
-        UserDetailsService userDetailsService() {
-            UserDetails adminUser = User.withUsername("admin")
-                    .password("{noop}admin")
-                    .roles("ADMIN", "USER")
-                    .build();
-            return new InMemoryUserDetailsManager(adminUser);
-        }
-    }
-
-    @Override
-    protected SpringApplicationBuilder configure(SpringApplicationBuilder application) {
-        return application.sources(Application.class);
-    }
+@EntityScan(basePackages = {"com.rreganjr.requel", "com.rreganjr.nlp"})
+@ImportResource({"classpath:application-config.xml"})
+public class Application {
 
     public static void main(String[] args) {
-        System.setProperty(
-                MultipartUploadSPI.SYSTEM_PROPERTY_NAME,
-                CommonsFileUpload2JakartaProvider.class.getName()
-        );
         SpringApplication.run(Application.class, args);
     }
 

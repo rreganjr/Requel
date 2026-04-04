@@ -913,7 +913,7 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 | 7 — Annotations | **Done** | Issues, Positions, Arguments, Notes. Shared `AnnotationsSectionComponent` wired into all editors (goal, story, actor, scenario, use case). `ResolveIssue` polymorphic dispatch added beyond plan — see deviations. |
 | 8 — Terms + Documents | **Done** | Glossary terms list + editor (canonical selector, alternate terms, referers, annotations). Report generator list + editor (XSLT upload, Run/download via dedicated GET endpoint, dirty tracking, annotations). `reportGeneratorCount` added to `ProjectDto`. Reports node added to sidebar. |
 | 9 — Open Issues | **Done** | `GET /api/projects/{name}/open-issues` aggregates unresolved issues across all project entities. `OpenIssuesComponent`: sortable/filterable table, must-resolve badge count, click-to-navigate to the annotated entity's editor. Open Issues node added to sidebar (no count — computed on demand). |
-| 10 — Echo2 Removal | **Not started** | Depends on all screens being verified. |
+| 10 — Echo2 Removal | **Done** | All 8 sub-steps complete. Echo2 fully removed. Angular served from JAR. |
 | 11 — Polish + Security Hardening | **Not started** | Codex review findings: 401 vs 403 interceptor, SSE ownership, admin/admin removal (post-Phase 10), user editor permission over-grant, user editor paramMap + optimistic locking, encodeURIComponent consistency, bundle size / lazy loading, 5 failing integration tests. See Phase 11 section. |
 
 #### Deviations from original plan (code is the direction)
@@ -1549,15 +1549,20 @@ with `draggableNodes`/`droppableNodes` as the foundation.
 
 ### Phase 10: Cleanup + Echo2 Removal
 
-**Goal:** Remove Echo2 entirely.
+**Goal:** Remove Echo2 entirely and serve the Angular app from the Spring Boot JAR.
 
-1. Remove Echo2 servlet registration from `Application.java`
-2. Remove Echo2 UI Maven modules: `ui-core`, `project-ui`, `annotation-ui`, `user-ui`, `nlp-ui`, `ui-assets`
-3. Remove Echo2 transform scripts and `exec-maven-plugin` configuration
-4. Remove Echo2 JARs from dependencies (echo2, echopm, echopointng, echo2-filetransfer)
-5. Integrate Angular build into Maven: copy `ng build` output to `src/main/resources/static/` (via `frontend-maven-plugin` or build script) so the JAR serves the Angular app at `/`
-6. Configure Spring Boot to forward non-API routes to `index.html` (Angular client-side routing)
-7. Update `CLAUDE.md`, `RELEASE.md`, `README.md`
+**Status:** In progress
+
+| Step | Status | Notes |
+|------|--------|-------|
+| 10.1 — Clean up `Application.java` | **Done** | Removed Echo2 servlet beans, UI `@Import`s, `WebSecurityConfig` (permitAll + in-memory admin), `MultipartUploadSPI`, `@ServletComponentScan`, `extends SpringBootServletInitializer` |
+| 10.2 — Remove UI modules from root `pom.xml` | **Done** | Removed `ui-core`, `annotation-ui`, `project-ui`, `user-ui`, `nlp-ui`, `ui-assets` module entries |
+| 10.3 — Remove Echo2 transform + install plugins from `requel-app/pom.xml` | **Done** | Removed `exec-maven-plugin` (transform script), all `install-file` executions, `org.eclipse.transformer` plugin dependency, `transform.output.dir` / `echo.artifact.source.dir` properties |
+| 10.4 — Remove Echo2 JAR and UI module dependencies from `requel-app/pom.xml` | **Done** | Removed echo2-*, echopm, echopointng, echo2-filetransfer, commons-fileupload2-jakarta, ui-core, annotation-ui, project-ui, user-ui, nlp-ui, ui-assets `<dependency>` entries. Kept Clojars repo (needed for opennlp). Build compiles clean. |
+| 10.5 — Integrate Angular build into Maven | **Done** | Added `frontend-maven-plugin` (Node v22.12.0, `generate-resources` phase) + `maven-resources-plugin` to copy `dist/requel-angular/browser/` → `target/classes/static/`. Skip with `-DskipAngularBuild=true`. Deleted obsolete `DomainObjectWrappingAdviceTest` (imported Echo2 UI classes). Full build: 21s. |
+| 10.6 — SPA fallback controller | **Done** | Added `SpaController` in `service-impl`; forwards all non-`/api/`, non-`/actuator/`, non-file-extension routes to `index.html` |
+| 10.7 — CORS tightening | **Done** | Removed hardcoded `localhost:4200`; reads from `spring.cors.allowed-origins` (empty by default = same-origin). Added `application-dev.properties` that sets it for local dev. Activate with `--spring.profiles.active=dev`. |
+| 10.8 — Update docs | **Done** | Updated `CLAUDE.md`: build commands (`-DskipAngularBuild=true` replaces `-DskipEchoTransform=true`), running locally (dev profile for CORS), architecture (removed Echo2 UI section, updated app description), removed Echo2 Transform section, updated guardrails. |
 
 ---
 

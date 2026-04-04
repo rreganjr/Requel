@@ -17,8 +17,8 @@
         <docker.image.prefix>rreganjr</docker.image.prefix>
         <!-- Docker image name must be lowercase -->
         <docker.image.name>requel</docker.image.name>
-        <transform.output.dir>${project.build.directory}/echo-jakarta</transform.output.dir>
-        <echo.artifact.source.dir>${transform.output.dir}</echo.artifact.source.dir>
+        <!-- Set -DskipAngularBuild=true for fast iterative Java-only builds -->
+        <skipAngularBuild>false</skipAngularBuild>
     </properties>
 
     <build>
@@ -68,298 +68,73 @@
                         </goals>
                     </execution>
                 </executions>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.eclipse.transformer</groupId>
-                        <artifactId>org.eclipse.transformer.cli</artifactId>
-                        <version>1.0.0</version>
-                    </dependency>
-                </dependencies>
             </plugin>
 
+            <!-- Angular build: npm install + ng build → dist/requel-angular/browser/ -->
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.1.0</version>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>1.15.0</version>
                 <configuration>
-                    <executable>${project.basedir}/../../scripts/java17-transform.sh</executable>
-                    <workingDirectory>${project.basedir}/../..</workingDirectory>
+                    <!-- Run npm commands inside the Angular project directory -->
+                    <workingDirectory>${project.basedir}/../../requel-angular</workingDirectory>
+                    <!-- Install Node into target/ so it is not committed to source control -->
+                    <installDirectory>${project.build.directory}</installDirectory>
+                    <nodeVersion>v22.12.0</nodeVersion>
+                    <skip>${skipAngularBuild}</skip>
                 </configuration>
                 <executions>
                     <execution>
-                        <id>transform-echo2-app</id>
-                        <phase>initialize</phase>
+                        <id>install-node-and-npm</id>
                         <goals>
-                            <goal>exec</goal>
+                            <goal>install-node-and-npm</goal>
                         </goals>
+                        <phase>generate-resources</phase>
+                    </execution>
+                    <execution>
+                        <id>npm-install</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <phase>generate-resources</phase>
                         <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/../../lib/echo/Echo2_App.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_App.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
+                            <arguments>install</arguments>
                         </configuration>
                     </execution>
                     <execution>
-                        <id>transform-echo2-webcontainer</id>
-                        <phase>initialize</phase>
+                        <id>ng-build</id>
                         <goals>
-                            <goal>exec</goal>
+                            <goal>npm</goal>
                         </goals>
+                        <phase>generate-resources</phase>
                         <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/../../lib/echo/Echo2_WebContainer.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_WebContainer.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echo2-webrender</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/../../lib/echo/Echo2_WebRender.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_WebRender.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echo2-extras-app</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/../../lib/echo/Echo2_Extras_App.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_Extras_App.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echo2-extras-webcontainer</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/../../lib/echo/Echo2_Extras_WebContainer.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_Extras_WebContainer.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echo2-filetransfer-app</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/../../lib/echo/Echo2_FileTransfer_App.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_FileTransfer_App.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echo2-filetransfer-webcontainer</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/../../lib/echo/Echo2_FileTransfer_WebContainer.jar</argument>
-                                <argument>${transform.output.dir}/Echo2_FileTransfer_WebContainer.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echopm</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/../../lib/echo/echopm.jar</argument>
-                                <argument>${transform.output.dir}/echopm.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>transform-echopointng</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>
-                                <argument>${project.basedir}/../../lib/echo/echopointng-2.2.0rc2.jar</argument>
-                                <argument>${transform.output.dir}/echopointng-2.2.0rc2.jar</argument>
-                                <argument>-o</argument>
-                                <argument>-w</argument>
-                            </arguments>
+                            <!-- "npm run build" invokes "ng build" with defaultConfiguration=production -->
+                            <arguments>run build</arguments>
                         </configuration>
                     </execution>
                 </executions>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.eclipse.transformer</groupId>
-                        <artifactId>org.eclipse.transformer.cli</artifactId>
-                        <version>1.0.0</version>
-                    </dependency>
-                </dependencies>
             </plugin>
 
+            <!-- Copy Angular dist output into the Spring Boot static resources directory -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-install-plugin</artifactId>
-                <version>3.1.1</version>
+                <artifactId>maven-resources-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>install-echo2-app</id>
-                        <phase>initialize</phase>
+                        <id>copy-angular-dist</id>
+                        <phase>process-resources</phase>
                         <goals>
-                            <goal>install-file</goal>
+                            <goal>copy-resources</goal>
                         </goals>
                         <configuration>
-                            <file>${echo.artifact.source.dir}/Echo2_App.jar</file>
-                            <groupId>com.nextapp</groupId>
-                            <artifactId>echo2-app</artifactId>
-                            <version>2.1.1a</version>
-                            <packaging>jar</packaging>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>install-echo2-webcontainer</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <configuration>
-                            <file>${echo.artifact.source.dir}/Echo2_WebContainer.jar</file>
-                            <groupId>com.nextapp</groupId>
-                            <artifactId>echo2-webcontainer</artifactId>
-                            <version>2.1.1a</version>
-                            <packaging>jar</packaging>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>install-echo2-webrender</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <configuration>
-                            <file>${echo.artifact.source.dir}/Echo2_WebRender.jar</file>
-                            <groupId>com.nextapp</groupId>
-                            <artifactId>echo2-webrender</artifactId>
-                            <version>2.1.1a</version>
-                            <packaging>jar</packaging>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>install-echo2extras-app</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <configuration>
-                            <file>${echo.artifact.source.dir}/Echo2_Extras_App.jar</file>
-                            <groupId>com.nextapp</groupId>
-                            <artifactId>echo2extras-app</artifactId>
-                            <version>2.1.0a</version>
-                            <packaging>jar</packaging>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>install-echo2extras-webcontainer</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <configuration>
-                            <file>${echo.artifact.source.dir}/Echo2_Extras_WebContainer.jar</file>
-                            <groupId>com.nextapp</groupId>
-                            <artifactId>echo2extras-webcontainer</artifactId>
-                            <version>2.1.0a</version>
-                            <packaging>jar</packaging>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>install-echo2-filetransfer-app</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <configuration>
-                            <file>${echo.artifact.source.dir}/Echo2_FileTransfer_App.jar</file>
-                            <groupId>com.nextapp</groupId>
-                            <artifactId>echo2-filetransfer-app</artifactId>
-                            <version>2.1.1</version>
-                            <packaging>jar</packaging>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>install-echo2-filetransfer-webcontainer</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <configuration>
-                            <file>${echo.artifact.source.dir}/Echo2_FileTransfer_WebContainer.jar</file>
-                            <groupId>com.nextapp</groupId>
-                            <artifactId>echo2-filetransfer-webcontainer</artifactId>
-                            <version>2.1.1</version>
-                            <packaging>jar</packaging>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>install-echopm</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <configuration>
-                            <file>${echo.artifact.source.dir}/echopm.jar</file>
-                            <groupId>com.rreganjr.echopm</groupId>
-                            <artifactId>echopm</artifactId>
-                            <version>1.0.0</version>
-                            <packaging>jar</packaging>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>install-echopointng</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>install-file</goal>
-                        </goals>
-                        <configuration>
-                            <file>${echo.artifact.source.dir}/echopointng-2.2.0rc2.jar</file>
-                            <groupId>echopointng</groupId>
-                            <artifactId>echopointng</artifactId>
-                            <version>1.0.0</version>
-                            <packaging>jar</packaging>
+                            <skip>${skipAngularBuild}</skip>
+                            <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.basedir}/../../requel-angular/dist/requel-angular/browser</directory>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
                         </configuration>
                     </execution>
                 </executions>
@@ -505,34 +280,10 @@
         </dependency>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
-            <artifactId>ui-core</artifactId>
+            <artifactId>utils-jaxb</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.rreganjr.requel</groupId>
-            <artifactId>annotation-ui</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.rreganjr.requel</groupId>
-            <artifactId>project-ui</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.rreganjr.requel</groupId>
-            <artifactId>user-ui</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.rreganjr.requel</groupId>
-            <artifactId>nlp-ui</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.rreganjr.requel</groupId>
-            <artifactId>ui-assets</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
@@ -540,11 +291,6 @@
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-mysql</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.rreganjr.requel</groupId>
-            <artifactId>utils-jaxb</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-compress -->
@@ -554,72 +300,6 @@
             <version>1.26.2</version>
         </dependency>
 
-        <!-- RELATED TO ECHO 2 -->
-        <!-- TODO: I made a couple of changes to the Echo2 code to fix a mime-type issue and old DND.js in extras -->
-        <!-- TODO: both changes were "pull-requested" on github. all versions ending in a are local and loaded in -->
-        <!-- TODO: the script install-lib-mvn.sh -->
-        <!-- https://mvnrepository.com/artifact/com.nextapp/echo2-app -->
-        <dependency>
-            <groupId>com.nextapp</groupId>
-            <artifactId>echo2-app</artifactId>
-            <version>2.1.1a</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/com.nextapp/echo2-webcontainer -->
-        <dependency>
-            <groupId>com.nextapp</groupId>
-            <artifactId>echo2-webcontainer</artifactId>
-            <version>2.1.1a</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/com.nextapp/echo2-webrender -->
-        <dependency>
-            <groupId>com.nextapp</groupId>
-            <artifactId>echo2-webrender</artifactId>
-            <version>2.1.1a</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/com.nextapp/echo2extras-app -->
-        <dependency>
-            <groupId>com.nextapp</groupId>
-            <artifactId>echo2extras-app</artifactId>
-            <version>2.1.0a</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/com.nextapp/echo2extras-webcontainer -->
-        <!-- this uses the local lib jar file, it has a fix in the DND.js file I made a long time ago -->
-        <dependency>
-            <groupId>com.nextapp</groupId>
-            <artifactId>echo2extras-webcontainer</artifactId>
-            <version>2.1.0a</version>
-        </dependency>
-        <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
-        <dependency>
-            <groupId>com.nextapp</groupId>
-            <artifactId>echo2-filetransfer-app</artifactId>
-            <version>2.1.1</version>
-        </dependency>
-        <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
-        <dependency>
-            <groupId>com.nextapp</groupId>
-            <artifactId>echo2-filetransfer-webcontainer</artifactId>
-            <version>2.1.1</version>
-        </dependency>
-        <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
-        <dependency>
-            <groupId>com.rreganjr.echopm</groupId>
-            <artifactId>echopm</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <!-- this is copied to the local maven repo from the lib directory using install-lib-mvn.sh -->
-        <dependency>
-            <groupId>echopointng</groupId>
-            <artifactId>echopointng</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-fileupload2-jakarta -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-fileupload2-jakarta</artifactId>
-            <version>2.0.0-M1</version>
-        </dependency>
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
         <dependency>
             <groupId>commons-io</groupId>
@@ -688,14 +368,6 @@
             <artifactId>spellchecker</artifactId>
             <version>2.6.0</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-parser -->
-<!--
-        <dependency>
-            <groupId>edu.stanford.nlp</groupId>
-            <artifactId>stanford-parser</artifactId>
-            <version>3.8.0</version>
-        </dependency>
-        -->
         <!-- https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-corenlp -->
         <dependency>
             <groupId>edu.stanford.nlp</groupId>

@@ -8,14 +8,14 @@ Requel is a web-based requirements management system supporting collaboration am
 
 ## Build Commands
 
-Requires **Java 17** and **Maven 3.6.3+**. Set `JAVA_HOME` accordingly.
+Requires **Java 17**, **Maven 3.6.3+**, and **Node 22+**. Set `JAVA_HOME` accordingly.
 
 ```bash
-# Full build (includes Echo2 javax→jakarta transform on first run)
-mvn -pl modules/requel-app -am clean verify
+# Full build (Java + Angular, skips tests)
+mvn -pl modules/requel-app -am package -DskipTests
 
-# Fast iterative build (skips Echo transform and tests)
-mvn -pl modules/requel-app -am package -DskipEchoTransform=true -DskipTests=true
+# Fast iterative build (Java only, skips Angular and tests)
+mvn -pl modules/requel-app -am package -DskipAngularBuild=true -DskipTests=true
 
 # Run all tests
 mvn test
@@ -27,16 +27,25 @@ mvn -pl modules/requel-app -am test -Dtest=ProjectXmlRoundTripIT
 mvn -pl modules/project-jpa test
 
 # Build Docker image
-mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests -DskipEchoTransform=true
+mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests
 ```
 
 ## Running Locally
 
 ```bash
-# With local MySQL
+# With local MySQL (Angular served from the JAR at /)
 java -jar modules/requel-app/target/requel-app-1.2.0.jar \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
   --spring.datasource.username=root --spring.datasource.password=password --server.port=8081
+
+# Angular dev server (hot reload) + Spring Boot backend
+# Start backend with dev profile so CORS allows localhost:4200:
+java -jar modules/requel-app/target/requel-app-1.2.0.jar \
+  --spring.profiles.active=dev --server.port=8081 \
+  '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
+  --spring.datasource.username=root --spring.datasource.password=password
+# Then in requel-angular/:
+cd requel-angular && ng serve
 
 # Or use docker-compose (MySQL + app)
 docker-compose up
@@ -64,13 +73,11 @@ DDD-inspired modular architecture with domain/persistence/UI separation:
 - `dictionary-jpa` — spell-check lexicon persistence
 - `utils-jaxb` — JAXB import/export patchers (XML project serialization)
 
-**UI (Echo2 framework — legacy Java RIA):**
-- `ui-core` — UI framework abstractions
-- `ui-assets` — static resources
-- `project-ui`, `user-ui`, `annotation-ui`, `nlp-ui` — panel/tree-based UI components
+**UI:**
+- `requel-angular/` — Angular 17+ SPA (outside the Maven module tree); built by `frontend-maven-plugin` during `mvn package` and served from `classpath:/static/`
 
 **Application:**
-- `requel-app` — Spring Boot entry point, Echo2 servlet registration, Flyway migrations, integration tests
+- `requel-app` — Spring Boot entry point, Flyway migrations, integration tests; serves the Angular SPA at `/` and the CQRS API at `/api/**`
 
 ### Key Patterns
 
@@ -80,9 +87,9 @@ DDD-inspired modular architecture with domain/persistence/UI separation:
 - **Annotation registry:** `AnnotatableTypeRegistry` in `annotation-domain` maps discriminator strings to entity types; `project-jpa` registers its types via `ProjectAnnotatableRegistryConfiguration`
 - **JAXB import/export:** Streaming importer with AggregateAssembler/ImportUnitOfWork pattern; patchers resolve cross-references post-unmarshal without repository access from entity constructors
 
-### CQRS API Architecture (Planned — see `doc/UI_REFACTOR_PLAN.md`)
+### CQRS API Architecture
 
-The Echo2 UI is being replaced with an Angular SPA backed by a hybrid CQRS API:
+The Angular SPA is backed by a hybrid CQRS API:
 - **Writes:** `POST /api/commands/{commandType}` — single dispatch endpoint, ~37 command types
 - **Reads:** `GET /api/...` — conventional query endpoints, ~28 total
 - **Composite CommandFactory:** per-domain factories (`ProjectCommandFactory`, `UserCommandFactory`, etc.) register their command types at startup; a top-level `CommandFactory` facade provides `newCommand(type, input)` entry point
@@ -96,16 +103,12 @@ The Echo2 UI is being replaced with an Angular SPA backed by a hybrid CQRS API:
 - **Tests:** H2 in-memory (MySQL mode), Hibernate DDL `create-drop`, Flyway disabled
 - Test config: `modules/requel-app/src/test/resources/application-test.properties`
 
-### Echo2 Transform
-
-Echo2 JARs ship with `javax.*` namespaces and must be transformed to `jakarta.*` for Spring Boot 3. The `exec-maven-plugin` runs `/scripts/java17-transform.sh` during build. Skip with `-DskipEchoTransform=true` after the first successful transform (JARs are cached in local Maven repo).
-
 ## Development Guardrails
 
 - **Domain purity:** Keep domain code persistence-ignorant — no repository access from entity constructors or JAXB hooks
 - **Aggregate boundaries:** Follow DDD terminology from `doc/unmarshalling_plan.md`; honour the AggregateAssembler/ImportUnitOfWork pattern for import logic
 - **Annotation decoupling:** The annotation module must not import project implementation classes; use the registry pattern
-- **Module dependencies flow downward:** domain modules never depend on JPA modules; UI depends on domain interfaces, not implementations
+- **Module dependencies flow downward:** domain modules never depend on JPA modules
 - **Project XML compatibility:** Import/export must satisfy `doc/samples/project.xsd`; changes to JAXB mappings need round-trip regression tests
 
 ## Key Documentation
