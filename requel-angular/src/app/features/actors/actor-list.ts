@@ -87,10 +87,11 @@ export class ActorListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.paramSub = this.route.paramMap.subscribe(params => {
+    this.paramSub = this.route.paramMap.subscribe(async params => {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {
         this.projectName = name;
+        await this.permissionService.loadForProject(name);
         this.canEdit.set(this.permissionService.canEdit('Actor'));
         this.loadActors();
       }
