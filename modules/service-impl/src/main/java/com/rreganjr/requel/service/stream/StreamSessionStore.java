@@ -35,9 +35,18 @@ public class StreamSessionStore {
 
     private final ConcurrentHashMap<String, Set<String>> sessionSubscriptions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Set<String>> targetToSessions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> sessionOwners = new ConcurrentHashMap<>();
 
-    public void createSession(String sessionId) {
+    public void createSession(String sessionId, String ownerUsername) {
         sessionSubscriptions.putIfAbsent(sessionId, ConcurrentHashMap.newKeySet());
+        sessionOwners.put(sessionId, ownerUsername);
+    }
+
+    /**
+     * Returns the username of the user who opened this session, or null if unknown.
+     */
+    public String getSessionOwner(String sessionId) {
+        return sessionOwners.get(sessionId);
     }
 
     public void addSubscription(String sessionId, String targetKey) {
@@ -60,6 +69,7 @@ public class StreamSessionStore {
     }
 
     public void removeSession(String sessionId) {
+        sessionOwners.remove(sessionId);
         Set<String> subs = sessionSubscriptions.remove(sessionId);
         if (subs != null) {
             for (String targetKey : subs) {

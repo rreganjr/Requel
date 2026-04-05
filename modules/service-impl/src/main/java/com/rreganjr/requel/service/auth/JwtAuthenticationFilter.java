@@ -32,6 +32,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -69,6 +70,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         : List.of();
 
                 var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
+                // Store JWT expiry epoch-ms as details so controllers can schedule server-side expiry
+                Date exp = claims.getExpiration();
+                auth.setDetails(exp != null ? exp.getTime() : 0L);
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (JwtException e) {
                 // Invalid or expired token — don't set authentication, let Spring Security

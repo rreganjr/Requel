@@ -22,9 +22,11 @@ package com.rreganjr.requel.service.stream;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,47 +45,71 @@ public class StreamController {
 
     /**
      * GET /api/events/stream?subscribe=Project:1&subscribe=Goal:7
-     * Opens SSE connection, creates session, returns SseEmitter.
+     * Opens SSE connection, creates session owned by the authenticated user.
+     * JWT expiry (stored as Authentication.details by JwtAuthenticationFilter) is
+     * forwarded so the server can schedule a session-expired event before the token dies.
      */
     @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter openStream(
             @RequestParam(value = "subscribe", required = false) List<String> subscriptions,
-            @RequestParam(value = "sessionId", required = false) String existingSessionId) {
+            @RequestParam(value = "sessionId", required = false) String existingSessionId,
+            Principal principal) {
         List<String> subs = subscriptions != null ? subscriptions : new ArrayList<>();
-        // JWT expiry is handled by the filter; pass 0 to skip server-side expiry scheduling for now
-        // TODO: extract JWT exp claim and pass it here
-        return streamService.createStream(existingSessionId, 0L, subs);
+        String username = principal.getName();
+        long jwtExpiresAtEpochMs = resolveJwtExpiry(principal);
+        return streamService.createStream(existingSessionId, username, jwtExpiresAtEpochMs, subs);
     }
 
     /**
      * POST /api/events/stream/subscriptions — add subscription to existing session.
+     * Rejects with 403 if the session does not belong to the authenticated user.
      */
     @PostMapping("/subscriptions")
     public ResponseEntity<Void> addSubscription(
             @RequestHeader("X-Session-Id") String sessionId,
-            @RequestBody SubscriptionRequest request) {
+            @RequestBody SubscriptionRequest request,
+            Principal principal) {
+        streamService.verifyOwnership(sessionId, principal.getName());
         streamService.addSubscription(sessionId, request.toKey());
         return ResponseEntity.ok().build();
     }
 
     /**
      * DELETE /api/events/stream/subscriptions — remove subscription from session.
+     * Rejects with 403 if the session does not belong to the authenticated user.
      */
     @DeleteMapping("/subscriptions")
     public ResponseEntity<Void> removeSubscription(
             @RequestHeader("X-Session-Id") String sessionId,
-            @RequestBody SubscriptionRequest request) {
+            @RequestBody SubscriptionRequest request,
+            Principal principal) {
+        streamService.verifyOwnership(sessionId, principal.getName());
         streamService.removeSubscription(sessionId, request.toKey());
         return ResponseEntity.ok().build();
     }
 
     /**
      * DELETE /api/events/stream/connection — graceful server-side close.
+     * Rejects with 403 if the session does not belong to the authenticated user.
      */
     @DeleteMapping("/connection")
     public ResponseEntity<Void> closeConnection(
-            @RequestHeader("X-Session-Id") String sessionId) {
+            @RequestHeader("X-Session-Id") String sessionId,
+            Principal principal) {
+        streamService.verifyOwnership(sessionId, principal.getName());
         streamService.closeConnection(sessionId);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Extract the JWT expiry epoch-ms from the Authentication details.
+     * JwtAuthenticationFilter stores it as a Long in auth.details.
+     */
+    private long resolveJwtExpiry(Principal principal) {
+        if (principal instanceof UsernamePasswordAuthenticationToken auth
+                && auth.getDetails() instanceof Long expiry) {
+            return expiry;
+        }
+        return 0L;
     }
 }

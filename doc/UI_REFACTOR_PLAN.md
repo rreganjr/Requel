@@ -914,7 +914,7 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 | 8 — Terms + Documents | **Done** | Glossary terms list + editor (canonical selector, alternate terms, referers, annotations). Report generator list + editor (XSLT upload, Run/download via dedicated GET endpoint, dirty tracking, annotations). `reportGeneratorCount` added to `ProjectDto`. Reports node added to sidebar. |
 | 9 — Open Issues | **Done** | `GET /api/projects/{name}/open-issues` aggregates unresolved issues across all project entities. `OpenIssuesComponent`: sortable/filterable table, must-resolve badge count, click-to-navigate to the annotated entity's editor. Open Issues node added to sidebar (no count — computed on demand). |
 | 10 — Echo2 Removal | **Done** | All 8 sub-steps complete. Echo2 fully removed. Angular served from JAR. |
-| 11 — Polish + Security Hardening | **In progress** | Done: 401/403 interceptor, admin/admin removal, encodeURIComponent consistency, user editor permission over-grant, user editor paramMap, user editor id/version, 9 failing integration tests (4 root causes). Remaining: SSE session ownership (#2), bundle size/lazy loading (#8), shared dirty-editor (#11), shared list scaffold (#12). |
+| 11 — Polish + Security Hardening | **In progress** | Done: 401/403 interceptor, SSE session ownership + JWT expiry, admin/admin removal, encodeURIComponent consistency, user editor permission over-grant, user editor paramMap, user editor id/version, 9 failing integration tests (4 root causes). Remaining: bundle size/lazy loading (#8), shared dirty-editor (#11), shared list scaffold (#12). |
 
 #### Deviations from original plan (code is the direction)
 
@@ -1574,9 +1574,11 @@ with `draggableNodes`/`droppableNodes` as the foundation.
 
 1. ✅ **401 vs 403 in auth interceptor** — **Done.** Changed `err.status === 401 || err.status === 403` to `err.status === 401` only. Added comment explaining the distinction. 403 is now left for individual components to surface.
 
-2. **SSE session ownership** (`StreamController`, `StreamService`)
-   - `sessionId` is accepted from the caller without any check that it belongs to the authenticated user. Any authenticated user that learns another session's ID can hijack its subscriptions or close it.
-   - Fix: in `StreamController`, resolve the session owner from the JWT principal and reject requests where the caller's username does not match the session owner stored in `StreamService`. Also pass the JWT expiry time into `createStream()` so the server-side expiry scheduler is wired correctly (currently always passed as `0L`).
+2. ✅ **SSE session ownership** — **Done.** Four changes:
+   - `JwtAuthenticationFilter`: stores JWT `exp` epoch-ms as `auth.setDetails(expiry)` so controllers can read it without re-parsing the token.
+   - `StreamSessionStore`: added `sessionOwners` map; `createSession(sessionId, ownerUsername)` records the owner; `getSessionOwner()` exposes it; `removeSession()` cleans up the owner entry.
+   - `StreamService`: `createStream()` now accepts `ownerUsername` and passes it to the store. New `verifyOwnership(sessionId, callerUsername)` throws 403 if the session is unknown or owned by a different user. Removed the `getSessionId()` placeholder stub.
+   - `StreamController`: injects `Principal` on all endpoints. `openStream()` records the authenticated username as owner and reads JWT expiry from `auth.getDetails()` (no second token parse). `addSubscription`, `removeSubscription`, and `closeConnection` all call `verifyOwnership` before delegating.
 
 3. ✅ **Hard-coded `admin/admin` in-memory account** — **Done in Phase 10.** `WebSecurityConfig` and the in-memory `admin/admin` bean were removed from `Application.java` as part of the Echo2 removal. All auth now goes through `ApiSecurityConfig` / JWT.
 

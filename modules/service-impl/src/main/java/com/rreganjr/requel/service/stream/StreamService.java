@@ -26,8 +26,10 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -65,13 +67,15 @@ public class StreamService {
 
     /**
      * Create a new stream session or reattach to an existing one.
+     * The ownerUsername is recorded so subsequent requests can be ownership-checked.
      */
-    public SseEmitter createStream(String existingSessionId, long jwtExpiresAtEpochMs,
+    public SseEmitter createStream(String existingSessionId, String ownerUsername,
+                                    long jwtExpiresAtEpochMs,
                                     List<String> initialSubscriptionKeys) {
         String sessionId = existingSessionId != null ? existingSessionId : UUID.randomUUID().toString();
         SseEmitter emitter = new SseEmitter(-1L);
 
-        sessionStore.createSession(sessionId);
+        sessionStore.createSession(sessionId, ownerUsername);
 
         ScheduledFuture<?> keepAlive = taskScheduler.scheduleAtFixedRate(
                 () -> sendKeepAlive(sessionId),
@@ -101,6 +105,18 @@ public class StreamService {
         emitter.onError(e -> onEmitterDone(sessionId, holder));
 
         return emitter;
+    }
+
+    /**
+     * Verify that the caller owns the given session. Throws 403 if not.
+     * Unknown sessions are rejected — either the session expired or the ID is wrong.
+     */
+    public void verifyOwnership(String sessionId, String callerUsername) {
+        String owner = sessionStore.getSessionOwner(sessionId);
+        if (owner == null || !owner.equals(callerUsername)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Session does not belong to the authenticated user");
+        }
     }
 
     public void addSubscription(String sessionId, String targetKey) {
@@ -170,10 +186,6 @@ public class StreamService {
             sessionStore.removeSession(sessionId);
             holder.cancel();
         }
-    }
-
-    public String getSessionId() {
-        return null; // placeholder for session lookup
     }
 
     private record EmitterHolder(SseEmitter emitter, ScheduledFuture<?> keepAlive,
