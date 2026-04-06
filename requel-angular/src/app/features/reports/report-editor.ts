@@ -21,6 +21,7 @@
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -107,7 +108,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
     .form-actions { margin-bottom: 1.5rem; }
   `]
 })
-export class ReportEditorComponent implements OnInit, OnDestroy {
+export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   report = signal<ReportGeneratorDto | null>(null);
   reportName = signal('');
   reportId = signal<number | null>(null);
@@ -162,6 +163,10 @@ export class ReportEditorComponent implements OnInit, OnDestroy {
         this.originalText = '';
       }
     });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.isDirty();
   }
 
   ngOnDestroy(): void {

@@ -26,20 +26,20 @@ import { MessageModule } from 'primeng/message';
 import { UseCaseDto } from '../../models/use-case';
 import { UseCaseService } from '../../core/use-case.service';
 import { PermissionService } from '../../core/permission.service';
+import { ListPageComponent } from '../../shared/list-page';
 
 @Component({
   selector: 'app-use-case-list',
   standalone: true,
-  imports: [TableModule, ButtonModule, MessageModule],
+  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule],
   template: `
-    <div class="list-page">
-      <div class="page-header">
-        <h2>Use Cases</h2>
+    <app-list-page title="Use Cases" [showSearch]="false">
+      <ng-container actions>
         @if (canEdit()) {
           <p-button label="New Use Case" icon="pi pi-plus"
                     (onClick)="onCreate()" />
         }
-      </div>
+      </ng-container>
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
@@ -64,9 +64,9 @@ import { PermissionService } from '../../core/permission.service';
           <tr><td colspan="3" style="text-align:center">No use cases yet.</td></tr>
         </ng-template>
       </p-table>
-    </div>
+    </app-list-page>
   `,
-  styles: [`.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }`]
+  styles: []
 })
 export class UseCaseListComponent implements OnInit {
   useCases = signal<UseCaseDto[]>([]);

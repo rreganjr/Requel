@@ -20,33 +20,30 @@
  */
 import { Component, OnInit, signal, ViewChild, ElementRef } from '@angular/core';
 import { Router } from '@angular/router';
-import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
-import { InputText } from 'primeng/inputtext';
 import { ProjectDto } from '../../models/project';
 import { ProjectService } from '../../core/project.service';
 import { AuthService } from '../../core/auth.service';
+import { ListPageComponent } from '../../shared/list-page';
 
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [FormsModule, TableModule, ButtonModule, MessageModule, InputText],
+  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule],
   template: `
-    <div class="project-list">
-      <div class="page-header">
-        <h2>Projects</h2>
-        <div class="page-actions">
-          @if (canCreateProjects()) {
-            <p-button label="New Project" icon="pi pi-plus" (onClick)="onNewProject()" />
-            <p-button label="Import" icon="pi pi-upload" severity="secondary"
-                      [outlined]="true" [loading]="importing()" (onClick)="fileInput.click()" />
-            <input #fileInput type="file" accept=".xml" (change)="onImportFile($event)"
-                   style="display: none" />
-          }
-        </div>
-      </div>
+    <app-list-page title="Projects" searchPlaceholder="Search projects..."
+                   (search)="dt.filterGlobal($event, 'contains')">
+      <ng-container actions>
+        @if (canCreateProjects()) {
+          <p-button label="New Project" icon="pi pi-plus" (onClick)="onNewProject()" />
+          <p-button label="Import" icon="pi pi-upload" severity="secondary"
+                    [outlined]="true" [loading]="importing()" (onClick)="fileInput.click()" />
+          <input #fileInput type="file" accept=".xml" (change)="onImportFile($event)"
+                 style="display: none" />
+        }
+      </ng-container>
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
@@ -54,14 +51,6 @@ import { AuthService } from '../../core/auth.service';
       @if (successMessage()) {
         <p-message severity="success" [text]="successMessage()!" />
       }
-
-      <div class="search-bar">
-        <span class="p-input-icon-left">
-          <i class="pi pi-search"></i>
-          <input pInputText [(ngModel)]="searchText" placeholder="Search projects..."
-                 (input)="dt.filterGlobal(searchText(), 'contains')" />
-        </span>
-      </div>
 
       <p-table #dt [value]="projects()" [loading]="loading()" [paginator]="true" [rows]="20"
                [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
@@ -94,15 +83,9 @@ import { AuthService } from '../../core/auth.service';
           <tr><td colspan="8">No projects found.</td></tr>
         </ng-template>
       </p-table>
-    </div>
+    </app-list-page>
   `,
-  styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-header h2 { margin: 0; }
-    .page-actions { display: flex; gap: 0.5rem; }
-    .search-bar { margin-bottom: 1rem; }
-    .search-bar input { width: 300px; }
-  `]
+  styles: []
 })
 export class ProjectListComponent implements OnInit {
 
@@ -111,7 +94,6 @@ export class ProjectListComponent implements OnInit {
   readonly importing = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
-  readonly searchText = signal('');
 
   readonly canCreateProjects = signal(false);
 

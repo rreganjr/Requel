@@ -21,42 +21,31 @@
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
-import { InputText } from 'primeng/inputtext';
 import { SlicePipe } from '@angular/common';
 import { StoryDto } from '../../models/story';
 import { StoryService } from '../../core/story.service';
 import { PermissionService } from '../../core/permission.service';
+import { ListPageComponent } from '../../shared/list-page';
 
 @Component({
   selector: 'app-story-list',
   standalone: true,
-  imports: [FormsModule, TableModule, ButtonModule, MessageModule, InputText, SlicePipe],
+  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SlicePipe],
   template: `
-    <div class="story-list">
-      <div class="page-header">
-        <h2>Stories</h2>
-        <div class="page-actions">
-          @if (canEdit()) {
-            <p-button label="New Story" icon="pi pi-plus" (onClick)="onNewStory()" />
-          }
-        </div>
-      </div>
+    <app-list-page title="Stories" searchPlaceholder="Search stories..."
+                   (search)="dt.filterGlobal($event, 'contains')">
+      <ng-container actions>
+        @if (canEdit()) {
+          <p-button label="New Story" icon="pi pi-plus" (onClick)="onNewStory()" />
+        }
+      </ng-container>
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
-
-      <div class="search-bar">
-        <span class="p-input-icon-left">
-          <i class="pi pi-search"></i>
-          <input pInputText [(ngModel)]="searchText" placeholder="Search stories..."
-                 (input)="dt.filterGlobal(searchText(), 'contains')" />
-        </span>
-      </div>
 
       <p-table #dt [value]="stories()" [loading]="loading()" [paginator]="true" [rows]="20"
                [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
@@ -81,12 +70,9 @@ import { PermissionService } from '../../core/permission.service';
           <tr><td colspan="4" class="text-center">No stories found.</td></tr>
         </ng-template>
       </p-table>
-    </div>
+    </app-list-page>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-actions { display: flex; gap: 0.5rem; }
-    .search-bar { margin-bottom: 1rem; }
     .text-center { text-align: center; }
     .text-preview { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   `]
@@ -95,7 +81,6 @@ export class StoryListComponent implements OnInit, OnDestroy {
   stories = signal<StoryDto[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
-  searchText = signal('');
   canEdit = signal(false);
 
   private projectName = '';

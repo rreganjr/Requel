@@ -27,19 +27,19 @@ import { MessageModule } from 'primeng/message';
 import { ScenarioDto } from '../../models/scenario';
 import { ScenarioService } from '../../core/scenario.service';
 import { PermissionService } from '../../core/permission.service';
+import { ListPageComponent } from '../../shared/list-page';
 
 @Component({
   selector: 'app-scenario-list',
   standalone: true,
-  imports: [ButtonModule, TableModule, MessageModule],
+  imports: [ListPageComponent, ButtonModule, TableModule, MessageModule],
   template: `
-    <div class="scenario-list">
-      <div class="page-header">
-        <h2>Scenarios</h2>
+    <app-list-page title="Scenarios" [showSearch]="false">
+      <ng-container actions>
         @if (canEdit()) {
           <p-button label="New Scenario" icon="pi pi-plus" (onClick)="onNew()" />
         }
-      </div>
+      </ng-container>
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
@@ -66,11 +66,9 @@ import { PermissionService } from '../../core/permission.service';
           <tr><td colspan="3" style="text-align:center;font-style:italic">No scenarios yet.</td></tr>
         </ng-template>
       </p-table>
-    </div>
+    </app-list-page>
   `,
-  styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-  `]
+  styles: []
 })
 export class ScenarioListComponent implements OnInit, OnDestroy {
   scenarios = signal<ScenarioDto[]>([]);

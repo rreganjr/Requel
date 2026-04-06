@@ -21,6 +21,7 @@
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -141,7 +142,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
     .clickable-row:hover td { background: var(--p-surface-100); }
   `]
 })
-export class TermEditorComponent implements OnInit, OnDestroy {
+export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   term = signal<GlossaryTermDto | null>(null);
   termName = signal('');
   termId = signal<number | null>(null);
@@ -205,6 +206,10 @@ export class TermEditorComponent implements OnInit, OnDestroy {
         this.originalCanonicalTermId = null;
       }
     });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.isDirty();
   }
 
   ngOnDestroy(): void {

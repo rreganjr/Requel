@@ -18,10 +18,11 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal, computed } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal, computed, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
+import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { InputText } from 'primeng/inputtext';
 import { Password } from 'primeng/password';
 import { ButtonModule } from 'primeng/button';
@@ -139,7 +140,9 @@ import { CommandService } from '../../core/command.service';
     .actions { display: flex; gap: 0.5rem; }
   `]
 })
-export class UserEditorComponent implements OnInit, OnDestroy {
+export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
+
+  @ViewChild('userForm') private viewUserForm?: NgForm;
 
   readonly isNew = signal(true);
   readonly loading = signal(true);
@@ -184,6 +187,10 @@ export class UserEditorComponent implements OnInit, OnDestroy {
       this.isNew.set(usernameParam === 'new' || !usernameParam);
       this.loadData(usernameParam);
     });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.viewUserForm?.dirty ?? false;
   }
 
   ngOnDestroy(): void {
@@ -250,6 +257,7 @@ export class UserEditorComponent implements OnInit, OnDestroy {
       const result = await this.commandService.execute('EditUser', input);
       if (result.success) {
         this.successMessage.set('User saved successfully.');
+        this.viewUserForm?.form.markAsPristine();
         if (this.isNew()) {
           await this.router.navigate(['/users', this.username()]);
         }

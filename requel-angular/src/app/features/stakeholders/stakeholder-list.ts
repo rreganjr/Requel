@@ -21,44 +21,33 @@
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
-import { InputText } from 'primeng/inputtext';
 import { StakeholderDto } from '../../models/stakeholder';
 import { StakeholderService } from '../../core/stakeholder.service';
 import { PermissionService } from '../../core/permission.service';
+import { ListPageComponent } from '../../shared/list-page';
 
 @Component({
   selector: 'app-stakeholder-list',
   standalone: true,
-  imports: [FormsModule, TableModule, ButtonModule, MessageModule, InputText],
+  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule],
   template: `
-    <div class="stakeholder-list">
-      <div class="page-header">
-        <h2>Stakeholders</h2>
-        <div class="page-actions">
-          @if (canEdit()) {
-            <p-button label="Add User" icon="pi pi-user-plus"
-                      (onClick)="onNewUserStakeholder()" />
-            <p-button label="Add Non-User" icon="pi pi-building" severity="secondary"
-                      [outlined]="true" (onClick)="onNewNonUserStakeholder()" />
-          }
-        </div>
-      </div>
+    <app-list-page title="Stakeholders" searchPlaceholder="Search stakeholders..."
+                   (search)="dt.filterGlobal($event, 'contains')">
+      <ng-container actions>
+        @if (canEdit()) {
+          <p-button label="Add User" icon="pi pi-user-plus"
+                    (onClick)="onNewUserStakeholder()" />
+          <p-button label="Add Non-User" icon="pi pi-building" severity="secondary"
+                    [outlined]="true" (onClick)="onNewNonUserStakeholder()" />
+        }
+      </ng-container>
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
-
-      <div class="search-bar">
-        <span class="p-input-icon-left">
-          <i class="pi pi-search"></i>
-          <input pInputText [(ngModel)]="searchText" placeholder="Search stakeholders..."
-                 (input)="dt.filterGlobal(searchText(), 'contains')" />
-        </span>
-      </div>
 
       <p-table #dt [value]="stakeholders()" [loading]="loading()" [paginator]="true" [rows]="20"
                [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
@@ -87,12 +76,9 @@ import { PermissionService } from '../../core/permission.service';
           <tr><td colspan="6" class="text-center">No stakeholders found.</td></tr>
         </ng-template>
       </p-table>
-    </div>
+    </app-list-page>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-actions { display: flex; gap: 0.5rem; }
-    .search-bar { margin-bottom: 1rem; }
     .text-center { text-align: center; }
   `]
 })
@@ -100,7 +86,6 @@ export class StakeholderListComponent implements OnInit, OnDestroy {
   stakeholders = signal<StakeholderDto[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
-  searchText = signal('');
   canEdit = signal(false);
 
   private projectName = '';

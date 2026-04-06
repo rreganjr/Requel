@@ -21,6 +21,7 @@
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -213,7 +214,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
     .dialog-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
   `]
 })
-export class GoalEditorComponent implements OnInit, OnDestroy {
+export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   isNew = signal(true);
   goalName = signal('');
   goal = signal<GoalDto | null>(null);
@@ -268,6 +269,10 @@ export class GoalEditorComponent implements OnInit, OnDestroy {
         this.loadGoal();
       }
     });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return false;
   }
 
   ngOnDestroy(): void {

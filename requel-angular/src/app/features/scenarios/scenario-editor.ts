@@ -22,6 +22,7 @@ import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { Subscription } from 'rxjs';
+import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -297,7 +298,7 @@ interface StepNodeData {
     .edit-popup-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
   `]
 })
-export class ScenarioEditorComponent implements OnInit, OnDestroy {
+export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   isNew = signal(true);
   scenarioName = signal('');
   scenario = signal<ScenarioDto | null>(null);
@@ -361,6 +362,10 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy {
         this.loadScenario();
       }
     });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.hasChanges();
   }
 
   ngOnDestroy(): void {

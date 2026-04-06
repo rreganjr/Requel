@@ -22,6 +22,7 @@ import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { Subscription } from 'rxjs';
+import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -366,7 +367,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
     .step-count { color: var(--p-text-muted-color); font-size: 0.875rem; }
   `]
 })
-export class UseCaseEditorComponent implements OnInit, OnDestroy {
+export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   isNew = signal(true);
   useCaseName = signal('');
   useCase = signal<UseCaseDto | null>(null);
@@ -449,6 +450,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy {
         await this.loadUseCase();
       }
     });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.hasChanges();
   }
 
   ngOnDestroy(): void {

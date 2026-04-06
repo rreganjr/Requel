@@ -21,6 +21,7 @@
 import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -196,7 +197,7 @@ interface PermissionGroup {
     .empty-text { color: var(--p-text-secondary-color); font-style: italic; }
   `]
 })
-export class StakeholderEditorComponent implements OnInit, OnDestroy {
+export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   isNew = signal(true);
   isUserType = signal(true);
   stakeholderName = signal('');
@@ -258,6 +259,10 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy {
         this.loadStakeholder();
       }
     });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.hasChanges();
   }
 
   ngOnDestroy(): void {

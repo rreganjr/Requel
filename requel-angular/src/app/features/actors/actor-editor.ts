@@ -21,6 +21,7 @@
 import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -178,7 +179,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
     .ref-label { font-weight: 600; font-size: 0.85rem; margin: 0.5rem 0 0.25rem; color: var(--p-text-secondary-color); }
   `]
 })
-export class ActorEditorComponent implements OnInit, OnDestroy {
+export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   actor = signal<ActorDto | null>(null);
   actorName = signal('');
   isNew = signal(false);
@@ -234,6 +235,10 @@ export class ActorEditorComponent implements OnInit, OnDestroy {
         this.loadActor();
       }
     });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.hasChanges();
   }
 
   ngOnDestroy(): void {

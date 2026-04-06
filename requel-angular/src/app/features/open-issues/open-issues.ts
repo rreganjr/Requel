@@ -24,12 +24,11 @@ import { Subscription } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { projectApiUrl } from '../../core/api-url';
-import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
 import { MessageModule } from 'primeng/message';
-import { InputText } from 'primeng/inputtext';
+import { ListPageComponent } from '../../shared/list-page';
 
 interface OpenIssueDto {
   issueId: number;
@@ -56,14 +55,15 @@ const ENTITY_ROUTES: Record<string, string> = {
 @Component({
   selector: 'app-open-issues',
   standalone: true,
-  imports: [FormsModule, TableModule, ButtonModule, BadgeModule, MessageModule, InputText],
+  imports: [ListPageComponent, TableModule, ButtonModule, BadgeModule, MessageModule],
   template: `
-    <div class="open-issues">
-      <div class="page-header">
-        <h2>Open Issues</h2>
-        <p-badge [value]="mustResolveCount().toString()" severity="danger"
-                 *ngIf="mustResolveCount() > 0" />
-      </div>
+    <app-list-page title="Open Issues" searchPlaceholder="Search issues..."
+                   (search)="dt.filterGlobal($event, 'contains')">
+      <ng-container actions>
+        @if (mustResolveCount() > 0) {
+          <p-badge [value]="mustResolveCount().toString()" severity="danger" />
+        }
+      </ng-container>
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
@@ -72,14 +72,6 @@ const ENTITY_ROUTES: Record<string, string> = {
       @if (!loading() && issues().length === 0) {
         <p-message severity="success" text="No open issues — all clear." />
       }
-
-      <div class="search-bar">
-        <span class="p-input-icon-left">
-          <i class="pi pi-search"></i>
-          <input pInputText [(ngModel)]="searchText" placeholder="Search issues..."
-                 (input)="dt.filterGlobal(searchText, 'contains')" />
-        </span>
-      </div>
 
       <p-table #dt [value]="issues()" [loading]="loading()" [paginator]="true" [rows]="25"
                [rowHover]="true" [globalFilterFields]="['entityType', 'entityName', 'issueText']"
@@ -112,11 +104,9 @@ const ENTITY_ROUTES: Record<string, string> = {
           <tr><td colspan="4" class="text-center">No open issues.</td></tr>
         </ng-template>
       </p-table>
-    </div>
+    </app-list-page>
   `,
   styles: [`
-    .page-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
-    .search-bar { margin-bottom: 1rem; }
     .text-center { text-align: center; }
     .entity-link { color: var(--p-primary-color); cursor: pointer; text-decoration: underline; }
     .entity-link:hover { opacity: 0.8; }
@@ -129,7 +119,6 @@ export class OpenIssuesComponent implements OnInit, OnDestroy {
   loading = signal(true);
   errorMessage = signal<string | null>(null);
   mustResolveCount = signal(0);
-  searchText = '';
 
   private projectName = '';
   private paramSub?: Subscription;

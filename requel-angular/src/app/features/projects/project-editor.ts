@@ -29,6 +29,7 @@ import { MessageModule } from 'primeng/message';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService } from 'primeng/api';
 import { Subscription } from 'rxjs';
+import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { ProjectDto } from '../../models/project';
 import { OrganizationDto } from '../../models/user';
 import { ProjectService } from '../../core/project.service';
@@ -104,7 +105,7 @@ import { PermissionService } from '../../core/permission.service';
     .actions { display: flex; gap: 0.5rem; }
   `]
 })
-export class ProjectEditorComponent implements OnInit, OnDestroy {
+export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   @ViewChild('projectForm') projectForm!: NgForm;
 
@@ -171,6 +172,10 @@ export class ProjectEditorComponent implements OnInit, OnDestroy {
 
       this.loadProject(nameParam);
     });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.projectForm?.dirty ?? false;
   }
 
   ngOnDestroy(): void {

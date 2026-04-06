@@ -18,8 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, signal, computed } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { Component, OnInit, signal, computed, ViewChild } from '@angular/core';
+import { FormsModule, NgForm } from '@angular/forms';
+import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { InputText } from 'primeng/inputtext';
 import { Password } from 'primeng/password';
 import { SelectModule } from 'primeng/select';
@@ -104,7 +105,9 @@ import { UserService } from '../../core/user.service';
     .actions { margin-top: 1rem; }
   `]
 })
-export class EditAccountComponent implements OnInit {
+export class EditAccountComponent implements OnInit, DirtyCheckable {
+
+  @ViewChild('accountForm') private viewAccountForm?: NgForm;
 
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -126,6 +129,10 @@ export class EditAccountComponent implements OnInit {
     private commandService: CommandService,
     private userService: UserService
   ) {}
+
+  hasUnsavedChanges(): boolean {
+    return this.viewAccountForm?.dirty ?? false;
+  }
 
   async ngOnInit(): Promise<void> {
     const user = this.authService.user();
@@ -167,6 +174,7 @@ export class EditAccountComponent implements OnInit {
         this.successMessage.set('Account updated.');
         this.password.set('');
         this.repassword.set('');
+        this.viewAccountForm?.form.markAsPristine();
       } else if (result.violations?.length) {
         this.errorMessage.set(result.violations.map(v => v.message).join('; '));
       } else {

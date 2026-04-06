@@ -21,42 +21,31 @@
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
-import { InputText } from 'primeng/inputtext';
 import { SlicePipe } from '@angular/common';
 import { GlossaryTermDto } from '../../models/term';
 import { TermService } from '../../core/term.service';
 import { PermissionService } from '../../core/permission.service';
+import { ListPageComponent } from '../../shared/list-page';
 
 @Component({
   selector: 'app-term-list',
   standalone: true,
-  imports: [FormsModule, TableModule, ButtonModule, MessageModule, InputText, SlicePipe],
+  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SlicePipe],
   template: `
-    <div class="term-list">
-      <div class="page-header">
-        <h2>Glossary</h2>
-        <div class="page-actions">
-          @if (canEdit()) {
-            <p-button label="New Term" icon="pi pi-plus" (onClick)="onNewTerm()" />
-          }
-        </div>
-      </div>
+    <app-list-page title="Terms" searchPlaceholder="Search terms..."
+                   (search)="dt.filterGlobal($event, 'contains')">
+      <ng-container actions>
+        @if (canEdit()) {
+          <p-button label="New Term" icon="pi pi-plus" (onClick)="onNewTerm()" />
+        }
+      </ng-container>
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
-
-      <div class="search-bar">
-        <span class="p-input-icon-left">
-          <i class="pi pi-search"></i>
-          <input pInputText [(ngModel)]="searchText" placeholder="Search terms..."
-                 (input)="dt.filterGlobal(searchText(), 'contains')" />
-        </span>
-      </div>
 
       <p-table #dt [value]="terms()" [loading]="loading()" [paginator]="true" [rows]="20"
                [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
@@ -81,12 +70,9 @@ import { PermissionService } from '../../core/permission.service';
           <tr><td colspan="4" class="text-center">No glossary terms found.</td></tr>
         </ng-template>
       </p-table>
-    </div>
+    </app-list-page>
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-actions { display: flex; gap: 0.5rem; }
-    .search-bar { margin-bottom: 1rem; }
     .text-center { text-align: center; }
     .text-preview { max-width: 350px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   `]
@@ -95,7 +81,6 @@ export class TermListComponent implements OnInit, OnDestroy {
   terms = signal<GlossaryTermDto[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
-  searchText = signal('');
   canEdit = signal(false);
 
   private projectName = '';

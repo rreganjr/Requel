@@ -21,6 +21,7 @@
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -170,7 +171,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
     .entity-link { cursor: pointer; color: var(--p-primary-color); text-decoration: underline; }
   `]
 })
-export class StoryEditorComponent implements OnInit, OnDestroy {
+export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   isNew = signal(true);
   storyName = signal('');
   story = signal<StoryDto | null>(null);
@@ -229,6 +230,10 @@ export class StoryEditorComponent implements OnInit, OnDestroy {
         this.loadStory();
       }
     });
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.hasChanges();
   }
 
   ngOnDestroy(): void {

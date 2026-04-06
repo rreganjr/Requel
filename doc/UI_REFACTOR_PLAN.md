@@ -914,7 +914,7 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 | 8 — Terms + Documents | **Done** | Glossary terms list + editor (canonical selector, alternate terms, referers, annotations). Report generator list + editor (XSLT upload, Run/download via dedicated GET endpoint, dirty tracking, annotations). `reportGeneratorCount` added to `ProjectDto`. Reports node added to sidebar. |
 | 9 — Open Issues | **Done** | `GET /api/projects/{name}/open-issues` aggregates unresolved issues across all project entities. `OpenIssuesComponent`: sortable/filterable table, must-resolve badge count, click-to-navigate to the annotated entity's editor. Open Issues node added to sidebar (no count — computed on demand). |
 | 10 — Echo2 Removal | **Done** | All 8 sub-steps complete. Echo2 fully removed. Angular served from JAR. |
-| 11 — Polish + Security Hardening | **In progress** | Done: 401/403 interceptor, SSE session ownership + JWT expiry, admin/admin removal, encodeURIComponent consistency, user editor permission over-grant, user editor paramMap, user editor id/version, 9 failing integration tests (4 root causes), bundle lazy loading (1.62 MB → 869 KB initial). Remaining: shared dirty-editor (#11), shared list scaffold (#12). |
+| 11 — Polish + Security Hardening | **Done** | 401/403 interceptor, SSE session ownership + JWT expiry, admin/admin removal, encodeURIComponent consistency, user editor permission over-grant, user editor paramMap, user editor id/version, 9 failing integration tests (4 root causes), bundle lazy loading (1.62 MB → 869 KB initial), shared dirty-editor guard, shared list-page scaffold. |
 
 #### Deviations from original plan (code is the direction)
 
@@ -1607,9 +1607,9 @@ with `draggableNodes`/`droppableNodes` as the foundation.
 
 10. ✅ **Normalize API URL construction** — **Done with item 7.** `core/api-url.ts` is the single source of truth for project-scoped API URLs.
 
-11. **Shared dirty-editor pattern** — `project-editor`, `story-editor`, `scenario-editor`, `use-case-editor`, and `stakeholder-editor` all hand-roll unsaved-changes tracking. `user-editor` and `edit-account` have none. Extract a shared `UnsavedChangesGuard` or composable service so the behavior is consistent and maintained in one place.
+11. ✅ **Shared dirty-editor pattern** — **Done.** Added `DirtyCheckable` interface and `dirtyCheckGuard` functional guard in `core/dirty-check.guard.ts`. All 11 editors implement `hasUnsavedChanges()` (delegates to `formGroup.dirty`, `hasChanges()` signal, or `isDirty()` as appropriate per editor). Guard wired via `canDeactivate: [dirtyCheckGuard]` on all editor routes in `app.routes.ts`. Browser `confirm()` prompt fires on navigation away from a dirty editor.
 
-12. **Shared list-page scaffold** — the `page-header` + `page-actions` + `search-bar` block is duplicated across every list component. Extract a `ListPageComponent` wrapper or at minimum a shared CSS class + structural convention.
+12. ✅ **Shared list-page scaffold** — **Done.** Extracted `ListPageComponent` in `shared/list-page.ts`. All 11 list components now use `<app-list-page>` with `[actions]` slot for buttons and `(search)` event for table filtering. Removed duplicated `.page-header`, `.page-actions`, `.search-bar` CSS from each component. `scenario-list` and `use-case-list` use `[showSearch]="false"` since they have no search bar.
 
 ## 5. API Design Conventions
 
