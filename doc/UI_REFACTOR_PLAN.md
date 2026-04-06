@@ -914,7 +914,7 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 | 8 — Terms + Documents | **Done** | Glossary terms list + editor (canonical selector, alternate terms, referers, annotations). Report generator list + editor (XSLT upload, Run/download via dedicated GET endpoint, dirty tracking, annotations). `reportGeneratorCount` added to `ProjectDto`. Reports node added to sidebar. |
 | 9 — Open Issues | **Done** | `GET /api/projects/{name}/open-issues` aggregates unresolved issues across all project entities. `OpenIssuesComponent`: sortable/filterable table, must-resolve badge count, click-to-navigate to the annotated entity's editor. Open Issues node added to sidebar (no count — computed on demand). |
 | 10 — Echo2 Removal | **Done** | All 8 sub-steps complete. Echo2 fully removed. Angular served from JAR. |
-| 11 — Polish + Security Hardening | **In progress** | Done: 401/403 interceptor, SSE session ownership + JWT expiry, admin/admin removal, encodeURIComponent consistency, user editor permission over-grant, user editor paramMap, user editor id/version, 9 failing integration tests (4 root causes). Remaining: bundle size/lazy loading (#8), shared dirty-editor (#11), shared list scaffold (#12). |
+| 11 — Polish + Security Hardening | **In progress** | Done: 401/403 interceptor, SSE session ownership + JWT expiry, admin/admin removal, encodeURIComponent consistency, user editor permission over-grant, user editor paramMap, user editor id/version, 9 failing integration tests (4 root causes), bundle lazy loading (1.62 MB → 869 KB initial). Remaining: shared dirty-editor (#11), shared list scaffold (#12). |
 
 #### Deviations from original plan (code is the direction)
 
@@ -1594,9 +1594,7 @@ with `draggableNodes`/`droppableNodes` as the foundation.
 
 #### Build / test health
 
-8. **Initial bundle exceeds 1 MB budget**
-   - `npm run build` reports a 1.62 MB initial bundle against the configured 1.00 MB budget. Primary driver is eager imports of every feature component in `app.routes.ts`.
-   - Fix: convert feature routes to `loadComponent`-based lazy loading. Each feature directory becomes its own chunk loaded on demand.
+8. ✅ **Initial bundle exceeds 1 MB budget** — **Done.** Converted all 24 feature routes in `app.routes.ts` from static imports to `loadComponent`-based lazy loading. `LoginComponent`, `LayoutComponent`, and `DashboardComponent` remain eager (shell). Initial bundle: **1.62 MB → 869 KB** (47% reduction); `main` chunk went from 1.43 MB to 248 KB. Feature components are now 26+ lazy chunks loaded on first navigation.
 
 9. ✅ **Failing integration tests** — **Done.** Four root causes fixed:
    - **Echo2 UI XML configs still imported**: `application-config.xml` still had `<import>` for 6 `ui*Config.xml` files referencing Echo2 classes. Removed all 6 imports.

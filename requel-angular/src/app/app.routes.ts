@@ -23,29 +23,6 @@ import { authGuard } from './core/auth.guard';
 import { LoginComponent } from './features/auth/login';
 import { LayoutComponent } from './features/auth/layout';
 import { DashboardComponent } from './features/auth/dashboard';
-import { UserListComponent } from './features/users/user-list';
-import { UserEditorComponent } from './features/users/user-editor';
-import { EditAccountComponent } from './features/users/edit-account';
-import { ProjectListComponent } from './features/projects/project-list';
-import { ProjectEditorComponent } from './features/projects/project-editor';
-import { SettingsComponent } from './features/users/settings';
-import { StakeholderListComponent } from './features/stakeholders/stakeholder-list';
-import { StakeholderEditorComponent } from './features/stakeholders/stakeholder-editor';
-import { GoalListComponent } from './features/goals/goal-list';
-import { GoalEditorComponent } from './features/goals/goal-editor';
-import { StoryListComponent } from './features/stories/story-list';
-import { StoryEditorComponent } from './features/stories/story-editor';
-import { ActorListComponent } from './features/actors/actor-list';
-import { ActorEditorComponent } from './features/actors/actor-editor';
-import { ScenarioListComponent } from './features/scenarios/scenario-list';
-import { ScenarioEditorComponent } from './features/scenarios/scenario-editor';
-import { UseCaseListComponent } from './features/use-cases/use-case-list';
-import { UseCaseEditorComponent } from './features/use-cases/use-case-editor';
-import { TermListComponent } from './features/terms/term-list';
-import { TermEditorComponent } from './features/terms/term-editor';
-import { ReportListComponent } from './features/reports/report-list';
-import { ReportEditorComponent } from './features/reports/report-editor';
-import { OpenIssuesComponent } from './features/open-issues/open-issues';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -55,29 +32,29 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: '', component: DashboardComponent },
-      { path: 'account', component: EditAccountComponent },
-      { path: 'settings', component: SettingsComponent },
-      { path: 'users', component: UserListComponent },
-      { path: 'users/:username', component: UserEditorComponent },
-      { path: 'projects', component: ProjectListComponent },
-      { path: 'projects/:name', component: ProjectEditorComponent },
-      { path: 'projects/:name/stakeholders', component: StakeholderListComponent },
-      { path: 'projects/:name/stakeholders/:stakeholderId', component: StakeholderEditorComponent },
-      { path: 'projects/:name/goals', component: GoalListComponent },
-      { path: 'projects/:name/goals/:goalId', component: GoalEditorComponent },
-      { path: 'projects/:name/stories', component: StoryListComponent },
-      { path: 'projects/:name/stories/:storyId', component: StoryEditorComponent },
-      { path: 'projects/:name/actors', component: ActorListComponent },
-      { path: 'projects/:name/actors/:actorId', component: ActorEditorComponent },
-      { path: 'projects/:name/scenarios', component: ScenarioListComponent },
-      { path: 'projects/:name/scenarios/:scenarioId', component: ScenarioEditorComponent },
-      { path: 'projects/:name/use-cases', component: UseCaseListComponent },
-      { path: 'projects/:name/use-cases/:useCaseId', component: UseCaseEditorComponent },
-      { path: 'projects/:name/terms', component: TermListComponent },
-      { path: 'projects/:name/terms/:termId', component: TermEditorComponent },
-      { path: 'projects/:name/reports', component: ReportListComponent },
-      { path: 'projects/:name/reports/:reportId', component: ReportEditorComponent },
-      { path: 'projects/:name/open-issues', component: OpenIssuesComponent },
+      { path: 'account', loadComponent: () => import('./features/users/edit-account').then(m => m.EditAccountComponent) },
+      { path: 'settings', loadComponent: () => import('./features/users/settings').then(m => m.SettingsComponent) },
+      { path: 'users', loadComponent: () => import('./features/users/user-list').then(m => m.UserListComponent) },
+      { path: 'users/:username', loadComponent: () => import('./features/users/user-editor').then(m => m.UserEditorComponent) },
+      { path: 'projects', loadComponent: () => import('./features/projects/project-list').then(m => m.ProjectListComponent) },
+      { path: 'projects/:name', loadComponent: () => import('./features/projects/project-editor').then(m => m.ProjectEditorComponent) },
+      { path: 'projects/:name/stakeholders', loadComponent: () => import('./features/stakeholders/stakeholder-list').then(m => m.StakeholderListComponent) },
+      { path: 'projects/:name/stakeholders/:stakeholderId', loadComponent: () => import('./features/stakeholders/stakeholder-editor').then(m => m.StakeholderEditorComponent) },
+      { path: 'projects/:name/goals', loadComponent: () => import('./features/goals/goal-list').then(m => m.GoalListComponent) },
+      { path: 'projects/:name/goals/:goalId', loadComponent: () => import('./features/goals/goal-editor').then(m => m.GoalEditorComponent) },
+      { path: 'projects/:name/stories', loadComponent: () => import('./features/stories/story-list').then(m => m.StoryListComponent) },
+      { path: 'projects/:name/stories/:storyId', loadComponent: () => import('./features/stories/story-editor').then(m => m.StoryEditorComponent) },
+      { path: 'projects/:name/actors', loadComponent: () => import('./features/actors/actor-list').then(m => m.ActorListComponent) },
+      { path: 'projects/:name/actors/:actorId', loadComponent: () => import('./features/actors/actor-editor').then(m => m.ActorEditorComponent) },
+      { path: 'projects/:name/scenarios', loadComponent: () => import('./features/scenarios/scenario-list').then(m => m.ScenarioListComponent) },
+      { path: 'projects/:name/scenarios/:scenarioId', loadComponent: () => import('./features/scenarios/scenario-editor').then(m => m.ScenarioEditorComponent) },
+      { path: 'projects/:name/use-cases', loadComponent: () => import('./features/use-cases/use-case-list').then(m => m.UseCaseListComponent) },
+      { path: 'projects/:name/use-cases/:useCaseId', loadComponent: () => import('./features/use-cases/use-case-editor').then(m => m.UseCaseEditorComponent) },
+      { path: 'projects/:name/terms', loadComponent: () => import('./features/terms/term-list').then(m => m.TermListComponent) },
+      { path: 'projects/:name/terms/:termId', loadComponent: () => import('./features/terms/term-editor').then(m => m.TermEditorComponent) },
+      { path: 'projects/:name/reports', loadComponent: () => import('./features/reports/report-list').then(m => m.ReportListComponent) },
+      { path: 'projects/:name/reports/:reportId', loadComponent: () => import('./features/reports/report-editor').then(m => m.ReportEditorComponent) },
+      { path: 'projects/:name/open-issues', loadComponent: () => import('./features/open-issues/open-issues').then(m => m.OpenIssuesComponent) },
     ]
   },
   { path: '**', redirectTo: '' }
