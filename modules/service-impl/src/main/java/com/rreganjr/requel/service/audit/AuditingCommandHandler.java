@@ -25,6 +25,7 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.command.CommandMetadata;
 import com.rreganjr.command.CommandMetadataAware;
 import com.rreganjr.platform.command.EditCommand;
+import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.EditProjectOrDomainEntityCommand;
 import com.rreganjr.requel.user.command.EditUserCommand;
@@ -52,13 +53,16 @@ public class AuditingCommandHandler implements CommandHandler {
     private final CommandHandler delegate;
     private final CommandAuditLogRepository auditLogRepository;
     private final SensitiveFieldRedactor redactor;
+    private final ProjectRepository projectRepository;
 
     public AuditingCommandHandler(CommandHandler delegate,
                                   CommandAuditLogRepository auditLogRepository,
-                                  SensitiveFieldRedactor redactor) {
+                                  SensitiveFieldRedactor redactor,
+                                  ProjectRepository projectRepository) {
         this.delegate = delegate;
         this.auditLogRepository = auditLogRepository;
         this.redactor = redactor;
+        this.projectRepository = projectRepository;
     }
 
     @Override
@@ -74,30 +78,27 @@ public class AuditingCommandHandler implements CommandHandler {
     }
 
     private void persistAuditEntry(Command command) {
+        // Only audit API-dispatched commands — background/NLP commands have no metadata
+        if (!(command instanceof CommandMetadataAware cma) || cma.getCommandMetadata() == null) {
+            return;
+        }
+        CommandMetadata metadata = cma.getCommandMetadata();
+
         Long userId = resolveUserId(command);
         if (userId == null) {
             log.info("Skipping audit log — no user ID available for {}", command.getClass().getName());
             return;
         }
 
-        // Extract command type and input from metadata
-        String commandType = command.getClass().getSimpleName();
-        String redactedPayload = null;
-        if (command instanceof CommandMetadataAware metadataAware) {
-            CommandMetadata metadata = metadataAware.getCommandMetadata();
-            if (metadata != null) {
-                if (metadata.getCommandType() != null) {
-                    commandType = metadata.getCommandType();
-                }
-                redactedPayload = redactor.redact(metadata.getInput());
-            }
-        }
+        String commandType = metadata.getCommandType() != null
+                ? metadata.getCommandType()
+                : command.getClass().getSimpleName();
+        String redactedPayload = redactor.redact(metadata.getInput());
 
         // Unwrap CGLIB proxy to get the real command class name
         String commandClass = ClassUtils.getUserClass(command).getName();
 
-        // Extract project ID via JPA PersistenceUnitUtil (avoids needing public getId())
-        Long projectId = resolveProjectId(command);
+        Long projectId = resolveProjectId(command, metadata);
 
         CommandAuditLog entry = new CommandAuditLog(
                 userId,
@@ -130,14 +131,39 @@ public class AuditingCommandHandler implements CommandHandler {
     }
 
     /**
-     * Extract the project/domain ID by calling {@code getId()} via reflection.
+     * Extract the project ID for an API-dispatched command.
      * <p>
-     * Domain entities may be wrapped in legacy CGLIB proxies ({@code $EnhancerByCGLIB$})
-     * that neither {@code Hibernate.unproxy()} nor {@code PersistenceUnitUtil} can handle.
-     * Reflection through the proxy works because CGLIB proxies intercept all method calls
-     * and delegate to the real target.
+     * Tries two strategies in order:
+     * <ol>
+     *   <li>Reflect on the metadata input record for a {@code projectName()} accessor and
+     *       look up the project by name — covers all project commands whose input records
+     *       carry a {@code projectName} field (the common case)</li>
+     *   <li>{@link ProjectScopedCommand#getProject()} or
+     *       {@link EditProjectOrDomainEntityCommand#getProjectOrDomain()} — fallback for
+     *       commands whose input does not carry projectName (e.g. EditProjectCommand uses
+     *       ProjectScopedCommand)</li>
+     * </ol>
      */
-    private Long resolveProjectId(Command command) {
+    private Long resolveProjectId(Command command, CommandMetadata metadata) {
+        // Strategy 1: projectName on the typed input record (fastest — one field lookup)
+        Object input = metadata.getInput();
+        if (input != null) {
+            try {
+                // Java records expose fields via accessor with the field name (no "get" prefix)
+                Method accessor = ReflectionUtils.findMethod(input.getClass(), "projectName");
+                if (accessor != null) {
+                    ReflectionUtils.makeAccessible(accessor);
+                    Object name = accessor.invoke(input);
+                    if (name instanceof String projectName && !projectName.isBlank()) {
+                        return projectRepository.findProjectByName(projectName).getId();
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Could not resolve project ID from input projectName: {}", e.getMessage());
+            }
+        }
+
+        // Strategy 2: domain entity on the command (fallback for commands without projectName input)
         Object entity = null;
         if (command instanceof ProjectScopedCommand psc) {
             entity = psc.getProject();
@@ -155,9 +181,10 @@ public class AuditingCommandHandler implements CommandHandler {
                     }
                 }
             } catch (Exception e) {
-                log.warn("Could not extract project ID: {}", e.getMessage());
+                log.warn("Could not extract project ID from entity: {}", e.getMessage());
             }
         }
+
         return null;
     }
 }

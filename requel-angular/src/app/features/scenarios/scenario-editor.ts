@@ -38,6 +38,7 @@ import { ScenarioService } from '../../core/scenario.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
+import { EventStreamService } from '../../core/event-stream.service';
 import { ScenarioSelectorDialogComponent, ScenarioRef } from '../../shared/scenario-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
@@ -327,6 +328,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   private originalText = '';
   private originalScenarioType = 'Primary';
   private paramSub?: Subscription;
+  private sseSub?: Subscription;
 
   constructor(
     private route: ActivatedRoute,
@@ -337,7 +339,8 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     private projectService: ProjectService,
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private eventStreamService: EventStreamService
   ) {}
 
   ngOnInit(): void {
@@ -370,6 +373,10 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
 
   ngOnDestroy(): void {
     this.paramSub?.unsubscribe();
+    if (this.scenarioId) {
+      void this.eventStreamService.removeSubscription('Scenario', this.scenarioId);
+    }
+    this.sseSub?.unsubscribe();
   }
 
   private async loadScenario(): Promise<void> {
@@ -389,6 +396,14 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       this.stepNodes.set(this.stepsToNodes(s.steps ?? []));
     } catch {
       this.errorMessage.set('Failed to load scenario.');
+    }
+    if (this.scenarioId && !this.sseSub) {
+      void this.eventStreamService.addSubscription('Scenario', this.scenarioId);
+      this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
+        if (envelope.targetType === 'Scenario' && envelope.targetId === this.scenarioId) {
+          void this.loadScenario();
+        }
+      });
     }
   }
 
@@ -541,6 +556,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
           this.projectService.notifyTreeChanged();
           if (result.entity) {
             const saved = result.entity as ScenarioDto;
+            this.hasChanges.set(false);
             this.router.navigate(['/projects', this.projectName, 'scenarios', saved.id]);
           }
         } else {

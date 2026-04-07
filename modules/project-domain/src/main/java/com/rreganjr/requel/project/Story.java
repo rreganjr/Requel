@@ -28,6 +28,18 @@ import java.util.Set;
 public interface Story extends TextEntity, GoalContainer, ActorContainer, Comparable<Story> {
 
 	/**
+	 * @return the primary actor for this story, or null if none is set
+	 */
+	Actor getPrimaryActor();
+
+	/**
+	 * Set the primary actor for this story.
+	 *
+	 * @param actor the actor to set as primary, or null to clear
+	 */
+	void setPrimaryActor(Actor actor);
+
+	/**
 	 * Return the project entities that have a direct reference to this story.
 	 * 
 	 * @return

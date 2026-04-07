@@ -203,6 +203,8 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
       this.messageService.add({ severity: 'success', summary: 'Document saved', life: 3000 });
       const saved = result.entity as ReportGeneratorDto | null;
       if (this.isNew() && saved?.id) {
+        this.originalName = this.name.trim();
+        this.originalText = this.text;
         this.router.navigate(['/projects', this.projectName, 'reports', saved.id], { replaceUrl: true });
       } else {
         await this.loadReport(this.reportId()!);

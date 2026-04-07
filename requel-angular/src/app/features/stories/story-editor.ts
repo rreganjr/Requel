@@ -34,9 +34,11 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { StoryDto } from '../../models/story';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { StoryService } from '../../core/story.service';
+import { ActorService } from '../../core/actor.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
+import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
@@ -80,6 +82,17 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
         <p-select id="type" [(ngModel)]="storyType" [options]="storyTypeOptions"
                   optionLabel="label" optionValue="value"
                   (ngModelChange)="trackChanges()" />
+
+        <label for="primaryActor">Primary Actor</label>
+        <p-select id="primaryActor"
+                  [(ngModel)]="primaryActorName"
+                  [options]="actorOptions()"
+                  optionLabel="label"
+                  optionValue="value"
+                  [showClear]="true"
+                  placeholder="Select primary actor"
+                  (ngModelChange)="trackChanges()"
+                  styleClass="w-full" />
 
         <label for="text">Text</label>
         <textarea id="text" pTextarea [(ngModel)]="text" rows="8"
@@ -126,20 +139,37 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
           }
         </div>
 
-        <!-- Actors sub-table (read-only for now — actors are managed in Phase 5) -->
-        @if (story()!.actors?.length) {
-          <div class="section">
-            <h3>Actors</h3>
+        <!-- Additional Actors sub-table -->
+        <div class="section">
+          <div class="section-header">
+            <h3>Additional Actors</h3>
+            @if (canEdit()) {
+              <p-button label="Add Actor" icon="pi pi-plus" size="small"
+                        (onClick)="showActorSelector = true" />
+            }
+          </div>
+          @if (story()!.actors?.length) {
             <p-table [value]="story()!.actors!" [rows]="10">
               <ng-template #header>
-                <tr><th>Name</th></tr>
+                <tr>
+                  <th>Name</th>
+                  @if (canEdit()) { <th style="width: 60px"></th> }
+                </tr>
               </ng-template>
               <ng-template #body let-a>
-                <tr><td>{{ a.name }}</td></tr>
+                <tr>
+                  <td><a class="entity-link" (click)="navigateToActor(a.id)">{{ a.name }}</a></td>
+                  @if (canEdit()) {
+                    <td><p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
+                                  (onClick)="onRemoveActor(a)" /></td>
+                  }
+                </tr>
               </ng-template>
             </p-table>
-          </div>
-        }
+          } @else {
+            <p class="empty-text">No actors associated.</p>
+          }
+        </div>
       }
 
       <app-entity-selector-dialog
@@ -149,6 +179,14 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
         [excludeIds]="existingGoalIds()"
         (selected)="onGoalSelected($event)"
         (closed)="showGoalSelector = false" />
+
+      <app-entity-selector-dialog
+        [visible]="showActorSelector"
+        [projectName]="projectName"
+        entityType="Actor"
+        [excludeIds]="existingActorIds()"
+        (selected)="onActorSelected($event)"
+        (closed)="showActorSelector = false" />
 
       <app-annotations-section
         [projectName]="projectName"
@@ -180,10 +218,14 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   canEdit = signal(false);
   canDelete = signal(false);
 
+  actorOptions = signal<{label: string, value: string}[]>([]);
+
   name = '';
   text = '';
   storyType = 'Success';
+  primaryActorName = '';
   showGoalSelector = false;
+  showActorSelector = false;
   hasChanges = signal(false);
   storyTypeOptions = [
     { label: 'Success', value: 'Success' },
@@ -196,17 +238,21 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   private originalName = '';
   private originalText = '';
   private originalStoryType = 'Success';
+  private originalPrimaryActorName = '';
   private paramSub?: Subscription;
+  private sseSub?: Subscription;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private storyService: StoryService,
+    private actorService: ActorService,
     private commandService: CommandService,
     private projectService: ProjectService,
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private eventStreamService: EventStreamService
   ) {}
 
   ngOnInit(): void {
@@ -215,6 +261,9 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       await this.permissionService.loadForProject(this.projectName);
       this.canEdit.set(this.permissionService.canEdit('Story'));
       this.canDelete.set(this.permissionService.canDelete('Story'));
+
+      const actors = await this.actorService.listActors(this.projectName);
+      this.actorOptions.set(actors.map(a => ({ label: a.name, value: a.name })));
 
       const idParam = params.get('storyId') ?? '';
       if (idParam === 'new') {
@@ -238,6 +287,10 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   ngOnDestroy(): void {
     this.paramSub?.unsubscribe();
+    if (this.storyId) {
+      void this.eventStreamService.removeSubscription('Story', this.storyId);
+    }
+    this.sseSub?.unsubscribe();
   }
 
   private async loadStory(): Promise<void> {
@@ -248,13 +301,23 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       this.name = s.name;
       this.text = s.text;
       this.storyType = s.storyType;
+      this.primaryActorName = s.primaryActorName ?? '';
       this.version = s.version;
       this.originalName = s.name;
       this.originalText = s.text;
       this.originalStoryType = s.storyType;
+      this.originalPrimaryActorName = s.primaryActorName ?? '';
       this.hasChanges.set(false);
     } catch {
       this.errorMessage.set('Failed to load story.');
+    }
+    if (this.storyId && !this.sseSub) {
+      void this.eventStreamService.addSubscription('Story', this.storyId);
+      this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
+        if (envelope.targetType === 'Story' && envelope.targetId === this.storyId) {
+          void this.loadStory();
+        }
+      });
     }
   }
 
@@ -262,7 +325,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.hasChanges.set(
       this.name !== this.originalName ||
       this.text !== this.originalText ||
-      this.storyType !== this.originalStoryType
+      this.storyType !== this.originalStoryType ||
+      this.primaryActorName !== this.originalPrimaryActorName
     );
   }
 
@@ -270,6 +334,12 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     return (this.story()?.goals ?? [])
       .filter(g => g.id != null)
       .map(g => g.id!);
+  }
+
+  existingActorIds(): number[] {
+    return (this.story()?.actors ?? [])
+      .filter(a => a.id != null)
+      .map(a => a.id!);
   }
 
   async onSave(): Promise<void> {
@@ -281,7 +351,9 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         name: this.name,
         text: this.text,
         storyTypeName: this.storyType,
+        primaryActorName: this.primaryActorName || null,
       };
+      if (this.storyId != null) input['storyId'] = this.storyId;
       if (this.version != null) input['version'] = this.version;
       const result = await this.commandService.execute('EditStory', input);
       if (result.success) {
@@ -290,12 +362,14 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
           this.projectService.notifyTreeChanged();
           if (result.entity) {
             const saved = result.entity as StoryDto;
+            this.hasChanges.set(false);
             this.router.navigate(['/projects', this.projectName, 'stories', saved.id]);
           }
         } else {
           this.originalName = this.name;
           this.originalText = this.text;
           this.originalStoryType = this.storyType;
+          this.originalPrimaryActorName = this.primaryActorName;
           this.hasChanges.set(false);
           await this.loadStory();
         }
@@ -392,8 +466,55 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     }
   }
 
+  async onActorSelected(ref: EntityReferenceDto): Promise<void> {
+    this.showActorSelector = false;
+    try {
+      const result = await this.commandService.execute('AddActorToActorContainer', {
+        projectName: this.projectName,
+        actorContainerId: this.storyId,
+        actorId: ref.id
+      });
+      if (result.success) {
+        this.messageService.add({ severity: 'success', summary: 'Actor added', detail: 'Actor added.' });
+        this.story.update(s => s ? {
+          ...s,
+          actors: [...(s.actors ?? []), ref].sort((a, b) => a.name.localeCompare(b.name))
+        } : s);
+      } else {
+        this.errorMessage.set(result.error ?? 'Failed to add actor.');
+      }
+    } catch {
+      this.errorMessage.set('Failed to add actor.');
+    }
+  }
+
+  async onRemoveActor(actorRef: EntityReferenceDto): Promise<void> {
+    try {
+      const result = await this.commandService.execute('RemoveActorFromActorContainer', {
+        projectName: this.projectName,
+        actorContainerId: this.storyId,
+        actorId: actorRef.id
+      });
+      if (result.success) {
+        this.messageService.add({ severity: 'success', summary: 'Actor removed', detail: 'Actor removed.' });
+        this.story.update(s => s ? {
+          ...s,
+          actors: (s.actors ?? []).filter(a => a.id !== actorRef.id)
+        } : s);
+      } else {
+        this.errorMessage.set(result.error ?? 'Failed to remove actor.');
+      }
+    } catch {
+      this.errorMessage.set('Failed to remove actor.');
+    }
+  }
+
   navigateToGoal(goalId: number): void {
     this.router.navigate(['/projects', this.projectName, 'goals', goalId]);
+  }
+
+  navigateToActor(actorId: number): void {
+    this.router.navigate(['/projects', this.projectName, 'actors', actorId]);
   }
 
   onBack(): void {

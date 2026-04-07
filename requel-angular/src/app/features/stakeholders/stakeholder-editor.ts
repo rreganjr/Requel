@@ -39,6 +39,7 @@ import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { UserService } from '../../core/user.service';
 import { PermissionService } from '../../core/permission.service';
+import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 
 interface PermissionGroup {
@@ -225,6 +226,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   private stakeholderId: number | null = null;
   private version: number | null = null;
   private paramSub?: Subscription;
+  private sseSub?: Subscription;
 
   constructor(
     private route: ActivatedRoute,
@@ -235,7 +237,8 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
     private userService: UserService,
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private eventStreamService: EventStreamService
   ) {}
 
   ngOnInit(): void {
@@ -267,6 +270,10 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
 
   ngOnDestroy(): void {
     this.paramSub?.unsubscribe();
+    if (this.stakeholderId) {
+      void this.eventStreamService.removeSubscription('Stakeholder', this.stakeholderId);
+    }
+    this.sseSub?.unsubscribe();
   }
 
   private async loadUsers(): Promise<void> {
@@ -302,6 +309,14 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       this.hasChanges.set(false);
     } catch {
       this.errorMessage.set('Failed to load stakeholder.');
+    }
+    if (this.stakeholderId && !this.sseSub) {
+      void this.eventStreamService.addSubscription('Stakeholder', this.stakeholderId);
+      this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
+        if (envelope.targetType === 'Stakeholder' && envelope.targetId === this.stakeholderId) {
+          void this.loadStakeholder();
+        }
+      });
     }
   }
 
@@ -423,6 +438,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
             this.projectService.notifyTreeChanged();
             if (result.entity) {
               const saved = result.entity as StakeholderDto;
+              this.hasChanges.set(false);
               this.router.navigate(['..', saved.id], { relativeTo: this.route });
             }
           } else {
@@ -439,6 +455,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
           name: this.stakeholderName(),
           text: this.text,
         };
+        if (this.stakeholderId != null) input['stakeholderId'] = this.stakeholderId;
         if (this.version != null) input['version'] = this.version;
         const result = await this.commandService.execute('EditNonUserStakeholder', input);
         if (result.success) {
@@ -447,6 +464,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
             this.projectService.notifyTreeChanged();
             if (result.entity) {
               const saved = result.entity as StakeholderDto;
+              this.hasChanges.set(false);
               this.router.navigate(['..', saved.id], { relativeTo: this.route });
             }
           } else {

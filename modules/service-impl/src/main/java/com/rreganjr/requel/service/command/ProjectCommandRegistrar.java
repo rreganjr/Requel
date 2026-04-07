@@ -49,6 +49,7 @@ import com.rreganjr.requel.project.command.AddActorToActorContainerCommand;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
 import com.rreganjr.requel.project.command.AddScenarioToUseCaseCommand;
 import com.rreganjr.requel.project.command.AddStoryToStoryContainerCommand;
+import com.rreganjr.requel.project.command.CopyActorCommand;
 import com.rreganjr.requel.project.command.CopyGoalCommand;
 import com.rreganjr.requel.project.command.CopyScenarioCommand;
 import com.rreganjr.requel.project.command.CopyStoryCommand;
@@ -90,6 +91,7 @@ import com.rreganjr.requel.service.api.dto.AddActorToActorContainerInput;
 import com.rreganjr.requel.service.api.dto.AddGoalToGoalContainerInput;
 import com.rreganjr.requel.service.api.dto.AddScenarioToUseCaseInput;
 import com.rreganjr.requel.service.api.dto.AddStoryToStoryContainerInput;
+import com.rreganjr.requel.service.api.dto.CopyActorInput;
 import com.rreganjr.requel.service.api.dto.CopyGoalInput;
 import com.rreganjr.requel.service.api.dto.CopyScenarioInput;
 import com.rreganjr.requel.service.api.dto.CopyStoryInput;
@@ -225,10 +227,10 @@ public class ProjectCommandRegistrar {
                     c.setProjectOrDomain(project);
                     c.setName(i.name());
                     if (i.text() != null) c.setText(i.text());
-                    // For edit: find existing non-user stakeholder by project + name
-                    if (i.version() != null) {
-                        NonUserStakeholder existing = findNonUserStakeholderByName(project, i.name());
-                        if (existing != null) c.setStakeholder(existing);
+                    // For edit: find existing non-user stakeholder by ID
+                    if (i.stakeholderId() != null) {
+                        NonUserStakeholder existing = (NonUserStakeholder) findStakeholderById(project, i.stakeholderId());
+                        c.setStakeholder(existing);
                     }
                 },
                 null, // no file
@@ -252,8 +254,8 @@ public class ProjectCommandRegistrar {
                     EditGoalCommand c = (EditGoalCommand) cmd;
                     EditGoalInput i = (EditGoalInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
-                    if (i.version() != null) {
-                        c.setGoal(findGoalByName(project, i.name()));
+                    if (i.goalId() != null) {
+                        c.setGoal(findGoalById(project, i.goalId()));
                     } else {
                         c.setGoalContainer(project);
                     }
@@ -339,14 +341,15 @@ public class ProjectCommandRegistrar {
                     EditStoryCommand c = (EditStoryCommand) cmd;
                     EditStoryInput i = (EditStoryInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
-                    if (i.version() != null) {
-                        c.setStory(findStoryByName(project, i.name()));
+                    if (i.storyId() != null) {
+                        c.setStory(findStoryById(project, i.storyId()));
                     } else {
                         c.setStoryContainer(project);
                     }
                     c.setName(i.name());
                     if (i.text() != null) c.setText(i.text());
                     if (i.storyTypeName() != null) c.setStoryTypeName(i.storyTypeName());
+                    c.setPrimaryActorName(i.primaryActorName());
                 },
                 null,
                 cmd -> ProjectQueryController.toStoryDetailDto(((EditStoryCommand) cmd).getStory()));
@@ -430,7 +433,17 @@ public class ProjectCommandRegistrar {
                     c.setActorContainer(findActorContainerById(project, i.actorContainerId()));
                     c.setActor(findActorById(project, i.actorId()));
                 });
-        registry.register("CopyActor", factory::newCopyActorCommand);
+        registry.register("CopyActor", CopyActorInput.class,
+                factory::newCopyActorCommand,
+                (cmd, input) -> {
+                    CopyActorCommand c = (CopyActorCommand) cmd;
+                    CopyActorInput i = (CopyActorInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setOriginalActor(findActorById(project, i.actorId()));
+                    if (i.newActorName() != null) c.setNewActorName(i.newActorName());
+                },
+                null,
+                cmd -> ProjectQueryController.toActorDetailDto(((CopyActorCommand) cmd).getNewActor()));
 
         registry.register("DeleteActor", DeleteActorInput.class,
                 factory::newDeleteActorCommand,
@@ -762,6 +775,9 @@ public class ProjectCommandRegistrar {
         if (project.getId().equals(containerId)) return project;
         for (UseCase uc : project.getUseCases()) {
             if (uc.getId().equals(containerId)) return uc;
+        }
+        for (Story s : project.getStories()) {
+            if (s.getId().equals(containerId)) return (ActorContainer) s;
         }
         throw new IllegalArgumentException("ActorContainer not found: " + containerId);
     }

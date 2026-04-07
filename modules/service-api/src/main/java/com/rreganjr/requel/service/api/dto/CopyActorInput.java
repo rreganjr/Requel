@@ -20,20 +20,9 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
-/**
- * Input DTO for creating or editing a goal.
- *
- * @param projectName  project the goal belongs to
- * @param goalId       ID of the goal to edit (null for create)
- * @param name         goal name (the new name to set)
- * @param text         goal description/body
- * @param version      optimistic lock version (null for create)
- */
-public record EditGoalInput(
+public record CopyActorInput(
         String projectName,
-        Long goalId,
-        String name,
-        String text,
-        Integer version
+        Long actorId,
+        String newActorName
 ) {
 }

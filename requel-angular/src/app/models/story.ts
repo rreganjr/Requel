@@ -27,6 +27,7 @@ export interface StoryDto {
   text: string;
   storyType: 'Success' | 'Exception';
   createdBy: string | null;
+  primaryActorName: string | null;
   goals: EntityReferenceDto[] | null;
   actors: EntityReferenceDto[] | null;
 }

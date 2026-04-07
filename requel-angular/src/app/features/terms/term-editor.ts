@@ -34,6 +34,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { GlossaryTermDto } from '../../models/term';
 import { TermService } from '../../core/term.service';
 import { PermissionService } from '../../core/permission.service';
+import { EventStreamService } from '../../core/event-stream.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
 @Component({
@@ -169,6 +170,7 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   private paramSub?: Subscription;
+  private sseSub?: Subscription;
 
   constructor(
     private route: ActivatedRoute,
@@ -176,7 +178,8 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     private termService: TermService,
     private permissionService: PermissionService,
     private messageService: MessageService,
-    private confirmationService: ConfirmationService
+    private confirmationService: ConfirmationService,
+    private eventStreamService: EventStreamService
   ) {}
 
   isNew(): boolean {
@@ -214,6 +217,11 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   ngOnDestroy(): void {
     this.paramSub?.unsubscribe();
+    const id = this.termId();
+    if (id) {
+      void this.eventStreamService.removeSubscription('GlossaryTerm', id);
+    }
+    this.sseSub?.unsubscribe();
   }
 
   private async loadCanonicalOptions(excludeId: number | null): Promise<void> {
@@ -244,6 +252,14 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     } catch {
       this.errorMessage.set('Failed to load term.');
     }
+    if (id && !this.sseSub) {
+      void this.eventStreamService.addSubscription('GlossaryTerm', id);
+      this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
+        if (envelope.targetType === 'GlossaryTerm' && envelope.targetId === id) {
+          void this.loadTerm(id);
+        }
+      });
+    }
   }
 
   async onSave(): Promise<void> {
@@ -261,6 +277,9 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       this.messageService.add({ severity: 'success', summary: 'Term saved', life: 3000 });
       const saved = result.entity as GlossaryTermDto | null;
       if (this.isNew() && saved?.id) {
+        this.originalName = this.name.trim();
+        this.originalText = this.text;
+        this.originalCanonicalTermId = this.canonicalTermId;
         this.router.navigate(['/projects', this.projectName, 'terms', saved.id], { replaceUrl: true });
       } else {
         await this.loadTerm(this.termId()!);

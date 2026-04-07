@@ -24,7 +24,16 @@ import java.util.Comparator;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.hibernate.annotations.SortNatural;
+
 import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.ProjectOrDomain;
+import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Story;
+import com.rreganjr.requel.project.UseCase;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -36,6 +45,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlElementWrapper;
@@ -45,17 +55,6 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
 
-import org.hibernate.annotations.SortNatural;
-import jakarta.validation.constraints.NotEmpty;
-import org.xml.sax.SAXException;
-import com.rreganjr.requel.project.Actor;
-import com.rreganjr.requel.project.Goal;
-import com.rreganjr.requel.project.ProjectOrDomain;
-import com.rreganjr.requel.project.Scenario;
-import com.rreganjr.requel.project.Story;
-import com.rreganjr.requel.project.UseCase;
-
-import com.rreganjr.requel.user.UserRepository;
 /**
  * @author ron
  */
@@ -68,9 +67,9 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase {
 	static final long serialVersionUID = 0L;
 
 	private Actor primaryActor;
-	private Set<Goal> goals = new TreeSet<Goal>();
-	private Set<Actor> actors = new TreeSet<Actor>();
-	private Set<Story> stories = new TreeSet<Story>();
+	private Set<Goal> goals = new TreeSet<>();
+	private Set<Actor> actors = new TreeSet<>();
+	private Set<Story> stories = new TreeSet<>();
 	private Scenario scenario;
 	private Set<Scenario> additionalScenarios = new TreeSet<>(Comparator.comparing(Scenario::getName, Comparator.nullsLast(Comparator.naturalOrder())));
 

@@ -20,11 +20,24 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+/**
+ * Input DTO for creating or editing a story.
+ *
+ * @param projectName      project the story belongs to
+ * @param storyId          ID of the story to edit (null for create)
+ * @param name             story name (the new name to set)
+ * @param text             story body text
+ * @param storyTypeName    "Success" or "Exception"
+ * @param primaryActorName name of the primary actor (null to clear)
+ * @param version          optimistic lock version (null for create)
+ */
 public record EditStoryInput(
         String projectName,
+        Long storyId,
         String name,
         String text,
         String storyTypeName,
+        String primaryActorName,
         Integer version
 ) {
 }

@@ -31,7 +31,7 @@ import { MessageModule } from 'primeng/message';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TableModule } from 'primeng/table';
 import { TooltipModule } from 'primeng/tooltip';
-import { AutoCompleteModule, AutoCompleteCompleteEvent } from 'primeng/autocomplete';
+import { SelectModule } from 'primeng/select';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { UseCaseDto } from '../../models/use-case';
 import { GoalDto } from '../../models/goal';
@@ -45,6 +45,7 @@ import { ScenarioService } from '../../core/scenario.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
+import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
@@ -52,7 +53,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
   selector: 'app-use-case-editor',
   standalone: true,
   imports: [FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
-            ConfirmDialogModule, TableModule, TooltipModule, AutoCompleteModule,
+            ConfirmDialogModule, TableModule, TooltipModule, SelectModule,
             EntitySelectorDialogComponent, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
@@ -85,14 +86,15 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
                (ngModelChange)="trackChanges()" />
 
         <label for="primaryActor">Primary Actor</label>
-        <p-autoComplete id="primaryActor"
-                        [(ngModel)]="primaryActorName"
-                        [suggestions]="actorSuggestions()"
-                        (completeMethod)="filterActors($event)"
-                        (ngModelChange)="trackChanges()"
-                        [forceSelection]="false"
-                        placeholder="Type actor name (creates if new)"
-                        styleClass="w-full" />
+        <p-select id="primaryActor"
+                  [(ngModel)]="primaryActorName"
+                  [options]="actorOptions()"
+                  optionLabel="label"
+                  optionValue="value"
+                  [showClear]="true"
+                  placeholder="Select primary actor"
+                  (ngModelChange)="trackChanges()"
+                  styleClass="w-full" />
 
         <label for="text">Description</label>
         <textarea id="text" pTextarea [(ngModel)]="text" rows="4"
@@ -381,7 +383,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   actors = signal<ActorDto[]>([]);
   additionalScenarios = signal<ScenarioDto[]>([]);
   primaryScenario = signal<ScenarioDto | null>(null);
-  actorSuggestions = signal<string[]>([]);
+  actorOptions = signal<{label: string, value: string}[]>([]);
 
   // Derived id sets used as excludeIds for the entity selector dialogs
   goalIds = computed(() => this.goals().map(g => g.id).filter((id): id is number => id != null));
@@ -413,8 +415,8 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   private originalName = '';
   private originalText = '';
   private originalPrimaryActorName = '';
-  private allActorNames: string[] = [];
   private paramSub?: Subscription;
+  private sseSub?: Subscription;
 
   constructor(
     private route: ActivatedRoute,
@@ -427,7 +429,8 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     private projectService: ProjectService,
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private eventStreamService: EventStreamService
   ) {}
 
   ngOnInit(): void {
@@ -437,9 +440,9 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       this.canEdit.set(this.permissionService.canEdit('UseCase'));
       this.canDelete.set(this.permissionService.canDelete('UseCase'));
 
-      // Load all actors once for autocomplete
+      // Load all actors for the primary actor dropdown
       const actors = await this.actorService.listActors(this.projectName);
-      this.allActorNames = actors.map(a => a.name);
+      this.actorOptions.set(actors.map(a => ({ label: a.name, value: a.name })));
 
       const idParam = params.get('useCaseId') ?? '';
       if (idParam === 'new') {
@@ -458,6 +461,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
 
   ngOnDestroy(): void {
     this.paramSub?.unsubscribe();
+    if (this.useCaseId) {
+      void this.eventStreamService.removeSubscription('UseCase', this.useCaseId);
+    }
+    this.sseSub?.unsubscribe();
   }
 
   private async loadUseCase(): Promise<void> {
@@ -485,13 +492,14 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     } catch {
       this.errorMessage.set('Failed to load use case.');
     }
-  }
-
-  filterActors(event: AutoCompleteCompleteEvent): void {
-    const q = event.query.toLowerCase();
-    this.actorSuggestions.set(
-      this.allActorNames.filter(n => n.toLowerCase().includes(q))
-    );
+    if (this.useCaseId && !this.sseSub) {
+      void this.eventStreamService.addSubscription('UseCase', this.useCaseId);
+      this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
+        if (envelope.targetType === 'UseCase' && envelope.targetId === this.useCaseId) {
+          void this.loadUseCase();
+        }
+      });
+    }
   }
 
   trackChanges(): void {
@@ -521,6 +529,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
         if (this.isNew()) {
           this.projectService.notifyTreeChanged();
           const saved = result.entity as UseCaseDto;
+          this.hasChanges.set(false);
           this.router.navigate(['/projects', this.projectName, 'use-cases', saved.id]);
         } else {
           this.originalName = this.name;

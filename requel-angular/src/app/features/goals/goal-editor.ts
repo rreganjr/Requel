@@ -37,6 +37,7 @@ import { GoalService } from '../../core/goal.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
+import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
@@ -237,6 +238,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   goalId: number | null = null;
   private version: number | null = null;
   private paramSub?: Subscription;
+  private sseSub?: Subscription;
 
   constructor(
     private route: ActivatedRoute,
@@ -246,7 +248,8 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     private projectService: ProjectService,
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private eventStreamService: EventStreamService
   ) {}
 
   ngOnInit(): void {
@@ -277,6 +280,10 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   ngOnDestroy(): void {
     this.paramSub?.unsubscribe();
+    if (this.goalId) {
+      void this.eventStreamService.removeSubscription('Goal', this.goalId);
+    }
+    this.sseSub?.unsubscribe();
   }
 
   private async loadGoal(): Promise<void> {
@@ -289,6 +296,14 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       this.version = g.version;
     } catch {
       this.errorMessage.set('Failed to load goal.');
+    }
+    if (this.goalId && !this.sseSub) {
+      void this.eventStreamService.addSubscription('Goal', this.goalId);
+      this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
+        if (envelope.targetType === 'Goal' && envelope.targetId === this.goalId) {
+          void this.loadGoal();
+        }
+      });
     }
   }
 
@@ -311,6 +326,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         name: this.name,
         text: this.text,
       };
+      if (this.goalId != null) input['goalId'] = this.goalId;
       if (this.version != null) input['version'] = this.version;
       const result = await this.commandService.execute('EditGoal', input);
       if (result.success) {

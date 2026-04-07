@@ -33,6 +33,8 @@ import com.rreganjr.requel.service.stream.StreamEventPublisher;
 import com.rreganjr.repository.jpa.BeanValidationException;
 import com.rreganjr.validator.EntityValidationException;
 import jakarta.persistence.OptimisticLockException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -115,6 +117,10 @@ public class CommandController {
 
             // Extract result DTO via the registration's resultExtractor (null if not registered)
             Object result = apiCommandFactory.extractResult(commandType, command);
+
+            // Notify any session subscribed to this specific entity (e.g. an open editor)
+            publishEntityChangedIfPresent(result);
+
             return ResponseEntity.ok(CommandResult.success(result, commandType));
 
         } catch (AuthorizationException e) {
@@ -160,6 +166,28 @@ public class CommandController {
             log.error("Command execution failed: {} - {}", commandType, e.getMessage(), e);
             return ResponseEntity.internalServerError()
                     .body(ErrorResponse.of("INTERNAL_ERROR", "An unexpected error occurred. Please try again or contact support."));
+        }
+    }
+
+    /**
+     * If the result DTO has an {@code id()} accessor (all entity record DTOs do),
+     * publish a targeted SSE event so any editor session subscribed to that entity
+     * gets a live refresh signal. The entity type is derived from the DTO class name
+     * by stripping the "Dto" suffix (e.g. {@code GoalDto} → {@code "Goal"}).
+     */
+    private void publishEntityChangedIfPresent(Object result) {
+        if (result == null) return;
+        try {
+            Method idMethod = result.getClass().getMethod("id");
+            Object idValue = idMethod.invoke(result);
+            if (!(idValue instanceof Long entityId)) return;
+            String simpleName = result.getClass().getSimpleName();
+            String entityType = simpleName.endsWith("Dto")
+                    ? simpleName.substring(0, simpleName.length() - 3)
+                    : simpleName;
+            streamEventPublisher.publishTargetUpdate(entityType, entityId, Map.of("type", "refresh"));
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            // Not an entity DTO with an id() accessor — skip silently
         }
     }
 

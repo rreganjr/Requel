@@ -915,6 +915,7 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 | 9 — Open Issues | **Done** | `GET /api/projects/{name}/open-issues` aggregates unresolved issues across all project entities. `OpenIssuesComponent`: sortable/filterable table, must-resolve badge count, click-to-navigate to the annotated entity's editor. Open Issues node added to sidebar (no count — computed on demand). |
 | 10 — Echo2 Removal | **Done** | All 8 sub-steps complete. Echo2 fully removed. Angular served from JAR. |
 | 11 — Polish + Security Hardening | **Done** | 401/403 interceptor, SSE session ownership + JWT expiry, admin/admin removal, encodeURIComponent consistency, user editor permission over-grant, user editor paramMap, user editor id/version, 9 failing integration tests (4 root causes), bundle lazy loading (1.62 MB → 869 KB initial), shared dirty-editor guard, shared list-page scaffold. |
+| 12 — Gap Fixes | **In progress** | Done: CopyActor (#1), SSE live refresh for entity editors (#2). Remaining: sidebar staleness filtering (#3, blocked on `lastActivityAt` in ProjectDto). |
 
 #### Deviations from original plan (code is the direction)
 
@@ -929,14 +930,12 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 - **SSE not wired into entity editors** — the `EventStreamService` is connected but no individual editor subscribes to entity-level events for live refresh. Background NLP updates are not pushed to open editors. Remains as future work.
 - **Sidebar staleness filtering** — backend infrastructure is in place (`UserPreferences`, `SidebarProjectStaleness`) but the Angular sidebar component does not yet filter/sort projects by recency. Remains as future work.
 
-#### What remains to do (in priority order)
+#### What remains to do (Phase 12)
 
-1. **Phase 10 — Echo2 Removal** — final cutover after all screens verified
-2. **Sidebar staleness/recency** — wire backend preferences into sidebar project filtering
-3. **SSE live refresh for editors** — wire `EventStreamService` into entity editors for background NLP annotation push (sidebar refresh is now done via `Project:0` broadcast)
-4. **CopyActor** — small gap from Phase 5
-5. **`permissionService.loadForProject()` missing from term-list and term-editor** — navigating directly via the sidebar skips the project editor, leaving permissions unloaded; New Term and Delete buttons stay hidden. Same bug fixed in report components (Phase 8).
-6. **Phase 10 — Echo2 Removal** — final cutover after all screens verified
+1. **CopyActor** — backend command registered but wired incorrectly (no input class/mapper); no Copy button in actor editor. See Phase 12 §1.
+2. **SSE live refresh for editors** — `EventStreamService` connected but editors don't subscribe to entity-level events. See Phase 12 §2.
+3. **Sidebar staleness filtering** — blocked on `lastActivityAt` being added to `ProjectDto`. See Phase 12 §3.
+4. ✅ **`permissionService.loadForProject()` in term-list and term-editor** — already present in code; plan note was stale.
 
 ### Phase 0: Foundation (API + Angular scaffold)
 
@@ -1610,6 +1609,40 @@ with `draggableNodes`/`droppableNodes` as the foundation.
 11. ✅ **Shared dirty-editor pattern** — **Done.** Added `DirtyCheckable` interface and `dirtyCheckGuard` functional guard in `core/dirty-check.guard.ts`. All 11 editors implement `hasUnsavedChanges()` (delegates to `formGroup.dirty`, `hasChanges()` signal, or `isDirty()` as appropriate per editor). Guard wired via `canDeactivate: [dirtyCheckGuard]` on all editor routes in `app.routes.ts`. Browser `confirm()` prompt fires on navigation away from a dirty editor.
 
 12. ✅ **Shared list-page scaffold** — **Done.** Extracted `ListPageComponent` in `shared/list-page.ts`. All 11 list components now use `<app-list-page>` with `[actions]` slot for buttons and `(search)` event for table filtering. Removed duplicated `.page-header`, `.page-actions`, `.search-bar` CSS from each component. `scenario-list` and `use-case-list` use `[showSearch]="false"` since they have no search bar.
+
+---
+
+### Phase 12: Gap Fixes
+
+**Goal:** Close the remaining known gaps identified after Phase 11 completion.
+
+#### 1. ✅ CopyActor — Done
+
+`CopyActor` backend command existed but the registrar entry was incomplete (no input class or mapper). Fixed:
+- Created `CopyActorInput(String projectName, Long actorId, String newActorName)` record in `service-api`.
+- Updated `ProjectCommandRegistrar` to use full registration pattern: input class, factory method, input applicator (find actor by ID, set optional new name), result extractor returns new actor DTO.
+- Added Copy button + `onCopy()` to `actor-editor.ts` (confirm dialog → `CopyActor` command → navigate to new actor). Matches `goal-editor` pattern exactly.
+
+#### 2. ✅ SSE live refresh for entity editors — Done
+
+**Backend**: Added `publishEntityChangedIfPresent(result)` to `CommandController`. After every successful command, if the result DTO has an `id()` accessor (all entity record DTOs do), derives the entity type by stripping "Dto" from the class name and calls `streamEventPublisher.publishTargetUpdate(entityType, entityId, ...)`. This means any command that returns an entity DTO now automatically pushes a targeted SSE event to subscribed sessions.
+
+**Frontend**: Wired `EventStreamService` into 7 entity editors (`goal-editor`, `story-editor`, `actor-editor`, `scenario-editor`, `use-case-editor`, `term-editor`, `stakeholder-editor`). Each editor:
+- Calls `eventStreamService.addSubscription(entityType, entityId)` after loading an existing entity
+- Subscribes to `events$`, filters for its entity type+id, and reloads on match
+- Calls `eventStreamService.removeSubscription(...)` and unsubscribes in `ngOnDestroy`
+
+#### 3. Sidebar staleness filtering
+
+Backend infrastructure is complete: `UserPreferences` (per-user, `sidebarProjectLimit` + `sidebarProjectStaleness` enum), `UserPreferencesController` (`GET`/`PUT /api/user-preferences`), `PreferencesService` in Angular with `preferences` signal.
+
+**Blocker:** `ProjectDto` has no date field. The sidebar loads all projects and cannot filter by recency without a timestamp.
+
+**Required backend change:** Add `lastActivityAt: Instant` to `ProjectDto` and compute it in `ProjectQueryController` (e.g., max of `project.getCreatedDate()` and any entity's `createdDate` within the project, or a denormalized audit timestamp).
+
+**Frontend change:** In `sidebar-nav.ts`, after loading projects, filter using `preferences().sidebarProjectStaleness` cutoff and limit to `preferences().sidebarProjectLimit`. Sort by `lastActivityAt` descending before applying the limit.
+
+**Status:** Deferred until `lastActivityAt` is added to `ProjectDto`.
 
 ## 5. API Design Conventions
 

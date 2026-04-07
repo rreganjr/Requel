@@ -661,6 +661,7 @@ public class ProjectQueryController {
                 story.getId(), story.getVersion(), story.getName(), story.getText(),
                 story.getStoryType().name(),
                 story.getCreatedBy() != null ? story.getCreatedBy().getDisplayName() : null,
+                story.getPrimaryActor() != null ? story.getPrimaryActor().getName() : null,
                 null, null);
     }
 
@@ -679,6 +680,7 @@ public class ProjectQueryController {
                 story.getId(), story.getVersion(), story.getName(), story.getText(),
                 story.getStoryType().name(),
                 story.getCreatedBy() != null ? story.getCreatedBy().getDisplayName() : null,
+                story.getPrimaryActor() != null ? story.getPrimaryActor().getName() : null,
                 goals, actors);
     }
 
@@ -768,6 +770,7 @@ public class ProjectQueryController {
                 .map(s -> new StoryDto(s.getId(), s.getVersion(), s.getName(), s.getText(),
                         s.getStoryType() != null ? s.getStoryType().name() : null,
                         s.getCreatedBy() != null ? s.getCreatedBy().getDisplayName() : null,
+                        s.getPrimaryActor() != null ? s.getPrimaryActor().getName() : null,
                         null, null))
                 .sorted(Comparator.comparing(StoryDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();

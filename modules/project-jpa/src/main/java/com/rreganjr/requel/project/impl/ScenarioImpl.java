@@ -34,9 +34,6 @@ import jakarta.xml.bind.annotation.XmlIDREF;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
-import jakarta.xml.bind.annotation.adapters.XmlAdapter;
-
-import org.hibernate.annotations.IndexColumn;
 
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.Scenario;
@@ -44,7 +41,7 @@ import com.rreganjr.requel.project.ScenarioType;
 import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.platform.identity.User;
-import com.rreganjr.requel.user.UserRepository;
+
 import org.hibernate.annotations.ListIndexBase;
 
 /**
@@ -57,8 +54,8 @@ import org.hibernate.annotations.ListIndexBase;
 public class ScenarioImpl extends StepImpl implements Scenario {
 	static final long serialVersionUID = 0L;
 
-	private List<Step> steps = new ArrayList<Step>();
-	private Set<UseCase> usedByUseCases = new TreeSet<UseCase>();
+	private List<Step> steps = new ArrayList<>();
+	private Set<UseCase> usedByUseCases = new TreeSet<>();
 
 	/**
 	 * Create a scenario.

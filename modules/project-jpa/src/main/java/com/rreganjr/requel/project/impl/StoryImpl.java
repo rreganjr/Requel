@@ -33,6 +33,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
@@ -57,7 +58,6 @@ import org.hibernate.annotations.SortComparator;
 import org.hibernate.annotations.SortNatural;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import org.xml.sax.SAXException;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectOrDomain;
@@ -65,7 +65,6 @@ import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.StoryType;
 
-import com.rreganjr.requel.user.UserRepository;
 /**
  * A story describes an interaction with the system as prose.
  * 
@@ -81,6 +80,7 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 
 	private Set<StoryContainer> referers = new TreeSet<StoryContainer>(StoryContainer.COMPARATOR);
 	private StoryType storyType;
+	private Actor primaryActor;
 	private Set<Goal> goals = new TreeSet<Goal>();
 	private Set<Actor> actors = new TreeSet<Actor>();
 
@@ -166,6 +166,19 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 	@Override
 	public void setStoryType(StoryType storyType) {
 		this.storyType = storyType;
+	}
+
+	@Override
+	@ManyToOne(targetEntity = ActorImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
+			CascadeType.REFRESH }, optional = true, fetch = FetchType.LAZY)
+	@JoinColumn(name = "primary_actor_id", nullable = true)
+	public Actor getPrimaryActor() {
+		return primaryActor;
+	}
+
+	@Override
+	public void setPrimaryActor(Actor primaryActor) {
+		this.primaryActor = primaryActor;
 	}
 
 	/**

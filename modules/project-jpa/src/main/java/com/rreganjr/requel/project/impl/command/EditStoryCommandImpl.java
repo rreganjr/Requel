@@ -29,6 +29,7 @@ import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
@@ -41,6 +42,8 @@ import com.rreganjr.requel.project.impl.StoryImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author ron
@@ -50,10 +53,13 @@ import com.rreganjr.requel.user.UserRepository;
 public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
 		EditStoryCommand {
 
+	private static final Logger log = LoggerFactory.getLogger(EditStoryCommandImpl.class);
+
 	private StoryContainer storyContainer;
 	private Story story;
 	private String text;
 	private String storyTypeName;
+	private String primaryActorName;
 
 	/**
 	 * @param assistantManager
@@ -110,6 +116,16 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 	}
 
 	@Override
+	public void setPrimaryActorName(String primaryActorName) {
+		this.primaryActorName = primaryActorName;
+	}
+
+	@Override
+	public String getPrimaryActorName() {
+		return primaryActorName;
+	}
+
+	@Override
 	public void execute() {
 		StoryContainer storyContainer = getProjectRepository().get(getStoryContainer());
 		User editedBy = getProjectRepository().get(getEditedBy());
@@ -142,6 +158,18 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		} catch (NoSuchEntityException e) {
 		}
 
+		// Resolve the primary actor before any persistence calls
+		Actor resolvedPrimaryActor = null;
+		if (getPrimaryActorName() != null && !getPrimaryActorName().trim().isEmpty()) {
+			try {
+				resolvedPrimaryActor = getProjectRepository().findActorByProjectOrDomainAndName(
+						projectOrDomain, getPrimaryActorName());
+			} catch (NoSuchEntityException e) {
+				log.warn("Primary actor '{}' not found for story '{}' — leaving unchanged",
+						getPrimaryActorName(), getName());
+			}
+		}
+
 		if (storyImpl == null) {
 			storyImpl = getProjectRepository().persist(
 					new StoryImpl(projectOrDomain, editedBy, getName(), getText(), getStoryType()));
@@ -149,10 +177,23 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 			storyImpl.setName(getName());
 			storyImpl.setText(getText());
 			storyImpl.setStoryType(getStoryType());
+			// Mirror UseCase pattern: merge first so the entity is managed, then set actor
+			storyImpl = getProjectRepository().merge(storyImpl);
+			Actor existingPrimaryActor = storyImpl.getPrimaryActor() != null
+					? getRepository().get(storyImpl.getPrimaryActor()) : null;
+			if (existingPrimaryActor != null && !existingPrimaryActor.equals(resolvedPrimaryActor)) {
+				existingPrimaryActor.getReferers().remove(storyImpl);
+			}
+			storyImpl.setPrimaryActor(resolvedPrimaryActor);
 		}
+
 		if (storyContainer != null) {
 			storyImpl.getReferers().add(storyContainer);
 			storyContainer.getStories().add(storyImpl);
+		}
+		// Add to actor's referers after persistence (mirrors EditUseCaseCommandImpl)
+		if (resolvedPrimaryActor != null) {
+			resolvedPrimaryActor.getReferers().add(storyImpl);
 		}
 		setStory(getProjectRepository().merge(storyImpl));
 	}

@@ -36,6 +36,7 @@ import { ActorService } from '../../core/actor.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
+import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
@@ -53,9 +54,15 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
         <div class="page-actions">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
                     [outlined]="true" (onClick)="onBack()" />
-          @if (canDelete() && !isNew()) {
-            <p-button label="Delete" icon="pi pi-trash" severity="danger"
-                      [outlined]="true" (onClick)="onDelete()" />
+          @if (!isNew()) {
+            @if (canEdit()) {
+              <p-button label="Copy" icon="pi pi-copy" severity="secondary"
+                        [outlined]="true" (onClick)="onCopy()" />
+            }
+            @if (canDelete()) {
+              <p-button label="Delete" icon="pi pi-trash" severity="danger"
+                        [outlined]="true" (onClick)="onDelete()" />
+            }
           }
         </div>
       </div>
@@ -203,6 +210,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   actorId: number | null = null;
   private paramSub?: Subscription;
+  private sseSub?: Subscription;
 
   constructor(
     private route: ActivatedRoute,
@@ -212,7 +220,8 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     private projectService: ProjectService,
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private eventStreamService: EventStreamService
   ) {}
 
   ngOnInit(): void {
@@ -243,6 +252,10 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   ngOnDestroy(): void {
     this.paramSub?.unsubscribe();
+    if (this.actorId) {
+      void this.eventStreamService.removeSubscription('Actor', this.actorId);
+    }
+    this.sseSub?.unsubscribe();
   }
 
   private async loadActor(): Promise<void> {
@@ -261,6 +274,14 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       this.hasChanges.set(false);
     } catch {
       this.errorMessage.set('Failed to load actor.');
+    }
+    if (this.actorId && !this.sseSub) {
+      void this.eventStreamService.addSubscription('Actor', this.actorId);
+      this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
+        if (envelope.targetType === 'Actor' && envelope.targetId === this.actorId) {
+          void this.loadActor();
+        }
+      });
     }
   }
 
@@ -281,6 +302,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (result.success) {
         if (this.isNew()) {
           this.projectService.notifyTreeChanged();
+          this.hasChanges.set(false);
           this.router.navigate(['/projects', this.projectName, 'actors', (result.entity as ActorDto).id]);
         } else {
           this.actorName.set(this.name);
@@ -296,6 +318,25 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     } catch {
       this.errorMessage.set('Save failed.');
     }
+  }
+
+  onCopy(): void {
+    this.confirmationService.confirm({
+      message: 'Create a copy of this actor?',
+      accept: async () => {
+        const result = await this.commandService.execute('CopyActor', {
+          projectName: this.projectName,
+          actorId: this.actorId
+        });
+        if (result.success && result.entity) {
+          this.projectService.notifyTreeChanged();
+          const copy = result.entity as ActorDto;
+          this.router.navigate(['/projects', this.projectName, 'actors', copy.id]);
+        } else {
+          this.errorMessage.set(result.error ?? 'Copy failed.');
+        }
+      }
+    });
   }
 
   onDelete(): void {

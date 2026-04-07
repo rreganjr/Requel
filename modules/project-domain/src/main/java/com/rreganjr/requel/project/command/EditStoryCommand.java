@@ -55,4 +55,14 @@ public interface EditStoryCommand extends EditTextEntityCommand {
 	 */
 	public void setStoryTypeName(String storyTypeName);
 
+	/**
+	 * Set the name of the primary actor for this story. Null clears the primary actor.
+	 */
+	public void setPrimaryActorName(String primaryActorName);
+
+	/**
+	 * Get the name of the primary actor to set on this story.
+	 */
+	public String getPrimaryActorName();
+
 }
