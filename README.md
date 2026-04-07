@@ -1,100 +1,180 @@
-## Requel
+## Requel 2.0
 
-Requel is a Web-based requirements management system that supports collaboration among all stakeholders and provides (_very limited_) automated assistance to validate requirements and suggest improvements. It supports requirements as goals, stories, and use-cases.
+Requel is a web-based requirements management system that supports collaboration among all
+stakeholders and provides automated assistance to validate requirements and suggest improvements.
+It models requirements as goals, stories, actors, scenarios, and use-cases with an IBIS-style
+annotation and discussion layer for negotiating issues and tracking decisions.
 
-See the [User Guide](https://github.com/rreganjr/Requel/raw/master/doc/UserGuide.pdf) for more details on using Requel. **NOTE** Chapter 5, _Requel Setup_ is no longer relevant with the executable Jar file.
+For background on what requirements engineering is and why it matters, see the
+[Thesis Document](https://github.com/rreganjr/Requel/raw/master/doc/ThesisFinalColor.pdf)
+(Harvard ALM, 2009). The [User Guide](https://github.com/rreganjr/Requel/raw/master/doc/UserGuide.pdf)
+covers the core concepts; note that Chapter 5 (_Requel Setup_) describes the old WAR deployment
+and is no longer relevant.
 
-For more information about the motivation for this project see the [Thesis Document](https://github.com/rreganjr/Requel/raw/master/doc/ThesisFinalColor.pdf).
+An example project file that can be imported:
+[Requel.xml](https://raw.githubusercontent.com/rreganjr/Requel/v1.0.1-beta/doc/samples/Requel.xml)
 
-See the example [Requel.xml](https://raw.githubusercontent.com/rreganjr/Requel/v1.0.1-beta/doc/samples/Requel.xml) project file  that can be imported.
+---
 
-### New Executable Jar for Easy Running
+### What's new in 2.0 (2026)
 
-This release replicates the functionality of the original release from 2009, but as an executable jar file that is easier to configure and run. It targets **Java 17** and ships with Spring Boot 3 / Hibernate 6. Make sure your `JAVA_HOME` points to a JDK 17 install before launching. The app embeds Tomcat, so you only need to have a MySQL database running. Pass database settings and a port to listen on if 8080 is not available:
+Version 2.0 replaces the Echo2 server-side Java UI with a modern Angular 17+ single-page
+application. The Angular SPA is built as part of the Maven build and bundled directly into the
+Spring Boot JAR, so there is no separate web server to run or configure.
 
-Pass in the database setting parameters like this:
+Key changes from 1.2:
 
-* **jdbc url** --spring.datasource.url=\<url\>
-* **username** --spring.datasource.username=\<username\>
-* **password** --spring.datasource.password=\<password\>
+- **Angular SPA** — full rewrite of the UI in Angular 17 with PrimeNG components. All
+  requirements editing screens, the IBIS annotation/discussion layer, and the project sidebar
+  are now client-side with SSE-based live refresh when background NLP analysis updates entities.
+- **CQRS API** — a clean REST API backs the SPA: `POST /api/commands/{type}` for writes,
+  `GET /api/...` for reads. The same API is available for integration or scripting.
+- **Command audit log** — every API-dispatched command is recorded in `command_audit_log`
+  (user, timestamp, command type, project). Background NLP commands are excluded.
+- **Actors on stories** — stories now support a primary actor and a set of additional actors,
+  consistent with use-cases.
+- **JWT authentication** — the Angular client uses JWT tokens; sessions are enforced per-user
+  on the SSE stream.
 
-If you already have an existing Requel database (created before Flyway was introduced), run once with these Flyway baseline flags so the schema is registered and the identity fixes apply:
+---
 
-* `-e SPRING_FLYWAY_BASELINE_ON_MIGRATE=true`
-* `-e SPRING_FLYWAY_BASELINE_VERSION=1`
+### Quickstart with Docker Compose (recommended)
 
-Remove these after the first successful start; subsequent runs should omit them.
- 
-Optionally pass the service port like this:
-
-* **port** --server.port=\<portnumber\>
-
-### Example command
-
-Note for zsh users: quote the JDBC URL (because of the `?`) or prefix the command with `noglob`. Ensure the command runs on Java 17 (set `JAVA_HOME` or use a 17-enabled shell) before launching the jar.
+The easiest way to run Requel is with the included `docker-compose.yml`, which starts MySQL 8.4
+and the Requel server together:
 
 ```bash
-# macOS (uses /usr/libexec/java_home)
-JAVA_HOME=$(/usr/libexec/java_home -v 17) PATH="$JAVA_HOME/bin:$PATH" \
-java -jar ./target/Requel-1.2.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.datasource.username=root --spring.datasource.password='password' --server.port=8081
+docker-compose up
+```
 
-# Linux (set JAVA_HOME manually)
+Then open http://localhost:8080/ and log in as **admin** with password **admin**.
+
+MySQL is available on host port 3307 if you need direct access.
+
+To stop and remove containers:
+
+```bash
+docker-compose down
+```
+
+---
+
+### Running the JAR directly
+
+Requires **Java 17** and a running **MySQL 8.4** instance.
+
+```bash
+# macOS
+JAVA_HOME=$(/usr/libexec/java_home -v 17) PATH="$JAVA_HOME/bin:$PATH" \
+java -jar modules/requel-app/target/requel-app-2.0.0.jar \
+  '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
+  --spring.datasource.username=root \
+  --spring.datasource.password=password \
+  --server.port=8081
+
+# Linux
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 export PATH="$JAVA_HOME/bin:$PATH"
-java -jar ./target/Requel-1.2.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.datasource.username=root --spring.datasource.password='password' --server.port=8081
-
-# Windows PowerShell
-$env:JAVA_HOME="C:\\Program Files\\Java\\jdk-17"
-$env:Path="${env:JAVA_HOME}\\bin;${env:Path}"
-java -jar .\target\Requel-1.2.0.jar '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' --spring.datasource.username=root --spring.datasource.password='password' --server.port=8081
-
-# Windows Command Prompt
-set JAVA_HOME=C:\\Program Files\\Java\\jdk-17
-set PATH=%JAVA_HOME%\\bin;%PATH%
-java -jar .\target\Requel-1.2.0.jar "--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC" --spring.datasource.username=root --spring.datasource.password=password --server.port=8081
+java -jar modules/requel-app/target/requel-app-2.0.0.jar \
+  '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
+  --spring.datasource.username=root \
+  --spring.datasource.password=password \
+  --server.port=8081
 ```
 
-Then access the app http://localhost:8081/
+Then open http://localhost:8081/ and log in as **admin** / **admin**.
 
-log in to the application as **admin** user with password **admin**.
+> **zsh users:** quote the JDBC URL (contains `?`) or prefix the command with `noglob`.
 
-### If You Use Docker
-check out  https://hub.docker.com/r/rreganjr/requel/
+---
 
-```
+### Running with Docker (manual)
+
+```bash
 docker network create requel-net || true
 
-# MySQL 8.4 container (maps host port 3307)
-docker run --name requelDB --net=requel-net -p3307:3306 -e MYSQL_ROOT_PASSWORD=pa33w0rd -d mysql:8.4
+# MySQL 8.4
+docker run --name requelDB --net=requel-net -p 3307:3306 \
+  -e MYSQL_ROOT_PASSWORD=pa33w0rd -d mysql:8.4
 
-# Requel 1.2.0 image (Java 17 base), connecting to MySQL 8
-docker run --name requel --net=requel-net -p8181:8080 -d \
-  rreganjr/requel:1.2.0 \
+# Requel 2.0.0
+docker run --name requel --net=requel-net -p 8080:8080 -d \
+  rreganjr/requel:2.0.0 \
   --spring.datasource.url=jdbc:mysql://requelDB:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC \
   --spring.datasource.username=root \
   --spring.datasource.password=pa33w0rd
 ```
-Then access the app http://localhost:8181/ (host MySQL exposed on port 3307)
+
+Then open http://localhost:8080/
+
+Docker images: https://hub.docker.com/r/rreganjr/requel/
+
+---
+
+### Building from source
+
+Requires **Java 17**, **Maven 3.6.3+**, and **Node 22+**.
+
+```bash
+# Full build (Java + Angular)
+mvn -pl modules/requel-app -am package -DskipTests
+
+# Java only (fast iteration, skips Angular)
+mvn -pl modules/requel-app -am package -DskipAngularBuild=true -DskipTests=true
+
+# Build Docker image
+mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests
+```
+
+---
 
 ### Database initialization and upgrades
 
-- **Fresh database**: nothing extra to pass. Flyway runs `V1__init.sql` (now emits proper `AUTO_INCREMENT` PKs and no `*_seq` tables). `V2__identity_cleanup.sql` is a no-op on a clean schema.
-- **Existing database** (pre-Flyway or older schema with sequence tables):
-  - If `flyway_schema_history` already exists, just start the new image; Flyway will run `V2__identity_cleanup.sql` to drop legacy `*_seq` tables and set PKs to `AUTO_INCREMENT`.
-  - If there is no `flyway_schema_history`, start once with:
-    ```
-    -e SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
-    -e SPRING_FLYWAY_BASELINE_VERSION=1
-    ```
-    This baselines your current schema as version 1, then applies `V2__identity_cleanup.sql`. Remove these env vars after the first successful start.
-  - Example first start against an existing DB:
-    ```bash
-    docker run --name requel --net=requel-net -p8181:8080 -d \
-      -e SPRING_FLYWAY_BASELINE_ON_MIGRATE=true \
-      -e SPRING_FLYWAY_BASELINE_VERSION=1 \
-      rreganjr/requel:1.2.0 \
-      --spring.datasource.url=jdbc:mysql://requelDB:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC \
-      --spring.datasource.username=root \
-      --spring.datasource.password=pa33w0rd
-    ```
-    On subsequent starts, omit the two `SPRING_FLYWAY_*` env vars.
+On a **fresh database** nothing extra is needed. Flyway runs all migrations automatically on
+startup.
+
+On an **existing pre-2.0 database** (no `flyway_schema_history` table), start once with:
+
+```
+-e SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
+-e SPRING_FLYWAY_BASELINE_VERSION=1
+```
+
+This registers the existing schema as version 1 and applies newer migrations. Remove these
+flags after the first successful start.
+
+#### Migrations
+
+| Version | Description |
+|---------|-------------|
+| V1 | Initial schema (projects, goals, actors, stories, use-cases, scenarios, annotations) |
+| V2 | Identity cleanup — drop legacy `*_seq` tables, set PKs to `AUTO_INCREMENT` |
+| V3 | User preferences (sidebar project limit and staleness filter) |
+| V4 | Command audit log table |
+| V5 | Use-case additional scenarios join table |
+| V6 | Fix `proposed_word` column spelling in dictionary |
+| V7 | Story primary actor (`primary_actor_id` column on `stories` table) |
+
+---
+
+### Version history
+
+#### 2.0 (2026) — Angular SPA, CQRS API
+
+Complete replacement of the Echo2 server-side UI with an Angular 17 SPA. The server-side
+rendering model is gone; the backend now exposes a clean CQRS API. The Angular build is
+bundled into the JAR by Maven so the deployment model is unchanged — one JAR, one database.
+
+#### 1.2 (2025) — Java 17, Spring Boot 3
+
+Modernized the original 2009 codebase to run on a current Java stack without changing the
+application behavior or UI. Migrated from Java 8 / Spring 4 / Hibernate 4 / Tomcat WAR to
+Java 17 / Spring Boot 3.3 / Hibernate 6 / embedded Tomcat JAR. Introduced Flyway for schema
+management. The Echo2 UI was retained unchanged.
+
+#### 1.0 (2009) — Original Harvard ALM thesis release
+
+Requel was developed as a Harvard Extension School ALM thesis project. It ran as a Java EE WAR
+on Tomcat with an Echo2 Ajax UI, MySQL for persistence, and Stanford CoreNLP / OpenNLP for the
+automated requirements analysis features (glossary term extraction, ambiguity detection). The
+thesis document and user guide from this release are still included in `doc/`.
