@@ -29,10 +29,13 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.requel.user.UserRole;
 import com.rreganjr.requel.user.exception.NoSuchRoleForUserException;
 import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author rreganjr
@@ -48,6 +51,7 @@ public class UserImplTest extends TestCase {
     private final boolean defaultEditable = true;
     private final Set<UserRole> defaultUserRoles = new HashSet<>();
 
+    @Test
     public void testPrimaryConstructor() {
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         assertEquals(defaultUsername, user.getUsername());
@@ -61,6 +65,7 @@ public class UserImplTest extends TestCase {
         assertNotNull(user.getDisplayName());
     }
 
+    @Test
     public void testNullName() {
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, null, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         assertEquals(defaultUsername, user.getUsername());
@@ -74,6 +79,7 @@ public class UserImplTest extends TestCase {
         assertNotNull(user.getDisplayName()); // if name is null a descriptive name is still generated
     }
 
+    @Test
     public void testNoArgsConstructor() {
         UserImpl user = new UserImpl();
         assertNotNull(user);
@@ -87,27 +93,31 @@ public class UserImplTest extends TestCase {
         assertFalse(user.isPassword(defaultPassword));
     }
 
+    @Test
     public void testResetPassword() {
         final String newPassword = "newPassword";
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         user.resetPassword(newPassword);
-        assertTrue("the new password is saved properly.", user.isPassword(newPassword));
+        assertTrue(user.isPassword(newPassword), "the new password is saved properly.");
     }
 
+    @Test
     public void testResetPasswordWithSpaces() {
         final String newPassword = " new Password ";
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         user.resetPassword(newPassword);
-        assertTrue("passwords can contain spaces at the ends and between non-space characters.", user.isPassword(newPassword));
+        assertTrue(user.isPassword(newPassword), "passwords can contain spaces at the ends and between non-space characters.");
     }
 
+    @Test
     public void testResetPasswordWithLongPassword() {
         final String newPassword = StringUtils.repeat("A", UserImpl.MAX_PASSWORD_LENGTH);
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         user.resetPassword(newPassword);
-        assertTrue("a password of up to " + UserImpl.MAX_PASSWORD_LENGTH + " characters is supported.", user.isPassword(newPassword));
+        assertTrue(user.isPassword(newPassword), "a password of up to " + UserImpl.MAX_PASSWORD_LENGTH + " characters is supported.");
     }
 
+    @Test
     public void testResetPasswordUpdateAlgorithm() throws Exception {
         final String newPassword = "MyN3wP4ssw0rd";
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
@@ -124,12 +134,13 @@ public class UserImplTest extends TestCase {
 
         user.resetPassword(newPassword);
 
-        assertEquals("reset password updates encryption algorithm on password reset", preferredPasswordEncryptingAlgorithm, callPrivateMethod(user, "getPasswordEncryptingAlgorithmName"));
-        assertEquals("reset password updates encryption iterations on password reset", preferredPasswordEncryptingIterations, callPrivateMethod(user, "getPasswordEncryptingIterations"));
-        assertNotSame("reset the password salt on password reset", passwordSalt, callPrivateMethod(user, "getPasswordEncryptingIterations"));
-        assertTrue("the new password is saved properly.", user.isPassword(newPassword));
+        assertEquals(preferredPasswordEncryptingAlgorithm, callPrivateMethod(user, "getPasswordEncryptingAlgorithmName"), "reset password updates encryption algorithm on password reset");
+        assertEquals(preferredPasswordEncryptingIterations, callPrivateMethod(user, "getPasswordEncryptingIterations"), "reset password updates encryption iterations on password reset");
+        assertNotSame(passwordSalt, callPrivateMethod(user, "getPasswordEncryptingIterations"), "reset the password salt on password reset");
+        assertTrue(user.isPassword(newPassword), "the new password is saved properly.");
     }
 
+    @Test
     public void testIsPasswordUpdateAlgorithm() throws Exception {
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
 
@@ -147,12 +158,13 @@ public class UserImplTest extends TestCase {
 
         user.isPassword(defaultPassword);
 
-        assertEquals("reset password updates encryption algorithm on login if outdated.", preferredPasswordEncryptingAlgorithm, callPrivateMethod(user, "getPasswordEncryptingAlgorithmName"));
-        assertEquals("reset password updates encryption iterations on login if outdated.", preferredPasswordEncryptingIterations, callPrivateMethod(user, "getPasswordEncryptingIterations"));
-        assertNotSame("reset the password salt on login if algorithm or iterations is outdated.", passwordSalt, callPrivateMethod(user, "getPasswordEncryptingIterations"));
-        assertTrue("original password still works after logging in and updating encryption algorithm, iterations and password salt.", user.isPassword(defaultPassword));
+        assertEquals(preferredPasswordEncryptingAlgorithm, callPrivateMethod(user, "getPasswordEncryptingAlgorithmName"), "reset password updates encryption algorithm on login if outdated.");
+        assertEquals(preferredPasswordEncryptingIterations, callPrivateMethod(user, "getPasswordEncryptingIterations"), "reset password updates encryption iterations on login if outdated.");
+        assertNotSame(passwordSalt, callPrivateMethod(user, "getPasswordEncryptingIterations"), "reset the password salt on login if algorithm or iterations is outdated.");
+        assertTrue(user.isPassword(defaultPassword), "original password still works after logging in and updating encryption algorithm, iterations and password salt.");
     }
 
+    @Test
     public void testInvalidPasswordEncryptingAlgorithm() throws Exception {
         final String badAlgorithmName = "NoSuchAlgorithm";
         // I'm not sure this is possible, but I want to make sure the exception is thrown properly if in that state.
@@ -167,6 +179,7 @@ public class UserImplTest extends TestCase {
 
     }
 
+    @Test
     public void testResetPasswordTooLong() {
         // resetPassword doesn't throw an exception because of the way validation works so that
         // errors for all the properties are returned together.
@@ -174,37 +187,41 @@ public class UserImplTest extends TestCase {
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         // NOTE: this doesn't throw an exception so that all fields can be validated on change together.
         user.resetPassword(newPassword);
-        assertFalse("resetting the password with an invalid value doesn't take.", user.isPassword(newPassword));
-        assertTrue("resetting the password with an invalid value the original password still works.", user.isPassword(defaultPassword));
+        assertFalse(user.isPassword(newPassword), "resetting the password with an invalid value doesn't take.");
+        assertTrue(user.isPassword(defaultPassword), "resetting the password with an invalid value the original password still works.");
     }
 
+    @Test
     public void testResetPasswordTooShort() {
         final String newPassword = "";
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         user.resetPassword(newPassword);
-        assertFalse("resetting the password with an invalid value doesn't take.", user.isPassword(newPassword));
-        assertTrue("resetting the password with an invalid value the original password still works.", user.isPassword(defaultPassword));
+        assertFalse(user.isPassword(newPassword), "resetting the password with an invalid value doesn't take.");
+        assertTrue(user.isPassword(defaultPassword), "resetting the password with an invalid value the original password still works.");
     }
 
+    @Test
     public void testResetPasswordOnlyWhitespace() {
         final String newPassword = "      ";
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         user.resetPassword(newPassword);
-        assertFalse("resetting the password with an invalid value doesn't take.", user.isPassword(newPassword));
-        assertTrue("resetting the password with an invalid value the original password still works.", user.isPassword(defaultPassword));
+        assertFalse(user.isPassword(newPassword), "resetting the password with an invalid value doesn't take.");
+        assertTrue(user.isPassword(defaultPassword), "resetting the password with an invalid value the original password still works.");
     }
 
+    @Test
     public void testResetPasswordInvalidEncryptedNotNull() throws Exception {
         final String newPassword = "";
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         callPrivateMethod(user, "setEncryptedPassword", new ParamTypeAndValue(String.class, null));
         user.resetPassword(newPassword);
         assertNotNull(callPrivateMethod(user, "getEncryptedPassword"));
-        assertEquals("null password gets set to \"\" if setting a non-valid password", "", callPrivateMethod(user, "getEncryptedPassword"));
-        assertFalse("trying to reset the password when no password existed before sets the hashedPassword to empty string so validation of all fields will complete.", user.isPassword(newPassword));
+        assertEquals("", callPrivateMethod(user, "getEncryptedPassword"), "null password gets set to \"\" if setting a non-valid password");
+        assertFalse(user.isPassword(newPassword), "trying to reset the password when no password existed before sets the hashedPassword to empty string so validation of all fields will complete.");
     }
 
 
+    @Test
     public void testUserRoles() {
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         assertFalse(user.hasRole(SystemAdminUserRole.class));
@@ -259,6 +276,7 @@ public class UserImplTest extends TestCase {
         assertFalse(user.hasRole(ProjectUserRole.class));
     }
 
+    @Test
     public void testEquals() {
         // User id takes precedence over username
         UserImpl user = new UserImpl();
@@ -290,6 +308,7 @@ public class UserImplTest extends TestCase {
         assertFalse(user2.equals(user));
     }
 
+    @Test
     public void testEqualsById() {
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         UserImpl user2 = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
@@ -311,6 +330,7 @@ public class UserImplTest extends TestCase {
         assertTrue(user2.equalsById(user));
     }
 
+    @Test
     public void testCompareTo() {
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         UserImpl user2 = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
@@ -324,6 +344,7 @@ public class UserImplTest extends TestCase {
         assertTrue( user2.compareTo(user) > 0);
     }
 
+    @Test
     public void testHashCode() {
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         UserImpl user2 = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
@@ -343,24 +364,27 @@ public class UserImplTest extends TestCase {
         user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         user2 = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         user2.setUsername(defaultUsername + "abcd");
-        assertNotSame(user.hashCode(), user2.hashCode());
+        assertNotEquals(user.hashCode(), user2.hashCode());
     }
 
+    @Test
     public void testToString() {
         assertNotNull(new UserImpl().toString());
         assertNotNull(new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable).toString());
     }
 
+    @Test
     public void testVersion() {
         UserImpl user = new UserImpl(defaultUsername, defaultPassword, defaultName, defaultEmailAddress, defaultPhoneNumber, defaultOrganization, defaultEditable);
         user.setVersion(1000);
         assertEquals(1000, user.getVersion());
     }
 
+    @Test
     public void testIdAdapter() throws Exception {
         UserImpl.IdAdapter idAdapter = new UserImpl.IdAdapter();
         assertEquals("", idAdapter.marshal(null));
         assertTrue(idAdapter.marshal(1234L).contains("1234"));
-        assertNull("unmarshal always returns null for id, the id in the XML file is only relevant in the file", idAdapter.unmarshal("USR_100"));
+        assertNull(idAdapter.unmarshal("USR_100"), "unmarshal always returns null for id, the id in the XML file is only relevant in the file");
     }
 }

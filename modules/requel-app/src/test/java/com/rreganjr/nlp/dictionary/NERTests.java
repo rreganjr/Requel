@@ -22,12 +22,10 @@ package com.rreganjr.nlp.dictionary;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.nlp.impl.StanfordNameEntityRecognizer;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 
 /**
@@ -37,8 +35,7 @@ import org.springframework.test.context.junit4.SpringRunner;
  * TODO: maybe because "Virgin Mobile USA's" is the full match and because it has USA it
  * TODO: thinks it is a location?
  */
-@Ignore("Named entity recognizer relies on legacy models and is currently broken; skipping until NLP stack is refreshed.")
-@RunWith(SpringRunner.class)
+@Disabled("Named entity recognizer relies on legacy models and is currently broken; skipping until NLP stack is refreshed.")
 public class NERTests extends AbstractIntegrationTestCase {
 
 	private StanfordNameEntityRecognizer nameEntityRecognizer;
@@ -46,15 +43,8 @@ public class NERTests extends AbstractIntegrationTestCase {
 	private Sense locationSense;
 	private Sense organizationSense;
 
-	/**
-	 */
-	public NERTests() {
-		super();
-	}
-
-	@Before
+	@BeforeEach
 	public void onSetUp() throws Exception {
-		super.onSetUp();
 		ensureDictionaryLoaded();
 		nameEntityRecognizer = new StanfordNameEntityRecognizer(getDictionaryRepository());
 		Word personWord = getDictionaryRepository().findWord("person", PartOfSpeech.NOUN);
@@ -75,17 +65,17 @@ public class NERTests extends AbstractIntegrationTestCase {
 		nameEntityRecognizer.process(text);
 		for (NLPText word : text.getLeaves()) {
 			if (word.getText().equals("Nellymoser")) {
-				Assert.assertEquals(personSense, word.getDictionaryWordSense());
+				assertEquals(personSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("Virgin")) {
-				Assert.assertEquals(organizationSense, word.getDictionaryWordSense());
+				assertEquals(organizationSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("Mobile")) {
-				Assert.assertEquals(organizationSense, word.getDictionaryWordSense());
+				assertEquals(organizationSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("USA")) {
-				Assert.assertEquals(organizationSense, word.getDictionaryWordSense());
+				assertEquals(organizationSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("EVDO")) {
-				Assert.assertEquals(organizationSense, word.getDictionaryWordSense());
+				assertEquals(organizationSense, word.getDictionaryWordSense());
 			} else {
-				Assert.assertNull(word.getDictionaryWordSense());
+				assertNull(word.getDictionaryWordSense());
 			}
 		}
 	}
@@ -97,11 +87,11 @@ public class NERTests extends AbstractIntegrationTestCase {
 		nameEntityRecognizer.process(text);
 		for (NLPText word : text.getLeaves()) {
 			if (word.getText().equals("Nellymoser")) {
-				Assert.assertEquals(personSense, word.getDictionaryWordSense());
+				assertEquals(personSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("VMU")) {
-				Assert.assertEquals(organizationSense, word.getDictionaryWordSense());
+				assertEquals(organizationSense, word.getDictionaryWordSense());
 			} else {
-				Assert.assertNull(word.getDictionaryWordSense());
+				assertNull(word.getDictionaryWordSense());
 			}
 		}
 	}
@@ -113,15 +103,15 @@ public class NERTests extends AbstractIntegrationTestCase {
 		nameEntityRecognizer.process(text);
 		for (NLPText word : text.getLeaves()) {
 			if (word.getText().equals("John")) {
-				Assert.assertEquals(personSense, word.getDictionaryWordSense());
+				assertEquals(personSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("Nellymoser")) {
-				Assert.assertEquals(personSense, word.getDictionaryWordSense());
+				assertEquals(personSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("Arlington")) {
 				// assertEquals(locationSense, word.getDictionaryWordSense());
 			} else if (word.getText().equals("Massachusetts")) {
 				// assertEquals(locationSense, word.getDictionaryWordSense());
 			} else {
-				Assert.assertNull(word.getDictionaryWordSense());
+				assertNull(word.getDictionaryWordSense());
 			}
 		}
 	}

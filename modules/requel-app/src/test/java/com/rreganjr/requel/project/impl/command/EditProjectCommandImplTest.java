@@ -30,12 +30,9 @@ import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.user.User;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
-@RunWith(SpringRunner.class)
 public class EditProjectCommandImplTest extends AbstractIntegrationTestCase {
 
 	@Test
@@ -74,10 +71,10 @@ public class EditProjectCommandImplTest extends AbstractIntegrationTestCase {
 				expectedStakeholders.add(stakeholder);
 			}
 		}
-		Assert.assertEquals(creator, project.getCreatedBy());
-		Assert.assertEquals(projectName, project.getName());
-		Assert.assertEquals("Project: " + projectName, project.getDescription());
-		Assert.assertEquals(organizationName, project.getOrganization().getName());
-		Assert.assertTrue(project.getStakeholders().containsAll(expectedStakeholders));
+		assertEquals(creator, project.getCreatedBy());
+		assertEquals(projectName, project.getName());
+		assertEquals("Project: " + projectName, project.getDescription());
+		assertEquals(organizationName, project.getOrganization().getName());
+		assertTrue(project.getStakeholders().containsAll(expectedStakeholders));
 	}
 }

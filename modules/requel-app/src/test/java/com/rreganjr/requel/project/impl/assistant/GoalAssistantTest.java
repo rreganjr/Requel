@@ -28,17 +28,14 @@ import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.platform.identity.User;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test the GoalAssistant
  * 
  * @author ron
  */
-@RunWith(SpringRunner.class)
 public class GoalAssistantTest extends AbstractIntegrationTestCase {
 
 	/**
@@ -83,7 +80,7 @@ public class GoalAssistantTest extends AbstractIntegrationTestCase {
 		// assertEquals(1, goal.getAnnotations().size());
 		for (Annotation annotation : goal.getAnnotations()) {
 			if ((annotation instanceof Issue) && annotation.getText().contains("'groal'")) {
-				Assert.assertEquals(
+				assertEquals(
 						"The word 'groal' in the goal name is not recognized and may be spelled incorrectly.",
 						annotation.getText());
 			}

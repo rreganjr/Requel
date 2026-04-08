@@ -30,17 +30,14 @@ import com.rreganjr.nlp.dictionary.Word;
 import com.rreganjr.nlp.dictionary.command.ExportDictionaryCommand;
 import com.rreganjr.nlp.dictionary.impl.command.ExportDictionaryCommandImpl;
 import com.rreganjr.nlp.dictionary.impl.command.ImportDictionaryCommandImpl;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.Ignore;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 
 /**
  * @author ron
  */
-@Ignore("WordNet bootstrap is currently broken (StackOverflow/import failure); disable until dictionary loading is repaired.")
-@RunWith(SpringRunner.class)
+@Disabled("WordNet bootstrap is currently broken (StackOverflow/import failure); disable until dictionary loading is repaired.")
 public class DictionaryRepositoryTest extends AbstractIntegrationTestCase {
 
 	/**
@@ -55,9 +52,9 @@ public class DictionaryRepositoryTest extends AbstractIntegrationTestCase {
 			throw new RuntimeException(e);
 		}
 		Word word = getDictionaryRepository().findWord("search");
-		Assert.assertEquals("search", word.getLemma());
+		assertEquals("search", word.getLemma());
 		for (Sense sense : word.getSenses()) {
-			Assert.assertEquals("search", sense.getWord().getLemma());
+			assertEquals("search", sense.getWord().getLemma());
 		}
 	}
 
@@ -69,8 +66,8 @@ public class DictionaryRepositoryTest extends AbstractIntegrationTestCase {
 			throw new RuntimeException(e);
 		}
 		Dictionary dictionary = getDictionaryRepository().getDictionary("a", "b");
-		Assert.assertTrue(dictionary.getWords().first().getLemma().compareTo("a") >= 0);
-		Assert.assertTrue(dictionary.getWords().last().getLemma().compareTo("b") < 0);
+		assertTrue(dictionary.getWords().first().getLemma().compareTo("a") >= 0);
+		assertTrue(dictionary.getWords().last().getLemma().compareTo("b") < 0);
 	}
 
 	@Test

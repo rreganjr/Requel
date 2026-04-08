@@ -20,10 +20,6 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.annotation.Annotation;
@@ -49,18 +45,15 @@ import com.rreganjr.requel.user.impl.repository.init.ProjectUserInitializer;
 import com.rreganjr.requel.user.command.UserCommandFactory;
 import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.project.ProjectUserRole;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  * Integration test that exercises the StAX-based streaming import using the
  * large example project stored under doc/samples/Requel.xml.
  */
-@RunWith(SpringRunner.class)
 public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCase {
-
 
     @Autowired
     private ProjectUserInitializer projectUserInitializer;
@@ -88,41 +81,41 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
         }
 
         Project imported = command.getProject();
-        assertNotNull("import produced a project", imported);
-        org.junit.Assert.assertEquals(projectName, imported.getName());
+        assertNotNull(imported, "import produced a project");
+        assertEquals(projectName, imported.getName());
 
-        org.junit.Assert.assertEquals("expected actor count", 4, imported.getActors().size());
+        assertEquals(4, imported.getActors().size(), "expected actor count");
         assertActorAnnotations(imported, "Automated Assistant", 14);
         assertActorAnnotations(imported, "Interactive User", 6);
 
-        org.junit.Assert.assertEquals("expected goal count", 10, imported.getGoals().size());
+        assertEquals(10, imported.getGoals().size(), "expected goal count");
         assertTrue(imported.getGoals().stream()
                 .map(Goal::getName)
                 .anyMatch("Collaborative Elicitation of Requirements"::equals));
 
-        org.junit.Assert.assertEquals("expected story count", 6, imported.getStories().size());
+        assertEquals(6, imported.getStories().size(), "expected story count");
         assertTrue(imported.getStories().stream()
                 .map(Story::getName)
                 .anyMatch("Rich creates a new project"::equals));
 
-        org.junit.Assert.assertEquals("expected use case count", 2, imported.getUseCases().size());
+        assertEquals(2, imported.getUseCases().size(), "expected use case count");
         UseCase createProject = imported.getUseCases().stream()
                 .filter(uc -> "A user creates a new project".equals(uc.getName()))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("use case UC_1 not imported"));
-        org.junit.Assert.assertEquals("primary actor wired", "System Admin",
-                createProject.getPrimaryActor().getName());
+        assertEquals("System Admin", createProject.getPrimaryActor().getName(),
+                "primary actor wired");
         Scenario referencedScenario = createProject.getScenario();
-        assertNotNull("scenario resolved for use case", referencedScenario);
-        org.junit.Assert.assertEquals("test top level scenario", referencedScenario.getName());
-        assertFalse("stories linked to use case", createProject.getStories().isEmpty());
+        assertNotNull(referencedScenario, "scenario resolved for use case");
+        assertEquals("test top level scenario", referencedScenario.getName());
+        assertFalse(createProject.getStories().isEmpty(), "stories linked to use case");
 
-        org.junit.Assert.assertEquals("stakeholder count", 4, imported.getStakeholders().size());
+        assertEquals(4, imported.getStakeholders().size(), "stakeholder count");
 
         Set<Annotation> annotations = ((ProjectImpl) imported).getAllProjectEntityAnnotations();
-        org.junit.Assert.assertEquals("annotation count", 265, annotations.size());
+        assertEquals(265, annotations.size(), "annotation count");
         long lexicalIssueCount = annotations.stream().filter(a -> a instanceof LexicalIssue).count();
-        org.junit.Assert.assertEquals("lexical issue count", 145, lexicalIssueCount);
+        assertEquals(145, lexicalIssueCount, "lexical issue count");
 
         LexicalIssue underpants = annotations.stream()
                 .filter(a -> a instanceof LexicalIssue)
@@ -131,15 +124,14 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
                         .equals(l.getText()))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("missing lexical issue ANN_395"));
-        org.junit.Assert.assertEquals("lexical issue retains position refs", 3,
-                underpants.getPositions().size());
+        assertEquals(3, underpants.getPositions().size(), "lexical issue retains position refs");
 
         Position glossaryPosition = getAnnotationRepository()
                 .findPosition(imported, "Add \"the project elements\" to the project glossary.");
         assertNotNull(glossaryPosition);
-        org.junit.Assert.assertEquals("position text retained",
-                "Add \"the project elements\" to the project glossary.", glossaryPosition.getText());
-        assertTrue("position has no arguments", glossaryPosition.getArguments().isEmpty());
+        assertEquals("Add \"the project elements\" to the project glossary.",
+                glossaryPosition.getText(), "position text retained");
+        assertTrue(glossaryPosition.getArguments().isEmpty(), "position has no arguments");
     }
 
     /**
@@ -165,13 +157,13 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
                 .filter(s -> s instanceof UserStakeholder us && us.matchesUser(creator))
                 .map(s -> (UserStakeholder) s)
                 .findFirst();
-        assertTrue("importing user added as stakeholder", maybeStakeholder.isPresent());
+        assertTrue(maybeStakeholder.isPresent(), "importing user added as stakeholder");
 
         UserStakeholder stakeholder = maybeStakeholder.get();
         int granted = stakeholder.getStakeholderPermissions().size();
         int available = getProjectRepository().findAvailableStakeholderPermissions().size();
-        org.junit.Assert.assertTrue("available stakeholder permissions should be seeded", available > 0);
-        org.junit.Assert.assertEquals("importing user receives full stakeholder permissions", available, granted);
+        assertTrue(available > 0, "available stakeholder permissions should be seeded");
+        assertEquals(available, granted, "importing user receives full stakeholder permissions");
     }
 
     private void ensureAssistantHasProjectRole() throws Exception {
@@ -191,9 +183,9 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
         Optional<Actor> actor = project.getActors().stream()
                 .filter(a -> actorName.equals(a.getName()))
                 .findFirst();
-        assertTrue("Actor " + actorName + " imported", actor.isPresent());
-        org.junit.Assert.assertEquals("annotation count for " + actorName,
-                expectedAnnotationCount, actor.get().getAnnotations().size());
+        assertTrue(actor.isPresent(), "Actor " + actorName + " imported");
+        assertEquals(expectedAnnotationCount, actor.get().getAnnotations().size(),
+                "annotation count for " + actorName);
     }
 
     private Path resolveSampleXml() {

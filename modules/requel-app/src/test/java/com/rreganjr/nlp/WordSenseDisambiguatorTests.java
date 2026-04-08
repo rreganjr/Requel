@@ -22,14 +22,11 @@ package com.rreganjr.nlp;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.nlp.dictionary.*;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author ron
  */
-@RunWith(SpringRunner.class)
 public class WordSenseDisambiguatorTests extends AbstractIntegrationTestCase {
 	private static final String TEST_SENTENCE_1 = "I charged the purchase on my credit card.";
 	private static final String TEST_SENTENCE_2 = "I charged in to the bar.";

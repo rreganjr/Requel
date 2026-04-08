@@ -31,9 +31,10 @@ import com.rreganjr.nlp.impl.DependencyPrinter;
 import com.rreganjr.nlp.impl.DependencySubjectFinder;
 import com.rreganjr.nlp.impl.NLPProcessorFactoryImpl;
 import com.rreganjr.nlp.impl.StringNLPTextWalker;
-import org.junit.Ignore;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
-@Ignore("Depends on legacy Stanford parser models; currently broken. Disable until NLP stack is refreshed.")
+@Disabled("Depends on legacy Stanford parser models; currently broken. Disable until NLP stack is refreshed.")
 public abstract class NLPTextTests extends TestCase {
 
 	private final NLPProcessorFactory processorFactory = new NLPProcessorFactoryImpl();
@@ -69,6 +70,8 @@ public abstract class NLPTextTests extends TestCase {
 					"the system", "supports", null, null),
 			new TestSentence("", null, null, null, null) };
 
+	@Test
+	@Disabled
 	public void testProcessing() {
 		for (TestSentence sentence : testSentences) {
 			NLPText text = process(sentence.text);

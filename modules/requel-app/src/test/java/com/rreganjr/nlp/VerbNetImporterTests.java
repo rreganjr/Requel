@@ -25,11 +25,13 @@ import java.io.FileFilter;
 
 import javax.xml.bind.JAXBElement;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.rreganjr.TestCase;
 import com.rreganjr.nlp.impl.verbnet.VerbNetImporter;
-import org.junit.Ignore;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 //import com.rreganjr.nlp.verbnet.VNCLASS;
 //import com.rreganjr.nlp.verbnet.FRAMES.FRAME;
 //import com.rreganjr.nlp.verbnet.MEMBERS.MEMBER;
@@ -39,39 +41,18 @@ import org.junit.Ignore;
  * 
  * @author ron
  */
-@Ignore
+
 public class VerbNetImporterTests extends TestCase {
-	protected static final Logger log = Logger.getLogger(VerbNetImporter.class);
+	protected static final Logger log = LoggerFactory.getLogger(VerbNetImporter.class);
 
 	private final VerbNetImporter importer = new VerbNetImporter();
-
-	/**
-	 * @param name
-	 */
-	public VerbNetImporterTests(String name) {
-		super(name);
-	}
-
-	/**
-	 * @see com.rreganjr.TestCase#setUp()
-	 */
-	@Override
-	protected void setUp() throws Exception {
-		super.setUp();
-	}
-
-	/**
-	 * @see com.rreganjr.TestCase#tearDown()
-	 */
-	@Override
-	protected void tearDown() throws Exception {
-		super.tearDown();
-	}
 
 	/**
 	 * Test method for
 	 * {@link com.rreganjr.nlp.impl.verbnet.VerbNetImporter#loadVerbNetClass(java.io.InputStream)}.
 	 */
+	@Test
+	@Disabled("VerbNet files not available in test environment")
 	public void testLoadVerbNetClass() throws Exception {
 		String verbNetSchemaFilePath = "nlp/verbnet-2.1/vn_schema-3.xsd";
 		String verbNetDirectoryPath = "nlp/verbnet-2.1/";

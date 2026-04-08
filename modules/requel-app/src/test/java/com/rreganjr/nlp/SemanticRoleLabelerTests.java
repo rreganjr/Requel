@@ -26,17 +26,14 @@ import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.nlp.dictionary.*;
 import com.rreganjr.nlp.impl.srl.SemanticRoleCollector;
 import com.rreganjr.nlp.impl.srl.SemanticRoleCollectorFunction;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.Ignore;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 
 /**
  * @author ron
  */
-@Ignore("Semantic role labeler relies on legacy models and is currently broken; skipping until NLP stack is refreshed.")
-@RunWith(SpringRunner.class)
+@Disabled("Semantic role labeler relies on legacy models and is currently broken; skipping until NLP stack is refreshed.")
 public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 
 	@Test
@@ -57,7 +54,7 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		// fails: wrong sense "enters#1" instead of "enters#8"
 		Sense sense = getDictionaryRepository().findSensesByLemmaAndSynsetId("enter", 201421622L);
 		for (VerbNetFrameRef frameRef : sense.getVerbNetFrameRefs()) {
-			log.info(frameRef);
+			log.info("{}", frameRef);
 		}
 		for (NLPText word : text.getLeaves()) {
 			if ("enters".equals(word.getText())) {
@@ -67,9 +64,9 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("enters", text.getPrimaryVerb().getText());
-		Assert.assertEquals("The user", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("some information", roles.get(SemanticRole.THEME).getText());
+		assertEquals("enters", text.getPrimaryVerb().getText());
+		assertEquals("The user", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("some information", roles.get(SemanticRole.THEME).getText());
 	}
 
 	/**
@@ -94,12 +91,12 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 			semanticRoleLabeler.process(text);
 			printSemanticRoles(text);
 			Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-			Assert.assertEquals("entered", text.getPrimaryVerb().getText());
-			Assert.assertEquals("The user", roles.get(SemanticRole.AGENT).getText());
-			Assert.assertEquals("some information", roles.get(SemanticRole.THEME).getText());
-			Assert.assertEquals("the search form", roles.get(SemanticRole.INSTRUMENT).getText());
+			assertEquals("entered", text.getPrimaryVerb().getText());
+			assertEquals("The user", roles.get(SemanticRole.AGENT).getText());
+			assertEquals("some information", roles.get(SemanticRole.THEME).getText());
+			assertEquals("the search form", roles.get(SemanticRole.INSTRUMENT).getText());
 		} catch (Exception e) {
-			log.error(e, e);
+			log.error("test error", e);
 			throw e;
 		}
 	}
@@ -126,11 +123,11 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 			semanticRoleLabeler.process(text);
 			printSemanticRoles(text);
 			Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-			Assert.assertEquals("entered", text.getPrimaryVerb().getText());
-			Assert.assertEquals("the user", roles.get(SemanticRole.AGENT).getText());
-			Assert.assertEquals("Some information", roles.get(SemanticRole.THEME).getText());
+			assertEquals("entered", text.getPrimaryVerb().getText());
+			assertEquals("the user", roles.get(SemanticRole.AGENT).getText());
+			assertEquals("Some information", roles.get(SemanticRole.THEME).getText());
 		} catch (Exception e) {
-			log.error(e, e);
+			log.error("test error", e);
 			throw e;
 		}
 	}
@@ -157,11 +154,11 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 			semanticRoleLabeler.process(text);
 			printSemanticRoles(text);
 			Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-			Assert.assertEquals("entered", text.getPrimaryVerb().getText());
-			Assert.assertEquals("the user", roles.get(SemanticRole.AGENT).getText());
-			Assert.assertEquals("Some information", roles.get(SemanticRole.THEME).getText());
+			assertEquals("entered", text.getPrimaryVerb().getText());
+			assertEquals("the user", roles.get(SemanticRole.AGENT).getText());
+			assertEquals("Some information", roles.get(SemanticRole.THEME).getText());
 		} catch (Exception e) {
-			log.error(e, e);
+			log.error("test error", e);
 			throw e;
 		}
 	}
@@ -187,10 +184,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("billed", text.getPrimaryVerb().getText());
-		Assert.assertEquals("The phone company", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("John", roles.get(SemanticRole.RECIPIENT).getText());
-		Assert.assertEquals("eleven dollars", roles.get(SemanticRole.ASSET).getText());
+		assertEquals("billed", text.getPrimaryVerb().getText());
+		assertEquals("The phone company", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("John", roles.get(SemanticRole.RECIPIENT).getText());
+		assertEquals("eleven dollars", roles.get(SemanticRole.ASSET).getText());
 	}
 
 	/**
@@ -213,10 +210,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("billed", text.getPrimaryVerb().getText());
-		Assert.assertEquals("The phone company", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("John", roles.get(SemanticRole.RECIPIENT).getText());
-		Assert.assertEquals("eleven dollars", roles.get(SemanticRole.ASSET).getText());
+		assertEquals("billed", text.getPrimaryVerb().getText());
+		assertEquals("The phone company", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("John", roles.get(SemanticRole.RECIPIENT).getText());
+		assertEquals("eleven dollars", roles.get(SemanticRole.ASSET).getText());
 	}
 
 	/**
@@ -239,10 +236,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("billed", text.getPrimaryVerb().getText());
-		Assert.assertEquals("The phone company", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("John", roles.get(SemanticRole.RECIPIENT).getText());
-		Assert.assertEquals("eleven dollars", roles.get(SemanticRole.ASSET).getText());
+		assertEquals("billed", text.getPrimaryVerb().getText());
+		assertEquals("The phone company", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("John", roles.get(SemanticRole.RECIPIENT).getText());
+		assertEquals("eleven dollars", roles.get(SemanticRole.ASSET).getText());
 	}
 
 	/**
@@ -265,10 +262,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("billing", text.getPrimaryVerb().getText());
-		Assert.assertEquals("The phone company", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("John", roles.get(SemanticRole.RECIPIENT).getText());
-		Assert.assertEquals("eleven dollars", roles.get(SemanticRole.ASSET).getText());
+		assertEquals("billing", text.getPrimaryVerb().getText());
+		assertEquals("The phone company", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("John", roles.get(SemanticRole.RECIPIENT).getText());
+		assertEquals("eleven dollars", roles.get(SemanticRole.ASSET).getText());
 	}
 
 	/**
@@ -284,10 +281,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("searches", text.getPrimaryVerb().getText());
-		Assert.assertEquals("A user", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("artists", roles.get(SemanticRole.THEME).getText());
-		Assert.assertEquals("name or genre", roles.get(SemanticRole.ATTRIBUTE).getText());
+		assertEquals("searches", text.getPrimaryVerb().getText());
+		assertEquals("A user", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("artists", roles.get(SemanticRole.THEME).getText());
+		assertEquals("name or genre", roles.get(SemanticRole.ATTRIBUTE).getText());
 	}
 
 	/**
@@ -303,10 +300,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("distinguished", text.getPrimaryVerb().getText());
-		Assert.assertEquals("a visual marker", roles.get(SemanticRole.INSTRUMENT).getText());
-		Assert.assertEquals("new content", roles.get(SemanticRole.THEME1).getText());
-		Assert.assertEquals("archive content", roles.get(SemanticRole.THEME2).getText());
+		assertEquals("distinguished", text.getPrimaryVerb().getText());
+		assertEquals("a visual marker", roles.get(SemanticRole.INSTRUMENT).getText());
+		assertEquals("new content", roles.get(SemanticRole.THEME1).getText());
+		assertEquals("archive content", roles.get(SemanticRole.THEME2).getText());
 	}
 
 	/**
@@ -322,10 +319,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		printDependencies(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("distinguished", text.getPrimaryVerb().getText());
-		Assert.assertEquals("a visual marker", roles.get(SemanticRole.INSTRUMENT).getText());
-		Assert.assertEquals("new content", roles.get(SemanticRole.THEME).getText());
-		Assert.assertEquals("archive content", roles.get(SemanticRole.THEME).getText());
+		assertEquals("distinguished", text.getPrimaryVerb().getText());
+		assertEquals("a visual marker", roles.get(SemanticRole.INSTRUMENT).getText());
+		assertEquals("new content", roles.get(SemanticRole.THEME).getText());
+		assertEquals("archive content", roles.get(SemanticRole.THEME).getText());
 	}
 
 	/**
@@ -341,10 +338,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("bet", text.getPrimaryVerb().getText());
-		Assert.assertEquals("I", roles.get(SemanticRole.ACTOR).getText());
-		Assert.assertEquals("a dollar", roles.get(SemanticRole.THEME).getText());
-		Assert.assertEquals("Bob", roles.get(SemanticRole.ACTOR).getText());
+		assertEquals("bet", text.getPrimaryVerb().getText());
+		assertEquals("I", roles.get(SemanticRole.ACTOR).getText());
+		assertEquals("a dollar", roles.get(SemanticRole.THEME).getText());
+		assertEquals("Bob", roles.get(SemanticRole.ACTOR).getText());
 	}
 
 	/**
@@ -360,10 +357,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("said", text.getPrimaryVerb().getText());
-		Assert.assertEquals("she", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("What", roles.get(SemanticRole.THEME).getText());
-		Assert.assertEquals("What", roles.get(SemanticRole.PROPOSITION).getText());
+		assertEquals("said", text.getPrimaryVerb().getText());
+		assertEquals("she", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("What", roles.get(SemanticRole.THEME).getText());
+		assertEquals("What", roles.get(SemanticRole.PROPOSITION).getText());
 	}
 
 	/**
@@ -379,9 +376,9 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("creates", text.getPrimaryVerb().getText());
-		Assert.assertEquals("The user", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("a new project", roles.get(SemanticRole.PRODUCT).getText());
+		assertEquals("creates", text.getPrimaryVerb().getText());
+		assertEquals("The user", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("a new project", roles.get(SemanticRole.PRODUCT).getText());
 	}
 
 	/**
@@ -397,9 +394,9 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("authorized", text.getPrimaryVerb().getText());
-		Assert.assertEquals("The user", roles.get(SemanticRole.BENEFICIARY).getText());
-		Assert.assertEquals("create a new project.", roles.get(SemanticRole.TOPIC).getText());
+		assertEquals("authorized", text.getPrimaryVerb().getText());
+		assertEquals("The user", roles.get(SemanticRole.BENEFICIARY).getText());
+		assertEquals("create a new project.", roles.get(SemanticRole.TOPIC).getText());
 	}
 
 	/**
@@ -415,9 +412,9 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("verifies", text.getPrimaryVerb().getText());
-		Assert.assertEquals("The system", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("the user", roles.get(SemanticRole.PROPOSITION).getText());
+		assertEquals("verifies", text.getPrimaryVerb().getText());
+		assertEquals("The system", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("the user", roles.get(SemanticRole.PROPOSITION).getText());
 	}
 
 	/**
@@ -433,9 +430,9 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("sat", text.getPrimaryVerb().getText());
-		Assert.assertEquals("I", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("the chair", roles.get(SemanticRole.LOCATION).getText());
+		assertEquals("sat", text.getPrimaryVerb().getText());
+		assertEquals("I", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("the chair", roles.get(SemanticRole.LOCATION).getText());
 	}
 
 	/**
@@ -453,9 +450,9 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("killed", text.getPrimaryVerb().getText());
-		Assert.assertEquals("the police", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("The man", roles.get(SemanticRole.PATIENT).getText());
+		assertEquals("killed", text.getPrimaryVerb().getText());
+		assertEquals("the police", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("The man", roles.get(SemanticRole.PATIENT).getText());
 	}
 
 	/**
@@ -471,10 +468,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("gave", text.getPrimaryVerb().getText());
-		Assert.assertEquals("She", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("a raise", roles.get(SemanticRole.THEME).getText());
-		Assert.assertEquals("me", roles.get(SemanticRole.PATIENT).getText());
+		assertEquals("gave", text.getPrimaryVerb().getText());
+		assertEquals("She", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("a raise", roles.get(SemanticRole.THEME).getText());
+		assertEquals("me", roles.get(SemanticRole.PATIENT).getText());
 	}
 
 	/**
@@ -490,10 +487,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("sent", text.getPrimaryVerb().getText());
-		Assert.assertEquals("John", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("flowers", roles.get(SemanticRole.THEME).getText());
-		Assert.assertEquals("Sarah", roles.get(SemanticRole.RECIPIENT).getText());
+		assertEquals("sent", text.getPrimaryVerb().getText());
+		assertEquals("John", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("flowers", roles.get(SemanticRole.THEME).getText());
+		assertEquals("Sarah", roles.get(SemanticRole.RECIPIENT).getText());
 	}
 
 	/**
@@ -509,10 +506,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("cheered", text.getPrimaryVerb().getText());
-		Assert.assertEquals("The crowd", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("entering the hall", roles.get(SemanticRole.TOPIC).getText());
-		Assert.assertEquals("the actor", roles.get(SemanticRole.BENEFICIARY).getText());
+		assertEquals("cheered", text.getPrimaryVerb().getText());
+		assertEquals("The crowd", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("entering the hall", roles.get(SemanticRole.TOPIC).getText());
+		assertEquals("the actor", roles.get(SemanticRole.BENEFICIARY).getText());
 	}
 
 	/**
@@ -528,9 +525,9 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("hates", text.getPrimaryVerb().getText());
-		Assert.assertEquals("John", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("eating fish", roles.get(SemanticRole.TOPIC).getText());
+		assertEquals("hates", text.getPrimaryVerb().getText());
+		assertEquals("John", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("eating fish", roles.get(SemanticRole.TOPIC).getText());
 	}
 
 	/**
@@ -549,10 +546,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("named", text.getPrimaryVerb().getText());
-		Assert.assertEquals("The captain", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("the ship", roles.get(SemanticRole.BENEFICIARY).getText());
-		Assert.assertNull("Seafarer", roles.get(SemanticRole.ATTRIBUTE).getText());
+		assertEquals("named", text.getPrimaryVerb().getText());
+		assertEquals("The captain", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("the ship", roles.get(SemanticRole.BENEFICIARY).getText());
+		assertNull("Seafarer", roles.get(SemanticRole.ATTRIBUTE).getText());
 	}
 
 	/**
@@ -571,9 +568,9 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("break", text.getPrimaryVerb().getText());
-		Assert.assertEquals("a hammer", roles.get(SemanticRole.INSTRUMENT).getText());
-		Assert.assertEquals("Piggy banks", roles.get(SemanticRole.PATIENT).getText());
+		assertEquals("break", text.getPrimaryVerb().getText());
+		assertEquals("a hammer", roles.get(SemanticRole.INSTRUMENT).getText());
+		assertEquals("Piggy banks", roles.get(SemanticRole.PATIENT).getText());
 	}
 
 	/**
@@ -593,10 +590,10 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("broke", text.getPrimaryVerb().getText());
-		Assert.assertEquals("Tony", roles.get(SemanticRole.AGENT).getText());
-		Assert.assertEquals("Piggy banks", roles.get(SemanticRole.PATIENT).getText());
-		Assert.assertEquals("a hammer", roles.get(SemanticRole.INSTRUMENT).getText());
+		assertEquals("broke", text.getPrimaryVerb().getText());
+		assertEquals("Tony", roles.get(SemanticRole.AGENT).getText());
+		assertEquals("Piggy banks", roles.get(SemanticRole.PATIENT).getText());
+		assertEquals("a hammer", roles.get(SemanticRole.INSTRUMENT).getText());
 	}
 
 	/**
@@ -614,9 +611,9 @@ public class SemanticRoleLabelerTests extends AbstractIntegrationTestCase {
 		semanticRoleLabeler.process(text);
 		printSemanticRoles(text);
 		Map<SemanticRole, NLPText> roles = collectSemanticRoles(text);
-		Assert.assertEquals("bored", text.getPrimaryVerb().getText());
-		Assert.assertEquals("That movie", roles.get(SemanticRole.CAUSE).getText());
-		Assert.assertEquals("me", roles.get(SemanticRole.EXPERIENCER).getText());
+		assertEquals("bored", text.getPrimaryVerb().getText());
+		assertEquals("That movie", roles.get(SemanticRole.CAUSE).getText());
+		assertEquals("me", roles.get(SemanticRole.EXPERIENCER).getText());
 	}
 
 	/**

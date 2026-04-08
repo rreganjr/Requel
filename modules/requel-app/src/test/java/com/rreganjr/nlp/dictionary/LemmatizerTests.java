@@ -22,42 +22,39 @@ package com.rreganjr.nlp.dictionary;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
-import org.junit.Assert;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test the Lemmatizer
  * 
  * @author ron
  */
-@Ignore("Lemmatizer relies on legacy models and is currently broken; skipping until NLP stack is refreshed.")
+@Disabled("Lemmatizer relies on legacy models and is currently broken; skipping until NLP stack is refreshed.")
 
-@RunWith(SpringRunner.class)
 public class LemmatizerTests extends AbstractIntegrationTestCase {
 
 	@Test
 	public void testLemmatize() {
 		NLPProcessor<NLPText> lemmatizer = getNlpProcessorFactory().getLemmatizer();
 		// standard suffix replacing tests
-		Assert.assertEquals("running", lemmatizer.process(new NLPTextImpl("running", PartOfSpeech.ADJECTIVE)).getLemma());
-		Assert.assertEquals("running", lemmatizer.process(new NLPTextImpl("running", PartOfSpeech.NOUN)).getLemma());
-		Assert.assertEquals("run", lemmatizer.process(new NLPTextImpl("running", PartOfSpeech.VERB)).getLemma());
-		Assert.assertEquals("ring", lemmatizer.process(new NLPTextImpl("ringing", PartOfSpeech.VERB)).getLemma());
-		Assert.assertEquals("ring", lemmatizer.process(new NLPTextImpl("rings", PartOfSpeech.VERB)).getLemma());
-		Assert.assertEquals("be", lemmatizer.process(new NLPTextImpl("being", PartOfSpeech.VERB)).getLemma());
-		Assert.assertEquals("ring", lemmatizer.process(new NLPTextImpl("rang", PartOfSpeech.VERB)).getLemma());
+		assertEquals("running", lemmatizer.process(new NLPTextImpl("running", PartOfSpeech.ADJECTIVE)).getLemma());
+		assertEquals("running", lemmatizer.process(new NLPTextImpl("running", PartOfSpeech.NOUN)).getLemma());
+		assertEquals("run", lemmatizer.process(new NLPTextImpl("running", PartOfSpeech.VERB)).getLemma());
+		assertEquals("ring", lemmatizer.process(new NLPTextImpl("ringing", PartOfSpeech.VERB)).getLemma());
+		assertEquals("ring", lemmatizer.process(new NLPTextImpl("rings", PartOfSpeech.VERB)).getLemma());
+		assertEquals("be", lemmatizer.process(new NLPTextImpl("being", PartOfSpeech.VERB)).getLemma());
+		assertEquals("ring", lemmatizer.process(new NLPTextImpl("rang", PartOfSpeech.VERB)).getLemma());
 
 		// special cases
-		Assert.assertEquals("run", lemmatizer.process(new NLPTextImpl("ran", PartOfSpeech.VERB)).getLemma());
-		Assert.assertEquals("be", lemmatizer.process(new NLPTextImpl("been", PartOfSpeech.VERB)).getLemma());
-		Assert.assertEquals("be", lemmatizer.process(new NLPTextImpl("am", PartOfSpeech.VERB)).getLemma());
-		Assert.assertEquals("be", lemmatizer.process(new NLPTextImpl("is", PartOfSpeech.VERB)).getLemma());
-		Assert.assertEquals("be", lemmatizer.process(new NLPTextImpl("are", PartOfSpeech.VERB)).getLemma());
-		Assert.assertEquals("be", lemmatizer.process(new NLPTextImpl("was", PartOfSpeech.VERB)).getLemma());
-		Assert.assertEquals("be", lemmatizer.process(new NLPTextImpl("were", PartOfSpeech.VERB)).getLemma());
+		assertEquals("run", lemmatizer.process(new NLPTextImpl("ran", PartOfSpeech.VERB)).getLemma());
+		assertEquals("be", lemmatizer.process(new NLPTextImpl("been", PartOfSpeech.VERB)).getLemma());
+		assertEquals("be", lemmatizer.process(new NLPTextImpl("am", PartOfSpeech.VERB)).getLemma());
+		assertEquals("be", lemmatizer.process(new NLPTextImpl("is", PartOfSpeech.VERB)).getLemma());
+		assertEquals("be", lemmatizer.process(new NLPTextImpl("are", PartOfSpeech.VERB)).getLemma());
+		assertEquals("be", lemmatizer.process(new NLPTextImpl("was", PartOfSpeech.VERB)).getLemma());
+		assertEquals("be", lemmatizer.process(new NLPTextImpl("were", PartOfSpeech.VERB)).getLemma());
 	}
 
 }

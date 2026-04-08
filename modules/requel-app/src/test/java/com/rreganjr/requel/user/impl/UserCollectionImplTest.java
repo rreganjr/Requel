@@ -28,15 +28,16 @@ import com.rreganjr.TestCase;
 
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserSet;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author ron
  */
 public class UserCollectionImplTest extends TestCase {
 
-	/**
-	 * 
-	 */
+	@Test
 	public void testConstruction() {
 		Collection<User> init = new ArrayList<User>(5);
 
@@ -46,7 +47,7 @@ public class UserCollectionImplTest extends TestCase {
 		init.add(new TestUserImpl(4L, "ddddd"));
 		init.add(new TestUserImpl(5L, "eeeee"));
 		UserSet users = new UserSetImpl(init);
-		assertEquals(init, users);
+		TestCase.assertEquals(init, users);
 		assertTrue(users.contains(new TestUserImpl(1L, "aaaaa")));
 		assertTrue(users.contains(new TestUserImpl(2L, "bbbbb")));
 		assertTrue(users.contains(new TestUserImpl(3L, "ccccc")));
@@ -54,11 +55,9 @@ public class UserCollectionImplTest extends TestCase {
 		assertTrue(users.contains(new TestUserImpl(5L, "eeeee")));
 	}
 
-	/**
-	 * 
-	 */
+	@Test
 	public void testInvalidConstruction() {
-		try {
+		assertThrows(Exception.class, () -> {
 			Collection<User> init = new ArrayList<User>(5);
 
 			init.add(new TestUserImpl(1L, "aaaaa"));
@@ -67,16 +66,11 @@ public class UserCollectionImplTest extends TestCase {
 			init.add(new TestUserImpl(4L, "ddddd"));
 			init.add(new TestUserImpl(5L, "eeeee"));
 			init.add(new TestUserImpl(6L, "aaaaa"));
-			UserSet users = new UserSetImpl(init);
-			fail("expected an exception because a user with the same user name but different id was detected.");
-		} catch (Exception e) {
-
-		}
+			new UserSetImpl(init);
+		});
 	}
 
-	/**
-	 * 
-	 */
+	@Test
 	public void testEditedUsers() {
 		Collection<User> init = new ArrayList<User>(5);
 
@@ -86,7 +80,7 @@ public class UserCollectionImplTest extends TestCase {
 		init.add(new TestUserImpl(4L, "ddddd"));
 		init.add(new TestUserImpl(5L, "eeeee"));
 		UserSet users = new UserSetImpl(init);
-		assertEquals(init, users);
+		TestCase.assertEquals(init, users);
 
 		// simulate detecting user with changed username
 		assertTrue(users.contains(new TestUserImpl(1L, "xxxxx")));
@@ -99,6 +93,7 @@ public class UserCollectionImplTest extends TestCase {
 	/**
 	 * the iterator should return users in order by username.
 	 */
+	@Test
 	public void testIterator() {
 		Collection<User> init = new ArrayList<User>(5);
 

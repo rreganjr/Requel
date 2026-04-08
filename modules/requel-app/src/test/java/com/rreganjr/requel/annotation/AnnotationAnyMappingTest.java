@@ -27,10 +27,8 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
 
 import org.hibernate.Hibernate;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.annotation.impl.NoteImpl;
@@ -45,7 +43,6 @@ import com.rreganjr.requel.user.impl.OrganizationImpl;
  * ProjectAnnotatableMetadataContributor can resolve the registered project
  * annotatable types (e.g., Actor) when loading an annotation.
  */
-@RunWith(SpringRunner.class)
 public class AnnotationAnyMappingTest extends AbstractIntegrationTestCase {
 
 	@PersistenceContext
@@ -75,11 +72,12 @@ public class AnnotationAnyMappingTest extends AbstractIntegrationTestCase {
 		entityManager.clear();
 
 		NoteImpl reloaded = entityManager.find(NoteImpl.class, note.getId());
-		Assert.assertEquals("Annotation should retain grouping project", project.getName(),
-				((Project) reloaded.getGroupingObject()).getName());
+		assertEquals(project.getName(),
+				((Project) reloaded.getGroupingObject()).getName(),
+				"Annotation should retain grouping project");
 
 		Annotatable target = reloaded.getAnnotatables().iterator().next();
-		Assert.assertTrue("Annotatable must resolve to ActorImpl", target instanceof ActorImpl);
-		Assert.assertEquals(actor.getName(), ((ActorImpl) target).getName());
+		assertTrue(target instanceof ActorImpl, "Annotatable must resolve to ActorImpl");
+		assertEquals(actor.getName(), ((ActorImpl) target).getName());
 	}
 }

@@ -27,22 +27,19 @@ import java.util.Map;
 import java.util.Set;
 
 import com.rreganjr.AbstractIntegrationTestCase;
-import org.junit.Assert;
+import static org.junit.jupiter.api.Assertions.*;
 import com.rreganjr.nlp.impl.ConstituentTreePrinter;
 import com.rreganjr.nlp.impl.DependencyPrinter;
 import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import com.rreganjr.nlp.impl.PartOfSpeechAndSensePrinter;
 import com.rreganjr.nlp.impl.StringNLPTextWalker;
 import com.rreganjr.nlp.impl.wsd.WordnetWSD;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author ron
  */
-@RunWith(SpringRunner.class)
 public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCase {
 
 	private NLPProcessor<NLPText> sentencizer;
@@ -58,9 +55,8 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 	public DictionaryRepositoryWordnetTests() {
 	}
 
-	@Before
+	@BeforeEach
 	public void onSetUp() throws Exception {
-		super.onSetUp();
 		ensureDictionaryLoaded();
 		sentencizer = getNlpProcessorFactory().getSentencizer();
 		parser = getNlpProcessorFactory().getParser();
@@ -79,7 +75,7 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 		try {
 			assertMostSimilar("cancer", PartOfSpeech.NOUN, 1, "cold", PartOfSpeech.NOUN, 1);
 		} catch (Exception e) {
-			log.error("exception in test: " + e, e);
+			log.error("exception in test", e);
 			throw e;
 		}
 	}
@@ -89,7 +85,7 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 		try {
 			assertMostSimilar("bank", PartOfSpeech.NOUN, 9, "library", PartOfSpeech.NOUN, 3);
 		} catch (Exception e) {
-			log.error("exception in test: " + e, e);
+			log.error("exception in test", e);
 			throw e;
 		}
 	}
@@ -99,7 +95,7 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 		try {
 			assertMostSimilar("bank", PartOfSpeech.NOUN, 1, "brae", PartOfSpeech.NOUN, 1);
 		} catch (Exception e) {
-			log.error("exception in test: " + e, e);
+			log.error("exception in test", e);
 			throw e;
 		}
 	}
@@ -109,7 +105,7 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 		try {
 			assertMostSimilar("run", PartOfSpeech.NOUN, 7, "walk", PartOfSpeech.NOUN, 1);
 		} catch (Exception e) {
-			log.error("exception in test: " + e, e);
+			log.error("exception in test", e);
 			throw e;
 		}
 	}
@@ -119,7 +115,7 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 		try {
 			assertMostSimilar("run", PartOfSpeech.VERB, 37, "develop", PartOfSpeech.VERB, 18);
 		} catch (Exception e) {
-			log.error("exception in test: " + e, e);
+			log.error("exception in test", e);
 			throw e;
 		}
 	}
@@ -130,7 +126,7 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 			assertMostDefinitionSimilarity("deposit", PartOfSpeech.NOUN, 4, "deposit",
 					PartOfSpeech.VERB, 2);
 		} catch (Exception e) {
-			log.error("exception in test: " + e, e);
+			log.error("exception in test", e);
 			throw e;
 		}
 	}
@@ -140,7 +136,7 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 		try {
 			assertMostRelated("deposit", PartOfSpeech.NOUN, 4, "deposit", PartOfSpeech.VERB, 2);
 		} catch (Exception e) {
-			log.error("exception in test: " + e, e);
+			log.error("exception in test", e);
 			throw e;
 		}
 	}
@@ -212,7 +208,7 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 			assertMostDefinitionSimilarity("bank", PartOfSpeech.NOUN, 2, "deposit",
 					PartOfSpeech.VERB, 2);
 		} catch (Exception e) {
-			log.error("exception in test: " + e, e);
+			log.error("exception in test", e);
 			throw e;
 		}
 	}
@@ -222,7 +218,7 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 			assertMostDefinitionSimilarity("bill", PartOfSpeech.NOUN, 2, "pay", PartOfSpeech.VERB,
 					1);
 		} catch (Exception e) {
-			log.error("exception in test: " + e, e);
+			log.error("exception in test", e);
 			throw e;
 		}
 	}
@@ -234,7 +230,7 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 			assertMostDefinitionSimilarity("bill", PartOfSpeech.NOUN, 1, "unconstitutional",
 					PartOfSpeech.ADJECTIVE, 1);
 		} catch (Exception e) {
-			log.error("exception in test: " + e, e);
+			log.error("exception in test", e);
 			throw e;
 		}
 	}
@@ -246,7 +242,7 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 			assertMostDefinitionSimilarity("amendment", PartOfSpeech.NOUN, 2, "unconstitutional",
 					PartOfSpeech.ADJECTIVE, 1);
 		} catch (Exception e) {
-			log.error("exception in test: " + e, e);
+			log.error("exception in test", e);
 			throw e;
 		}
 	}
@@ -259,19 +255,19 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 			NLPText contextWord = text.getLeaves().get(17);
 			List<Map<NLPText, Sense>> colocations = wordSenseDisambiguator
 					.findSemcorSentenceColocations(word, contextWord);
-			Assert.assertEquals(1, colocations.size());
+			assertEquals(1, colocations.size());
 			for (Map<NLPText, Sense> wordSenseMap : colocations) {
 
 				if (wordSenseMap.containsKey(word)) {
-					Assert.assertEquals(1, wordSenseMap.get(word).getRank().intValue());
+					assertEquals(1, wordSenseMap.get(word).getRank().intValue());
 				} else if (wordSenseMap.containsKey(contextWord)) {
-					Assert.assertEquals(8, wordSenseMap.get(contextWord).getRank().intValue());
+					assertEquals(8, wordSenseMap.get(contextWord).getRank().intValue());
 				} else {
-					Assert.fail("expected sell#1 and bear#8, but found " + wordSenseMap);
+					fail("expected sell#1 and bear#8, but found " + wordSenseMap);
 				}
 			}
 		} catch (Exception e) {
-			log.error("exception in test: " + e, e);
+			log.error("exception in test", e);
 			throw e;
 		}
 	}
@@ -283,10 +279,10 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 		long start = System.currentTimeMillis();
 		wordSenseDisambiguator.process(text);
 		log.info("wsd time: " + (System.currentTimeMillis() - start) + " ms");
-		log.info(constituentPrinter.process(text));
-		log.info(dependencyPrinter.process(text));
+		log.info("{}", constituentPrinter.process(text));
+		log.info("{}", dependencyPrinter.process(text));
 		String actualSenseInfo = senseInfoPrinter.process(text);
-		log.info(actualSenseInfo);
+		log.info("{}", actualSenseInfo);
 		for (NLPText word : text.getLeaves()) {
 			if (word.getDictionaryWordSense() != null) {
 				Synset synset = word.getDictionaryWordSense().getSynset();
@@ -295,7 +291,7 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 				System.out.println(word);
 			}
 		}
-		Assert.assertEquals(expectedSenseInfo.replaceAll("\\s+", " "),
+		assertEquals(expectedSenseInfo.replaceAll("\\s+", " "),
 				actualSenseInfo.replaceAll("\\s+", " "));
 	}
 
@@ -306,20 +302,20 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 		long start = System.currentTimeMillis();
 		wordSenseDisambiguator.process(text);
 		log.info("wsd time: " + (System.currentTimeMillis() - start) + " ms");
-		log.info(constituentPrinter.process(text));
-		log.info(dependencyPrinter.process(text));
+		log.info("{}", constituentPrinter.process(text));
+		log.info("{}", dependencyPrinter.process(text));
 		String actualSenseInfo = senseInfoPrinter.process(text);
-		log.info(actualSenseInfo);
+		log.info("{}", actualSenseInfo);
 		for (NLPText word : text.getLeaves()) {
 			if (word.getDictionaryWordSense() != null) {
 				Synset synset = word.getDictionaryWordSense().getSynset();
-				log.info(word + "[" + synset.getId() + "]: " + synset.getDefinition());
-				log.info(word.getDictionaryWordSenseRelationInfo());
+				log.info("{}", word + "[" + synset.getId() + "]: " + synset.getDefinition());
+				log.info("{}", word.getDictionaryWordSenseRelationInfo());
 			} else {
-				log.info(word);
+				log.info("{}", word);
 			}
 		}
-		Assert.assertEquals(expectedSenseInfo.replaceAll("\\s+", " "),
+		assertEquals(expectedSenseInfo.replaceAll("\\s+", " "),
 				actualSenseInfo.replaceAll("\\s+", " "));
 	}
 
@@ -355,12 +351,12 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 				actualMostSimilar = key;
 			}
 			if (similarity.getRank() > 0.0) {
-				log.info(key + " -> " + similarity);
+				log.info("{}", key + " -> " + similarity);
 			}
 		}
-		Assert.assertNotNull("No similarity result returned", actualMostSimilar);
-		Assert.assertEquals(lemma1, actualMostSimilar.getSense1().getWord().getLemma());
-		Assert.assertEquals(lemma2, actualMostSimilar.getSense2().getWord().getLemma());
+		assertNotNull(actualMostSimilar, "No similarity result returned");
+		assertEquals(lemma1, actualMostSimilar.getSense1().getWord().getLemma());
+		assertEquals(lemma2, actualMostSimilar.getSense2().getWord().getLemma());
 	}
 
 	private SensePair makeSensePair(String lemma1, PartOfSpeech pos1, int senseRank1,
@@ -401,15 +397,15 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 				actualMostRelated.add(key);
 			}
 			if (relatedness.getRank() > 0.0) {
-				log.info(key + " -> " + relatedness);
+				log.info("{}", key + " -> " + relatedness);
 			}
 		}
-		Assert.assertFalse("No relatedness results returned", actualMostRelated.isEmpty());
+		assertFalse(actualMostRelated.isEmpty(), "No relatedness results returned");
 		SensePair top = actualMostRelated.iterator().next();
-		Assert.assertEquals(lemma1, top.getSense1().getWord().getLemma());
-		Assert.assertEquals(pos1, top.getSense1().getSynset().getPartOfSpeech());
-		Assert.assertEquals(lemma2, top.getSense2().getWord().getLemma());
-		Assert.assertEquals(pos2, top.getSense2().getSynset().getPartOfSpeech());
+		assertEquals(lemma1, top.getSense1().getWord().getLemma());
+		assertEquals(pos1, top.getSense1().getSynset().getPartOfSpeech());
+		assertEquals(lemma2, top.getSense2().getWord().getLemma());
+		assertEquals(pos2, top.getSense2().getSynset().getPartOfSpeech());
 	}
 
 	private void assertMostDefinitionSimilarity(String lemma1, PartOfSpeech pos1, int senseRank1,
@@ -443,15 +439,15 @@ public class DictionaryRepositoryWordnetTests extends AbstractIntegrationTestCas
 				actualMostRelated.add(key);
 			}
 			if (relatedness.getRank() > 0.0) {
-				log.info(key + " -> " + relatedness);
+				log.info("{}", key + " -> " + relatedness);
 			}
 		}
-		Assert.assertFalse("No definition similarity results returned", actualMostRelated.isEmpty());
+		assertFalse(actualMostRelated.isEmpty(), "No definition similarity results returned");
 		SensePair top = actualMostRelated.iterator().next();
-		Assert.assertEquals(lemma1, top.getSense1().getWord().getLemma());
-		Assert.assertEquals(pos1, top.getSense1().getSynset().getPartOfSpeech());
-		Assert.assertEquals(lemma2, top.getSense2().getWord().getLemma());
-		Assert.assertEquals(pos2, top.getSense2().getSynset().getPartOfSpeech());
+		assertEquals(lemma1, top.getSense1().getWord().getLemma());
+		assertEquals(pos1, top.getSense1().getSynset().getPartOfSpeech());
+		assertEquals(lemma2, top.getSense2().getWord().getLemma());
+		assertEquals(pos2, top.getSense2().getSynset().getPartOfSpeech());
 	}
 
 	protected static class SensePair {

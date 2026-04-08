@@ -27,16 +27,13 @@ import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.impl.assistant.LexicalAssistant;
 import com.rreganjr.requel.project.impl.assistant.ProjectAssistant;
 import com.rreganjr.platform.identity.User;
-import org.junit.Test;
-import org.junit.Ignore;
-import org.junit.runner.RunWith;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 
 /**
  * @author ron
  */
-@Ignore("Legacy JAXB importer removed; replaced by ImportProjectStreamingCommandTest.")
-@RunWith(SpringRunner.class)
+@Disabled("Legacy JAXB importer removed; replaced by ImportProjectStreamingCommandTest.")
 public class ImportProjectCommandTest extends AbstractIntegrationTestCase {
 
 	public static final String testProjectXmlFile = "xml/Requel.xml";
