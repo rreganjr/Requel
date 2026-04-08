@@ -173,6 +173,7 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		if (storyImpl == null) {
 			storyImpl = getProjectRepository().persist(
 					new StoryImpl(projectOrDomain, editedBy, getName(), getText(), getStoryType()));
+			storyImpl.setPrimaryActor(resolvedPrimaryActor);
 		} else {
 			storyImpl.setName(getName());
 			storyImpl.setText(getText());

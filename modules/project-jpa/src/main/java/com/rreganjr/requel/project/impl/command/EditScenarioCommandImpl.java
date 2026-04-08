@@ -92,7 +92,7 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 	@Override
 	public void execute() throws Exception {
 		List<EditScenarioStepCommand> stepEditCommands = new ArrayList<EditScenarioStepCommand>(
-				getStepCommands());
+				getStepCommands() != null ? getStepCommands() : java.util.Collections.emptyList());
 		for (int index = 0; index < stepEditCommands.size(); index++) {
 			EditScenarioStepCommand stepCommand = stepEditCommands.get(index);
 			// disable analysis of the steps as they will get analyzed

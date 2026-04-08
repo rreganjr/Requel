@@ -185,7 +185,7 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(scenario) from ScenarioImpl as scenario inner join scenario.usingUseCases as useCases where :usecase in useCases");
+							"select s from ScenarioImpl s where :usecase member of s.usingUseCases");
 			query.setParameter("usecase", usecase);
 			return new HashSet<Scenario>(query.getResultList());
 		} catch (NoResultException e) {
