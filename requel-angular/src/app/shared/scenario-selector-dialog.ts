@@ -56,10 +56,10 @@ const SCENARIO_TYPE_OPTIONS = [
         <div class="create-form">
           <h4>New Scenario</h4>
           <div class="create-grid">
-            <label>Name</label>
-            <input pInputText [(ngModel)]="newName" placeholder="Scenario name" />
-            <label>Type</label>
-            <p-select [(ngModel)]="newType" [options]="typeOptions"
+            <label for="newScenarioName">Name</label>
+            <input id="newScenarioName" pInputText [(ngModel)]="newName" placeholder="Scenario name" />
+            <label for="newScenarioType">Type</label>
+            <p-select inputId="newScenarioType" [(ngModel)]="newType" [options]="typeOptions"
                       optionLabel="label" optionValue="value" />
           </div>
           <div class="create-actions">
@@ -77,6 +77,7 @@ const SCENARIO_TYPE_OPTIONS = [
 
       <div class="dialog-toolbar">
         <input pInputText [(ngModel)]="searchText" placeholder="Search..."
+               aria-label="Search scenarios"
                (input)="dt.filterGlobal(searchText, 'contains')" style="width:100%" />
         @if (!showCreateForm) {
           <p-button label="New Scenario" icon="pi pi-plus" size="small" severity="secondary"

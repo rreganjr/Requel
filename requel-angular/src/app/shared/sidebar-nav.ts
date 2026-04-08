@@ -51,10 +51,10 @@ import { ProjectDto, ProjectTreeNode } from '../models/project';
           </p-accordion-header>
           <p-accordion-content>
             <div class="panel-actions">
-              <a routerLink="/users" class="sidebar-link">
+              <a routerLink="/users" class="sidebar-link" aria-label="List users">
                 <i class="pi pi-list"></i> List Users
               </a>
-              <a routerLink="/users/new" class="sidebar-link">
+              <a routerLink="/users/new" class="sidebar-link" aria-label="Create user">
                 <i class="pi pi-plus"></i> Create User
               </a>
             </div>
@@ -70,14 +70,14 @@ import { ProjectDto, ProjectTreeNode } from '../models/project';
           <p-accordion-content>
             <div class="panel-actions">
               @if (canCreateProjects()) {
-                <p-button label="New" icon="pi pi-plus" size="small"
+                <p-button label="New" ariaLabel="New project" icon="pi pi-plus" size="small"
                           [text]="true" (onClick)="onNewProject()" />
-                <p-button label="Import" icon="pi pi-upload" size="small"
+                <p-button label="Import" ariaLabel="Import project" icon="pi pi-upload" size="small"
                           [text]="true" (onClick)="importInput.click()" />
                 <input #importInput type="file" accept=".xml"
                        (change)="onImportFile($event)" style="display:none" />
               }
-              <a routerLink="/projects" class="sidebar-link">
+              <a routerLink="/projects" class="sidebar-link" aria-label="List projects">
                 <i class="pi pi-list"></i> List
               </a>
             </div>

@@ -51,7 +51,8 @@ import { AnnotationService } from '../core/annotation.service';
         <!-- Add Note form -->
         @if (showNoteForm()) {
           <div class="add-form">
-            <textarea pTextarea [(ngModel)]="newNoteText" rows="2" placeholder="Note text..." class="add-textarea"></textarea>
+            <textarea pTextarea [(ngModel)]="newNoteText" rows="2" placeholder="Note text..."
+                      aria-label="Note text" class="add-textarea"></textarea>
             <div class="form-actions">
               <p-button label="Save Note" icon="pi pi-check" size="small" (onClick)="saveNote()" />
               <p-button label="Cancel" size="small" severity="secondary" [outlined]="true"
@@ -63,7 +64,8 @@ import { AnnotationService } from '../core/annotation.service';
         <!-- Add Issue form -->
         @if (showIssueForm()) {
           <div class="add-form">
-            <textarea pTextarea [(ngModel)]="newIssueText" rows="2" placeholder="Issue text..." class="add-textarea"></textarea>
+            <textarea pTextarea [(ngModel)]="newIssueText" rows="2" placeholder="Issue text..."
+                      aria-label="Issue text" class="add-textarea"></textarea>
             <div class="must-resolve-row">
               <p-checkbox [(ngModel)]="newIssueMustResolve" [binary]="true" inputId="mustResolve" />
               <label for="mustResolve">Must be resolved</label>

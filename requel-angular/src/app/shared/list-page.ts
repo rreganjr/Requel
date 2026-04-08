@@ -38,6 +38,7 @@ import { InputText } from 'primeng/inputtext';
           <span class="p-input-icon-left">
             <i class="pi pi-search"></i>
             <input pInputText [value]="searchText" [placeholder]="searchPlaceholder"
+                   aria-label="Search"
                    (input)="search.emit($any($event.target).value)" />
           </span>
         </div>

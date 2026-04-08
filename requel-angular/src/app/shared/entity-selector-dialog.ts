@@ -56,12 +56,14 @@ import { ScenarioService } from '../core/scenario.service';
         <span class="p-input-icon-left">
           <i class="pi pi-search"></i>
           <input pInputText [(ngModel)]="searchText" placeholder="Search..."
+                 aria-label="Search"
                  (input)="dt.filterGlobal(searchText(), 'contains')" />
         </span>
         @if (hasTypes()) {
           <p-select [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event)"
                     [options]="typeOptions()" optionLabel="label" optionValue="value"
-                    placeholder="All Types" styleClass="type-filter-select" />
+                    placeholder="All Types" styleClass="type-filter-select"
+                    ariaLabel="Filter by type" />
         }
       </div>
 

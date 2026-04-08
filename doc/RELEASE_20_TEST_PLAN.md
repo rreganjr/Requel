@@ -41,17 +41,82 @@ the Angular-native replacement for Karma as of Angular 19+). `jsdom` is already 
 
 ## 2. Java Test Strategy
 
-### 2.1 Framework and conventions
+### 2.0 Migrate existing tests to JUnit 5 first
 
-- Stay on **JUnit 4 Vintage** for now; migrate to **JUnit 5** incrementally (new tests can use
-  JUnit 5 directly — both coexist through the Vintage engine).
+The existing test suite is small (14 files) and self-contained enough that a full migration to
+JUnit 5 before writing any new tests is the right call. Mixing JUnit 4 and JUnit 5 via the Vintage
+engine works, but it adds engine overhead, produces inconsistent annotation styles in the same
+codebase, and means new tests can't use JUnit 5 features (`@ParameterizedTest`, `@Nested`,
+`assertThrows`, etc.) alongside old ones without confusion.
+
+**Migration steps:**
+
+1. **Update `requel-app/pom.xml`:**
+   - Remove the `junit:junit` and `org.junit.vintage:junit-vintage-engine` dependencies.
+   - Spring Boot's `spring-boot-starter-test` already includes `junit-jupiter` (JUnit 5) and
+     `mockito-junit-jupiter`; no explicit version management needed.
+
+2. **Update each existing test file** — the mechanical changes are:
+
+   | JUnit 4 | JUnit 5 equivalent |
+   |---|---|
+   | `import org.junit.Test` | `import org.junit.jupiter.api.Test` |
+   | `import org.junit.Before` | `import org.junit.jupiter.api.BeforeEach` |
+   | `import org.junit.After` | `import org.junit.jupiter.api.AfterEach` |
+   | `import org.junit.Assert.*` | `import org.junit.jupiter.api.Assertions.*` |
+   | `@RunWith(SpringRunner.class)` | `@ExtendWith(SpringExtension.class)` (or implicit via `@SpringBootTest`) |
+   | `@RunWith(MockitoJUnitRunner.class)` | `@ExtendWith(MockitoExtension.class)` |
+   | `expected = SomeException.class` on `@Test` | `assertThrows(SomeException.class, () -> ...)` |
+   | Public test methods required | Package-private is fine |
+
+3. **Verify** all 14 existing tests still pass with `mvn test` before writing anything new.
+
+This is a one-time cost — the existing test classes are straightforward Spring integration tests
+and plain unit tests with no JUnit 4-specific rules or runners beyond what the table above covers.
+
+### 2.1 Framework and conventions (post-migration)
+
+- All tests use **JUnit 5 (Jupiter)**.
 - Use **Spring Boot Test** (`@SpringBootTest`, `@DataJpaTest`, `@WebMvcTest`) to get managed
   context injection without manual wiring.
-- Use **Mockito** for unit tests that isolate a single class.
+- Use **Mockito** with `@ExtendWith(MockitoExtension.class)` for unit tests that isolate a
+  single class.
 - Integration tests that need a database use the existing `application-test.properties` (H2,
   `spring.jpa.hibernate.ddl-auto=create-drop`, Flyway disabled).
 - Naming convention: `*Test.java` for unit tests (no Spring context), `*IT.java` for integration
   tests (Spring context, H2).
+- Prefer `@Nested` inner classes to group related scenarios within a single test class.
+- Use `@ParameterizedTest` with `@MethodSource` for data-driven cases (e.g., testing multiple
+  entity types against the same command pattern).
+- Use **JaCoCo** for Java code coverage reporting; JUnit runs tests, but coverage comes from
+  JaCoCo instrumentation.
+
+### 2.1.1 Java coverage reporting (JaCoCo)
+
+Add **`jacoco-maven-plugin`** to the **root POM's `<pluginManagement>`** (not per-module) so every
+module inherits it automatically. Bind two goals:
+
+- `jacoco:prepare-agent` — instruments the JVM before tests run (binds to `initialize` phase by default)
+- `jacoco:report` — generates the report in the `verify` phase
+
+Recommended outputs:
+
+- HTML report for local developer use
+- XML report for CI / quality tools
+
+Expected report locations in this multi-module build:
+
+- Per-module reports under `target/site/jacoco/`
+- For example: `modules/requel-app/target/site/jacoco/index.html`
+
+Recommended initial policy:
+
+- Start by generating reports only
+- After the suite matures, add coverage thresholds for line and branch coverage in CI
+- Keep reports **per module by default** so a change in one Maven module can be reviewed against its
+  own local coverage report quickly
+- Optionally evaluate **PIT mutation testing** later for critical business logic once baseline
+  JaCoCo coverage is in place
 
 ### 2.2 Command tests
 
@@ -70,7 +135,9 @@ Each edit command should have an integration test that:
 | `EditActorCommandImplTest` | `EditActor`, `CopyActor`, `DeleteActor` |
 | `EditUseCaseCommandImplTest` | `EditUseCase` (incl. `primaryActorName`), `CopyUseCase`, `DeleteUseCase` |
 | `EditScenarioCommandImplTest` | `EditScenario`, `EditScenarioStep`, `CopyScenario`, `DeleteScenario` |
-| `EditStakeholderCommandImplTest` | `EditUserStakeholder`, `EditNonUserStakeholder`, `DeleteUserStakeholder`, `DeleteNonUserStakeholder` |
+| `EditStakeholderCommandImplTest` | `EditUserStakeholder`, `EditNonUserStakeholder`, `DeleteStakeholder` |
+| `EditGlossaryTermCommandImplTest` | `EditGlossaryTerm`, `DeleteGlossaryTerm` |
+| `EditReportGeneratorCommandImplTest` | `EditReportGenerator`, `DeleteReportGenerator` |
 | `ActorContainerCommandImplTest` | `AddActorToActorContainer`, `RemoveActorFromActorContainer` for Project, UseCase, Story |
 | `GoalContainerCommandImplTest` | `AddGoalToGoalContainer`, `RemoveGoalFromGoalContainer` for Project, UseCase, Story |
 | `StoryContainerCommandImplTest` | `AddStoryToStoryContainer`, `RemoveStoryFromStoryContainer` |
@@ -89,10 +156,11 @@ error response shapes, and HTTP status codes.
 | Test class to create | Controllers covered |
 |---|---|
 | `CommandControllerTest` | `POST /api/commands/{type}` — happy path, unknown type 400, unauthorized 403, validation 422, conflict 409 |
-| `ProjectQueryControllerTest` | All `GET /api/projects/**` endpoints: list, detail, goals, stories, actors, use-cases, scenarios, stakeholders, open-issues |
-| `UserQueryControllerTest` | `GET /api/users`, `GET /api/users/{id}` |
-| `AuthControllerTest` | `POST /api/auth/login` (success, bad credentials), `POST /api/auth/logout`, JWT token structure |
-| `EventStreamControllerTest` | `GET /api/events/stream` — verifies SSE content-type and that subscription is registered |
+| `ProjectQueryControllerTest` | `GET /api/projects` (list), `GET /api/projects/{name}` (detail), goals, stories, actors, use-cases, scenarios, stakeholders, open-issues, `GET /api/projects/{name}/tree`, `GET /api/projects/stakeholder-permissions`, `GET /api/projects/{name}/terms`, `GET /api/projects/{name}/reports`, `GET /api/projects/{name}/reports/{reportId}/run` |
+| `UserQueryControllerTest` | `GET /api/users`, `GET /api/users/{id}`, `GET /api/users/organizations`, `GET /api/users/roles` |
+| `AuthControllerTest` | `POST /api/auth/login` (success, bad credentials), `GET /api/auth/me` (returns current user; 401 when not authenticated), JWT token structure |
+| `AnnotationQueryControllerTest` | `GET /api/annotations` — verifies response shape and authorization |
+| `EventStreamControllerTest` | `GET /api/events/stream` (SSE content-type, subscription registered), `POST /api/events/subscriptions` (add subscription), `DELETE /api/events/subscriptions` (remove subscription), `DELETE /api/events/connection` (close connection) |
 | `UserPreferencesControllerTest` | `GET`/`PUT /api/user-preferences` |
 
 ### 2.4 Repository tests
@@ -119,6 +187,130 @@ assert permission enforcement.
 | Admin editing any project entity | 200 |
 | User editing their own account | 200 |
 | User editing another account | 403 |
+
+### 2.5.1 Test user setup and the permission model
+
+#### Built-in users
+
+Two users are created by Spring initializers (`AdminUserInitializer`, `ProjectUserInitializer`) at
+context startup. Because the test profile uses H2 with `create-drop`, both initializers run before
+every test class that loads the Spring context. These users are available without any test setup:
+
+| Username | Password | System role | Can create projects |
+|---|---|---|---|
+| `admin` | `admin` | `SystemAdminUserRole` | yes (admin bypass) |
+| `project` | `project` | `ProjectUserRole` | yes |
+
+Use these for broad happy-path and negative-path tests (unauthenticated, wrong credentials,
+admin-bypasses-all). Do not use them for permission-boundary tests — their system-level roles
+make them hard to scope narrowly.
+
+#### The stakeholder permission model
+
+Project-level access control is separate from system roles. A `UserStakeholder` links a system
+`User` to a `Project` and carries a set of `StakeholderPermission` objects. A permission is
+the combination of an entity type and a permission type:
+
+**Permission types** (`StakeholderPermissionType` enum):
+
+| Type | Meaning |
+|---|---|
+| `Edit` | Create and edit this entity type on the project |
+| `Delete` | Delete this entity type from the project |
+| `Grant` | Grant Edit/Delete/Grant permissions for this entity type to other stakeholders |
+
+**Entity types covered** (each supports all three permission types):
+
+`Project`, `Annotation`, `Goal`, `Actor`, `Stakeholder`, `GlossaryTerm`, `Story`, `UseCase`,
+`Scenario`, `ReportGenerator`
+
+The `StakeholderPermissionsInitializer` populates the permission catalog (30 rows: 10 types × 3
+permission types) at startup. The catalog rows exist in the H2 test database automatically.
+
+**Permission key format:** `{simpleClassName}[{permissionType}]`  
+Example: `Goal[Edit]`, `Story[Delete]`, `Actor[Grant]`
+
+#### Test-specific users (for permission-boundary tests)
+
+Create named test users via the `EditUser` command inside a `@BeforeAll` method. Use
+`@TestInstance(Lifecycle.PER_CLASS)` so the fixture is built once per test class, not once per
+test method (user + project creation is expensive in a Spring context).
+
+Recommended test personas:
+
+| Test user | Password | Stakeholder permissions to grant |
+|---|---|---|
+| `test-editor` | `test-editor` | `Goal[Edit]`, `Story[Edit]`, `Actor[Edit]`, `UseCase[Edit]`, `Scenario[Edit]` |
+| `test-deleter` | `test-deleter` | `Goal[Delete]`, `Story[Delete]` (no Edit) |
+| `test-granter` | `test-granter` | `Goal[Grant]` only |
+| `test-noaccess` | `test-noaccess` | no stakeholder on the project at all |
+
+**Do not hardcode passwords as plain strings in test source.** Define them as constants in a shared
+`TestUsers` class (e.g., `modules/requel-app/src/test/java/.../TestUsers.java`) that is excluded
+from production builds.
+
+#### Recommended test fixture pattern
+
+```java
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@TestInstance(Lifecycle.PER_CLASS)
+class AuthorizationIT {
+
+    @Autowired CommandHandler commandHandler;
+    @Autowired UserRepository userRepository;
+    @Autowired ProjectRepository projectRepository;
+
+    private String editorToken;
+    private String deleterToken;
+    private String noAccessToken;
+
+    @BeforeAll
+    void setUpFixture() throws Exception {
+        // 1. Create test project via EditProject command (as admin)
+        //    Store project name for later lookups.
+
+        // 2. Create test users via EditUser command.
+
+        // 3. Add editor as UserStakeholder on the test project via EditUserStakeholder command.
+        //    Grant Goal[Edit], Story[Edit], Actor[Edit], UseCase[Edit], Scenario[Edit].
+
+        // 4. Add deleter as UserStakeholder; grant Goal[Delete], Story[Delete] only (no Edit).
+
+        // 5. Add granter as UserStakeholder; grant Goal[Grant] only.
+
+        // 6. Do NOT add test-noaccess to the project.
+
+        // 7. Log each user in via POST /api/auth/login and store the JWT token
+        //    for use in MockMvc Authorization headers in @Test methods.
+    }
+}
+```
+
+The JWT tokens are captured in `@BeforeAll` and reused across `@Test` methods. Each `@Test` builds
+its `MockMvc` request with `.header("Authorization", "Bearer " + token)`.
+
+#### Permission matrix to test
+
+The authorization tests should cover at least the following cells. Each row is a command against
+the test project created in `@BeforeAll`.
+
+| Command | `admin` | `test-editor` | `test-deleter` | `test-granter` | `test-noaccess` | Unauthenticated |
+|---|---|---|---|---|---|---|
+| `EditGoal` (create) | 200 | 200 | **403** | **403** | **403** | **401** |
+| `DeleteGoal` | 200 | **403** | 200 | **403** | **403** | **401** |
+| `EditStory` (create) | 200 | 200 | **403** | **403** | **403** | **401** |
+| `DeleteStory` | 200 | **403** | 200 | **403** | **403** | **401** |
+| `EditUserStakeholder` (grant) | 200 | **403** | **403** | **403**¹ | **403** | **401** |
+| `EditUser` (own account) | 200 | 200 | 200 | 200 | 200 | **401** |
+| `EditUser` (other account) | 200 | **403** | **403** | **403** | **403** | **401** |
+
+> ¹ `test-granter` holds `Goal[Grant]` which allows granting Goal permissions to others, but
+> `EditUserStakeholder` itself requires the Stakeholder `Edit` permission on the project. Without
+> that, the command is rejected before the Grant permission is consulted.
+
+Bold **403/401** cells are the boundary conditions most likely to regress; prioritize these.
 
 ### 2.6 XML import/export
 
@@ -156,16 +348,35 @@ behavior rather than implementation. It pairs well with Vitest.
   "builder": "@angular/build:unit-test",
   "options": {
     "include": ["src/**/*.spec.ts"],
-    "browser": false,
     "setupFiles": ["src/test-setup.ts"]
   }
 }
 ```
 
+> **Note:** The `@angular/build:unit-test` builder in Angular 19+ uses Vitest with jsdom by
+> default — no extra `browser: false` flag is needed. Verify the exact option names against the
+> Angular 21 release notes if behaviour differs from what is described here.
+
 `src/test-setup.ts`:
 ```ts
 import '@testing-library/jest-dom';
 ```
+
+**Angular coverage** requires an additional package — Vitest does not bundle a coverage provider:
+
+```bash
+npm install --save-dev @vitest/coverage-v8
+```
+
+Once installed, `npm test -- --coverage` generates coverage reports. Recommended outputs:
+
+- HTML report for local developer use
+- LCOV / text summary for CI
+
+Recommended initial policy:
+
+- Start with unit-test coverage reporting only
+- Review coverage per frontend app rather than trying to combine it with Java coverage
 
 ### 3.2 Service tests
 
@@ -174,14 +385,20 @@ Services are the backbone of the Angular app. Tests mock `HttpClient` using
 
 | Spec file | What to verify |
 |---|---|
-| `auth.service.spec.ts` | `login()` sends `POST /api/auth/login`; stores JWT; `logout()` clears token; `isLoggedIn()` reflects token state; token expiry |
+| `auth.service.spec.ts` | `login()` sends `POST /api/auth/login`; stores JWT; `logout()` clears token; `isAuthenticated` computed signal reflects token state |
 | `command.service.spec.ts` | `execute()` sends `POST /api/commands/{type}`; returns `CommandResult`; propagates 400/422/409 errors as structured `CommandResult.error` |
-| `project.service.spec.ts` | `listProjects()` returns array; `notifyTreeChanged()` emits on `treeChanged$`; cache invalidation |
+| `project.service.spec.ts` | `listProjects()` returns array; `notifyTreeChanged()` emits on the internal event subject (`treeChanged$`) |
 | `goal.service.spec.ts` | `listGoals()`, `getGoal()` — correct URL construction and response mapping |
 | `story.service.spec.ts` | Same; verify `primaryActorName` is included in `StoryDto` |
 | `actor.service.spec.ts` | `listActors()`, `getActor()` |
 | `use-case.service.spec.ts` | `listUseCases()`, `getUseCase()` |
 | `scenario.service.spec.ts` | `listScenarios()`, `getScenario()` |
+| `stakeholder.service.spec.ts` | `listStakeholders()`, `getStakeholder()` — user and non-user variants |
+| `term.service.spec.ts` | `listTerms()`, `getTerm()` — correct URL and response mapping |
+| `report.service.spec.ts` | `listReports()`, `getReport()`, `runReport()` — verify request shapes and response mapping |
+| `user.service.spec.ts` | `listUsers()`, `getUser()`, `listOrganizations()`, `listRoles()` |
+| `preferences.service.spec.ts` | `getPreferences()` loads from `GET /api/user-preferences`; `savePreferences()` sends `PUT`; signal reflects saved values |
+| `annotation.service.spec.ts` | `listAnnotations()` sends `GET /api/annotations`; annotation types (issue, position, argument) are correctly mapped |
 | `permission.service.spec.ts` | `canEdit()` / `canDelete()` return correct values after `loadForProject()`; permissions cached per project |
 | `event-stream.service.spec.ts` | `addSubscription()` registers; `removeSubscription()` deregisters; `events$` emits parsed SSE envelope |
 | `auth.guard.spec.ts` | Redirects unauthenticated user to `/login`; passes authenticated user through |
@@ -196,7 +413,7 @@ Services are the backbone of the Angular app. Tests mock `HttpClient` using
 | `entity-selector-dialog.spec.ts` | Hidden when `[visible]="false"`; shows list when visible; emits `(selected)` with correct `EntityReferenceDto` on row click; emits `(closed)` on cancel |
 | `annotations-section.spec.ts` | Renders no annotations when empty; renders issue/position/argument tree; Add Issue button visible when `[canEdit]="true"`, hidden otherwise |
 | `sidebar-nav.spec.ts` | Renders project list; project nodes expand to show entity types; active route is highlighted; `notifyTreeChanged()` triggers reload |
-| `scenario-selector-dialog.spec.ts` | Filters by `[includeTypes]` and `[excludeIds]` |
+| `scenario-selector-dialog.spec.ts` | Filters by `[excludeIds]`; hidden when `[visible]="false"`; shows list when visible; emits `(selected)` on row click |
 
 ### 3.4 Feature page tests (editors)
 
@@ -214,7 +431,12 @@ and error display. Mock the injected services.
 | `use-case-editor.spec.ts` | Primary actor dropdown populated; primary scenario create/select flows; Additional Scenarios add/remove; Goals and Stories tables show associated entities |
 | `scenario-editor.spec.ts` | Step table renders; Add Step appends row; drag-to-reorder (if implemented); Save sends steps array |
 | `stakeholder-editor.spec.ts` | User stakeholder: user selector shown; Non-user stakeholder: name input shown; correct command type sent for each |
-| `user-editor.spec.ts` | Admin sees all fields; non-admin editing self sees limited fields; password change form validation |
+| `term-editor.spec.ts` | Loads term; displays term text; Save sends `EditGlossaryTerm` command; Delete confirmation sends `DeleteGlossaryTerm` |
+| `report-editor.spec.ts` | Loads report generator config; Save sends `EditReportGenerator`; Run button triggers report run and shows download link |
+| `settings.spec.ts` | Loads current preferences from `GET /api/user-preferences`; Save sends `PUT`; values persist across reload |
+| `account-editor.spec.ts` | User can edit own display name and email; password change form validates confirm-match; Save sends `EditUser` command |
+| `admin-user-list.spec.ts` | Admin sees user list; click navigates to admin user editor; non-admin cannot reach admin route |
+| `user-editor.spec.ts` | Admin sees all fields including role assignment; non-admin editing self sees limited fields; password change form validation |
 | `open-issues.spec.ts` | Issues render with type badge; click navigates to annotated entity editor |
 
 ### 3.5 List page tests
@@ -269,6 +491,10 @@ Add to `package.json`:
 ```
 
 `playwright.config.ts` at repo root (or `requel-angular/`):
+
+**Packaged-app mode** (recommended for CI and production-parity): the Spring Boot JAR serves both the
+Angular SPA and the API. Both run on the same port.
+
 ```ts
 import { defineConfig, devices } from '@playwright/test';
 
@@ -277,7 +503,7 @@ export default defineConfig({
   fullyParallel: false,          // Requel has shared DB state; run serially
   retries: 1,
   use: {
-    baseURL: 'http://localhost:8081',
+    baseURL: 'http://localhost:8080',   // Spring Boot serves Angular + API on :8080
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -288,7 +514,226 @@ export default defineConfig({
 });
 ```
 
-### 4.3 E2E test scenarios
+**Dev-server mode** (optional, for hot-reload during E2E authoring): run the Angular dev server on
+`:4200` with `proxy.conf.json` forwarding `/api` to Spring Boot on `:8081`. Change `baseURL` to
+`http://localhost:4200` in this mode. Do not mix the two — pick one per environment.
+
+### 4.3 Test generation approach
+
+Writing Playwright tests from scratch is slow and produces fragile selectors. The recommended
+workflow combines three tools: **`playwright codegen`** for recording happy paths, the
+**Page Object Model** pattern for keeping selector logic out of tests, and **AI-assisted
+generation** (Claude Code) for scenarios that are hard to record (error states, permission
+boundaries, multi-tab SSE).
+
+#### Step 0 — Verify and add ARIA roles to Angular components
+
+Playwright's preferred selectors (`getByRole`, `getByLabel`) require that components have
+correct ARIA roles and label associations. Before writing any E2E tests, audit the templates and
+fix gaps.
+
+A component-by-component audit of the codebase was performed and all gaps were fixed before this
+plan was finalised. The table below records what was found and corrected:
+
+| Component | Original status | Fix applied |
+|---|---|---|
+| `goal-editor`, `story-editor`, `actor-editor`, `use-case-editor`, `scenario-editor`, `project-editor`, `login` | **GOOD** | No changes needed |
+| All list pages (`goal-list`, `story-list`, etc.) | **GOOD** | Rely on `list-page` wrapper; see below |
+| `list-page` | **PARTIAL** | Added `aria-label="Search"` to the search input |
+| `entity-selector-dialog` | **PARTIAL** | Added `aria-label="Search"` to search input; added `ariaLabel="Filter by type"` to type-filter `p-select` |
+| `scenario-selector-dialog` | **PARTIAL** | Added `id`/`for` pairs on create-form inputs; added `aria-label="Search scenarios"` to toolbar search input |
+| `annotations-section` | **PARTIAL** | Added `aria-label="Note text"` and `aria-label="Issue text"` to form textareas |
+| `sidebar-nav` | **NEEDS WORK** | Added `ariaLabel="New project"` / `ariaLabel="Import project"` to action buttons; added `aria-label` to sidebar links |
+
+If a future component is added without correct labels, the rule is: prefer `aria-label` or `<label for>` first;
+use `data-testid` only when no semantic approach is possible. Every `data-testid` is a maintenance commitment.
+
+#### Step 1 — Record happy paths with `playwright codegen`
+
+`playwright codegen` opens a browser and an inspector side-panel. Every interaction you perform
+(click, fill, select) is translated into Playwright TypeScript code in real time. Start the app,
+then run:
+
+```bash
+# packaged-app mode
+npx playwright codegen http://localhost:8080
+
+# dev-server mode
+npx playwright codegen http://localhost:4200
+```
+
+Use codegen to record one complete flow per E2E file (e.g., create project → create goal → save →
+verify). Copy the generated code into the corresponding `e2e/*.e2e.ts` file, then clean it up:
+- Replace fragile CSS selectors (`locator('.p-select-option')`) with ARIA-role selectors
+  (`getByRole('option', { name: 'Alice' })`)
+- Extract repeated selector logic into the Page Object for that feature
+
+PrimeNG components have a predictable DOM structure that codegen handles well, but the generated
+selectors sometimes target internal implementation divs. Prefer:
+
+| PrimeNG component | Preferred Playwright selector |
+|---|---|
+| `p-select` / `p-dropdown` | `getByRole('combobox', { name: 'Label' })` to open; `getByRole('option', { name: 'value' })` to pick |
+| `p-table` row | `getByRole('row', { name: 'row text' })` |
+| `p-dialog` | `getByRole('dialog')` |
+| `p-button` | `getByRole('button', { name: 'Save' })` |
+| `p-inputtext` | `getByLabel('Field label')` |
+
+When no ARIA role or label is available (e.g., a custom component with no label), add a
+`data-testid` attribute to the Angular template and select with `getByTestId('...')`. Keep
+`data-testid` attributes minimal — only add them where the ARIA approach genuinely fails.
+
+#### Step 2 — Page Object Model
+
+Wrap each major page or dialog in a Page Object class. Tests call methods on the POM; selectors
+live in the POM, not in the test. This means a UI change only requires updating one file.
+
+Recommended structure:
+
+```
+requel-angular/e2e/
+  pages/
+    LoginPage.ts
+    ProjectListPage.ts
+    GoalEditorPage.ts
+    StoryEditorPage.ts
+    ... (one file per editor/list page)
+  fixtures/
+    auth.ts          # shared login fixture
+    test-data.ts     # project/entity setup helpers via API
+  auth.e2e.ts
+  goals.e2e.ts
+  stories.e2e.ts
+  ...
+```
+
+Minimal POM example:
+
+```ts
+// e2e/pages/GoalEditorPage.ts
+import { Page } from '@playwright/test';
+
+export class GoalEditorPage {
+  constructor(private page: Page) {}
+
+  async navigate(projectName: string, goalId: string) {
+    await this.page.goto(`/projects/${projectName}/goals/${goalId}`);
+  }
+
+  nameInput()    { return this.page.getByLabel('Name'); }
+  saveButton()   { return this.page.getByRole('button', { name: 'Save' }); }
+  deleteButton() { return this.page.getByRole('button', { name: 'Delete' }); }
+
+  async save() {
+    await this.saveButton().click();
+    await this.page.waitForResponse(r => r.url().includes('/api/commands/') && r.status() === 200);
+  }
+}
+```
+
+Tests then read like documentation:
+
+```ts
+test('rename goal persists after reload', async ({ page }) => {
+  const editor = new GoalEditorPage(page);
+  await editor.navigate('TestProject', goalId);
+  await editor.nameInput().fill('Renamed Goal');
+  await editor.save();
+  await page.reload();
+  await expect(editor.nameInput()).toHaveValue('Renamed Goal');
+});
+```
+
+#### Step 3 — Shared authentication fixture
+
+Logging in via the UI for every test is slow and flaky. Instead, use Playwright's `storageState`
+to capture the browser's auth cookies/localStorage after one login, then reuse the saved state
+for the rest of the suite.
+
+`e2e/fixtures/auth.ts`:
+
+```ts
+import { test as base, expect } from '@playwright/test';
+
+type AuthFixtures = { adminPage: Page; editorPage: Page };
+
+export const test = base.extend<AuthFixtures>({
+  adminPage: async ({ browser }, use) => {
+    const ctx = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const page = await ctx.newPage();
+    await use(page);
+    await ctx.close();
+  },
+  // add editorPage, deleterPage etc. as needed
+});
+```
+
+Generate the saved state once in a `globalSetup` script (`e2e/global-setup.ts`) that logs in as
+each test user and writes `e2e/.auth/<username>.json`. Add `e2e/.auth/` to `.gitignore`.
+
+```ts
+// e2e/global-setup.ts
+import { chromium } from '@playwright/test';
+
+async function saveAuthState(username: string, password: string) {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.goto('http://localhost:8080/login');
+  await page.getByLabel('Username').fill(username);
+  await page.getByLabel('Password').fill(password);
+  await page.getByRole('button', { name: 'Login' }).click();
+  await page.waitForURL('**/projects');
+  await page.context().storageState({ path: `e2e/.auth/${username}.json` });
+  await browser.close();
+}
+
+export default async function globalSetup() {
+  await saveAuthState('admin', 'admin');
+  await saveAuthState('project', 'project');
+  // add test-specific users once they are created via the Java API in a setup step
+}
+```
+
+In `playwright.config.ts`:
+```ts
+globalSetup: './e2e/global-setup.ts',
+```
+
+#### Step 4 — AI-assisted generation for scenarios that cannot be recorded
+
+Some scenarios cannot be captured by `playwright codegen` because they require:
+- A specific server-side state (expired JWT, a goal that exists only under certain permissions)
+- Multi-browser-context coordination (SSE live refresh test)
+- API-level request interception (simulating a 401 mid-session)
+
+For these, use Claude Code with the prompt pattern:
+
+> "Here is the GoalEditorPage POM (`e2e/pages/GoalEditorPage.ts`). Here is the goal service
+> (`requel-angular/src/app/core/goal.service.ts`). Write a Playwright test in `goals.e2e.ts`
+> that verifies the dirty guard fires when a user navigates away with unsaved changes — the
+> confirm dialog appears, and cancelling leaves the user on the editor page."
+
+Provide the POM, the relevant service, and the specific scenario from section 4.4. The output
+will need review — verify selectors against the live DOM with `npx playwright codegen` if in doubt.
+
+#### Step 5 — Test data setup via API, not UI
+
+For tests that need a project with existing goals/actors before the scenario starts, prefer
+creating the data via the REST API (using Playwright's `request` fixture) rather than
+navigating through the UI to create it. This keeps tests independent of UI flows they are not
+testing.
+
+```ts
+test.beforeEach(async ({ request }) => {
+  // Create a goal via API before the test that exercises goal editing
+  await request.post('/api/commands/EditGoal', {
+    headers: { Authorization: `Bearer ${adminToken}` },
+    data: { projectName: 'TestProject', name: 'Fixture Goal', text: 'Setup goal' }
+  });
+});
+```
+
+### 4.4 E2E test scenarios
 
 Tests live in `requel-angular/e2e/`. The Spring Boot backend + MySQL must be running before
 the E2E suite runs (use `docker-compose up` for CI).
@@ -365,13 +810,60 @@ the E2E suite runs (use `docker-compose up` for CI).
 | | Resolve issue → status changes |
 | | Open-issues page shows unresolved issues; click navigates to annotated entity |
 
+#### Glossary terms
+
+| File | Scenario |
+|---|---|
+| `terms.e2e.ts` | Create glossary term → appears in term list |
+| | Edit term text → persists after save and page reload |
+| | Delete term → removed from list |
+
+#### Reports
+
+| File | Scenario |
+|---|---|
+| `reports.e2e.ts` | Create report generator → appears in report list |
+| | Edit report configuration → persists |
+| | Run report → output or download link appears |
+| | Delete report generator → removed from list |
+
+#### Settings and preferences
+
+| File | Scenario |
+|---|---|
+| `settings.e2e.ts` | Change sidebar project limit and staleness filter → values persist after page reload |
+| | Reset to defaults → saved and reflected in UI |
+
+#### Account self-edit
+
+| File | Scenario |
+|---|---|
+| `account.e2e.ts` | Edit own display name → new name shown in header |
+| | Change password → can log out and log back in with new password |
+
 #### Administration
 
 | File | Scenario |
 |---|---|
 | `admin.e2e.ts` | Create user; set roles; user can log in |
-| | Non-admin cannot see admin controls |
+| | Edit user account as admin → changes visible when user logs in |
+| | Non-admin cannot see admin controls or access admin routes |
 | | Change own password → can log in with new password |
+
+#### Sidebar and project tree
+
+| File | Scenario |
+|---|---|
+| `sidebar.e2e.ts` | Import project XML via sidebar → project appears in list; entities visible in tree |
+| | Edit a goal → project tree refreshes without full page reload (SSE event triggers update) |
+
+#### Forbidden-state UX (401 / 403)
+
+| File | Scenario |
+|---|---|
+| `forbidden.e2e.ts` | Accessing any protected route while logged out → redirected to `/login` |
+| | Authenticated user accessing admin route without admin role → 403 page or redirect shown |
+| | Token expires mid-session → next API call returns 401 → interceptor redirects to `/login` |
 
 #### SSE live refresh
 
@@ -382,7 +874,7 @@ the E2E suite runs (use `docker-compose up` for CI).
 This test requires Playwright's multi-context support — two independent browser contexts
 against the same backend.
 
-### 4.4 CI integration
+### 4.5 CI integration
 
 For GitHub Actions or similar:
 
@@ -397,7 +889,7 @@ For GitHub Actions or similar:
     done
 
 - name: Run E2E
-  run: cd requel-angular && npm run e2e
+  run: cd requel-angular && npm run e2e    # baseURL in playwright.config.ts → :8080
 
 - name: Upload Playwright report
   if: always()
@@ -415,15 +907,17 @@ Not everything needs to be written at once. Recommended order:
 
 | Priority | Layer | What to write first |
 |---|---|---|
+| 0 | Java | **Migrate all 14 existing tests from JUnit 4 to JUnit 5** — do this before writing any new tests so the whole suite speaks one language |
 | 1 | Java | Command tests for all entity CRUD operations — these are the most business-critical paths and the hardest to debug through the UI |
 | 2 | Java | `CommandControllerTest` (MockMvc) — verifies the HTTP contract that the Angular app depends on |
-| 3 | Angular | Service specs (`auth.service`, `command.service`, `permission.service`) — services used by every component |
-| 4 | Angular | `dirty-check.guard.spec.ts`, `auth.guard.spec.ts`, `auth.interceptor.spec.ts` — cross-cutting concerns |
-| 5 | Angular | Editor component specs for the main entity types (goal, story, use-case) |
-| 6 | E2E | Auth flow + full project lifecycle (create project → goal → story → use-case → scenario) |
-| 7 | Java | Repository tests and authorization tests |
-| 8 | E2E | Annotations, SSE live refresh, admin flows |
-| 9 | Angular | List page specs, remaining editor specs |
+| 3 | Angular | ~~Fix ARIA roles on shared components~~ — **done** (applied before this plan was committed; see section 4.3 Step 0 for the audit record). Any newly added component should follow the same labelling rules. |
+| 4 | Angular | Service specs (`auth.service`, `command.service`, `permission.service`) — services used by every component |
+| 5 | Angular | `dirty-check.guard.spec.ts`, `auth.guard.spec.ts`, `auth.interceptor.spec.ts` — cross-cutting concerns |
+| 6 | Angular | Editor component specs for the main entity types (goal, story, use-case) |
+| 7 | E2E | Auth flow + full project lifecycle (create project → goal → story → use-case → scenario) |
+| 8 | Java | Repository tests and authorization tests |
+| 9 | E2E | Annotations, SSE live refresh, admin flows |
+| 10 | Angular | List page specs, remaining editor specs |
 
 ---
 
@@ -432,6 +926,9 @@ Not everything needs to be written at once. Recommended order:
 ```bash
 # Java unit + integration tests
 mvn test
+
+# Java unit + integration tests with JaCoCo report
+mvn verify
 
 # Java integration tests only
 mvn -pl modules/requel-app test -Dtest="*IT"
@@ -442,9 +939,11 @@ cd requel-angular && npm test
 # Angular unit tests with coverage
 cd requel-angular && npm test -- --coverage
 
-# E2E tests (requires backend running on :8081)
+# E2E tests (packaged-app mode: Spring Boot + Angular on :8080 via docker-compose)
 cd requel-angular && npm run e2e
 
 # E2E headed (debug mode)
 cd requel-angular && npm run e2e:headed
 ```
+
+JaCoCo HTML coverage reports are generated under `target/site/jacoco/` for each Maven module.
