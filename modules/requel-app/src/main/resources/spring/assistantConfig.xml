@@ -27,7 +27,12 @@
 		</bean>
 	</beans>
 	<beans profile="test">
-		<bean id="taskExecutor" class="org.springframework.core.task.SyncTaskExecutor"/>
+		<!-- Discard NLP analysis tasks entirely in tests.
+		     SyncTaskExecutor would run them synchronously, but after the command
+		     transaction commits the Hibernate session is closed, causing
+		     LazyInitializationException on lazy collections in the NLP pipeline.
+		     NLP behaviour is covered by the dedicated NLP test classes. -->
+		<bean id="taskExecutor" class="com.rreganjr.TestNoOpTaskExecutor"/>
 	</beans>
 
 </beans>

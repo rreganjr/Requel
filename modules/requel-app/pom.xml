@@ -434,5 +434,10 @@
             <scope>test</scope>
         </dependency>
         <!-- JUnit 5 (Jupiter) is provided transitively by spring-boot-starter-test -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

@@ -3,5 +3,6 @@ work/
 target/
 .m2/
 
-# Local draft commit messages (not for version control)
+# Local draft files (not for version control)
 /commit.md
+/ticket.md

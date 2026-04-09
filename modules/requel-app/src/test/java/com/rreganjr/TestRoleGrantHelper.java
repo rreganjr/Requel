@@ -24,6 +24,7 @@ import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.user.impl.UserImpl;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,7 @@ import java.util.List;
  * when using EditUserCommand with CGLIB-proxied role entities.
  */
 @Component
+@Profile("test")
 public class TestRoleGrantHelper {
 
     @PersistenceContext
