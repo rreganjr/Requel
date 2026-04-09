@@ -129,6 +129,7 @@ public class EntityValidationException extends EntityException {
 
 	@Override
 	public InvalidStateException getCause() {
-		return (InvalidStateException) super.getCause();
+		Throwable cause = super.getCause();
+		return (cause instanceof InvalidStateException) ? (InvalidStateException) cause : null;
 	}
 }

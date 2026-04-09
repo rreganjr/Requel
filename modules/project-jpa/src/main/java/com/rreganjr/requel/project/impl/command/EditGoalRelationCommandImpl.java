@@ -173,6 +173,7 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 			goalRelationImpl = getProjectRepository().persist(
 					new GoalRelationImpl(fromGoal, toGoal, goalRelationType, editedBy));
 		} else {
+			goalRelationImpl = (GoalRelationImpl) getRepository().get(goalRelationImpl);
 			goalRelationImpl.setFromGoal(fromGoal);
 			goalRelationImpl.setToGoal(toGoal);
 			goalRelationImpl.setRelationType(goalRelationType);

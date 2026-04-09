@@ -20,6 +20,9 @@
  */
 package com.rreganjr.requel.command;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
 
@@ -31,6 +34,8 @@ import com.rreganjr.command.CommandHandler;
  * @author ron
  */
 public class AnalysisInvokingCommandHandler implements CommandHandler {
+
+	private static final Logger log = LoggerFactory.getLogger(AnalysisInvokingCommandHandler.class);
 
 	private final CommandHandler commandHandler;
 
@@ -45,7 +50,13 @@ public class AnalysisInvokingCommandHandler implements CommandHandler {
 	public <T extends Command> T execute(T command) throws Exception {
 		T executedCommand = commandHandler.execute(command);
 		if (executedCommand instanceof AnalyzableEditCommand) {
-			((AnalyzableEditCommand) executedCommand).invokeAnalysis();
+			try {
+				((AnalyzableEditCommand) executedCommand).invokeAnalysis();
+			} catch (Exception e) {
+				// Analysis is fire-and-forget: a failure must not roll back the command
+				// that already committed. Log and continue.
+				log.warn("NLP analysis failed for command {}: {}", command.getClass().getSimpleName(), e.getMessage(), e);
+			}
 		}
 		return executedCommand;
 	}

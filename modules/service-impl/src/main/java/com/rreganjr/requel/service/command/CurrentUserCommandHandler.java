@@ -56,9 +56,9 @@ public class CurrentUserCommandHandler implements CommandHandler {
         // Only resolve the user when the command actually needs it
         if (command instanceof EditCommand editCmd && editCmd.getEditedBy() == null) {
             resolveAndSet(user -> editCmd.setEditedBy(user));
-        } else if (command instanceof EditUserCommand userCmd) {
-            // EditUserCommand doesn't extend EditCommand and has no getEditedBy() on the interface,
-            // so always set it — the command impl handles idempotency
+        } else if (command instanceof EditUserCommand userCmd && userCmd.getEditedBy() == null) {
+            // Only inject editedBy from the security context when not already set (e.g. REST API
+            // dispatch where no caller sets editedBy; tests set it explicitly and must not be overridden).
             resolveAndSet(user -> userCmd.setEditedBy(user));
         }
         return delegate.execute(command);

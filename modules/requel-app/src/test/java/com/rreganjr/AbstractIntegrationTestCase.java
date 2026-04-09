@@ -24,8 +24,6 @@ import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.GZIPInputStream;
 
-import com.rreganjr.requel.user.impl.OrganizationImpl;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,19 +38,16 @@ import com.rreganjr.requel.Application;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.ProjectRepository;
-import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.nlp.dictionary.command.ImportDictionaryCommand;
 
-import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.impl.repository.init.AdminUserInitializer;
 import com.rreganjr.requel.user.impl.repository.init.AssistantUserInitializer;
 import com.rreganjr.requel.user.impl.repository.init.ProjectUserInitializer;
 import com.rreganjr.requel.user.impl.repository.init.UserRolePermissionsInitializer;
 import com.rreganjr.requel.project.impl.repository.init.StakeholderPermissionsInitializer;
-import com.rreganjr.requel.user.command.EditUserCommand;
-import com.rreganjr.requel.user.command.UserCommandFactory;
 import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.requel.user.command.UserCommandFactory;
 
 /**
  * Base test case for including Spring managed beans and transaction mgmt. in
@@ -66,7 +61,7 @@ public abstract class AbstractIntegrationTestCase {
 	protected static final Logger log = LoggerFactory.getLogger(AbstractIntegrationTestCase.class);
 
 	private ProjectCommandFactory projectCommandFactory;
-    private UserCommandFactory userCommandFactory;
+	private UserCommandFactory userCommandFactory;
 	private AnnotationCommandFactory annotationCommandFactory;
 	private UserRepository userRepository;
 	private ProjectRepository projectRepository;
@@ -79,6 +74,7 @@ public abstract class AbstractIntegrationTestCase {
 	private ProjectUserInitializer projectUserInitializer;
 	private UserRolePermissionsInitializer userRolePermissionsInitializer;
 	private StakeholderPermissionsInitializer stakeholderPermissionsInitializer;
+	private TestRoleGrantHelper testRoleGrantHelper;
 
 	private static final AtomicBoolean baselineInitialized = new AtomicBoolean(false);
 
@@ -93,6 +89,11 @@ public abstract class AbstractIntegrationTestCase {
 
 	protected UserCommandFactory getUserCommandFactory() {
 		return userCommandFactory;
+	}
+
+	@Autowired
+	protected void setUserCommandFactory(UserCommandFactory userCommandFactory) {
+		this.userCommandFactory = userCommandFactory;
 	}
 
 	protected UserRepository getUserRepository() {
@@ -205,31 +206,12 @@ public abstract class AbstractIntegrationTestCase {
 	}
 
     @Autowired
-    protected void setUserCommandFactory(UserCommandFactory userCommandFactory) {
-        this.userCommandFactory = userCommandFactory;
+    protected void setTestRoleGrantHelper(TestRoleGrantHelper testRoleGrantHelper) {
+        this.testRoleGrantHelper = testRoleGrantHelper;
     }
 
-    private void grantProjectRoleIfMissing(String username) throws Exception {
-        User user = getUserRepository().findUserByUsername(username);
-        boolean hasRole = user.getUserRoles().stream()
-                .anyMatch(role -> role instanceof ProjectUserRole);
-        if (!hasRole) {
-            // Make sure mandatory fields survive the updateUser() pass.
-            if (user.getOrganization() == null || user.getOrganization().getName() == null) {
-                user.setOrganization(new OrganizationImpl("Requel"));
-            }
-            EditUserCommand cmd = userCommandFactory.newEditUserCommand();
-            cmd.setEditedBy(user);
-            cmd.setUser(user);
-            cmd.setUsername(user.getUsername());
-            cmd.setName(user.getName());
-            cmd.setEmailAddress(user.getEmailAddress());
-            cmd.setPhoneNumber(user.getPhoneNumber());
-            cmd.setOrganizationName(user.getOrganization().getName());
-            cmd.setEditable(user.isEditable());
-            cmd.addUserRoleName(ProjectUserRole.getRoleName(ProjectUserRole.class));
-            getCommandHandler().execute(cmd);
-        }
+    private void grantProjectRoleIfMissing(String username) {
+        testRoleGrantHelper.grantProjectRoleIfMissing(username);
     }
 
 	@Autowired
