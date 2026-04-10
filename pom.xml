@@ -29,6 +29,17 @@
                     <version>3.13.0</version>
                     <configuration>
                         <release>${java.version}</release>
+                        <!--
+                          Disable incremental compilation. When a compile fails mid-way (e.g. a
+                          transitive dependency is missing from ~/.m2), the compiler writes stub
+                          class files with "Unresolved compilation problem" embedded in their
+                          bytecode. On the next run, Maven sees those files, considers the source
+                          up-to-date, and skips recompilation — leaving the bad bytecode in place.
+                          With incremental compilation off, every mvn compile/test-compile does a
+                          full pass over the module's sources, so stale class files from a prior
+                          failed compile can never hide a real error.
+                        -->
+                        <useIncrementalCompilation>false</useIncrementalCompilation>
                     </configuration>
                 </plugin>
                 <plugin>
