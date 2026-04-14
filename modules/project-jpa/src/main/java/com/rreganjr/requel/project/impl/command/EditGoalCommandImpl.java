@@ -25,15 +25,20 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.GoalImpl;
@@ -47,7 +52,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editGoalCommand")
 @Scope("prototype")
 public class EditGoalCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditGoalCommand {
+		EditGoalCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private GoalContainer goalContainer;
 	private Goal goal;
@@ -150,5 +155,17 @@ public class EditGoalCommandImpl extends AbstractEditProjectOrDomainEntityComman
 		if (isAnalysisEnabled()) {
 			getAssistantManager().analyzeGoal(getGoal());
 		}
+	}
+
+	@Override
+	public Project getProject() {
+		if (goalContainer instanceof Project project) return project;
+		if (goal != null && goal.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Goal.class, "Edit");
 	}
 }

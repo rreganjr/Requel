@@ -28,13 +28,18 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.command.DeleteStoryCommand;
@@ -55,7 +60,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteStoryCommand")
 @Scope("prototype")
 public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implements
-		DeleteStoryCommand {
+		DeleteStoryCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Story story;
 
@@ -129,4 +134,14 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 		getRepository().delete(story);
 	}
 
+	@Override
+	public Project getProject() {
+		if (story != null && story.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Story.class, "Delete");
+	}
 }

@@ -28,12 +28,16 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.StakeholderPermission;
 import com.rreganjr.requel.project.command.EditProjectCommand;
@@ -54,7 +58,7 @@ import com.rreganjr.requel.user.impl.OrganizationImpl;
 @Controller("editProjectCommand")
 @Scope("prototype")
 public class EditProjectCommandImpl extends AbstractEditProjectCommand implements
-		EditProjectCommand {
+		EditProjectCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	public static final String BUILTIN_REPORT_GENERATOR_PATH = "xslt/project2html.xslt";
 
@@ -164,6 +168,13 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 	@Override
 	public void invokeAnalysis() {
 		// TODO: does the project need to be analyzed?
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		// project == null means new project creation — defer to role-permission check in execute()
+		if (project == null) return null;
+		return new RequiresStakeholderPermission(Project.class, "Edit");
 	}
 
 	private ProjectImpl createProject(Organization organization, User user) {

@@ -224,8 +224,9 @@ the combination of an entity type and a permission type:
 `Project`, `Annotation`, `Goal`, `Actor`, `Stakeholder`, `GlossaryTerm`, `Story`, `UseCase`,
 `Scenario`, `ReportGenerator`
 
-The `StakeholderPermissionsInitializer` populates the permission catalog (30 rows: 10 types × 3
-permission types) at startup. The catalog rows exist in the H2 test database automatically.
+The `StakeholderPermissionsInitializer` populates the permission catalog (29 rows: 9 entity types ×
+3 permission types + `Project` × 2 — Project has no Delete permission) at startup. The catalog
+rows exist in the H2 test database automatically.
 
 **Permission key format:** `{simpleClassName}[{permissionType}]`  
 Example: `Goal[Edit]`, `Story[Delete]`, `Actor[Grant]`
@@ -240,8 +241,8 @@ Recommended test personas:
 
 | Test user | Password | Stakeholder permissions to grant |
 |---|---|---|
-| `test-editor` | `test-editor` | `Goal[Edit]`, `Story[Edit]`, `Actor[Edit]`, `UseCase[Edit]`, `Scenario[Edit]` |
-| `test-deleter` | `test-deleter` | `Goal[Delete]`, `Story[Delete]` (no Edit) |
+| `test-editor` | `test-editor` | `Project[Edit]`, `Goal[Edit]`, `Actor[Edit]`, `Story[Edit]`, `UseCase[Edit]`, `Scenario[Edit]`, `GlossaryTerm[Edit]`, `Stakeholder[Edit]`, `ReportGenerator[Edit]`, `Annotation[Edit]` |
+| `test-deleter` | `test-deleter` | `Goal[Delete]`, `Actor[Delete]`, `Story[Delete]`, `UseCase[Delete]`, `Scenario[Delete]`, `GlossaryTerm[Delete]`, `Stakeholder[Delete]`, `ReportGenerator[Delete]`, `Annotation[Delete]` (no Edit) |
 | `test-granter` | `test-granter` | `Goal[Grant]` only |
 | `test-noaccess` | `test-noaccess` | no stakeholder on the project at all |
 
@@ -274,9 +275,12 @@ class AuthorizationIT {
         // 2. Create test users via EditUser command.
 
         // 3. Add editor as UserStakeholder on the test project via EditUserStakeholder command.
-        //    Grant Goal[Edit], Story[Edit], Actor[Edit], UseCase[Edit], Scenario[Edit].
+        //    Grant Project[Edit], Goal[Edit], Actor[Edit], Story[Edit], UseCase[Edit],
+        //    Scenario[Edit], GlossaryTerm[Edit], Stakeholder[Edit], ReportGenerator[Edit],
+        //    Annotation[Edit].
 
-        // 4. Add deleter as UserStakeholder; grant Goal[Delete], Story[Delete] only (no Edit).
+        // 4. Add deleter as UserStakeholder; grant all [Delete] permissions — Goal, Actor, Story,
+        //    UseCase, Scenario, GlossaryTerm, Stakeholder, ReportGenerator, Annotation (no Edit).
 
         // 5. Add granter as UserStakeholder; grant Goal[Grant] only.
 
@@ -294,21 +298,122 @@ its `MockMvc` request with `.header("Authorization", "Bearer " + token)`.
 #### Permission matrix to test
 
 The authorization tests should cover at least the following cells. Each row is a command against
-the test project created in `@BeforeAll`.
+the test project created in `@BeforeAll`. The `test-editor` has all `[Edit]` permissions;
+`test-deleter` has all `[Delete]` permissions but no `[Edit]`; `test-granter` has only
+`Goal[Grant]`; `test-noaccess` has no stakeholder on the project.
+
+**Project-level commands:**
+
+| Command | `admin` | `test-editor` | `test-deleter` | `test-granter` | `test-noaccess` | Unauthenticated |
+|---|---|---|---|---|---|---|
+| `EditProject` | 200 | 200 | **403** | **403** | **403** | **401** |
+
+> Note: `Project` has no Delete permission — `DeleteProject` is not a supported command.
+
+**Goal commands:**
 
 | Command | `admin` | `test-editor` | `test-deleter` | `test-granter` | `test-noaccess` | Unauthenticated |
 |---|---|---|---|---|---|---|
 | `EditGoal` (create) | 200 | 200 | **403** | **403** | **403** | **401** |
 | `DeleteGoal` | 200 | **403** | 200 | **403** | **403** | **401** |
+| `AddGoalToGoalContainer` | 200 | 200 | **403** | **403** | **403** | **401** |
+| `RemoveGoalFromGoalContainer` | 200 | **403** | 200 | **403** | **403** | **401** |
+| `EditGoalRelation` | 200 | 200 | **403** | **403** | **403** | **401** |
+| `RemoveGoalRelation` | 200 | 200 | **403** | **403** | **403** | **401** |
+
+> Goal relation commands require `Goal[Edit]` (relations are a structural property of the goal,
+> not a standalone entity type).
+
+**Actor commands:**
+
+| Command | `admin` | `test-editor` | `test-deleter` | `test-granter` | `test-noaccess` | Unauthenticated |
+|---|---|---|---|---|---|---|
+| `EditActor` (create) | 200 | 200 | **403** | **403** | **403** | **401** |
+| `DeleteActor` | 200 | **403** | 200 | **403** | **403** | **401** |
+| `AddActorToActorContainer` | 200 | 200 | **403** | **403** | **403** | **401** |
+| `RemoveActorFromActorContainer` | 200 | **403** | 200 | **403** | **403** | **401** |
+
+**Story commands:**
+
+| Command | `admin` | `test-editor` | `test-deleter` | `test-granter` | `test-noaccess` | Unauthenticated |
+|---|---|---|---|---|---|---|
 | `EditStory` (create) | 200 | 200 | **403** | **403** | **403** | **401** |
 | `DeleteStory` | 200 | **403** | 200 | **403** | **403** | **401** |
-| `EditUserStakeholder` (grant) | 200 | **403** | **403** | **403**¹ | **403** | **401** |
-| `EditUser` (own account) | 200 | 200 | 200 | 200 | 200 | **401** |
-| `EditUser` (other account) | 200 | **403** | **403** | **403** | **403** | **401** |
+| `AddStoryToStoryContainer` | 200 | 200 | **403** | **403** | **403** | **401** |
+| `RemoveStoryFromStoryContainer` | 200 | **403** | 200 | **403** | **403** | **401** |
+
+**UseCase commands:**
+
+| Command | `admin` | `test-editor` | `test-deleter` | `test-granter` | `test-noaccess` | Unauthenticated |
+|---|---|---|---|---|---|---|
+| `EditUseCase` (create) | 200 | 200 | **403** | **403** | **403** | **401** |
+| `DeleteUseCase` | 200 | **403** | 200 | **403** | **403** | **401** |
+
+**Scenario commands:**
+
+| Command | `admin` | `test-editor` | `test-deleter` | `test-granter` | `test-noaccess` | Unauthenticated |
+|---|---|---|---|---|---|---|
+| `EditScenario` (create) | 200 | 200 | **403** | **403** | **403** | **401** |
+| `DeleteScenario` | 200 | **403** | 200 | **403** | **403** | **401** |
+| `EditScenarioStep` | 200 | 200 | **403** | **403** | **403** | **401** |
+| `DeleteScenarioStep` | 200 | **403** | 200 | **403** | **403** | **401** |
+| `SetPrimaryScenarioOnUseCase` | 200 | 200 | **403** | **403** | **403** | **401** |
+| `AddScenarioToUseCase` | 200 | 200 | **403** | **403** | **403** | **401** |
+| `RemoveScenarioFromUseCase` | 200 | **403** | 200 | **403** | **403** | **401** |
+
+> Scenario step commands require `Scenario[Edit]` / `Scenario[Delete]`.
+
+**GlossaryTerm commands:**
+
+| Command | `admin` | `test-editor` | `test-deleter` | `test-granter` | `test-noaccess` | Unauthenticated |
+|---|---|---|---|---|---|---|
+| `EditGlossaryTerm` (create) | 200 | 200 | **403** | **403** | **403** | **401** |
+| `DeleteGlossaryTerm` | 200 | **403** | 200 | **403** | **403** | **401** |
+
+**Stakeholder commands:**
+
+| Command | `admin` | `test-editor` | `test-deleter` | `test-granter` | `test-noaccess` | Unauthenticated |
+|---|---|---|---|---|---|---|
+| `EditUserStakeholder` (add) | 200 | 200 | **403** | **403**¹ | **403** | **401** |
+| `EditNonUserStakeholder` (add) | 200 | 200 | **403** | **403**¹ | **403** | **401** |
+| `DeleteStakeholder` | 200 | **403** | 200 | **403** | **403** | **401** |
 
 > ¹ `test-granter` holds `Goal[Grant]` which allows granting Goal permissions to others, but
-> `EditUserStakeholder` itself requires the Stakeholder `Edit` permission on the project. Without
-> that, the command is rejected before the Grant permission is consulted.
+> `EditUserStakeholder` itself requires `Stakeholder[Edit]`. Without that, the command is rejected
+> before the Grant permission is consulted.
+
+**ReportGenerator commands:**
+
+| Command | `admin` | `test-editor` | `test-deleter` | `test-granter` | `test-noaccess` | Unauthenticated |
+|---|---|---|---|---|---|---|
+| `EditReportGenerator` (create) | 200 | 200 | **403** | **403** | **403** | **401** |
+| `DeleteReportGenerator` | 200 | **403** | 200 | **403** | **403** | **401** |
+
+**Annotation commands:**
+
+| Command | `admin` | `test-editor` | `test-deleter` | `test-granter` | `test-noaccess` | Unauthenticated |
+|---|---|---|---|---|---|---|
+| `EditIssue` (create) | 200 | 200 | **403** | **403** | **403** | **401** |
+| `DeleteIssue` | 200 | **403** | 200 | **403** | **403** | **401** |
+| `EditPosition` (create) | 200 | 200 | **403** | **403** | **403** | **401** |
+| `DeletePosition` | 200 | **403** | 200 | **403** | **403** | **401** |
+| `EditArgument` (create) | 200 | 200 | **403** | **403** | **403** | **401** |
+| `DeleteArgument` | 200 | **403** | 200 | **403** | **403** | **401** |
+
+> Annotation commands use the `groupingObject` (typically the project) as the project context for
+> the `ProjectScopedCommand` interface. All annotation types share the `Annotation[Edit]` /
+> `Annotation[Delete]` permission.
+
+**User account commands:**
+
+| Command | `admin` | `test-editor` | `test-deleter` | `test-granter` | `test-noaccess` | Unauthenticated |
+|---|---|---|---|---|---|---|
+| `EditUser` (own account) | 200 | 200 | 200 | 200 | 200 | **401** |
+| `EditUser` (other account) | 200 | **403** | **403** | **403** | **403** | **401** |
+| `ChangePassword` (own) | 200 | 200 | 200 | 200 | 200 | **401** |
+
+> Own-account edits require only authentication (no system role or project permission). Editing
+> another user's account requires `SystemAdminUserRole`.
 
 Bold **403/401** cells are the boundary conditions most likely to regress; prioritize these.
 

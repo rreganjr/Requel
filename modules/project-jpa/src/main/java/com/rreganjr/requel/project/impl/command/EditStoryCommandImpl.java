@@ -25,14 +25,19 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.StoryType;
@@ -51,7 +56,7 @@ import org.slf4j.LoggerFactory;
 @Controller("editStoryCommand")
 @Scope("prototype")
 public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditStoryCommand {
+		EditStoryCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private static final Logger log = LoggerFactory.getLogger(EditStoryCommandImpl.class);
 
@@ -204,5 +209,17 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		if (isAnalysisEnabled()) {
 			getAssistantManager().analyzeStory(getStory());
 		}
+	}
+
+	@Override
+	public Project getProject() {
+		if (storyContainer instanceof Project project) return project;
+		if (story != null && story.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Story.class, "Edit");
 	}
 }

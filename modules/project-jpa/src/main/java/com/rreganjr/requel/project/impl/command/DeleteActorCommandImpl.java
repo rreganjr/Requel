@@ -28,6 +28,9 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.NoSuchPositionException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
@@ -36,7 +39,9 @@ import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCom
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ActorContainer;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.DeleteActorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -55,7 +60,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteActorCommand")
 @Scope("prototype")
 public class DeleteActorCommandImpl extends AbstractEditProjectCommand implements
-		DeleteActorCommand {
+		DeleteActorCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Actor actor;
 
@@ -161,4 +166,14 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 		getRepository().delete(actor);
 	}
 
+	@Override
+	public Project getProject() {
+		if (actor != null && actor.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Actor.class, "Delete");
+	}
 }

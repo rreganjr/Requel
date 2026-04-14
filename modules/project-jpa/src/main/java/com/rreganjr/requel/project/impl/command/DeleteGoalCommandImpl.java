@@ -28,6 +28,9 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
@@ -35,7 +38,9 @@ import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
 import com.rreganjr.requel.project.GoalRelation;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -52,7 +57,8 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteGoalCommand")
 @Scope("prototype")
-public class DeleteGoalCommandImpl extends AbstractEditProjectCommand implements DeleteGoalCommand {
+public class DeleteGoalCommandImpl extends AbstractEditProjectCommand implements
+		DeleteGoalCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Goal goal;
 
@@ -122,4 +128,14 @@ public class DeleteGoalCommandImpl extends AbstractEditProjectCommand implements
 		getRepository().delete(goal);
 	}
 
+	@Override
+	public Project getProject() {
+		if (goal != null && goal.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Goal.class, "Delete");
+	}
 }

@@ -28,15 +28,20 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ActorContainer;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ActorImpl;
@@ -50,7 +55,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editActorCommand")
 @Scope("prototype")
 public class EditActorCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditActorCommand {
+		EditActorCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Set<ActorContainer> actorContainers;
 	private Set<ActorContainer> addActorContainers;
@@ -220,5 +225,22 @@ public class EditActorCommandImpl extends AbstractEditProjectOrDomainEntityComma
 			// using aspectj may be better.
 			getAssistantManager().analyzeActor(getRepository().get(getActor()));
 		}
+	}
+
+	@Override
+	public Project getProject() {
+		// The registrar always sets projectOrDomain for actors; fall back to containers/entity
+		if (getProjectOrDomain() instanceof Project project) return project;
+		if (actorContainers != null && !actorContainers.isEmpty()) {
+			Object first = actorContainers.iterator().next();
+			if (first instanceof Project project) return project;
+		}
+		if (actor != null && actor.getProjectOrDomain() instanceof Project project) return project;
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Actor.class, "Edit");
 	}
 }

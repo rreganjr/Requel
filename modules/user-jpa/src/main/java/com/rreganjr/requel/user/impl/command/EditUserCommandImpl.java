@@ -30,7 +30,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import com.rreganjr.platform.command.AuthorizableCommand;
 import com.rreganjr.platform.command.AuthorizationException;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresSystemRole;
 import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.requel.user.impl.AbstractUserRole;
 import com.rreganjr.requel.user.Organization;
@@ -49,7 +52,7 @@ import com.rreganjr.requel.user.impl.UserImpl;
  */
 @Component("editUserCommand")
 @Scope("prototype")
-public class EditUserCommandImpl extends AbstractUserCommand implements EditUserCommand {
+public class EditUserCommandImpl extends AbstractUserCommand implements EditUserCommand, AuthorizableCommand {
 
 	private User user;
 	private String username;
@@ -276,7 +279,22 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 		this.editedBy = editedBy;
 	}
 
+	/**
+	 * Satisfies {@link com.rreganjr.platform.command.EditCommand#setEditedBy} via
+	 * {@link AuthorizableCommand}. The cast is safe: the HTTP dispatch path always
+	 * sets a {@code com.rreganjr.requel.user.User} via CurrentUserCommandHandler.
+	 */
+	@Override
+	public void setEditedBy(com.rreganjr.platform.identity.User editedBy) {
+		this.editedBy = (User) editedBy;
+	}
+
 	public User getEditedBy() {
 		return editedBy;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresSystemRole(SystemAdminUserRole.class);
 	}
 }
