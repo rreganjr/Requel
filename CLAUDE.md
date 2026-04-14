@@ -6,6 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Requel is a web-based requirements management system supporting collaboration among stakeholders with automated NLP-based assistance. It models requirements as goals, stories, actors, scenarios, and use-cases with an IBIS-style annotation/discussion layer. Originally a 2009 Harvard ALM thesis project, now modernized to Spring Boot 3 / Java 17.
 
+## Process Instructions
+
+Always write commit messages to commit.md at the root of the project. Clear out existing content unless you are updating the message as told. In the file following the format:
+```
+https://github.com/rreganjr/Requel/issues/38
+
+<short description, for example what tasks from what plan were implemented>
+
+<details - file specific changes, including explaination when fixing bugs of what was broken and how the fix solves the problem>
+```
+
+Never commit unless explicitly told to commit
+
+Never push changes to the github repo
+
 ## Build Commands
 
 Requires **Java 17**, **Maven 3.6.3+**, and **Node 22+**. Set `JAVA_HOME` accordingly.
@@ -123,7 +138,7 @@ The Angular SPA is backed by a hybrid CQRS API:
 
 ## Testing
 
-- **JUnit 4** with JUnit Vintage engine (legacy test runner)
-- Tests in `modules/requel-app/src/test/` cover integration (Spring context, JAXB round-trips, Hibernate mappings)
+- **JUnit 5 (Jupiter)** — fully migrated from JUnit 4; 59 test classes, all using `org.junit.jupiter.api`
+- Tests in `modules/requel-app/src/test/` cover commands, REST API (MockMvc), repositories, authorization, and JAXB round-trips
 - Surefire configured with `failIfNoTests=false` — modules without tests still build
-- Key integration tests: `ProjectXmlRoundTripIT`, `ProjectUserCreationIT`, `AnnotationAnyMappingTest`
+- Key test classes: `AuthorizationIT` (28 authorization scenarios), `ProjectXmlStreamingRoundTripIT`, `ProjectUserCreationIT`, `AnnotationAnyMappingTest`
