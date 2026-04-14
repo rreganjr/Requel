@@ -41,7 +41,7 @@ the Angular-native replacement for Karma as of Angular 19+). `jsdom` is already 
 
 ## 2. Java Test Strategy
 
-### 2.0 Migrate existing tests to JUnit 5 first
+### 2.0 Migrate existing tests to JUnit 5 first ✓ DONE
 
 The existing test suite is small (14 files) and self-contained enough that a full migration to
 JUnit 5 before writing any new tests is the right call. Mixing JUnit 4 and JUnit 5 via the Vintage
@@ -118,7 +118,7 @@ Recommended initial policy:
 - Optionally evaluate **PIT mutation testing** later for critical business logic once baseline
   JaCoCo coverage is in place
 
-### 2.2 Command tests
+### 2.2 Command tests ✓ DONE
 
 Each edit command should have an integration test that:
 1. Creates the minimum prerequisite data (project, user)
@@ -147,7 +147,7 @@ Each edit command should have an integration test that:
 | `EditUserCommandImplTest` | `EditUser`, `DeleteUser`, `ChangePassword` |
 | `AuditingCommandHandlerTest` | Background commands skipped; API commands write row; `projectId` resolved correctly |
 
-### 2.3 REST API tests (MockMvc)
+### 2.3 REST API tests (MockMvc) ✓ DONE
 
 Use `@WebMvcTest` + `MockMvc` to test the HTTP layer in isolation, with the command/query services
 mocked. This layer verifies: routing, request deserialization, authorization header enforcement,
@@ -163,7 +163,7 @@ error response shapes, and HTTP status codes.
 | `EventStreamControllerTest` | `GET /api/events/stream` (SSE content-type, subscription registered), `POST /api/events/subscriptions` (add subscription), `DELETE /api/events/subscriptions` (remove subscription), `DELETE /api/events/connection` (close connection) |
 | `UserPreferencesControllerTest` | `GET`/`PUT /api/user-preferences` |
 
-### 2.4 Repository tests
+### 2.4 Repository tests ✓ DONE
 
 Use `@DataJpaTest` with H2. These verify the JPA mappings and named queries without running the
 full application context.
@@ -175,7 +175,7 @@ full application context.
 | `StoryPrimaryActorMappingTest` | `primary_actor_id` FK — set, clear, verify lazy load |
 | `UserRepositoryTest` | `findByUsername`, role-based queries |
 
-### 2.5 Authorization tests
+### 2.5 Authorization tests ✓ DONE
 
 Use the full Spring context with `@SpringBootTest` + `MockMvc`. Log in as different user types and
 assert permission enforcement.

@@ -51,7 +51,7 @@ import static org.mockito.Mockito.*;
  * Scenarios covered:
  * - Non-AuthorizableCommand: bypasses auth, delegates directly
  * - AuthorizableCommand with null requirement: no auth check, delegates
- * - AuthorizableCommand with null user: throws AuthorizationException
+ * - AuthorizableCommand with null user: skips authorization (bootstrap/internal calls permitted)
  * - RequiresSystemRole — user has role: passes, delegates
  * - RequiresSystemRole — user lacks role: throws AuthorizationException
  * - RequiresRolePermission — requel.user.User with matching permission: passes
@@ -105,18 +105,19 @@ class AuthorizingCommandHandlerTest {
     }
 
     // -------------------------------------------------------------------------
-    // Null user — always throws
+    // Null user — skip authorization (bootstrap/internal calls permitted through)
     // -------------------------------------------------------------------------
 
     @Test
-    void nullUserThrowsAuthorizationException() {
+    void nullUserSkipsAuthorizationAndDelegates() throws Exception {
         AuthCmd cmd = mock(AuthCmd.class);
         when(cmd.getAuthorizationRequirement())
                 .thenReturn(new RequiresSystemRole(SystemAdminRole.class));
         when(cmd.getEditedBy()).thenReturn(null);
 
-        assertThatThrownBy(() -> handler.execute(cmd))
-                .isInstanceOf(AuthorizationException.class);
+        handler.execute(cmd);
+
+        verify(delegate).execute(cmd);
     }
 
     // -------------------------------------------------------------------------

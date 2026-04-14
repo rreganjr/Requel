@@ -295,6 +295,11 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 
 	@Override
 	public AuthorizationRequirement getAuthorizationRequirement() {
+		// Own-account edits require only authentication — return null to skip the role check.
+		// Editing another account (or creating a new user) requires SystemAdminUserRole.
+		if (user != null && editedBy != null && user.getUsername().equals(editedBy.getUsername())) {
+			return null;
+		}
 		return new RequiresSystemRole(SystemAdminUserRole.class);
 	}
 }

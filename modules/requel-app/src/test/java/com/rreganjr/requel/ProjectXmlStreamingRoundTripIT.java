@@ -296,7 +296,7 @@ class ProjectXmlStreamingRoundTripIT {
 
 		createGoal(project, goalName, "Ensure requirements are captured accurately.", creator);
 		createActor(project, actorName, "Represents a primary system user.", creator);
-		createStory(project, storyName, "As a user I want to manage requirements.", creator);
+		createStory(project, storyName, "As a user I want to manage requirements.", actorName, creator);
 
 		List<EditScenarioStepCommand> stepCommands = List.of(
 				newScenarioStepCommand(project, creator, stepNameOne,
@@ -391,7 +391,7 @@ class ProjectXmlStreamingRoundTripIT {
 		return command.getActor();
 	}
 
-	private Story createStory(Project project, String name, String text, User creator) throws Exception {
+	private Story createStory(Project project, String name, String text, String primaryActorName, User creator) throws Exception {
 		EditStoryCommand command = projectCommandFactory.newEditStoryCommand();
 		command.setAnalysisEnabled(false);
 		command.setEditedBy(creator);
@@ -399,6 +399,7 @@ class ProjectXmlStreamingRoundTripIT {
 		command.setName(name);
 		command.setText(text);
 		command.setStoryTypeName(StoryType.Success.name());
+		command.setPrimaryActorName(primaryActorName);
 		command = commandHandler.execute(command);
 		assertThat(command.getStory()).as("Created story").isNotNull();
 		return command.getStory();
@@ -529,6 +530,7 @@ private UseCase createUseCase(Project project, String primaryActorName,
 				.stream()
 				.map(story -> new StorySummary(story.getName(), story.getText(),
 						story.getStoryType() != null ? story.getStoryType().name() : null,
+						story.getPrimaryActor() != null ? story.getPrimaryActor().getName() : null,
 						countAnnotationsFor(allAnnotations, story)))
 				.collect(Collectors.toSet());
 
@@ -791,7 +793,7 @@ private UseCase createUseCase(Project project, String primaryActorName,
 
 	private record EntitySummary(String name, String text, int annotationCount) {}
 
-	private record StorySummary(String name, String text, String type, int annotationCount) {}
+	private record StorySummary(String name, String text, String type, String primaryActorName, int annotationCount) {}
 
 	private record StepSummary(String name, String text, String type, int annotationCount) {}
 
