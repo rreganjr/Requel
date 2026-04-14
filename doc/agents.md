@@ -20,6 +20,13 @@ Document how we use AI-driven agents alongside the Requel codebase so contributo
 2. **Doc edits:** update or add markdown under `doc/`; keep summaries concise and actionable.
 3. **Import/DDD tasks:** when touching import logic, honour the AggregateAssembler/ImportUnitOfWork pattern; avoid adding new `afterUnmarshal` repository calls.
 
+## Commit Messages
+- the top line should be a link to the ticket in github like `https://github.com/rreganjr/Requel/issues/38`
+- followed by a one line summary referencing what work in the plan from the doc folder we worked on
+- followed by file oriented details, note only use the filename not the full path
+- the more complex the logic the more details we should include about the change
+- if we are fixing a bug include what was not working, what was wrong with the code and how the code change solved the problem.
+
 ## When to Escalate or Ask
 - Unclear bounded context ownership for a change.
 - Import pipeline changes that risk reintroducing attached-entity flushes.
