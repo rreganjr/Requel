@@ -482,7 +482,7 @@ Bold **403/401** cells are the boundary conditions most likely to regress; prior
 
 ## 3. Angular Test Strategy
 
-### 3.1 Framework and tooling
+### 3.1 Framework and tooling ✓ DONE
 
 Angular 21's `@angular/build:unit-test` builder uses **Vitest** under the hood with **jsdom** as
 the browser environment. This replaces the old Karma/Jasmine setup. Tests are `.spec.ts` files
