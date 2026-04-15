@@ -25,6 +25,7 @@ import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.ScenarioType;
 import com.rreganjr.requel.project.Step;
+import com.rreganjr.requel.project.command.ConvertStepToScenarioCommand;
 import com.rreganjr.requel.project.command.DeleteScenarioStepCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditScenarioCommand;
@@ -180,5 +181,63 @@ public class ScenarioStepCommandTest extends AbstractIntegrationTestCase {
 				.findScenarioByProjectOrDomainAndName(project, "Confirmation scenario");
 		assertTrue(reloaded.getSteps().isEmpty(),
 				"deleted step should no longer appear in the scenario's step list");
+	}
+
+	// -------------------------------------------------------------------------
+	// ConvertStepToScenarioCommand
+	// -------------------------------------------------------------------------
+
+	@Test
+	public void convertStepToScenario() throws Exception {
+		Project project = createProject("Step-convert");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		// Build the step — it will be created as part of the parent scenario
+		EditScenarioStepCommand stepCmd = getProjectCommandFactory().newEditScenarioStepCommand();
+		stepCmd.setEditedBy(admin);
+		stepCmd.setProjectOrDomain(project);
+		stepCmd.setName("User fills in the registration form");
+		stepCmd.setText("The user enters name, email, and password then submits.");
+		stepCmd.setScenarioTypeName(ScenarioType.Primary.name());
+
+		createScenarioWithStep(project, "Registration flow", stepCmd);
+		Step originalStep = stepCmd.getStep();
+		assertNotNull(originalStep, "pre-condition: step should exist");
+
+		// Convert the step to a standalone scenario
+		ConvertStepToScenarioCommand convertCmd =
+				getProjectCommandFactory().newConvertStepToScenarioCommand();
+		convertCmd.setEditedBy(admin);
+		convertCmd.setProjectOrDomain(project);
+		convertCmd.setOriginalScenarioStep(originalStep);
+		convertCmd.setName("User fills in the registration form");
+		convertCmd.setText("The user enters name, email, and password then submits.");
+		convertCmd.setScenarioTypeName(ScenarioType.Primary.name());
+		convertCmd = getCommandHandler().execute(convertCmd);
+
+		// The command produces a new Scenario entity that is distinct from the original Step.
+		// Replacing the step in its parent scenario requires getUsingScenarios() to be populated,
+		// which depends on the bidirectional mapping being initialized — that path is exercised
+		// by the UI where the step comes from a loaded scenario. Here we verify the core
+		// behaviour: a new Scenario was created with the correct properties.
+		//
+		// Note: Scenario extends Step in the domain model (a Scenario can itself be a step in
+		// another scenario), so instanceof Step is always true for any ScenarioImpl. The meaningful
+		// distinction is that the returned entity is a Scenario (has steps) vs. a bare StepImpl.
+		Scenario newScenario = convertCmd.getScenario();
+		assertNotNull(newScenario, "converted scenario should have been created");
+		assertNotEquals(originalStep.getId(), newScenario.getId(),
+				"converted scenario should be a distinct entity from the original step");
+		assertNotNull(newScenario.getSteps(),
+				"result of conversion should be a Scenario with a steps collection, not a bare Step");
+		assertEquals("User fills in the registration form", newScenario.getName(),
+				"converted scenario should carry the specified name");
+		assertEquals(ScenarioType.Primary, newScenario.getType(),
+				"converted scenario should carry the specified type");
+		// Verify the new scenario is visible in the project
+		Project reloaded = getProjectRepository().findProjectByName(project.getName());
+		assertTrue(reloaded.getScenarios().stream()
+				.anyMatch(s -> "User fills in the registration form".equals(s.getName())),
+				"converted scenario should appear in the project's scenario collection");
 	}
 }

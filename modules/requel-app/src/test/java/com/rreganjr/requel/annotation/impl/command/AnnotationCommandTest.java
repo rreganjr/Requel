@@ -34,6 +34,10 @@ import com.rreganjr.requel.annotation.command.EditArgumentCommand;
 import com.rreganjr.requel.annotation.command.EditChangeSpellingPositionCommand;
 import com.rreganjr.requel.annotation.command.EditAddWordToDictionaryPositionCommand;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
+import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.command.EditAddActorToProjectPositionCommand;
+import com.rreganjr.requel.project.command.EditAddWordToGlossaryPositionCommand;
 import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
 import com.rreganjr.requel.annotation.command.EditNoteCommand;
 import com.rreganjr.requel.annotation.command.EditPositionCommand;
@@ -655,5 +659,107 @@ public class AnnotationCommandTest extends AbstractIntegrationTestCase {
                 "Unknown word: Requel");
         assertTrue(resolved.isResolved(),
                 "lexical issue should be marked resolved after adding word to dictionary");
+    }
+
+    // -------------------------------------------------------------------------
+    // ResolveIssueWithAddActorPositionCommand
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void resolveIssueWithAddActorCreatesActorInProject() throws Exception {
+        Project project = createProject("Annotation-add-actor");
+        Goal goal = createGoal(project, "Define system participants");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        // Create a LexicalIssue for a word flagged as a potential actor name
+        EditLexicalIssueCommand lexCmd = getAnnotationCommandFactory().newEditLexicalIssueCommand();
+        lexCmd.setEditedBy(admin);
+        lexCmd.setGroupingObject(project);
+        lexCmd.setAnnotatable(goal);
+        lexCmd.setText("Potential actor: Submitter");
+        lexCmd.setMustBeResolved(false);
+        lexCmd.setWord("Submitter");
+        lexCmd.setAnnotatableEntityPropertyName("Text");
+        lexCmd = getCommandHandler().execute(lexCmd);
+        LexicalIssue lexicalIssue = (LexicalIssue) lexCmd.getIssue();
+
+        // Create an AddActorPosition proposing to add "Submitter" as an actor
+        EditAddActorToProjectPositionCommand addActorCmd =
+                getProjectCommandFactory().newEditAddActorToProjectPositionCommand();
+        addActorCmd.setEditedBy(admin);
+        addActorCmd.setIssue(lexicalIssue);
+        addActorCmd.setProjectOrDomain(project);
+        addActorCmd.setText("Add 'Submitter' as an actor to the project");
+        addActorCmd = getCommandHandler().execute(addActorCmd);
+
+        // Resolve: the command creates the actor then marks the issue resolved
+        ResolveIssueCommand resolveCmd =
+                getAnnotationCommandFactory().newResolveIssueCommand(addActorCmd.getPosition());
+        resolveCmd.setEditedBy(admin);
+        resolveCmd.setIssue(lexicalIssue);
+        resolveCmd.setPosition(addActorCmd.getPosition());
+        resolveCmd.setAnnotatable(goal);
+        getCommandHandler().execute(resolveCmd);
+
+        // Verify actor "Submitter" was created in the project
+        Project reloaded = getProjectRepository().findProjectByName(project.getName());
+        assertTrue(reloaded.getActors().stream()
+                        .anyMatch(a -> "Submitter".equals(a.getName())),
+                "resolving with AddActorPosition should create the actor in the project");
+
+        Issue resolvedIssue = getAnnotationRepository().findIssue(project, goal,
+                "Potential actor: Submitter");
+        assertTrue(resolvedIssue.isResolved(), "issue should be marked resolved");
+    }
+
+    // -------------------------------------------------------------------------
+    // ResolveIssueWithAddGlossaryTermPositionCommand
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void resolveIssueWithAddGlossaryTermCreatesGlossaryTermInProject() throws Exception {
+        Project project = createProject("Annotation-add-glossary");
+        Goal goal = createGoal(project, "Document domain terminology");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        // Create a LexicalIssue for a domain-specific word
+        EditLexicalIssueCommand lexCmd = getAnnotationCommandFactory().newEditLexicalIssueCommand();
+        lexCmd.setEditedBy(admin);
+        lexCmd.setGroupingObject(project);
+        lexCmd.setAnnotatable(goal);
+        lexCmd.setText("Unknown term: Requel");
+        lexCmd.setMustBeResolved(false);
+        lexCmd.setWord("Requel");
+        lexCmd.setAnnotatableEntityPropertyName("Text");
+        lexCmd = getCommandHandler().execute(lexCmd);
+        LexicalIssue lexicalIssue = (LexicalIssue) lexCmd.getIssue();
+
+        // Create an AddGlossaryTermPosition proposing to add "Requel" to the glossary
+        EditAddWordToGlossaryPositionCommand addGlossaryCmd =
+                getProjectCommandFactory().newEditAddWordToGlossaryPositionCommand();
+        addGlossaryCmd.setEditedBy(admin);
+        addGlossaryCmd.setIssue(lexicalIssue);
+        addGlossaryCmd.setProjectOrDomain(project);
+        addGlossaryCmd.setText("Add 'Requel' to the project glossary");
+        addGlossaryCmd = getCommandHandler().execute(addGlossaryCmd);
+
+        // Resolve: the command creates the glossary term then marks the issue resolved
+        ResolveIssueCommand resolveCmd =
+                getAnnotationCommandFactory().newResolveIssueCommand(addGlossaryCmd.getPosition());
+        resolveCmd.setEditedBy(admin);
+        resolveCmd.setIssue(lexicalIssue);
+        resolveCmd.setPosition(addGlossaryCmd.getPosition());
+        resolveCmd.setAnnotatable(goal);
+        getCommandHandler().execute(resolveCmd);
+
+        // Verify "Requel" was added to the project glossary
+        Project reloaded = getProjectRepository().findProjectByName(project.getName());
+        assertTrue(reloaded.getGlossaryTerms().stream()
+                        .anyMatch(t -> "Requel".equals(t.getName())),
+                "resolving with AddGlossaryTermPosition should create the term in the project glossary");
+
+        Issue resolvedIssue = getAnnotationRepository().findIssue(project, goal,
+                "Unknown term: Requel");
+        assertTrue(resolvedIssue.isResolved(), "issue should be marked resolved");
     }
 }

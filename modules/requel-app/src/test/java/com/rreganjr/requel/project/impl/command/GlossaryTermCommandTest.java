@@ -24,13 +24,19 @@ import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
+import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
+import com.rreganjr.requel.project.command.ReplaceGlossaryTermCommand;
 import com.rreganjr.requel.user.User;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
+
+import java.util.Set;
 
 /**
  * Integration tests for glossary term management commands:
@@ -177,6 +183,54 @@ public class GlossaryTermCommandTest extends AbstractIntegrationTestCase {
 		assertThrows(NoSuchEntityException.class,
 				() -> getProjectRepository().findGlossaryTermForProjectOrDomain(project, "ToDelete"),
 				"deleted glossary term should no longer be findable");
+	}
+
+	// -------------------------------------------------------------------------
+	// ReplaceGlossaryTermCommand
+	// -------------------------------------------------------------------------
+
+	@Test
+	public void replaceGlossaryTermRewritesTextInReferringGoal() throws Exception {
+		Project project = createProject("Glossary-replace");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		// Create the canonical term
+		GlossaryTerm canonical = createTerm(project, "Bug",
+				"A defect in the software that causes it to behave incorrectly.");
+
+		// Create a goal whose name and text contain the alias term's name
+		EditGoalCommand goalCmd = getProjectCommandFactory().newEditGoalCommand();
+		goalCmd.setEditedBy(admin);
+		goalCmd.setGoalContainer(project);
+		goalCmd.setName("Fix the Defect");
+		goalCmd.setText("We need to fix the Defect in the login flow before release.");
+		goalCmd = getCommandHandler().execute(goalCmd);
+		Goal goal = goalCmd.getGoal();
+
+		// Create the alias term with the goal as a referring entity
+		EditGlossaryTermCommand aliasCmd = getProjectCommandFactory().newEditGlossaryTermCommand();
+		aliasCmd.setEditedBy(admin);
+		aliasCmd.setProjectOrDomain(project);
+		aliasCmd.setName("Defect");
+		aliasCmd.setText("Alternate term for Bug.");
+		aliasCmd.setCanonicalTerm(canonical);
+		aliasCmd.setAddReferers(Set.<ProjectOrDomainEntity>of(goal));
+		aliasCmd = getCommandHandler().execute(aliasCmd);
+		GlossaryTerm alias = aliasCmd.getGlossaryTerm();
+
+		// Replace the alias term with the canonical across all referring entities
+		ReplaceGlossaryTermCommand replaceCmd = getProjectCommandFactory().newReplaceGlossaryTermCommand();
+		replaceCmd.setEditedBy(admin);
+		replaceCmd.setGlossaryTerm(alias);
+		getCommandHandler().execute(replaceCmd);
+
+		// Verify the goal text now references the canonical term name
+		Goal reloaded = getProjectRepository().findGoalByProjectOrDomainAndName(project, "Fix the Bug");
+		assertNotNull(reloaded, "goal name should have been updated to canonical term name");
+		assertFalse(reloaded.getText().contains("Defect"),
+				"alias term name should have been replaced in goal text");
+		assertTrue(reloaded.getText().contains("Bug"),
+				"canonical term name should appear in goal text after replacement");
 	}
 
 	@Test

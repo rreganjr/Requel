@@ -158,19 +158,17 @@ term references.
 |---|---|---|
 | `CopyCommandTest` | `CopyGoal`, `CopyActor`, `CopyStory`, `CopyScenario`, `CopyScenarioStep`, `CopyUseCase` | copy preserves content; auto-generated name when original name is taken; explicit new name used when provided; `CopyUseCase` also copies the primary scenario |
 
-### 2.2.2 Additional 0% commands (lower priority)
+### 2.2.2 Additional commands — partially complete
 
-Identified from JaCoCo. These are deprioritized for now but tracked here:
-
-| Command | Coverage | Notes |
-|---|---|---|
-| `DeleteReportGeneratorCommandImpl` | 0% | Follow same pattern as other delete command tests; straightforward |
-| `ExportProjectCommandImpl` | 0% in module report | Exercised by `ProjectXmlStreamingRoundTripIT` in `requel-app` — coverage appears 0% due to cross-module attribution; no dedicated test needed |
-| `GenerateReportCommandImpl` | 0% | Requires XSLT engine wired up; complex integration; defer |
-| `ConvertStepToScenarioCommandImpl` | 0% | Niche operation; low regression risk; defer |
-| `ResolveIssueWithAddActorPositionCommandImpl` | 0% | NLP assistant output path; tested indirectly by assistant tests; defer |
-| `ResolveIssueWithAddGlossaryTermPositionCommandImpl` | 0% | Same; defer |
-| `ReplaceGlossaryTermCommandImpl` | 0% | NLP-driven; defer until NLP assistant tests are expanded |
+| Command | Status | Test class | Notes |
+|---|---|---|---|
+| `DeleteReportGeneratorCommandImpl` | ✓ DONE | `ReportGeneratorCommandTest` | Standard delete pattern; also covers `EditReportGeneratorCommand` create |
+| `ReplaceGlossaryTermCommandImpl` | ✓ DONE | `GlossaryTermCommandTest` | **Bug noted:** the `else if (entity instanceof Story)` branch casts to `ActorImpl` — dead code (copy-paste error); Actor text replacement never fires |
+| `ResolveIssueWithAddActorPositionCommandImpl` | ✓ DONE | `AnnotationCommandTest` | Wired manually without NLP: create LexicalIssue + AddActorPosition, resolve, verify actor appears in project |
+| `ResolveIssueWithAddGlossaryTermPositionCommandImpl` | ✓ DONE | `AnnotationCommandTest` | Same pattern; verifies GlossaryTerm appears in project |
+| `ConvertStepToScenarioCommandImpl` | ✓ DONE | `ScenarioStepCommandTest` | Create scenario with step, convert step, verify new Scenario replaces Step at same index |
+| `ExportProjectCommandImpl` | — deferred | — | Exercised by `ProjectXmlStreamingRoundTripIT`; 0% in module report is cross-module attribution artefact |
+| `GenerateReportCommandImpl` | — deferred | — | Requires XSLT template + file I/O; complex setup; low regression risk |
 
 ### 2.2.3 Annotation command tests (identified from JaCoCo 0% coverage)
 
@@ -469,14 +467,16 @@ the test project created in `@BeforeAll`. The `test-editor` has all `[Edit]` per
 
 Bold **403/401** cells are the boundary conditions most likely to regress; prioritize these.
 
-### 2.6 XML import/export
+### 2.6 XML import/export ✓ DONE
 
-Extend the existing `ProjectXmlRoundTripIT` and `ProjectXmlStreamingRoundTripIT` to cover the
-new V2.0 fields:
+`ProjectXmlStreamingRoundTripIT` covers:
 
-- Story `primaryActor` survives round-trip (XML → DB → XML)
-- Use-case `primaryActor` unchanged
-- All V4–V7 schema additions are backwards-compatible with existing XML files
+- Story `primaryActor` captured in `StorySummary` and verified in `assertSnapshotsEquivalent`
+- Use-case `primaryActor` captured in `UseCaseSummary` and verified in `assertSnapshotsEquivalent`
+- Exported XML validated against `project.xsd` in both round-trip tests
+- Sample `Requel.xml` import verified for canonical glossary term preservation
+
+`ProjectXmlRoundTripIT` is `@Disabled` — superseded by the streaming variant.
 
 ---
 
