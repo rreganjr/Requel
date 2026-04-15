@@ -24,13 +24,22 @@ import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.ArgumentPositionSupportLevel;
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.annotation.command.DeleteArgumentCommand;
 import com.rreganjr.requel.annotation.command.DeleteIssueCommand;
+import com.rreganjr.requel.annotation.command.DeleteNoteCommand;
 import com.rreganjr.requel.annotation.command.DeletePositionCommand;
 import com.rreganjr.requel.annotation.command.EditArgumentCommand;
+import com.rreganjr.requel.annotation.command.EditChangeSpellingPositionCommand;
+import com.rreganjr.requel.annotation.command.EditAddWordToDictionaryPositionCommand;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
+import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
+import com.rreganjr.requel.annotation.command.EditNoteCommand;
 import com.rreganjr.requel.annotation.command.EditPositionCommand;
+import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
+import com.rreganjr.requel.annotation.command.ResolveIssueCommand;
+import com.rreganjr.requel.annotation.impl.LexicalIssue;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.command.EditGoalCommand;
@@ -42,7 +51,9 @@ import org.junit.jupiter.api.Test;
 /**
  * Integration tests for the IBIS annotation command layer:
  * {@link EditIssueCommand}, {@link EditPositionCommand}, {@link EditArgumentCommand},
- * {@link DeleteIssueCommand}, {@link DeletePositionCommand}, {@link DeleteArgumentCommand}.
+ * {@link DeleteIssueCommand}, {@link DeletePositionCommand}, {@link DeleteArgumentCommand},
+ * {@link EditNoteCommand}, {@link DeleteNoteCommand}, {@link ResolveIssueCommand},
+ * {@link RemoveAnnotationFromAnnotatableCommand}, and the two lexical-resolve variants.
  *
  * Annotations follow an IBIS hierarchy: Issue → Position → Argument.
  * Issues are attached to an annotatable entity (e.g. a Goal) and grouped by a
@@ -52,6 +63,15 @@ import org.junit.jupiter.api.Test;
  * DeleteIssue cascades to delete all positions (and their arguments).
  * DeletePosition cascades to delete all arguments on that position.
  * DeleteArgument removes only the single argument.
+ *
+ * RemoveAnnotationFromAnnotatable detaches a single annotation from one annotatable;
+ * if no annotatables remain the annotation is auto-deleted.
+ *
+ * ResolveIssue marks an issue resolved via a chosen position.
+ * ResolveIssueWithChangeSpellingPosition additionally rewrites the misspelled word
+ * in the annotatable entity's text field.
+ * ResolveIssueWithAddWordToDictionaryPosition additionally adds the word to the
+ * dictionary before resolving.
  */
 public class AnnotationCommandTest extends AbstractIntegrationTestCase {
 
@@ -349,5 +369,291 @@ public class AnnotationCommandTest extends AbstractIntegrationTestCase {
                 .findGoalByProjectOrDomainAndName(project, "Meet performance targets");
         assertTrue(reloaded.getAnnotations().isEmpty(),
                 "issue should be absent from goal annotations after delete");
+    }
+
+    // -------------------------------------------------------------------------
+    // EditNoteCommand / DeleteNoteCommand
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void createNote() throws Exception {
+        Project project = createProject("Annotation-note-create");
+        Goal goal = createGoal(project, "Capture stakeholder feedback");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        EditNoteCommand cmd = getAnnotationCommandFactory().newEditNoteCommand();
+        cmd.setEditedBy(admin);
+        cmd.setGroupingObject(project);
+        cmd.setAnnotatable(goal);
+        cmd.setText("Review this goal with the customer before finalizing.");
+        cmd = getCommandHandler().execute(cmd);
+
+        Note note = cmd.getNote();
+        assertNotNull(note, "note should have been created");
+        assertEquals("Review this goal with the customer before finalizing.", note.getText(),
+                "note text should match");
+
+        Goal reloaded = getProjectRepository()
+                .findGoalByProjectOrDomainAndName(project, "Capture stakeholder feedback");
+        assertTrue(reloaded.getAnnotations().stream().anyMatch(a -> a.equals(note)),
+                "note should appear in goal annotations");
+    }
+
+    @Test
+    public void editNote() throws Exception {
+        Project project = createProject("Annotation-note-edit");
+        Goal goal = createGoal(project, "Prioritize accessibility");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        EditNoteCommand createCmd = getAnnotationCommandFactory().newEditNoteCommand();
+        createCmd.setEditedBy(admin);
+        createCmd.setGroupingObject(project);
+        createCmd.setAnnotatable(goal);
+        createCmd.setText("Original note text");
+        createCmd = getCommandHandler().execute(createCmd);
+        Note note = createCmd.getNote();
+
+        EditNoteCommand editCmd = getAnnotationCommandFactory().newEditNoteCommand();
+        editCmd.setEditedBy(admin);
+        editCmd.setGroupingObject(project);
+        editCmd.setAnnotatable(goal);
+        editCmd.setNote(note);
+        editCmd.setText("Updated: confirmed with stakeholders — accessibility is P0");
+        editCmd = getCommandHandler().execute(editCmd);
+
+        assertEquals("Updated: confirmed with stakeholders — accessibility is P0",
+                editCmd.getNote().getText(), "note text should be updated");
+    }
+
+    @Test
+    public void deleteNote() throws Exception {
+        Project project = createProject("Annotation-note-delete");
+        Goal goal = createGoal(project, "Track open questions");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        EditNoteCommand createCmd = getAnnotationCommandFactory().newEditNoteCommand();
+        createCmd.setEditedBy(admin);
+        createCmd.setGroupingObject(project);
+        createCmd.setAnnotatable(goal);
+        createCmd.setText("Note to be deleted");
+        createCmd = getCommandHandler().execute(createCmd);
+        Note note = createCmd.getNote();
+
+        DeleteNoteCommand deleteCmd = getAnnotationCommandFactory().newDeleteNoteCommand();
+        deleteCmd.setEditedBy(admin);
+        deleteCmd.setNote(note);
+        getCommandHandler().execute(deleteCmd);
+
+        Goal reloaded = getProjectRepository()
+                .findGoalByProjectOrDomainAndName(project, "Track open questions");
+        assertTrue(reloaded.getAnnotations().isEmpty(),
+                "note should be absent from goal annotations after delete");
+    }
+
+    // -------------------------------------------------------------------------
+    // ResolveIssueCommand
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void resolveIssueWithPosition() throws Exception {
+        Project project = createProject("Annotation-resolve-base");
+        Goal goal = createGoal(project, "Define SLA requirements");
+        Issue issue = createIssue(project, goal, "What is the acceptable response time?");
+        Position position = createPosition(issue, "Response time must be under 500ms for all reads");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        ResolveIssueCommand cmd = getAnnotationCommandFactory().newResolveIssueCommand(position);
+        cmd.setEditedBy(admin);
+        cmd.setIssue(issue);
+        cmd.setPosition(position);
+        cmd.setAnnotatable(goal);
+        getCommandHandler().execute(cmd);
+
+        Issue resolved = getAnnotationRepository().findIssue(project, goal,
+                "What is the acceptable response time?");
+        assertTrue(resolved.isResolved(), "issue should be marked resolved");
+        assertNotNull(resolved.getResolvedByPosition(),
+                "issue should reference the resolving position");
+        assertEquals(position.getText(), resolved.getResolvedByPosition().getText(),
+                "resolvedByPosition should be the chosen position");
+    }
+
+    // -------------------------------------------------------------------------
+    // RemoveAnnotationFromAnnotatableCommand
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void removeAnnotationFromAnnotatableKeepsAnnotationWhenShared() throws Exception {
+        Project project = createProject("Annotation-remove-shared");
+        Goal goal1 = createGoal(project, "Shared goal A");
+        Goal goal2 = createGoal(project, "Shared goal B");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        // Create an issue attached to both goals
+        EditIssueCommand issueCmd = getAnnotationCommandFactory().newEditIssueCommand();
+        issueCmd.setEditedBy(admin);
+        issueCmd.setGroupingObject(project);
+        issueCmd.setAnnotatable(goal1);
+        issueCmd.setText("Cross-cutting concern shared by both goals");
+        issueCmd.setMustBeResolved(false);
+        issueCmd = getCommandHandler().execute(issueCmd);
+        Issue issue = issueCmd.getIssue();
+
+        // Also attach the same issue to goal2
+        issueCmd = getAnnotationCommandFactory().newEditIssueCommand();
+        issueCmd.setEditedBy(admin);
+        issueCmd.setGroupingObject(project);
+        issueCmd.setAnnotatable(goal2);
+        issueCmd.setIssue(issue);
+        issueCmd.setText(issue.getText());
+        issueCmd.setMustBeResolved(false);
+        issueCmd = getCommandHandler().execute(issueCmd);
+
+        // Remove the issue from goal1 only — it should remain on goal2
+        RemoveAnnotationFromAnnotatableCommand removeCmd =
+                getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand();
+        removeCmd.setEditedBy(admin);
+        removeCmd.setAnnotatable(goal1);
+        removeCmd.setAnnotation(issue);
+        getCommandHandler().execute(removeCmd);
+
+        Goal reloadedGoal1 = getProjectRepository()
+                .findGoalByProjectOrDomainAndName(project, "Shared goal A");
+        assertTrue(reloadedGoal1.getAnnotations().isEmpty(),
+                "issue should be removed from goal1");
+
+        Goal reloadedGoal2 = getProjectRepository()
+                .findGoalByProjectOrDomainAndName(project, "Shared goal B");
+        assertFalse(reloadedGoal2.getAnnotations().isEmpty(),
+                "issue should still be present on goal2");
+    }
+
+    @Test
+    public void removeAnnotationFromAnnotatableDeletesIssueWhenLastAnnotatable() throws Exception {
+        Project project = createProject("Annotation-remove-last");
+        Goal goal = createGoal(project, "Sole annotatable goal");
+        Issue issue = createIssue(project, goal, "Will this issue be deleted?");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        RemoveAnnotationFromAnnotatableCommand removeCmd =
+                getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand();
+        removeCmd.setEditedBy(admin);
+        removeCmd.setAnnotatable(goal);
+        removeCmd.setAnnotation(issue);
+        getCommandHandler().execute(removeCmd);
+
+        // Goal should have no annotations now
+        Goal reloaded = getProjectRepository()
+                .findGoalByProjectOrDomainAndName(project, "Sole annotatable goal");
+        assertTrue(reloaded.getAnnotations().isEmpty(),
+                "issue should be removed from the goal's annotations");
+    }
+
+    // -------------------------------------------------------------------------
+    // ResolveIssueWithChangeSpellingPositionCommand
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void resolveIssueWithChangeSpellingFixesTextInAnnotatable() throws Exception {
+        Project project = createProject("Annotation-spelling");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        // Create a goal whose text contains a misspelled word
+        EditGoalCommand goalCmd = getProjectCommandFactory().newEditGoalCommand();
+        goalCmd.setEditedBy(admin);
+        goalCmd.setGoalContainer(project);
+        goalCmd.setName("Support concurrent users");
+        goalCmd.setText("The systm must allow multiple concurrent users.");
+        goalCmd = getCommandHandler().execute(goalCmd);
+        Goal goal = goalCmd.getGoal();
+
+        // Create a LexicalIssue for the misspelled word "systm" in the "Text" property
+        EditLexicalIssueCommand lexCmd = getAnnotationCommandFactory().newEditLexicalIssueCommand();
+        lexCmd.setEditedBy(admin);
+        lexCmd.setGroupingObject(project);
+        lexCmd.setAnnotatable(goal);
+        lexCmd.setText("Possible misspelling: systm");
+        lexCmd.setMustBeResolved(false);
+        lexCmd.setWord("systm");
+        // Property name drives reflection: get<Name>() / set<Name>() on the entity
+        lexCmd.setAnnotatableEntityPropertyName("Text");
+        lexCmd = getCommandHandler().execute(lexCmd);
+        LexicalIssue lexicalIssue = (LexicalIssue) lexCmd.getIssue();
+
+        // Create a ChangeSpellingPosition proposing the corrected word
+        EditChangeSpellingPositionCommand spellingCmd =
+                getAnnotationCommandFactory().newEditChangeSpellingPositionCommand();
+        spellingCmd.setEditedBy(admin);
+        spellingCmd.setIssue(lexicalIssue);
+        spellingCmd.setText("Change 'systm' to 'system'");
+        spellingCmd.setProposedWord("system");
+        spellingCmd = getCommandHandler().execute(spellingCmd);
+
+        // Resolve: the command rewrites the goal text then marks the issue resolved
+        ResolveIssueCommand resolveCmd =
+                getAnnotationCommandFactory().newResolveIssueCommand(spellingCmd.getPosition());
+        resolveCmd.setEditedBy(admin);
+        resolveCmd.setIssue(lexicalIssue);
+        resolveCmd.setPosition(spellingCmd.getPosition());
+        resolveCmd.setAnnotatable(goal);
+        getCommandHandler().execute(resolveCmd);
+
+        // Verify the goal text was corrected
+        Goal reloaded = getProjectRepository()
+                .findGoalByProjectOrDomainAndName(project, "Support concurrent users");
+        assertFalse(reloaded.getText().contains("systm"),
+                "misspelled word should have been replaced in the goal text");
+        assertTrue(reloaded.getText().contains("system"),
+                "corrected word should appear in the goal text");
+
+        // Verify the issue is resolved
+        Issue resolved = getAnnotationRepository().findIssue(project, goal,
+                "Possible misspelling: systm");
+        assertTrue(resolved.isResolved(), "lexical issue should be marked resolved");
+    }
+
+    // -------------------------------------------------------------------------
+    // ResolveIssueWithAddWordToDictionaryPositionCommand
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void resolveIssueWithAddWordToDictionaryResolvesIssue() throws Exception {
+        Project project = createProject("Annotation-add-word");
+        Goal goal = createGoal(project, "Use domain-specific terminology");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        // Create a LexicalIssue for a word the spell-checker flagged as unknown
+        EditLexicalIssueCommand lexCmd = getAnnotationCommandFactory().newEditLexicalIssueCommand();
+        lexCmd.setEditedBy(admin);
+        lexCmd.setGroupingObject(project);
+        lexCmd.setAnnotatable(goal);
+        lexCmd.setText("Unknown word: Requel");
+        lexCmd.setMustBeResolved(false);
+        lexCmd.setWord("Requel");
+        lexCmd.setAnnotatableEntityPropertyName("Text");
+        lexCmd = getCommandHandler().execute(lexCmd);
+        LexicalIssue lexicalIssue = (LexicalIssue) lexCmd.getIssue();
+
+        // Create an AddWordToDictionaryPosition
+        EditAddWordToDictionaryPositionCommand addWordCmd =
+                getAnnotationCommandFactory().newEditAddWordToDictionaryPositionCommand();
+        addWordCmd.setEditedBy(admin);
+        addWordCmd.setIssue(lexicalIssue);
+        addWordCmd.setText("Add 'Requel' to the project dictionary");
+        addWordCmd = getCommandHandler().execute(addWordCmd);
+
+        // Resolve: the command adds the word to the dictionary then marks the issue resolved
+        ResolveIssueCommand resolveCmd =
+                getAnnotationCommandFactory().newResolveIssueCommand(addWordCmd.getPosition());
+        resolveCmd.setEditedBy(admin);
+        resolveCmd.setIssue(lexicalIssue);
+        resolveCmd.setPosition(addWordCmd.getPosition());
+        resolveCmd.setAnnotatable(goal);
+        getCommandHandler().execute(resolveCmd);
+
+        Issue resolved = getAnnotationRepository().findIssue(project, goal,
+                "Unknown word: Requel");
+        assertTrue(resolved.isResolved(),
+                "lexical issue should be marked resolved after adding word to dictionary");
     }
 }

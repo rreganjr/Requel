@@ -34,6 +34,8 @@ import org.springframework.test.context.ActiveProfiles;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
+import com.rreganjr.nlp.dictionary.PartOfSpeech;
+import com.rreganjr.nlp.dictionary.impl.repository.NoSuchWordException;
 import com.rreganjr.requel.Application;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
@@ -220,10 +222,16 @@ public abstract class AbstractIntegrationTestCase {
 	}
 
 	protected synchronized void ensureDictionaryLoaded() throws Exception {
-		boolean hasWords = getDictionaryRepository().findWords() != null
-				&& !getDictionaryRepository().findWords().isEmpty();
-		if (hasWords) {
-			return;
+		// Check for a word the NLP pipeline requires at init time. A non-empty
+		// Word table is an unreliable proxy: annotation tests that resolve
+		// "add word to dictionary" issues insert individual words without
+		// importing the full dictionary, which would cause this check to return
+		// early leaving StanfordNameEntityRecognizer unable to find 'person'.
+		try {
+			getDictionaryRepository().findWord("person", PartOfSpeech.NOUN);
+			return; // full dictionary is present
+		} catch (NoSuchWordException e) {
+			// fall through to import
 		}
 
 		ImportDictionaryCommand importDictionary =
@@ -237,9 +245,10 @@ public abstract class AbstractIntegrationTestCase {
 		getCommandHandler().execute(importDictionary);
 
 		// verify load succeeded so tests fail fast with a clear message
-		if (getDictionaryRepository().findWords() == null
-				|| getDictionaryRepository().findWords().isEmpty()) {
-			throw new IllegalStateException("Dictionary import completed but repository is still empty");
+		try {
+			getDictionaryRepository().findWord("person", PartOfSpeech.NOUN);
+		} catch (NoSuchWordException e) {
+			throw new IllegalStateException("Dictionary import completed but 'person' is still not found", e);
 		}
 	}
 

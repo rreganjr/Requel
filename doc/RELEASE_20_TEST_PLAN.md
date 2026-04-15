@@ -147,6 +147,58 @@ Each edit command should have an integration test that:
 | `EditUserCommandImplTest` | `EditUser`, `DeleteUser`, `ChangePassword` |
 | `AuditingCommandHandlerTest` | Background commands skipped; API commands write row; `projectId` resolved correctly |
 
+### 2.2.1 Copy command tests (identified from JaCoCo 0% coverage)
+
+JaCoCo analysis showed all six Copy commands at 0% instruction coverage. Each shares the same
+pattern: copy the original entity's content into a new entity, auto-generate a unique name if the
+original name is already taken, preserve text and type fields, and share annotations and glossary
+term references.
+
+| Test class | Commands covered | Key scenarios |
+|---|---|---|
+| `CopyCommandTest` | `CopyGoal`, `CopyActor`, `CopyStory`, `CopyScenario`, `CopyScenarioStep`, `CopyUseCase` | copy preserves content; auto-generated name when original name is taken; explicit new name used when provided; `CopyUseCase` also copies the primary scenario |
+
+### 2.2.2 Additional 0% commands (lower priority)
+
+Identified from JaCoCo. These are deprioritized for now but tracked here:
+
+| Command | Coverage | Notes |
+|---|---|---|
+| `DeleteReportGeneratorCommandImpl` | 0% | Follow same pattern as other delete command tests; straightforward |
+| `ExportProjectCommandImpl` | 0% in module report | Exercised by `ProjectXmlStreamingRoundTripIT` in `requel-app` — coverage appears 0% due to cross-module attribution; no dedicated test needed |
+| `GenerateReportCommandImpl` | 0% | Requires XSLT engine wired up; complex integration; defer |
+| `ConvertStepToScenarioCommandImpl` | 0% | Niche operation; low regression risk; defer |
+| `ResolveIssueWithAddActorPositionCommandImpl` | 0% | NLP assistant output path; tested indirectly by assistant tests; defer |
+| `ResolveIssueWithAddGlossaryTermPositionCommandImpl` | 0% | Same; defer |
+| `ReplaceGlossaryTermCommandImpl` | 0% | NLP-driven; defer until NLP assistant tests are expanded |
+
+### 2.2.3 Annotation command tests (identified from JaCoCo 0% coverage)
+
+The existing `AnnotationCommandTest` covers the IBIS hierarchy create/edit/delete for Issue,
+Position, and Argument. JaCoCo shows five annotation commands still at 0%:
+
+| Class | Instructions | What it does |
+|---|---|---|
+| `ResolveIssueWithChangeSpellingPositionCommandImpl` | 199 | Resolves a `LexicalIssue` by replacing a misspelled word in the annotatable entity's text field via reflection; delegates to `ResolveIssueCommandImpl.execute()` |
+| `RemoveAnnotationFromAnnotatableCommandImpl` | 127 | Detaches a single annotation from one annotatable; if no annotatables remain, deletes the annotation via `DeleteIssue` or `DeleteNote` |
+| `ResolveIssueCommandImpl` | 90 | Marks a position as the resolution for an issue (`issue.isResolved()` becomes true) |
+| `ResolveIssueWithAddWordToDictionaryPositionCommandImpl` | 48 | Resolves a `LexicalIssue` by adding the flagged word to the dictionary via `EditDictionaryWordCommand`, then delegates to base resolve |
+| `DeleteNoteCommandImpl` | 42 | Removes a `Note` annotation from all its annotatables and deletes it |
+| `EditNoteCommandImpl` | (already partially hit via existing tests) | Create/edit a note annotation |
+
+Tests added to `AnnotationCommandTest`:
+
+| Test method | Commands exercised | What it verifies |
+|---|---|---|
+| `createNote` | `EditNoteCommand` | Note persisted; appears in goal annotations |
+| `editNote` | `EditNoteCommand` | Note text updated |
+| `deleteNote` | `EditNoteCommand` + `DeleteNoteCommand` | Note removed from goal annotations |
+| `resolveIssueWithPosition` | `ResolveIssueCommand` | `issue.isResolved()` true; `getResolvedByPosition()` returns the resolving position |
+| `removeAnnotationFromAnnotatableKeepsAnnotationWhenShared` | `RemoveAnnotationFromAnnotatableCommand` | Issue detached from one of two goals; still present on the other |
+| `removeAnnotationFromAnnotatableDeletesIssueWhenLastAnnotatable` | `RemoveAnnotationFromAnnotatableCommand` + `DeleteIssueCommand` | Issue removed from sole annotatable; issue itself deleted |
+| `resolveIssueWithChangeSpellingFixesTextInAnnotatable` | `EditLexicalIssueCommand` + `EditChangeSpellingPositionCommand` + `ResolveIssueWithChangeSpellingPositionCommand` | Misspelled word in goal text replaced with corrected spelling; issue marked resolved |
+| `resolveIssueWithAddWordToDictionaryResolvesIssue` | `EditLexicalIssueCommand` + `EditAddWordToDictionaryPositionCommand` + `ResolveIssueWithAddWordToDictionaryPositionCommand` | Word added to dictionary; issue marked resolved |
+
 ### 2.3 REST API tests (MockMvc) ✓ DONE
 
 Use `@WebMvcTest` + `MockMvc` to test the HTTP layer in isolation, with the command/query services
