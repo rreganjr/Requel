@@ -572,7 +572,7 @@ Services are the backbone of the Angular app. Tests mock `HttpClient` using
 | `sidebar-nav.spec.ts` | Renders project list; project nodes expand to show entity types; active route is highlighted; `notifyTreeChanged()` triggers reload |
 | `scenario-selector-dialog.spec.ts` | Filters by `[excludeIds]`; hidden when `[visible]="false"`; shows list when visible; emits `(selected)` on row click |
 
-### 3.4 Feature page tests (editors)
+### 3.4 Feature page tests (editors) ✓ DONE
 
 For editor components, the key behaviors to test are: loading state, save behavior, dirty tracking,
 and error display. Mock the injected services.
@@ -596,7 +596,7 @@ and error display. Mock the injected services.
 | `user-editor.spec.ts` | Admin sees all fields including role assignment; non-admin editing self sees limited fields; password change form validation |
 | `open-issues.spec.ts` | Issues render with type badge; click navigates to annotated entity editor |
 
-### 3.5 List page tests
+### 3.5 List page tests ✓ DONE
 
 List pages are simpler — verify data loading, search filtering, and navigation.
 

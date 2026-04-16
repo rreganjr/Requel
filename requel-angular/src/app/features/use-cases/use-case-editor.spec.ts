@@ -128,4 +128,131 @@ describe('UseCaseEditorComponent', () => {
     expect(comp.errorMessage()).toBe('Conflict');
     expect(comp.saving()).toBe(false);
   });
+
+  it('canEdit() and canDelete() set from permissionService on init', async () => {
+    fixture.detectChanges();
+    await flush();
+    expect(permissionServiceMock.canEdit).toHaveBeenCalledWith('UseCase');
+    expect(permissionServiceMock.canDelete).toHaveBeenCalledWith('UseCase');
+    expect(comp.canEdit()).toBe(true);
+    expect(comp.canDelete()).toBe(true);
+  });
+
+  it('additionalScenarios() and actors() populated on load', async () => {
+    const fullUseCase = {
+      ...MOCK_USE_CASE,
+      actors: [{ id: 1, version: 0, name: 'Customer', text: null, createdBy: null,
+        goals: null, referencedByUseCases: null, referencedByStories: null }],
+      additionalScenarios: [{ id: 99, version: 0, name: 'Exception flow', text: null,
+        scenarioType: 'Exception', createdBy: null, steps: null }]
+    };
+    useCaseServiceMock.getUseCase.mockResolvedValue(fullUseCase);
+    paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+    fixture.detectChanges();
+    await flush();
+    expect(comp.actors().length).toBe(1);
+    expect(comp.additionalScenarios().length).toBe(1);
+    expect(comp.additionalScenarios()[0].name).toBe('Exception flow');
+  });
+
+  it('trackChanges() sets hasChanges() when name differs from loaded', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+    fixture.detectChanges();
+    await flush();
+    expect(comp.hasChanges()).toBe(false);
+    comp.name = 'Different Name';
+    comp.trackChanges();
+    expect(comp.hasChanges()).toBe(true);
+  });
+
+  it('addGoal calls AddGoalToGoalContainer and refreshes collections', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+    fixture.detectChanges();
+    await flush();
+    const callsBefore = useCaseServiceMock.getUseCase.mock.calls.length;
+    await comp.addGoal({ id: 10, name: 'New Goal', entityType: 'Goal' });
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('AddGoalToGoalContainer', expect.objectContaining({
+      projectName: 'proj1',
+      goalContainerId: 30,
+      goalId: 10,
+      containerType: 'UseCase'
+    }));
+    expect(useCaseServiceMock.getUseCase.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it('removeGoal calls RemoveGoalFromGoalContainer', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+    fixture.detectChanges();
+    await flush();
+    const goal = { id: 1, version: 0, name: 'Buy product', text: 'text', createdBy: null,
+      relationsFromThisGoal: null, relationsToThisGoal: null, referencedBy: null };
+    await comp.removeGoal(goal);
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('RemoveGoalFromGoalContainer', expect.objectContaining({
+      goalContainerId: 30,
+      goalId: 1,
+      containerType: 'UseCase'
+    }));
+  });
+
+  it('addStory calls AddStoryToStoryContainer', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+    fixture.detectChanges();
+    await flush();
+    await comp.addStory({ id: 5, name: 'Happy path', entityType: 'Story' });
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('AddStoryToStoryContainer', expect.objectContaining({
+      projectName: 'proj1',
+      storyContainerId: 30,
+      storyId: 5
+    }));
+  });
+
+  it('removeStory calls RemoveStoryFromStoryContainer', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+    fixture.detectChanges();
+    await flush();
+    const story = { id: 5, version: 0, name: 'Happy path', text: 'text',
+      storyType: 'Success' as const, createdBy: null, primaryActorName: null, goals: null, actors: null };
+    await comp.removeStory(story);
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('RemoveStoryFromStoryContainer', expect.objectContaining({
+      storyContainerId: 30,
+      storyId: 5
+    }));
+  });
+
+  it('onCopy calls CopyUseCase and navigates to copy', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+    fixture.detectChanges();
+    await flush();
+    const copy = { ...MOCK_USE_CASE, id: 88 };
+    commandServiceMock.execute.mockResolvedValue({ success: true, entity: copy });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cs = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(cs, 'confirm').mockImplementation((conf: any) => conf.accept?.());
+    comp.onCopy();
+    await flush();
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('CopyUseCase',
+      expect.objectContaining({ useCaseId: 30 }));
+    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'use-cases', 88]);
+  });
+
+  it('onDelete calls DeleteUseCase and navigates to list', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+    fixture.detectChanges();
+    await flush();
+    commandServiceMock.execute.mockResolvedValue({ success: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cs = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(cs, 'confirm').mockImplementation((conf: any) => conf.accept?.());
+    comp.onDelete();
+    await flush();
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('DeleteUseCase',
+      expect.objectContaining({ useCaseId: 30 }));
+    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'use-cases']);
+  });
+
+  it('navigateTo routes to correct entity path', () => {
+    comp.projectName = 'proj1';
+    comp.navigateTo('goals', 42);
+    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'goals', 42]);
+  });
 });

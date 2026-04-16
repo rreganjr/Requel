@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { signal } from '@angular/core';
 import { Subject, EMPTY } from 'rxjs';
 import { SidebarNavComponent } from './sidebar-nav';
@@ -111,5 +111,98 @@ describe('SidebarNavComponent', () => {
     expect(goalNode?.label).toBe('Goals (3)');
     const openIssuesNode = children.find(c => c.data?.type === 'OpenIssues');
     expect(openIssuesNode?.label).toBe('Open Issues');
+  });
+
+  it('activePanels() includes both "admin" and "projects" for SystemAdminUserRole', () => {
+    setup(makeUser(['SystemAdminUserRole']));
+    expect(comp.activePanels()).toContain('admin');
+    expect(comp.activePanels()).toContain('projects');
+  });
+
+  it('activePanels() includes only "projects" for ProjectUserRole', () => {
+    setup(makeUser(['ProjectUserRole']));
+    expect(comp.activePanels()).not.toContain('admin');
+    expect(comp.activePanels()).toContain('projects');
+  });
+
+  it('activePanels() is empty when user has no roles', () => {
+    setup(makeUser([]));
+    expect(comp.activePanels()).toEqual([]);
+  });
+
+  it('loading() is false after loadProjects completes', async () => {
+    setup(makeUser(['ProjectUserRole']));
+    await comp.loadProjects();
+    expect(comp.loading()).toBe(false);
+  });
+
+  it('ngOnInit calls listProjects when user has project role', async () => {
+    const fixture = setup(makeUser(['ProjectUserRole']));
+    fixture.detectChanges();
+    await new Promise(r => setTimeout(r, 0));
+    expect(projectServiceMock.listProjects).toHaveBeenCalled();
+    expect(comp.projectTreeNodes().length).toBe(1);
+  });
+
+  it('ngOnInit does not call listProjects when user has no project role', async () => {
+    const fixture = setup(makeUser([]));
+    fixture.detectChanges();
+    await new Promise(r => setTimeout(r, 0));
+    expect(projectServiceMock.listProjects).not.toHaveBeenCalled();
+  });
+
+  it('onTreeChanged subscription triggers loadProjects again', async () => {
+    const fixture = setup(makeUser(['ProjectUserRole']));
+    fixture.detectChanges();
+    await new Promise(r => setTimeout(r, 0));
+    const callsBefore = projectServiceMock.listProjects.mock.calls.length;
+    projectServiceMock.onTreeChanged.next();
+    await new Promise(r => setTimeout(r, 0));
+    expect(projectServiceMock.listProjects.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it('onNewProject() navigates to /projects/new', () => {
+    setup(makeUser(['ProjectUserRole']));
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    comp.onNewProject();
+    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'new']);
+  });
+
+  it('onNodeSelect navigates for project node', () => {
+    setup(makeUser(['ProjectUserRole']));
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    comp.onNodeSelect({ node: { data: { type: 'project', name: 'Proj A' } } });
+    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'Proj A']);
+  });
+
+  it.each([
+    ['Goals', 'goals'],
+    ['Stories', 'stories'],
+    ['Actors', 'actors'],
+    ['Scenarios', 'scenarios'],
+    ['Use Cases', 'use-cases'],
+    ['Stakeholders', 'stakeholders'],
+    ['Glossary', 'terms'],
+    ['Reports', 'reports'],
+    ['OpenIssues', 'open-issues'],
+  ])('onNodeSelect navigates to %s list', (type, route) => {
+    setup(makeUser(['ProjectUserRole']));
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    comp.onNodeSelect({ node: { data: { type, projectName: 'Proj A' } } });
+    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'Proj A', route]);
+  });
+
+  it('onImportFile calls importProject with the file and reloads', async () => {
+    setup(makeUser(['ProjectUserRole']));
+    const file = new File(['<project/>'], 'project.xml', { type: 'text/xml' });
+    const inputEl = document.createElement('input');
+    Object.defineProperty(inputEl, 'files', { value: [file] });
+    const event = { target: inputEl } as unknown as Event;
+    await comp.onImportFile(event);
+    expect(projectServiceMock.importProject).toHaveBeenCalledWith(file);
+    expect(projectServiceMock.listProjects).toHaveBeenCalled();
   });
 });

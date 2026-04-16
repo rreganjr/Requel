@@ -125,4 +125,106 @@ describe('ScenarioEditorComponent', () => {
       steps: expect.arrayContaining([expect.objectContaining({ name: 'Step one' })])
     }));
   });
+
+  it('canEdit() and canDelete() set from permissionService on init', async () => {
+    fixture.detectChanges();
+    await flush();
+    expect(permissionServiceMock.canEdit).toHaveBeenCalledWith('Scenario');
+    expect(permissionServiceMock.canDelete).toHaveBeenCalledWith('Scenario');
+    expect(comp.canEdit()).toBe(true);
+    expect(comp.canDelete()).toBe(true);
+  });
+
+  it('trackChanges() sets hasChanges() when name differs from loaded', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    expect(comp.hasChanges()).toBe(false);
+    comp.name = 'Different Name';
+    comp.trackChanges();
+    expect(comp.hasChanges()).toBe(true);
+  });
+
+  it('openStepEdit() sets editingStep; applyStepEdit() applies changes and clears', () => {
+    fixture.detectChanges();
+    comp.addStep();
+    const step = comp.stepNodes()[0];
+    comp.openStepEdit(step);
+    expect(comp.editingStep()).toBe(step);
+    comp.editingName = 'Edited Name';
+    comp.editingType = 'Alternative';
+    comp.editingText = 'Some notes';
+    comp.applyStepEdit();
+    expect(comp.editingStep()).toBeNull();
+    expect(step.name).toBe('Edited Name');
+    expect(step.scenarioType).toBe('Alternative');
+    expect(comp.stepsSaveNeeded()).toBe(true);
+  });
+
+  it('closeStepEdit() clears editingStep without applying changes', () => {
+    fixture.detectChanges();
+    comp.addStep();
+    comp.openStepEdit(comp.stepNodes()[0]);
+    expect(comp.editingStep()).not.toBeNull();
+    comp.closeStepEdit();
+    expect(comp.editingStep()).toBeNull();
+  });
+
+  it('onSubScenarioSelected() appends a scenario-type step node', () => {
+    fixture.detectChanges();
+    comp.onSubScenarioSelected({ id: 99, name: 'Sub Flow', scenarioType: 'Alternative' });
+    expect(comp.stepNodes().length).toBe(1);
+    expect(comp.stepNodes()[0].isScenario).toBe(true);
+    expect(comp.stepNodes()[0].name).toBe('Sub Flow');
+    expect(comp.stepsSaveNeeded()).toBe(true);
+  });
+
+  it('onCopy calls CopyScenario and navigates to the copy', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    const copy = { ...MOCK_SCENARIO, id: 99 };
+    commandServiceMock.execute.mockResolvedValue({ success: true, entity: copy });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cs = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(cs, 'confirm').mockImplementation((conf: any) => conf.accept?.());
+    comp.onCopy();
+    await flush();
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('CopyScenario',
+      expect.objectContaining({ scenarioId: 15 }));
+    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'scenarios', 99]);
+  });
+
+  it('onDelete calls DeleteScenario and navigates to list', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    commandServiceMock.execute.mockResolvedValue({ success: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cs = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(cs, 'confirm').mockImplementation((conf: any) => conf.accept?.());
+    comp.onDelete();
+    await flush();
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('DeleteScenario',
+      expect.objectContaining({ scenarioId: 15 }));
+    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'scenarios']);
+  });
+
+  it('errorMessage set when loadScenario fails', async () => {
+    scenarioServiceMock.getScenario.mockRejectedValue(new Error('Network error'));
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    expect(comp.errorMessage()).toBe('Failed to load scenario.');
+  });
+
+  it('onSave sets errorMessage when command fails', async () => {
+    fixture.detectChanges();
+    await flush();
+    commandServiceMock.execute.mockResolvedValue({ success: false, error: 'Conflict' });
+    comp.name = 'Test';
+    await comp.onSave();
+    expect(comp.errorMessage()).toBe('Conflict');
+    expect(comp.saving()).toBe(false);
+  });
 });

@@ -144,4 +144,98 @@ describe('StakeholderEditorComponent', () => {
       text: 'Financial authority'
     }));
   });
+
+  it('canDelete() set from permissionService on init', async () => {
+    fixture.detectChanges();
+    await flush();
+    expect(permissionServiceMock.canDelete).toHaveBeenCalledWith('Stakeholder');
+    expect(comp.canDelete()).toBe(true);
+  });
+
+  it('canEditGoals() delegates to permissionService.canEdit("Goal")', async () => {
+    fixture.detectChanges();
+    await flush();
+    permissionServiceMock.canEdit.mockClear();
+    const result = comp.canEditGoals();
+    expect(permissionServiceMock.canEdit).toHaveBeenCalledWith('Goal');
+    expect(result).toBe(true);
+  });
+
+  it('loads existing user stakeholder: goals() and loadedUserDetails() populated', async () => {
+    const stakeholderWithGoals = {
+      ...MOCK_STAKEHOLDER_USER,
+      goals: [{ id: 10, name: 'Buy product', entityType: 'Goal' }]
+    };
+    stakeholderServiceMock.getStakeholder.mockResolvedValue(stakeholderWithGoals);
+    paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+    fixture.detectChanges();
+    await flush();
+    expect(stakeholderServiceMock.getStakeholder).toHaveBeenCalledWith('proj1', 50);
+    expect(comp.goals().length).toBe(1);
+    expect(comp.loadedUserDetails()).not.toBeNull();
+    expect(comp.loadedUserDetails()?.username).toBe('alice');
+  });
+
+  it('loads existing non-user stakeholder: isUserType() false and stakeholderName() set', async () => {
+    stakeholderServiceMock.getStakeholder.mockResolvedValue(MOCK_STAKEHOLDER_NONUSER);
+    paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '51' }));
+    fixture.detectChanges();
+    await flush();
+    expect(comp.isUserType()).toBe(false);
+    expect(comp.stakeholderName()).toBe('FASB');
+  });
+
+  it('onGoalSelected calls AddGoalToGoalContainer and updates goals()', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+    fixture.detectChanges();
+    await flush();
+    commandServiceMock.execute.mockResolvedValue({ success: true });
+    await comp.onGoalSelected({ id: 10, name: 'Buy product', entityType: 'Goal' });
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('AddGoalToGoalContainer', expect.objectContaining({
+      projectName: 'proj1',
+      goalContainerId: 50,
+      goalId: 10,
+      containerType: 'Stakeholder'
+    }));
+    expect(comp.goals().some(g => g.id === 10)).toBe(true);
+  });
+
+  it('onRemoveGoal calls RemoveGoalFromGoalContainer and removes from goals()', async () => {
+    const stakeholderWithGoals = {
+      ...MOCK_STAKEHOLDER_USER,
+      goals: [{ id: 10, name: 'Buy product', entityType: 'Goal' }]
+    };
+    stakeholderServiceMock.getStakeholder.mockResolvedValue(stakeholderWithGoals);
+    paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+    fixture.detectChanges();
+    await flush();
+    commandServiceMock.execute.mockResolvedValue({ success: true });
+    await comp.onRemoveGoal({ id: 10, name: 'Buy product', entityType: 'Goal' });
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('RemoveGoalFromGoalContainer', expect.objectContaining({
+      goalId: 10,
+      containerType: 'Stakeholder'
+    }));
+    expect(comp.goals().some(g => g.id === 10)).toBe(false);
+  });
+
+  it('onGoalClick navigates to goal editor', () => {
+    comp.projectName = 'proj1';
+    comp.onGoalClick({ id: 10, name: 'Buy product', entityType: 'Goal' });
+    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'goals', 10]);
+  });
+
+  it('onDelete confirms and calls DeleteStakeholder then navigates', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+    fixture.detectChanges();
+    await flush();
+    commandServiceMock.execute.mockResolvedValue({ success: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cs = fixture.debugElement.injector.get(ConfirmationService);
+    vi.spyOn(cs, 'confirm').mockImplementation((conf: any) => conf.accept?.());
+    comp.onDelete();
+    await flush();
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('DeleteStakeholder',
+      expect.objectContaining({ stakeholderId: 50 }));
+    expect(router.navigate).toHaveBeenCalled();
+  });
 });
