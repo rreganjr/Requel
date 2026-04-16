@@ -535,7 +535,7 @@ Recommended initial policy:
 - Start with unit-test coverage reporting only
 - Review coverage per frontend app rather than trying to combine it with Java coverage
 
-### 3.2 Service tests
+### 3.2 Service tests ✓ DONE
 
 Services are the backbone of the Angular app. Tests mock `HttpClient` using
 `provideHttpClientTesting()` and verify the request/response shape.
@@ -562,7 +562,7 @@ Services are the backbone of the Angular app. Tests mock `HttpClient` using
 | `dirty-check.guard.spec.ts` | Returns `true` when no unsaved changes; shows confirm dialog when `hasUnsavedChanges()` is true |
 | `auth.interceptor.spec.ts` | Attaches `Authorization: Bearer <token>` header; redirects to `/login` on 401 response |
 
-### 3.3 Shared component tests
+### 3.3 Shared component tests ✓ DONE
 
 | Spec file | What to verify |
 |---|---|
