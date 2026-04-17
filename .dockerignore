@@ -1,0 +1,3 @@
+# Exclude everything except the requel-app jar we actually need
+**
+!modules/requel-app/target/requel-app-*.jar

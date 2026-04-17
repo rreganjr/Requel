@@ -50,7 +50,7 @@ import { ListPageComponent } from '../../shared/list-page';
           </tr>
         </ng-template>
         <ng-template #body let-user>
-          <tr [pSelectableRow]="user">
+          <tr [pSelectableRow]="user" [attr.data-username]="user.username">
             <td>{{ user.username }}</td>
             <td>{{ user.name }}</td>
             <td>{{ user.emailAddress }}</td>

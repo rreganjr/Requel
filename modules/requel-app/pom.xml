@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.rreganjr.requel</groupId>
         <artifactId>Requel-parent</artifactId>
-        <version>1.2.0</version>
+        <version>2.0.0-dev</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -175,18 +175,6 @@
                 </executions>
             </plugin>
 
-            <plugin>
-                <groupId>com.spotify</groupId>
-                <artifactId>dockerfile-maven-plugin</artifactId>
-                <version>1.4.13</version>
-                <configuration>
-                    <repository>${docker.image.prefix}/${docker.image.name}</repository>
-                    <tag>${project.version}</tag>
-                    <buildArgs>
-                        <JAR_FILE>target/${project.build.finalName}.jar</JAR_FILE>
-                    </buildArgs>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 
@@ -202,27 +190,33 @@
 
     <profiles>
         <profile>
+            <!-- Build and tag a local Docker image: mvn package -P docker-image -->
+            <!-- Replaces the abandoned com.spotify:dockerfile-maven-plugin (Java 17 incompatible) -->
             <id>docker-image</id>
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>com.spotify</groupId>
-                        <artifactId>dockerfile-maven-plugin</artifactId>
-                        <version>1.4.13</version>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
                         <executions>
                             <execution>
                                 <id>docker-build</id>
                                 <phase>package</phase>
                                 <goals>
-                                    <goal>build</goal>
+                                    <goal>exec</goal>
                                 </goals>
-                            </execution>
-                            <execution>
-                                <id>docker-push</id>
-                                <phase>deploy</phase>
-                                <goals>
-                                    <goal>push</goal>
-                                </goals>
+                                <configuration>
+                                    <executable>docker</executable>
+                                    <arguments>
+                                        <argument>build</argument>
+                                        <argument>-t</argument>
+                                        <argument>${docker.image.prefix}/${docker.image.name}:${project.version}</argument>
+                                        <argument>--build-arg</argument>
+                                        <argument>JAR_FILE=modules/requel-app/target/${project.build.finalName}.jar</argument>
+                                        <argument>${project.basedir}/../..</argument>
+                                    </arguments>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>

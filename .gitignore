@@ -3,6 +3,9 @@ work/
 target/
 .m2/
 
+# Playwright MCP browser tool session artifacts
+/.playwright-mcp/
+
 # Local draft files (not for version control)
 /commit.md
 /ticket.md

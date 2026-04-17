@@ -1,0 +1,1152 @@
+- generic [ref=e4]:
+  - banner [ref=e5]:
+    - link "Requel REQUEL" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - img "Requel" [ref=e7]
+      - generic [ref=e8]: REQUEL
+    - button " Menu" [ref=e11] [cursor=pointer]:
+      - generic [ref=e12]: 
+      - generic [ref=e13]: Menu
+  - generic [ref=e14]:
+    - complementary [ref=e15]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - button " Admin" [expanded] [ref=e19] [cursor=pointer]:
+            - generic [ref=e20]:
+              - generic [ref=e21]: 
+              - text: Admin
+            - img [ref=e22]
+          - region " Admin" [ref=e24]:
+            - generic [ref=e28]:
+              - link "List users" [ref=e29] [cursor=pointer]:
+                - /url: /users
+                - generic [ref=e30]: 
+                - text: List Users
+              - link "Create user" [ref=e31] [cursor=pointer]:
+                - /url: /users/new
+                - generic [ref=e32]: 
+                - text: Create User
+        - generic [ref=e33]:
+          - button " Projects" [expanded] [ref=e34] [cursor=pointer]:
+            - generic [ref=e35]:
+              - generic [ref=e36]: 
+              - text: Projects
+            - img [ref=e37]
+          - region " Projects" [ref=e39]:
+            - generic [ref=e42]:
+              - generic [ref=e43]:
+                - button "New project" [ref=e45] [cursor=pointer]:
+                  - generic [ref=e46]: 
+                  - generic [ref=e47]: New
+                - button "Import project" [ref=e49] [cursor=pointer]:
+                  - generic [ref=e50]: 
+                  - generic [ref=e51]: Import
+                - link "List projects" [ref=e52] [cursor=pointer]:
+                  - /url: /projects
+                  - generic [ref=e53]: 
+                  - text: List
+              - tree [ref=e115]:
+                - treeitem "TestProject" [level=1] [ref=e117]:
+                  - generic [ref=e118] [cursor=pointer]:
+                    - button [ref=e119]:
+                      - img [ref=e120]
+                    - generic [ref=e122]: 
+                    - generic [ref=e123]: TestProject
+                - treeitem "e2e-actors-1776379843706" [level=1] [ref=e125]:
+                  - generic [ref=e126] [cursor=pointer]:
+                    - button [ref=e127]:
+                      - img [ref=e128]
+                    - generic [ref=e130]: 
+                    - generic [ref=e131]: e2e-actors-1776379843706
+                - treeitem "e2e-actors-1776379874446" [level=1] [ref=e133]:
+                  - generic [ref=e134] [cursor=pointer]:
+                    - button [ref=e135]:
+                      - img [ref=e136]
+                    - generic [ref=e138]: 
+                    - generic [ref=e139]: e2e-actors-1776379874446
+                - treeitem "e2e-actors-1776379905351" [level=1] [ref=e141]:
+                  - generic [ref=e142] [cursor=pointer]:
+                    - button [ref=e143]:
+                      - img [ref=e144]
+                    - generic [ref=e146]: 
+                    - generic [ref=e147]: e2e-actors-1776379905351
+                - treeitem "e2e-actors-1776379906907" [level=1] [ref=e149]:
+                  - generic [ref=e150] [cursor=pointer]:
+                    - button [ref=e151]:
+                      - img [ref=e152]
+                    - generic [ref=e154]: 
+                    - generic [ref=e155]: e2e-actors-1776379906907
+                - treeitem "e2e-actors-1776380401024" [level=1] [ref=e157]:
+                  - generic [ref=e158] [cursor=pointer]:
+                    - button [ref=e159]:
+                      - img [ref=e160]
+                    - generic [ref=e162]: 
+                    - generic [ref=e163]: e2e-actors-1776380401024
+                - treeitem "e2e-actors-1776380404822" [level=1] [ref=e165]:
+                  - generic [ref=e166] [cursor=pointer]:
+                    - button [ref=e167]:
+                      - img [ref=e168]
+                    - generic [ref=e170]: 
+                    - generic [ref=e171]: e2e-actors-1776380404822
+                - treeitem "e2e-actors-1776380744662" [level=1] [ref=e173]:
+                  - generic [ref=e174] [cursor=pointer]:
+                    - button [ref=e175]:
+                      - img [ref=e176]
+                    - generic [ref=e178]: 
+                    - generic [ref=e179]: e2e-actors-1776380744662
+                - treeitem "e2e-actors-1776380748144" [level=1] [ref=e181]:
+                  - generic [ref=e182] [cursor=pointer]:
+                    - button [ref=e183]:
+                      - img [ref=e184]
+                    - generic [ref=e186]: 
+                    - generic [ref=e187]: e2e-actors-1776380748144
+                - treeitem "e2e-actors-1776381066841" [level=1] [ref=e189]:
+                  - generic [ref=e190] [cursor=pointer]:
+                    - button [ref=e191]:
+                      - img [ref=e192]
+                    - generic [ref=e194]: 
+                    - generic [ref=e195]: e2e-actors-1776381066841
+                - treeitem "e2e-actors-1776381080352" [level=1] [ref=e197]:
+                  - generic [ref=e198] [cursor=pointer]:
+                    - button [ref=e199]:
+                      - img [ref=e200]
+                    - generic [ref=e202]: 
+                    - generic [ref=e203]: e2e-actors-1776381080352
+                - treeitem "e2e-actors-1776381400572" [level=1] [ref=e205]:
+                  - generic [ref=e206] [cursor=pointer]:
+                    - button [ref=e207]:
+                      - img [ref=e208]
+                    - generic [ref=e210]: 
+                    - generic [ref=e211]: e2e-actors-1776381400572
+                - treeitem "e2e-actors-1776381414551" [level=1] [ref=e213]:
+                  - generic [ref=e214] [cursor=pointer]:
+                    - button [ref=e215]:
+                      - img [ref=e216]
+                    - generic [ref=e218]: 
+                    - generic [ref=e219]: e2e-actors-1776381414551
+                - treeitem "e2e-actors-1776381436052" [level=1] [ref=e221]:
+                  - generic [ref=e222] [cursor=pointer]:
+                    - button [ref=e223]:
+                      - img [ref=e224]
+                    - generic [ref=e226]: 
+                    - generic [ref=e227]: e2e-actors-1776381436052
+                - treeitem "e2e-actors-1776381450055" [level=1] [ref=e229]:
+                  - generic [ref=e230] [cursor=pointer]:
+                    - button [ref=e231]:
+                      - img [ref=e232]
+                    - generic [ref=e234]: 
+                    - generic [ref=e235]: e2e-actors-1776381450055
+                - treeitem "e2e-actors-1776381548020" [level=1] [ref=e237]:
+                  - generic [ref=e238] [cursor=pointer]:
+                    - button [ref=e239]:
+                      - img [ref=e240]
+                    - generic [ref=e242]: 
+                    - generic [ref=e243]: e2e-actors-1776381548020
+                - treeitem "e2e-actors-1776381705672" [level=1] [ref=e245]:
+                  - generic [ref=e246] [cursor=pointer]:
+                    - button [ref=e247]:
+                      - img [ref=e248]
+                    - generic [ref=e250]: 
+                    - generic [ref=e251]: e2e-actors-1776381705672
+                - treeitem "e2e-actors-1776381772755" [level=1] [ref=e253]:
+                  - generic [ref=e254] [cursor=pointer]:
+                    - button [ref=e255]:
+                      - img [ref=e256]
+                    - generic [ref=e258]: 
+                    - generic [ref=e259]: e2e-actors-1776381772755
+                - treeitem "e2e-actors-1776382903685" [level=1] [ref=e261]:
+                  - generic [ref=e262] [cursor=pointer]:
+                    - button [ref=e263]:
+                      - img [ref=e264]
+                    - generic [ref=e266]: 
+                    - generic [ref=e267]: e2e-actors-1776382903685
+                - treeitem "e2e-actors-1776383254602" [level=1] [ref=e269]:
+                  - generic [ref=e270] [cursor=pointer]:
+                    - button [ref=e271]:
+                      - img [ref=e272]
+                    - generic [ref=e274]: 
+                    - generic [ref=e275]: e2e-actors-1776383254602
+                - treeitem "e2e-actors-1776385355978" [level=1] [ref=e277]:
+                  - generic [ref=e278] [cursor=pointer]:
+                    - button [ref=e279]:
+                      - img [ref=e280]
+                    - generic [ref=e282]: 
+                    - generic [ref=e283]: e2e-actors-1776385355978
+                - treeitem "e2e-actors-1776386227614" [level=1] [ref=e285]:
+                  - generic [ref=e286] [cursor=pointer]:
+                    - button [ref=e287]:
+                      - img [ref=e288]
+                    - generic [ref=e290]: 
+                    - generic [ref=e291]: e2e-actors-1776386227614
+                - treeitem "e2e-actors-1776386585571" [level=1] [ref=e293]:
+                  - generic [ref=e294] [cursor=pointer]:
+                    - button [ref=e295]:
+                      - img [ref=e296]
+                    - generic [ref=e298]: 
+                    - generic [ref=e299]: e2e-actors-1776386585571
+                - treeitem "e2e-actors-1776387532653" [level=1] [ref=e301]:
+                  - generic [ref=e302] [cursor=pointer]:
+                    - button [ref=e303]:
+                      - img [ref=e304]
+                    - generic [ref=e306]: 
+                    - generic [ref=e307]: e2e-actors-1776387532653
+                - treeitem "e2e-actors-1776390399219" [level=1] [ref=e309]:
+                  - generic [ref=e310] [cursor=pointer]:
+                    - button [ref=e311]:
+                      - img [ref=e312]
+                    - generic [ref=e314]: 
+                    - generic [ref=e315]: e2e-actors-1776390399219
+                - treeitem "e2e-cancel-1776363853529" [level=1] [ref=e317]:
+                  - generic [ref=e318] [cursor=pointer]:
+                    - button [ref=e319]:
+                      - img [ref=e320]
+                    - generic [ref=e322]: 
+                    - generic [ref=e323]: e2e-cancel-1776363853529
+                - treeitem "e2e-cancel-1776375519292" [level=1] [ref=e325]:
+                  - generic [ref=e326] [cursor=pointer]:
+                    - button [ref=e327]:
+                      - img [ref=e328]
+                    - generic [ref=e330]: 
+                    - generic [ref=e331]: e2e-cancel-1776375519292
+                - treeitem "e2e-cancel-1776375635552" [level=1] [ref=e333]:
+                  - generic [ref=e334] [cursor=pointer]:
+                    - button [ref=e335]:
+                      - img [ref=e336]
+                    - generic [ref=e338]: 
+                    - generic [ref=e339]: e2e-cancel-1776375635552
+                - treeitem "e2e-cancel-1776376864105" [level=1] [ref=e341]:
+                  - generic [ref=e342] [cursor=pointer]:
+                    - button [ref=e343]:
+                      - img [ref=e344]
+                    - generic [ref=e346]: 
+                    - generic [ref=e347]: e2e-cancel-1776376864105
+                - treeitem "e2e-cancel-1776377556154" [level=1] [ref=e349]:
+                  - generic [ref=e350] [cursor=pointer]:
+                    - button [ref=e351]:
+                      - img [ref=e352]
+                    - generic [ref=e354]: 
+                    - generic [ref=e355]: e2e-cancel-1776377556154
+                - treeitem "e2e-cancel-1776378669555" [level=1] [ref=e357]:
+                  - generic [ref=e358] [cursor=pointer]:
+                    - button [ref=e359]:
+                      - img [ref=e360]
+                    - generic [ref=e362]: 
+                    - generic [ref=e363]: e2e-cancel-1776378669555
+                - treeitem "e2e-cancel-1776379945014" [level=1] [ref=e365]:
+                  - generic [ref=e366] [cursor=pointer]:
+                    - button [ref=e367]:
+                      - img [ref=e368]
+                    - generic [ref=e370]: 
+                    - generic [ref=e371]: e2e-cancel-1776379945014
+                - treeitem "e2e-cancel-1776380414681" [level=1] [ref=e373]:
+                  - generic [ref=e374] [cursor=pointer]:
+                    - button [ref=e375]:
+                      - img [ref=e376]
+                    - generic [ref=e378]: 
+                    - generic [ref=e379]: e2e-cancel-1776380414681
+                - treeitem "e2e-cancel-1776380757616" [level=1] [ref=e381]:
+                  - generic [ref=e382] [cursor=pointer]:
+                    - button [ref=e383]:
+                      - img [ref=e384]
+                    - generic [ref=e386]: 
+                    - generic [ref=e387]: e2e-cancel-1776380757616
+                - treeitem "e2e-cancel-1776381089597" [level=1] [ref=e389]:
+                  - generic [ref=e390] [cursor=pointer]:
+                    - button [ref=e391]:
+                      - img [ref=e392]
+                    - generic [ref=e394]: 
+                    - generic [ref=e395]: e2e-cancel-1776381089597
+                - treeitem "e2e-cancel-1776381423925" [level=1] [ref=e397]:
+                  - generic [ref=e398] [cursor=pointer]:
+                    - button [ref=e399]:
+                      - img [ref=e400]
+                    - generic [ref=e402]: 
+                    - generic [ref=e403]: e2e-cancel-1776381423925
+                - treeitem "e2e-cancel-1776381459987" [level=1] [ref=e405]:
+                  - generic [ref=e406] [cursor=pointer]:
+                    - button [ref=e407]:
+                      - img [ref=e408]
+                    - generic [ref=e410]: 
+                    - generic [ref=e411]: e2e-cancel-1776381459987
+                - treeitem "e2e-cancel-1776381561567" [level=1] [ref=e413]:
+                  - generic [ref=e414] [cursor=pointer]:
+                    - button [ref=e415]:
+                      - img [ref=e416]
+                    - generic [ref=e418]: 
+                    - generic [ref=e419]: e2e-cancel-1776381561567
+                - treeitem "e2e-cancel-1776381719846" [level=1] [ref=e421]:
+                  - generic [ref=e422] [cursor=pointer]:
+                    - button [ref=e423]:
+                      - img [ref=e424]
+                    - generic [ref=e426]: 
+                    - generic [ref=e427]: e2e-cancel-1776381719846
+                - treeitem "e2e-cancel-1776381786432" [level=1] [ref=e429]:
+                  - generic [ref=e430] [cursor=pointer]:
+                    - button [ref=e431]:
+                      - img [ref=e432]
+                    - generic [ref=e434]: 
+                    - generic [ref=e435]: e2e-cancel-1776381786432
+                - treeitem "e2e-cancel-1776382918322" [level=1] [ref=e437]:
+                  - generic [ref=e438] [cursor=pointer]:
+                    - button [ref=e439]:
+                      - img [ref=e440]
+                    - generic [ref=e442]: 
+                    - generic [ref=e443]: e2e-cancel-1776382918322
+                - treeitem "e2e-cancel-1776383270149" [level=1] [ref=e445]:
+                  - generic [ref=e446] [cursor=pointer]:
+                    - button [ref=e447]:
+                      - img [ref=e448]
+                    - generic [ref=e450]: 
+                    - generic [ref=e451]: e2e-cancel-1776383270149
+                - treeitem "e2e-cancel-1776385402999" [level=1] [ref=e453]:
+                  - generic [ref=e454] [cursor=pointer]:
+                    - button [ref=e455]:
+                      - img [ref=e456]
+                    - generic [ref=e458]: 
+                    - generic [ref=e459]: e2e-cancel-1776385402999
+                - treeitem "e2e-cancel-1776386245100" [level=1] [ref=e461]:
+                  - generic [ref=e462] [cursor=pointer]:
+                    - button [ref=e463]:
+                      - img [ref=e464]
+                    - generic [ref=e466]: 
+                    - generic [ref=e467]: e2e-cancel-1776386245100
+                - treeitem "e2e-cancel-1776386634852" [level=1] [ref=e469]:
+                  - generic [ref=e470] [cursor=pointer]:
+                    - button [ref=e471]:
+                      - img [ref=e472]
+                    - generic [ref=e474]: 
+                    - generic [ref=e475]: e2e-cancel-1776386634852
+                - treeitem "e2e-cancel-1776387585863" [level=1] [ref=e477]:
+                  - generic [ref=e478] [cursor=pointer]:
+                    - button [ref=e479]:
+                      - img [ref=e480]
+                    - generic [ref=e482]: 
+                    - generic [ref=e483]: e2e-cancel-1776387585863
+                - treeitem "e2e-cancel-1776390453335" [level=1] [ref=e485]:
+                  - generic [ref=e486] [cursor=pointer]:
+                    - button [ref=e487]:
+                      - img [ref=e488]
+                    - generic [ref=e490]: 
+                    - generic [ref=e491]: e2e-cancel-1776390453335
+                - treeitem "e2e-create-1776375516641" [level=1] [ref=e493]:
+                  - generic [ref=e494] [cursor=pointer]:
+                    - button [ref=e495]:
+                      - img [ref=e496]
+                    - generic [ref=e498]: 
+                    - generic [ref=e499]: e2e-create-1776375516641
+                - treeitem "e2e-create-1776377554650" [level=1] [ref=e501]:
+                  - generic [ref=e502] [cursor=pointer]:
+                    - button [ref=e503]:
+                      - img [ref=e504]
+                    - generic [ref=e506]: 
+                    - generic [ref=e507]: e2e-create-1776377554650
+                - treeitem "e2e-create-1776378667947" [level=1] [ref=e509]:
+                  - generic [ref=e510] [cursor=pointer]:
+                    - button [ref=e511]:
+                      - img [ref=e512]
+                    - generic [ref=e514]: 
+                    - generic [ref=e515]: e2e-create-1776378667947
+                - treeitem "e2e-create-1776379913859" [level=1] [ref=e517]:
+                  - generic [ref=e518] [cursor=pointer]:
+                    - button [ref=e519]:
+                      - img [ref=e520]
+                    - generic [ref=e522]: 
+                    - generic [ref=e523]: e2e-create-1776379913859
+                - treeitem "e2e-create-1776380412351" [level=1] [ref=e525]:
+                  - generic [ref=e526] [cursor=pointer]:
+                    - button [ref=e527]:
+                      - img [ref=e528]
+                    - generic [ref=e530]: 
+                    - generic [ref=e531]: e2e-create-1776380412351
+                - treeitem "e2e-create-1776380755578" [level=1] [ref=e533]:
+                  - generic [ref=e534] [cursor=pointer]:
+                    - button [ref=e535]:
+                      - img [ref=e536]
+                    - generic [ref=e538]: 
+                    - generic [ref=e539]: e2e-create-1776380755578
+                - treeitem "e2e-create-1776381087533" [level=1] [ref=e541]:
+                  - generic [ref=e542] [cursor=pointer]:
+                    - button [ref=e543]:
+                      - img [ref=e544]
+                    - generic [ref=e546]: 
+                    - generic [ref=e547]: e2e-create-1776381087533
+                - treeitem "e2e-create-1776381421813" [level=1] [ref=e549]:
+                  - generic [ref=e550] [cursor=pointer]:
+                    - button [ref=e551]:
+                      - img [ref=e552]
+                    - generic [ref=e554]: 
+                    - generic [ref=e555]: e2e-create-1776381421813
+                - treeitem "e2e-create-1776381457824" [level=1] [ref=e557]:
+                  - generic [ref=e558] [cursor=pointer]:
+                    - button [ref=e559]:
+                      - img [ref=e560]
+                    - generic [ref=e562]: 
+                    - generic [ref=e563]: e2e-create-1776381457824
+                - treeitem "e2e-create-1776381559367" [level=1] [ref=e565]:
+                  - generic [ref=e566] [cursor=pointer]:
+                    - button [ref=e567]:
+                      - img [ref=e568]
+                    - generic [ref=e570]: 
+                    - generic [ref=e571]: e2e-create-1776381559367
+                - treeitem "e2e-create-1776381717532" [level=1] [ref=e573]:
+                  - generic [ref=e574] [cursor=pointer]:
+                    - button [ref=e575]:
+                      - img [ref=e576]
+                    - generic [ref=e578]: 
+                    - generic [ref=e579]: e2e-create-1776381717532
+                - treeitem "e2e-create-1776381783966" [level=1] [ref=e581]:
+                  - generic [ref=e582] [cursor=pointer]:
+                    - button [ref=e583]:
+                      - img [ref=e584]
+                    - generic [ref=e586]: 
+                    - generic [ref=e587]: e2e-create-1776381783966
+                - treeitem "e2e-create-1776382915755" [level=1] [ref=e589]:
+                  - generic [ref=e590] [cursor=pointer]:
+                    - button [ref=e591]:
+                      - img [ref=e592]
+                    - generic [ref=e594]: 
+                    - generic [ref=e595]: e2e-create-1776382915755
+                - treeitem "e2e-create-1776383267517" [level=1] [ref=e597]:
+                  - generic [ref=e598] [cursor=pointer]:
+                    - button [ref=e599]:
+                      - img [ref=e600]
+                    - generic [ref=e602]: 
+                    - generic [ref=e603]: e2e-create-1776383267517
+                - treeitem "e2e-create-1776385400210" [level=1] [ref=e605]:
+                  - generic [ref=e606] [cursor=pointer]:
+                    - button [ref=e607]:
+                      - img [ref=e608]
+                    - generic [ref=e610]: 
+                    - generic [ref=e611]: e2e-create-1776385400210
+                - treeitem "e2e-create-1776386242040" [level=1] [ref=e613]:
+                  - generic [ref=e614] [cursor=pointer]:
+                    - button [ref=e615]:
+                      - img [ref=e616]
+                    - generic [ref=e618]: 
+                    - generic [ref=e619]: e2e-create-1776386242040
+                - treeitem "e2e-create-1776386631203" [level=1] [ref=e621]:
+                  - generic [ref=e622] [cursor=pointer]:
+                    - button [ref=e623]:
+                      - img [ref=e624]
+                    - generic [ref=e626]: 
+                    - generic [ref=e627]: e2e-create-1776386631203
+                - treeitem "e2e-create-1776387582360" [level=1] [ref=e629]:
+                  - generic [ref=e630] [cursor=pointer]:
+                    - button [ref=e631]:
+                      - img [ref=e632]
+                    - generic [ref=e634]: 
+                    - generic [ref=e635]: e2e-create-1776387582360
+                - treeitem "e2e-create-1776390449839" [level=1] [ref=e637]:
+                  - generic [ref=e638] [cursor=pointer]:
+                    - button [ref=e639]:
+                      - img [ref=e640]
+                    - generic [ref=e642]: 
+                    - generic [ref=e643]: e2e-create-1776390449839
+                - treeitem "e2e-dirty-1776377586710" [level=1] [ref=e645]:
+                  - generic [ref=e646] [cursor=pointer]:
+                    - button [ref=e647]:
+                      - img [ref=e648]
+                    - generic [ref=e650]: 
+                    - generic [ref=e651]: e2e-dirty-1776377586710
+                - treeitem "e2e-dirty-1776378670567" [level=1] [ref=e653]:
+                  - generic [ref=e654] [cursor=pointer]:
+                    - button [ref=e655]:
+                      - img [ref=e656]
+                    - generic [ref=e658]: 
+                    - generic [ref=e659]: e2e-dirty-1776378670567
+                - treeitem "e2e-dirty-1776379946038" [level=1] [ref=e661]:
+                  - generic [ref=e662] [cursor=pointer]:
+                    - button [ref=e663]:
+                      - img [ref=e664]
+                    - generic [ref=e666]: 
+                    - generic [ref=e667]: e2e-dirty-1776379946038
+                - treeitem "e2e-dirty-1776380415843" [level=1] [ref=e669]:
+                  - generic [ref=e670] [cursor=pointer]:
+                    - button [ref=e671]:
+                      - img [ref=e672]
+                    - generic [ref=e674]: 
+                    - generic [ref=e675]: e2e-dirty-1776380415843
+                - treeitem "e2e-dirty-1776380758727" [level=1] [ref=e677]:
+                  - generic [ref=e678] [cursor=pointer]:
+                    - button [ref=e679]:
+                      - img [ref=e680]
+                    - generic [ref=e682]: 
+                    - generic [ref=e683]: e2e-dirty-1776380758727
+                - treeitem "e2e-dirty-1776381090959" [level=1] [ref=e685]:
+                  - generic [ref=e686] [cursor=pointer]:
+                    - button [ref=e687]:
+                      - img [ref=e688]
+                    - generic [ref=e690]: 
+                    - generic [ref=e691]: e2e-dirty-1776381090959
+                - treeitem "e2e-dirty-1776381425313" [level=1] [ref=e693]:
+                  - generic [ref=e694] [cursor=pointer]:
+                    - button [ref=e695]:
+                      - img [ref=e696]
+                    - generic [ref=e698]: 
+                    - generic [ref=e699]: e2e-dirty-1776381425313
+                - treeitem "e2e-dirty-1776381461435" [level=1] [ref=e701]:
+                  - generic [ref=e702] [cursor=pointer]:
+                    - button [ref=e703]:
+                      - img [ref=e704]
+                    - generic [ref=e706]: 
+                    - generic [ref=e707]: e2e-dirty-1776381461435
+                - treeitem "e2e-dirty-1776381562974" [level=1] [ref=e709]:
+                  - generic [ref=e710] [cursor=pointer]:
+                    - button [ref=e711]:
+                      - img [ref=e712]
+                    - generic [ref=e714]: 
+                    - generic [ref=e715]: e2e-dirty-1776381562974
+                - treeitem "e2e-dirty-1776381721307" [level=1] [ref=e717]:
+                  - generic [ref=e718] [cursor=pointer]:
+                    - button [ref=e719]:
+                      - img [ref=e720]
+                    - generic [ref=e722]: 
+                    - generic [ref=e723]: e2e-dirty-1776381721307
+                - treeitem "e2e-dirty-1776381787925" [level=1] [ref=e725]:
+                  - generic [ref=e726] [cursor=pointer]:
+                    - button [ref=e727]:
+                      - img [ref=e728]
+                    - generic [ref=e730]: 
+                    - generic [ref=e731]: e2e-dirty-1776381787925
+                - treeitem "e2e-dirty-1776382919818" [level=1] [ref=e733]:
+                  - generic [ref=e734] [cursor=pointer]:
+                    - button [ref=e735]:
+                      - img [ref=e736]
+                    - generic [ref=e738]: 
+                    - generic [ref=e739]: e2e-dirty-1776382919818
+                - treeitem "e2e-dirty-1776383271785" [level=1] [ref=e741]:
+                  - generic [ref=e742] [cursor=pointer]:
+                    - button [ref=e743]:
+                      - img [ref=e744]
+                    - generic [ref=e746]: 
+                    - generic [ref=e747]: e2e-dirty-1776383271785
+                - treeitem "e2e-dirty-1776385404677" [level=1] [ref=e749]:
+                  - generic [ref=e750] [cursor=pointer]:
+                    - button [ref=e751]:
+                      - img [ref=e752]
+                    - generic [ref=e754]: 
+                    - generic [ref=e755]: e2e-dirty-1776385404677
+                - treeitem "e2e-dirty-1776386246795" [level=1] [ref=e757]:
+                  - generic [ref=e758] [cursor=pointer]:
+                    - button [ref=e759]:
+                      - img [ref=e760]
+                    - generic [ref=e762]: 
+                    - generic [ref=e763]: e2e-dirty-1776386246795
+                - treeitem "e2e-dirty-1776386636628" [level=1] [ref=e765]:
+                  - generic [ref=e766] [cursor=pointer]:
+                    - button [ref=e767]:
+                      - img [ref=e768]
+                    - generic [ref=e770]: 
+                    - generic [ref=e771]: e2e-dirty-1776386636628
+                - treeitem "e2e-dirty-1776387587559" [level=1] [ref=e773]:
+                  - generic [ref=e774] [cursor=pointer]:
+                    - button [ref=e775]:
+                      - img [ref=e776]
+                    - generic [ref=e778]: 
+                    - generic [ref=e779]: e2e-dirty-1776387587559
+                - treeitem "e2e-dirty-1776390455078" [level=1] [ref=e781]:
+                  - generic [ref=e782] [cursor=pointer]:
+                    - button [ref=e783]:
+                      - img [ref=e784]
+                    - generic [ref=e786]: 
+                    - generic [ref=e787]: e2e-dirty-1776390455078
+                - treeitem "e2e-edit-new-1776375517742" [level=1] [ref=e789]:
+                  - generic [ref=e790] [cursor=pointer]:
+                    - button [ref=e791]:
+                      - img [ref=e792]
+                    - generic [ref=e794]: 
+                    - generic [ref=e795]: e2e-edit-new-1776375517742
+                - treeitem "e2e-edit-new-1776375633962" [level=1] [ref=e797]:
+                  - generic [ref=e798] [cursor=pointer]:
+                    - button [ref=e799]:
+                      - img [ref=e800]
+                    - generic [ref=e802]: 
+                    - generic [ref=e803]: e2e-edit-new-1776375633962
+                - treeitem "e2e-edit-new-1776377555144" [level=1] [ref=e805]:
+                  - generic [ref=e806] [cursor=pointer]:
+                    - button [ref=e807]:
+                      - img [ref=e808]
+                    - generic [ref=e810]: 
+                    - generic [ref=e811]: e2e-edit-new-1776377555144
+                - treeitem "e2e-edit-new-1776378668482" [level=1] [ref=e813]:
+                  - generic [ref=e814] [cursor=pointer]:
+                    - button [ref=e815]:
+                      - img [ref=e816]
+                    - generic [ref=e818]: 
+                    - generic [ref=e819]: e2e-edit-new-1776378668482
+                - treeitem "e2e-edit-new-1776380413169" [level=1] [ref=e821]:
+                  - generic [ref=e822] [cursor=pointer]:
+                    - button [ref=e823]:
+                      - img [ref=e824]
+                    - generic [ref=e826]: 
+                    - generic [ref=e827]: e2e-edit-new-1776380413169
+                - treeitem "e2e-edit-new-1776380756295" [level=1] [ref=e829]:
+                  - generic [ref=e830] [cursor=pointer]:
+                    - button [ref=e831]:
+                      - img [ref=e832]
+                    - generic [ref=e834]: 
+                    - generic [ref=e835]: e2e-edit-new-1776380756295
+                - treeitem "e2e-edit-new-1776381088242" [level=1] [ref=e837]:
+                  - generic [ref=e838] [cursor=pointer]:
+                    - button [ref=e839]:
+                      - img [ref=e840]
+                    - generic [ref=e842]: 
+                    - generic [ref=e843]: e2e-edit-new-1776381088242
+                - treeitem "e2e-edit-new-1776381422553" [level=1] [ref=e845]:
+                  - generic [ref=e846] [cursor=pointer]:
+                    - button [ref=e847]:
+                      - img [ref=e848]
+                    - generic [ref=e850]: 
+                    - generic [ref=e851]: e2e-edit-new-1776381422553
+                - treeitem "e2e-edit-new-1776381458590" [level=1] [ref=e853]:
+                  - generic [ref=e854] [cursor=pointer]:
+                    - button [ref=e855]:
+                      - img [ref=e856]
+                    - generic [ref=e858]: 
+                    - generic [ref=e859]: e2e-edit-new-1776381458590
+                - treeitem "e2e-edit-new-1776381560159" [level=1] [ref=e861]:
+                  - generic [ref=e862] [cursor=pointer]:
+                    - button [ref=e863]:
+                      - img [ref=e864]
+                    - generic [ref=e866]: 
+                    - generic [ref=e867]: e2e-edit-new-1776381560159
+                - treeitem "e2e-edit-new-1776381718362" [level=1] [ref=e869]:
+                  - generic [ref=e870] [cursor=pointer]:
+                    - button [ref=e871]:
+                      - img [ref=e872]
+                    - generic [ref=e874]: 
+                    - generic [ref=e875]: e2e-edit-new-1776381718362
+                - treeitem "e2e-edit-new-1776381784822" [level=1] [ref=e877]:
+                  - generic [ref=e878] [cursor=pointer]:
+                    - button [ref=e879]:
+                      - img [ref=e880]
+                    - generic [ref=e882]: 
+                    - generic [ref=e883]: e2e-edit-new-1776381784822
+                - treeitem "e2e-edit-new-1776382916666" [level=1] [ref=e885]:
+                  - generic [ref=e886] [cursor=pointer]:
+                    - button [ref=e887]:
+                      - img [ref=e888]
+                    - generic [ref=e890]: 
+                    - generic [ref=e891]: e2e-edit-new-1776382916666
+                - treeitem "e2e-edit-new-1776383268485" [level=1] [ref=e893]:
+                  - generic [ref=e894] [cursor=pointer]:
+                    - button [ref=e895]:
+                      - img [ref=e896]
+                    - generic [ref=e898]: 
+                    - generic [ref=e899]: e2e-edit-new-1776383268485
+                - treeitem "e2e-edit-new-1776385401244" [level=1] [ref=e901]:
+                  - generic [ref=e902] [cursor=pointer]:
+                    - button [ref=e903]:
+                      - img [ref=e904]
+                    - generic [ref=e906]: 
+                    - generic [ref=e907]: e2e-edit-new-1776385401244
+                - treeitem "e2e-edit-new-1776386243073" [level=1] [ref=e909]:
+                  - generic [ref=e910] [cursor=pointer]:
+                    - button [ref=e911]:
+                      - img [ref=e912]
+                    - generic [ref=e914]: 
+                    - generic [ref=e915]: e2e-edit-new-1776386243073
+                - treeitem "e2e-edit-new-1776386632677" [level=1] [ref=e917]:
+                  - generic [ref=e918] [cursor=pointer]:
+                    - button [ref=e919]:
+                      - img [ref=e920]
+                    - generic [ref=e922]: 
+                    - generic [ref=e923]: e2e-edit-new-1776386632677
+                - treeitem "e2e-edit-new-1776387583753" [level=1] [ref=e925]:
+                  - generic [ref=e926] [cursor=pointer]:
+                    - button [ref=e927]:
+                      - img [ref=e928]
+                    - generic [ref=e930]: 
+                    - generic [ref=e931]: e2e-edit-new-1776387583753
+                - treeitem "e2e-edit-new-1776390451225" [level=1] [ref=e933]:
+                  - generic [ref=e934] [cursor=pointer]:
+                    - button [ref=e935]:
+                      - img [ref=e936]
+                    - generic [ref=e938]: 
+                    - generic [ref=e939]: e2e-edit-new-1776390451225
+                - treeitem "e2e-edit-orig-1776363823059" [level=1] [ref=e941]:
+                  - generic [ref=e942] [cursor=pointer]:
+                    - button [ref=e943]:
+                      - img [ref=e944]
+                    - generic [ref=e946]: 
+                    - generic [ref=e947]: e2e-edit-orig-1776363823059
+                - treeitem "e2e-edit-orig-1776376833501" [level=1] [ref=e949]:
+                  - generic [ref=e950] [cursor=pointer]:
+                    - button [ref=e951]:
+                      - img [ref=e952]
+                    - generic [ref=e954]: 
+                    - generic [ref=e955]: e2e-edit-orig-1776376833501
+                - treeitem "e2e-edit-orig-1776379914373" [level=1] [ref=e957]:
+                  - generic [ref=e958] [cursor=pointer]:
+                    - button [ref=e959]:
+                      - img [ref=e960]
+                    - generic [ref=e962]: 
+                    - generic [ref=e963]: e2e-edit-orig-1776379914373
+                - treeitem "e2e-goals-1776363637344" [level=1] [ref=e965]:
+                  - generic [ref=e966] [cursor=pointer]:
+                    - button [ref=e967]:
+                      - img [ref=e968]
+                    - generic [ref=e970]: 
+                    - generic [ref=e971]: e2e-goals-1776363637344
+                - treeitem "e2e-goals-1776363668242" [level=1] [ref=e973]:
+                  - generic [ref=e974] [cursor=pointer]:
+                    - button [ref=e975]:
+                      - img [ref=e976]
+                    - generic [ref=e978]: 
+                    - generic [ref=e979]: e2e-goals-1776363668242
+                - treeitem "e2e-goals-1776363699400" [level=1] [ref=e981]:
+                  - generic [ref=e982] [cursor=pointer]:
+                    - button [ref=e983]:
+                      - img [ref=e984]
+                    - generic [ref=e986]: 
+                    - generic [ref=e987]: e2e-goals-1776363699400
+                - treeitem "e2e-goals-1776363730238" [level=1] [ref=e989]:
+                  - generic [ref=e990] [cursor=pointer]:
+                    - button [ref=e991]:
+                      - img [ref=e992]
+                    - generic [ref=e994]: 
+                    - generic [ref=e995]: e2e-goals-1776363730238
+                - treeitem "e2e-goals-1776363761289" [level=1] [ref=e997]:
+                  - generic [ref=e998] [cursor=pointer]:
+                    - button [ref=e999]:
+                      - img [ref=e1000]
+                    - generic [ref=e1002]: 
+                    - generic [ref=e1003]: e2e-goals-1776363761289
+                - treeitem "e2e-goals-1776375391770" [level=1] [ref=e1005]:
+                  - generic [ref=e1006] [cursor=pointer]:
+                    - button [ref=e1007]:
+                      - img [ref=e1008]
+                    - generic [ref=e1010]: 
+                    - generic [ref=e1011]: e2e-goals-1776375391770
+                - treeitem "e2e-goals-1776375422671" [level=1] [ref=e1013]:
+                  - generic [ref=e1014] [cursor=pointer]:
+                    - button [ref=e1015]:
+                      - img [ref=e1016]
+                    - generic [ref=e1018]: 
+                    - generic [ref=e1019]: e2e-goals-1776375422671
+                - treeitem "e2e-goals-1776375453712" [level=1] [ref=e1021]:
+                  - generic [ref=e1022] [cursor=pointer]:
+                    - button [ref=e1023]:
+                      - img [ref=e1024]
+                    - generic [ref=e1026]: 
+                    - generic [ref=e1027]: e2e-goals-1776375453712
+                - treeitem "e2e-goals-1776375484492" [level=1] [ref=e1029]:
+                  - generic [ref=e1030] [cursor=pointer]:
+                    - button [ref=e1031]:
+                      - img [ref=e1032]
+                    - generic [ref=e1034]: 
+                    - generic [ref=e1035]: e2e-goals-1776375484492
+                - treeitem "e2e-goals-1776375598338" [level=1] [ref=e1037]:
+                  - generic [ref=e1038] [cursor=pointer]:
+                    - button [ref=e1039]:
+                      - img [ref=e1040]
+                    - generic [ref=e1042]: 
+                    - generic [ref=e1043]: e2e-goals-1776375598338
+                - treeitem "e2e-goals-1776376797315" [level=1] [ref=e1045]:
+                  - generic [ref=e1046] [cursor=pointer]:
+                    - button [ref=e1047]:
+                      - img [ref=e1048]
+                    - generic [ref=e1050]: 
+                    - generic [ref=e1051]: e2e-goals-1776376797315
+                - treeitem "e2e-goals-1776377550241" [level=1] [ref=e1053]:
+                  - generic [ref=e1054] [cursor=pointer]:
+                    - button [ref=e1055]:
+                      - img [ref=e1056]
+                    - generic [ref=e1058]: 
+                    - generic [ref=e1059]: e2e-goals-1776377550241
+                - treeitem "e2e-goals-1776378663723" [level=1] [ref=e1061]:
+                  - generic [ref=e1062] [cursor=pointer]:
+                    - button [ref=e1063]:
+                      - img [ref=e1064]
+                    - generic [ref=e1066]: 
+                    - generic [ref=e1067]: e2e-goals-1776378663723
+                - treeitem "e2e-goals-1776379909704" [level=1] [ref=e1069]:
+                  - generic [ref=e1070] [cursor=pointer]:
+                    - button [ref=e1071]:
+                      - img [ref=e1072]
+                    - generic [ref=e1074]: 
+                    - generic [ref=e1075]: e2e-goals-1776379909704
+                - treeitem "e2e-goals-1776380407759" [level=1] [ref=e1077]:
+                  - generic [ref=e1078] [cursor=pointer]:
+                    - button [ref=e1079]:
+                      - img [ref=e1080]
+                    - generic [ref=e1082]: 
+                    - generic [ref=e1083]: e2e-goals-1776380407759
+                - treeitem "e2e-goals-1776380750944" [level=1] [ref=e1085]:
+                  - generic [ref=e1086] [cursor=pointer]:
+                    - button [ref=e1087]:
+                      - img [ref=e1088]
+                    - generic [ref=e1090]: 
+                    - generic [ref=e1091]: e2e-goals-1776380750944
+                - treeitem "e2e-goals-1776381083121" [level=1] [ref=e1093]:
+                  - generic [ref=e1094] [cursor=pointer]:
+                    - button [ref=e1095]:
+                      - img [ref=e1096]
+                    - generic [ref=e1098]: 
+                    - generic [ref=e1099]: e2e-goals-1776381083121
+                - treeitem "e2e-goals-1776381417311" [level=1] [ref=e1101]:
+                  - generic [ref=e1102] [cursor=pointer]:
+                    - button [ref=e1103]:
+                      - img [ref=e1104]
+                    - generic [ref=e1106]: 
+                    - generic [ref=e1107]: e2e-goals-1776381417311
+                - treeitem "e2e-goals-1776381453044" [level=1] [ref=e1109]:
+                  - generic [ref=e1110] [cursor=pointer]:
+                    - button [ref=e1111]:
+                      - img [ref=e1112]
+                    - generic [ref=e1114]: 
+                    - generic [ref=e1115]: e2e-goals-1776381453044
+                - treeitem "e2e-goals-1776381554719" [level=1] [ref=e1117]:
+                  - generic [ref=e1118] [cursor=pointer]:
+                    - button [ref=e1119]:
+                      - img [ref=e1120]
+                    - generic [ref=e1122]: 
+                    - generic [ref=e1123]: e2e-goals-1776381554719
+                - treeitem "e2e-goals-1776381712848" [level=1] [ref=e1125]:
+                  - generic [ref=e1126] [cursor=pointer]:
+                    - button [ref=e1127]:
+                      - img [ref=e1128]
+                    - generic [ref=e1130]: 
+                    - generic [ref=e1131]: e2e-goals-1776381712848
+                - treeitem "e2e-goals-1776381779249" [level=1] [ref=e1133]:
+                  - generic [ref=e1134] [cursor=pointer]:
+                    - button [ref=e1135]:
+                      - img [ref=e1136]
+                    - generic [ref=e1138]: 
+                    - generic [ref=e1139]: e2e-goals-1776381779249
+                - treeitem "e2e-goals-1776382910960" [level=1] [ref=e1141]:
+                  - generic [ref=e1142] [cursor=pointer]:
+                    - button [ref=e1143]:
+                      - img [ref=e1144]
+                    - generic [ref=e1146]: 
+                    - generic [ref=e1147]: e2e-goals-1776382910960
+                - treeitem "e2e-goals-1776383261891" [level=1] [ref=e1149]:
+                  - generic [ref=e1150] [cursor=pointer]:
+                    - button [ref=e1151]:
+                      - img [ref=e1152]
+                    - generic [ref=e1154]: 
+                    - generic [ref=e1155]: e2e-goals-1776383261891
+                - treeitem "e2e-goals-1776385395345" [level=1] [ref=e1157]:
+                  - generic [ref=e1158] [cursor=pointer]:
+                    - button [ref=e1159]:
+                      - img [ref=e1160]
+                    - generic [ref=e1162]: 
+                    - generic [ref=e1163]: e2e-goals-1776385395345
+                - treeitem "e2e-goals-1776386236802" [level=1] [ref=e1165]:
+                  - generic [ref=e1166] [cursor=pointer]:
+                    - button [ref=e1167]:
+                      - img [ref=e1168]
+                    - generic [ref=e1170]: 
+                    - generic [ref=e1171]: e2e-goals-1776386236802
+                - treeitem "e2e-goals-1776386625096" [level=1] [ref=e1173]:
+                  - generic [ref=e1174] [cursor=pointer]:
+                    - button [ref=e1175]:
+                      - img [ref=e1176]
+                    - generic [ref=e1178]: 
+                    - generic [ref=e1179]: e2e-goals-1776386625096
+                - treeitem "e2e-goals-1776387577006" [level=1] [ref=e1181]:
+                  - generic [ref=e1182] [cursor=pointer]:
+                    - button [ref=e1183]:
+                      - img [ref=e1184]
+                    - generic [ref=e1186]: 
+                    - generic [ref=e1187]: e2e-goals-1776387577006
+                - treeitem "e2e-goals-1776390444243" [level=1] [ref=e1189]:
+                  - generic [ref=e1190] [cursor=pointer]:
+                    - button [ref=e1191]:
+                      - img [ref=e1192]
+                    - generic [ref=e1194]: 
+                    - generic [ref=e1195]: e2e-goals-1776390444243
+                - treeitem "e2e-scenarios-1776381722348" [level=1] [ref=e1197]:
+                  - generic [ref=e1198] [cursor=pointer]:
+                    - button [ref=e1199]:
+                      - img [ref=e1200]
+                    - generic [ref=e1202]: 
+                    - generic [ref=e1203]: e2e-scenarios-1776381722348
+                - treeitem "e2e-scenarios-1776381788989" [level=1] [ref=e1205]:
+                  - generic [ref=e1206] [cursor=pointer]:
+                    - button [ref=e1207]:
+                      - img [ref=e1208]
+                    - generic [ref=e1210]: 
+                    - generic [ref=e1211]: e2e-scenarios-1776381788989
+                - treeitem "e2e-scenarios-1776382921010" [level=1] [ref=e1213]:
+                  - generic [ref=e1214] [cursor=pointer]:
+                    - button [ref=e1215]:
+                      - img [ref=e1216]
+                    - generic [ref=e1218]: 
+                    - generic [ref=e1219]: e2e-scenarios-1776382921010
+                - treeitem "e2e-scenarios-1776383272977" [level=1] [ref=e1221]:
+                  - generic [ref=e1222] [cursor=pointer]:
+                    - button [ref=e1223]:
+                      - img [ref=e1224]
+                    - generic [ref=e1226]: 
+                    - generic [ref=e1227]: e2e-scenarios-1776383272977
+                - treeitem "e2e-scenarios-1776385405873" [level=1] [ref=e1229]:
+                  - generic [ref=e1230] [cursor=pointer]:
+                    - button [ref=e1231]:
+                      - img [ref=e1232]
+                    - generic [ref=e1234]: 
+                    - generic [ref=e1235]: e2e-scenarios-1776385405873
+                - treeitem "e2e-scenarios-1776386247956" [level=1] [ref=e1237]:
+                  - generic [ref=e1238] [cursor=pointer]:
+                    - button [ref=e1239]:
+                      - img [ref=e1240]
+                    - generic [ref=e1242]: 
+                    - generic [ref=e1243]: e2e-scenarios-1776386247956
+                - treeitem "e2e-scenarios-1776386637943" [level=1] [ref=e1245]:
+                  - generic [ref=e1246] [cursor=pointer]:
+                    - button [ref=e1247]:
+                      - img [ref=e1248]
+                    - generic [ref=e1250]: 
+                    - generic [ref=e1251]: e2e-scenarios-1776386637943
+                - treeitem "e2e-scenarios-1776387588817" [level=1] [ref=e1253]:
+                  - generic [ref=e1254] [cursor=pointer]:
+                    - button [ref=e1255]:
+                      - img [ref=e1256]
+                    - generic [ref=e1258]: 
+                    - generic [ref=e1259]: e2e-scenarios-1776387588817
+                - treeitem "e2e-scenarios-1776390456389" [level=1] [ref=e1261]:
+                  - generic [ref=e1262] [cursor=pointer]:
+                    - button [ref=e1263]:
+                      - img [ref=e1264]
+                    - generic [ref=e1266]: 
+                    - generic [ref=e1267]: e2e-scenarios-1776390456389
+                - treeitem "e2e-stories-1776379946992" [level=1] [ref=e1269]:
+                  - generic [ref=e1270] [cursor=pointer]:
+                    - button [ref=e1271]:
+                      - img [ref=e1272]
+                    - generic [ref=e1274]: 
+                    - generic [ref=e1275]: e2e-stories-1776379946992
+                - treeitem "e2e-stories-1776380416794" [level=1] [ref=e1277]:
+                  - generic [ref=e1278] [cursor=pointer]:
+                    - button [ref=e1279]:
+                      - img [ref=e1280]
+                    - generic [ref=e1282]: 
+                    - generic [ref=e1283]: e2e-stories-1776380416794
+                - treeitem "e2e-stories-1776380759663" [level=1] [ref=e1285]:
+                  - generic [ref=e1286] [cursor=pointer]:
+                    - button [ref=e1287]:
+                      - img [ref=e1288]
+                    - generic [ref=e1290]: 
+                    - generic [ref=e1291]: e2e-stories-1776380759663
+                - treeitem "e2e-stories-1776381091882" [level=1] [ref=e1293]:
+                  - generic [ref=e1294] [cursor=pointer]:
+                    - button [ref=e1295]:
+                      - img [ref=e1296]
+                    - generic [ref=e1298]: 
+                    - generic [ref=e1299]: e2e-stories-1776381091882
+                - treeitem "e2e-stories-1776381426275" [level=1] [ref=e1301]:
+                  - generic [ref=e1302] [cursor=pointer]:
+                    - button [ref=e1303]:
+                      - img [ref=e1304]
+                    - generic [ref=e1306]: 
+                    - generic [ref=e1307]: e2e-stories-1776381426275
+                - treeitem "e2e-stories-1776381462443" [level=1] [ref=e1309]:
+                  - generic [ref=e1310] [cursor=pointer]:
+                    - button [ref=e1311]:
+                      - img [ref=e1312]
+                    - generic [ref=e1314]: 
+                    - generic [ref=e1315]: e2e-stories-1776381462443
+                - treeitem "e2e-stories-1776381563962" [level=1] [ref=e1317]:
+                  - generic [ref=e1318] [cursor=pointer]:
+                    - button [ref=e1319]:
+                      - img [ref=e1320]
+                    - generic [ref=e1322]: 
+                    - generic [ref=e1323]: e2e-stories-1776381563962
+                - treeitem "e2e-stories-1776381728057" [level=1] [ref=e1325]:
+                  - generic [ref=e1326] [cursor=pointer]:
+                    - button [ref=e1327]:
+                      - img [ref=e1328]
+                    - generic [ref=e1330]: 
+                    - generic [ref=e1331]: e2e-stories-1776381728057
+                - treeitem "e2e-stories-1776381794823" [level=1] [ref=e1333]:
+                  - generic [ref=e1334] [cursor=pointer]:
+                    - button [ref=e1335]:
+                      - img [ref=e1336]
+                    - generic [ref=e1338]: 
+                    - generic [ref=e1339]: e2e-stories-1776381794823
+                - treeitem "e2e-stories-1776382926891" [level=1] [ref=e1341]:
+                  - generic [ref=e1342] [cursor=pointer]:
+                    - button [ref=e1343]:
+                      - img [ref=e1344]
+                    - generic [ref=e1346]: 
+                    - generic [ref=e1347]: e2e-stories-1776382926891
+                - treeitem "e2e-stories-1776383278982" [level=1] [ref=e1349]:
+                  - generic [ref=e1350] [cursor=pointer]:
+                    - button [ref=e1351]:
+                      - img [ref=e1352]
+                    - generic [ref=e1354]: 
+                    - generic [ref=e1355]: e2e-stories-1776383278982
+                - treeitem "e2e-stories-1776385411886" [level=1] [ref=e1357]:
+                  - generic [ref=e1358] [cursor=pointer]:
+                    - button [ref=e1359]:
+                      - img [ref=e1360]
+                    - generic [ref=e1362]: 
+                    - generic [ref=e1363]: e2e-stories-1776385411886
+                - treeitem "e2e-stories-1776386254561" [level=1] [ref=e1365]:
+                  - generic [ref=e1366] [cursor=pointer]:
+                    - button [ref=e1367]:
+                      - img [ref=e1368]
+                    - generic [ref=e1370]: 
+                    - generic [ref=e1371]: e2e-stories-1776386254561
+                - treeitem "e2e-stories-1776386643891" [level=1] [ref=e1373]:
+                  - generic [ref=e1374] [cursor=pointer]:
+                    - button [ref=e1375]:
+                      - img [ref=e1376]
+                    - generic [ref=e1378]: 
+                    - generic [ref=e1379]: e2e-stories-1776386643891
+                - treeitem "e2e-stories-1776387593560" [level=1] [ref=e1381]:
+                  - generic [ref=e1382] [cursor=pointer]:
+                    - button [ref=e1383]:
+                      - img [ref=e1384]
+                    - generic [ref=e1386]: 
+                    - generic [ref=e1387]: e2e-stories-1776387593560
+                - treeitem "e2e-stories-1776390461868" [level=1] [ref=e1389]:
+                  - generic [ref=e1390] [cursor=pointer]:
+                    - button [ref=e1391]:
+                      - img [ref=e1392]
+                    - generic [ref=e1394]: 
+                    - generic [ref=e1395]: e2e-stories-1776390461868
+                - treeitem "e2e-uc-api-test-1" [level=1] [ref=e1397]:
+                  - generic [ref=e1398] [cursor=pointer]:
+                    - button [ref=e1399]:
+                      - img [ref=e1400]
+                    - generic [ref=e1402]: 
+                    - generic [ref=e1403]: e2e-uc-api-test-1
+                - treeitem "e2e-use-cases-1776381734298" [level=1] [ref=e1405]:
+                  - generic [ref=e1406] [cursor=pointer]:
+                    - button [ref=e1407]:
+                      - img [ref=e1408]
+                    - generic [ref=e1410]: 
+                    - generic [ref=e1411]: e2e-use-cases-1776381734298
+                - treeitem "e2e-use-cases-1776381764801" [level=1] [ref=e1413]:
+                  - generic [ref=e1414] [cursor=pointer]:
+                    - button [ref=e1415]:
+                      - img [ref=e1416]
+                    - generic [ref=e1418]: 
+                    - generic [ref=e1419]: e2e-use-cases-1776381764801
+                - treeitem "e2e-use-cases-1776381765501" [level=1] [ref=e1421]:
+                  - generic [ref=e1422] [cursor=pointer]:
+                    - button [ref=e1423]:
+                      - img [ref=e1424]
+                    - generic [ref=e1426]: 
+                    - generic [ref=e1427]: e2e-use-cases-1776381765501
+                - treeitem "e2e-use-cases-1776381766199" [level=1] [ref=e1429]:
+                  - generic [ref=e1430] [cursor=pointer]:
+                    - button [ref=e1431]:
+                      - img [ref=e1432]
+                    - generic [ref=e1434]: 
+                    - generic [ref=e1435]: e2e-use-cases-1776381766199
+                - treeitem "e2e-use-cases-1776381801229" [level=1] [ref=e1437]:
+                  - generic [ref=e1438] [cursor=pointer]:
+                    - button [ref=e1439]:
+                      - img [ref=e1440]
+                    - generic [ref=e1442]: 
+                    - generic [ref=e1443]: e2e-use-cases-1776381801229
+                - treeitem "e2e-use-cases-1776381831783" [level=1] [ref=e1445]:
+                  - generic [ref=e1446] [cursor=pointer]:
+                    - button [ref=e1447]:
+                      - img [ref=e1448]
+                    - generic [ref=e1450]: 
+                    - generic [ref=e1451]: e2e-use-cases-1776381831783
+                - treeitem "e2e-use-cases-1776381832503" [level=1] [ref=e1453]:
+                  - generic [ref=e1454] [cursor=pointer]:
+                    - button [ref=e1455]:
+                      - img [ref=e1456]
+                    - generic [ref=e1458]: 
+                    - generic [ref=e1459]: e2e-use-cases-1776381832503
+                - treeitem "e2e-use-cases-1776381833215" [level=1] [ref=e1461]:
+                  - generic [ref=e1462] [cursor=pointer]:
+                    - button [ref=e1463]:
+                      - img [ref=e1464]
+                    - generic [ref=e1466]: 
+                    - generic [ref=e1467]: e2e-use-cases-1776381833215
+                - treeitem "e2e-use-cases-1776382932364" [level=1] [ref=e1469]:
+                  - generic [ref=e1470] [cursor=pointer]:
+                    - button [ref=e1471]:
+                      - img [ref=e1472]
+                    - generic [ref=e1474]: 
+                    - generic [ref=e1475]: e2e-use-cases-1776382932364
+                - treeitem "e2e-use-cases-1776383285140" [level=1] [ref=e1477]:
+                  - generic [ref=e1478] [cursor=pointer]:
+                    - button [ref=e1479]:
+                      - img [ref=e1480]
+                    - generic [ref=e1482]: 
+                    - generic [ref=e1483]: e2e-use-cases-1776383285140
+                - treeitem "e2e-use-cases-1776385418175" [level=1] [ref=e1485]:
+                  - generic [ref=e1486] [cursor=pointer]:
+                    - button [ref=e1487]:
+                      - img [ref=e1488]
+                    - generic [ref=e1490]: 
+                    - generic [ref=e1491]: e2e-use-cases-1776385418175
+                - treeitem "e2e-use-cases-1776386260958" [level=1] [ref=e1493]:
+                  - generic [ref=e1494] [cursor=pointer]:
+                    - button [ref=e1495]:
+                      - img [ref=e1496]
+                    - generic [ref=e1498]: 
+                    - generic [ref=e1499]: e2e-use-cases-1776386260958
+                - treeitem "e2e-use-cases-1776386649783" [level=1] [ref=e1501]:
+                  - generic [ref=e1502] [cursor=pointer]:
+                    - button [ref=e1503]:
+                      - img [ref=e1504]
+                    - generic [ref=e1506]: 
+                    - generic [ref=e1507]: e2e-use-cases-1776386649783
+                - treeitem "e2e-use-cases-1776387600107" [level=1] [ref=e1509]:
+                  - generic [ref=e1510] [cursor=pointer]:
+                    - button [ref=e1511]:
+                      - img [ref=e1512]
+                    - generic [ref=e1514]: 
+                    - generic [ref=e1515]: e2e-use-cases-1776387600107
+                - treeitem "e2e-use-cases-1776390467957" [level=1] [ref=e1517]:
+                  - generic [ref=e1518] [cursor=pointer]:
+                    - button [ref=e1519]:
+                      - img [ref=e1520]
+                    - generic [ref=e1522]: 
+                    - generic [ref=e1523]: e2e-use-cases-1776390467957
+    - main [ref=e55]:
+      - generic [ref=e57]:
+        - heading "New User" [level=2] [ref=e58]
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - generic [ref=e61]:
+              - generic [ref=e62]: Username
+              - textbox "Username" [ref=e63]
+            - generic [ref=e64]:
+              - generic [ref=e65]: Name
+              - textbox "Name" [ref=e66]
+            - generic [ref=e67]:
+              - generic [ref=e68]: Email
+              - textbox "Email" [ref=e69]
+            - generic [ref=e70]:
+              - generic [ref=e71]: Phone
+              - textbox "Phone" [ref=e72]
+            - generic [ref=e73]:
+              - generic [ref=e74]: Organization
+              - generic [ref=e75] [cursor=pointer]:
+                - textbox "Select or type organization" [ref=e76]
+                - button "dropdown trigger" [ref=e77]:
+                  - img [ref=e78]
+            - generic [ref=e80]:
+              - generic [ref=e81]: Password
+              - generic [ref=e82]:
+                - textbox [ref=e83]
+                - img [ref=e84]
+            - generic [ref=e86]:
+              - generic [ref=e87]: Confirm Password
+              - generic [ref=e88]:
+                - textbox [ref=e89]
+                - img [ref=e90]
+          - generic [ref=e92]:
+            - heading "Roles & Permissions" [level=3] [ref=e93]
+            - generic [ref=e95] [cursor=pointer]:
+              - checkbox "Project" [ref=e97]
+              - text: Project
+            - generic [ref=e100] [cursor=pointer]:
+              - checkbox "System Admin" [ref=e102]
+              - text: System Admin
+          - generic [ref=e104]:
+            - button " Save" [disabled] [ref=e106]:
+              - generic [ref=e107]: 
+              - generic [ref=e108]: Save
+            - button " Cancel" [ref=e110] [cursor=pointer]:
+              - generic [ref=e111]: 
+              - generic [ref=e112]: Cancel

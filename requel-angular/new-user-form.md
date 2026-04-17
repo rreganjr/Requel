@@ -1,0 +1,43 @@
+- generic [ref=e4]:
+  - banner [ref=e5]:
+    - link "Requel REQUEL" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - img "Requel" [ref=e7]
+      - generic [ref=e8]: REQUEL
+    - button " Menu" [ref=e11] [cursor=pointer]:
+      - generic [ref=e12]: 
+      - generic [ref=e13]: Menu
+  - generic [ref=e14]:
+    - complementary [ref=e15]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - button " Admin" [expanded] [ref=e19] [cursor=pointer]:
+            - generic [ref=e20]
+            - img [ref=e22]
+          - region " Admin" [ref=e24]:
+            - generic [ref=e28]
+        - generic [ref=e33]:
+          - button " Projects" [expanded] [ref=e34] [cursor=pointer]:
+            - generic [ref=e35]
+            - img [ref=e37]
+          - region " Projects" [ref=e39]:
+            - generic [ref=e42]
+    - main [ref=e55]:
+      - generic [ref=e57]:
+        - heading "New User" [level=2] [ref=e58]
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - generic [ref=e61]
+            - generic [ref=e64]
+            - generic [ref=e67]
+            - generic [ref=e70]
+            - generic [ref=e73]
+            - generic [ref=e80]
+            - generic [ref=e86]
+          - generic [ref=e92]:
+            - heading "Roles & Permissions" [level=3] [ref=e93]
+            - generic [ref=e95] [cursor=pointer]
+            - generic [ref=e100] [cursor=pointer]
+          - generic [ref=e104]:
+            - button " Save" [disabled] [ref=e106]
+            - button " Cancel" [ref=e110] [cursor=pointer]
