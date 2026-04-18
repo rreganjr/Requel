@@ -27,15 +27,20 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.GlossaryTermImpl;
@@ -49,7 +54,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editGlossaryTermCommand")
 @Scope("prototype")
 public class EditGlossaryTermCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditGlossaryTermCommand {
+		EditGlossaryTermCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Set<ProjectOrDomainEntity> referers;
 	private Set<ProjectOrDomainEntity> addReferers;
@@ -204,5 +209,21 @@ public class EditGlossaryTermCommandImpl extends AbstractEditProjectOrDomainEnti
 		if (isAnalysisEnabled()) {
 			// TODO: analyze the glossary term?
 		}
+	}
+
+	@Override
+	public Project getProject() {
+		if (getProjectOrDomain() instanceof Project project) {
+			return project;
+		}
+		if (glossaryTerm != null && glossaryTerm.getProjectOrDomain() instanceof Project project) {
+			return project;
+		}
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(GlossaryTerm.class, "Edit");
 	}
 }

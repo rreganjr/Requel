@@ -64,6 +64,7 @@ import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.StakeholderPermission;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.Story;
+import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.EditProjectCommand;
@@ -176,6 +177,24 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 					new Object[] { pod, name });
 		} catch (Exception e) {
 			throw convertException(e, Scenario.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
+	@Override
+	public Step findStepByProjectOrDomainAndName(ProjectOrDomain pod, String name)
+			throws NoSuchEntityException {
+		try {
+			Query query = getEntityManager()
+					.createQuery(
+							"select object(step) from StepImpl as step where step.projectOrDomain = :projectOrDomain and step.name like :name");
+			query.setParameter("projectOrDomain", pod);
+			query.setParameter("name", name.trim());
+			return (Step) query.getSingleResult();
+		} catch (NoResultException e) {
+			throw NoSuchEntityException.byQuery(Step.class, new String[] { "project", "name" },
+					new Object[] { pod, name });
+		} catch (Exception e) {
+			throw convertException(e, Step.class, null, EntityExceptionActionType.Reading);
 		}
 	}
 

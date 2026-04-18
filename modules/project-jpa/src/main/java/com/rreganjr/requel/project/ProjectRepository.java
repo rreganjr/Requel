@@ -95,6 +95,18 @@ public interface ProjectRepository extends Repository {
 			String name) throws NoSuchEntityException;
 
 	/**
+	 * @param projectOrDomain -
+	 *            the project or domain that contains the step.
+	 * @param name -
+	 *            the name of the step or scenario.
+	 * @return the step with the supplied name for the supplied project.
+	 * @throws NoSuchEntityException -
+	 *             if a step does not exist for the project or domain and name.
+	 */
+	public Step findStepByProjectOrDomainAndName(ProjectOrDomain projectOrDomain,
+			String name) throws NoSuchEntityException;
+
+	/**
 	 * @param usecase
 	 * @return THe scenarios used by the supplied usecase
 	 */

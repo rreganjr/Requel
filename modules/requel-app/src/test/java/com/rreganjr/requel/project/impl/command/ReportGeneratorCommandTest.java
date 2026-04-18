@@ -21,6 +21,7 @@
 package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.AbstractIntegrationTestCase;
+import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.command.DeleteReportGeneratorCommand;
@@ -92,6 +93,42 @@ public class ReportGeneratorCommandTest extends AbstractIntegrationTestCase {
         assertTrue(reloaded.getReportGenerators().stream()
                         .anyMatch(r -> "Summary Report".equals(r.getName())),
                 "report generator should appear in project's report generators");
+    }
+
+    @Test
+    public void editExistingReportGenerator() throws Exception {
+        Project project = createProject("Report-edit");
+        ReportGenerator original = createReportGenerator(project, "Editable Report");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        EditReportGeneratorCommand cmd = getProjectCommandFactory().newEditReportGeneratorCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectOrDomain(project);
+        cmd.setReportGenerator(original);
+        cmd.setName("Editable Report Updated");
+        cmd.setText("<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"><xsl:template match=\"/\"><updated/></xsl:template></xsl:stylesheet>");
+        cmd = getCommandHandler().execute(cmd);
+
+        ReportGenerator updated = cmd.getReportGenerator();
+        assertEquals(original.getId(), updated.getId(), "edit should update the same report generator");
+        assertEquals("Editable Report Updated", updated.getName(), "name should be updated");
+        assertTrue(updated.getText().contains("<updated/>"), "updated XSLT should be saved");
+    }
+
+    @Test
+    public void duplicateReportGeneratorNameIsRejected() throws Exception {
+        Project project = createProject("Report-duplicate");
+        createReportGenerator(project, "Existing Report");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        EditReportGeneratorCommand cmd = getProjectCommandFactory().newEditReportGeneratorCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectOrDomain(project);
+        cmd.setName("Existing Report");
+        cmd.setText(MINIMAL_XSLT);
+
+        assertThrows(EntityException.class, () -> getCommandHandler().execute(cmd),
+                "creating a duplicate report generator name should fail");
     }
 
     // -------------------------------------------------------------------------

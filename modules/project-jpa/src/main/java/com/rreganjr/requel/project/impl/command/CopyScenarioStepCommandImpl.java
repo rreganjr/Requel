@@ -102,8 +102,8 @@ public class CopyScenarioStepCommandImpl extends AbstractEditProjectCommand impl
 		} else {
 			newName = generateNewScenarioStepName(getNewScenarioStepName());
 		}
-		StepImpl newScenarioStep = getProjectRepository().persist(
-				new StepImpl(originalScenarioStep.getProjectOrDomain(), editedBy, newName,
+		StepImpl newScenarioStep = getProjectRepository()
+				.persist(new StepImpl(originalScenarioStep.getProjectOrDomain(), editedBy, newName,
 						originalScenarioStep.getText(), originalScenarioStep.getType()));
 
 		// TODO: this assumes that all annotations are appropriate for the new
@@ -123,18 +123,17 @@ public class CopyScenarioStepCommandImpl extends AbstractEditProjectCommand impl
 	private String generateNewScenarioStepName(String originalName) {
 		String newName = originalName;
 		try {
-			getProjectRepository().findScenarioByProjectOrDomainAndName(
+			getProjectRepository().findStepByProjectOrDomainAndName(
 					getOriginalScenarioStep().getProjectOrDomain(), newName);
 			int counter = 1;
 			newName = originalName + " " + counter;
 			while (true) {
 				try {
-					getProjectRepository().findScenarioByProjectOrDomainAndName(
+					getProjectRepository().findStepByProjectOrDomainAndName(
 							getOriginalScenarioStep().getProjectOrDomain(), newName);
 					counter++;
 					newName = originalName + " " + counter;
 				} catch (EntityException e) {
-					// new name is not in use
 					break;
 				}
 			}

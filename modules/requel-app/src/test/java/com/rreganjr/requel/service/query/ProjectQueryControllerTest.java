@@ -20,34 +20,46 @@
  */
 package com.rreganjr.requel.service.query;
 
+import java.util.List;
 import java.util.Collections;
+import java.util.SortedSet;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.rreganjr.command.CommandHandler;
+import com.rreganjr.requel.annotation.Annotation;
+import com.rreganjr.requel.annotation.impl.IssueImpl;
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ReportGenerator;
+import com.rreganjr.requel.project.ScenarioType;
+import com.rreganjr.requel.project.StakeholderPermission;
+import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryType;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.UserStakeholder;
+import com.rreganjr.requel.project.command.ExportProjectCommand;
+import com.rreganjr.requel.project.command.GenerateReportCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
@@ -56,20 +68,6 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 
 /**
  * Web-layer tests for {@link ProjectQueryController}.
- *
- * Uses {@code @SpringBootTest(webEnvironment=MOCK)} for the same reason as
- * {@code CommandControllerTest}: the application's XML-imported component scan
- * pulls in JPA-dependent beans that {@code @WebMvcTest} cannot satisfy.
- *
- * All repository and service collaborators are mocked. The controller's
- * domain-to-DTO mapping logic is the primary thing under test.
- *
- * The controller has many endpoints that share the same structure:
- *   findProjectByName → requireProjectAccess → map entities → sort → 200
- * Access control errors (404 / 403) are tested once on getProject and
- * confirmed to apply uniformly via the shared requireProjectAccess helper.
- * Entity-specific shape (DTO fields, sort order) is verified for goals,
- * actors, stories, use cases, and scenarios as representatives of the pattern.
  *
  * Scenarios covered:
  * - listProjects: project user sees their active projects sorted by name
@@ -87,17 +85,15 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
  * - listScenarios: 200 with scenarios sorted by name
  * - listStakeholders: 200 with stakeholder list
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@WithMockUser
 class ProjectQueryControllerTest {
 
-    @Autowired MockMvc mockMvc;
+    private MockMvc mockMvc;
 
-    @MockBean ProjectRepository projectRepository;
-    @MockBean ProjectCommandFactory projectCommandFactory;
-    @MockBean CurrentUserResolver currentUserResolver;
+    private ProjectRepository projectRepository;
+    private ProjectCommandFactory projectCommandFactory;
+    private CommandHandler commandHandler;
+    private CurrentUserResolver currentUserResolver;
+    private jakarta.persistence.EntityManager entityManager;
 
     private User user;
     private Project project;
@@ -109,6 +105,15 @@ class ProjectQueryControllerTest {
      */
     @BeforeEach
     void setUp() {
+        projectRepository = mock(ProjectRepository.class);
+        projectCommandFactory = mock(ProjectCommandFactory.class);
+        commandHandler = mock(CommandHandler.class);
+        currentUserResolver = mock(CurrentUserResolver.class);
+        entityManager = mock(jakarta.persistence.EntityManager.class);
+        mockMvc = MockMvcBuilders.standaloneSetup(new ProjectQueryController(
+                projectRepository, projectCommandFactory, commandHandler, currentUserResolver,
+                entityManager)).build();
+
         user = mock(User.class);
         when(currentUserResolver.resolve()).thenReturn(user);
         when(user.hasRole(SystemAdminUserRole.class)).thenReturn(false);
@@ -317,13 +322,7 @@ class ProjectQueryControllerTest {
 
     @Test
     void listStakeholdersReturnsStakeholderList() throws Exception {
-        UserStakeholder s1 = mock(UserStakeholder.class);
-        when(s1.getId()).thenReturn(1L);
-        when(s1.getVersion()).thenReturn(0);
-        when(s1.getDisplayName()).thenReturn("Alice");
-        when(s1.isUserStakeholder()).thenReturn(true);
-        when(s1.matchesUser(user)).thenReturn(true);
-        when(s1.getStakeholderPermissions()).thenReturn(Collections.emptySet());
+        UserStakeholder s1 = stubUserStakeholder(1L, "Alice");
 
         when(project.getStakeholders()).thenReturn(Set.of(s1));
 
@@ -331,6 +330,236 @@ class ProjectQueryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].name").value("Alice"));
+    }
+
+    @Test
+    void listAvailablePermissionsReturnsCatalog() throws Exception {
+        StakeholderPermission permission = stubStakeholderPermission(Goal.class, StakeholderPermissionType.Edit);
+        when(projectRepository.findAvailableStakeholderPermissions()).thenReturn(Set.of(permission));
+
+        mockMvc.perform(get("/api/projects/stakeholder-permissions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].entityType").value("Goal"))
+                .andExpect(jsonPath("$[0].permissionType").value("Edit"));
+    }
+
+    @Test
+    void getMyPermissionsReturnsStakeholderPermissions() throws Exception {
+        ProjectUserRole role = mock(ProjectUserRole.class);
+        StakeholderPermission permission = stubStakeholderPermission(Goal.class, StakeholderPermissionType.Edit);
+        when(user.getRoleForType(ProjectUserRole.class)).thenReturn(role);
+        when(role.canCreateProjects()).thenReturn(true);
+        when(stakeholder.getStakeholderPermissions()).thenReturn(Set.of(permission));
+
+        mockMvc.perform(get("/api/projects/TestProject/my-permissions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isStakeholder").value(true))
+                .andExpect(jsonPath("$.canCreateProjects").value(true))
+                .andExpect(jsonPath("$.permissions.Goal[0]").value("Edit"));
+    }
+
+    @Test
+    void getProjectTreeReturnsGroupedNodes() throws Exception {
+        UserStakeholder treeStakeholder = stubUserStakeholder(5L, "Zoe");
+        Goal goal = stubGoal(10L, "Alpha goal");
+        Story story = stubStory(20L, "Beta story");
+        Actor actor = stubActor(30L, "Gamma actor");
+        UseCase useCase = stubUseCase(40L, "Delta use case");
+        GlossaryTerm term = stubGlossaryTerm(50L, "Epsilon term");
+        ReportGenerator report = stubReportGenerator(60L, "Zeta report");
+
+        when(project.getStakeholders()).thenReturn(Set.of(treeStakeholder));
+        when(project.getGoals()).thenReturn(Set.of(goal));
+        when(project.getStories()).thenReturn(Set.of(story));
+        when(project.getActors()).thenReturn(Set.of(actor));
+        when(project.getUseCases()).thenReturn(Set.of(useCase));
+        when(project.getGlossaryTerms()).thenReturn(sortedSetOf(term));
+        when(project.getReportGenerators()).thenReturn(Set.of(report));
+
+        mockMvc.perform(get("/api/projects/TestProject/tree"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(7))
+                .andExpect(jsonPath("$[0].name").value("Stakeholders"))
+                .andExpect(jsonPath("$[0].children[0].name").value("Zoe"))
+                .andExpect(jsonPath("$[5].name").value("Glossary"))
+                .andExpect(jsonPath("$[5].children[0].name").value("Epsilon term"))
+                .andExpect(jsonPath("$[6].children[0].name").value("Zeta report"));
+    }
+
+    @Test
+    void exportProjectStreamsXmlAttachment() throws Exception {
+        ExportProjectCommand command = mock(ExportProjectCommand.class);
+        when(projectCommandFactory.newExportProjectCommand()).thenReturn(command);
+
+        mockMvc.perform(get("/api/projects/TestProject/export"))
+                .andExpect(status().isOk());
+
+        verify(command).setProject(project);
+        verify(command).setOutputStream(any());
+        verify(commandHandler).execute(command);
+    }
+
+    @Test
+    void getStakeholderReturnsDetailDto() throws Exception {
+        UserStakeholder s1 = stubUserStakeholder(1L, "Alice");
+        Goal goal = stubGoal(11L, "Tracked goal");
+        when(s1.getGoals()).thenReturn(Set.of(goal));
+        when(project.getStakeholders()).thenReturn(Set.of(s1));
+
+        mockMvc.perform(get("/api/projects/TestProject/stakeholders/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Alice"))
+                .andExpect(jsonPath("$.goals[0].name").value("Tracked goal"));
+    }
+
+    @Test
+    void getStoryReturnsDetailDto() throws Exception {
+        Story story = stubStory(7L, "My Story");
+        Goal goal = stubGoal(70L, "Goal Ref");
+        Actor actor = stubActor(71L, "Actor Ref");
+        when(story.getGoals()).thenReturn(Set.of(goal));
+        when(story.getActors()).thenReturn(Set.of(actor));
+        when(project.getStories()).thenReturn(Set.of(story));
+
+        mockMvc.perform(get("/api/projects/TestProject/stories/7"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(7))
+                .andExpect(jsonPath("$.goals[0].name").value("Goal Ref"))
+                .andExpect(jsonPath("$.actors[0].name").value("Actor Ref"));
+    }
+
+    @Test
+    void getScenarioReturnsDetailDto() throws Exception {
+        Scenario scenario = stubScenario(8L, "Main Scenario");
+        Step step = stubStep(80L, "First Step");
+        Scenario nestedScenario = stubScenario(81L, "Nested Scenario");
+        when(scenario.getType()).thenReturn(ScenarioType.Primary);
+        when(scenario.getSteps()).thenReturn(List.of(step, nestedScenario));
+        when(project.getScenarios()).thenReturn(Set.of(scenario));
+
+        mockMvc.perform(get("/api/projects/TestProject/scenarios/8"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(8))
+                .andExpect(jsonPath("$.steps.length()").value(2))
+                .andExpect(jsonPath("$.steps[0].name").value("First Step"))
+                .andExpect(jsonPath("$.steps[1].isScenario").value(true))
+                .andExpect(jsonPath("$.steps[1].scenarioId").value(81));
+    }
+
+    @Test
+    void getUseCaseReturnsDetailDto() throws Exception {
+        UseCase useCase = stubUseCase(9L, "My Use Case");
+        Goal goal = stubGoal(90L, "Goal A");
+        Actor actor = stubActor(91L, "Actor A");
+        Story story = stubStory(92L, "Story A");
+        Scenario primaryScenario = stubScenario(93L, "Primary Scenario");
+        Scenario alternateScenario = stubScenario(94L, "Alternate Scenario");
+        Step step = stubStep(95L, "Primary Step");
+        when(primaryScenario.getSteps()).thenReturn(List.of(step));
+        when(useCase.getScenario()).thenReturn(primaryScenario);
+        when(useCase.getGoals()).thenReturn(Set.of(goal));
+        when(useCase.getActors()).thenReturn(Set.of(actor));
+        when(useCase.getStories()).thenReturn(Set.of(story));
+        when(useCase.getAdditionalScenarios()).thenReturn(Set.of(alternateScenario));
+        when(project.getUseCases()).thenReturn(Set.of(useCase));
+
+        mockMvc.perform(get("/api/projects/TestProject/use-cases/9"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(9))
+                .andExpect(jsonPath("$.scenarioName").value("Primary Scenario"))
+                .andExpect(jsonPath("$.scenarioStepCount").value(1))
+                .andExpect(jsonPath("$.goals[0].name").value("Goal A"))
+                .andExpect(jsonPath("$.additionalScenarios[0].name").value("Alternate Scenario"));
+    }
+
+    @Test
+    void listTermsReturnsSortedTerms() throws Exception {
+        GlossaryTerm term1 = stubGlossaryTerm(1L, "Zeta term");
+        GlossaryTerm term2 = stubGlossaryTerm(2L, "Alpha term");
+        when(project.getGlossaryTerms()).thenReturn(sortedSetOf(term1, term2));
+
+        mockMvc.perform(get("/api/projects/TestProject/terms"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].name").value("Alpha term"))
+                .andExpect(jsonPath("$[1].name").value("Zeta term"));
+    }
+
+    @Test
+    void getTermReturnsDetailDto() throws Exception {
+        GlossaryTerm term = stubGlossaryTerm(12L, "Canonical");
+        GlossaryTerm alternate = stubGlossaryTerm(13L, "Alternate");
+        Story referer = stubStory(14L, "Referer Story");
+        when(term.getAlternateTerms()).thenReturn(Set.of(alternate));
+        when(term.getReferers()).thenReturn(Set.of(referer));
+        when(project.getGlossaryTerms()).thenReturn(sortedSetOf(term));
+
+        mockMvc.perform(get("/api/projects/TestProject/terms/12"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Canonical"))
+                .andExpect(jsonPath("$.alternateTerms[0].name").value("Alternate"))
+                .andExpect(jsonPath("$.referers[0].name").value("Referer Story"));
+    }
+
+    @Test
+    void listReportsReturnsSortedSummaries() throws Exception {
+        ReportGenerator report1 = stubReportGenerator(1L, "Zeta report");
+        ReportGenerator report2 = stubReportGenerator(2L, "Alpha report");
+        when(project.getReportGenerators()).thenReturn(Set.of(report1, report2));
+
+        mockMvc.perform(get("/api/projects/TestProject/reports"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].name").value("Alpha report"))
+                .andExpect(jsonPath("$[1].name").value("Zeta report"));
+    }
+
+    @Test
+    void getReportReturnsDetailDto() throws Exception {
+        ReportGenerator report = stubReportGenerator(15L, "HTML Spec");
+        when(report.getText()).thenReturn("<xsl:stylesheet/>");
+        when(project.getReportGenerators()).thenReturn(Set.of(report));
+
+        mockMvc.perform(get("/api/projects/TestProject/reports/15"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("HTML Spec"))
+                .andExpect(jsonPath("$.text").value("<xsl:stylesheet/>"));
+    }
+
+    @Test
+    void runReportStreamsHtmlAttachment() throws Exception {
+        ReportGenerator report = stubReportGenerator(16L, "HTML Spec");
+        GenerateReportCommand command = mock(GenerateReportCommand.class);
+        when(project.getReportGenerators()).thenReturn(Set.of(report));
+        when(projectCommandFactory.newGenerateReportCommand()).thenReturn(command);
+
+        mockMvc.perform(get("/api/projects/TestProject/reports/16/run"))
+                .andExpect(status().isOk());
+
+        verify(command).setReportGenerator(report);
+        verify(command).setOutputStream(any());
+        verify(commandHandler).execute(command);
+    }
+
+    @Test
+    void getOpenIssuesReturnsUnresolvedIssues() throws Exception {
+        Goal goal = stubGoal(21L, "Goal Entity");
+        Story story = stubStory(22L, "Story Entity");
+        doReturn(Goal.class).when(goal).getProjectOrDomainEntityInterface();
+        doReturn(Story.class).when(story).getProjectOrDomainEntityInterface();
+        Annotation goalIssue = new IssueImpl(project, "Goal issue", true, user);
+        Annotation storyIssue = new IssueImpl(project, "Story issue", false, user);
+        when(goal.getAnnotations()).thenReturn(Set.of(goalIssue));
+        when(story.getAnnotations()).thenReturn(Set.of(storyIssue));
+        when(project.getProjectEntities()).thenReturn(Set.of(goal, story));
+
+        mockMvc.perform(get("/api/projects/TestProject/open-issues"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].entityType").value("Goal"))
+                .andExpect(jsonPath("$[0].issueText").value("Goal issue"))
+                .andExpect(jsonPath("$[1].entityType").value("Story"));
     }
 
     // -------------------------------------------------------------------------
@@ -364,6 +593,7 @@ class ProjectQueryControllerTest {
         when(g.getName()).thenReturn(name);
         when(g.getText()).thenReturn(null);
         when(g.getCreatedBy()).thenReturn(null);
+        doReturn(Goal.class).when(g).getProjectOrDomainEntityInterface();
         return g;
     }
 
@@ -374,6 +604,7 @@ class ProjectQueryControllerTest {
         when(a.getName()).thenReturn(name);
         when(a.getText()).thenReturn(null);
         when(a.getCreatedBy()).thenReturn(null);
+        doReturn(Actor.class).when(a).getProjectOrDomainEntityInterface();
         return a;
     }
 
@@ -386,6 +617,7 @@ class ProjectQueryControllerTest {
         when(s.getCreatedBy()).thenReturn(null);
         when(s.getStoryType()).thenReturn(StoryType.Success);
         when(s.getPrimaryActor()).thenReturn(null);
+        doReturn(Story.class).when(s).getProjectOrDomainEntityInterface();
         return s;
     }
 
@@ -398,6 +630,7 @@ class ProjectQueryControllerTest {
         when(uc.getCreatedBy()).thenReturn(null);
         when(uc.getPrimaryActor()).thenReturn(null);
         when(uc.getScenario()).thenReturn(null);
+        doReturn(UseCase.class).when(uc).getProjectOrDomainEntityInterface();
         return uc;
     }
 
@@ -409,6 +642,79 @@ class ProjectQueryControllerTest {
         when(sc.getText()).thenReturn(null);
         when(sc.getCreatedBy()).thenReturn(null);
         when(sc.getType()).thenReturn(null);
+        doReturn(Scenario.class).when(sc).getProjectOrDomainEntityInterface();
         return sc;
+    }
+
+    private Step stubStep(Long id, String name) {
+        Step step = mock(Step.class);
+        when(step.getId()).thenReturn(id);
+        when(step.getVersion()).thenReturn(0);
+        when(step.getName()).thenReturn(name);
+        when(step.getText()).thenReturn(null);
+        when(step.getType()).thenReturn(ScenarioType.Primary);
+        doReturn(Step.class).when(step).getProjectOrDomainEntityInterface();
+        return step;
+    }
+
+    private UserStakeholder stubUserStakeholder(Long id, String name) {
+        UserStakeholder s1 = mock(UserStakeholder.class);
+        when(s1.getId()).thenReturn(id);
+        when(s1.getVersion()).thenReturn(0);
+        when(s1.getDisplayName()).thenReturn(name);
+        when(s1.getDisplayUsername()).thenReturn(name.toLowerCase());
+        when(s1.getDisplayEmailAddress()).thenReturn(name.toLowerCase() + "@example.com");
+        when(s1.getDisplayPhoneNumber()).thenReturn("");
+        when(s1.isUserStakeholder()).thenReturn(true);
+        when(s1.matchesUser(user)).thenReturn(true);
+        when(s1.getStakeholderPermissions()).thenReturn(Collections.emptySet());
+        when(s1.getGoals()).thenReturn(Collections.emptySet());
+        return s1;
+    }
+
+    private GlossaryTerm stubGlossaryTerm(Long id, String name) {
+        GlossaryTerm term = mock(GlossaryTerm.class);
+        when(term.getId()).thenReturn(id);
+        when(term.getVersion()).thenReturn(0);
+        when(term.getName()).thenReturn(name);
+        when(term.getText()).thenReturn("definition for " + name);
+        when(term.getCreatedBy()).thenReturn(null);
+        when(term.getCanonicalTerm()).thenReturn(null);
+        when(term.getAlternateTerms()).thenReturn(Collections.emptySet());
+        when(term.getReferers()).thenReturn(Collections.emptySet());
+        doReturn(GlossaryTerm.class).when(term).getProjectOrDomainEntityInterface();
+        return term;
+    }
+
+    private ReportGenerator stubReportGenerator(Long id, String name) {
+        ReportGenerator report = mock(ReportGenerator.class);
+        when(report.getId()).thenReturn(id);
+        when(report.getVersion()).thenReturn(0);
+        when(report.getName()).thenReturn(name);
+        when(report.getText()).thenReturn("<xsl:stylesheet/>");
+        when(report.getCreatedBy()).thenReturn(null);
+        doReturn(ReportGenerator.class).when(report).getProjectOrDomainEntityInterface();
+        return report;
+    }
+
+    private StakeholderPermission stubStakeholderPermission(Class<?> entityType,
+            StakeholderPermissionType permissionType) {
+        StakeholderPermission permission = mock(StakeholderPermission.class);
+        doReturn(entityType).when(permission).getEntityType();
+        when(permission.getPermissionType()).thenReturn(permissionType);
+        when(permission.getPermissionKey()).thenReturn(entityType.getSimpleName() + ":" + permissionType.name());
+        return permission;
+    }
+
+    @SafeVarargs
+    private final <T> SortedSet<T> sortedSetOf(T... values) {
+        SortedSet<T> result = new TreeSet<>((left, right) -> {
+            if (left == right) {
+                return 0;
+            }
+            return Integer.compare(System.identityHashCode(left), System.identityHashCode(right));
+        });
+        result.addAll(List.of(values));
+        return result;
     }
 }

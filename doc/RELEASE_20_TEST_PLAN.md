@@ -144,7 +144,7 @@ Each edit command should have an integration test that:
 | `ScenarioContainerCommandImplTest` | `SetPrimaryScenarioOnUseCase`, `AddScenarioToUseCase`, `RemoveScenarioFromUseCase` |
 | `GoalRelationCommandImplTest` | `EditGoalRelation`, `RemoveGoalRelation` |
 | `AnnotationCommandImplTest` | `EditIssue`, `EditPosition`, `EditArgument`, `DeleteIssue`, `DeletePosition`, `DeleteArgument` |
-| `EditUserCommandImplTest` | `EditUser`, `DeleteUser`, `ChangePassword` |
+| `EditUserCommandImplTest` | `EditUser` for user create/edit plus password-change flows |
 | `AuditingCommandHandlerTest` | Background commands skipped; API commands write row; `projectId` resolved correctly |
 
 ### 2.2.1 Copy command tests (identified from JaCoCo 0% coverage)
@@ -460,7 +460,7 @@ the test project created in `@BeforeAll`. The `test-editor` has all `[Edit]` per
 |---|---|---|---|---|---|---|
 | `EditUser` (own account) | 200 | 200 | 200 | 200 | 200 | **401** |
 | `EditUser` (other account) | 200 | **403** | **403** | **403** | **403** | **401** |
-| `ChangePassword` (own) | 200 | 200 | 200 | 200 | 200 | **401** |
+| `EditUser` (own password change) | 200 | 200 | 200 | 200 | 200 | **401** |
 
 > Own-account edits require only authentication (no system role or project permission). Editing
 > another user's account requires `SystemAdminUserRole`.

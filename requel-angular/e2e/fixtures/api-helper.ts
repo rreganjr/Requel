@@ -54,6 +54,36 @@ export interface UserFixture {
   username: string;
 }
 
+export interface ReportFixture {
+  id: number;
+  version: number;
+  name: string;
+  projectName: string;
+}
+
+export interface TermFixture {
+  id: number;
+  version: number;
+  name: string;
+  projectName: string;
+}
+
+export interface PreferencesFixture {
+  sidebarProjectLimit: number;
+  sidebarProjectStaleness: string;
+}
+
+export interface IssueFixture {
+  id: number;
+  projectName: string;
+}
+
+export interface PositionFixture {
+  id: number;
+  issueId: number;
+  projectName: string;
+}
+
 async function getAdminToken(api: APIRequestContext): Promise<string> {
   const username = process.env['E2E_ADMIN_USERNAME'] ?? 'admin';
   const password = process.env['E2E_ADMIN_PASSWORD'] ?? 'admin';
@@ -384,4 +414,128 @@ export async function getUserName(
   if (!res.ok()) throw new Error(`getUser ${username} failed: ${res.status()}`);
   const user = await res.json() as { name?: string };
   return user.name ?? '';
+}
+
+/**
+ * Add an issue to an entity (goal, story, etc.) via the EditIssue command.
+ * Returns the created issue's id so tests can add positions to it.
+ */
+export async function addIssue(
+  api: APIRequestContext,
+  projectName: string,
+  entityType: string,
+  entityId: number,
+  text: string,
+  mustBeResolved = false
+): Promise<IssueFixture> {
+  const token = await getAdminToken(api);
+  const result = await command(api, token, 'EditIssue', {
+    projectName,
+    entityType,
+    entityId,
+    text,
+    mustBeResolved,
+  });
+  const entity = result['entity'] as { id: number };
+  return { id: entity.id, projectName };
+}
+
+/**
+ * Add a position to an issue via the EditPosition command.
+ * Returns the created position's id so tests can add arguments to it.
+ */
+export async function addPosition(
+  api: APIRequestContext,
+  projectName: string,
+  issueId: number,
+  text: string
+): Promise<PositionFixture> {
+  const token = await getAdminToken(api);
+  const result = await command(api, token, 'EditPosition', {
+    projectName,
+    issueId,
+    text,
+  });
+  const entity = result['entity'] as { id: number };
+  return { id: entity.id, issueId, projectName };
+}
+
+export async function getPreferences(
+  api: APIRequestContext
+): Promise<PreferencesFixture> {
+  const token = await getAdminToken(api);
+  const res = await api.get(`${BASE_URL}/api/user-preferences`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok()) throw new Error(`getPreferences failed: ${res.status()}`);
+  return res.json() as Promise<PreferencesFixture>;
+}
+
+export async function savePreferences(
+  api: APIRequestContext,
+  prefs: PreferencesFixture
+): Promise<void> {
+  const token = await getAdminToken(api);
+  const res = await api.put(`${BASE_URL}/api/user-preferences`, {
+    data: prefs,
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok()) throw new Error(`savePreferences failed: ${res.status()}`);
+}
+
+export async function createTerm(
+  api: APIRequestContext,
+  projectName: string,
+  name: string,
+  text = ''
+): Promise<TermFixture> {
+  const token = await getAdminToken(api);
+  const result = await command(api, token, 'EditGlossaryTerm', {
+    projectName,
+    termId: null,
+    name,
+    text: text || null,
+    canonicalTermId: null,
+  });
+  const entity = result['entity'] as { id: number; version: number; name: string };
+  return { id: entity.id, version: entity.version, name: entity.name, projectName };
+}
+
+export async function deleteTerm(
+  api: APIRequestContext,
+  term: TermFixture
+): Promise<void> {
+  const token = await getAdminToken(api);
+  await command(api, token, 'DeleteGlossaryTerm', {
+    projectName: term.projectName,
+    termId: term.id,
+  });
+}
+
+export async function createReport(
+  api: APIRequestContext,
+  projectName: string,
+  name: string,
+  text = ''
+): Promise<ReportFixture> {
+  const token = await getAdminToken(api);
+  const result = await command(api, token, 'EditReportGenerator', {
+    projectName,
+    reportId: null,
+    name,
+    text: text || null,
+  });
+  const entity = result['entity'] as { id: number; version: number; name: string };
+  return { id: entity.id, version: entity.version, name: entity.name, projectName };
+}
+
+export async function deleteReport(
+  api: APIRequestContext,
+  report: ReportFixture
+): Promise<void> {
+  const token = await getAdminToken(api);
+  await command(api, token, 'DeleteReportGenerator', {
+    projectName: report.projectName,
+    reportId: report.id,
+  });
 }

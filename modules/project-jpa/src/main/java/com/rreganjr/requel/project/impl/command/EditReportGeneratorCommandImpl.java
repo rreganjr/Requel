@@ -25,12 +25,17 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.command.EditReportGeneratorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -45,7 +50,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editReportGeneratorCommand")
 @Scope("prototype")
 public class EditReportGeneratorCommandImpl extends AbstractEditProjectOrDomainEntityCommand
-		implements EditReportGeneratorCommand {
+		implements EditReportGeneratorCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private ReportGenerator reportGenerator;
 	private String text;
@@ -120,5 +125,22 @@ public class EditReportGeneratorCommandImpl extends AbstractEditProjectOrDomainE
 		if (isAnalysisEnabled()) {
 			// TODO: analyze report generator?
 		}
+	}
+
+	@Override
+	public Project getProject() {
+		if (getProjectOrDomain() instanceof Project project) {
+			return project;
+		}
+		if (reportGenerator != null
+				&& reportGenerator.getProjectOrDomain() instanceof Project project) {
+			return project;
+		}
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(ReportGenerator.class, "Edit");
 	}
 }

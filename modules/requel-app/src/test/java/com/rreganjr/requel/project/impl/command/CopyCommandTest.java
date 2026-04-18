@@ -197,6 +197,23 @@ public class CopyCommandTest extends AbstractIntegrationTestCase {
         assertEquals(original.getText(), copy.getText(), "copy should preserve actor text");
     }
 
+    @Test
+    public void copyActorWithExplicitName() throws Exception {
+        Project project = createProject("Copy-Actor-explicit");
+        User admin = getUserRepository().findUserByUsername("admin");
+        Actor original = createActor(project, "Support Agent");
+
+        CopyActorCommand cmd = getProjectCommandFactory().newCopyActorCommand();
+        cmd.setEditedBy(admin);
+        cmd.setOriginalActor(original);
+        cmd.setNewActorName("Support Agent Copy");
+        cmd = getCommandHandler().execute(cmd);
+
+        Actor copy = cmd.getNewActor();
+        assertEquals("Support Agent Copy", copy.getName(), "explicit actor name should be used");
+        assertEquals(original.getText(), copy.getText(), "copy should preserve actor text");
+    }
+
     // -------------------------------------------------------------------------
     // CopyStoryCommand
     // -------------------------------------------------------------------------
@@ -217,6 +234,24 @@ public class CopyCommandTest extends AbstractIntegrationTestCase {
         assertEquals("Positive outcome 1", copy.getName(),
                 "auto-generated name should append ' 1' when the original name is taken");
         assertEquals(original.getText(), copy.getText(), "copy should preserve story text");
+        assertEquals(original.getStoryType(), copy.getStoryType(),
+                "copy should preserve the story type");
+    }
+
+    @Test
+    public void copyStoryWithExplicitName() throws Exception {
+        Project project = createProject("Copy-Story-explicit");
+        User admin = getUserRepository().findUserByUsername("admin");
+        Story original = createStory(project, "Checkout flow", StoryType.Success.name());
+
+        CopyStoryCommand cmd = getProjectCommandFactory().newCopyStoryCommand();
+        cmd.setEditedBy(admin);
+        cmd.setOriginalStory(original);
+        cmd.setNewStoryName("Checkout flow Copy");
+        cmd = getCommandHandler().execute(cmd);
+
+        Story copy = cmd.getNewStory();
+        assertEquals("Checkout flow Copy", copy.getName(), "explicit story name should be used");
         assertEquals(original.getStoryType(), copy.getStoryType(),
                 "copy should preserve the story type");
     }
@@ -249,6 +284,23 @@ public class CopyCommandTest extends AbstractIntegrationTestCase {
                 "copy's scenario should be a distinct entity from the original's scenario");
     }
 
+    @Test
+    public void copyUseCaseWithExplicitName() throws Exception {
+        Project project = createProject("Copy-UseCase-explicit");
+        User admin = getUserRepository().findUserByUsername("admin");
+        UseCase original = createUseCase(project, "Reset password", "Any User");
+
+        CopyUseCaseCommand cmd = getProjectCommandFactory().newCopyUseCaseCommand();
+        cmd.setEditedBy(admin);
+        cmd.setOriginalUseCase(original);
+        cmd.setNewUseCaseName("Reset password Copy");
+        cmd = getCommandHandler().execute(cmd);
+
+        UseCase copy = cmd.getNewUseCase();
+        assertEquals("Reset password Copy", copy.getName(), "explicit use case name should be used");
+        assertNotNull(copy.getScenario(), "copied use case should still include its scenario");
+    }
+
     // -------------------------------------------------------------------------
     // CopyScenarioCommand
     // -------------------------------------------------------------------------
@@ -272,12 +324,29 @@ public class CopyCommandTest extends AbstractIntegrationTestCase {
         assertEquals(original.getType(), copy.getType(), "copy should preserve scenario type");
     }
 
+    @Test
+    public void copyScenarioWithExplicitName() throws Exception {
+        Project project = createProject("Copy-Scenario-explicit");
+        User admin = getUserRepository().findUserByUsername("admin");
+        Scenario original = createScenario(project, "Alternate path");
+
+        CopyScenarioCommand cmd = getProjectCommandFactory().newCopyScenarioCommand();
+        cmd.setEditedBy(admin);
+        cmd.setOriginalScenario(original);
+        cmd.setNewScenarioName("Alternate path Copy");
+        cmd = getCommandHandler().execute(cmd);
+
+        Scenario copy = cmd.getNewScenario();
+        assertEquals("Alternate path Copy", copy.getName(), "explicit scenario name should be used");
+        assertEquals(original.getType(), copy.getType(), "copy should preserve scenario type");
+    }
+
     // -------------------------------------------------------------------------
     // CopyScenarioStepCommand
     // -------------------------------------------------------------------------
 
     @Test
-    public void copyScenarioStepPreservesContent() throws Exception {
+    public void copyScenarioStepPreservesContentAndAutoGeneratesUniqueName() throws Exception {
         Project project = createProject("Copy-Step");
         User admin = getUserRepository().findUserByUsername("admin");
 
@@ -293,22 +362,17 @@ public class CopyCommandTest extends AbstractIntegrationTestCase {
         Step original = stepCmd.getStep();
         assertNotNull(original, "pre-condition: step should have been created");
 
-        // Note: CopyScenarioStepCommandImpl.generateNewScenarioStepName() has a
-        // known bug — it calls findScenarioByProjectOrDomainAndName instead of a
-        // step finder. Copying without an explicit name returns the original name
-        // (no scenario matches), then persist fails on the step uniqueness constraint.
-        // Supply an explicit new name to work around the bug and exercise content
-        // preservation, which is the behavior under test here.
         CopyScenarioStepCommand copyCmd = getProjectCommandFactory().newCopyScenarioStepCommand();
         copyCmd.setEditedBy(admin);
         copyCmd.setOriginalScenarioStep(original);
-        copyCmd.setNewScenarioStepName("User submits form (copy)");
         copyCmd = getCommandHandler().execute(copyCmd);
 
         Step copy = copyCmd.getNewScenarioStep();
         assertNotNull(copy, "copy should have been created");
         assertNotEquals(original.getId(), copy.getId(),
                 "copy should be a distinct entity from the original");
+        assertEquals("User submits form 1", copy.getName(),
+                "copy should auto-generate a unique step name");
         assertEquals(original.getText(), copy.getText(), "copy should preserve step text");
         assertEquals(original.getType(), copy.getType(), "copy should preserve step type");
     }

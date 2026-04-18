@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -537,6 +538,98 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void userCanEditOwnAccount() throws Exception {
+        mockMvc.perform(post("/api/commands/EditUser")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editUserJson(editorUsername)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    // -------------------------------------------------------------------------
+    // Additional release-plan coverage
+    // -------------------------------------------------------------------------
+
+    @Test
+    void editorCanEditGlossaryTerm() throws Exception {
+        mockMvc.perform(post("/api/commands/EditGlossaryTerm")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editGlossaryTermJson("term-" + System.currentTimeMillis())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void noAccessCannotEditGlossaryTerm() throws Exception {
+        mockMvc.perform(post("/api/commands/EditGlossaryTerm")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editGlossaryTermJson("blocked-term-" + System.currentTimeMillis())))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void editorCanEditReportGenerator() throws Exception {
+        mockMvc.perform(post("/api/commands/EditReportGenerator")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editReportGeneratorJson("report-" + System.currentTimeMillis())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void noAccessCannotEditReportGenerator() throws Exception {
+        mockMvc.perform(post("/api/commands/EditReportGenerator")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editReportGeneratorJson("blocked-report-" + System.currentTimeMillis())))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void editorCanEditIssue() throws Exception {
+        mockMvc.perform(post("/api/commands/EditIssue")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editIssueJson("Goal", goalId, "issue-" + System.currentTimeMillis())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void noAccessCannotEditIssue() throws Exception {
+        mockMvc.perform(post("/api/commands/EditIssue")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(editIssueJson("Goal", goalId, "blocked issue")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unauthenticatedProjectQueryReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/projects/" + testProjectName))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void stakeholderCanGetProject() throws Exception {
+        mockMvc.perform(get("/api/projects/" + testProjectName)
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value(testProjectName));
+    }
+
+    @Test
+    void noAccessCannotGetProject() throws Exception {
+        mockMvc.perform(get("/api/projects/" + testProjectName)
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+    }
+
     // -------------------------------------------------------------------------
     // Helpers — fixture creation
     // -------------------------------------------------------------------------
@@ -673,5 +766,28 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 "phoneNumber", "",
                 "organizationName", "AuthTestOrg",
                 "userRoleNames", java.util.Set.of("ProjectUserRole")));
+    }
+
+    private String editGlossaryTermJson(String name) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "name", name,
+                "text", "authorization glossary term"));
+    }
+
+    private String editReportGeneratorJson(String name) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "name", name,
+                "text", "<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"><xsl:template match=\"/\"><output/></xsl:template></xsl:stylesheet>"));
+    }
+
+    private String editIssueJson(String entityType, Long entityId, String text) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "entityType", entityType,
+                "entityId", entityId,
+                "text", text,
+                "mustBeResolved", true));
     }
 }

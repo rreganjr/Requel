@@ -25,8 +25,12 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.validator.EntityValidationException;
+import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.Issue;
@@ -34,6 +38,9 @@ import com.rreganjr.requel.annotation.NoSuchAnnotationException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.annotation.impl.IssueImpl;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.platform.identity.User;
 
 /**
@@ -43,7 +50,8 @@ import com.rreganjr.platform.identity.User;
  */
 @Controller("editIssueCommand")
 @Scope("prototype")
-public class EditIssueCommandImpl extends AbstractAnnotationCommand implements EditIssueCommand {
+public class EditIssueCommandImpl extends AbstractAnnotationCommand
+		implements EditIssueCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Issue issue;
 	private boolean mustBeResolved;
@@ -113,6 +121,39 @@ public class EditIssueCommandImpl extends AbstractAnnotationCommand implements E
 			throw EntityValidationException.emptyRequiredProperty(Issue.class, getIssue(), "text",
 					EntityExceptionActionType.Updating);
 		}
+	}
+
+	@Override
+	public Project getProject() {
+		Object groupingObject = getGroupingObject();
+		if (groupingObject instanceof Project project) {
+			return project;
+		}
+
+		Annotatable annotatable = getAnnotatable();
+		if (annotatable instanceof ProjectOrDomainEntity entity
+				&& entity.getProjectOrDomain() instanceof Project project) {
+			return project;
+		}
+
+		if (issue != null) {
+			if (issue.getGroupingObject() instanceof Project project) {
+				return project;
+			}
+			for (Annotatable issueAnnotatable : issue.getAnnotatables()) {
+				if (issueAnnotatable instanceof ProjectOrDomainEntity entity
+						&& entity.getProjectOrDomain() instanceof Project project) {
+					return project;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Annotation.class, "Edit");
 	}
 
 }

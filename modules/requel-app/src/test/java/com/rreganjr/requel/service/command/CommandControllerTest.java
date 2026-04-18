@@ -40,11 +40,15 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.nio.charset.StandardCharsets;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -131,6 +135,29 @@ class CommandControllerTest {
                 .andExpect(jsonPath("$.entity").doesNotExist());
     }
 
+    @Test
+    void multipartCommandWithFileReturnsOk() throws Exception {
+        Command cmd = stubCommand("ImportProject", null);
+        doReturn(java.util.Map.class).when(apiCommandFactory).getInputType("ImportProject");
+
+        MockMultipartFile input = new MockMultipartFile(
+                "input", "", MediaType.APPLICATION_JSON_VALUE,
+                "{\"projectName\":\"Imported Project\"}".getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "project.xml", MediaType.APPLICATION_XML_VALUE,
+                "<project/>".getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(multipart("/api/commands/ImportProject")
+                        .file(input)
+                        .file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.entityType").value("ImportProject"));
+
+        verify(apiCommandFactory).newCommand(eq("ImportProject"), any(), eq(file));
+        verify(commandHandler).execute(cmd);
+    }
+
     // -------------------------------------------------------------------------
     // Error mapping
     // -------------------------------------------------------------------------
@@ -143,6 +170,20 @@ class CommandControllerTest {
         mockMvc.perform(post("/api/commands/UnknownCommand")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("BAD_REQUEST"));
+    }
+
+    @Test
+    void unknownMultipartCommandTypeReturnsBadRequest() throws Exception {
+        when(apiCommandFactory.getInputType("UnknownMultipart"))
+                .thenThrow(new IllegalArgumentException("No command registered: UnknownMultipart"));
+
+        MockMultipartFile input = new MockMultipartFile(
+                "input", "", MediaType.APPLICATION_JSON_VALUE, "{}".getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(multipart("/api/commands/UnknownMultipart")
+                        .file(input))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("BAD_REQUEST"));
     }

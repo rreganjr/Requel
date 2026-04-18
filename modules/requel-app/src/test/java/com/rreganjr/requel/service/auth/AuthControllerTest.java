@@ -32,6 +32,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -69,7 +70,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@WithMockUser
 class AuthControllerTest {
 
     @Autowired MockMvc mockMvc;
@@ -85,6 +85,7 @@ class AuthControllerTest {
     // -------------------------------------------------------------------------
 
     @Test
+    @WithAnonymousUser
     void loginWithValidCredentialsReturnsTokenAndUserDto() throws Exception {
         User user = mock(User.class);
         when(user.isPassword("secret")).thenReturn(true);
@@ -107,6 +108,7 @@ class AuthControllerTest {
     }
 
     @Test
+    @WithAnonymousUser
     void loginWithWrongPasswordReturnsUnauthorized() throws Exception {
         User user = mock(User.class);
         when(user.isPassword("wrong")).thenReturn(false);
@@ -121,6 +123,7 @@ class AuthControllerTest {
     }
 
     @Test
+    @WithAnonymousUser
     void loginWithUnknownUsernameReturnsUnauthorized() throws Exception {
         when(userRepository.findUserByUsername("ghost"))
                 .thenThrow(NoSuchUserException.forUsername("ghost"));
@@ -138,6 +141,7 @@ class AuthControllerTest {
     // -------------------------------------------------------------------------
 
     @Test
+    @WithMockUser
     void meReturnsCurrentUserDto() throws Exception {
         User user = mock(User.class);
         when(currentUserResolver.resolve()).thenReturn(user);
@@ -152,5 +156,12 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.username").value("bob"))
                 .andExpect(jsonPath("$.emailAddress").value("bob@example.com"))
                 .andExpect(jsonPath("$.organizationName").value("ACME"));
+    }
+
+    @Test
+    @WithAnonymousUser
+    void meReturnsUnauthorizedWhenAnonymous() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized());
     }
 }

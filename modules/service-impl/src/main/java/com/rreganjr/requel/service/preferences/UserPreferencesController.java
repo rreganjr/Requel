@@ -24,6 +24,7 @@ import com.rreganjr.requel.service.api.dto.UserPreferencesDto;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import com.rreganjr.requel.user.User;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -52,6 +53,7 @@ public class UserPreferencesController {
     }
 
     @PutMapping
+    @Transactional
     public ResponseEntity<UserPreferencesDto> updatePreferences(@RequestBody UserPreferencesDto input) {
         User user = currentUserResolver.resolve();
         UserPreferences prefs = findOrCreate(user.getUsername());

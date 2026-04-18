@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import com.rreganjr.AbstractIntegrationTestCase;
+import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.Stakeholder;
@@ -35,14 +36,8 @@ import org.junit.jupiter.api.Test;
 
 public class EditProjectCommandImplTest extends AbstractIntegrationTestCase {
 
-	@Test
-	public void testProjectCreation() throws Exception {
-		long uniqueifier = System.currentTimeMillis();
-		String projectName = "Test Project " + uniqueifier;
-		String projectDescription = "This is a test project " + uniqueifier;
-		String organizationName = "Text Organization " + uniqueifier;
+	private User ensureProjectCapableAdmin() throws Exception {
 		User creator = getUserRepository().findUserByUsername("admin");
-		// Ensure admin can hold projects for this test (persisted via command to honor validators).
 		if (!creator.hasRole(ProjectUserRole.class)) {
 			var editUser = getUserCommandFactory().newEditUserCommand();
 			editUser.setEditedBy(creator);
@@ -54,8 +49,30 @@ public class EditProjectCommandImplTest extends AbstractIntegrationTestCase {
 			editUser.setOrganizationName(creator.getOrganization().getName());
 			editUser.addUserRoleName(ProjectUserRole.getRoleName(ProjectUserRole.class));
 			getCommandHandler().execute(editUser);
-			creator = getUserRepository().findUserByUsername("admin"); // reload with granted role
+			creator = getUserRepository().findUserByUsername("admin");
 		}
+		return creator;
+	}
+
+	private Project createProject(String label) throws Exception {
+		long uniqueifier = System.currentTimeMillis();
+		User creator = ensureProjectCapableAdmin();
+		EditProjectCommand command = getProjectCommandFactory().newEditProjectCommand();
+		command.setEditedBy(creator);
+		command.setName(label + " " + uniqueifier);
+		command.setText("Description " + uniqueifier);
+		command.setOrganizationName("Org " + uniqueifier);
+		command = getCommandHandler().execute(command);
+		return command.getProject();
+	}
+
+	@Test
+	public void testProjectCreation() throws Exception {
+		long uniqueifier = System.currentTimeMillis();
+		String projectName = "Test Project " + uniqueifier;
+		String projectDescription = "This is a test project " + uniqueifier;
+		String organizationName = "Text Organization " + uniqueifier;
+		User creator = ensureProjectCapableAdmin();
 		Set<Stakeholder> expectedStakeholders = new HashSet<Stakeholder>();
 		EditProjectCommand command = getProjectCommandFactory().newEditProjectCommand();
 		command.setEditedBy(creator);
@@ -76,5 +93,47 @@ public class EditProjectCommandImplTest extends AbstractIntegrationTestCase {
 		assertEquals("Project: " + projectName, project.getDescription());
 		assertEquals(organizationName, project.getOrganization().getName());
 		assertTrue(project.getStakeholders().containsAll(expectedStakeholders));
+	}
+
+	@Test
+	public void editExistingProjectUpdatesNameTextAndOrganization() throws Exception {
+		Project original = createProject("Editable Project");
+		User admin = ensureProjectCapableAdmin();
+		String originalName = original.getName();
+
+		EditProjectCommand command = getProjectCommandFactory().newEditProjectCommand();
+		command.setEditedBy(admin);
+		command.setProject(original);
+		command.setName(originalName + " Updated");
+		command.setText("Updated project description");
+		command.setOrganizationName("Updated Org");
+		command = getCommandHandler().execute(command);
+
+		Project updated = command.getProject();
+		assertEquals(original.getId(), updated.getId(), "edit should update the same project");
+		assertEquals(originalName + " Updated", updated.getName(), "name should be updated");
+		assertEquals("Updated project description", updated.getText(), "text should be updated");
+		assertEquals("Updated Org", updated.getOrganization().getName(),
+				"organization should be updated");
+		assertEquals(updated.getId(),
+				getProjectRepository().findProjectByName(updated.getName()).getId(),
+				"updated project should be reloadable by its new name");
+	}
+
+	@Test
+	public void editProjectRejectsDuplicateName() throws Exception {
+		Project first = createProject("Duplicate Source");
+		Project second = createProject("Duplicate Target");
+		User admin = ensureProjectCapableAdmin();
+
+		EditProjectCommand command = getProjectCommandFactory().newEditProjectCommand();
+		command.setEditedBy(admin);
+		command.setProject(second);
+		command.setName(first.getName());
+		command.setText(second.getText());
+		command.setOrganizationName(second.getOrganization().getName());
+
+		assertThrows(EntityException.class, () -> getCommandHandler().execute(command),
+				"editing a project to an existing name should fail");
 	}
 }

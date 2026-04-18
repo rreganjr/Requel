@@ -21,6 +21,7 @@
 package com.rreganjr.requel.project;
 
 import com.rreganjr.AbstractIntegrationTestCase;
+import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.project.command.*;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
@@ -85,6 +86,79 @@ public class ProjectRepositoryTest extends AbstractIntegrationTestCase {
         cmd.setText("test actor");
         cmd = getCommandHandler().execute(cmd);
         return cmd.getActor();
+    }
+
+    private Story createStory(Project project, String name) throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        EditStoryCommand cmd = getProjectCommandFactory().newEditStoryCommand();
+        cmd.setEditedBy(admin);
+        cmd.setStoryContainer(project);
+        cmd.setName(name);
+        cmd.setText("test story");
+        cmd.setStoryTypeName(StoryType.Success.name());
+        cmd = getCommandHandler().execute(cmd);
+        return cmd.getStory();
+    }
+
+    private UseCase createUseCase(Project project, String name) throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        EditUseCaseCommand cmd = getProjectCommandFactory().newEditUseCaseCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectOrDomain(project);
+        cmd.setName(name);
+        cmd.setText("test use case");
+        cmd.setPrimaryActorName("Any User");
+        cmd = getCommandHandler().execute(cmd);
+        return cmd.getUseCase();
+    }
+
+    private Scenario createScenario(Project project, String name) throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        EditScenarioCommand cmd = getProjectCommandFactory().newEditScenarioCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectOrDomain(project);
+        cmd.setName(name);
+        cmd.setText("test scenario");
+        cmd.setScenarioTypeName(ScenarioType.Primary.name());
+        cmd = getCommandHandler().execute(cmd);
+        return cmd.getScenario();
+    }
+
+    private NonUserStakeholder createNonUserStakeholder(Project project, String name) throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        EditNonUserStakeholderCommand cmd = getProjectCommandFactory().newEditNonUserStakeholderCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectOrDomain(project);
+        cmd.setName(name);
+        cmd.setText("stakeholder text");
+        cmd = getCommandHandler().execute(cmd);
+        return cmd.getStakeholder();
+    }
+
+    private GlossaryTerm createGlossaryTerm(Project project, String name, ProjectOrDomainEntity referer)
+            throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        EditGlossaryTermCommand cmd = getProjectCommandFactory().newEditGlossaryTermCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectOrDomain(project);
+        cmd.setName(name);
+        cmd.setText("test glossary term");
+        if (referer != null) {
+            cmd.setAddReferers(Set.of(referer));
+        }
+        cmd = getCommandHandler().execute(cmd);
+        return cmd.getGlossaryTerm();
+    }
+
+    private ReportGenerator createReportGenerator(Project project, String name) throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        EditReportGeneratorCommand cmd = getProjectCommandFactory().newEditReportGeneratorCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectOrDomain(project);
+        cmd.setName(name);
+        cmd.setText("<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"><xsl:template match=\"/\"><output/></xsl:template></xsl:stylesheet>");
+        cmd = getCommandHandler().execute(cmd);
+        return cmd.getReportGenerator();
     }
 
     // -------------------------------------------------------------------------
@@ -157,6 +231,130 @@ public class ProjectRepositoryTest extends AbstractIntegrationTestCase {
                         .findActorByProjectOrDomainAndName(project, "NoSuchActor"));
     }
 
+    @Test
+    void findStoryByProjectAndNameReturnsPersistedStory() throws Exception {
+        Project project = createProject("Repo-story");
+        createStory(project, "StoryGamma");
+
+        Story found = getProjectRepository()
+                .findStoryByProjectOrDomainAndName(project, "StoryGamma");
+
+        assertNotNull(found);
+        assertEquals("StoryGamma", found.getName());
+    }
+
+    @Test
+    void findStoryByProjectAndNameThrowsForUnknownName() throws Exception {
+        Project project = createProject("Repo-story-notfound");
+
+        assertThrows(NoSuchEntityException.class,
+                () -> getProjectRepository()
+                        .findStoryByProjectOrDomainAndName(project, "NoSuchStory"));
+    }
+
+    @Test
+    void findUseCaseByProjectAndNameReturnsPersistedUseCase() throws Exception {
+        Project project = createProject("Repo-usecase");
+        createUseCase(project, "UseCaseDelta");
+
+        UseCase found = getProjectRepository()
+                .findUseCaseByProjectOrDomainAndName(project, "UseCaseDelta");
+
+        assertNotNull(found);
+        assertEquals("UseCaseDelta", found.getName());
+    }
+
+    @Test
+    void findUseCaseByProjectAndNameThrowsForUnknownName() throws Exception {
+        Project project = createProject("Repo-usecase-notfound");
+
+        assertThrows(NoSuchEntityException.class,
+                () -> getProjectRepository()
+                        .findUseCaseByProjectOrDomainAndName(project, "NoSuchUseCase"));
+    }
+
+    @Test
+    void findScenarioByProjectAndNameReturnsPersistedScenario() throws Exception {
+        Project project = createProject("Repo-scenario");
+        createScenario(project, "ScenarioEpsilon");
+
+        Scenario found = getProjectRepository()
+                .findScenarioByProjectOrDomainAndName(project, "ScenarioEpsilon");
+
+        assertNotNull(found);
+        assertEquals("ScenarioEpsilon", found.getName());
+    }
+
+    @Test
+    void findScenarioByProjectAndNameThrowsForUnknownName() throws Exception {
+        Project project = createProject("Repo-scenario-notfound");
+
+        assertThrows(NoSuchEntityException.class,
+                () -> getProjectRepository()
+                        .findScenarioByProjectOrDomainAndName(project, "NoSuchScenario"));
+    }
+
+    @Test
+    void findStakeholderByProjectAndNameReturnsPersistedStakeholder() throws Exception {
+        Project project = createProject("Repo-stakeholder");
+        createNonUserStakeholder(project, "StakeholderZeta");
+
+        NonUserStakeholder found = getProjectRepository()
+                .findStakeholderByProjectOrDomainAndName(project, "StakeholderZeta");
+
+        assertNotNull(found);
+        assertEquals("StakeholderZeta", found.getName());
+    }
+
+    @Test
+    void findStakeholderByProjectAndUserReturnsPersistedUserStakeholder() throws Exception {
+        Project project = createProject("Repo-user-stakeholder");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        UserStakeholder found = getProjectRepository()
+                .findStakeholderByProjectOrDomainAndUser(project, admin);
+
+        assertNotNull(found);
+        assertEquals(admin.getUsername(), found.getUser().getUsername());
+    }
+
+    @Test
+    void findGlossaryTermForProjectReturnsPersistedTerm() throws Exception {
+        Project project = createProject("Repo-term");
+        createGlossaryTerm(project, "CanonicalTerm", null);
+
+        GlossaryTerm found = getProjectRepository()
+                .findGlossaryTermForProjectOrDomain(project, "CanonicalTerm");
+
+        assertNotNull(found);
+        assertEquals("CanonicalTerm", found.getName());
+    }
+
+    @Test
+    void findGlossaryTermsForEntityReturnsAttachedReferers() throws Exception {
+        Project project = createProject("Repo-term-referer");
+        Goal goal = createGoal(project, "GoalReferer");
+        createGlossaryTerm(project, "AttachedTerm", goal);
+
+        Set<GlossaryTerm> found = getProjectRepository()
+                .findGlossaryTermsForProjectOrDomainEntity(goal);
+
+        assertEquals(1, found.size());
+        assertEquals("AttachedTerm", found.iterator().next().getName());
+    }
+
+    @Test
+    void findReportGeneratorByProjectReturnsPersistedTemplate() throws Exception {
+        Project project = createProject("Repo-report");
+        createReportGenerator(project, "ReportTheta");
+
+        ReportGenerator found = getProjectRepository()
+                .findReportGeneratorByProjectOrDomainAndName(project, "ReportTheta");
+
+        assertNotNull(found);
+        assertEquals("ReportTheta", found.getName());
+    }
+
     // -------------------------------------------------------------------------
     // findStakeholderPermission (seeded by StakeholderPermissionsInitializer)
     // -------------------------------------------------------------------------
@@ -206,7 +404,7 @@ public class ProjectRepositoryTest extends AbstractIntegrationTestCase {
         dup.setText("duplicate");
         dup.setOrganizationName("DupOrg");
 
-        assertThrows(Exception.class, () -> getCommandHandler().execute(dup),
+        assertThrows(EntityException.class, () -> getCommandHandler().execute(dup),
                 "expected exception for duplicate project name");
     }
 }
