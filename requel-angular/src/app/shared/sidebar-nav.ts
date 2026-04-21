@@ -165,7 +165,9 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
 
   readonly canCreateProjects = computed(() => {
     const user = this.authService.user();
-    return user?.permissions?.includes('createProjects') ?? false;
+    // System admins can create projects at the command level; createProjects gates regular users.
+    const isAdmin = user?.roles?.includes('SystemAdminUserRole') ?? false;
+    return isAdmin || (user?.permissions?.includes('createProjects') ?? false);
   });
 
   readonly activePanels = computed(() => {

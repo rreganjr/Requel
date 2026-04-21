@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -87,13 +87,20 @@ export class SettingsComponent implements OnInit {
   sidebarProjectLimit = 10;
   sidebarProjectStaleness = 'THREE_MONTHS';
 
-  constructor(private preferencesService: PreferencesService) {}
+  constructor(
+    private preferencesService: PreferencesService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   async ngOnInit(): Promise<void> {
     try {
       const prefs = await this.preferencesService.load();
       this.sidebarProjectLimit = prefs.sidebarProjectLimit;
       this.sidebarProjectStaleness = prefs.sidebarProjectStaleness;
+      // Plain class properties don't guarantee that zone.js schedules a change detection
+      // cycle before PrimeNG's p-select reads its ngModel value. detectChanges() forces
+      // the component tree to update synchronously so the select displays the loaded value.
+      this.cdr.detectChanges();
     } catch {
       this.errorMessage.set('Failed to load preferences.');
     }

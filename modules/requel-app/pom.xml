@@ -159,17 +159,37 @@
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>jacoco-report-aggregate</id>
+                        <id>jacoco-report</id>
                         <phase>verify</phase>
                         <goals>
-                            <goal>report-aggregate</goal>
+                            <goal>report</goal>
                         </goals>
                         <configuration>
                             <formats>
                                 <format>HTML</format>
                                 <format>XML</format>
                             </formats>
+                            <excludes>
+                                <exclude>com/rreganjr/nlp/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>jacoco-report-aggregate</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report-aggregate</goal>
+                        </goals>
+                        <configuration>
+                            <includeCurrentProject>true</includeCurrentProject>
+                            <formats>
+                                <format>HTML</format>
+                                <format>XML</format>
+                            </formats>
                             <outputDirectory>${project.reporting.outputDirectory}/jacoco-aggregate</outputDirectory>
+                            <excludes>
+                                <exclude>com/rreganjr/nlp/**</exclude>
+                            </excludes>
                         </configuration>
                     </execution>
                 </executions>

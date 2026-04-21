@@ -295,9 +295,14 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 
 	@Override
 	public AuthorizationRequirement getAuthorizationRequirement() {
+		// Bootstrap: null editedBy = system initializer call (AdminUserInitializer, etc.) — skip auth.
+		// execute() enforces the same rule: null editedBy is the only non-admin path allowed to create users.
+		if (editedBy == null) {
+			return null;
+		}
 		// Own-account edits require only authentication — return null to skip the role check.
 		// Editing another account (or creating a new user) requires SystemAdminUserRole.
-		if (user != null && editedBy != null && user.getUsername().equals(editedBy.getUsername())) {
+		if (user != null && user.getUsername().equals(editedBy.getUsername())) {
 			return null;
 		}
 		return new RequiresSystemRole(SystemAdminUserRole.class);

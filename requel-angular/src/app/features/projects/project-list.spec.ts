@@ -60,7 +60,7 @@ describe('ProjectListComponent', () => {
     expect(comp.loading()).toBe(false);
   });
 
-  it('canCreateProjects() is false when user lacks permission', async () => {
+  it('canCreateProjects() is false when user lacks permission and is not admin', async () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(comp.canCreateProjects()).toBe(false);
@@ -69,6 +69,35 @@ describe('ProjectListComponent', () => {
   it('canCreateProjects() is true when user has createProjects permission', async () => {
     TestBed.resetTestingModule();
     setup(['createProjects']);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(comp.canCreateProjects()).toBe(true);
+  });
+
+  it('canCreateProjects() is true when user is a system admin (no createProjects needed)', async () => {
+    TestBed.resetTestingModule();
+    authServiceMock = {
+      user: signal({
+        id: 1, version: 0, username: 'admin', name: 'Admin', emailAddress: null,
+        phoneNumber: null, organizationName: null, roles: ['SystemAdminUserRole'],
+        permissions: [], permissionsByRole: null
+      })
+    };
+    projectServiceMock = {
+      listProjects: vi.fn().mockResolvedValue([]),
+      importProject: vi.fn().mockResolvedValue({ success: true })
+    };
+    TestBed.configureTestingModule({
+      imports: [ProjectListComponent],
+      providers: [
+        provideNoopAnimations(),
+        provideRouter([]),
+        { provide: ProjectService, useValue: projectServiceMock },
+        { provide: AuthService, useValue: authServiceMock }
+      ]
+    });
+    fixture = TestBed.createComponent(ProjectListComponent);
+    comp = fixture.componentInstance;
     fixture.detectChanges();
     await fixture.whenStable();
     expect(comp.canCreateProjects()).toBe(true);

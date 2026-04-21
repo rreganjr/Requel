@@ -90,7 +90,12 @@ describe('SidebarNavComponent', () => {
     expect(comp.canCreateProjects()).toBe(true);
   });
 
-  it('canCreateProjects() is false when permission is absent', () => {
+  it('canCreateProjects() is true when user is a system admin (no createProjects needed)', () => {
+    setup(makeUser(['SystemAdminUserRole'], []));
+    expect(comp.canCreateProjects()).toBe(true);
+  });
+
+  it('canCreateProjects() is false when permission is absent and user is not admin', () => {
     setup(makeUser(['ProjectUserRole'], []));
     expect(comp.canCreateProjects()).toBe(false);
   });

@@ -80,8 +80,16 @@ test.describe('Admin user management', () => {
     // Signal to afterEach that we need to restore the original name
     projectNameWasChanged = true;
 
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    // Filter to the user-specific GET — /api/users/roles and /api/users/organizations
+    // also match '/api/users/' and fire before the user GET, causing the old pattern
+    // to resolve Promise.all before the form is populated.
+    // waitUntil:'domcontentloaded' returns before Angular bootstraps so the listener
+    // is guaranteed to be active before Angular fires its GET /api/users/:username.
+    const userLoaded = page.waitForResponse(
+      r => r.url().includes(`/api/users/${PROJECT_USERNAME}`) && r.status() === 200 && r.request().method() === 'GET'
+    );
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await userLoaded;
     await editorPage.expectNameValue(newName);
 
     await page.close();

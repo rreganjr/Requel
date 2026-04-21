@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal, computed, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, signal, computed, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -40,7 +40,7 @@ import { CommandService } from '../../core/command.service';
   imports: [FormsModule, InputText, Password, ButtonModule, CheckboxModule, SelectModule, MessageModule],
   template: `
     <div class="user-editor">
-      <h2>{{ isNew() ? 'New User' : 'Edit User: ' + username() }}</h2>
+      <h2>{{ isNew() ? 'New User' : 'Edit User: ' + username }}</h2>
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
@@ -150,14 +150,15 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
 
-  // Form fields
-  readonly username = signal('');
-  readonly name = signal('');
-  readonly emailAddress = signal('');
-  readonly phoneNumber = signal('');
-  readonly organizationName = signal('');
-  readonly password = signal('');
-  readonly repassword = signal('');
+  // Form fields — plain properties so [(ngModel)] two-way binding works correctly.
+  // readonly signals don't update via the (ngModelChange)="name=$event" write path.
+  username = '';
+  name = '';
+  emailAddress = '';
+  phoneNumber = '';
+  organizationName = '';
+  password = '';
+  repassword = '';
 
   // Identity for optimistic locking
   private userId: number | null = null;
@@ -178,7 +179,8 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     private route: ActivatedRoute,
     private router: Router,
     private userService: UserService,
-    private commandService: CommandService
+    private commandService: CommandService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -219,6 +221,11 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (!this.isNew() && usernameParam) {
         const user = await this.userService.getUser(usernameParam);
         this.populateForm(user);
+        // Force CD so the @if(isRoleSelected) block and p-checkbox components
+        // initialize from the already-populated values in a single pass.
+        // Without this, PrimeNG checkboxes can initialize from the empty
+        // selectedPermissions set by the init loop above before populateForm runs.
+        this.cdr.detectChanges();
       }
     } finally {
       this.loading.set(false);
@@ -238,20 +245,20 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       const input: Record<string, unknown> = {
         id: this.userId,
         version: this.userVersion,
-        username: this.username(),
-        name: this.name(),
-        emailAddress: this.emailAddress(),
-        phoneNumber: this.phoneNumber(),
-        organizationName: this.organizationName(),
+        username: this.username,
+        name: this.name,
+        emailAddress: this.emailAddress,
+        phoneNumber: this.phoneNumber,
+        organizationName: this.organizationName,
         editable: true,
         userRoleNames: this.selectedRoleNames,
         userRolePermissionNames: this.selectedPermissions
       };
 
       // Only include password if set
-      if (this.password()) {
-        input['password'] = this.password();
-        input['repassword'] = this.repassword();
+      if (this.password) {
+        input['password'] = this.password;
+        input['repassword'] = this.repassword;
       }
 
       const result = await this.commandService.execute('EditUser', input);
@@ -259,7 +266,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.successMessage.set('User saved successfully.');
         this.viewUserForm?.form.markAsPristine();
         if (this.isNew()) {
-          await this.router.navigate(['/users', this.username()]);
+          await this.router.navigate(['/users', this.username]);
         }
       } else if (result.violations?.length) {
         this.errorMessage.set(result.violations.map(v => v.message).join('; '));
@@ -280,11 +287,11 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   private populateForm(user: UserDto): void {
     this.userId = user.id ?? null;
     this.userVersion = user.version ?? 0;
-    this.username.set(user.username);
-    this.name.set(user.name ?? '');
-    this.emailAddress.set(user.emailAddress ?? '');
-    this.phoneNumber.set(user.phoneNumber ?? '');
-    this.organizationName.set(user.organizationName ?? '');
+    this.username = user.username;
+    this.name = user.name ?? '';
+    this.emailAddress = user.emailAddress ?? '';
+    this.phoneNumber = user.phoneNumber ?? '';
+    this.organizationName = user.organizationName ?? '';
     this.selectedRoleNames = [...user.roles];
     // Seed per-role permissions from the server's permissionsByRole map
     for (const roleName of user.roles) {

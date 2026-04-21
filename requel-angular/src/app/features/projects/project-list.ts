@@ -107,7 +107,10 @@ export class ProjectListComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     const user = this.authService.user();
-    this.canCreateProjects.set(user?.permissions?.includes('createProjects') ?? false);
+    // System admins can create projects at the command level regardless of the
+    // createProjects role-permission (which is a gate for regular project users).
+    const isAdmin = user?.roles?.includes('SystemAdminUserRole') ?? false;
+    this.canCreateProjects.set(isAdmin || (user?.permissions?.includes('createProjects') ?? false));
     await this.loadProjects();
   }
 

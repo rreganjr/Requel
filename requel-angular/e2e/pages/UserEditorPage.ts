@@ -102,14 +102,17 @@ export class UserEditorPage {
     // Wait for the EditUser command to complete before returning. Without this,
     // waitForLoadState('domcontentloaded') resolves immediately (no page navigation
     // for existing-user edits), and a subsequent page.reload() races the API call.
-    await Promise.all([
+    const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/EditUser')),
       this.page.getByRole('button', { name: 'Save' }).click(),
     ]);
+    if (!response.ok()) {
+      throw new Error(`EditUser command failed: ${response.status()} ${await response.text()}`);
+    }
   }
 
-  async expectNameValue(name: string): Promise<void> {
-    await expect(this.page.locator('#name')).toHaveValue(name);
+  async expectNameValue(name: string, timeout = 10000): Promise<void> {
+    await expect(this.page.locator('#name')).toHaveValue(name, { timeout });
   }
 
   async expectUsernameValue(username: string): Promise<void> {

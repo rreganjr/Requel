@@ -161,6 +161,11 @@ public class StreamService {
         } catch (IOException e) {
             log.debug("Failed to send event to session {}: {}", sessionId, e.getMessage());
             holder.emitter().completeWithError(e);
+        } catch (IllegalStateException e) {
+            // Tomcat throws this when a background thread (e.g. NLP taskExecutor) tries to
+            // write to an AsyncContext that the client already closed. The onError/onCompletion
+            // callbacks handle session cleanup; just swallow the error here.
+            log.debug("AsyncContext already closed for session {}: {}", sessionId, e.getMessage());
         }
     }
 

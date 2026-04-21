@@ -26,10 +26,15 @@ test.describe('Settings / preferences', () => {
     await settings.fillProjectLimit(7);
     await settings.save();
 
-    await Promise.all([
-      page.waitForResponse(r => r.url().includes('/user-preferences') && r.status() === 200),
-      page.reload(),
-    ]);
+    // Register listener before reload so we don't miss the Angular bootstrap GET.
+    // waitUntil:'domcontentloaded' returns before Angular scripts run, guaranteeing
+    // the listener is active before Angular fires its GET /user-preferences.
+    const prefsLoaded = page.waitForResponse(
+      r => r.url().includes('/user-preferences') && r.status() === 200 && r.request().method() === 'GET'
+    );
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await prefsLoaded;
+
     await expect(page.locator('p-inputnumber input')).toHaveValue('7', { timeout: 10000 });
 
     await page.close();
@@ -43,10 +48,12 @@ test.describe('Settings / preferences', () => {
     await settings.selectStaleness('6 Months');
     await settings.save();
 
-    await Promise.all([
-      page.waitForResponse(r => r.url().includes('/user-preferences') && r.status() === 200),
-      page.reload(),
-    ]);
+    const prefsLoaded = page.waitForResponse(
+      r => r.url().includes('/user-preferences') && r.status() === 200 && r.request().method() === 'GET'
+    );
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await prefsLoaded;
+
     await expect(page.locator('p-select')).toContainText('6 Months', { timeout: 10000 });
 
     await page.close();
