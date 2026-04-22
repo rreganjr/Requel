@@ -46,6 +46,18 @@ export class SettingsPage {
     }
   }
 
+  async resetToDefaults(): Promise<void> {
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r =>
+        r.url().includes('/user-preferences') && r.request().method() === 'PUT'
+      ),
+      this.page.getByRole('button', { name: 'Reset to Defaults' }).click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`PUT /user-preferences (reset) failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
   async expectProjectLimit(limit: number): Promise<void> {
     await expect(this.page.locator('p-inputnumber input')).toHaveValue(String(limit));
   }

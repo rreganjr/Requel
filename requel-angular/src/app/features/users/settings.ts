@@ -62,6 +62,8 @@ import { UserPreferencesDto, STALENESS_OPTIONS } from '../../models/preferences'
 
         <div class="form-actions">
           <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()" />
+          <p-button label="Reset to Defaults" icon="pi pi-refresh" severity="secondary"
+                    [outlined]="true" (onClick)="onReset()" [loading]="saving()" />
         </div>
       </div>
     </div>
@@ -104,6 +106,12 @@ export class SettingsComponent implements OnInit {
     } catch {
       this.errorMessage.set('Failed to load preferences.');
     }
+  }
+
+  async onReset(): Promise<void> {
+    this.sidebarProjectLimit = 10;
+    this.sidebarProjectStaleness = 'THREE_MONTHS';
+    await this.onSave();
   }
 
   async onSave(): Promise<void> {

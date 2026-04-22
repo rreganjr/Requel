@@ -965,17 +965,17 @@ Extra tests implemented: rename story; delete story.
 
 Extra tests implemented: rename use case; delete use case; copy use case.
 
-#### Scenarios
+#### Scenarios ✓ mostly done
 
 | Status | File | Scenario |
 |---|---|---|
 | ✓ | `scenarios.e2e.ts` | Create scenario → appears in list |
-| — | | Add steps to scenario |
-| — | | Reorder steps |
-| — | | Delete step |
-| — | | Edit step text → persists |
+| ✓ | | Add step → name persists after save and reload |
+| ✓ | | Step order change (remove + re-add) → persists after save and reload |
+| ✓ | | Delete step → gone after save and reload |
+| ✓ | | Edit step via popup → name and text persist after save and reload |
 
-Extra tests implemented: rename scenario; change scenario type.
+Extra tests implemented: rename scenario; change scenario type; copy scenario.
 
 #### Annotations (IBIS) ✓ done
 

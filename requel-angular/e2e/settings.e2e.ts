@@ -59,4 +59,29 @@ test.describe('Settings / preferences', () => {
     await page.close();
   });
 
+  test('reset to defaults → limit=10 and staleness=3 months after reload', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+    const settings = new SettingsPage(page);
+
+    // Set non-default values and save so we have something to reset.
+    await settings.goto();
+    await settings.fillProjectLimit(25);
+    await settings.selectStaleness('6 Months');
+    await settings.save();
+
+    // Reset and verify the PUT resolves with defaults applied.
+    await settings.resetToDefaults();
+
+    const prefsLoaded = page.waitForResponse(
+      r => r.url().includes('/user-preferences') && r.status() === 200 && r.request().method() === 'GET'
+    );
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await prefsLoaded;
+
+    await settings.expectProjectLimit(10);
+    await settings.expectStaleness('3 Months');
+
+    await page.close();
+  });
+
 });
