@@ -895,138 +895,161 @@ test.beforeEach(async ({ request }) => {
 Tests live in `requel-angular/e2e/`. The Spring Boot backend + MySQL must be running before
 the E2E suite runs (use `docker-compose up` for CI).
 
-#### Authentication
+#### Authentication ✓ mostly done
 
-| File | Scenario |
-|---|---|
-| `auth.e2e.ts` | Login with valid credentials → lands on projects page |
-| | Login with bad credentials → error message shown, no navigation |
-| | Accessing `/projects` while logged out → redirected to `/login` |
-| | JWT expiry → subsequent API call redirects to login |
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `auth.e2e.ts` | Login with valid credentials → lands on projects page |
+| ✓ | | Login with bad credentials → error message shown, no navigation |
+| ✓ | | Accessing `/projects` while logged out → redirected to `/login` |
+| — | | JWT expiry → subsequent API call redirects to login |
+
+Extra tests implemented (not in original plan): admin sees admin section in sidebar; project user does not see admin section.
 
 #### Project management
 
-| File | Scenario |
-|---|---|
-| `projects.e2e.ts` | Create new project → appears in sidebar and project list |
-| | Edit project name → new name shown in header and sidebar |
-| | Delete project → removed from list; navigates back to project list |
-| | Import project XML → all imported entities appear in the correct lists |
-| | Export project XML → file downloads; re-import round-trips cleanly |
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `projects.e2e.ts` | Create new project → appears in sidebar and project list |
+| ✓ | | Edit project name → new name shown in header and sidebar |
+| — | | Delete project → removed from list; navigates back to project list |
+| — | | Import project XML → all imported entities appear in the correct lists |
+| — | | Export project XML → file downloads; re-import round-trips cleanly |
+
+Extra tests implemented: cancel on project editor navigates back; dirty guard — navigate away with unsaved changes.
 
 #### Goals
 
-| File | Scenario |
-|---|---|
-| `goals.e2e.ts` | Create goal → appears in goal list |
-| | Rename goal → new name persists after save and page reload |
-| | Add/remove goal relation → relation visible on both goals |
-| | Delete goal → removed from list |
-| | Navigate to goal from use-case goals table → opens correct editor |
-| | Dirty guard → navigate away with unsaved changes → confirm dialog; cancel stays on page |
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `goals.e2e.ts` | Create goal → appears in goal list |
+| ✓ | | Rename goal → new name persists after save and page reload |
+| — | | Add/remove goal relation → relation visible on both goals |
+| ✓ | | Delete goal → removed from list |
+| — | | Navigate to goal from use-case goals table → opens correct editor |
+| — | | Dirty guard → navigate away with unsaved changes → confirm dialog; cancel stays on page |
+
+Extra tests implemented: back button navigates to goal list.
 
 #### Stories
 
-| File | Scenario |
-|---|---|
-| `stories.e2e.ts` | Create story → appears in list |
-| | Set primary actor via dropdown → actor name shown in form after reload |
-| | Clear primary actor → field shows placeholder after reload |
-| | Add/remove additional actor |
-| | Change story type → persists after reload |
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `stories.e2e.ts` | Create story → appears in list |
+| — | | Set primary actor via dropdown → actor name shown in form after reload |
+| — | | Clear primary actor → field shows placeholder after reload |
+| — | | Add/remove additional actor |
+| ✓ | | Change story type → persists after reload |
 
-#### Actors
+Extra tests implemented: rename story; delete story.
 
-| File | Scenario |
-|---|---|
-| `actors.e2e.ts` | Create actor; edit name; copy actor → new actor with modified name; delete actor |
-| | Actor appears in primary actor dropdown for story and use-case |
+#### Actors ✓ mostly done
+
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `actors.e2e.ts` | Create actor → appears in list |
+| ✓ | | Rename actor → new name persists after save and reload |
+| ✓ | | Copy actor → new actor with modified name appears in list |
+| ✓ | | Delete actor → removed from list |
+| — | | Actor appears in primary actor dropdown for story and use-case |
 
 #### Use Cases
 
-| File | Scenario |
-|---|---|
-| `use-cases.e2e.ts` | Create use case; set primary actor; create primary scenario → navigates to scenario editor |
-| | Select existing scenario as primary → scenario linked |
-| | Add/remove additional scenario, goal, story, actor |
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `use-cases.e2e.ts` | Create use case → appears in list |
+| ✓ | | Set primary actor → actor name shown in form after reload |
+| — | | Create primary scenario → navigates to scenario editor |
+| — | | Select existing scenario as primary → scenario linked |
+| — | | Add/remove additional scenario, goal, story, actor |
+
+Extra tests implemented: rename use case; delete use case; copy use case.
 
 #### Scenarios
 
-| File | Scenario |
-|---|---|
-| `scenarios.e2e.ts` | Create scenario; add steps; reorder steps; delete step |
-| | Edit step text → persists |
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `scenarios.e2e.ts` | Create scenario → appears in list |
+| — | | Add steps to scenario |
+| — | | Reorder steps |
+| — | | Delete step |
+| — | | Edit step text → persists |
 
-#### Annotations (IBIS)
+Extra tests implemented: rename scenario; change scenario type.
 
-| File | Scenario |
-|---|---|
-| `annotations.e2e.ts` | Add issue to a goal → issue appears in annotations section |
-| | Add position to issue → position nested under issue |
-| | Add argument to position → argument nested |
-| | Resolve issue → status changes |
-| | Open-issues page shows unresolved issues; click navigates to annotated entity |
+#### Annotations (IBIS) ✓ done
 
-#### Glossary terms
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `annotations.e2e.ts` | Add issue to a goal → issue appears in annotations section |
+| ✓ | | Add position to issue → position nested under issue |
+| ✓ | | Add argument to position → argument nested |
+| ✓ | | Resolve issue → status changes |
+| ✓ | | Open-issues page shows unresolved issues; click navigates to annotated entity |
 
-| File | Scenario |
-|---|---|
-| `terms.e2e.ts` | Create glossary term → appears in term list |
-| | Edit term text → persists after save and page reload |
-| | Delete term → removed from list |
+#### Glossary terms ✓ done
 
-#### Reports
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `terms.e2e.ts` | Create glossary term → appears in term list |
+| ✓ | | Edit term text → persists after save and page reload |
+| ✓ | | Delete term → removed from list |
 
-| File | Scenario |
-|---|---|
-| `reports.e2e.ts` | Create report generator → appears in report list |
-| | Edit report configuration → persists |
-| | Run report → output or download link appears |
-| | Delete report generator → removed from list |
+#### Reports ✓ done
+
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `reports.e2e.ts` | Create report generator → appears in report list |
+| ✓ | | Edit report configuration → persists |
+| ✓ | | Run report → output or download link appears |
+| ✓ | | Delete report generator → removed from list |
 
 #### Settings and preferences
 
-| File | Scenario |
-|---|---|
-| `settings.e2e.ts` | Change sidebar project limit and staleness filter → values persist after page reload |
-| | Reset to defaults → saved and reflected in UI |
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `settings.e2e.ts` | Change sidebar project limit and staleness filter → values persist after page reload |
+| — | | Reset to defaults → saved and reflected in UI |
 
 #### Account self-edit
 
-| File | Scenario |
-|---|---|
-| `account.e2e.ts` | Edit own display name → new name shown in header |
-| | Change password → can log out and log back in with new password |
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `account.e2e.ts` | Edit own display name → new name shown in header |
+| — | | Change password → can log out and log back in with new password |
+
+Extra tests implemented: username is pre-filled and disabled on self-edit form.
 
 #### Administration
 
-| File | Scenario |
-|---|---|
-| `admin.e2e.ts` | Create user; set roles; user can log in |
-| | Edit user account as admin → changes visible when user logs in |
-| | Non-admin cannot see admin controls or access admin routes |
-| | Change own password → can log in with new password |
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `admin.e2e.ts` | Create user and set roles |
+| — | | Verify newly created user can log in |
+| ✓ | | Edit user account as admin → changes persist after reload |
+| — | | Non-admin cannot see admin controls or access admin routes |
+| — | | Change own password → can log in with new password |
 
-#### Sidebar and project tree
+#### Sidebar and project tree — file not created
 
-| File | Scenario |
-|---|---|
-| `sidebar.e2e.ts` | Import project XML via sidebar → project appears in list; entities visible in tree |
-| | Edit a goal → project tree refreshes without full page reload (SSE event triggers update) |
+| Status | File | Scenario |
+|---|---|---|
+| — | `sidebar.e2e.ts` | Import project XML via sidebar → project appears in list; entities visible in tree |
+| — | | Edit a goal → project tree refreshes without full page reload (SSE event triggers update) |
 
 #### Forbidden-state UX (401 / 403)
 
-| File | Scenario |
-|---|---|
-| `forbidden.e2e.ts` | Accessing any protected route while logged out → redirected to `/login` |
-| | Authenticated user accessing admin route without admin role → 403 page or redirect shown |
-| | Token expires mid-session → next API call returns 401 → interceptor redirects to `/login` |
+| Status | File | Scenario |
+|---|---|---|
+| ✓ | `forbidden.e2e.ts` | Accessing any protected route while logged out → redirected to `/login` |
+| — | | Authenticated user accessing admin route without admin role → 403 page or redirect shown |
+| — | | Token expires mid-session → next API call returns 401 → interceptor redirects to `/login` |
 
-#### SSE live refresh
+#### SSE live refresh — file not created
 
-| File | Scenario |
-|---|---|
-| `sse-refresh.e2e.ts` | Open goal editor in browser context A; edit and save the same goal via API call (or second browser context B); goal editor in A reloads automatically without manual refresh |
+| Status | File | Scenario |
+|---|---|---|
+| — | `sse-refresh.e2e.ts` | Open goal editor in browser context A; edit and save the same goal via API call (or second browser context B); goal editor in A reloads automatically without manual refresh |
 
 This test requires Playwright's multi-context support — two independent browser contexts
 against the same backend.

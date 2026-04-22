@@ -30,7 +30,10 @@ export class UserListPage {
     await expect(row).toBeVisible({ timeout: 5000 });
     await row.click();
     await this.page.waitForURL(`**/users/${encodeURIComponent(username)}`);
-    await expect(this.page.locator('#name')).toBeVisible();
+    // Wait for the form to be populated by loadData(), not just rendered.
+    // The URL changes as soon as Angular navigates, but loadData() is async — fillName()
+    // called immediately after clickUser() can race with populateForm() and get overwritten.
+    await expect(this.page.locator('#name')).not.toHaveValue('');
   }
 
   async expectUserInTable(username: string): Promise<void> {
