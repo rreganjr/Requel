@@ -130,6 +130,12 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 			removeStoryFromStoryContainerCommand.setStoryContainer(storyContainer);
 			getCommandHandler().execute(removeStoryFromStoryContainerCommand);
 		}
+		// Clean up primary actor's @ManyToAny join-table row using direct SQL to avoid
+		// loading the collection (which may contain stale rows for deleted entities).
+		if (story.getPrimaryActor() != null) {
+			getProjectRepository().removeActorContainerFromActorJoinTable(
+					story.getPrimaryActor().getId(), story.getId());
+		}
 		story.getProjectOrDomain().getStories().remove(story);
 		getRepository().delete(story);
 	}

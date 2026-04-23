@@ -23,17 +23,12 @@ package com.rreganjr.requel.service.preferences;
 import com.rreganjr.requel.service.api.dto.UserPreferencesDto;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import com.rreganjr.requel.user.User;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.TypedQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * REST endpoints for user UI preferences.
@@ -55,14 +50,14 @@ public class UserPreferencesController {
 
     private static final Logger log = LoggerFactory.getLogger(UserPreferencesController.class);
 
-    @PersistenceContext
-    private EntityManager entityManager;
-
+    private final UserPreferencesRepository repository;
     private final CurrentUserResolver currentUserResolver;
     private final TransactionTemplate txTemplate;
 
-    public UserPreferencesController(CurrentUserResolver currentUserResolver,
+    public UserPreferencesController(UserPreferencesRepository repository,
+                                     CurrentUserResolver currentUserResolver,
                                      PlatformTransactionManager transactionManager) {
+        this.repository = repository;
         this.currentUserResolver = currentUserResolver;
         this.txTemplate = new TransactionTemplate(transactionManager);
         log.info("UserPreferencesController created with transactionManager: {}", transactionManager.getClass().getName());
@@ -107,7 +102,7 @@ public class UserPreferencesController {
                         SidebarProjectStaleness.valueOf(input.sidebarProjectStaleness()));
             }
 
-            entityManager.merge(prefs);
+            repository.save(prefs);
             log.info("updatePreferences: after merge limit={} staleness={}", prefs.getSidebarProjectLimit(), prefs.getSidebarProjectStaleness());
             return toDto(prefs);
         });
@@ -120,17 +115,10 @@ public class UserPreferencesController {
      * Must be called within an active transaction.
      */
     private UserPreferences findOrCreate(String username) {
-        TypedQuery<UserPreferences> q = entityManager.createQuery(
-                "SELECT p FROM UserPreferences p WHERE p.username = :username",
-                UserPreferences.class);
-        q.setParameter("username", username);
-        List<UserPreferences> results = q.getResultList();
-        if (!results.isEmpty()) {
-            return results.get(0);
-        }
-        UserPreferences newPrefs = new UserPreferences(username);
-        entityManager.persist(newPrefs);
-        return newPrefs;
+        return repository.findByUsername(username).orElseGet(() -> {
+            UserPreferences newPrefs = new UserPreferences(username);
+            return repository.save(newPrefs);
+        });
     }
 
     private UserPreferencesDto toDto(UserPreferences prefs) {

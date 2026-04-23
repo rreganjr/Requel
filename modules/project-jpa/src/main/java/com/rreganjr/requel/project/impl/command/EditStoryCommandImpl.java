@@ -185,10 +185,12 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 			storyImpl.setStoryType(getStoryType());
 			// Mirror UseCase pattern: merge first so the entity is managed, then set actor
 			storyImpl = getProjectRepository().merge(storyImpl);
-			Actor existingPrimaryActor = storyImpl.getPrimaryActor() != null
-					? getRepository().get(storyImpl.getPrimaryActor()) : null;
-			if (existingPrimaryActor != null && !existingPrimaryActor.equals(resolvedPrimaryActor)) {
-				existingPrimaryActor.getReferers().remove(storyImpl);
+			Actor priorActor = storyImpl.getPrimaryActor();
+			if (priorActor != null && !priorActor.equals(resolvedPrimaryActor)) {
+				// Use direct SQL to avoid loading the @ManyToAny collection, which would throw
+				// NoSuchEntityException if the collection contains stale rows for deleted entities.
+				getProjectRepository().removeActorContainerFromActorJoinTable(
+						priorActor.getId(), storyImpl.getId());
 			}
 			storyImpl.setPrimaryActor(resolvedPrimaryActor);
 		}
@@ -197,9 +199,12 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 			storyImpl.getReferers().add(storyContainer);
 			storyContainer.getStories().add(storyImpl);
 		}
-		// Add to actor's referers after persistence (mirrors EditUseCaseCommandImpl)
+		// Add to actor's referers using direct SQL (INSERT IGNORE is idempotent; avoids loading
+		// the @ManyToAny collection which may contain stale rows for previously deleted entities).
 		if (resolvedPrimaryActor != null) {
-			resolvedPrimaryActor.getReferers().add(storyImpl);
+			getProjectRepository().addActorContainerToActorJoinTable(
+					resolvedPrimaryActor.getId(), storyImpl.getId(),
+					"com.rreganjr.requel.project.Story");
 		}
 		setStory(getProjectRepository().merge(storyImpl));
 	}

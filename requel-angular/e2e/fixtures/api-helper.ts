@@ -174,7 +174,8 @@ export async function createStory(
   projectName: string,
   name: string,
   storyTypeName = 'Success',
-  text = ''
+  text = '',
+  primaryActorName?: string
 ): Promise<StoryFixture> {
   const token = await getAdminToken(api);
   const result = await command(api, token, 'EditStory', {
@@ -182,6 +183,7 @@ export async function createStory(
     name,
     text: text || name,
     storyTypeName,
+    ...(primaryActorName ? { primaryActorName } : {}),
   });
   const entity = result['entity'] as { id: number; version: number; name: string };
   return { id: entity.id, version: entity.version, name: entity.name, projectName };
@@ -304,6 +306,21 @@ export async function getScenarioVersion(
     { headers: { Authorization: `Bearer ${token}` } }
   );
   if (!res.ok()) return scenario.version;
+  const data = await res.json() as { version: number };
+  return data.version;
+}
+
+/** Fetches the current version of a story (needed after saves that increment the version). */
+export async function getStoryVersion(
+  api: APIRequestContext,
+  story: StoryFixture
+): Promise<number> {
+  const token = await getAdminToken(api);
+  const res = await api.get(
+    `${BASE_URL}/api/projects/${encodeURIComponent(story.projectName)}/stories/${story.id}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok()) return story.version;
   const data = await res.json() as { version: number };
   return data.version;
 }

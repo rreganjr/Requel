@@ -72,14 +72,39 @@ export class StoryEditorPage {
   }
 
   async save(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Save' }).click();
-    await this.page.waitForLoadState('domcontentloaded');
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/EditStory')),
+      this.page.getByRole('button', { name: 'Save' }).click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`EditStory command failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  async clearPrimaryActor(): Promise<void> {
+    // PrimeNG 21 Select renders the clear icon as an svg with data-pc-section="clearicon"
+    // (not a button with aria-label="clear") when [showClear]="true" and a value is selected.
+    await this.page.locator('#primaryActor').locator('[data-pc-section="clearicon"]').click();
+  }
+
+  async expectPrimaryActorValue(actorName: string): Promise<void> {
+    await expect(this.page.locator('#primaryActor')).toContainText(actorName);
+  }
+
+  async expectNoPrimaryActor(): Promise<void> {
+    // p-select shows the placeholder when no value is selected
+    await expect(this.page.locator('#primaryActor')).toContainText('Select primary actor');
   }
 
   async delete(): Promise<void> {
     await this.page.getByRole('button', { name: 'Delete' }).click();
-    await this.page.getByRole('button', { name: 'Yes' }).click();
-    await this.page.waitForLoadState('domcontentloaded');
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/DeleteStory') && r.status() === 200),
+      this.page.getByRole('button', { name: 'Yes' }).click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`DeleteStory command failed: ${response.status()} ${await response.text()}`);
+    }
   }
 
   async navigateBack(projectName: string): Promise<void> {
