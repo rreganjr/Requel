@@ -85,4 +85,52 @@ export class GoalEditorPage {
   async expectDescriptionValue(text: string): Promise<void> {
     await expect(this.page.locator('#text')).toHaveValue(text);
   }
+
+  /**
+   * Click "Add Relation", pick the target goal in the entity-selector dialog,
+   * optionally change the relation type, then confirm.
+   */
+  async addRelation(toGoalName: string, relationType: 'Supports' | 'Conflicts' = 'Supports'): Promise<void> {
+    await this.page.getByRole('button', { name: 'Add Relation' }).click();
+    // p-dialog with appendTo="body" renders at document root; use role+name to distinguish
+    // from p-confirmDialog (which renders as alertdialog).
+    const dialog = this.page.getByRole('dialog', { name: 'Select Goal' });
+    await dialog.waitFor({ state: 'visible' });
+    await dialog.locator('[aria-label="Search"]').fill(toGoalName);
+    await dialog.locator('p-table tr', { hasText: toGoalName }).first().click();
+    // Custom relation-type dialog appears after goal is selected
+    await this.page.locator('.relation-type-dialog').waitFor({ state: 'visible' });
+    if (relationType !== 'Supports') {
+      await this.page.locator('.relation-type-dialog p-select').click();
+      await this.page.getByRole('option', { name: relationType }).click();
+    }
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/EditGoalRelation')),
+      this.page.locator('.dialog-actions').getByRole('button', { name: 'Add' }).click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`EditGoalRelation failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  async removeRelation(toGoalName: string): Promise<void> {
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/DeleteGoalRelation')),
+      this.page.locator('p-table tr', { hasText: toGoalName })
+               .getByRole('button')
+               .first()
+               .click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`DeleteGoalRelation failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  async expectRelationInTable(toGoalName: string): Promise<void> {
+    await expect(this.page.locator('p-table td', { hasText: toGoalName }).first()).toBeVisible();
+  }
+
+  async expectRelationNotInTable(toGoalName: string): Promise<void> {
+    await expect(this.page.locator('p-table td', { hasText: toGoalName }).first()).not.toBeVisible();
+  }
 }

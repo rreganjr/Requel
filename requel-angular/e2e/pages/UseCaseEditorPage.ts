@@ -57,9 +57,13 @@ export class UseCaseEditorPage {
 
   async copy(): Promise<void> {
     await this.page.getByRole('button', { name: 'Copy' }).click();
-    // PrimeNG confirmation dialog — click Yes to confirm
-    await this.page.getByRole('button', { name: 'Yes' }).click();
-    await this.page.waitForLoadState('domcontentloaded');
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/CopyUseCase')),
+      this.page.getByRole('button', { name: 'Yes' }).click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`CopyUseCase failed: ${response.status()} ${await response.text()}`);
+    }
   }
 
   async delete(): Promise<void> {

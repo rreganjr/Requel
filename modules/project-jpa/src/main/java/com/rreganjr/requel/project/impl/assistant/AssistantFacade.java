@@ -22,6 +22,7 @@ package com.rreganjr.requel.project.impl.assistant;
 
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Scope;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
@@ -97,7 +98,8 @@ public class AssistantFacade {
 	 *            tell the UI components that reference the entity to refresh
 	 */
 	@Autowired
-	public AssistantFacade(TaskExecutor taskExecutor, CommandHandler commandHandler,
+	public AssistantFacade(@Qualifier("assistantTaskExecutor") TaskExecutor taskExecutor,
+			CommandHandler commandHandler,
 			ProjectCommandFactory projectCommandFactory,
 			AnnotationCommandFactory annotationCommandFactory, ProjectRepository projectRepository,
 			UserRepository userRepository, DictionaryRepository dictionaryRepository,

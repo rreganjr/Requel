@@ -169,6 +169,22 @@ export async function deleteGoal(
   });
 }
 
+export async function createGoalRelation(
+  api: APIRequestContext,
+  projectName: string,
+  fromGoalName: string,
+  toGoalName: string,
+  relationType = 'Supports'
+): Promise<void> {
+  const token = await getAdminToken(api);
+  await command(api, token, 'EditGoalRelation', {
+    projectName,
+    fromGoalName,
+    toGoalName,
+    relationType,
+  });
+}
+
 export async function createStory(
   api: APIRequestContext,
   projectName: string,

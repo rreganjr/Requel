@@ -1,10 +1,11 @@
 import { test, expect } from './fixtures/auth';
-import { createProject, deleteProject, createGoal, deleteGoal, GoalFixture } from './fixtures/api-helper';
+import { createProject, deleteProject, createGoal, deleteGoal, createGoalRelation, GoalFixture } from './fixtures/api-helper';
 import { GoalListPage, GoalEditorPage } from './pages/GoalEditorPage';
 
 // All goal tests share one project to avoid repeated project creation overhead
 const PROJECT_NAME = `e2e-goals-${Date.now()}`;
 let goalToCleanup: GoalFixture | null = null;
+let secondGoalToCleanup: GoalFixture | null = null;
 
 test.beforeAll(async ({ request }) => {
   await createProject(request, PROJECT_NAME, 'Goals E2E test project');
@@ -22,6 +23,14 @@ test.afterEach(async ({ request }) => {
       // may already be deleted by the test
     }
     goalToCleanup = null;
+  }
+  if (secondGoalToCleanup) {
+    try {
+      await deleteGoal(request, secondGoalToCleanup);
+    } catch {
+      // may already be deleted by the test
+    }
+    secondGoalToCleanup = null;
   }
 });
 
@@ -115,6 +124,58 @@ test.describe('Goal management', () => {
     await editorPage.navigateBack(PROJECT_NAME);
 
     await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(PROJECT_NAME)}/goals$`));
+
+    await page.close();
+  });
+
+});
+
+test.describe('Goal relations', () => {
+
+  test('add goal relation → appears in table and persists after reload', async ({ adminContext, request }) => {
+    const goalAName = `e2e-goal-rel-a-${Date.now()}`;
+    const goalBName = `e2e-goal-rel-b-${Date.now()}`;
+    const goalA = await createGoal(request, PROJECT_NAME, goalAName);
+    const goalB = await createGoal(request, PROJECT_NAME, goalBName);
+    goalToCleanup = goalA;
+    secondGoalToCleanup = goalB;
+
+    const page = await adminContext.newPage();
+    const listPage = new GoalListPage(page);
+    const editorPage = new GoalEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickGoal(goalAName);
+
+    await editorPage.addRelation(goalBName, 'Supports');
+    await editorPage.expectRelationInTable(goalBName);
+
+    // Reload to confirm the relation persisted
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await editorPage.expectRelationInTable(goalBName);
+
+    await page.close();
+  });
+
+  test('remove goal relation → gone after removal', async ({ adminContext, request }) => {
+    const goalAName = `e2e-goal-rmrel-a-${Date.now()}`;
+    const goalBName = `e2e-goal-rmrel-b-${Date.now()}`;
+    const goalA = await createGoal(request, PROJECT_NAME, goalAName);
+    const goalB = await createGoal(request, PROJECT_NAME, goalBName);
+    goalToCleanup = goalA;
+    secondGoalToCleanup = goalB;
+    await createGoalRelation(request, PROJECT_NAME, goalAName, goalBName);
+
+    const page = await adminContext.newPage();
+    const listPage = new GoalListPage(page);
+    const editorPage = new GoalEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickGoal(goalAName);
+
+    await editorPage.expectRelationInTable(goalBName);
+    await editorPage.removeRelation(goalBName);
+    await editorPage.expectRelationNotInTable(goalBName);
 
     await page.close();
   });

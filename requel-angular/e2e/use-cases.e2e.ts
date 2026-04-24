@@ -121,7 +121,8 @@ test.describe('Use Case management', () => {
 
     await editorPage.copy();
 
-    await page.waitForURL(/\/use-cases\/\d+/);
+    // After copy, the router navigates to the NEW use case — wait for a URL that differs from the original
+    await page.waitForURL(url => url.href.includes('/use-cases/') && !url.href.endsWith(`/use-cases/${uc.id}`));
 
     // Both original and "Copy of ..." contain ucName — 2 rows visible
     await listPage.goto(PROJECT_NAME);

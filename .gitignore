@@ -6,6 +6,9 @@ target/
 # Playwright MCP browser tool session artifacts
 /.playwright-mcp/
 
+# Maven Javac compiler argument files (build artifacts)
+**/javac.*.args
+
 # Local draft files (not for version control)
 /commit.md
 /ticket.md

@@ -20,7 +20,7 @@
 	  preventing background threads from leaking into later tests that share the H2 database.
 	-->
 	<beans profile="!test">
-		<bean id="taskExecutor" class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor">
+		<bean id="assistantTaskExecutor" class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor">
 		  <property name="corePoolSize" value="5" />
 		  <property name="maxPoolSize" value="10" />
 		  <property name="queueCapacity" value="25" />
@@ -32,7 +32,7 @@
 		     transaction commits the Hibernate session is closed, causing
 		     LazyInitializationException on lazy collections in the NLP pipeline.
 		     NLP behaviour is covered by the dedicated NLP test classes. -->
-		<bean id="taskExecutor" class="com.rreganjr.TestNoOpTaskExecutor"/>
+		<bean id="assistantTaskExecutor" class="com.rreganjr.TestNoOpTaskExecutor"/>
 	</beans>
 
 </beans>
