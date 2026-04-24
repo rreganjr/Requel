@@ -217,6 +217,20 @@ export async function deleteStory(
   });
 }
 
+export async function addActorToStory(
+  api: APIRequestContext,
+  projectName: string,
+  storyId: number,
+  actorId: number
+): Promise<void> {
+  const token = await getAdminToken(api);
+  await command(api, token, 'AddActorToActorContainer', {
+    projectName,
+    actorContainerId: storyId,
+    actorId,
+  });
+}
+
 export async function createActor(
   api: APIRequestContext,
   projectName: string,

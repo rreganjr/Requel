@@ -1,10 +1,11 @@
 import { test, expect } from './fixtures/auth';
-import { createProject, deleteProject, createActor, createStory, deleteStory, getStoryVersion, StoryFixture } from './fixtures/api-helper';
+import { createProject, deleteProject, createActor, deleteActor, getActorVersion, createStory, deleteStory, getStoryVersion, addActorToStory, StoryFixture, ActorFixture } from './fixtures/api-helper';
 import { StoryListPage, StoryEditorPage } from './pages/StoryEditorPage';
 
 const PROJECT_NAME = `e2e-stories-${Date.now()}`;
 const ACTOR_NAME = 'E2E Story Actor';
 let storyToCleanup: StoryFixture | null = null;
+let secondActorToCleanup: ActorFixture | null = null;
 
 test.beforeAll(async ({ request }) => {
   await createProject(request, PROJECT_NAME, 'Stories E2E test project');
@@ -24,6 +25,15 @@ test.afterEach(async ({ request }) => {
       // may already be deleted by the test
     }
     storyToCleanup = null;
+  }
+  if (secondActorToCleanup) {
+    try {
+      const version = await getActorVersion(request, secondActorToCleanup);
+      await deleteActor(request, { ...secondActorToCleanup, version });
+    } catch {
+      // may already be deleted by the test
+    }
+    secondActorToCleanup = null;
   }
 });
 
@@ -172,6 +182,62 @@ test.describe('Story management', () => {
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
     await editorPage.expectNameValue(newName);
+
+    await page.close();
+  });
+
+});
+
+test.describe('Story additional actors', () => {
+
+  test('add additional actor → appears in table and persists after reload', async ({ adminContext, request }) => {
+    const storyName = `e2e-story-addactor-${Date.now()}`;
+    const actorName = `e2e-story-actor-${Date.now()}`;
+    const story = await createStory(request, PROJECT_NAME, storyName);
+    const actor = await createActor(request, PROJECT_NAME, actorName);
+    storyToCleanup = story;
+    secondActorToCleanup = actor;
+
+    const page = await adminContext.newPage();
+    const listPage = new StoryListPage(page);
+    const editorPage = new StoryEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickStory(storyName);
+
+    await editorPage.addAdditionalActor(actorName);
+    await editorPage.expectAdditionalActorInTable(actorName);
+
+    // Reload to confirm the actor persisted
+    const storyLoaded = page.waitForResponse(
+      r => r.url().match(/\/stories\/\d+$/) !== null && r.status() === 200 && r.request().method() === 'GET'
+    );
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await storyLoaded;
+    await editorPage.expectAdditionalActorInTable(actorName);
+
+    await page.close();
+  });
+
+  test('remove additional actor → gone after removal', async ({ adminContext, request }) => {
+    const storyName = `e2e-story-rmactor-${Date.now()}`;
+    const actorName = `e2e-story-rmactor-actor-${Date.now()}`;
+    const story = await createStory(request, PROJECT_NAME, storyName);
+    const actor = await createActor(request, PROJECT_NAME, actorName);
+    storyToCleanup = story;
+    secondActorToCleanup = actor;
+    await addActorToStory(request, PROJECT_NAME, story.id, actor.id);
+
+    const page = await adminContext.newPage();
+    const listPage = new StoryListPage(page);
+    const editorPage = new StoryEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickStory(storyName);
+
+    await editorPage.expectAdditionalActorInTable(actorName);
+    await editorPage.removeAdditionalActor(actorName);
+    await editorPage.expectAdditionalActorNotInTable(actorName);
 
     await page.close();
   });

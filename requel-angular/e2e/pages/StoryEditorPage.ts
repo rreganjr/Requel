@@ -120,4 +120,39 @@ export class StoryEditorPage {
     // p-select renders the selected value in a span inside the component
     await expect(this.page.locator('#type')).toContainText(type);
   }
+
+  async addAdditionalActor(actorName: string): Promise<void> {
+    await this.page.getByRole('button', { name: 'Add Actor' }).click();
+    const dialog = this.page.getByRole('dialog', { name: 'Select Actor' });
+    await dialog.waitFor({ state: 'visible' });
+    await dialog.locator('[aria-label="Search"]').fill(actorName);
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/AddActorToActorContainer')),
+      dialog.locator('p-table tr', { hasText: actorName }).first().click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`AddActorToActorContainer failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  async removeAdditionalActor(actorName: string): Promise<void> {
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/RemoveActorFromActorContainer')),
+      this.page.locator('p-table tr', { hasText: actorName })
+               .getByRole('button')
+               .first()
+               .click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`RemoveActorFromActorContainer failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  async expectAdditionalActorInTable(actorName: string): Promise<void> {
+    await expect(this.page.locator('p-table td', { hasText: actorName }).first()).toBeVisible();
+  }
+
+  async expectAdditionalActorNotInTable(actorName: string): Promise<void> {
+    await expect(this.page.locator('p-table td', { hasText: actorName }).first()).not.toBeVisible();
+  }
 }
