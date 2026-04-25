@@ -22,6 +22,7 @@ package com.rreganjr.requel.service.command;
 
 import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.api.dto.EditUserInput;
+import com.rreganjr.requel.service.auth.UserDtoMapper;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.user.command.UserCommandFactory;
@@ -43,12 +44,14 @@ public class UserCommandRegistrar {
     private final UserCommandFactory factory;
     private final UserRepository userRepository;
     private final CommandRegistry registry;
+    private final UserDtoMapper userDtoMapper;
 
     public UserCommandRegistrar(UserCommandFactory factory, UserRepository userRepository,
-                                CommandRegistry registry) {
+                                CommandRegistry registry, UserDtoMapper userDtoMapper) {
         this.factory = factory;
         this.userRepository = userRepository;
         this.registry = registry;
+        this.userDtoMapper = userDtoMapper;
     }
 
     @PostConstruct
@@ -82,7 +85,9 @@ public class UserCommandRegistrar {
                     if (i.editable() != null) c.setEditable(i.editable());
                     if (i.userRoleNames() != null) c.setUserRoleNames(i.userRoleNames());
                     if (i.userRolePermissionNames() != null) c.setUserRolePermissionNames(i.userRolePermissionNames());
-                });
+                },
+                null,
+                cmd -> userDtoMapper.toDto(((EditUserCommand) cmd).getUser()));
 
         log.info("Registered {} user command types", 2);
     }

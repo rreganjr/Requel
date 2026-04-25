@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/auth';
-import { setUserName } from './fixtures/api-helper';
+import { createUser, setUserName } from './fixtures/api-helper';
 import { UserListPage, UserEditorPage } from './pages/UserEditorPage';
+import { LoginPage } from './pages/LoginPage';
 
 // The pre-seeded project user used for the rename test; name is restored in afterEach via API
 const PROJECT_USERNAME = 'project';
@@ -61,6 +62,41 @@ test.describe('Admin user management', () => {
     await listPage.expectUserInTable(username);
 
     await page.close();
+  });
+
+  test('newly created user can log in', async ({ browser, request }) => {
+    const username = `e2e-user-login-${Date.now()}`;
+    const password = 'e2eLoginTest123!';
+    await createUser(request, username, 'Login Test User', password);
+
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    const loginPage = new LoginPage(page);
+
+    await loginPage.goto();
+    await loginPage.login(username, password);
+    await loginPage.expectRedirectedToDashboard();
+
+    await ctx.close();
+  });
+
+  test('newly created project user cannot see admin controls', async ({ browser, request }) => {
+    const username = `e2e-user-noadmin-${Date.now()}`;
+    const password = 'e2eNoAdmin123!';
+    await createUser(request, username, 'No Admin User', password, 'ProjectUserRole');
+
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    const loginPage = new LoginPage(page);
+
+    await loginPage.goto();
+    await loginPage.login(username, password);
+    await loginPage.expectRedirectedToDashboard();
+
+    // Admin-only navigation link must not be visible to a project-only user
+    await expect(page.getByRole('link', { name: 'List users' })).not.toBeVisible();
+
+    await ctx.close();
   });
 
   test('admin edits user name → persists after reload', async ({ adminContext }) => {

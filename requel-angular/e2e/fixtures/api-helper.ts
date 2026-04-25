@@ -231,6 +231,76 @@ export async function addActorToStory(
   });
 }
 
+export async function addActorToUseCase(
+  api: APIRequestContext,
+  projectName: string,
+  useCaseId: number,
+  actorId: number
+): Promise<void> {
+  const token = await getAdminToken(api);
+  await command(api, token, 'AddActorToActorContainer', {
+    projectName,
+    actorContainerId: useCaseId,
+    actorId,
+  });
+}
+
+export async function addGoalToUseCase(
+  api: APIRequestContext,
+  projectName: string,
+  useCaseId: number,
+  goalId: number
+): Promise<void> {
+  const token = await getAdminToken(api);
+  await command(api, token, 'AddGoalToGoalContainer', {
+    projectName,
+    goalContainerId: useCaseId,
+    goalId,
+  });
+}
+
+export async function addStoryToUseCase(
+  api: APIRequestContext,
+  projectName: string,
+  useCaseId: number,
+  storyId: number
+): Promise<void> {
+  const token = await getAdminToken(api);
+  await command(api, token, 'AddStoryToStoryContainer', {
+    projectName,
+    storyContainerId: useCaseId,
+    storyId,
+  });
+}
+
+export async function addScenarioToUseCase(
+  api: APIRequestContext,
+  projectName: string,
+  useCaseId: number,
+  scenarioId: number
+): Promise<void> {
+  const token = await getAdminToken(api);
+  await command(api, token, 'AddScenarioToUseCase', {
+    projectName,
+    useCaseId,
+    scenarioId,
+  });
+}
+
+export async function setPrimaryScenarioOnUseCase(
+  api: APIRequestContext,
+  projectName: string,
+  useCaseId: number,
+  scenarioId: number
+): Promise<void> {
+  const token = await getAdminToken(api);
+  await command(api, token, 'SetPrimaryScenarioOnUseCase', {
+    projectName,
+    useCaseId,
+    scenarioId,
+  });
+}
+
 export async function createActor(
   api: APIRequestContext,
   projectName: string,

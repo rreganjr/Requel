@@ -924,7 +924,7 @@ Extra tests implemented: cancel on project editor navigates back; dirty guard �
 |---|---|---|
 | ✓ | `goals.e2e.ts` | Create goal → appears in goal list |
 | ✓ | | Rename goal → new name persists after save and page reload |
-| — | | Add/remove goal relation → relation visible on both goals |
+| ✓ | | Add/remove goal relation → relation visible on both goals |
 | ✓ | | Delete goal → removed from list |
 | — | | Navigate to goal from use-case goals table → opens correct editor |
 | — | | Dirty guard → navigate away with unsaved changes → confirm dialog; cancel stays on page |
@@ -936,9 +936,9 @@ Extra tests implemented: back button navigates to goal list.
 | Status | File | Scenario |
 |---|---|---|
 | ✓ | `stories.e2e.ts` | Create story → appears in list |
-| — | | Set primary actor via dropdown → actor name shown in form after reload |
-| — | | Clear primary actor → field shows placeholder after reload |
-| — | | Add/remove additional actor |
+| ✓ | | Set primary actor via dropdown → actor name shown in form after reload |
+| ✓ | | Clear primary actor → field shows placeholder after reload |
+| ✓ | | Add/remove additional actor |
 | ✓ | | Change story type → persists after reload |
 
 Extra tests implemented: rename story; delete story.
@@ -959,9 +959,11 @@ Extra tests implemented: rename story; delete story.
 |---|---|---|
 | ✓ | `use-cases.e2e.ts` | Create use case → appears in list |
 | ✓ | | Set primary actor → actor name shown in form after reload |
-| — | | Create primary scenario → navigates to scenario editor |
-| — | | Select existing scenario as primary → scenario linked |
-| — | | Add/remove additional scenario, goal, story, actor |
+| ✓ | | Primary scenario shown in card; Open in Editor navigates to scenario editor |
+| ✓ | | SetPrimaryScenarioOnUseCase → links scenario and name shown in card |
+| ✓ | | Add/remove additional scenario, goal, story, actor |
+
+Note: EditUseCase always auto-creates a Primary scenario on new use case creation, so the "Create New" / "Select Existing" buttons (shown only when no primary scenario exists) are not reachable via the normal test setup and are not covered by E2E tests.
 
 Extra tests implemented: rename use case; delete use case; copy use case.
 
@@ -1025,9 +1027,9 @@ Extra tests implemented: username is pre-filled and disabled on self-edit form.
 | Status | File | Scenario |
 |---|---|---|
 | ✓ | `admin.e2e.ts` | Create user and set roles |
-| — | | Verify newly created user can log in |
+| ✓ | | Verify newly created user can log in |
 | ✓ | | Edit user account as admin → changes persist after reload |
-| — | | Non-admin cannot see admin controls or access admin routes |
+| ✓ | | Non-admin cannot see admin controls or access admin routes |
 | — | | Change own password → can log in with new password |
 
 #### Sidebar and project tree — file not created

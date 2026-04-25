@@ -80,4 +80,88 @@ export class UseCaseEditorPage {
   async expectNameValue(name: string): Promise<void> {
     await expect(this.page.locator('#name')).toHaveValue(name);
   }
+
+  // ── Sub-table helpers (Goals, Stories, Additional Actors, Additional Scenarios) ──
+
+  private async addViaSelector(
+    buttonLabel: string,
+    dialogName: string,
+    entityName: string,
+    commandUrlFragment: string
+  ): Promise<void> {
+    await this.page.getByRole('button', { name: buttonLabel }).click();
+    const dialog = this.page.getByRole('dialog', { name: dialogName });
+    await dialog.waitFor({ state: 'visible' });
+    await dialog.locator('[aria-label="Search"]').fill(entityName);
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes(commandUrlFragment)),
+      dialog.locator('p-table tr', { hasText: entityName }).first().click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`${commandUrlFragment} failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  private async removeFromTable(entityName: string, commandUrlFragment: string): Promise<void> {
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes(commandUrlFragment)),
+      this.page.locator('p-table tr', { hasText: entityName })
+               .locator('p-button')
+               .click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`${commandUrlFragment} failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  async addGoal(goalName: string): Promise<void> {
+    await this.addViaSelector('Add Goal', 'Select Goal', goalName, '/api/commands/AddGoalToGoalContainer');
+  }
+
+  async removeGoal(goalName: string): Promise<void> {
+    await this.removeFromTable(goalName, '/api/commands/RemoveGoalFromGoalContainer');
+  }
+
+  async addStory(storyName: string): Promise<void> {
+    await this.addViaSelector('Add Story', 'Select Story', storyName, '/api/commands/AddStoryToStoryContainer');
+  }
+
+  async removeStory(storyName: string): Promise<void> {
+    await this.removeFromTable(storyName, '/api/commands/RemoveStoryFromStoryContainer');
+  }
+
+  async addAdditionalActor(actorName: string): Promise<void> {
+    await this.addViaSelector('Add Actor', 'Select Actor', actorName, '/api/commands/AddActorToActorContainer');
+  }
+
+  async removeAdditionalActor(actorName: string): Promise<void> {
+    await this.removeFromTable(actorName, '/api/commands/RemoveActorFromActorContainer');
+  }
+
+  async addAdditionalScenario(scenarioName: string): Promise<void> {
+    await this.addViaSelector('Add Scenario', 'Select Scenario', scenarioName, '/api/commands/AddScenarioToUseCase');
+  }
+
+  async removeAdditionalScenario(scenarioName: string): Promise<void> {
+    await this.removeFromTable(scenarioName, '/api/commands/RemoveScenarioFromUseCase');
+  }
+
+  async expectInTable(name: string): Promise<void> {
+    await expect(this.page.locator('p-table td', { hasText: name }).first()).toBeVisible();
+  }
+
+  async expectNotInTable(name: string): Promise<void> {
+    await expect(this.page.locator('p-table td', { hasText: name }).first()).not.toBeVisible();
+  }
+
+  // ── Primary scenario helpers ──
+
+  async openPrimaryScenarioInEditor(): Promise<void> {
+    await this.page.getByRole('button', { name: 'Open in Editor' }).click();
+    await this.page.waitForURL(/\/scenarios\/\d+/);
+  }
+
+  async expectPrimaryScenarioName(name: string): Promise<void> {
+    await expect(this.page.locator('.primary-scenario-name')).toContainText(name);
+  }
 }
