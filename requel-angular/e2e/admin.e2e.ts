@@ -99,6 +99,31 @@ test.describe('Admin user management', () => {
     await ctx.close();
   });
 
+  test('admin changes user password → user can log in with new password', async ({ adminContext, browser, request }) => {
+    const username = `e2e-pwd-admin-${Date.now()}`;
+    const initialPassword = 'InitialAdminPass123!';
+    const newPassword = 'NewAdminPass456!';
+    await createUser(request, username, 'Admin Password Test', initialPassword);
+
+    const page = await adminContext.newPage();
+    const listPage = new UserListPage(page);
+    const editorPage = new UserEditorPage(page);
+
+    await listPage.goto();
+    await listPage.clickUser(username);
+    await editorPage.fillPassword(newPassword);
+    await editorPage.save();
+    await page.close();
+
+    // Verify: fresh unauthenticated context, log in with the new password
+    const ctx = await browser.newContext();
+    const loginPage = new LoginPage(await ctx.newPage());
+    await loginPage.goto();
+    await loginPage.login(username, newPassword);
+    await loginPage.expectRedirectedToDashboard();
+    await ctx.close();
+  });
+
   test('admin edits user name → persists after reload', async ({ adminContext }) => {
     // Use the pre-seeded "project" user — avoids the 409 that the createUser API helper
     // was hitting (likely from phoneNumber/organizationName constraint differences)

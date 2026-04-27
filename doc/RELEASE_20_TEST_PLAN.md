@@ -1018,7 +1018,7 @@ Extra tests implemented: rename scenario; change scenario type; copy scenario.
 | Status | File | Scenario |
 |---|---|---|
 | ✓ | `account.e2e.ts` | Edit own display name → new name shown in header |
-| — | | Change password → can log out and log back in with new password |
+| ✓ | | Change password → can log out and log back in with new password |
 
 Extra tests implemented: username is pre-filled and disabled on self-edit form.
 
@@ -1030,7 +1030,7 @@ Extra tests implemented: username is pre-filled and disabled on self-edit form.
 | ✓ | | Verify newly created user can log in |
 | ✓ | | Edit user account as admin → changes persist after reload |
 | ✓ | | Non-admin cannot see admin controls or access admin routes |
-| — | | Change own password → can log in with new password |
+| ✓ | | Change own password → can log in with new password |
 
 #### Sidebar and project tree — file not created
 
