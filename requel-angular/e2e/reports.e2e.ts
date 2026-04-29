@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/auth';
 import { createProject, deleteProject, createReport, deleteReport, ReportFixture } from './fixtures/api-helper';
 import { ReportListPage, ReportEditorPage } from './pages/ReportEditorPage';
+import { reloadAndWaitForGet } from './helpers/navigation';
 
 const PROJECT_NAME = `e2e-reports-${Date.now()}`;
 let reportToCleanup: ReportFixture | null = null;
@@ -74,8 +75,7 @@ test.describe('Report generator management', () => {
     await editorPage.fillName(newName);
     await editorPage.save();
 
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await reloadAndWaitForGet(page, r => /\/reports\/\d+$/.test(r.url()));
     await editorPage.expectNameValue(newName);
 
     await page.close();

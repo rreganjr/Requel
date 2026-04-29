@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/auth';
 import { createProject, deleteProject, createGoal, deleteGoal, createGoalRelation, GoalFixture } from './fixtures/api-helper';
 import { GoalListPage, GoalEditorPage } from './pages/GoalEditorPage';
+import { reloadAndWaitForGet } from './helpers/navigation';
 
 // All goal tests share one project to avoid repeated project creation overhead
 const PROJECT_NAME = `e2e-goals-${Date.now()}`;
@@ -82,8 +83,7 @@ test.describe('Goal management', () => {
     await editorPage.save();
 
     // Reload and confirm name persisted
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await reloadAndWaitForGet(page, r => /\/goals\/\d+$/.test(r.url()));
     await editorPage.expectNameValue(newName);
 
     await page.close();
@@ -151,7 +151,7 @@ test.describe('Goal relations', () => {
     await editorPage.expectRelationInTable(goalBName);
 
     // Reload to confirm the relation persisted
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await reloadAndWaitForGet(page, r => /\/goals\/\d+$/.test(r.url()));
     await editorPage.expectRelationInTable(goalBName);
 
     await page.close();

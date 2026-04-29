@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/auth';
 import { createProject, deleteProject, createScenario, deleteScenario, getScenarioVersion, ScenarioFixture } from './fixtures/api-helper';
 import { ScenarioListPage, ScenarioEditorPage } from './pages/ScenarioEditorPage';
+import { reloadAndWaitForGet } from './helpers/navigation';
 
 const PROJECT_NAME = `e2e-scenarios-${Date.now()}`;
 let scenarioToCleanup: ScenarioFixture | null = null;
@@ -70,8 +71,7 @@ test.describe('Scenario management', () => {
     await editorPage.fillName(newName);
     await editorPage.save();
 
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await reloadAndWaitForGet(page, r => /\/scenarios\/\d+$/.test(r.url()));
     await editorPage.expectNameValue(newName);
 
     await page.close();
@@ -92,8 +92,7 @@ test.describe('Scenario management', () => {
     await editorPage.selectType('Alternative');
     await editorPage.save();
 
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await reloadAndWaitForGet(page, r => /\/scenarios\/\d+$/.test(r.url()));
     await editorPage.expectTypeValue('Alternative');
 
     await page.close();
@@ -140,7 +139,7 @@ test.describe('Scenario steps', () => {
     await editorPage.fillStepName(0, 'The user opens the application');
     await editorPage.save();
 
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await reloadAndWaitForGet(page, r => /\/scenarios\/\d+$/.test(r.url()));
     await editorPage.expectStepCount(1);
     await editorPage.expectStepName(0, 'The user opens the application');
 
@@ -171,7 +170,7 @@ test.describe('Scenario steps', () => {
     await editorPage.applyStepEdit();
     await editorPage.save();
 
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await reloadAndWaitForGet(page, r => /\/scenarios\/\d+$/.test(r.url()));
     await editorPage.expectStepCount(1);
     await editorPage.expectStepName(0, 'Updated step name');
 
@@ -201,7 +200,7 @@ test.describe('Scenario steps', () => {
     await editorPage.removeStep(0);
     await editorPage.save();
 
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await reloadAndWaitForGet(page, r => /\/scenarios\/\d+$/.test(r.url()));
     await editorPage.expectStepCount(0);
 
     await page.close();
@@ -235,7 +234,7 @@ test.describe('Scenario steps', () => {
     // Either call can reset stepNodes back to [Alpha, Beta] mid-sequence, producing
     // an empty-name step that fails server validation. A full reload starts the
     // component fresh with no in-flight reloads in progress.
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await reloadAndWaitForGet(page, r => /\/scenarios\/\d+$/.test(r.url()));
     await editorPage.expectStepName(0, 'Step Alpha');
     await editorPage.expectStepName(1, 'Step Beta');
 
@@ -250,7 +249,7 @@ test.describe('Scenario steps', () => {
     await editorPage.fillStepName(1, 'Step Gamma');
     await editorPage.save();
 
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await reloadAndWaitForGet(page, r => /\/scenarios\/\d+$/.test(r.url()));
     await editorPage.expectStepName(0, 'Step Beta');
     await editorPage.expectStepName(1, 'Step Gamma');
 

@@ -2,6 +2,7 @@ import { test, expect } from './fixtures/auth';
 import { createUser, setUserName } from './fixtures/api-helper';
 import { UserListPage, UserEditorPage } from './pages/UserEditorPage';
 import { LoginPage } from './pages/LoginPage';
+import { reloadAndWaitForGet } from './helpers/navigation';
 
 // The pre-seeded project user used for the rename test; name is restored in afterEach via API
 const PROJECT_USERNAME = 'project';
@@ -146,11 +147,7 @@ test.describe('Admin user management', () => {
     // to resolve Promise.all before the form is populated.
     // waitUntil:'domcontentloaded' returns before Angular bootstraps so the listener
     // is guaranteed to be active before Angular fires its GET /api/users/:username.
-    const userLoaded = page.waitForResponse(
-      r => r.url().includes(`/api/users/${PROJECT_USERNAME}`) && r.status() === 200 && r.request().method() === 'GET'
-    );
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await userLoaded;
+    await reloadAndWaitForGet(page, r => r.url().includes(`/api/users/${PROJECT_USERNAME}`));
     await editorPage.expectNameValue(newName);
 
     await page.close();

@@ -1,46 +1,41 @@
 import { Page, expect } from '@playwright/test';
+import { BaseListPage } from './BaseListPage';
 
-export class ActorListPage {
-  constructor(private page: Page) {}
+export class ActorListPage extends BaseListPage {
+  constructor(page: Page) {
+    super(page);
+  }
 
   async goto(projectName: string): Promise<void> {
-    await Promise.all([
-      this.page.waitForResponse(r => r.url().includes('/actors') && r.status() === 200),
-      this.page.goto(`/projects/${encodeURIComponent(projectName)}/actors`),
-    ]);
+    await this.gotoList(`/projects/${encodeURIComponent(projectName)}/actors`, '/actors');
   }
 
   async searchFor(name: string): Promise<void> {
-    const searchInput = this.page.getByPlaceholder('Search actors...');
-    await searchInput.clear();
-    await searchInput.fill(name);
+    await this.searchWithPlaceholder('Search actors...', name);
   }
 
   async clickNewActor(): Promise<void> {
-    await this.page.locator('app-list-page').getByRole('button', { name: 'New Actor' }).click();
-    await this.page.waitForURL('**/actors/new');
+    await this.clickNewButton('New Actor', '**/actors/new');
   }
 
   async clickActor(name: string): Promise<void> {
     await this.searchFor(name);
-    await this.page.locator('p-table td', { hasText: name }).first().click();
-    await this.page.waitForURL(/\/actors\/\d+/);
-    await expect(this.page.locator('#name')).not.toHaveValue('');
+    await this.clickTableRow(name, /\/actors\/\d+/);
   }
 
   async expectActorInTable(name: string): Promise<void> {
     await this.searchFor(name);
-    await expect(this.page.locator('p-table td', { hasText: name })).toBeVisible();
+    await this.expectTableRowVisible(name);
   }
 
   async expectActorNotInTable(name: string): Promise<void> {
     await this.searchFor(name);
-    await expect(this.page.locator('p-table td', { hasText: name })).not.toBeVisible();
+    await this.expectTableRowNotVisible(name);
   }
 
   async countActorRows(nameSubstring: string): Promise<number> {
     await this.searchFor(nameSubstring);
-    return this.page.locator('p-table td', { hasText: nameSubstring }).count();
+    return this.countTableRows(nameSubstring);
   }
 }
 

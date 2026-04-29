@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/auth';
 import { createProject, deleteProject, createActor, deleteActor, getActorVersion, createStory, deleteStory, getStoryVersion, addActorToStory, StoryFixture, ActorFixture } from './fixtures/api-helper';
 import { StoryListPage, StoryEditorPage } from './pages/StoryEditorPage';
+import { reloadAndWaitForGet } from './helpers/navigation';
 
 const PROJECT_NAME = `e2e-stories-${Date.now()}`;
 const ACTOR_NAME = 'E2E Story Actor';
@@ -81,8 +82,7 @@ test.describe('Story management', () => {
     await editorPage.selectStoryType('Exception');
     await editorPage.save();
 
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await reloadAndWaitForGet(page, r => /\/stories\/\d+$/.test(r.url()));
     await editorPage.expectStoryTypeValue('Exception');
 
     await page.close();
@@ -123,11 +123,7 @@ test.describe('Story management', () => {
     await editorPage.selectPrimaryActor(ACTOR_NAME);
     await editorPage.save();
 
-    const storyLoaded = page.waitForResponse(
-      r => r.url().includes('/stories/') && r.status() === 200 && r.request().method() === 'GET'
-    );
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await storyLoaded;
+    await reloadAndWaitForGet(page, r => /\/stories\/\d+$/.test(r.url()));
 
     await editorPage.expectPrimaryActorValue(ACTOR_NAME);
 
@@ -152,11 +148,7 @@ test.describe('Story management', () => {
     await editorPage.clearPrimaryActor();
     await editorPage.save();
 
-    const storyLoaded = page.waitForResponse(
-      r => r.url().includes('/stories/') && r.status() === 200 && r.request().method() === 'GET'
-    );
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await storyLoaded;
+    await reloadAndWaitForGet(page, r => /\/stories\/\d+$/.test(r.url()));
 
     await editorPage.expectNoPrimaryActor();
 
@@ -179,8 +171,7 @@ test.describe('Story management', () => {
     await editorPage.fillName(newName);
     await editorPage.save();
 
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await reloadAndWaitForGet(page, r => /\/stories\/\d+$/.test(r.url()));
     await editorPage.expectNameValue(newName);
 
     await page.close();
@@ -209,11 +200,7 @@ test.describe('Story additional actors', () => {
     await editorPage.expectAdditionalActorInTable(actorName);
 
     // Reload to confirm the actor persisted
-    const storyLoaded = page.waitForResponse(
-      r => r.url().match(/\/stories\/\d+$/) !== null && r.status() === 200 && r.request().method() === 'GET'
-    );
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await storyLoaded;
+    await reloadAndWaitForGet(page, r => /\/stories\/\d+$/.test(r.url()));
     await editorPage.expectAdditionalActorInTable(actorName);
 
     await page.close();

@@ -1,32 +1,33 @@
 import { Page, expect } from '@playwright/test';
+import { BaseListPage } from './BaseListPage';
 
-export class UseCaseListPage {
-  constructor(private page: Page) {}
+export class UseCaseListPage extends BaseListPage {
+  constructor(page: Page) {
+    super(page);
+  }
 
   async goto(projectName: string): Promise<void> {
-    await Promise.all([
-      this.page.waitForResponse(r => r.url().includes('/use-cases') && r.status() === 200),
-      this.page.goto(`/projects/${encodeURIComponent(projectName)}/use-cases`),
-    ]);
+    await this.gotoList(`/projects/${encodeURIComponent(projectName)}/use-cases`, '/use-cases');
   }
 
   async clickNewUseCase(): Promise<void> {
-    await this.page.locator('app-list-page').getByRole('button', { name: 'New Use Case' }).click();
-    await this.page.waitForURL('**/use-cases/new');
+    await this.clickNewButton('New Use Case', '**/use-cases/new');
   }
 
   async clickUseCase(name: string): Promise<void> {
-    await this.page.locator('p-table td', { hasText: name }).first().click();
-    await this.page.waitForURL(/\/use-cases\/\d+/);
-    await expect(this.page.locator('#name')).not.toHaveValue('');
+    await this.clickTableRow(name, /\/use-cases\/\d+/);
   }
 
   async expectUseCaseInTable(name: string): Promise<void> {
-    await expect(this.page.locator('p-table td', { hasText: name })).toBeVisible();
+    await this.expectTableRowVisible(name);
   }
 
   async expectUseCaseNotInTable(name: string): Promise<void> {
-    await expect(this.page.locator('p-table td', { hasText: name })).not.toBeVisible();
+    await this.expectTableRowNotVisible(name);
+  }
+
+  async countUseCaseRows(name: string): Promise<number> {
+    return this.countTableRows(name);
   }
 }
 

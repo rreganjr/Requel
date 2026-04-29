@@ -1,37 +1,38 @@
 import { Page, expect } from '@playwright/test';
+import { BaseListPage } from './BaseListPage';
 
-export class ScenarioListPage {
-  constructor(private page: Page) {}
+export class ScenarioListPage extends BaseListPage {
+  constructor(page: Page) {
+    super(page);
+  }
 
   async goto(projectName: string): Promise<void> {
-    await Promise.all([
-      this.page.waitForResponse(r => r.url().includes('/scenarios') && r.status() === 200),
-      this.page.goto(`/projects/${encodeURIComponent(projectName)}/scenarios`),
-    ]);
+    await this.gotoList(`/projects/${encodeURIComponent(projectName)}/scenarios`, '/scenarios');
   }
 
   async clickNewScenario(): Promise<void> {
-    await this.page.locator('app-list-page').getByRole('button', { name: 'New Scenario' }).click();
-    await this.page.waitForURL('**/scenarios/new');
+    await this.clickNewButton('New Scenario', '**/scenarios/new');
   }
 
   async clickScenario(name: string): Promise<void> {
-    await this.page.locator('p-table td', { hasText: name }).first().click();
-    await this.page.waitForURL(/\/scenarios\/\d+/);
-    await expect(this.page.locator('#name')).not.toHaveValue('');
+    await this.clickTableRow(name, /\/scenarios\/\d+/);
   }
 
   async expectScenarioInTable(name: string): Promise<void> {
-    await expect(this.page.locator('p-table td', { hasText: name })).toBeVisible();
+    await this.expectTableRowVisible(name);
   }
 
   async expectScenarioNotInTable(name: string): Promise<void> {
-    await expect(this.page.locator('p-table td', { hasText: name })).not.toBeVisible();
+    await this.expectTableRowNotVisible(name);
   }
 }
 
 export class ScenarioEditorPage {
   constructor(private page: Page) {}
+
+  private saveButton() {
+    return this.page.getByRole('button', { name: 'Save' });
+  }
 
   async fillName(name: string): Promise<void> {
     const input = this.page.locator('#name');
@@ -48,9 +49,10 @@ export class ScenarioEditorPage {
   }
 
   async save(): Promise<void> {
+    await expect(this.saveButton()).toBeEnabled();
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/EditScenario')),
-      this.page.getByRole('button', { name: 'Save' }).click(),
+      this.saveButton().click(),
     ]);
     if (!response.ok()) {
       throw new Error(`EditScenario failed: ${response.status()} ${await response.text()}`);
@@ -124,7 +126,10 @@ export class ScenarioEditorPage {
   }
 
   async removeStep(index: number): Promise<void> {
-    await this.page.locator('.step-row').nth(index).locator('button:has(.pi-times)').click();
+    const rows = this.page.locator('.step-row');
+    const initialCount = await rows.count();
+    await rows.nth(index).locator('button:has(.pi-times)').click();
+    await expect(rows).toHaveCount(initialCount - 1);
   }
 
   async openStepEdit(index: number): Promise<void> {

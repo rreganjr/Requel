@@ -1,24 +1,21 @@
 import { Page, expect } from '@playwright/test';
+import { BaseListPage } from './BaseListPage';
 
-export class ReportListPage {
-  constructor(private page: Page) {}
+export class ReportListPage extends BaseListPage {
+  constructor(page: Page) {
+    super(page);
+  }
 
   async goto(projectName: string): Promise<void> {
-    await Promise.all([
-      this.page.waitForResponse(r => r.url().includes('/reports') && r.status() === 200),
-      this.page.goto(`/projects/${encodeURIComponent(projectName)}/reports`),
-    ]);
+    await this.gotoList(`/projects/${encodeURIComponent(projectName)}/reports`, '/reports');
   }
 
   async searchFor(name: string): Promise<void> {
-    const input = this.page.getByPlaceholder('Search documents...');
-    await input.clear();
-    await input.fill(name);
+    await this.searchWithPlaceholder('Search documents...', name);
   }
 
   async clickNewReport(): Promise<void> {
-    await this.page.locator('app-list-page').getByRole('button', { name: 'New Document' }).click();
-    await this.page.waitForURL('**/reports/new');
+    await this.clickNewButton('New Document', '**/reports/new');
   }
 
   async clickEdit(name: string): Promise<void> {
@@ -31,12 +28,12 @@ export class ReportListPage {
 
   async expectReportInTable(name: string): Promise<void> {
     await this.searchFor(name);
-    await expect(this.page.locator('p-table td', { hasText: name })).toBeVisible();
+    await this.expectTableRowVisible(name);
   }
 
   async expectReportNotInTable(name: string): Promise<void> {
     await this.searchFor(name);
-    await expect(this.page.locator('p-table td', { hasText: name })).not.toBeVisible();
+    await this.expectTableRowNotVisible(name);
   }
 }
 

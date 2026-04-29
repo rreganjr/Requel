@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/auth';
 import { getPreferences, savePreferences, PreferencesFixture } from './fixtures/api-helper';
 import { SettingsPage } from './pages/SettingsPage';
+import { reloadAndWaitForGet } from './helpers/navigation';
 
 let originalPrefs: PreferencesFixture | null = null;
 
@@ -29,11 +30,7 @@ test.describe('Settings / preferences', () => {
     // Register listener before reload so we don't miss the Angular bootstrap GET.
     // waitUntil:'domcontentloaded' returns before Angular scripts run, guaranteeing
     // the listener is active before Angular fires its GET /user-preferences.
-    const prefsLoaded = page.waitForResponse(
-      r => r.url().includes('/user-preferences') && r.status() === 200 && r.request().method() === 'GET'
-    );
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await prefsLoaded;
+    await reloadAndWaitForGet(page, r => r.url().includes('/user-preferences'));
 
     await expect(page.locator('p-inputnumber input')).toHaveValue('7', { timeout: 10000 });
 
@@ -48,11 +45,7 @@ test.describe('Settings / preferences', () => {
     await settings.selectStaleness('6 Months');
     await settings.save();
 
-    const prefsLoaded = page.waitForResponse(
-      r => r.url().includes('/user-preferences') && r.status() === 200 && r.request().method() === 'GET'
-    );
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await prefsLoaded;
+    await reloadAndWaitForGet(page, r => r.url().includes('/user-preferences'));
 
     await expect(page.locator('p-select')).toContainText('6 Months', { timeout: 10000 });
 
@@ -72,11 +65,7 @@ test.describe('Settings / preferences', () => {
     // Reset and verify the PUT resolves with defaults applied.
     await settings.resetToDefaults();
 
-    const prefsLoaded = page.waitForResponse(
-      r => r.url().includes('/user-preferences') && r.status() === 200 && r.request().method() === 'GET'
-    );
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await prefsLoaded;
+    await reloadAndWaitForGet(page, r => r.url().includes('/user-preferences'));
 
     await settings.expectProjectLimit(10);
     await settings.expectStaleness('3 Months');

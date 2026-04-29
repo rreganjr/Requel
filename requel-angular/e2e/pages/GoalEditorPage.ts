@@ -1,41 +1,36 @@
 import { Page, expect } from '@playwright/test';
+import { BaseListPage } from './BaseListPage';
 
-export class GoalListPage {
-  constructor(private page: Page) {}
+export class GoalListPage extends BaseListPage {
+  constructor(page: Page) {
+    super(page);
+  }
 
   async goto(projectName: string): Promise<void> {
-    await Promise.all([
-      this.page.waitForResponse(r => r.url().includes('/goals') && r.status() === 200),
-      this.page.goto(`/projects/${encodeURIComponent(projectName)}/goals`),
-    ]);
+    await this.gotoList(`/projects/${encodeURIComponent(projectName)}/goals`, '/goals');
   }
 
   async searchFor(name: string): Promise<void> {
-    const searchInput = this.page.getByPlaceholder('Search goals...');
-    await searchInput.clear();
-    await searchInput.fill(name);
+    await this.searchWithPlaceholder('Search goals...', name);
   }
 
   async clickNewGoal(): Promise<void> {
-    await this.page.locator('app-list-page').getByRole('button', { name: 'New Goal' }).click();
-    await this.page.waitForURL('**/goals/new');
+    await this.clickNewButton('New Goal', '**/goals/new');
   }
 
   async clickGoal(name: string): Promise<void> {
     await this.searchFor(name);
-    await this.page.locator('p-table td', { hasText: name }).first().click();
-    await this.page.waitForURL(/\/goals\/\d+/);
-    await expect(this.page.locator('#name')).not.toHaveValue('');
+    await this.clickTableRow(name, /\/goals\/\d+/);
   }
 
   async expectGoalInTable(name: string): Promise<void> {
     await this.searchFor(name);
-    await expect(this.page.locator('p-table td', { hasText: name })).toBeVisible();
+    await this.expectTableRowVisible(name);
   }
 
   async expectGoalNotInTable(name: string): Promise<void> {
     await this.searchFor(name);
-    await expect(this.page.locator('p-table td', { hasText: name })).not.toBeVisible();
+    await this.expectTableRowNotVisible(name);
   }
 }
 

@@ -10,6 +10,7 @@ import {
   addScenarioToUseCase, setPrimaryScenarioOnUseCase,
 } from './fixtures/api-helper';
 import { UseCaseListPage, UseCaseEditorPage } from './pages/UseCaseEditorPage';
+import { reloadAndWaitForGet } from './helpers/navigation';
 
 const PROJECT_NAME = `e2e-use-cases-${Date.now()}`;
 // Shared actor for all tests — use cases require a primary actor (primary_actor_id NOT NULL)
@@ -113,8 +114,7 @@ test.describe('Use Case management', () => {
     await editorPage.fillName(newName);
     await editorPage.save();
 
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await reloadAndWaitForGet(page, r => /\/use-cases\/\d+$/.test(r.url()));
     await editorPage.expectNameValue(newName);
 
     await page.close();
@@ -160,7 +160,7 @@ test.describe('Use Case management', () => {
 
     // Both original and "Copy of ..." contain ucName — 2 rows visible
     await listPage.goto(PROJECT_NAME);
-    await expect(page.locator('p-table td', { hasText: ucName })).toHaveCount(2, { timeout: 10000 });
+    await expect.poll(() => listPage.countUseCaseRows(ucName)).toBe(2);
 
     // Cleanup the copy
     const copyUrl = page.url();

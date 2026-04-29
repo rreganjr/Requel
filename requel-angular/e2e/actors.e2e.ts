@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/auth';
 import { createProject, deleteProject, createActor, deleteActor, getActorVersion, ActorFixture } from './fixtures/api-helper';
 import { ActorListPage, ActorEditorPage } from './pages/ActorEditorPage';
+import { reloadAndWaitForGet } from './helpers/navigation';
 
 const PROJECT_NAME = `e2e-actors-${Date.now()}`;
 let actorToCleanup: ActorFixture | null = null;
@@ -71,8 +72,7 @@ test.describe('Actor management', () => {
     await editorPage.fillName(newName);
     await editorPage.save();
 
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await reloadAndWaitForGet(page, r => /\/actors\/\d+$/.test(r.url()));
     await editorPage.expectNameValue(newName);
 
     await page.close();
@@ -98,13 +98,11 @@ test.describe('Actor management', () => {
 
     // Navigate to list and wait for 2 data rows — toHaveCount auto-waits for Angular
     // This project is fresh (beforeAll creates it empty) so only this test's actors exist.
-    // Empty-state message is a <tr> with colspan; data rows each have <td> without colspan.
     await listPage.goto(PROJECT_NAME);
     // Search by actorName so both "e2e-actor-copy-..." and "Copy of e2e-actor-copy-..." appear,
     // filtering out any leftover actors from other tests in this project.
     await listPage.searchFor(actorName);
-    await expect(page.locator('p-table td:not([colspan])')).toHaveCount(6, { timeout: 10000 });
-    // 2 actors × 3 columns (name, description, createdBy) = 6 non-colspan tds
+    await expect.poll(() => listPage.countActorRows(actorName)).toBe(2);
 
     // Cleanup the copy by deleting it via API (id is in current URL)
     const copyUrl = page.url();

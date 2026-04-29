@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/auth';
 import { createProject, deleteProject, createTerm, deleteTerm, TermFixture } from './fixtures/api-helper';
 import { TermListPage, TermEditorPage } from './pages/TermEditorPage';
+import { reloadAndWaitForGet } from './helpers/navigation';
 
 const PROJECT_NAME = `e2e-terms-${Date.now()}`;
 let termToCleanup: TermFixture | null = null;
@@ -65,8 +66,7 @@ test.describe('Glossary term management', () => {
     await editorPage.fillText(newText);
     await editorPage.save();
 
-    await page.reload();
-    await page.waitForLoadState('domcontentloaded');
+    await reloadAndWaitForGet(page, r => /\/terms\/\d+$/.test(r.url()));
     await editorPage.expectTextValue(newText);
 
     await page.close();
