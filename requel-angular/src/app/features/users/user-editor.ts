@@ -119,7 +119,7 @@ import { CommandService } from '../../core/command.service';
         </div>
 
         <div class="actions">
-          <p-button type="submit" label="Save" icon="pi pi-check"
+          <p-button type="submit" label="Save" icon="pi pi-check" data-testid="user-save"
                     [loading]="saving()" [disabled]="!userForm.dirty" />
           <p-button label="Cancel" icon="pi pi-times" severity="secondary"
                     (onClick)="onCancel()" [outlined]="true" />

@@ -57,7 +57,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             EntitySelectorDialogComponent, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
-    <div class="use-case-editor">
+    <div class="use-case-editor" data-testid="use-case-editor">
       <div class="page-header">
         <h2>{{ isNew() ? 'New Use Case' : useCaseName() }}</h2>
         <div class="page-actions">
@@ -86,12 +86,14 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
                (ngModelChange)="trackChanges()" />
 
         <label for="primaryActor">Primary Actor</label>
-        <p-select id="primaryActor"
+        <p-select id="primaryActor" inputId="useCasePrimaryActorInput"
+                  data-testid="use-case-primary-actor"
                   [(ngModel)]="primaryActorName"
                   [options]="actorOptions()"
                   optionLabel="label"
                   optionValue="value"
                   [showClear]="true"
+                  [pt]="{ clearIcon: { 'data-testid': 'use-case-primary-actor-clear' } }"
                   placeholder="Select primary actor"
                   (ngModelChange)="trackChanges()"
                   styleClass="w-full" />
@@ -103,7 +105,8 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
       </div>
 
       <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()"
+        <p-button label="Save" icon="pi pi-check" data-testid="use-case-save"
+                  (onClick)="onSave()" [loading]="saving()"
                   [disabled]="!isNew() && !hasChanges()" />
       </div>
 
@@ -127,13 +130,15 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               </div>
             }
           } @else {
-            <div class="primary-scenario-card">
-              <div class="primary-scenario-name">
-                <a class="entity-link" (click)="navigateTo('scenarios', useCase()!.scenarioId!)">
+            <div class="primary-scenario-card" data-testid="use-case-primary-scenario-card">
+              <div class="primary-scenario-name" data-testid="use-case-primary-scenario-name">
+                <a class="entity-link" data-testid="use-case-primary-scenario-link"
+                   (click)="navigateTo('scenarios', useCase()!.scenarioId!)">
                   {{ useCase()!.scenarioName ?? 'Primary Scenario' }}
                 </a>
                 <span class="step-count">({{ useCase()!.scenarioStepCount ?? 0 }} steps)</span>
                 <p-button label="Open in Editor" icon="pi pi-arrow-right" size="small"
+                          data-testid="use-case-open-primary-scenario"
                           severity="secondary" [outlined]="true"
                           (onClick)="navigateTo('scenarios', useCase()!.scenarioId!)" />
               </div>
@@ -163,21 +168,25 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <h3>Additional Scenarios</h3>
             @if (canEdit()) {
               <p-button label="Add Scenario" icon="pi pi-plus" size="small"
+                        data-testid="use-case-add-scenario"
                         severity="secondary" [outlined]="true"
                         (onClick)="showScenarioSelector = true" />
             }
           </div>
-          <p-table [value]="additionalScenarios()" styleClass="p-datatable-sm" [rowHover]="true">
+          <p-table [value]="additionalScenarios()" styleClass="p-datatable-sm"
+                   data-testid="use-case-scenarios-table" [rowHover]="true">
             <ng-template pTemplate="header">
               <tr><th>Name</th><th>Type</th><th style="width:4rem"></th></tr>
             </ng-template>
             <ng-template pTemplate="body" let-s>
-              <tr>
-                <td><a class="entity-link" (click)="navigateTo('scenarios', s.id)">{{ s.name }}</a></td>
+              <tr data-testid="use-case-scenario-row">
+                <td><a class="entity-link" data-testid="use-case-scenario-link"
+                       (click)="navigateTo('scenarios', s.id)">{{ s.name }}</a></td>
                 <td>{{ s.scenarioType }}</td>
                 <td>
                   @if (canEdit()) {
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
+                              data-testid="use-case-remove-scenario"
                               size="small" pTooltip="Remove scenario"
                               (onClick)="removeScenario(s)" />
                   }
@@ -218,23 +227,26 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <h3>Goals</h3>
             @if (canEdit()) {
               <p-button label="Add Goal" icon="pi pi-plus" size="small"
+                        data-testid="use-case-add-goal"
                         severity="secondary" [outlined]="true"
                         (onClick)="showGoalSelector = true" />
             }
           </div>
-          <p-table [value]="goals()" styleClass="p-datatable-sm" [rowHover]="canEdit()">
+          <p-table [value]="goals()" styleClass="p-datatable-sm"
+                   data-testid="use-case-goals-table" [rowHover]="canEdit()">
             <ng-template pTemplate="header">
               <tr><th>Name</th><th style="width:4rem"></th></tr>
             </ng-template>
             <ng-template pTemplate="body" let-goal>
-              <tr>
+              <tr data-testid="use-case-goal-row">
                 <td>
-                  <a class="entity-link"
+                  <a class="entity-link" data-testid="use-case-goal-link"
                      (click)="navigateTo('goals', goal.id)">{{ goal.name }}</a>
                 </td>
                 <td>
                   @if (canEdit()) {
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
+                              data-testid="use-case-remove-goal"
                               size="small" pTooltip="Remove goal"
                               (onClick)="removeGoal(goal)" />
                   }
@@ -253,24 +265,27 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <h3>Stories</h3>
             @if (canEdit()) {
               <p-button label="Add Story" icon="pi pi-plus" size="small"
+                        data-testid="use-case-add-story"
                         severity="secondary" [outlined]="true"
                         (onClick)="showStorySelector = true" />
             }
           </div>
-          <p-table [value]="stories()" styleClass="p-datatable-sm" [rowHover]="canEdit()">
+          <p-table [value]="stories()" styleClass="p-datatable-sm"
+                   data-testid="use-case-stories-table" [rowHover]="canEdit()">
             <ng-template pTemplate="header">
               <tr><th>Name</th><th>Type</th><th style="width:4rem"></th></tr>
             </ng-template>
             <ng-template pTemplate="body" let-story>
-              <tr>
+              <tr data-testid="use-case-story-row">
                 <td>
-                  <a class="entity-link"
+                  <a class="entity-link" data-testid="use-case-story-link"
                      (click)="navigateTo('stories', story.id)">{{ story.name }}</a>
                 </td>
                 <td>{{ story.storyType }}</td>
                 <td>
                   @if (canEdit()) {
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
+                              data-testid="use-case-remove-story"
                               size="small" pTooltip="Remove story"
                               (onClick)="removeStory(story)" />
                   }
@@ -289,23 +304,26 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <h3>Additional Actors</h3>
             @if (canEdit()) {
               <p-button label="Add Actor" icon="pi pi-plus" size="small"
+                        data-testid="use-case-add-actor"
                         severity="secondary" [outlined]="true"
                         (onClick)="showActorSelector = true" />
             }
           </div>
-          <p-table [value]="actors()" styleClass="p-datatable-sm" [rowHover]="canEdit()">
+          <p-table [value]="actors()" styleClass="p-datatable-sm"
+                   data-testid="use-case-actors-table" [rowHover]="canEdit()">
             <ng-template pTemplate="header">
               <tr><th>Name</th><th style="width:4rem"></th></tr>
             </ng-template>
             <ng-template pTemplate="body" let-actor>
-              <tr>
+              <tr data-testid="use-case-actor-row">
                 <td>
-                  <a class="entity-link"
+                  <a class="entity-link" data-testid="use-case-actor-link"
                      (click)="navigateTo('actors', actor.id)">{{ actor.name }}</a>
                 </td>
                 <td>
                   @if (canEdit()) {
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
+                              data-testid="use-case-remove-actor"
                               size="small" pTooltip="Remove actor"
                               (onClick)="removeActor(actor)" />
                   }

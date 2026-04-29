@@ -48,19 +48,19 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
-    <div class="actor-editor">
+    <div class="actor-editor" data-testid="actor-editor">
       <div class="page-header">
         <h2>{{ isNew() ? 'New Actor' : actorName() }}</h2>
         <div class="page-actions">
-          <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
+          <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="actor-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew()) {
             @if (canEdit()) {
-              <p-button label="Copy" icon="pi pi-copy" severity="secondary"
+              <p-button label="Copy" icon="pi pi-copy" severity="secondary" data-testid="actor-copy"
                         [outlined]="true" (onClick)="onCopy()" />
             }
             @if (canDelete()) {
-              <p-button label="Delete" icon="pi pi-trash" severity="danger"
+              <p-button label="Delete" icon="pi pi-trash" severity="danger" data-testid="actor-delete"
                         [outlined]="true" (onClick)="onDelete()" />
             }
           }
@@ -87,6 +87,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
       @if (canEdit()) {
         <div class="form-actions">
           <p-button label="{{ isNew() ? 'Create' : 'Save' }}" icon="pi pi-check"
+                    [attr.data-testid]="isNew() ? 'actor-create' : 'actor-save'"
                     [disabled]="!isNew() && !hasChanges()"
                     (onClick)="onSave()" />
         </div>

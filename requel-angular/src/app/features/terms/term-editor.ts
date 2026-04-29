@@ -44,14 +44,14 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             TableModule, MessageModule, ConfirmDialogModule, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
-    <div class="term-editor">
+    <div class="term-editor" data-testid="term-editor">
       <div class="page-header">
         <h2>{{ isNew() ? 'New Glossary Term' : termName() }}</h2>
         <div class="page-actions">
-          <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
+          <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="term-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew() && canDelete()) {
-            <p-button label="Delete" icon="pi pi-trash" severity="danger"
+            <p-button label="Delete" icon="pi pi-trash" severity="danger" data-testid="term-delete"
                       [outlined]="true" (onClick)="onDelete()" />
           }
         </div>
@@ -76,7 +76,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
       </div>
 
       <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()"
+        <p-button label="Save" icon="pi pi-check" data-testid="term-save" (onClick)="onSave()" [loading]="saving()"
                   [disabled]="!isNew() && !isDirty()" />
       </div>
 

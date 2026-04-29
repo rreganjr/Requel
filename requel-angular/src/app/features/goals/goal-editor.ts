@@ -49,19 +49,19 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
-    <div class="goal-editor">
+    <div class="goal-editor" data-testid="goal-editor">
       <div class="page-header">
         <h2>{{ isNew() ? 'New Goal' : goalName() }}</h2>
         <div class="page-actions">
-          <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
+          <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="goal-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew()) {
             @if (canEdit()) {
-              <p-button label="Copy" icon="pi pi-copy" severity="secondary"
+              <p-button label="Copy" icon="pi pi-copy" severity="secondary" data-testid="goal-copy"
                         [outlined]="true" (onClick)="onCopy()" />
             }
             @if (canDelete()) {
-              <p-button label="Delete" icon="pi pi-trash" severity="danger"
+              <p-button label="Delete" icon="pi pi-trash" severity="danger" data-testid="goal-delete"
                         [outlined]="true" (onClick)="onDelete()" />
             }
           }
@@ -82,7 +82,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
       </div>
 
       <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()" />
+        <p-button label="Save" icon="pi pi-check" data-testid="goal-save" (onClick)="onSave()" [loading]="saving()" />
       </div>
 
       <!-- Relations: outgoing (this goal supports/conflicts with...) -->
@@ -91,7 +91,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
           <div class="section-header">
             <h3>This Goal's Relations</h3>
             @if (canEdit()) {
-              <p-button label="Add Relation" icon="pi pi-plus" size="small"
+              <p-button label="Add Relation" icon="pi pi-plus" size="small" data-testid="goal-add-relation"
                         (onClick)="showRelationSelector = true" />
             }
           </div>
@@ -106,11 +106,12 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
                 </tr>
               </ng-template>
               <ng-template #body let-r>
-                <tr>
+                <tr data-testid="goal-relation-row">
                   <td><a class="entity-link" (click)="navigateToGoal(r.goalId)">{{ r.goalName }}</a></td>
                   <td>{{ r.relationType }}</td>
                   @if (canEdit()) {
                     <td><p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
+                                  data-testid="goal-remove-relation"
                                   (onClick)="onDeleteRelation(r)" /></td>
                   }
                 </tr>
@@ -173,14 +174,14 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
       <!-- Relation Type Dialog -->
       @if (pendingRelationGoal()) {
-        <div class="relation-type-dialog">
+        <div class="relation-type-dialog" data-testid="goal-relation-type-dialog">
           <div class="dialog-overlay" (click)="pendingRelationGoal.set(null)"></div>
           <div class="dialog-content">
             <h4>Relation to "{{ pendingRelationGoal()!.name }}"</h4>
-            <p-select [(ngModel)]="newRelationType" [options]="relationTypeOptions"
+            <p-select [(ngModel)]="newRelationType" data-testid="goal-relation-type-select" [options]="relationTypeOptions"
                       placeholder="Select relation type" />
             <div class="dialog-actions">
-              <p-button label="Add" icon="pi pi-check" (onClick)="onConfirmRelation()" />
+              <p-button label="Add" icon="pi pi-check" data-testid="goal-relation-add" (onClick)="onConfirmRelation()" />
               <p-button label="Cancel" severity="secondary" [outlined]="true"
                         (onClick)="pendingRelationGoal.set(null)" />
             </div>

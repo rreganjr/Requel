@@ -50,13 +50,13 @@ import { ScenarioService } from '../core/scenario.service';
   standalone: true,
   imports: [FormsModule, DialogModule, TableModule, ButtonModule, InputText, SelectModule],
   template: `
-    <p-dialog [header]="'Select ' + entityType" [(visible)]="visible"
+    <p-dialog [header]="'Select ' + entityType" [(visible)]="visible" data-testid="entity-selector-dialog"
               [modal]="true" appendTo="body" [style]="{ width: '500px' }" (onHide)="closed.emit()">
       <div class="search-bar">
         <span class="p-input-icon-left">
           <i class="pi pi-search"></i>
           <input pInputText [(ngModel)]="searchText" placeholder="Search..."
-                 aria-label="Search"
+                 aria-label="Search" data-testid="entity-selector-search"
                  (input)="dt.filterGlobal(searchText(), 'contains')" />
         </span>
         @if (hasTypes()) {
@@ -79,7 +79,7 @@ import { ScenarioService } from '../core/scenario.service';
           </tr>
         </ng-template>
         <ng-template #body let-e>
-          <tr [pSelectableRow]="e">
+          <tr [pSelectableRow]="e" data-testid="entity-selector-row">
             <td>{{ e.name }}</td>
             @if (hasTypes()) {
               <td>{{ e.typeName }}</td>

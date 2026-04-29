@@ -71,15 +71,15 @@ interface StepNodeData {
       <div class="page-header">
         <h2>{{ isNew() ? 'New Scenario' : scenarioName() }}</h2>
         <div class="page-actions">
-          <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
+          <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="scenario-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew()) {
             @if (canEdit()) {
-              <p-button label="Copy" icon="pi pi-copy" severity="secondary"
+              <p-button label="Copy" icon="pi pi-copy" severity="secondary" data-testid="scenario-copy"
                         [outlined]="true" (onClick)="onCopy()" />
             }
             @if (canDelete()) {
-              <p-button label="Delete" icon="pi pi-trash" severity="danger"
+              <p-button label="Delete" icon="pi pi-trash" severity="danger" data-testid="scenario-delete"
                         [outlined]="true" (onClick)="onDelete()" />
             }
           }
@@ -96,7 +96,7 @@ interface StepNodeData {
                (ngModelChange)="trackChanges()" />
 
         <label for="type">Type</label>
-        <p-select id="type" [(ngModel)]="scenarioType" [options]="typeOptions"
+        <p-select id="type" inputId="scenarioTypeInput" data-testid="scenario-type" [(ngModel)]="scenarioType" [options]="typeOptions"
                   optionLabel="label" optionValue="value"
                   (ngModelChange)="trackChanges()" />
 

@@ -62,7 +62,7 @@ test.describe('Edit account', () => {
 
     const [res] = await Promise.all([
       pg1.waitForResponse(r => r.url().includes('/api/commands/EditUser')),
-      pg1.getByRole('button', { name: 'Save' }).click(),
+      pg1.getByTestId('account-save').click(),
     ]);
     if (!res.ok()) throw new Error(`EditUser failed: ${res.status()} ${await res.text()}`);
     await ctx1.close();
@@ -87,7 +87,7 @@ test.describe('Edit account', () => {
     await nameInput.clear();
     await nameInput.fill(newName);
 
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.getByTestId('account-save').click();
     await page.waitForLoadState('domcontentloaded');
 
     // Save marks form pristine and shows success message; the field retains the new value

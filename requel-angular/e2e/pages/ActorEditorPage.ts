@@ -57,15 +57,15 @@ export class ActorEditorPage {
   /** New actors show "Create"; existing actors show "Save" */
   async save(): Promise<void> {
     // Try "Create" first (new actor), fall back to "Save" (existing actor)
-    const createBtn = this.page.getByRole('button', { name: 'Create' });
-    const saveBtn = this.page.getByRole('button', { name: 'Save' });
+    const createBtn = this.page.getByTestId('actor-create');
+    const saveBtn = this.page.getByTestId('actor-save');
     const btn = (await createBtn.count()) > 0 ? createBtn : saveBtn;
     await btn.click();
     await this.page.waitForLoadState('domcontentloaded');
   }
 
   async copy(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Copy' }).click();
+    await this.page.getByTestId('actor-copy').click();
     // Register the response waiter before clicking Yes — the API call fires immediately on confirm.
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/CopyActor')),
@@ -77,13 +77,13 @@ export class ActorEditorPage {
   }
 
   async delete(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Delete' }).click();
+    await this.page.getByTestId('actor-delete').click();
     await this.page.getByRole('button', { name: 'Yes' }).click();
     await this.page.waitForLoadState('domcontentloaded');
   }
 
   async navigateBack(projectName: string): Promise<void> {
-    await this.page.getByRole('button', { name: 'Back' }).click();
+    await this.page.getByTestId('actor-back').click();
     await this.page.waitForURL(`**/projects/${encodeURIComponent(projectName)}/actors`);
   }
 

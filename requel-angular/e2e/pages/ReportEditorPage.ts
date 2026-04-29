@@ -55,32 +55,32 @@ export class ReportEditorPage {
   // report-editor uses replaceUrl:true on create (same as term-editor) — no load event
   // fires after history.replaceState(), so waitUntil:'commit' is required.
   async saveNew(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Save' }).click();
+    await this.page.getByTestId('report-save').click();
     await this.page.waitForURL(/\/reports\/\d+/, { waitUntil: 'commit', timeout: 10000 });
   }
 
   async save(): Promise<void> {
     await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/EditReportGenerator')),
-      this.page.getByRole('button', { name: 'Save' }).click(),
+      this.page.getByTestId('report-save').click(),
     ]);
   }
 
   async run(): Promise<void> {
     await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/reports/') && r.url().includes('/run')),
-      this.page.getByRole('button', { name: 'Run' }).click(),
+      this.page.getByTestId('report-run').click(),
     ]);
   }
 
   async delete(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Delete' }).click();
+    await this.page.getByTestId('report-delete').click();
     await this.page.getByRole('button', { name: 'Yes' }).click();
     await this.page.waitForURL(/\/reports$/);
   }
 
   async navigateBack(projectName: string): Promise<void> {
-    await this.page.getByRole('button', { name: 'Back' }).click();
+    await this.page.getByTestId('report-back').click();
     await this.page.waitForURL(`**/projects/${encodeURIComponent(projectName)}/reports`);
   }
 

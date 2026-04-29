@@ -111,7 +111,7 @@ export class UserEditorPage {
     // for existing-user edits), and a subsequent page.reload() races the API call.
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/EditUser')),
-      this.page.getByRole('button', { name: 'Save' }).click(),
+      this.page.getByTestId('user-save').click(),
     ]);
     if (!response.ok()) {
       throw new Error(`EditUser command failed: ${response.status()} ${await response.text()}`);

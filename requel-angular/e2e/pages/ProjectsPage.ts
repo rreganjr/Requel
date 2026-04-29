@@ -51,13 +51,13 @@ export class ProjectEditorPage {
   }
 
   async save(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Save' }).click();
+    await this.page.getByTestId('project-save').click();
     // wait for navigation away from /new or for save to complete
     await this.page.waitForLoadState('domcontentloaded');
   }
 
   async cancel(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Cancel' }).click();
+    await this.page.getByTestId('project-cancel').click();
   }
 
   async expectHeaderContains(text: string): Promise<void> {

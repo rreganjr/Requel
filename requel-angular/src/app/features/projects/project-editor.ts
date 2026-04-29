@@ -43,7 +43,7 @@ import { PermissionService } from '../../core/permission.service';
   imports: [FormsModule, InputText, TextareaModule, ButtonModule, SelectModule, MessageModule, ConfirmDialogModule],
   providers: [ConfirmationService],
   template: `
-    <div class="project-editor">
+    <div class="project-editor" data-testid="project-editor">
       <div class="page-header">
         <h2>{{ isNew() ? 'New Project' : 'Project: ' + originalName() }}</h2>
         <div class="page-actions">
@@ -83,9 +83,9 @@ import { PermissionService } from '../../core/permission.service';
         </div>
 
         <div class="actions">
-          <p-button type="submit" label="Save" icon="pi pi-check"
+          <p-button type="submit" label="Save" icon="pi pi-check" data-testid="project-save"
                     [loading]="saving()" [disabled]="!projectForm.dirty" />
-          <p-button label="Cancel" icon="pi pi-times" severity="secondary"
+          <p-button label="Cancel" icon="pi pi-times" severity="secondary" data-testid="project-cancel"
                     (onClick)="onCancel()" [outlined]="true" />
         </div>
       </form>

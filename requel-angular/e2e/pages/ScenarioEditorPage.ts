@@ -48,7 +48,7 @@ export class ScenarioEditorPage {
    * Select a scenario type via PrimeNG p-select.
    */
   async selectType(type: 'Primary' | 'PreCondition' | 'Optional' | 'Alternative' | 'Exception'): Promise<void> {
-    await this.page.locator('#type').click();
+    await this.page.getByTestId('scenario-type').click();
     await this.page.getByRole('option', { name: type }).click();
   }
 
@@ -64,7 +64,7 @@ export class ScenarioEditorPage {
   }
 
   async copy(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Copy' }).click();
+    await this.page.getByTestId('scenario-copy').click();
     // Register the response waiter before clicking Yes — the API call fires immediately on confirm.
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/CopyScenario')),
@@ -76,13 +76,13 @@ export class ScenarioEditorPage {
   }
 
   async delete(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Delete' }).click();
+    await this.page.getByTestId('scenario-delete').click();
     await this.page.getByRole('button', { name: 'Yes' }).click();
     await this.page.waitForLoadState('domcontentloaded');
   }
 
   async navigateBack(projectName: string): Promise<void> {
-    await this.page.getByRole('button', { name: 'Back' }).click();
+    await this.page.getByTestId('scenario-back').click();
     await this.page.waitForURL(`**/projects/${encodeURIComponent(projectName)}/scenarios`);
   }
 
@@ -91,7 +91,7 @@ export class ScenarioEditorPage {
   }
 
   async expectTypeValue(type: string): Promise<void> {
-    await expect(this.page.locator('#type')).toContainText(type);
+    await expect(this.page.getByTestId('scenario-type')).toContainText(type);
   }
 
   // ── Step methods ──────────────────────────────────────────────────────────

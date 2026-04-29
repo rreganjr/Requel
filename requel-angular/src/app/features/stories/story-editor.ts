@@ -92,6 +92,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
                   optionLabel="label"
                   optionValue="value"
                   [showClear]="true"
+                  [pt]="{ clearIcon: { 'data-testid': 'story-primary-actor-clear' } }"
                   placeholder="Select primary actor"
                   (ngModelChange)="trackChanges()"
                   styleClass="w-full" />

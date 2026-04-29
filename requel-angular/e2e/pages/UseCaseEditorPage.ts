@@ -34,6 +34,14 @@ export class UseCaseListPage extends BaseListPage {
 export class UseCaseEditorPage {
   constructor(private page: Page) {}
 
+  private primaryActorSelect() {
+    return this.page.getByTestId('use-case-primary-actor');
+  }
+
+  private tableRows(testId: string, name: string) {
+    return this.page.getByTestId(testId).filter({ hasText: name });
+  }
+
   async fillName(name: string): Promise<void> {
     const input = this.page.locator('#name');
     await input.clear();
@@ -47,12 +55,16 @@ export class UseCaseEditorPage {
   }
 
   async selectPrimaryActor(actorName: string): Promise<void> {
-    await this.page.locator('#primaryActor').click();
+    await this.primaryActorSelect().click();
     await this.page.getByRole('option', { name: actorName }).click();
   }
 
+  async clearPrimaryActor(): Promise<void> {
+    await this.page.getByTestId('use-case-primary-actor-clear').click();
+  }
+
   async save(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Save' }).click();
+    await this.page.getByTestId('use-case-save').click();
     await this.page.waitForLoadState('domcontentloaded');
   }
 
@@ -85,29 +97,29 @@ export class UseCaseEditorPage {
   // ── Sub-table helpers (Goals, Stories, Additional Actors, Additional Scenarios) ──
 
   private async addViaSelector(
-    buttonLabel: string,
+    buttonTestId: string,
     dialogName: string,
     entityName: string,
     commandUrlFragment: string
   ): Promise<void> {
-    await this.page.getByRole('button', { name: buttonLabel }).click();
+    await this.page.getByTestId(buttonTestId).click();
     const dialog = this.page.getByRole('dialog', { name: dialogName });
     await dialog.waitFor({ state: 'visible' });
-    await dialog.locator('[aria-label="Search"]').fill(entityName);
+    await dialog.getByTestId('entity-selector-search').fill(entityName);
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes(commandUrlFragment)),
-      dialog.locator('p-table tr', { hasText: entityName }).first().click(),
+      dialog.getByTestId('entity-selector-row').filter({ hasText: entityName }).first().click(),
     ]);
     if (!response.ok()) {
       throw new Error(`${commandUrlFragment} failed: ${response.status()} ${await response.text()}`);
     }
   }
 
-  private async removeFromTable(entityName: string, commandUrlFragment: string): Promise<void> {
+  private async removeFromTable(rowTestId: string, removeButtonTestId: string, entityName: string, commandUrlFragment: string): Promise<void> {
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes(commandUrlFragment)),
-      this.page.locator('p-table tr', { hasText: entityName })
-               .locator('p-button')
+      this.tableRows(rowTestId, entityName)
+               .getByTestId(removeButtonTestId)
                .click(),
     ]);
     if (!response.ok()) {
@@ -116,53 +128,57 @@ export class UseCaseEditorPage {
   }
 
   async addGoal(goalName: string): Promise<void> {
-    await this.addViaSelector('Add Goal', 'Select Goal', goalName, '/api/commands/AddGoalToGoalContainer');
+    await this.addViaSelector('use-case-add-goal', 'Select Goal', goalName, '/api/commands/AddGoalToGoalContainer');
   }
 
   async removeGoal(goalName: string): Promise<void> {
-    await this.removeFromTable(goalName, '/api/commands/RemoveGoalFromGoalContainer');
+    await this.removeFromTable('use-case-goal-row', 'use-case-remove-goal', goalName, '/api/commands/RemoveGoalFromGoalContainer');
   }
 
   async addStory(storyName: string): Promise<void> {
-    await this.addViaSelector('Add Story', 'Select Story', storyName, '/api/commands/AddStoryToStoryContainer');
+    await this.addViaSelector('use-case-add-story', 'Select Story', storyName, '/api/commands/AddStoryToStoryContainer');
   }
 
   async removeStory(storyName: string): Promise<void> {
-    await this.removeFromTable(storyName, '/api/commands/RemoveStoryFromStoryContainer');
+    await this.removeFromTable('use-case-story-row', 'use-case-remove-story', storyName, '/api/commands/RemoveStoryFromStoryContainer');
   }
 
   async addAdditionalActor(actorName: string): Promise<void> {
-    await this.addViaSelector('Add Actor', 'Select Actor', actorName, '/api/commands/AddActorToActorContainer');
+    await this.addViaSelector('use-case-add-actor', 'Select Actor', actorName, '/api/commands/AddActorToActorContainer');
   }
 
   async removeAdditionalActor(actorName: string): Promise<void> {
-    await this.removeFromTable(actorName, '/api/commands/RemoveActorFromActorContainer');
+    await this.removeFromTable('use-case-actor-row', 'use-case-remove-actor', actorName, '/api/commands/RemoveActorFromActorContainer');
   }
 
   async addAdditionalScenario(scenarioName: string): Promise<void> {
-    await this.addViaSelector('Add Scenario', 'Select Scenario', scenarioName, '/api/commands/AddScenarioToUseCase');
+    await this.addViaSelector('use-case-add-scenario', 'Select Scenario', scenarioName, '/api/commands/AddScenarioToUseCase');
   }
 
   async removeAdditionalScenario(scenarioName: string): Promise<void> {
-    await this.removeFromTable(scenarioName, '/api/commands/RemoveScenarioFromUseCase');
+    await this.removeFromTable('use-case-scenario-row', 'use-case-remove-scenario', scenarioName, '/api/commands/RemoveScenarioFromUseCase');
   }
 
   async expectInTable(name: string): Promise<void> {
-    await expect(this.page.locator('p-table td', { hasText: name }).first()).toBeVisible();
+    await expect(
+      this.page.locator('[data-testid$="-row"]', { hasText: name }).first()
+    ).toBeVisible();
   }
 
   async expectNotInTable(name: string): Promise<void> {
-    await expect(this.page.locator('p-table td', { hasText: name }).first()).not.toBeVisible();
+    await expect(
+      this.page.locator('[data-testid$="-row"]', { hasText: name })
+    ).toHaveCount(0);
   }
 
   // ── Primary scenario helpers ──
 
   async openPrimaryScenarioInEditor(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Open in Editor' }).click();
+    await this.page.getByTestId('use-case-open-primary-scenario').click();
     await this.page.waitForURL(/\/scenarios\/\d+/);
   }
 
   async expectPrimaryScenarioName(name: string): Promise<void> {
-    await expect(this.page.locator('.primary-scenario-name')).toContainText(name);
+    await expect(this.page.getByTestId('use-case-primary-scenario-name')).toContainText(name);
   }
 }

@@ -40,7 +40,7 @@ import { UserService } from '../../core/user.service';
   standalone: true,
   imports: [FormsModule, InputText, Password, SelectModule, ButtonModule, MessageModule],
   template: `
-    <div class="edit-account">
+    <div class="edit-account" data-testid="account-editor">
       <h2>Edit Account</h2>
 
       @if (errorMessage()) {
@@ -91,7 +91,7 @@ import { UserService } from '../../core/user.service';
         </div>
 
         <div class="actions">
-          <p-button type="submit" label="Save" icon="pi pi-check"
+          <p-button type="submit" label="Save" icon="pi pi-check" data-testid="account-save"
                     [loading]="saving()" [disabled]="!accountForm.dirty" />
         </div>
       </form>

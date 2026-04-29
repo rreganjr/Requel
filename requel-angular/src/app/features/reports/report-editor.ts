@@ -41,18 +41,18 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             ConfirmDialogModule, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
-    <div class="report-editor">
+    <div class="report-editor" data-testid="report-editor">
       <div class="page-header">
         <h2>{{ isNew() ? 'New Document' : reportName() }}</h2>
         <div class="page-actions">
-          <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
+          <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="report-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew() && canDelete()) {
-            <p-button label="Delete" icon="pi pi-trash" severity="danger"
+            <p-button label="Delete" icon="pi pi-trash" severity="danger" data-testid="report-delete"
                       [outlined]="true" (onClick)="onDelete()" />
           }
           @if (!isNew()) {
-            <p-button label="Run" icon="pi pi-play" severity="success"
+            <p-button label="Run" icon="pi pi-play" severity="success" data-testid="report-run"
                       [outlined]="true" (onClick)="onRun()" [loading]="running()" />
           }
         </div>
@@ -81,7 +81,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
       </div>
 
       <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()"
+        <p-button label="Save" icon="pi pi-check" data-testid="report-save" (onClick)="onSave()" [loading]="saving()"
                   [disabled]="!isNew() && !isDirty()" />
       </div>
 

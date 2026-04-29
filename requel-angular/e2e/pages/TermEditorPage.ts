@@ -55,25 +55,25 @@ export class TermEditorPage {
   async saveNew(): Promise<void> {
     // Angular navigates with replaceUrl:true (history.replaceState) — no load event fires.
     // waitUntil:'commit' gates only on the URL changing, not on a subsequent load.
-    await this.page.getByRole('button', { name: 'Save' }).click();
+    await this.page.getByTestId('term-save').click();
     await this.page.waitForURL(/\/terms\/\d+/, { waitUntil: 'commit', timeout: 10000 });
   }
 
   async save(): Promise<void> {
     await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/EditGlossaryTerm')),
-      this.page.getByRole('button', { name: 'Save' }).click(),
+      this.page.getByTestId('term-save').click(),
     ]);
   }
 
   async delete(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Delete' }).click();
+    await this.page.getByTestId('term-delete').click();
     await this.page.getByRole('button', { name: 'Yes' }).click();
     await this.page.waitForURL(/\/terms$/);
   }
 
   async navigateBack(projectName: string): Promise<void> {
-    await this.page.getByRole('button', { name: 'Back' }).click();
+    await this.page.getByTestId('term-back').click();
     await this.page.waitForURL(`**/projects/${encodeURIComponent(projectName)}/terms`);
   }
 

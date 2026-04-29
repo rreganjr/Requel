@@ -85,9 +85,7 @@ export class StoryEditorPage {
   }
 
   async clearPrimaryActor(): Promise<void> {
-    // PrimeNG 21 Select renders the clear icon as an svg with data-pc-section="clearicon"
-    // (not a button with aria-label="clear") when [showClear]="true" and a value is selected.
-    await this.primaryActorSelect().locator('[data-pc-section="clearicon"]').click();
+    await this.page.getByTestId('story-primary-actor-clear').click();
   }
 
   async expectPrimaryActorValue(actorName: string): Promise<void> {
@@ -128,10 +126,10 @@ export class StoryEditorPage {
     await this.page.getByTestId('story-add-actor').click();
     const dialog = this.page.getByRole('dialog', { name: 'Select Actor' });
     await dialog.waitFor({ state: 'visible' });
-    await dialog.locator('[aria-label="Search"]').fill(actorName);
+    await dialog.getByTestId('entity-selector-search').fill(actorName);
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/AddActorToActorContainer')),
-      dialog.locator('p-table tr', { hasText: actorName }).first().click(),
+      dialog.getByTestId('entity-selector-row').filter({ hasText: actorName }).first().click(),
     ]);
     if (!response.ok()) {
       throw new Error(`AddActorToActorContainer failed: ${response.status()} ${await response.text()}`);
