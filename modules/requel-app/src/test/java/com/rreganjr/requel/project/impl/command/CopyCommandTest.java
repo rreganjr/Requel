@@ -46,6 +46,10 @@ import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.user.User;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -130,6 +134,30 @@ public class CopyCommandTest extends AbstractIntegrationTestCase {
         cmd.setName(name);
         cmd.setText("Scenario text for " + name + ".");
         cmd.setScenarioTypeName(ScenarioType.Primary.name());
+        cmd = getCommandHandler().execute(cmd);
+        return cmd.getScenario();
+    }
+
+    private Scenario createScenarioWithSteps(Project project, String name, String... stepNames)
+            throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        List<EditScenarioStepCommand> stepCommands = new ArrayList<>();
+        for (String stepName : stepNames) {
+            EditScenarioStepCommand stepCmd = getProjectCommandFactory().newEditScenarioStepCommand();
+            stepCmd.setEditedBy(admin);
+            stepCmd.setProjectOrDomain(project);
+            stepCmd.setName(stepName);
+            stepCmd.setText("Text for step: " + stepName);
+            stepCmd.setScenarioTypeName(ScenarioType.Primary.name());
+            stepCommands.add(stepCmd);
+        }
+        EditScenarioCommand cmd = getProjectCommandFactory().newEditScenarioCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectOrDomain(project);
+        cmd.setName(name);
+        cmd.setText("Scenario text for " + name + ".");
+        cmd.setScenarioTypeName(ScenarioType.Primary.name());
+        cmd.setStepCommands(stepCommands);
         cmd = getCommandHandler().execute(cmd);
         return cmd.getScenario();
     }
@@ -339,6 +367,44 @@ public class CopyCommandTest extends AbstractIntegrationTestCase {
         Scenario copy = cmd.getNewScenario();
         assertEquals("Alternate path Copy", copy.getName(), "explicit scenario name should be used");
         assertEquals(original.getType(), copy.getType(), "copy should preserve scenario type");
+    }
+
+    @Test
+    public void copyScenarioCopiesStepsWithUniqueNames() throws Exception {
+        Project project = createProject("Copy-Scenario-Steps");
+        User admin = getUserRepository().findUserByUsername("admin");
+        Scenario original = createScenarioWithSteps(project, "Main flow",
+                "User opens the page", "System displays the form");
+
+        assertEquals(2, original.getSteps().size(), "pre-condition: scenario must have 2 steps");
+
+        CopyScenarioCommand cmd = getProjectCommandFactory().newCopyScenarioCommand();
+        cmd.setEditedBy(admin);
+        cmd.setOriginalScenario(original);
+        cmd = getCommandHandler().execute(cmd);
+
+        Scenario copy = cmd.getNewScenario();
+        assertNotNull(copy, "copy should have been created");
+        assertEquals(2, copy.getSteps().size(),
+                "copy should have the same number of steps as the original");
+
+        // Each step gets a unique name since the originals still exist in the project
+        List<String> copiedNames = copy.getSteps().stream()
+                .map(Step::getName)
+                .collect(Collectors.toList());
+        assertTrue(copiedNames.contains("User opens the page 1"),
+                "first step copy should auto-generate a unique name");
+        assertTrue(copiedNames.contains("System displays the form 1"),
+                "second step copy should auto-generate a unique name");
+
+        // Copied steps must be distinct entities from the originals
+        List<Long> originalIds = original.getSteps().stream()
+                .map(Step::getId)
+                .collect(Collectors.toList());
+        for (Step copiedStep : copy.getSteps()) {
+            assertFalse(originalIds.contains(copiedStep.getId()),
+                    "copied step " + copiedStep.getName() + " should be a distinct entity");
+        }
     }
 
     // -------------------------------------------------------------------------

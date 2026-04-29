@@ -92,8 +92,9 @@ test.describe('Actor management', () => {
 
     await editorPage.copy();
 
-    // Copy navigates to the copied actor's editor (any actor URL)
-    await page.waitForURL(/\/actors\/\d+/);
+    // copy() waits for the CopyActor API response; Angular navigates to the copy's URL.
+    // Wait for navigation to a different actor ID than the original.
+    await page.waitForURL(url => !url.toString().includes(`/actors/${actor.id}`));
 
     // Navigate to list and wait for 2 data rows — toHaveCount auto-waits for Angular
     // This project is fresh (beforeAll creates it empty) so only this test's actors exist.

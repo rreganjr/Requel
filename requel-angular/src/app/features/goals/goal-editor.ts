@@ -227,6 +227,8 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   name = '';
   text = '';
+  private originalName = '';
+  private originalText = '';
   showRelationSelector = false;
   newRelationType = 'Supports';
   relationTypeOptions = [
@@ -265,6 +267,8 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.goal.set(null);
         this.name = '';
         this.text = '';
+        this.originalName = '';
+        this.originalText = '';
         this.version = null;
       } else {
         this.isNew.set(false);
@@ -275,7 +279,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   hasUnsavedChanges(): boolean {
-    return false;
+    return this.name !== this.originalName || this.text !== this.originalText;
   }
 
   ngOnDestroy(): void {
@@ -286,13 +290,19 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.sseSub?.unsubscribe();
   }
 
-  private async loadGoal(): Promise<void> {
+  private async loadGoal(fromSSE = false): Promise<void> {
     try {
       const g = await this.goalService.getGoal(this.projectName, this.goalId!);
+      // Don't overwrite unsaved user edits when called from an SSE notification.
+      if (fromSSE && this.hasUnsavedChanges()) {
+        return;
+      }
       this.goal.set(g);
       this.goalName.set(g.name);
       this.name = g.name;
       this.text = g.text;
+      this.originalName = g.name;
+      this.originalText = g.text;
       this.version = g.version;
     } catch {
       this.errorMessage.set('Failed to load goal.');
@@ -301,7 +311,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       void this.eventStreamService.addSubscription('Goal', this.goalId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'Goal' && envelope.targetId === this.goalId) {
-          void this.loadGoal();
+          void this.loadGoal(true);
         }
       });
     }
@@ -335,10 +345,13 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
           this.projectService.notifyTreeChanged();
           if (result.entity) {
             const saved = result.entity as GoalDto;
+            // Reset originals before navigation so CanDeactivate guard doesn't fire
+            this.originalName = this.name;
+            this.originalText = this.text;
             this.router.navigate(['/projects', this.projectName, 'goals', saved.id]);
           }
         } else {
-          await this.loadGoal();
+          await this.loadGoal(); // resets originalName/originalText
         }
       } else {
         this.errorMessage.set(result.error ?? 'Save failed.');

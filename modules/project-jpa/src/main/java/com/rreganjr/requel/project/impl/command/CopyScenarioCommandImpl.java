@@ -31,7 +31,9 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.command.CopyScenarioCommand;
+import com.rreganjr.requel.project.command.CopyScenarioStepCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ScenarioImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -89,7 +91,7 @@ public class CopyScenarioCommandImpl extends AbstractEditProjectCommand implemen
 	}
 
 	@Override
-	public void execute() {
+	public void execute() throws Exception {
 		User editedBy = getRepository().get(getEditedBy());
 		ScenarioImpl originalScenario = (ScenarioImpl) getRepository().get(getOriginalScenario());
 
@@ -102,6 +104,17 @@ public class CopyScenarioCommandImpl extends AbstractEditProjectCommand implemen
 		ScenarioImpl newScenario = getProjectRepository().persist(
 				new ScenarioImpl(originalScenario.getProjectOrDomain(), editedBy, newName,
 						originalScenario.getText(), originalScenario.getType()));
+
+		// Copy steps in order; each gets a unique name via CopyScenarioStepCommand
+		// since step names are unique per project and the originals still exist.
+		for (Step step : originalScenario.getSteps()) {
+			CopyScenarioStepCommand copyStepCommand = getProjectCommandFactory()
+					.newCopyScenarioStepCommand();
+			copyStepCommand.setEditedBy(getEditedBy());
+			copyStepCommand.setOriginalScenarioStep(step);
+			getCommandHandler().execute(copyStepCommand);
+			newScenario.getSteps().add(copyStepCommand.getNewScenarioStep());
+		}
 
 		// TODO: this assumes that all annotations are appropriate for the new
 		// scenario

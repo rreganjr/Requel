@@ -28,15 +28,26 @@ import org.springframework.web.bind.annotation.RequestMapping;
  * Forwards all non-API, non-static-resource requests to index.html so that
  * Angular's client-side router handles them when the app is served from the JAR.
  *
- * Requests matched here: anything that does not start with /api/, /actuator/,
- * or contain a dot (i.e. not a file with an extension like .js, .css, .ico).
+ * Each path segment is constrained by [^\\.] (no dot), so static assets whose
+ * last segment contains a file extension (e.g. /images/logo.png, /media/font.woff2)
+ * never match and fall through to Spring Boot's static-resource handler at /**.
+ *
+ * Depth covers all current Angular routes (max 4 segments); add another pattern
+ * if routes deeper than 5 segments are introduced.
+ *
+ * Note: the old pattern "/{path:[^\\.]*}/**" only restricted the first segment;
+ * "**" matched anything including extensions, causing Spring (order 0) to intercept
+ * static assets before the resource handler (order MAX_VALUE-1) could serve them.
  */
 @Controller
 public class SpaController {
 
     @RequestMapping(value = {
-            "/{path:[^\\.]*}",
-            "/{path:[^\\.]*}/**"
+            "/{p1:[^\\.]*}",
+            "/{p1:[^\\.]*}/{p2:[^\\.]*}",
+            "/{p1:[^\\.]*}/{p2:[^\\.]*}/{p3:[^\\.]*}",
+            "/{p1:[^\\.]*}/{p2:[^\\.]*}/{p3:[^\\.]*}/{p4:[^\\.]*}",
+            "/{p1:[^\\.]*}/{p2:[^\\.]*}/{p3:[^\\.]*}/{p4:[^\\.]*}/{p5:[^\\.]*}"
     })
     public String forward(HttpServletRequest request) {
         String path = request.getRequestURI();

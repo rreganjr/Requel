@@ -379,9 +379,16 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     this.sseSub?.unsubscribe();
   }
 
-  private async loadScenario(): Promise<void> {
+  private async loadScenario(fromSSE = false): Promise<void> {
     try {
       const s = await this.scenarioService.getScenario(this.projectName, this.scenarioId!);
+      // Don't overwrite unsaved user edits when called from an SSE notification.
+      // Check after the async fetch so we catch edits made while the request was in-flight.
+      // editingStep() !== null means the step-detail popup is open: replacing stepNodes
+      // would orphan the object that editingStep points to, losing any in-progress edits.
+      if (fromSSE && (this.hasChanges() || this.saving() || this.editingStep() !== null)) {
+        return;
+      }
       this.scenario.set(s);
       this.scenarioName.set(s.name);
       this.name = s.name;
@@ -401,7 +408,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       void this.eventStreamService.addSubscription('Scenario', this.scenarioId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'Scenario' && envelope.targetId === this.scenarioId) {
-          void this.loadScenario();
+          void this.loadScenario(true);
         }
       });
     }

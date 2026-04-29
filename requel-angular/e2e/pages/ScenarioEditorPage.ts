@@ -48,17 +48,25 @@ export class ScenarioEditorPage {
   }
 
   async save(): Promise<void> {
-    await Promise.all([
-      this.page.waitForResponse(r => r.url().includes('/api/commands/EditScenario') && r.status() === 200),
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/EditScenario')),
       this.page.getByRole('button', { name: 'Save' }).click(),
     ]);
+    if (!response.ok()) {
+      throw new Error(`EditScenario failed: ${response.status()} ${await response.text()}`);
+    }
   }
 
   async copy(): Promise<void> {
     await this.page.getByRole('button', { name: 'Copy' }).click();
-    // PrimeNG confirmation dialog — click Yes to confirm
-    await this.page.getByRole('button', { name: 'Yes' }).click();
-    await this.page.waitForLoadState('domcontentloaded');
+    // Register the response waiter before clicking Yes — the API call fires immediately on confirm.
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/CopyScenario')),
+      this.page.getByRole('button', { name: 'Yes' }).click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`CopyScenario failed: ${response.status()} ${await response.text()}`);
+    }
   }
 
   async delete(): Promise<void> {

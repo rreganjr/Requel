@@ -258,9 +258,13 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.sseSub?.unsubscribe();
   }
 
-  private async loadActor(): Promise<void> {
+  private async loadActor(fromSSE = false): Promise<void> {
     try {
       const a = await this.actorService.getActor(this.projectName, this.actorId!);
+      // Don't overwrite unsaved user edits when called from an SSE notification.
+      if (fromSSE && this.hasChanges()) {
+        return;
+      }
       this.actor.set(a);
       this.actorName.set(a.name);
       this.name = a.name;
@@ -279,7 +283,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       void this.eventStreamService.addSubscription('Actor', this.actorId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'Actor' && envelope.targetId === this.actorId) {
-          void this.loadActor();
+          void this.loadActor(true);
         }
       });
     }

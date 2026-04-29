@@ -5,6 +5,24 @@ import * as path from 'path';
 const BASE_URL = 'http://localhost:8080';
 const AUTH_DIR = path.join(__dirname, '.auth');
 
+/**
+ * Calls POST /api/dev/reset-admin to ensure admin's password is reset to the
+ * default before the test suite runs. This endpoint is only registered when
+ * the server is started with --requel.dev.reset-admin.enabled=true; if the
+ * endpoint is absent (404) the call is silently skipped.
+ */
+async function resetAdminPassword(): Promise<void> {
+  const ctx = await request.newContext({ baseURL: BASE_URL });
+  try {
+    const res = await ctx.post('/api/dev/reset-admin');
+    if (res.status() === 404) {
+      console.warn('[global-setup] /api/dev/reset-admin not available — start the server with --requel.dev.reset-admin.enabled=true to auto-reset admin credentials before each run');
+    }
+  } finally {
+    await ctx.dispose();
+  }
+}
+
 async function saveAuthState(username: string, password: string): Promise<void> {
   // Use the API to obtain a JWT — no UI login needed
   const ctx = await request.newContext({ baseURL: BASE_URL });
@@ -35,6 +53,8 @@ async function saveAuthState(username: string, password: string): Promise<void> 
 
 export default async function globalSetup(): Promise<void> {
   fs.mkdirSync(AUTH_DIR, { recursive: true });
+
+  await resetAdminPassword();
 
   const adminUser = process.env['E2E_ADMIN_USERNAME'] ?? 'admin';
   const adminPass = process.env['E2E_ADMIN_PASSWORD'] ?? 'admin';

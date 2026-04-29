@@ -72,6 +72,7 @@ public class ApiSecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
+                .requestMatchers("/api/dev/**").permitAll()
                 .requestMatchers("/api/users/organizations").authenticated()
                 .requestMatchers("/api/users/**").hasRole("SystemAdminUserRole")
                 .requestMatchers("/api/commands/NewUser").hasRole("SystemAdminUserRole")

@@ -86,8 +86,8 @@ public class AddStoryToStoryContainerCommandImpl extends AbstractEditProjectComm
 
 	@Override
 	public void execute() {
-		Story addedStory = getRepository().get(getStory());
-		StoryContainer addingContainer = getRepository().get(getStoryContainer());
+		Story addedStory = getProjectRepository().get(getStory());
+		StoryContainer addingContainer = getProjectRepository().get(getStoryContainer());
 
 		// Hibernate 6.5 bug: @ManyToAny collection insertion generates invalid SQL for the
 		// story_storycontainers join table. Use a native INSERT instead.

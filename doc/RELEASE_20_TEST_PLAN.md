@@ -927,7 +927,7 @@ Extra tests implemented: cancel on project editor navigates back; dirty guard �
 | ✓ | | Add/remove goal relation → relation visible on both goals |
 | ✓ | | Delete goal → removed from list |
 | — | | Navigate to goal from use-case goals table → opens correct editor |
-| — | | Dirty guard → navigate away with unsaved changes → confirm dialog; cancel stays on page |
+| ✓ | `dirty-guard.e2e.ts` | Dirty guard → navigate away with unsaved changes → cancel dialog stays on editor; confirm dialog navigates away |
 
 Extra tests implemented: back button navigates to goal list.
 
