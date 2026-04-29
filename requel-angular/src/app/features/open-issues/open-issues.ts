@@ -88,7 +88,7 @@ const ENTITY_ROUTES: Record<string, string> = {
           <tr>
             <td>{{ issue.entityType }}</td>
             <td>
-              <a class="entity-link" (click)="navigateTo(issue)">{{ issue.entityName }}</a>
+              <a class="entity-link" data-testid="open-issue-entity-link" (click)="navigateTo(issue)">{{ issue.entityName }}</a>
             </td>
             <td>{{ issue.issueText }}</td>
             <td>

@@ -39,7 +39,7 @@ import { CommandService } from '../../core/command.service';
   standalone: true,
   imports: [FormsModule, InputText, Password, ButtonModule, CheckboxModule, SelectModule, MessageModule],
   template: `
-    <div class="user-editor">
+    <div class="user-editor" data-testid="user-editor">
       <h2>{{ isNew() ? 'New User' : 'Edit User: ' + username }}</h2>
 
       @if (errorMessage()) {
@@ -74,7 +74,8 @@ import { CommandService } from '../../core/command.service';
 
           <div class="field">
             <label for="org">Organization</label>
-            <p-select id="org" [(ngModel)]="organizationName" name="org"
+            <p-select id="org" inputId="userOrgInput" data-testid="user-organization"
+                      [(ngModel)]="organizationName" name="org"
                       [options]="orgOptions()" [editable]="true"
                       placeholder="Select or type organization" />
           </div>
@@ -92,11 +93,11 @@ import { CommandService } from '../../core/command.service';
           </div>
         </div>
 
-        <div class="roles-section">
+        <div class="roles-section" data-testid="user-roles-section">
           <h3>Roles &amp; Permissions</h3>
           @for (role of availableRoles(); track role.roleName) {
-            <div class="role-group">
-              <label class="checkbox-label">
+            <div class="role-group" data-testid="user-role-group" [attr.data-role-name]="role.roleName">
+              <label class="checkbox-label" data-testid="user-role-label">
                 <p-checkbox [(ngModel)]="selectedRoleNames" [name]="'role_' + role.roleName"
                             [value]="role.roleName" />
                 {{ role.displayName }}

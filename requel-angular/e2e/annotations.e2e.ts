@@ -166,7 +166,7 @@ test.describe('Annotations (IBIS)', () => {
     // Get the table row that contains our specific issue text, then click its entity link
     const issueRow = page.getByRole('row', { name: new RegExp(issueText) });
     await expect(issueRow).toBeVisible();
-    await issueRow.locator('.entity-link').click();
+    await issueRow.getByTestId('open-issue-entity-link').click();
 
     await page.waitForURL(new RegExp(`/goals/${goalFixture.id}$`));
     await expect(page.locator('#name')).not.toHaveValue('');

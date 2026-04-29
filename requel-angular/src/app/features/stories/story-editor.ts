@@ -50,7 +50,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
-    <div class="story-editor">
+    <div class="story-editor" data-testid="story-editor">
       <div class="page-header">
         <h2>{{ isNew() ? 'New Story' : storyName() }}</h2>
         <div class="page-actions">
@@ -79,12 +79,14 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
                (ngModelChange)="trackChanges()" />
 
         <label for="type">Type</label>
-        <p-select id="type" [(ngModel)]="storyType" [options]="storyTypeOptions"
+        <p-select id="type" inputId="storyTypeInput" data-testid="story-type"
+                  [(ngModel)]="storyType" [options]="storyTypeOptions"
                   optionLabel="label" optionValue="value"
                   (ngModelChange)="trackChanges()" />
 
         <label for="primaryActor">Primary Actor</label>
-        <p-select id="primaryActor"
+        <p-select id="primaryActor" inputId="storyPrimaryActorInput"
+                  data-testid="story-primary-actor"
                   [(ngModel)]="primaryActorName"
                   [options]="actorOptions()"
                   optionLabel="label"
@@ -101,7 +103,8 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
       </div>
 
       <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()"
+        <p-button label="Save" icon="pi pi-check" data-testid="story-save"
+                  (onClick)="onSave()" [loading]="saving()"
                   [disabled]="!isNew() && !hasChanges()" />
       </div>
 
@@ -145,11 +148,12 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <h3>Additional Actors</h3>
             @if (canEdit()) {
               <p-button label="Add Actor" icon="pi pi-plus" size="small"
+                        data-testid="story-add-actor"
                         (onClick)="showActorSelector = true" />
             }
           </div>
           @if (story()!.actors?.length) {
-            <p-table [value]="story()!.actors!" [rows]="10">
+            <p-table [value]="story()!.actors!" [rows]="10" data-testid="story-additional-actors-table">
               <ng-template #header>
                 <tr>
                   <th>Name</th>
@@ -157,10 +161,11 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
                 </tr>
               </ng-template>
               <ng-template #body let-a>
-                <tr>
-                  <td><a class="entity-link" (click)="navigateToActor(a.id)">{{ a.name }}</a></td>
+                <tr data-testid="story-additional-actor-row">
+                  <td><a class="entity-link" data-testid="story-additional-actor-link" (click)="navigateToActor(a.id)">{{ a.name }}</a></td>
                   @if (canEdit()) {
                     <td><p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
+                                  data-testid="story-remove-additional-actor"
                                   (onClick)="onRemoveActor(a)" /></td>
                   }
                 </tr>

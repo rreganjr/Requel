@@ -37,6 +37,14 @@ export class StoryListPage extends BaseListPage {
 export class StoryEditorPage {
   constructor(private page: Page) {}
 
+  private storyTypeSelect() {
+    return this.page.getByTestId('story-type');
+  }
+
+  private primaryActorSelect() {
+    return this.page.getByTestId('story-primary-actor');
+  }
+
   async fillName(name: string): Promise<void> {
     const input = this.page.locator('#name');
     await input.clear();
@@ -54,7 +62,7 @@ export class StoryEditorPage {
    * Clicks the dropdown trigger, then selects the matching option.
    */
   async selectStoryType(type: 'Success' | 'Exception'): Promise<void> {
-    await this.page.locator('#type').click();
+    await this.storyTypeSelect().click();
     await this.page.getByRole('option', { name: type }).click();
   }
 
@@ -62,14 +70,14 @@ export class StoryEditorPage {
    * Select a primary actor by name, or "(none)" to clear.
    */
   async selectPrimaryActor(actorName: string): Promise<void> {
-    await this.page.locator('#primaryActor').click();
+    await this.primaryActorSelect().click();
     await this.page.getByRole('option', { name: actorName }).click();
   }
 
   async save(): Promise<void> {
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/EditStory')),
-      this.page.getByRole('button', { name: 'Save' }).click(),
+      this.page.getByTestId('story-save').click(),
     ]);
     if (!response.ok()) {
       throw new Error(`EditStory command failed: ${response.status()} ${await response.text()}`);
@@ -79,16 +87,16 @@ export class StoryEditorPage {
   async clearPrimaryActor(): Promise<void> {
     // PrimeNG 21 Select renders the clear icon as an svg with data-pc-section="clearicon"
     // (not a button with aria-label="clear") when [showClear]="true" and a value is selected.
-    await this.page.locator('#primaryActor').locator('[data-pc-section="clearicon"]').click();
+    await this.primaryActorSelect().locator('[data-pc-section="clearicon"]').click();
   }
 
   async expectPrimaryActorValue(actorName: string): Promise<void> {
-    await expect(this.page.locator('#primaryActor')).toContainText(actorName);
+    await expect(this.primaryActorSelect()).toContainText(actorName);
   }
 
   async expectNoPrimaryActor(): Promise<void> {
     // p-select shows the placeholder when no value is selected
-    await expect(this.page.locator('#primaryActor')).toContainText('Select primary actor');
+    await expect(this.primaryActorSelect()).toContainText('Select primary actor');
   }
 
   async delete(): Promise<void> {
@@ -113,11 +121,11 @@ export class StoryEditorPage {
 
   async expectStoryTypeValue(type: string): Promise<void> {
     // p-select renders the selected value in a span inside the component
-    await expect(this.page.locator('#type')).toContainText(type);
+    await expect(this.storyTypeSelect()).toContainText(type);
   }
 
   async addAdditionalActor(actorName: string): Promise<void> {
-    await this.page.getByRole('button', { name: 'Add Actor' }).click();
+    await this.page.getByTestId('story-add-actor').click();
     const dialog = this.page.getByRole('dialog', { name: 'Select Actor' });
     await dialog.waitFor({ state: 'visible' });
     await dialog.locator('[aria-label="Search"]').fill(actorName);
@@ -133,8 +141,8 @@ export class StoryEditorPage {
   async removeAdditionalActor(actorName: string): Promise<void> {
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/RemoveActorFromActorContainer')),
-      this.page.locator('p-table tr', { hasText: actorName })
-               .getByRole('button')
+      this.page.getByTestId('story-additional-actor-row').filter({ hasText: actorName })
+               .getByTestId('story-remove-additional-actor')
                .first()
                .click(),
     ]);
@@ -144,10 +152,14 @@ export class StoryEditorPage {
   }
 
   async expectAdditionalActorInTable(actorName: string): Promise<void> {
-    await expect(this.page.locator('p-table td', { hasText: actorName }).first()).toBeVisible();
+    await expect(
+      this.page.getByTestId('story-additional-actor-row').filter({ hasText: actorName }).first()
+    ).toBeVisible();
   }
 
   async expectAdditionalActorNotInTable(actorName: string): Promise<void> {
-    await expect(this.page.locator('p-table td', { hasText: actorName }).first()).not.toBeVisible();
+    await expect(
+      this.page.getByTestId('story-additional-actor-row').filter({ hasText: actorName })
+    ).toHaveCount(0);
   }
 }

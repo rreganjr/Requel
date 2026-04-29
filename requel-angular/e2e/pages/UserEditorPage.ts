@@ -47,6 +47,10 @@ export class UserListPage {
 export class UserEditorPage {
   constructor(private page: Page) {}
 
+  private organizationSelect() {
+    return this.page.getByTestId('user-organization');
+  }
+
   async fillUsername(username: string): Promise<void> {
     await this.page.locator('#username').fill(username);
   }
@@ -65,7 +69,7 @@ export class UserEditorPage {
     // p-select with [editable]="true": fill() opens the dropdown. Clicking the matching
     // option selects it and closes the dropdown in one step. Falls back to Tab if no exact
     // match exists (new environment where the org hasn't been created yet).
-    await this.page.locator('input[name="org"]').fill(org);
+    await this.organizationSelect().locator('input').fill(org);
     const option = this.page.getByRole('option', { name: org, exact: true });
     if (await option.count() > 0) {
       await option.click();
@@ -96,7 +100,7 @@ export class UserEditorPage {
    * Waits for the roles section to be visible first — roles are loaded async in loadData().
    */
   async selectRole(displayName: string | RegExp): Promise<void> {
-    const label = this.page.locator('.checkbox-label', { hasText: displayName });
+    const label = this.page.getByTestId('user-role-label').filter({ hasText: displayName });
     await expect(label).toBeVisible({ timeout: 5000 });
     await label.click();
   }
