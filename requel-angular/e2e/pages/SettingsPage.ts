@@ -3,6 +3,14 @@ import { Page, expect } from '@playwright/test';
 export class SettingsPage {
   constructor(private page: Page) {}
 
+  private projectLimit() {
+    return this.page.getByTestId('settings-project-limit').locator('input');
+  }
+
+  private stalenessSelect() {
+    return this.page.getByTestId('settings-staleness');
+  }
+
   async goto(): Promise<void> {
     await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/user-preferences') && r.status() === 200),
@@ -11,26 +19,20 @@ export class SettingsPage {
   }
 
   /**
-   * p-inputNumber puts id="projectLimit" on the host element, not the inner <input>.
-   * Target the <input> directly. Triple-click selects the current value; pressSequentially()
-   * fires real keydown/keypress/keyup events that PrimeNG's InputNumber CVA processes
-   * (unlike fill() which only fires an input event and PrimeNG ignores for value updates).
+   * Target the app-owned test hook and type into the underlying spinbutton.
    */
   async fillProjectLimit(limit: number): Promise<void> {
-    const input = this.page.locator('p-inputnumber input');
+    const input = this.projectLimit();
     await input.click({ clickCount: 3 }); // select all current text
     await input.pressSequentially(String(limit)); // PrimeNG responds to real key events
   }
 
   /**
-   * p-select (non-editable) — click the host to open the overlay panel,
-   * wait for the option list to be visible, then click by PrimeNG CSS class.
-   * Using li.p-select-option avoids depending on role="option" ARIA rendering.
+   * Open the select from the app-owned test hook, then choose the visible option by role.
    */
   async selectStaleness(label: string): Promise<void> {
-    await this.page.locator('p-select').click();
-    const option = this.page.locator('li.p-select-option', { hasText: label });
-    await option.waitFor({ state: 'visible' });
+    await this.stalenessSelect().click();
+    const option = this.page.getByRole('option', { name: label, exact: true });
     await option.click();
   }
 
@@ -39,7 +41,7 @@ export class SettingsPage {
       this.page.waitForResponse(r =>
         r.url().includes('/user-preferences') && r.request().method() === 'PUT'
       ),
-      this.page.getByRole('button', { name: 'Save' }).click(),
+      this.page.getByTestId('settings-save').click(),
     ]);
     if (!response.ok()) {
       throw new Error(`PUT /user-preferences failed: ${response.status()} ${await response.text()}`);
@@ -51,7 +53,7 @@ export class SettingsPage {
       this.page.waitForResponse(r =>
         r.url().includes('/user-preferences') && r.request().method() === 'PUT'
       ),
-      this.page.getByRole('button', { name: 'Reset to Defaults' }).click(),
+      this.page.getByTestId('settings-reset').click(),
     ]);
     if (!response.ok()) {
       throw new Error(`PUT /user-preferences (reset) failed: ${response.status()} ${await response.text()}`);
@@ -59,11 +61,11 @@ export class SettingsPage {
   }
 
   async expectProjectLimit(limit: number): Promise<void> {
-    await expect(this.page.locator('p-inputnumber input')).toHaveValue(String(limit));
+    await expect(this.projectLimit()).toHaveValue(String(limit));
   }
 
   async expectStaleness(label: string): Promise<void> {
-    await expect(this.page.locator('p-select')).toContainText(label);
+    await expect(this.stalenessSelect()).toContainText(label);
   }
 
   async expectSuccessMessage(): Promise<void> {

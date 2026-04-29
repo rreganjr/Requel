@@ -31,7 +31,11 @@ export class ScenarioEditorPage {
   constructor(private page: Page) {}
 
   private saveButton() {
-    return this.page.getByRole('button', { name: 'Save' });
+    return this.page.getByTestId('scenario-save');
+  }
+
+  private stepRows() {
+    return this.page.getByTestId('scenario-step-row');
   }
 
   async fillName(name: string): Promise<void> {
@@ -104,15 +108,15 @@ export class ScenarioEditorPage {
    * still triggering Angular's (click)="addStep()" handler.
    */
   async addStep(): Promise<void> {
-    await this.page.locator('.add-step-row').last().dispatchEvent('click');
+    await this.page.getByTestId('scenario-add-step-bottom').dispatchEvent('click');
   }
 
   async expectStepCount(n: number): Promise<void> {
-    await expect(this.page.locator('.step-row')).toHaveCount(n);
+    await expect(this.stepRows()).toHaveCount(n);
   }
 
   async fillStepName(index: number, name: string): Promise<void> {
-    const input = this.page.locator('.step-row').nth(index).locator('.step-name-input');
+    const input = this.stepRows().nth(index).getByTestId('scenario-step-name');
     await input.clear();
     await input.fill(name);
     // Tab out to trigger (blur)="onStepNameChange()" → stepsSaveNeeded = true
@@ -121,36 +125,36 @@ export class ScenarioEditorPage {
 
   async expectStepName(index: number, name: string): Promise<void> {
     await expect(
-      this.page.locator('.step-row').nth(index).locator('.step-name-input')
+      this.stepRows().nth(index).getByTestId('scenario-step-name')
     ).toHaveValue(name);
   }
 
   async removeStep(index: number): Promise<void> {
-    const rows = this.page.locator('.step-row');
+    const rows = this.stepRows();
     const initialCount = await rows.count();
-    await rows.nth(index).locator('button:has(.pi-times)').click();
+    await rows.nth(index).getByTestId('scenario-step-remove').click();
     await expect(rows).toHaveCount(initialCount - 1);
   }
 
   async openStepEdit(index: number): Promise<void> {
-    await this.page.locator('.step-row').nth(index).locator('button:has(.pi-pencil)').click();
+    await this.stepRows().nth(index).getByTestId('scenario-step-edit').click();
   }
 
   async fillStepEditName(name: string): Promise<void> {
-    const input = this.page.locator('.edit-popup-content input');
+    const input = this.page.getByTestId('scenario-step-edit-name');
     await input.clear();
     await input.fill(name);
   }
 
   async fillStepEditText(text: string): Promise<void> {
-    const textarea = this.page.locator('.edit-popup-content textarea');
+    const textarea = this.page.getByTestId('scenario-step-edit-text');
     await textarea.clear();
     await textarea.fill(text);
   }
 
   async applyStepEdit(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Apply' }).click();
-    await expect(this.page.locator('.edit-popup-overlay')).not.toBeVisible();
+    await this.page.getByTestId('scenario-step-edit-apply').click();
+    await expect(this.page.getByTestId('scenario-step-edit-overlay')).not.toBeVisible();
   }
 
   /**
@@ -166,7 +170,7 @@ export class ScenarioEditorPage {
    * the item one slot at a time; a second Space confirms the drop.
    */
   async dragStepTo(fromIndex: number, toIndex: number): Promise<void> {
-    const handle = this.page.locator('.step-row').nth(fromIndex).locator('.drag-handle');
+    const handle = this.stepRows().nth(fromIndex).getByTestId('scenario-step-drag-handle');
 
     // CDK sets tabindex="0" on cdkDragHandle — focus() works without click
     await handle.focus();

@@ -32,7 +32,7 @@ test.describe('Settings / preferences', () => {
     // the listener is active before Angular fires its GET /user-preferences.
     await reloadAndWaitForGet(page, r => r.url().includes('/user-preferences'));
 
-    await expect(page.locator('p-inputnumber input')).toHaveValue('7', { timeout: 10000 });
+    await expect(page.getByTestId('settings-project-limit').locator('input')).toHaveValue('7', { timeout: 10000 });
 
     await page.close();
   });
@@ -47,7 +47,7 @@ test.describe('Settings / preferences', () => {
 
     await reloadAndWaitForGet(page, r => r.url().includes('/user-preferences'));
 
-    await expect(page.locator('p-select')).toContainText('6 Months', { timeout: 10000 });
+    await expect(page.getByTestId('settings-staleness')).toContainText('6 Months', { timeout: 10000 });
 
     await page.close();
   });

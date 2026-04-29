@@ -40,19 +40,20 @@ test.describe('Annotations (IBIS)', () => {
     await listPage.goto(PROJECT_NAME);
     await listPage.clickGoal(goalFixture.name);
 
-    await expect(page.locator('.annotations-section')).toBeVisible();
-    await page.getByRole('button', { name: 'Add Issue' }).click();
-    await page.getByLabel('Issue text').fill(issueText);
+    const annotations = page.getByTestId('annotations-section');
+    await expect(annotations).toBeVisible();
+    await page.getByTestId('annotation-add-issue').click();
+    await page.getByTestId('annotation-issue-text').fill(issueText);
 
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/api/commands/EditIssue')),
-      page.getByRole('button', { name: 'Save Issue' }).click(),
+      page.getByTestId('annotation-save-issue').click(),
     ]);
 
     // Scope to the specific issue — the NLP assistant adds its own issues automatically
-    const issueItem = page.locator('.issue-item', { hasText: issueText });
+    const issueItem = page.getByTestId('annotation-issue').filter({ hasText: issueText });
     await expect(issueItem).toContainText(issueText);
-    await expect(issueItem.locator('.issue-badge')).toContainText('Issue');
+    await expect(issueItem.getByTestId('annotation-issue-badge')).toContainText('Issue');
 
     await page.close();
   });
@@ -69,20 +70,20 @@ test.describe('Annotations (IBIS)', () => {
     await listPage.clickGoal(goalFixture.name);
 
     // Scope to our issue — NLP issues are also present
-    const issueItem = page.locator('.issue-item', { hasText: issueText });
+    const issueItem = page.getByTestId('annotation-issue').filter({ hasText: issueText });
     await expect(issueItem).toBeVisible({ timeout: 5000 });
 
     await issueItem.getByRole('button', { name: 'Add Position' }).click();
-    await issueItem.locator('input[placeholder="Position text..."]').fill(positionText);
+    await issueItem.getByTestId('annotation-position-text').fill(positionText);
 
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/api/commands/EditPosition')),
-      issueItem.getByRole('button', { name: 'Save' }).click(),
+      issueItem.getByTestId('annotation-save-position').click(),
     ]);
 
-    const positionItem = issueItem.locator('.position-item', { hasText: positionText });
+    const positionItem = issueItem.getByTestId('annotation-position').filter({ hasText: positionText });
     await expect(positionItem).toContainText(positionText);
-    await expect(positionItem.locator('.position-badge')).toContainText('Position');
+    await expect(positionItem.getByTestId('annotation-position-badge')).toContainText('Position');
 
     await page.close();
   });
@@ -101,20 +102,20 @@ test.describe('Annotations (IBIS)', () => {
     await listPage.clickGoal(goalFixture.name);
 
     // Scope to our issue, then our position within it
-    const issueItem = page.locator('.issue-item', { hasText: issueText });
-    const positionItem = issueItem.locator('.position-item', { hasText: positionText });
+    const issueItem = page.getByTestId('annotation-issue').filter({ hasText: issueText });
+    const positionItem = issueItem.getByTestId('annotation-position').filter({ hasText: positionText });
     await expect(positionItem).toBeVisible({ timeout: 5000 });
 
     await positionItem.getByRole('button', { name: 'Add Argument' }).click();
-    await positionItem.locator('input[placeholder="Argument text..."]').fill(argText);
+    await positionItem.getByTestId('annotation-argument-text').fill(argText);
     // support level defaults to 'For' — leave as-is
 
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/api/commands/EditArgument')),
-      positionItem.getByRole('button', { name: 'Save' }).click(),
+      positionItem.getByTestId('annotation-save-argument').click(),
     ]);
 
-    await expect(positionItem.locator('.argument-item', { hasText: argText })).toBeVisible();
+    await expect(positionItem.getByTestId('annotation-argument').filter({ hasText: argText })).toBeVisible();
 
     await page.close();
   });
@@ -131,20 +132,21 @@ test.describe('Annotations (IBIS)', () => {
     await listPage.goto(PROJECT_NAME);
     await listPage.clickGoal(goalFixture.name);
 
-    const issueItem = page.locator('.issue-item', { hasText: issueText });
-    const positionItem = issueItem.locator('.position-item', { hasText: positionText });
+    const issueItem = page.getByTestId('annotation-issue').filter({ hasText: issueText });
+    const positionItem = issueItem.getByTestId('annotation-position').filter({ hasText: positionText });
     await expect(positionItem).toBeVisible({ timeout: 5000 });
 
     // Generic positions (PositionImpl.getSimpleName()) fall through to default 'Ignore' label
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/api/commands/ResolveIssue')),
-      positionItem.getByRole('button', { name: 'Ignore' }).click(),
+      positionItem.getByTestId('annotation-resolve-issue').click(),
     ]);
 
     // After resolution the issue item gains the .resolved class
-    await expect(page.locator('.issue-item.resolved', { hasText: issueText })).toBeVisible();
+    const resolvedIssue = page.locator('[data-testid="annotation-issue"][data-resolved="true"]', { hasText: issueText });
+    await expect(resolvedIssue).toBeVisible();
     await expect(
-      page.locator('.issue-item.resolved', { hasText: issueText }).locator('.resolved-badge')
+      resolvedIssue.getByTestId('annotation-issue-badge')
     ).toContainText('Resolved');
 
     await page.close();

@@ -67,7 +67,7 @@ interface StepNodeData {
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
-    <div class="scenario-editor">
+    <div class="scenario-editor" data-testid="scenario-editor">
       <div class="page-header">
         <h2>{{ isNew() ? 'New Scenario' : scenarioName() }}</h2>
         <div class="page-actions">
@@ -107,7 +107,8 @@ interface StepNodeData {
       </div>
 
       <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()"
+        <p-button label="Save" icon="pi pi-check" data-testid="scenario-save"
+                  (onClick)="onSave()" [loading]="saving()"
                   [disabled]="!isNew() && !hasChanges()" />
       </div>
 
@@ -125,18 +126,20 @@ interface StepNodeData {
             }
           </div>
 
-          <div cdkDropList [cdkDropListDisabled]="!canEdit()"
+          <div cdkDropList data-testid="scenario-step-list" [cdkDropListDisabled]="!canEdit()"
                (cdkDropListDropped)="onDrop($event)"
                class="step-list">
             @if (canEdit()) {
-              <div class="add-step-row" (click)="addStepAt(0)">
+              <div class="add-step-row" data-testid="scenario-add-step-top" (click)="addStepAt(0)">
                 <i class="pi pi-plus"></i> Add step
               </div>
             }
-            @for (step of stepNodes(); track step) {
-              <div cdkDrag class="step-row">
+            @for (step of stepNodes(); track step; let stepIndex = $index) {
+              <div cdkDrag class="step-row" data-testid="scenario-step-row"
+                   [attr.data-step-index]="stepIndex">
                   @if (canEdit()) {
-                    <span cdkDragHandle class="drag-handle" pTooltip="Drag to reorder" tooltipPosition="left">
+                    <span cdkDragHandle class="drag-handle" data-testid="scenario-step-drag-handle"
+                          pTooltip="Drag to reorder" tooltipPosition="left">
                       <i class="pi pi-bars"></i>
                     </span>
                   }
@@ -147,24 +150,29 @@ interface StepNodeData {
                     <span class="step-type-badge">{{ step.scenarioType }}</span>
                     @if (canEdit()) {
                       <p-button icon="pi pi-times" severity="danger" [text]="true"
+                                data-testid="scenario-step-remove"
                                 size="small" pTooltip="Remove from scenario"
                                 (onClick)="removeStep(step)" />
                     }
                   } @else {
                     <input pInputText [(ngModel)]="step.name"
                            class="step-name-input"
+                           data-testid="scenario-step-name"
                            placeholder="Step description..."
                            [disabled]="!canEdit()"
                            (keydown)="$event.stopPropagation()"
                            (blur)="onStepNameChange()" />
                     @if (canEdit()) {
                       <p-button icon="pi pi-pencil" [text]="true" size="small"
+                                data-testid="scenario-step-edit"
                                 pTooltip="Edit details" tooltipPosition="top"
                                 (onClick)="openStepEdit(step)" />
                       <p-button icon="pi pi-plus" severity="secondary" [text]="true"
+                                data-testid="scenario-step-add-below"
                                 size="small" pTooltip="Add step below" tooltipPosition="top"
                                 (onClick)="addStepBelow(step)" />
                       <p-button icon="pi pi-times" severity="danger" [text]="true"
+                                data-testid="scenario-step-remove"
                                 size="small" pTooltip="Remove step" tooltipPosition="top"
                                 (onClick)="removeStep(step)" />
                     }
@@ -174,7 +182,7 @@ interface StepNodeData {
                 </div>
               }
             @if (canEdit()) {
-              <div class="add-step-row" (click)="addStep()">
+              <div class="add-step-row" data-testid="scenario-add-step-bottom" (click)="addStep()">
                 <i class="pi pi-plus"></i> Add step
               </div>
             }
@@ -190,21 +198,22 @@ interface StepNodeData {
 
       <!-- Step detail edit popup -->
       @if (editingStep()) {
-        <div class="edit-popup-overlay" (click)="closeStepEdit()">
-          <div class="edit-popup-content" (click)="$event.stopPropagation()">
+        <div class="edit-popup-overlay" data-testid="scenario-step-edit-overlay" (click)="closeStepEdit()">
+          <div class="edit-popup-content" data-testid="scenario-step-edit-dialog" (click)="$event.stopPropagation()">
             <h4>Step Details</h4>
             <div class="edit-popup-grid">
               <label>Name</label>
-              <input pInputText [(ngModel)]="editingName" placeholder="Step description..." />
+              <input pInputText [(ngModel)]="editingName" data-testid="scenario-step-edit-name"
+                     placeholder="Step description..." />
               <label>Type</label>
-              <p-select [(ngModel)]="editingType" [options]="typeOptions"
+              <p-select [(ngModel)]="editingType" data-testid="scenario-step-edit-type" [options]="typeOptions"
                         optionLabel="label" optionValue="value" />
               <label>Notes</label>
-              <textarea pTextarea [(ngModel)]="editingText" rows="4"
+              <textarea pTextarea [(ngModel)]="editingText" data-testid="scenario-step-edit-text" rows="4"
                         placeholder="Additional details or notes..."></textarea>
             </div>
             <div class="edit-popup-actions">
-              <p-button label="Apply" icon="pi pi-check" size="small"
+              <p-button label="Apply" icon="pi pi-check" size="small" data-testid="scenario-step-edit-apply"
                         (onClick)="applyStepEdit()" />
               <p-button label="Cancel" severity="secondary" [outlined]="true" size="small"
                         (onClick)="closeStepEdit()" />

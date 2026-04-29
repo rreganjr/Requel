@@ -32,7 +32,7 @@ import { UserPreferencesDto, STALENESS_OPTIONS } from '../../models/preferences'
   standalone: true,
   imports: [FormsModule, ButtonModule, InputNumberModule, SelectModule, MessageModule],
   template: `
-    <div class="settings">
+    <div class="settings" data-testid="settings-page">
       <div class="page-header">
         <h2>Settings</h2>
       </div>
@@ -47,22 +47,26 @@ import { UserPreferencesDto, STALENESS_OPTIONS } from '../../models/preferences'
       <div class="settings-form">
         <div class="field">
           <label for="projectLimit">Sidebar Project Limit</label>
-          <p-inputNumber id="projectLimit" [(ngModel)]="sidebarProjectLimit"
+          <p-inputNumber id="projectLimit" inputId="projectLimitInput"
+                         data-testid="settings-project-limit" [(ngModel)]="sidebarProjectLimit"
                          [min]="1" [max]="100" [showButtons]="true" />
           <small>Maximum number of projects shown in the sidebar.</small>
         </div>
 
         <div class="field">
           <label for="staleness">Project Staleness Threshold</label>
-          <p-select id="staleness" [(ngModel)]="sidebarProjectStaleness"
+          <p-select id="staleness" inputId="stalenessInput"
+                    data-testid="settings-staleness" [(ngModel)]="sidebarProjectStaleness"
                     [options]="stalenessOptions" optionLabel="label" optionValue="value"
                     placeholder="Select staleness threshold" />
           <small>Hide projects with no activity older than this threshold.</small>
         </div>
 
         <div class="form-actions">
-          <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()" />
+          <p-button label="Save" icon="pi pi-check" data-testid="settings-save"
+                    (onClick)="onSave()" [loading]="saving()" />
           <p-button label="Reset to Defaults" icon="pi pi-refresh" severity="secondary"
+                    data-testid="settings-reset"
                     [outlined]="true" (onClick)="onReset()" [loading]="saving()" />
         </div>
       </div>

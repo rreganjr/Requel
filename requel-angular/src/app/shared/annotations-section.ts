@@ -35,14 +35,16 @@ import { AnnotationService } from '../core/annotation.service';
   imports: [FormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule],
   template: `
     @if (entityId != null) {
-      <div class="annotations-section">
+      <div class="annotations-section" data-testid="annotations-section">
         <div class="section-header">
           <h3>Annotations</h3>
           @if (canEdit) {
             <div class="action-buttons">
               <p-button label="Add Note" icon="pi pi-comment" size="small" severity="secondary"
+                        data-testid="annotation-add-note"
                         [outlined]="true" (onClick)="showNoteForm.set(true)" />
               <p-button label="Add Issue" icon="pi pi-exclamation-triangle" size="small" severity="warn"
+                        data-testid="annotation-add-issue"
                         [outlined]="true" (onClick)="showIssueForm.set(true)" />
             </div>
           }
@@ -50,11 +52,13 @@ import { AnnotationService } from '../core/annotation.service';
 
         <!-- Add Note form -->
         @if (showNoteForm()) {
-          <div class="add-form">
+          <div class="add-form" data-testid="annotation-note-form">
             <textarea pTextarea [(ngModel)]="newNoteText" rows="2" placeholder="Note text..."
-                      aria-label="Note text" class="add-textarea"></textarea>
+                      aria-label="Note text" class="add-textarea"
+                      data-testid="annotation-note-text"></textarea>
             <div class="form-actions">
-              <p-button label="Save Note" icon="pi pi-check" size="small" (onClick)="saveNote()" />
+              <p-button label="Save Note" icon="pi pi-check" size="small"
+                        data-testid="annotation-save-note" (onClick)="saveNote()" />
               <p-button label="Cancel" size="small" severity="secondary" [outlined]="true"
                         (onClick)="cancelNote()" />
             </div>
@@ -63,15 +67,17 @@ import { AnnotationService } from '../core/annotation.service';
 
         <!-- Add Issue form -->
         @if (showIssueForm()) {
-          <div class="add-form">
+          <div class="add-form" data-testid="annotation-issue-form">
             <textarea pTextarea [(ngModel)]="newIssueText" rows="2" placeholder="Issue text..."
-                      aria-label="Issue text" class="add-textarea"></textarea>
+                      aria-label="Issue text" class="add-textarea"
+                      data-testid="annotation-issue-text"></textarea>
             <div class="must-resolve-row">
               <p-checkbox [(ngModel)]="newIssueMustResolve" [binary]="true" inputId="mustResolve" />
               <label for="mustResolve">Must be resolved</label>
             </div>
             <div class="form-actions">
-              <p-button label="Save Issue" icon="pi pi-check" size="small" severity="warn" (onClick)="saveIssue()" />
+              <p-button label="Save Issue" icon="pi pi-check" size="small" severity="warn"
+                        data-testid="annotation-save-issue" (onClick)="saveIssue()" />
               <p-button label="Cancel" size="small" severity="secondary" [outlined]="true"
                         (onClick)="cancelIssue()" />
             </div>
@@ -95,9 +101,11 @@ import { AnnotationService } from '../core/annotation.service';
 
         <!-- Issues list -->
         @for (issue of annotations().issues; track issue.id) {
-          <div class="annotation issue-item" [class.resolved]="issue.resolved">
+          <div class="annotation issue-item" data-testid="annotation-issue"
+               [attr.data-resolved]="issue.resolved" [class.resolved]="issue.resolved">
             <div class="annotation-row">
-              <span class="annotation-badge issue-badge" [class.resolved-badge]="issue.resolved">
+              <span class="annotation-badge issue-badge" data-testid="annotation-issue-badge"
+                    [class.resolved-badge]="issue.resolved">
                 {{ issue.resolved ? 'Resolved' : 'Issue' }}
               </span>
               @if (issue.mustBeResolved && !issue.resolved) {
@@ -122,13 +130,14 @@ import { AnnotationService } from '../core/annotation.service';
 
             <!-- Positions -->
             @for (pos of issue.positions; track pos.id) {
-              <div class="position-item">
+              <div class="position-item" data-testid="annotation-position">
                 <div class="annotation-row">
-                  <span class="annotation-badge position-badge">Position</span>
+                  <span class="annotation-badge position-badge" data-testid="annotation-position-badge">Position</span>
                   <span class="annotation-text">{{ pos.text }}</span>
                   <span class="annotation-creator">{{ pos.createdBy }}</span>
                   @if (canEdit && !issue.resolved) {
                     <p-button [label]="resolveLabel(pos.positionType)" icon="pi pi-check-circle"
+                              data-testid="annotation-resolve-issue"
                               size="small" severity="success" [outlined]="true"
                               (onClick)="resolveIssue(issue, pos)" />
                   }
@@ -140,7 +149,7 @@ import { AnnotationService } from '../core/annotation.service';
 
                 <!-- Arguments -->
                 @for (arg of pos.arguments; track arg.id) {
-                  <div class="argument-item">
+                  <div class="argument-item" data-testid="annotation-argument">
                     <div class="annotation-row">
                       <span class="annotation-badge" [class]="'arg-badge ' + getSupportClass(arg.supportLevel)">
                         {{ formatSupportLevel(arg.supportLevel) }}
@@ -157,12 +166,14 @@ import { AnnotationService } from '../core/annotation.service';
 
                 <!-- Add Argument form -->
                 @if (addArgPositionId() === pos.id) {
-                  <div class="add-form nested-form">
-                    <input pInputText [(ngModel)]="newArgText" placeholder="Argument text..." class="add-input" />
+                  <div class="add-form nested-form" data-testid="annotation-argument-form">
+                    <input pInputText [(ngModel)]="newArgText" placeholder="Argument text..."
+                           data-testid="annotation-argument-text" class="add-input" />
                     <p-select [(ngModel)]="newArgSupportLevel" [options]="supportLevelOptions"
                               optionLabel="label" optionValue="value" placeholder="Support level" />
                     <div class="form-actions">
-                      <p-button label="Save" icon="pi pi-check" size="small" (onClick)="saveArgument(pos)" />
+                      <p-button label="Save" icon="pi pi-check" size="small"
+                                data-testid="annotation-save-argument" (onClick)="saveArgument(pos)" />
                       <p-button label="Cancel" size="small" severity="secondary" [outlined]="true"
                                 (onClick)="addArgPositionId.set(null)" />
                     </div>
@@ -177,10 +188,12 @@ import { AnnotationService } from '../core/annotation.service';
 
             <!-- Add Position form -->
             @if (addPosIssueId() === issue.id) {
-              <div class="add-form nested-form">
-                <input pInputText [(ngModel)]="newPosText" placeholder="Position text..." class="add-input" />
+              <div class="add-form nested-form" data-testid="annotation-position-form">
+                <input pInputText [(ngModel)]="newPosText" placeholder="Position text..."
+                       data-testid="annotation-position-text" class="add-input" />
                 <div class="form-actions">
-                  <p-button label="Save" icon="pi pi-check" size="small" (onClick)="savePosition(issue)" />
+                  <p-button label="Save" icon="pi pi-check" size="small"
+                            data-testid="annotation-save-position" (onClick)="savePosition(issue)" />
                   <p-button label="Cancel" size="small" severity="secondary" [outlined]="true"
                             (onClick)="addPosIssueId.set(null)" />
                 </div>
