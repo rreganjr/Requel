@@ -105,6 +105,12 @@ public class RemoveUnneedLexicalIssuesCommandImpl extends AbstractEditProjectCom
 	@Override
 	public void execute() throws Exception {
 		ProjectOrDomainEntity thingBeingAnalyzed = getRepository().get(getThingBeingAnalyzed());
+		if (thingBeingAnalyzed == null) {
+			// Entity was deleted (e.g. by a concurrent E2E test cleanup) before the
+			// async NLP analysis thread ran — nothing left to annotate.
+			log.warn("skipping lexical issue removal: entity no longer exists: " + getThingBeingAnalyzed());
+			return;
+		}
 
 		Set<Annotation> annotations = new HashSet<Annotation>(thingBeingAnalyzed.getAnnotations());
 		for (Annotation existingAnnotation : annotations) {

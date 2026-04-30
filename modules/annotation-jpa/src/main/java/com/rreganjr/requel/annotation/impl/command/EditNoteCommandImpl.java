@@ -94,8 +94,15 @@ public class EditNoteCommandImpl extends AbstractAnnotationCommand implements Ed
 		// add the note to the annotatable after it has been merged so that if
 		// it is a proxy it will be unwrapped by the framework.
 		if (annotatable != null) {
-			annotatable.getAnnotations().add(noteImpl);
-			setAnnotatable(annotatable);
+			try {
+				annotatable.getAnnotations().add(noteImpl);
+				setAnnotatable(annotatable);
+			} catch (Exception e) {
+				// The annotatable may have been deleted concurrently (e.g. by async NLP
+				// analysis running after an E2E test cleanup removed the entity).
+				log.warn("could not attach note to annotatable (entity may have been deleted): "
+						+ annotatable + " — " + e.getMessage());
+			}
 		}
 	}
 
