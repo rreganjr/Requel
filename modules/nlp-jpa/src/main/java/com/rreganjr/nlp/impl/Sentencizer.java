@@ -94,7 +94,7 @@ public class Sentencizer extends AbstractOpenNLPTool<NLPText> {
 						sentenceDetector = new SentenceDetectorME(model);
 					} catch (Exception ife) {
 						// Older bundled model may lack manifest.properties or be in legacy format; fall back to simple splitter
-						log.warn("Falling back to simple sentence splitter because model could not be read: " + modelFile, ife);
+						log.warn("Falling back to simple sentence splitter because model could not be read: " + modelFile + " (" + ife.getMessage() + ")");
 						sentenceDetector = new SimpleSentenceDetector();
 					}
 				}

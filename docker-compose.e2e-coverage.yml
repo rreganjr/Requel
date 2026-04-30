@@ -1,0 +1,21 @@
+# Compose override for E2E coverage runs. Use together with docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.e2e-coverage.yml up -d
+#
+# Adds JaCoCo file-output agent to the web service. On graceful JVM shutdown
+# the agent writes the exec file to a host-mounted volume — no TCP networking
+# needed. The agent JAR must be present at coverage/jacoco/jacocoagent.jar
+# before starting (scripts/e2e-with-coverage.sh handles this automatically).
+services:
+  web:
+    volumes:
+      - ./coverage/jacoco/jacocoagent.jar:/jacoco/jacocoagent.jar:ro
+      # Writable mount: agent writes jacoco-e2e.exec here on JVM shutdown
+      - ./coverage/jacoco:/jacoco/output
+    environment:
+      # Attach the JaCoCo agent in file-output mode. JAVA_TOOL_OPTIONS is the
+      # JVM standard for tooling injection; _JAVA_OPTIONS (memory settings)
+      # still applies from the base compose file — the two env vars do not conflict.
+      - "JAVA_TOOL_OPTIONS=-javaagent:/jacoco/jacocoagent.jar=output=file,destfile=/jacoco/output/jacoco-e2e.exec"
+      # Enable the dev-only admin password reset endpoint used by global-setup.ts
+      # to guarantee admin/admin credentials before each E2E run.
+      - "REQUEL_DEV_RESET_ADMIN_ENABLED=true"
