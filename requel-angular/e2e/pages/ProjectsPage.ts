@@ -26,12 +26,43 @@ export class ProjectsPage extends BaseListPage {
   }
 
   async clickNewProject(): Promise<void> {
-    await this.clickNewButton('New Project', '**/projects/new');
+    await this.page.getByTestId('project-list-new-project').click();
+    await this.page.waitForURL('**/projects/new');
   }
 
   async clickProject(name: string): Promise<void> {
     await this.searchFor(name);
     await this.clickTableRow(name, `**/projects/${encodeURIComponent(name)}`);
+  }
+
+  async expectCreateActionsVisible(): Promise<void> {
+    await expect(this.page.getByTestId('project-list-new-project')).toBeVisible();
+    await expect(this.page.getByTestId('project-list-import-button')).toBeVisible();
+  }
+
+  async expectCreateActionsHidden(): Promise<void> {
+    await expect(this.page.getByTestId('project-list-new-project')).toHaveCount(0);
+    await expect(this.page.getByTestId('project-list-import-button')).toHaveCount(0);
+  }
+
+  async importProjectFromFile(filePath: string): Promise<void> {
+    await this.page.getByTestId('project-list-import-input').setInputFiles(filePath);
+  }
+
+  async clearImportSelection(): Promise<void> {
+    await this.page.getByTestId('project-list-import-input').dispatchEvent('change');
+  }
+
+  async expectImportSuccess(message = 'Project imported successfully.'): Promise<void> {
+    await expect(this.page.getByTestId('project-list-success')).toContainText(message);
+  }
+
+  async expectImportError(message: string): Promise<void> {
+    await expect(this.page.getByTestId('project-list-error')).toContainText(message);
+  }
+
+  async expectNoProjectsMessage(): Promise<void> {
+    await expect(this.page.getByTestId('project-list-empty')).toContainText('No projects found.');
   }
 }
 

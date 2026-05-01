@@ -1,8 +1,137 @@
 import { test, expect } from './fixtures/auth';
 import { createProject, deleteProject } from './fixtures/api-helper';
 import { ProjectsPage, ProjectEditorPage } from './pages/ProjectsPage';
+import * as path from 'path';
 
 test.describe('Project management', () => {
+
+  test('admin sees New Project and Import actions', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+
+    await projectsPage.goto();
+    await projectsPage.expectCreateActionsVisible();
+
+    await page.close();
+  });
+
+  test('project user sees New Project and Import actions via createProjects permission', async ({ projectContext }) => {
+    const page = await projectContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+
+    await projectsPage.goto();
+    await projectsPage.expectCreateActionsVisible();
+
+    await page.close();
+  });
+
+  test('empty project list shows empty-state message', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+
+    await page.route('**/api/projects', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await projectsPage.goto();
+    await projectsPage.expectNoProjectsMessage();
+
+    await page.close();
+  });
+
+  test('import project success shows banner and refreshed list entry', async ({ adminContext }) => {
+    const importedProjectName = `e2e-imported-${Date.now()}`;
+    const importFixture = path.resolve(process.cwd(), 'e2e', 'fixtures', 'import-project.xml');
+    let imported = false;
+
+    const page = await adminContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+
+    await page.route('**/api/projects', async route => {
+      const projects = imported
+        ? [{
+            id: 999,
+            version: 1,
+            name: importedProjectName,
+            organizationName: 'E2E Test Org',
+            status: 'New',
+            createdBy: 'System Administrator [admin]',
+            stakeholderCount: 0,
+            goalCount: 0,
+            storyCount: 0,
+            useCaseCount: 0,
+          }]
+        : [];
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(projects),
+      });
+    });
+
+    await page.route('**/api/commands/ImportProject', async route => {
+      imported = true;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          entityType: 'ImportProject',
+          entity: {
+            id: 999,
+            version: 1,
+            name: importedProjectName,
+          },
+        }),
+      });
+    });
+
+    await projectsPage.goto();
+    await projectsPage.importProjectFromFile(importFixture);
+    await projectsPage.expectImportSuccess();
+    await projectsPage.expectProjectInTable(importedProjectName);
+
+    await page.close();
+  });
+
+  test('import project failure shows error banner', async ({ adminContext }) => {
+    const importFixture = path.resolve(process.cwd(), 'e2e', 'fixtures', 'import-project.xml');
+
+    const page = await adminContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+
+    await page.route('**/api/projects', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route('**/api/commands/ImportProject', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          entityType: 'ImportProject',
+          error: 'Import failed.',
+          entity: null,
+          violations: null,
+        }),
+      });
+    });
+
+    await projectsPage.goto();
+    await projectsPage.importProjectFromFile(importFixture);
+    await projectsPage.expectImportError('Import failed.');
+
+    await page.close();
+  });
 
   test('create new project → appears in project list', async ({ adminContext }) => {
     const projectName = `e2e-create-${Date.now()}`;

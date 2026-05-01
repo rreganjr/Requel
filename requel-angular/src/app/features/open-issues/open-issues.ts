@@ -61,16 +61,16 @@ const ENTITY_ROUTES: Record<string, string> = {
                    (search)="dt.filterGlobal($event, 'contains')">
       <ng-container actions>
         @if (mustResolveCount() > 0) {
-          <p-badge [value]="mustResolveCount().toString()" severity="danger" />
+          <p-badge [value]="mustResolveCount().toString()" severity="danger" data-testid="open-issues-badge" />
         }
       </ng-container>
 
       @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
+        <p-message severity="error" [text]="errorMessage()!" data-testid="open-issues-error" />
       }
 
       @if (!loading() && issues().length === 0) {
-        <p-message severity="success" text="No open issues — all clear." />
+        <p-message severity="success" text="No open issues — all clear." data-testid="open-issues-empty" />
       }
 
       <p-table #dt [value]="issues()" [loading]="loading()" [paginator]="true" [rows]="25"
@@ -93,9 +93,9 @@ const ENTITY_ROUTES: Record<string, string> = {
             <td>{{ issue.issueText }}</td>
             <td>
               @if (issue.mustBeResolved) {
-                <span class="must-resolve">Yes</span>
+                <span class="must-resolve" data-testid="open-issue-required">Yes</span>
               } @else {
-                <span class="optional">—</span>
+                <span class="optional" data-testid="open-issue-optional">—</span>
               }
             </td>
           </tr>

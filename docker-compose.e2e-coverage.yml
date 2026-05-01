@@ -15,7 +15,7 @@ services:
       # Attach the JaCoCo agent in file-output mode. JAVA_TOOL_OPTIONS is the
       # JVM standard for tooling injection; _JAVA_OPTIONS (memory settings)
       # still applies from the base compose file — the two env vars do not conflict.
-      - "JAVA_TOOL_OPTIONS=-javaagent:/jacoco/jacocoagent.jar=output=file,destfile=/jacoco/output/jacoco-e2e.exec"
+      - "JAVA_TOOL_OPTIONS=-javaagent:/jacoco/jacocoagent.jar=output=file,append=false,destfile=/jacoco/output/jacoco-e2e.exec,includes=com.rreganjr.*"
       # Enable the dev-only admin password reset endpoint used by global-setup.ts
       # to guarantee admin/admin credentials before each E2E run.
       - "REQUEL_DEV_RESET_ADMIN_ENABLED=true"

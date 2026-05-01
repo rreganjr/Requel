@@ -19,6 +19,8 @@
         <docker.image.name>requel</docker.image.name>
         <!-- Set -DskipAngularBuild=true for fast iterative Java-only builds -->
         <skipAngularBuild>false</skipAngularBuild>
+        <!-- Override for coverage packaging, for example Angular development config -->
+        <angularBuildArguments>run build</angularBuildArguments>
     </properties>
 
     <build>
@@ -108,8 +110,7 @@
                         </goals>
                         <phase>generate-resources</phase>
                         <configuration>
-                            <!-- "npm run build" invokes "ng build" with defaultConfiguration=production -->
-                            <arguments>run build</arguments>
+                            <arguments>${angularBuildArguments}</arguments>
                         </configuration>
                     </execution>
                 </executions>
@@ -165,6 +166,9 @@
                             <goal>report</goal>
                         </goals>
                         <configuration>
+                            <includes>
+                                <include>com/rreganjr/**</include>
+                            </includes>
                             <formats>
                                 <format>HTML</format>
                                 <format>XML</format>
@@ -182,6 +186,9 @@
                         </goals>
                         <configuration>
                             <includeCurrentProject>true</includeCurrentProject>
+                            <includes>
+                                <include>com/rreganjr/**</include>
+                            </includes>
                             <formats>
                                 <format>HTML</format>
                                 <format>XML</format>

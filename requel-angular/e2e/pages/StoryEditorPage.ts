@@ -32,10 +32,19 @@ export class StoryListPage extends BaseListPage {
     await this.searchFor(name);
     await this.expectTableRowNotVisible(name);
   }
+
+  async countStoryRows(nameSubstring: string): Promise<number> {
+    await this.searchFor(nameSubstring);
+    return this.countTableRows(nameSubstring);
+  }
 }
 
 export class StoryEditorPage {
   constructor(private page: Page) {}
+
+  private goalRows(name: string) {
+    return this.page.getByTestId('story-goal-row').filter({ hasText: name });
+  }
 
   private storyTypeSelect() {
     return this.page.getByTestId('story-type');
@@ -98,7 +107,7 @@ export class StoryEditorPage {
   }
 
   async delete(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Delete' }).click();
+    await this.page.getByTestId('story-delete').click();
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/DeleteStory') && r.status() === 200),
       this.page.getByRole('button', { name: 'Yes' }).click(),
@@ -108,8 +117,25 @@ export class StoryEditorPage {
     }
   }
 
+  async copy(): Promise<number> {
+    await this.page.getByTestId('story-copy').click();
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/CopyStory')),
+      this.page.getByRole('button', { name: 'Yes' }).click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`CopyStory failed: ${response.status()} ${await response.text()}`);
+    }
+    const body = await response.json() as { entity?: { id?: number } };
+    const copiedId = body.entity?.id;
+    if (copiedId == null) {
+      throw new Error('CopyStory succeeded but did not return an entity id');
+    }
+    return copiedId;
+  }
+
   async navigateBack(projectName: string): Promise<void> {
-    await this.page.getByRole('button', { name: 'Back' }).click();
+    await this.page.getByTestId('story-back').click();
     await this.page.waitForURL(`**/projects/${encodeURIComponent(projectName)}/stories`);
   }
 
@@ -159,5 +185,48 @@ export class StoryEditorPage {
     await expect(
       this.page.getByTestId('story-additional-actor-row').filter({ hasText: actorName })
     ).toHaveCount(0);
+  }
+
+  async clickAdditionalActor(actorName: string): Promise<void> {
+    await this.page.getByTestId('story-additional-actor-row').filter({ hasText: actorName })
+      .getByTestId('story-additional-actor-link')
+      .first()
+      .click();
+  }
+
+  async addGoal(goalName: string): Promise<void> {
+    await this.page.getByTestId('story-add-goal').click();
+    const dialog = this.page.getByRole('dialog', { name: 'Select Goal' });
+    await dialog.waitFor({ state: 'visible' });
+    await dialog.getByTestId('entity-selector-search').fill(goalName);
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/AddGoalToGoalContainer')),
+      dialog.getByTestId('entity-selector-row').filter({ hasText: goalName }).first().click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`AddGoalToGoalContainer failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  async removeGoal(goalName: string): Promise<void> {
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/RemoveGoalFromGoalContainer')),
+      this.goalRows(goalName).getByTestId('story-remove-goal').first().click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`RemoveGoalFromGoalContainer failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  async clickGoal(goalName: string): Promise<void> {
+    await this.goalRows(goalName).getByTestId('story-goal-link').first().click();
+  }
+
+  async expectGoalInTable(goalName: string): Promise<void> {
+    await expect(this.goalRows(goalName).first()).toBeVisible();
+  }
+
+  async expectGoalNotInTable(goalName: string): Promise<void> {
+    await expect(this.goalRows(goalName)).toHaveCount(0);
   }
 }

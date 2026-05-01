@@ -70,6 +70,9 @@
                                 <goal>report</goal>
                             </goals>
                             <configuration>
+                                <includes>
+                                    <include>com/rreganjr/**</include>
+                                </includes>
                                 <formats>
                                     <format>HTML</format>
                                     <format>XML</format>

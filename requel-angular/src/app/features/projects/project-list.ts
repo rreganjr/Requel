@@ -37,19 +37,20 @@ import { ListPageComponent } from '../../shared/list-page';
                    (search)="dt.filterGlobal($event, 'contains')">
       <ng-container actions>
         @if (canCreateProjects()) {
-          <p-button label="New Project" icon="pi pi-plus" (onClick)="onNewProject()" />
+          <p-button label="New Project" icon="pi pi-plus" data-testid="project-list-new-project" (onClick)="onNewProject()" />
           <p-button label="Import" icon="pi pi-upload" severity="secondary"
-                    [outlined]="true" [loading]="importing()" (onClick)="fileInput.click()" />
+                    [outlined]="true" [loading]="importing()" data-testid="project-list-import-button" (onClick)="fileInput.click()" />
           <input #fileInput type="file" accept=".xml" (change)="onImportFile($event)"
+                 data-testid="project-list-import-input"
                  style="display: none" />
         }
       </ng-container>
 
       @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
+        <p-message severity="error" [text]="errorMessage()!" data-testid="project-list-error" />
       }
       @if (successMessage()) {
-        <p-message severity="success" [text]="successMessage()!" />
+        <p-message severity="success" [text]="successMessage()!" data-testid="project-list-success" />
       }
 
       <p-table #dt [value]="projects()" [loading]="loading()" [paginator]="true" [rows]="20"
@@ -80,7 +81,7 @@ import { ListPageComponent } from '../../shared/list-page';
           </tr>
         </ng-template>
         <ng-template #emptymessage>
-          <tr><td colspan="8">No projects found.</td></tr>
+          <tr data-testid="project-list-empty"><td colspan="8">No projects found.</td></tr>
         </ng-template>
       </p-table>
     </app-list-page>

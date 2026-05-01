@@ -32,7 +32,7 @@ export default defineConfig({
             entry.url.endsWith('.js'),
           // After source-map resolution, show only app source (not node_modules/vendor)
           sourceFilter: (sourcePath: string) =>
-            sourcePath.includes('/src/app/'),
+            sourcePath.startsWith('src/app/'),
           reports: ['console-summary', 'v8', 'html', 'lcovonly'],
           outputDir: './coverage',
         },

@@ -142,39 +142,31 @@ test.describe('Use Case management', () => {
   });
 
   test('copy use case → a second entry appears in use case list', async ({ adminContext, request }) => {
+    const copyProjectName = `e2e-use-cases-copy-${Date.now()}`;
     const ucName = `e2e-uc-copy-${Date.now()}`;
-    const uc = await createUseCase(request, PROJECT_NAME, ucName);
-    ucToCleanup = uc;
+    await createProject(request, copyProjectName, 'Use Case copy E2E test project');
+    await createActor(request, copyProjectName, ACTOR_NAME);
+    const uc = await createUseCase(request, copyProjectName, ucName);
 
     const page = await adminContext.newPage();
     const listPage = new UseCaseListPage(page);
     const editorPage = new UseCaseEditorPage(page);
 
-    await listPage.goto(PROJECT_NAME);
+    await listPage.goto(copyProjectName);
     await listPage.clickUseCase(ucName);
 
-    await editorPage.copy();
+    try {
+      await editorPage.copy();
 
-    // After copy, the router navigates to the NEW use case — wait for a URL that differs from the original
-    await page.waitForURL(url => url.href.includes('/use-cases/') && !url.href.endsWith(`/use-cases/${uc.id}`));
+      // After copy, the router navigates to the NEW use case — wait for a URL that differs from the original
+      await page.waitForURL(url => url.href.includes('/use-cases/') && !url.href.endsWith(`/use-cases/${uc.id}`));
 
-    // Both original and "Copy of ..." contain ucName — 2 rows visible
-    await listPage.goto(PROJECT_NAME);
-    await expect.poll(() => listPage.countUseCaseRows(ucName)).toBe(2);
-
-    // Cleanup the copy
-    const copyUrl = page.url();
-    const copyIdMatch = copyUrl.match(/\/use-cases\/(\d+)/);
-    if (copyIdMatch && parseInt(copyIdMatch[1], 10) !== uc.id) {
-      await deleteUseCase(request, {
-        id: parseInt(copyIdMatch[1], 10),
-        version: 0,
-        name: `Copy of ${ucName}`,
-        projectName: PROJECT_NAME,
-      });
+      await listPage.goto(copyProjectName);
+      await expect.poll(() => listPage.countUseCaseRows(ucName)).toBe(2);
+    } finally {
+      await page.close();
+      await deleteProject(request, copyProjectName);
     }
-
-    await page.close();
   });
 
 });

@@ -5,7 +5,7 @@
 # and collects coverage for both layers:
 #
 #   JavaScript  — Playwright V8 coverage via monocart-reporter
-#                 coverage HTML: requel-angular/coverage/requel-angular/index.html
+#                 coverage HTML: requel-angular/coverage/index.html
 #                 test report:   requel-angular/playwright-report/e2e-coverage.html
 #
 #   Java        — JaCoCo TCP-server mode; agent attaches to the running JVM,
@@ -50,6 +50,7 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$JACOCO_DIR" "$COVERAGE_DIR/java"
+rm -f "$JACOCO_DIR/jacoco-e2e.exec"
 
 # ---------------------------------------------------------------------------
 # 1. Locate JaCoCo agent JAR
@@ -74,7 +75,19 @@ cp "$JACOCO_AGENT" "$JACOCO_DIR/jacocoagent.jar"
 echo "  Using: $JACOCO_AGENT"
 
 # ---------------------------------------------------------------------------
-# 2. Start Docker services with JaCoCo TCP-server agent attached
+# 2. Build a fresh Docker image with Angular source maps enabled
+#
+#    The coverage report needs source maps inside the packaged frontend assets
+#    so monocart can map Chromium V8 coverage back to src/app/*. The normal
+#    app package uses Angular's production build; for E2E coverage we rebuild
+#    the app image with the development frontend configuration.
+# ---------------------------------------------------------------------------
+echo "Building app image with frontend source maps..."
+mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests \
+  -DangularBuildArguments="run build -- --configuration development" -q
+
+# ---------------------------------------------------------------------------
+# 3. Start Docker services with JaCoCo agent attached
 # ---------------------------------------------------------------------------
 echo "Starting services..."
 docker compose \
@@ -83,7 +96,7 @@ docker compose \
   up -d
 
 # ---------------------------------------------------------------------------
-# 3. Wait for backend AND data initializer to complete
+# 4. Wait for backend AND data initializer to complete
 #
 #    Why login, not wait-on / HTTP health:
 #      Spring Boot fires ApplicationReadyEvent AFTER the HTTP server opens its
@@ -116,7 +129,7 @@ done
 echo " ready."
 
 # ---------------------------------------------------------------------------
-# 4. Run Playwright E2E suite with coverage config (monocart collects V8 data)
+# 5. Run Playwright E2E suite with coverage config (monocart collects V8 data)
 # ---------------------------------------------------------------------------
 echo "Running E2E tests..."
 cd "$REPO_ROOT/requel-angular"
@@ -124,7 +137,7 @@ npx playwright test --config=playwright.coverage.config.ts
 cd "$REPO_ROOT"
 
 # ---------------------------------------------------------------------------
-# 5. Stop the web container gracefully so the JaCoCo agent writes the exec file
+# 6. Stop the web container gracefully so the JaCoCo agent writes the exec file
 #
 #    output=file mode: the agent writes coverage data via a JVM shutdown hook
 #    when the JVM receives SIGTERM. docker stop sends SIGTERM first (30s grace
@@ -157,7 +170,7 @@ fi
 echo "  Coverage written to $EXEC_FILE"
 
 # ---------------------------------------------------------------------------
-# 6. Generate Java coverage report (aggregate across all modules)
+# 7. Generate Java coverage report (aggregate across all modules)
 #
 #    report-aggregate looks for target/jacoco.exec in each reactor module.
 #    We have one exec file from the running JVM that contains coverage for all
@@ -192,7 +205,7 @@ fi
 echo ""
 echo "Coverage reports:"
 echo "  Java (aggregate):  $COVERAGE_DIR/java/index.html"
-echo "  JavaScript:        $REPO_ROOT/requel-angular/coverage/requel-angular/index.html"
+echo "  JavaScript:        $REPO_ROOT/requel-angular/coverage/index.html"
 echo "  JS test report:    $REPO_ROOT/requel-angular/playwright-report/e2e-coverage.html"
-echo "  JS lcov:           $REPO_ROOT/requel-angular/coverage/requel-angular/lcov.info"
+echo "  JS lcov:           $REPO_ROOT/requel-angular/coverage/lcov.info"
 echo "  Web server log:    $COVERAGE_DIR/web.log"

@@ -55,14 +55,17 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
         <h2>{{ isNew() ? 'New Story' : storyName() }}</h2>
         <div class="page-actions">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
+                    data-testid="story-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew()) {
             @if (canEdit()) {
               <p-button label="Copy" icon="pi pi-copy" severity="secondary"
+                        data-testid="story-copy"
                         [outlined]="true" (onClick)="onCopy()" />
             }
             @if (canDelete()) {
               <p-button label="Delete" icon="pi pi-trash" severity="danger"
+                        data-testid="story-delete"
                         [outlined]="true" (onClick)="onDelete()" />
             }
           }
@@ -116,12 +119,13 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <h3>Goals</h3>
             @if (canEdit()) {
               <p-button label="Add Goal" icon="pi pi-plus" size="small"
+                        data-testid="story-add-goal"
                         (onClick)="showGoalSelector = true" />
             }
           </div>
 
           @if (story()!.goals?.length) {
-            <p-table [value]="story()!.goals!" [rows]="10">
+            <p-table [value]="story()!.goals!" [rows]="10" data-testid="story-goals-table">
               <ng-template #header>
                 <tr>
                   <th>Name</th>
@@ -129,10 +133,11 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
                 </tr>
               </ng-template>
               <ng-template #body let-g>
-                <tr>
-                  <td><a class="entity-link" (click)="navigateToGoal(g.id)">{{ g.name }}</a></td>
+                <tr data-testid="story-goal-row">
+                  <td><a class="entity-link" data-testid="story-goal-link" (click)="navigateToGoal(g.id)">{{ g.name }}</a></td>
                   @if (canEdit()) {
                     <td><p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
+                                  data-testid="story-remove-goal"
                                   (onClick)="onRemoveGoal(g)" /></td>
                   }
                 </tr>
