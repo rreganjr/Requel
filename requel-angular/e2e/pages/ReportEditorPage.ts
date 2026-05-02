@@ -15,15 +15,22 @@ export class ReportListPage extends BaseListPage {
   }
 
   async clickNewReport(): Promise<void> {
-    await this.clickNewButton('New Document', '**/reports/new');
+    await this.page.getByTestId('report-list-new').click();
+    await this.page.waitForURL('**/reports/new');
   }
 
   async clickEdit(name: string): Promise<void> {
     await this.searchFor(name);
-    const row = this.page.locator('p-table tr', { hasText: name });
-    await row.getByRole('button', { name: 'Edit' }).click();
+    const row = this.page.getByTestId('report-list-row').filter({ hasText: name }).first();
+    await row.getByTestId('report-list-edit').click();
     await this.page.waitForURL(/\/reports\/\d+/);
     await expect(this.page.locator('#name')).not.toHaveValue('');
+  }
+
+  async runFromList(name: string): Promise<void> {
+    await this.searchFor(name);
+    const row = this.page.getByTestId('report-list-row').filter({ hasText: name }).first();
+    await row.getByTestId('report-list-run').click();
   }
 
   async expectReportInTable(name: string): Promise<void> {
@@ -34,6 +41,22 @@ export class ReportListPage extends BaseListPage {
   async expectReportNotInTable(name: string): Promise<void> {
     await this.searchFor(name);
     await this.expectTableRowNotVisible(name);
+  }
+
+  async expectNewButtonVisible(): Promise<void> {
+    await expect(this.page.getByTestId('report-list-new')).toBeVisible();
+  }
+
+  async expectNewButtonHidden(): Promise<void> {
+    await expect(this.page.getByTestId('report-list-new')).toHaveCount(0);
+  }
+
+  async expectError(message: string): Promise<void> {
+    await expect(this.page.getByTestId('report-list-error')).toContainText(message);
+  }
+
+  async expectEmptyState(): Promise<void> {
+    await expect(this.page.getByTestId('report-list-empty')).toContainText('No documents found.');
   }
 }
 

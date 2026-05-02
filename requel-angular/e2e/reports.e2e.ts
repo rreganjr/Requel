@@ -33,6 +33,90 @@ test.afterEach(async ({ request }) => {
 
 test.describe('Report generator management', () => {
 
+  test('report list hides New Document when edit permission is absent', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+    const listPage = new ReportListPage(page);
+
+    await page.route(`**/api/projects/${encodeURIComponent(PROJECT_NAME)}/my-permissions`, async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          isStakeholder: true,
+          canCreateProjects: false,
+          permissions: {},
+        }),
+      });
+    });
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.expectNewButtonHidden();
+
+    await page.close();
+  });
+
+  test('empty report list shows empty-state message', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+    const listPage = new ReportListPage(page);
+
+    await page.route(`**/api/projects/${encodeURIComponent(PROJECT_NAME)}/reports`, async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.expectEmptyState();
+
+    await page.close();
+  });
+
+  test('report list load failure shows error banner', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+    const listPage = new ReportListPage(page);
+
+    await page.route(`**/api/projects/${encodeURIComponent(PROJECT_NAME)}/reports`, async route => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'INTERNAL_ERROR',
+          message: 'boom',
+        }),
+      });
+    });
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.expectError('Failed to load documents.');
+
+    await page.close();
+  });
+
+  test('run report from list failure shows error banner', async ({ adminContext, request }) => {
+    const reportName = `e2e-report-run-list-${Date.now()}`;
+    const report = await createReport(request, PROJECT_NAME, reportName, MINIMAL_XSLT);
+    reportToCleanup = report;
+
+    const page = await adminContext.newPage();
+    const listPage = new ReportListPage(page);
+
+    await page.route(`**/api/projects/${encodeURIComponent(PROJECT_NAME)}/reports/${report.id}/run`, async route => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'text/plain',
+        body: 'boom',
+      });
+    });
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.runFromList(reportName);
+    await listPage.expectError(`Failed to generate report "${reportName}".`);
+
+    await page.close();
+  });
+
   test('create report → appears in report list', async ({ adminContext }) => {
     const reportName = `e2e-report-create-${Date.now()}`;
     const page = await adminContext.newPage();

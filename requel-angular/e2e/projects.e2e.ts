@@ -165,7 +165,8 @@ test.describe('Project management', () => {
     const editorPage = new ProjectEditorPage(page);
 
     await projectsPage.goto();
-    await projectsPage.clickProject(originalName); // waits for form data to load
+    await projectsPage.clickProject(originalName);
+    await editorPage.waitForLoad(originalName);
 
     await editorPage.fillName(newName);
     await editorPage.save();
@@ -189,6 +190,7 @@ test.describe('Project management', () => {
 
     await projectsPage.goto();
     await projectsPage.clickProject(projectName);
+    await editorPage.waitForLoad(projectName);
 
     await editorPage.fillName('should-not-be-saved');
 
@@ -214,7 +216,8 @@ test.describe('Project management', () => {
     const editorPage = new ProjectEditorPage(page);
 
     await projectsPage.goto();
-    await projectsPage.clickProject(projectName); // waits for form data
+    await projectsPage.clickProject(projectName);
+    await editorPage.waitForLoad(projectName);
 
     // Mark the form dirty
     await editorPage.fillName(`${projectName}-modified`);
@@ -226,6 +229,39 @@ test.describe('Project management', () => {
 
     // Should still be on the project editor URL
     await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(projectName)}$`));
+
+    await page.close();
+  });
+
+  test('dirty project switch via sidebar accepts Save & Switch and loads the target project', async ({ adminContext, request }) => {
+    const originalName = `e2e-switch-orig-${Date.now()}`;
+    const renamedName = `${originalName}-renamed`;
+    const targetName = `e2e-switch-target-${Date.now()}`;
+    await createProject(request, originalName, 'Switch source project');
+    await createProject(request, targetName, 'Switch target project');
+
+    const page = await adminContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+    const editorPage = new ProjectEditorPage(page);
+
+    await projectsPage.goto();
+    await projectsPage.clickProject(originalName);
+    await editorPage.waitForLoad(originalName);
+
+    await editorPage.fillName(renamedName);
+
+    const sidebarTree = page.locator('.sidebar-tree');
+    await sidebarTree.getByText(targetName, { exact: true }).click();
+
+    await expect(page.getByRole('button', { name: 'Save & Switch' })).toBeVisible();
+    await page.getByRole('button', { name: 'Save & Switch' }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(targetName)}$`));
+    await expect(page.locator('#name')).toHaveValue(targetName);
+
+    await projectsPage.goto();
+    await projectsPage.expectProjectInTable(renamedName);
+    await projectsPage.expectProjectInTable(targetName);
 
     await page.close();
   });

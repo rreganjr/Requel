@@ -69,6 +69,12 @@ export class ProjectsPage extends BaseListPage {
 export class ProjectEditorPage {
   constructor(private page: Page) {}
 
+  async waitForLoad(expectedName: string): Promise<void> {
+    await expect(this.page.locator('#name')).toHaveValue(expectedName);
+    // drain the setTimeout(markAsPristine) that fires after populateForm
+    await this.page.evaluate(() => new Promise<void>(resolve => setTimeout(resolve, 0)));
+  }
+
   async fillName(name: string): Promise<void> {
     const input = this.page.locator('#name');
     await input.clear();

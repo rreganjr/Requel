@@ -24,7 +24,24 @@ export interface DirtyCheckable {
   hasUnsavedChanges(): boolean;
 }
 
-export const dirtyCheckGuard: CanDeactivateFn<DirtyCheckable> = (component) => {
+function isProjectEditorSwitch(currentPath: string | undefined, currentUrl: string, nextUrl: string | undefined): boolean {
+  if (currentPath !== 'projects/:name' || !nextUrl) {
+    return false;
+  }
+
+  const currentPathname = currentUrl.split('?')[0];
+  const nextPathname = nextUrl.split('?')[0];
+  if (currentPathname === nextPathname) {
+    return false;
+  }
+
+  return /^\/projects\/[^/]+$/.test(nextPathname) && nextPathname !== '/projects/new';
+}
+
+export const dirtyCheckGuard: CanDeactivateFn<DirtyCheckable> = (component, currentRoute, currentState, nextState) => {
   if (!component.hasUnsavedChanges()) return true;
+  if (isProjectEditorSwitch(currentRoute.routeConfig?.path, currentState.url, nextState?.url)) {
+    return true;
+  }
   return confirm('You have unsaved changes. Leave this page and discard them?');
 };

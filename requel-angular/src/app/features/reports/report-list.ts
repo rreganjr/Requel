@@ -38,12 +38,12 @@ import { ListPageComponent } from '../../shared/list-page';
                    (search)="dt.filterGlobal($event, 'contains')">
       <ng-container actions>
         @if (canEdit()) {
-          <p-button label="New Document" icon="pi pi-plus" (onClick)="onNew()" />
+          <p-button label="New Document" icon="pi pi-plus" data-testid="report-list-new" (onClick)="onNew()" />
         }
       </ng-container>
 
       @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
+        <p-message severity="error" [text]="errorMessage()!" data-testid="report-list-error" />
       }
 
       <p-table #dt [value]="reports()" [loading]="loading()" [paginator]="true" [rows]="20"
@@ -56,19 +56,21 @@ import { ListPageComponent } from '../../shared/list-page';
           </tr>
         </ng-template>
         <ng-template #body let-r>
-          <tr>
+          <tr data-testid="report-list-row">
             <td>{{ r.name }}</td>
             <td>{{ r.createdBy }}</td>
             <td class="action-cell">
               <p-button label="Edit" icon="pi pi-pencil" size="small" [text]="true"
+                        data-testid="report-list-edit"
                         (onClick)="onEdit(r)" />
               <p-button label="Run" icon="pi pi-play" size="small" [text]="true"
+                        data-testid="report-list-run"
                         severity="success" (onClick)="onRun(r)" [loading]="runningId() === r.id" />
             </td>
           </tr>
         </ng-template>
         <ng-template #emptymessage>
-          <tr><td colspan="3" class="text-center">No documents found.</td></tr>
+          <tr data-testid="report-list-empty"><td colspan="3" class="text-center">No documents found.</td></tr>
         </ng-template>
       </p-table>
     </app-list-page>

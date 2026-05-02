@@ -131,6 +131,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
 
   private paramSub!: Subscription;
   private pendingNavName: string | null = null;
+  private switchingProject = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -238,7 +239,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
         if (this.isNew()) {
           await this.router.navigate(['/projects', this.name]);
         } else {
-          if (this.name !== this.originalName()) {
+          if (this.name !== this.originalName() && !this.switchingProject) {
             await this.router.navigate(['/projects', this.name]);
           }
           this.originalName.set(this.name);
@@ -276,10 +277,16 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   }
 
   private async saveAndSwitch(): Promise<void> {
-    await this.onSave();
-    if (!this.errorMessage() && this.pendingNavName) {
-      await this.loadProject(this.pendingNavName);
-      this.pendingNavName = null;
+    this.switchingProject = true;
+    try {
+      await this.onSave();
+      if (!this.errorMessage() && this.pendingNavName) {
+        const target = this.pendingNavName;
+        this.pendingNavName = null;
+        await this.loadProject(target);
+      }
+    } finally {
+      this.switchingProject = false;
     }
   }
 }
