@@ -41,7 +41,7 @@ import { MenuItem, MessageService } from 'primeng/api';
     <p-toast />
     <div class="layout">
       <header class="app-header">
-        <a routerLink="/" class="header-brand">
+        <a routerLink="/" class="header-brand" data-testid="header-brand">
           <img src="images/logo_robot.png" alt="Requel" class="header-logo" />
           <span class="header-title">REQUEL</span>
         </a>

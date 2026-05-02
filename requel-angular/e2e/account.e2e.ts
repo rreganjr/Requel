@@ -98,4 +98,114 @@ test.describe('Edit account', () => {
     await page.close();
   });
 
+  test('save validation failure shows error banner with violation messages', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+
+    await page.route('**/api/commands/EditUser', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          entityType: 'EditUser',
+          entity: null,
+          error: null,
+          violations: [
+            { message: 'Email is invalid' },
+            { message: 'Phone is required' },
+          ],
+        }),
+      });
+    });
+
+    await page.goto('/account');
+    await page.waitForLoadState('domcontentloaded');
+
+    const nameInput = page.locator('#name');
+    await nameInput.clear();
+    await nameInput.fill('triggers-validation-failure');
+
+    await page.getByTestId('account-save').click();
+
+    await expect(page.locator('p-message[severity="error"]'))
+      .toContainText('Email is invalid; Phone is required');
+
+    await page.close();
+  });
+
+  test('save with generic error response shows error banner', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+
+    await page.route('**/api/commands/EditUser', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          entityType: 'EditUser',
+          entity: null,
+          error: 'Server rejected the change.',
+          violations: null,
+        }),
+      });
+    });
+
+    await page.goto('/account');
+    await page.waitForLoadState('domcontentloaded');
+
+    const nameInput = page.locator('#name');
+    await nameInput.clear();
+    await nameInput.fill('triggers-generic-error');
+
+    await page.getByTestId('account-save').click();
+
+    await expect(page.locator('p-message[severity="error"]'))
+      .toContainText('Server rejected the change.');
+
+    await page.close();
+  });
+
+  test('save network failure shows fallback error message', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+
+    await page.route('**/api/commands/EditUser', async route => {
+      await route.abort('failed');
+    });
+
+    await page.goto('/account');
+    await page.waitForLoadState('domcontentloaded');
+
+    const nameInput = page.locator('#name');
+    await nameInput.clear();
+    await nameInput.fill('triggers-network-failure');
+
+    await page.getByTestId('account-save').click();
+
+    // catch(err) sets either err.message or 'Save failed.' — both are acceptable
+    await expect(page.locator('p-message[severity="error"]')).toBeVisible({ timeout: 5000 });
+
+    await page.close();
+  });
+
+  test('dirty account form prompts confirm dialog on navigate away; dismiss stays on /account', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+
+    await page.goto('/account');
+    await page.waitForLoadState('domcontentloaded');
+
+    // Mark the form dirty
+    const nameInput = page.locator('#name');
+    await nameInput.clear();
+    await nameInput.fill('unsaved-account-change');
+
+    // Dismiss the confirm() dialog so navigation is cancelled
+    page.once('dialog', dialog => dialog.dismiss());
+    await page.getByTestId('header-brand').click();
+
+    // Guard returned false — still on /account
+    await expect(page).toHaveURL(/\/account$/);
+
+    await page.close();
+  });
+
 });
