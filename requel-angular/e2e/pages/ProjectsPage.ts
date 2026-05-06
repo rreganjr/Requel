@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test';
+import { Download, Page, expect } from '@playwright/test';
 import { BaseListPage } from './BaseListPage';
 
 export class ProjectsPage extends BaseListPage {
@@ -115,6 +115,18 @@ export class ProjectEditorPage {
 
   async cancel(): Promise<void> {
     await this.page.getByTestId('project-cancel').click();
+  }
+
+  /**
+   * Click the Export button and return the resulting browser download.
+   * The Angular UI calls window.open(exportUrl, '_blank'), and the export
+   * endpoint sends Content-Disposition: attachment, so the browser fires a
+   * download event we can capture.
+   */
+  async clickExportAndCaptureDownload(): Promise<Download> {
+    const downloadPromise = this.page.waitForEvent('download');
+    await this.page.getByTestId('project-export').click();
+    return await downloadPromise;
   }
 
   async expectHeaderContains(text: string): Promise<void> {

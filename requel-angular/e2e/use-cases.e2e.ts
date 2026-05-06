@@ -10,6 +10,7 @@ import {
   addScenarioToUseCase, setPrimaryScenarioOnUseCase,
 } from './fixtures/api-helper';
 import { UseCaseListPage, UseCaseEditorPage } from './pages/UseCaseEditorPage';
+import { GoalEditorPage } from './pages/GoalEditorPage';
 import { reloadAndWaitForGet } from './helpers/navigation';
 
 const PROJECT_NAME = `e2e-use-cases-${Date.now()}`;
@@ -213,6 +214,32 @@ test.describe('Use Case sub-tables', () => {
     await editorPage.expectInTable(goalName);
     await editorPage.removeGoal(goalName);
     await editorPage.expectNotInTable(goalName);
+
+    await page.close();
+  });
+
+  test('click goal link in use-case goals table → navigates to goal editor', async ({ adminContext, request }) => {
+    const ucName = `e2e-uc-goal-nav-${Date.now()}`;
+    const goalName = `e2e-uc-goalnav-${Date.now()}`;
+    const uc = await createUseCase(request, PROJECT_NAME, ucName);
+    const goal = await createGoal(request, PROJECT_NAME, goalName);
+    ucToCleanup = uc;
+    goalToCleanup = goal;
+    await addGoalToUseCase(request, PROJECT_NAME, uc.id, goal.id);
+
+    const page = await adminContext.newPage();
+    const listPage = new UseCaseListPage(page);
+    const editorPage = new UseCaseEditorPage(page);
+    const goalEditorPage = new GoalEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickUseCase(ucName);
+
+    await editorPage.expectInTable(goalName);
+    await editorPage.clickGoal(goalName);
+
+    await page.waitForURL(/\/goals\/\d+$/);
+    await goalEditorPage.expectNameValue(goalName);
 
     await page.close();
   });

@@ -63,6 +63,17 @@ export class UseCaseEditorPage {
     await this.page.getByTestId('use-case-primary-actor-clear').click();
   }
 
+  /**
+   * Open the primary-actor p-select, assert the named actor is one of the
+   * options, and close the dropdown again. Used to verify that newly-created
+   * actors flow through to the dropdown's option list.
+   */
+  async expectActorInPrimaryActorDropdown(actorName: string): Promise<void> {
+    await this.primaryActorSelect().click();
+    await expect(this.page.getByRole('option', { name: actorName })).toBeVisible();
+    await this.page.keyboard.press('Escape');
+  }
+
   async save(): Promise<void> {
     await this.page.getByTestId('use-case-save').click();
     await this.page.waitForLoadState('domcontentloaded');
@@ -133,6 +144,13 @@ export class UseCaseEditorPage {
 
   async removeGoal(goalName: string): Promise<void> {
     await this.removeFromTable('use-case-goal-row', 'use-case-remove-goal', goalName, '/api/commands/RemoveGoalFromGoalContainer');
+  }
+
+  async clickGoal(goalName: string): Promise<void> {
+    await this.tableRows('use-case-goal-row', goalName)
+      .getByTestId('use-case-goal-link')
+      .first()
+      .click();
   }
 
   async addStory(storyName: string): Promise<void> {

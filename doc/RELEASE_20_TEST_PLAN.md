@@ -902,7 +902,7 @@ the E2E suite runs (use `docker-compose up` for CI).
 | ✓ | `auth.e2e.ts` | Login with valid credentials → lands on projects page |
 | ✓ | | Login with bad credentials → error message shown, no navigation |
 | ✓ | | Accessing `/projects` while logged out → redirected to `/login` |
-| — | | JWT expiry → subsequent API call redirects to login |
+| ✓ | | JWT expiry → subsequent API call redirects to login. Covered by `expired JWT on API call triggers interceptor logout and redirects to /login`, which logs in, intercepts every `/api/**` (except `/auth/login`) with a 401 to simulate token expiry, reloads the page, and asserts both the redirect to `/login` and that `localStorage.requel_token` is cleared. Same test covers the "Token expires mid-session" row in Forbidden-state UX below. |
 
 Extra tests implemented (not in original plan): admin sees admin section in sidebar; project user does not see admin section.
 
@@ -912,11 +912,12 @@ Extra tests implemented (not in original plan): admin sees admin section in side
 |---|---|---|
 | ✓ | `projects.e2e.ts` | Create new project → appears in sidebar and project list |
 | ✓ | | Edit project name → new name shown in header and sidebar |
-| — | | Delete project → removed from list; navigates back to project list |
-| — | | Import project XML → all imported entities appear in the correct lists |
-| — | | Export project XML → file downloads; re-import round-trips cleanly |
+| ✓ | | Import project XML → all imported entities appear in the correct lists. Covered by both the mocked-API banner test (`import project success shows banner and refreshed list entry`) and the real round-trip test below, which seeds a project with a goal/actor/story via API, exports via the UI, and re-imports the resulting XML, then asserts the goal/actor/story names appear in the imported project's goal-, actor-, and story-list pages. Negative branches: `import project failure shows error banner`, `import change with no selected file shows warning and does not call import`. |
+| ✓ | | Export project XML → file downloads; re-import round-trips cleanly. Covered by `export project XML and re-import round-trips goals, actors, and stories` — captures the browser download triggered by the project-editor Export button (Content-Disposition: attachment), validates the exported XML contains the seeded entity names, then feeds the same file back through the project-list import input and verifies the imported project (auto-named `Imported Project` via `resolveProjectName()`) holds those entities. |
 
-Extra tests implemented: cancel on project editor navigates back; dirty guard — navigate away with unsaved changes.
+Extra tests implemented: cancel on project editor navigates back; dirty guard — navigate away with unsaved changes; restricted user without `createProjects` permission hides New Project and Import; project save validation/generic/network failures all show error banner; import-with-no-file warning branch.
+
+**Out of scope for 2.0 — Delete project.** No `DeleteProject` command exists in the backend, no soft-delete infrastructure (`deletedAt`, `@SQLDelete`, `Project[Delete]` permission row) exists, and the Authorization section above explicitly notes "`Project` has no Delete permission — `DeleteProject` is not a supported command." The `e2e/fixtures/api-helper.ts` `deleteProject` helper is a documented no-op. Adding project delete is a feature change (multi-aggregate cascade across goals, stories, actors, use-cases, scenarios, stakeholders, terms, reports, plus annotations attached to all of them); if/when it's prioritized, capture the design in a dedicated `doc/project-delete-support-plan.md` rather than treating it as a missing E2E test row.
 
 #### Goals
 
@@ -926,7 +927,7 @@ Extra tests implemented: cancel on project editor navigates back; dirty guard �
 | ✓ | | Rename goal → new name persists after save and page reload |
 | ✓ | | Add/remove goal relation → relation visible on both goals |
 | ✓ | | Delete goal → removed from list |
-| — | | Navigate to goal from use-case goals table → opens correct editor |
+| ✓ | `use-cases.e2e.ts` | Navigate to goal from use-case goals table → opens correct editor. Covered by `click goal link in use-case goals table → navigates to goal editor`, which seeds a use case + goal, links them via `addGoalToUseCase`, then clicks the `use-case-goal-link` testid in the goals sub-table and asserts the URL matches `/goals/\d+$` and the goal-editor name field is populated correctly. |
 | ✓ | `dirty-guard.e2e.ts` | Dirty guard → navigate away with unsaved changes → cancel dialog stays on editor; confirm dialog navigates away |
 
 Extra tests implemented: back button navigates to goal list.
@@ -951,7 +952,7 @@ Extra tests implemented: rename story; delete story.
 | ✓ | | Rename actor → new name persists after save and reload |
 | ✓ | | Copy actor → new actor with modified name appears in list |
 | ✓ | | Delete actor → removed from list |
-| — | | Actor appears in primary actor dropdown for story and use-case |
+| ✓ | | Actor appears in primary actor dropdown for story and use-case. Covered by `newly-created actor appears in the primary-actor dropdown for both story and use-case editors`, which creates a fresh actor via API, then opens `/stories/new` and `/use-cases/new` and asserts via the new `expectActorInPrimaryActorDropdown` page-object helper that the actor is one of the visible options in each editor's primary-actor `p-select`. |
 
 #### Use Cases
 
@@ -979,7 +980,7 @@ Extra tests implemented: rename use case; delete use case; copy use case.
 
 Extra tests implemented: rename scenario; change scenario type; copy scenario.
 
-#### Annotations (IBIS) ✓ done
+#### Annotations (IBIS) ✓ mostly done
 
 | Status | File | Scenario |
 |---|---|---|
@@ -988,6 +989,73 @@ Extra tests implemented: rename scenario; change scenario type; copy scenario.
 | ✓ | | Add argument to position → argument nested |
 | ✓ | | Resolve issue → status changes |
 | ✓ | | Open-issues page shows unresolved issues; click navigates to annotated entity |
+| — | | Add note to a goal → note appears in annotations section |
+| — | | Delete note → note removed from annotations section |
+| — | | Delete issue → issue removed from annotations section |
+| — | | Delete position → position removed (and its arguments cascade) |
+| — | | Delete argument → argument removed from position |
+
+**Coverage gap surfaced 2026-05-05.** `requel-angular/coverage/lcov.info`
+shows `src/app/core/annotation.service.ts` at 7/12 lines hit (58%) and
+6/11 functions hit (55%) — measurably the lowest-coverage core service.
+The five uncovered functions map exactly to the five `—` rows above:
+`addNote` (line 41), `deleteNote` (45), `deleteIssue` (53),
+`deletePosition` (61), `deleteArgument` (69). Note that `addIssue`,
+`addPosition`, `addArgument`, `resolveIssue`, and `getAnnotations` are
+already exercised by the existing E2E rows.
+
+The IBIS UI in `shared/annotations-section.ts` already wires every one
+of these flows up — there are visible `(onClick)="deleteNote(...)"` /
+`deleteIssue(...)` / `deletePosition(...)` / `deleteArgument(...)`
+trash-button handlers and a full add-note form (`annotation-add-note`,
+`annotation-note-form`, `annotation-note-text`, `annotation-save-note`
+testids) — so the gap is purely test coverage, not missing feature work.
+
+**Prerequisite testid additions to `shared/annotations-section.ts`** (the
+delete buttons and the note row are currently unmarked; adding the
+following five testids matches the existing `annotation-issue` /
+`annotation-position` / `annotation-argument` naming pattern and lets
+the new tests target the right elements without relying on the trash
+icon class):
+- `annotation-note` on the note item div (parallel to `annotation-issue`)
+- `annotation-note-badge` on the note badge span (parallel to `annotation-issue-badge`)
+- `annotation-delete-note` on the note's trash `p-button`
+- `annotation-delete-issue` on the issue's trash `p-button`
+- `annotation-delete-position` on the position's trash `p-button`
+- `annotation-delete-argument` on the argument's trash `p-button`
+
+**Prerequisite API-helper additions to `e2e/fixtures/api-helper.ts`** (so
+delete tests can seed annotations cheaply rather than building each
+through the UI):
+- `addNote(api, projectName, entityType, entityId, text)` — wraps
+  `EditNote` command (no helper today; needed for the delete-note test
+  setup).
+- `addArgument(api, projectName, positionId, text, supportLevel?)` —
+  wraps `EditArgument` command (no helper today; needed for the
+  delete-argument test setup). `addIssue` and `addPosition` already
+  exist and can be reused as-is for the delete-issue and delete-position
+  tests.
+
+**Test shape (each row above):**
+1. Seed via API helper: create project → create goal → add the
+   annotation (issue/position/argument/note) via the appropriate API
+   helper. The annotation tests share one project per `Date.now()`
+   nonce, with goals as the disposable per-test fixture.
+2. Drive the UI: log in via `adminContext`, navigate to the goal
+   editor via `GoalListPage`, scope to the specific annotation row by
+   `hasText` (same pattern as the existing add-issue test, since the
+   NLP assistant auto-creates lexical issues on every new goal — never
+   rely on being the only annotation in the section).
+3. Click the delete or save button; await the corresponding
+   `Delete{Note,Issue,Position,Argument}` (or `EditNote`) command
+   response.
+4. Assert the row is no longer in the DOM (delete) or that the new
+   row containing the typed text is visible (add note).
+
+A coverage rerun after these tests land should drop the 5 zero-hit
+functions to 5+ hits each and bring `annotation.service.ts` above 90%
+line/function coverage — closing what is currently the biggest core-
+service hole in `lcov.info`.
 
 #### Glossary terms ✓ done
 
@@ -1011,7 +1079,7 @@ Extra tests implemented: rename scenario; change scenario type; copy scenario.
 | Status | File | Scenario |
 |---|---|---|
 | ✓ | `settings.e2e.ts` | Change sidebar project limit and staleness filter → values persist after page reload |
-| — | | Reset to defaults → saved and reflected in UI |
+| ✓ | | Reset to defaults → saved and reflected in UI (`reset to defaults → limit=10 and staleness=3 months after reload`) |
 
 #### Account self-edit
 
@@ -1029,7 +1097,7 @@ Extra tests implemented: username is pre-filled and disabled on self-edit form.
 | ✓ | `admin.e2e.ts` | Create user and set roles |
 | ✓ | | Verify newly created user can log in |
 | ✓ | | Edit user account as admin → changes persist after reload |
-| ✓ | | Non-admin cannot see admin controls or access admin routes |
+| ✓ | | Non-admin cannot see admin nav link in sidebar (link-visibility only — direct URL navigation to admin route is still tracked under Forbidden-state UX below) |
 | ✓ | | Change own password → can log in with new password |
 
 #### Sidebar and project tree — file not created
@@ -1044,8 +1112,8 @@ Extra tests implemented: username is pre-filled and disabled on self-edit form.
 | Status | File | Scenario |
 |---|---|---|
 | ✓ | `forbidden.e2e.ts` | Accessing any protected route while logged out → redirected to `/login` |
-| — | | Authenticated user accessing admin route without admin role → 403 page or redirect shown |
-| — | | Token expires mid-session → next API call returns 401 → interceptor redirects to `/login` |
+| 🚧 blocked on feature work | | Authenticated user accessing admin route without admin role → 403 page or redirect shown. **Currently the `/users` route has NO admin guard** — a project-only user can navigate directly to `/users` and see the full user list (documented by the existing `project user can access /users — no admin route guard` test in `forbidden.e2e.ts:35`). Implementing this plan item requires adding an admin guard to the `/users` (and `/users/:username`) route in `app.routes.ts`, then flipping the existing forbidden-state test to assert the redirect. The sidebar admin-link visibility check in `admin.e2e.ts:84` is unrelated — it's a UI hint, not a route guard. |
+| ✓ | | Token expires mid-session → next API call returns 401 → interceptor redirects to `/login`. Covered by the JWT expiry test in `auth.e2e.ts` (same scenario as the "JWT expiry" row in Authentication above — one test covers both). |
 
 #### SSE live refresh — file not created
 

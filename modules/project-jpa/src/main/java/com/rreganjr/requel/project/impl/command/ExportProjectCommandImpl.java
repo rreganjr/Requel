@@ -143,7 +143,8 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 			jaxbAdapterConfigurer.configure(marshaller);
 			marshaller.marshal(project, getOutputStream());
 		} catch (Exception e) {
-			log.error(e, e);
+			log.error("Could not export project XML", e);
+			throw new IllegalStateException("Could not export project XML", e);
 		}
 	}
 }

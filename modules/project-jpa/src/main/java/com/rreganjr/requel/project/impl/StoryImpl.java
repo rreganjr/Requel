@@ -169,6 +169,8 @@ public class StoryImpl extends AbstractTextEntity implements Story {
 	}
 
 	@Override
+	@XmlIDREF
+	@XmlElement(name = "primaryActorRef", type = ActorImpl.class, namespace = "http://www.rreganjr.com/requel")
 	@ManyToOne(targetEntity = ActorImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
 			CascadeType.REFRESH }, optional = true, fetch = FetchType.LAZY)
 	@JoinColumn(name = "primary_actor_id", nullable = true)

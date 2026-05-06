@@ -74,6 +74,17 @@ export class ProjectService {
     return `${environment.apiBaseUrl}/projects/${encodeURIComponent(projectName)}/export`;
   }
 
+  /**
+   * Download a project's XML export as a Blob. Goes through HttpClient so the
+   * AuthInterceptor adds the JWT Bearer token; a plain `window.open()` of the
+   * export URL would issue an unauthenticated navigation and fail with 401.
+   */
+  async downloadProjectXml(projectName: string): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(this.getExportUrl(projectName), { responseType: 'blob' })
+    );
+  }
+
   async importProject(file: File, nameOverride?: string): Promise<CommandResult> {
     const input: Record<string, unknown> = {};
     if (nameOverride) {

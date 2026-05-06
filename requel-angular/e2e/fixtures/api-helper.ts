@@ -141,6 +141,48 @@ export async function deleteProject(
   // DeleteProject is not implemented in the backend; nothing to do.
 }
 
+/**
+ * List all project names visible to the admin user via GET /api/projects.
+ * Useful for round-trip tests that need to identify a newly-imported project
+ * whose name the import flow auto-generated (e.g. "Imported Project" with
+ * collision suffix).
+ */
+export async function listProjectNames(api: APIRequestContext): Promise<string[]> {
+  const token = await getAdminToken(api);
+  const res = await api.get(`${BASE_URL}/api/projects`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`Listing projects failed: ${res.status()} ${await res.text()}`);
+  }
+  const body = (await res.json()) as Array<{ name: string }>;
+  return body.map(p => p.name);
+}
+
+/**
+ * Fetch the XML export of a project as a string. Hits the same authenticated
+ * GET /api/projects/{name}/export that ProjectEditorComponent.onExport() calls
+ * via HttpClient — but bypasses the browser's blob-download path, which gives
+ * tests deterministic bytes. (Playwright's download.saveAs() can intermittently
+ * write 0-byte files when the underlying download is a blob: URL anchor; this
+ * helper avoids that capture path entirely while still exercising the same
+ * server endpoint that ships in the response.)
+ */
+export async function exportProjectXml(
+  api: APIRequestContext,
+  projectName: string
+): Promise<string> {
+  const token = await getAdminToken(api);
+  const res = await api.get(
+    `${BASE_URL}/api/projects/${encodeURIComponent(projectName)}/export`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok()) {
+    throw new Error(`Exporting project '${projectName}' failed: ${res.status()} ${await res.text()}`);
+  }
+  return res.text();
+}
+
 export async function createGoal(
   api: APIRequestContext,
   projectName: string,

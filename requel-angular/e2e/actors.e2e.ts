@@ -1,6 +1,8 @@
 import { test, expect } from './fixtures/auth';
 import { createProject, deleteProject, createActor, deleteActor, getActorVersion, ActorFixture } from './fixtures/api-helper';
 import { ActorListPage, ActorEditorPage } from './pages/ActorEditorPage';
+import { StoryEditorPage } from './pages/StoryEditorPage';
+import { UseCaseEditorPage } from './pages/UseCaseEditorPage';
 import { reloadAndWaitForGet } from './helpers/navigation';
 
 const PROJECT_NAME = `e2e-actors-${Date.now()}`;
@@ -135,6 +137,28 @@ test.describe('Actor management', () => {
 
     await page.waitForURL(/\/actors$/);
     await listPage.expectActorNotInTable(actorName);
+
+    await page.close();
+  });
+
+  test('newly-created actor appears in the primary-actor dropdown for both story and use-case editors', async ({ adminContext, request }) => {
+    const actorName = `e2e-actor-dropdown-${Date.now()}`;
+    const actor = await createActor(request, PROJECT_NAME, actorName);
+    actorToCleanup = actor;
+
+    const page = await adminContext.newPage();
+    const storyEditorPage = new StoryEditorPage(page);
+    const ucEditorPage = new UseCaseEditorPage(page);
+
+    // Story editor — open new-story form and verify the actor is offered as a primary-actor option.
+    await page.goto(`/projects/${encodeURIComponent(PROJECT_NAME)}/stories/new`);
+    await expect(page.locator('#name')).toBeVisible();
+    await storyEditorPage.expectActorInPrimaryActorDropdown(actorName);
+
+    // Use-case editor — same verification on the use-case form.
+    await page.goto(`/projects/${encodeURIComponent(PROJECT_NAME)}/use-cases/new`);
+    await expect(page.locator('#name')).toBeVisible();
+    await ucEditorPage.expectActorInPrimaryActorDropdown(actorName);
 
     await page.close();
   });

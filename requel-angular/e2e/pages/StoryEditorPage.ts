@@ -106,6 +106,19 @@ export class StoryEditorPage {
     await expect(this.primaryActorSelect()).toContainText('Select primary actor');
   }
 
+  /**
+   * Open the primary-actor p-select and assert that the named actor is offered
+   * as one of the visible options, then dismiss the dropdown via Escape so it
+   * doesn't intercept later interactions on the page. Used by actors.e2e.ts to
+   * verify a newly-created actor appears in the editor's actor list without
+   * actually selecting it. Mirrors the same-named helper on UseCaseEditorPage.
+   */
+  async expectActorInPrimaryActorDropdown(actorName: string): Promise<void> {
+    await this.primaryActorSelect().click();
+    await expect(this.page.getByRole('option', { name: actorName })).toBeVisible();
+    await this.page.keyboard.press('Escape');
+  }
+
   async delete(): Promise<void> {
     await this.page.getByTestId('story-delete').click();
     const [response] = await Promise.all([

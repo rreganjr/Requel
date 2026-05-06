@@ -49,7 +49,8 @@ import { PermissionService } from '../../core/permission.service';
         <div class="page-actions">
           @if (!isNew()) {
             <p-button icon="pi pi-download" label="Export" [outlined]="true"
-                      severity="secondary" size="small" (onClick)="onExport()" />
+                      severity="secondary" size="small" data-testid="project-export"
+                      (onClick)="onExport()" />
           }
         </div>
       </div>
@@ -256,9 +257,42 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     }
   }
 
-  onExport(): void {
-    const url = this.projectService.getExportUrl(this.originalName());
-    window.open(url, '_blank');
+  async onExport(): Promise<void> {
+    const projectName = this.originalName();
+    if (!projectName) {
+      return;
+    }
+    try {
+      // Fetch via HttpClient so the AuthInterceptor adds the JWT Bearer header.
+      // A plain window.open() of the export URL would issue an unauthenticated
+      // navigation and the JWT-protected endpoint would return 401 with no
+      // Content-Disposition, so no download would ever fire.
+      const blob = await this.projectService.downloadProjectXml(projectName);
+      const sanitized = projectName.replace(/[^a-zA-Z0-9._-]/g, '_');
+      this.triggerBlobDownload(blob, `${sanitized}.xml`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to export project';
+      this.errorMessage.set(`Export failed: ${message}`);
+    }
+  }
+
+  private triggerBlobDownload(blob: Blob, filename: string): void {
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Defer revocation. Setting timeout=0 (or revoking synchronously) is a
+    // common bug: Chromium fires the download's "begin" event almost
+    // immediately, but it hasn't necessarily copied the blob bytes yet.
+    // Revoking too soon yields a captured download with an empty body
+    // (Playwright's download.saveAs() then writes a 0-byte file). FileSaver.js
+    // uses 40s for the same reason; 60s is a comfortable upper bound for any
+    // realistic export size and gets GC'd on navigation either way.
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
   }
 
   onCancel(): void {

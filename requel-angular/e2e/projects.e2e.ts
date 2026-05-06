@@ -1,8 +1,22 @@
 import { test, expect } from './fixtures/auth';
-import { createProject, deleteProject, createUser } from './fixtures/api-helper';
+import {
+  createActor,
+  createGoal,
+  createProject,
+  createStory,
+  createUser,
+  deleteProject,
+  exportProjectXml,
+} from './fixtures/api-helper';
 import { LoginPage } from './pages/LoginPage';
 import { ProjectsPage, ProjectEditorPage } from './pages/ProjectsPage';
+import * as fs from 'fs';
 import * as path from 'path';
+
+const encodeRouteSegment = (value: string): string =>
+  encodeURIComponent(value).replace(/[!'()*]/g, char =>
+    `%${char.charCodeAt(0).toString(16).toUpperCase()}`
+  );
 
 test.describe('Project management', () => {
 
@@ -150,6 +164,129 @@ test.describe('Project management', () => {
     await projectsPage.goto();
     await projectsPage.importProjectFromFile(importFixture);
     await projectsPage.expectImportError('Import failed.');
+
+    await page.close();
+  });
+
+  test('export project XML and re-import round-trips goals, actors, and stories', async ({ adminContext, request }, testInfo) => {
+    test.setTimeout(60_000);
+
+    const nonce = Date.now();
+    const sourceName = `e2e-roundtrip-source-${nonce}`;
+    const goalName = `Roundtrip Goal ${nonce}`;
+    const actorName = `Roundtrip Actor ${nonce}`;
+    const storyName = `Roundtrip Story ${nonce}`;
+
+    await createProject(request, sourceName, 'XML round-trip source project');
+    await createGoal(request, sourceName, goalName, 'goal text for round-trip');
+    await createActor(request, sourceName, actorName, 'actor text for round-trip');
+    await createStory(request, sourceName, storyName, 'Success', 'story text', actorName);
+
+    // ----- Export via the API (deterministic byte capture) -----
+    //
+    // We deliberately do NOT drive the export through the UI Export button
+    // here. The button's wiring (click → authenticated GET to the export
+    // endpoint) is verified by a separate smoke test below; it relies on
+    // HttpClient + a hidden <a download> bound to a blob: URL, which Playwright
+    // can capture as a Download event but cannot reliably read bytes from
+    // (download.saveAs() intermittently writes 0-byte files for blob: URL
+    // sources because Chromium routes blob downloads through internal memory
+    // rather than the network layer Playwright's CDP capture is wired into).
+    //
+    // For the round-trip data-integrity assertion we need deterministic bytes,
+    // so we fetch the XML directly via the same authenticated GET that the
+    // Angular HttpClient call hits. This still exercises the full
+    // ProjectQueryController.exportProject endpoint and the streaming export
+    // command — only the browser-side "save bytes to disk" step is replaced
+    // with an API-side fetch.
+    const xml = await exportProjectXml(request, sourceName);
+    expect(xml, 'exported XML wraps a <project> element').toMatch(/<project[\s>]/);
+    expect(xml, 'exported XML carries the source project goal').toContain(goalName);
+    expect(xml, 'exported XML carries the source project actor').toContain(actorName);
+    expect(xml, 'exported XML carries the source project story').toContain(storyName);
+
+    // Persist the bytes in the test artifact directory so the import file
+    // input has a real file to consume. Using testInfo.outputPath() keeps it
+    // co-located with traces/screenshots.
+    const exportPath = testInfo.outputPath('roundtrip-export.xml');
+    fs.writeFileSync(exportPath, xml, 'utf-8');
+
+    // ----- Re-import via the project list (UI) -----
+    const page = await adminContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+
+    await projectsPage.goto();
+    const importResponsePromise = page.waitForResponse(response =>
+      response.url().includes('/api/commands/ImportProject') &&
+      response.request().method() === 'POST'
+    );
+    await projectsPage.importProjectFromFile(exportPath);
+    const importResponse = await importResponsePromise;
+    expect(importResponse.ok(), 'import command returns HTTP success').toBeTruthy();
+    const importResult = await importResponse.json() as { entity?: { name?: string } };
+    const importedName = importResult.entity?.name;
+    expect(importedName, 'import command returns the imported project name').toBeTruthy();
+    await projectsPage.expectImportSuccess();
+
+    await projectsPage.expectProjectInTable(importedName!);
+
+    // ----- Verify the imported entities show up in their respective lists -----
+    const importedProjectPathName = encodeRouteSegment(importedName!);
+
+    await page.goto(`/projects/${importedProjectPathName}/goals`);
+    await expect(
+      page.locator('p-table tbody tr', { hasText: goalName }).first(),
+      'imported goal visible in goal list'
+    ).toBeVisible();
+
+    await page.goto(`/projects/${importedProjectPathName}/actors`);
+    await expect(
+      page.locator('p-table tbody tr', { hasText: actorName }).first(),
+      'imported actor visible in actor list'
+    ).toBeVisible();
+
+    await page.goto(`/projects/${importedProjectPathName}/stories`);
+    await expect(
+      page.locator('p-table tbody tr', { hasText: storyName }).first(),
+      'imported story visible in story list'
+    ).toBeVisible();
+
+    await page.close();
+  });
+
+  test('clicking Export button sends an authenticated GET to the project export endpoint', async ({ adminContext, request }) => {
+    // UI smoke test for the Layer 1 production bug fix — onExport() must call
+    // the export endpoint via Angular's HttpClient so the AuthInterceptor
+    // attaches the JWT bearer. The previous implementation used
+    // window.open(url, '_blank') which issued an unauthenticated navigation
+    // and silently 401'd. We assert the click triggers exactly one request to
+    // the export URL, that it carries an Authorization: Bearer header, and
+    // that the server responds 200 OK. We do NOT assert on captured download
+    // bytes here — see the round-trip test for why that path is unreliable.
+    const nonce = Date.now();
+    const sourceName = `e2e-export-click-${nonce}`;
+    await createProject(request, sourceName, 'export-click smoke test');
+
+    const page = await adminContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+    const editorPage = new ProjectEditorPage(page);
+
+    await projectsPage.goto();
+    await projectsPage.clickProject(sourceName);
+    await editorPage.waitForLoad(sourceName);
+
+    const exportUrlRegex = new RegExp(
+      `/api/projects/${encodeURIComponent(sourceName)}/export(?:\\?|$)`
+    );
+    const responsePromise = page.waitForResponse(r => exportUrlRegex.test(r.url()));
+    await page.getByTestId('project-export').click();
+    const response = await responsePromise;
+
+    expect(response.status(), 'export endpoint returns 200 OK to the click').toBe(200);
+    expect(
+      response.request().headers().authorization,
+      'click sends Authorization: Bearer header (proves AuthInterceptor ran)'
+    ).toMatch(/^Bearer /);
 
     await page.close();
   });

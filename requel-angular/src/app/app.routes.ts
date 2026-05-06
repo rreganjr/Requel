@@ -38,7 +38,6 @@ export const routes: Routes = [
       { path: 'users', loadComponent: () => import('./features/users/user-list').then(m => m.UserListComponent) },
       { path: 'users/:username', loadComponent: () => import('./features/users/user-editor').then(m => m.UserEditorComponent), canDeactivate: [dirtyCheckGuard] },
       { path: 'projects', loadComponent: () => import('./features/projects/project-list').then(m => m.ProjectListComponent) },
-      { path: 'projects/:name', loadComponent: () => import('./features/projects/project-editor').then(m => m.ProjectEditorComponent), canDeactivate: [dirtyCheckGuard] },
       { path: 'projects/:name/stakeholders', loadComponent: () => import('./features/stakeholders/stakeholder-list').then(m => m.StakeholderListComponent) },
       { path: 'projects/:name/stakeholders/:stakeholderId', loadComponent: () => import('./features/stakeholders/stakeholder-editor').then(m => m.StakeholderEditorComponent), canDeactivate: [dirtyCheckGuard] },
       { path: 'projects/:name/goals', loadComponent: () => import('./features/goals/goal-list').then(m => m.GoalListComponent) },
@@ -56,6 +55,7 @@ export const routes: Routes = [
       { path: 'projects/:name/reports', loadComponent: () => import('./features/reports/report-list').then(m => m.ReportListComponent) },
       { path: 'projects/:name/reports/:reportId', loadComponent: () => import('./features/reports/report-editor').then(m => m.ReportEditorComponent), canDeactivate: [dirtyCheckGuard] },
       { path: 'projects/:name/open-issues', loadComponent: () => import('./features/open-issues/open-issues').then(m => m.OpenIssuesComponent) },
+      { path: 'projects/:name', loadComponent: () => import('./features/projects/project-editor').then(m => m.ProjectEditorComponent), canDeactivate: [dirtyCheckGuard] },
     ]
   },
   { path: '**', redirectTo: '' }

@@ -20,7 +20,11 @@ const flush = () => new Promise(r => setTimeout(r, 0));
 
 describe('ProjectEditorComponent', () => {
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
-  let projectServiceMock: { getProject: ReturnType<typeof vi.fn>; getExportUrl: ReturnType<typeof vi.fn> };
+  let projectServiceMock: {
+    getProject: ReturnType<typeof vi.fn>;
+    getExportUrl: ReturnType<typeof vi.fn>;
+    downloadProjectXml: ReturnType<typeof vi.fn>;
+  };
   let userServiceMock: { listOrganizations: ReturnType<typeof vi.fn> };
   let commandServiceMock: { execute: ReturnType<typeof vi.fn> };
   let permissionServiceMock: { loadForProject: ReturnType<typeof vi.fn> };
@@ -33,7 +37,8 @@ describe('ProjectEditorComponent', () => {
 
     projectServiceMock = {
       getProject: vi.fn().mockResolvedValue(MOCK_PROJECT),
-      getExportUrl: vi.fn().mockReturnValue('/api/export/test')
+      getExportUrl: vi.fn().mockReturnValue('/api/export/test'),
+      downloadProjectXml: vi.fn().mockResolvedValue(new Blob(['<project/>'], { type: 'application/xml' }))
     };
     userServiceMock = { listOrganizations: vi.fn().mockResolvedValue([{ id: 1, name: 'Acme' }]) };
     commandServiceMock = {

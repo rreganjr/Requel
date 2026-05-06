@@ -54,4 +54,16 @@ describe('ProjectService', () => {
     const url = service.getExportUrl('My Project');
     expect(url).toBe('/api/projects/My%20Project/export');
   });
+
+  it('downloadProjectXml() GETs the export URL as a blob (auth interceptor adds bearer)', async () => {
+    const promise = service.downloadProjectXml('My Project');
+    const req = httpMock.expectOne('/api/projects/My%20Project/export');
+    expect(req.request.method).toBe('GET');
+    expect(req.request.responseType).toBe('blob');
+    const xmlBlob = new Blob(['<project name="My Project"/>'], { type: 'application/xml' });
+    req.flush(xmlBlob);
+    const result = await promise;
+    expect(result).toBeInstanceOf(Blob);
+    expect(await result.text()).toBe('<project name="My Project"/>');
+  });
 });
