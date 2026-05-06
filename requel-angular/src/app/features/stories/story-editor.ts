@@ -269,6 +269,23 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   ngOnInit(): void {
     this.paramSub = this.route.paramMap.subscribe(async params => {
       this.projectName = params.get('name') ?? '';
+      const idParam = params.get('storyId') ?? '';
+      const newIsNew = idParam === 'new';
+
+      // Reset the form synchronously for the new-story path BEFORE the two
+      // awaits below (loadForProject and listActors). Otherwise typing during
+      // either yield would later be clobbered by the reset and Angular
+      // change-detection would clear the input. See term-editor.ts for the
+      // same pattern.
+      if (newIsNew) {
+        this.isNew.set(true);
+        this.story.set(null);
+        this.name = '';
+        this.text = '';
+        this.storyType = 'Success';
+        this.version = null;
+      }
+
       await this.permissionService.loadForProject(this.projectName);
       this.canEdit.set(this.permissionService.canEdit('Story'));
       this.canDelete.set(this.permissionService.canDelete('Story'));
@@ -276,15 +293,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       const actors = await this.actorService.listActors(this.projectName);
       this.actorOptions.set(actors.map(a => ({ label: a.name, value: a.name })));
 
-      const idParam = params.get('storyId') ?? '';
-      if (idParam === 'new') {
-        this.isNew.set(true);
-        this.story.set(null);
-        this.name = '';
-        this.text = '';
-        this.storyType = 'Success';
-        this.version = null;
-      } else {
+      if (!newIsNew) {
         this.isNew.set(false);
         this.storyId = +idParam;
         this.loadStory();

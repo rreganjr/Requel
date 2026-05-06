@@ -258,12 +258,14 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   ngOnInit(): void {
     this.paramSub = this.route.paramMap.subscribe(async params => {
       this.projectName = params.get('name') ?? '';
-      await this.permissionService.loadForProject(this.projectName);
-      this.canEdit.set(this.permissionService.canEdit('Goal'));
-      this.canDelete.set(this.permissionService.canDelete('Goal'));
-
       const idParam = params.get('goalId') ?? '';
-      if (idParam === 'new') {
+      const newIsNew = idParam === 'new';
+
+      // Reset the form synchronously for the new-goal path BEFORE the
+      // loadForProject await. Otherwise typing during the yield would later
+      // be clobbered by the reset and Angular change-detection would clear
+      // the input. See term-editor.ts for the same pattern.
+      if (newIsNew) {
         this.isNew.set(true);
         this.goal.set(null);
         this.name = '';
@@ -271,7 +273,13 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.originalName = '';
         this.originalText = '';
         this.version = null;
-      } else {
+      }
+
+      await this.permissionService.loadForProject(this.projectName);
+      this.canEdit.set(this.permissionService.canEdit('Goal'));
+      this.canDelete.set(this.permissionService.canDelete('Goal'));
+
+      if (!newIsNew) {
         this.isNew.set(false);
         this.goalId = +idParam;
         this.loadGoal();

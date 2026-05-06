@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/auth';
-import { createProject, deleteProject } from './fixtures/api-helper';
+import { createProject, deleteProject, createUser } from './fixtures/api-helper';
+import { LoginPage } from './pages/LoginPage';
 import { ProjectsPage, ProjectEditorPage } from './pages/ProjectsPage';
 import * as path from 'path';
 
@@ -23,6 +24,26 @@ test.describe('Project management', () => {
     await projectsPage.expectCreateActionsVisible();
 
     await page.close();
+  });
+
+  test('restricted project user without createProjects permission hides New Project and Import actions', async ({ browser, request }) => {
+    const username = `e2e-project-restricted-${Date.now()}`;
+    const password = 'RestrictedProject123!';
+    await createUser(request, username, 'Restricted Project User', password, 'ProjectUserRole');
+
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    const loginPage = new LoginPage(page);
+    const projectsPage = new ProjectsPage(page);
+
+    await loginPage.goto();
+    await loginPage.login(username, password);
+    await loginPage.expectRedirectedToDashboard();
+
+    await projectsPage.goto();
+    await projectsPage.expectCreateActionsHidden();
+
+    await ctx.close();
   });
 
   test('empty project list shows empty-state message', async ({ adminContext }) => {
@@ -133,6 +154,36 @@ test.describe('Project management', () => {
     await page.close();
   });
 
+  test('import change with no selected file shows warning and does not call import', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+    let importCalled = false;
+
+    await page.route('**/api/projects', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
+
+    await page.route('**/api/commands/ImportProject', async route => {
+      importCalled = true;
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'unexpected import call' }),
+      });
+    });
+
+    await projectsPage.goto();
+    await projectsPage.clearImportSelection();
+    await expect.poll(() => importCalled).toBe(false);
+    await projectsPage.expectImportWarning('Select a project XML file to import.');
+
+    await page.close();
+  });
+
   test('create new project → appears in project list', async ({ adminContext }) => {
     const projectName = `e2e-create-${Date.now()}`;
     const page = await adminContext.newPage();
@@ -176,6 +227,104 @@ test.describe('Project management', () => {
     await projectsPage.goto();
     await projectsPage.expectProjectInTable(newName);
     await projectsPage.expectProjectNotInTable(originalName);
+
+    await page.close();
+  });
+
+  test('project save validation failure shows violation messages', async ({ adminContext, request }) => {
+    const projectName = `e2e-save-violations-${Date.now()}`;
+    await createProject(request, projectName, 'Save validation failure test');
+
+    const page = await adminContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+    const editorPage = new ProjectEditorPage(page);
+
+    await page.route('**/api/commands/EditProject', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          entityType: 'EditProject',
+          entity: null,
+          error: null,
+          violations: [
+            { message: 'Project name is already used' },
+            { message: 'Organization is required' },
+          ],
+        }),
+      });
+    });
+
+    await projectsPage.goto();
+    await projectsPage.clickProject(projectName);
+    await editorPage.waitForLoad(projectName);
+
+    await editorPage.fillDescription('trigger validation failure');
+    await editorPage.save();
+
+    await editorPage.expectError('Project name is already used; Organization is required');
+    await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(projectName)}$`));
+
+    await page.close();
+  });
+
+  test('project save generic failure shows error banner', async ({ adminContext, request }) => {
+    const projectName = `e2e-save-error-${Date.now()}`;
+    await createProject(request, projectName, 'Save generic failure test');
+
+    const page = await adminContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+    const editorPage = new ProjectEditorPage(page);
+
+    await page.route('**/api/commands/EditProject', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          entityType: 'EditProject',
+          entity: null,
+          error: 'Server rejected the project update.',
+          violations: null,
+        }),
+      });
+    });
+
+    await projectsPage.goto();
+    await projectsPage.clickProject(projectName);
+    await editorPage.waitForLoad(projectName);
+
+    await editorPage.fillDescription('trigger generic failure');
+    await editorPage.save();
+
+    await editorPage.expectError('Server rejected the project update.');
+    await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(projectName)}$`));
+
+    await page.close();
+  });
+
+  test('project save network failure shows fallback error banner', async ({ adminContext, request }) => {
+    const projectName = `e2e-save-network-${Date.now()}`;
+    await createProject(request, projectName, 'Save network failure test');
+
+    const page = await adminContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+    const editorPage = new ProjectEditorPage(page);
+
+    await page.route('**/api/commands/EditProject', async route => {
+      await route.abort('failed');
+    });
+
+    await projectsPage.goto();
+    await projectsPage.clickProject(projectName);
+    await editorPage.waitForLoad(projectName);
+
+    await editorPage.fillDescription('trigger network failure');
+    await editorPage.save();
+
+    await editorPage.expectAnyError();
+    await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(projectName)}$`));
 
     await page.close();
   });
@@ -250,7 +399,7 @@ test.describe('Project management', () => {
 
     await editorPage.fillName(renamedName);
 
-    const sidebarTree = page.locator('.sidebar-tree');
+    const sidebarTree = page.getByTestId('sidebar-tree');
     await sidebarTree.getByText(targetName, { exact: true }).click();
 
     await expect(page.getByRole('button', { name: 'Save & Switch' })).toBeVisible();

@@ -88,7 +88,7 @@ import { ProjectDto, ProjectTreeNode } from '../models/project';
               <p-tree [value]="projectTreeNodes()"
                       selectionMode="single" [metaKeySelection]="false"
                       (onNodeSelect)="onNodeSelect($event)"
-                      styleClass="sidebar-tree" />
+                      styleClass="sidebar-tree" data-testid="sidebar-tree" />
             }
           </p-accordion-content>
         </p-accordion-panel>

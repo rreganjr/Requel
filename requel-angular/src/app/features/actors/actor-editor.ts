@@ -228,18 +228,26 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   ngOnInit(): void {
     this.paramSub = this.route.paramMap.subscribe(async params => {
       this.projectName = params.get('name') ?? '';
-      await this.permissionService.loadForProject(this.projectName);
-      this.canEdit.set(this.permissionService.canEdit('Actor'));
-      this.canDelete.set(this.permissionService.canDelete('Actor'));
-
       const idParam = params.get('actorId') ?? '';
-      if (idParam === 'new') {
+      const newIsNew = idParam === 'new';
+
+      // Reset the form synchronously for the new-actor path BEFORE the
+      // loadForProject await. Otherwise typing during the yield would later
+      // be clobbered by the reset and Angular change-detection would clear
+      // the input. See term-editor.ts for the same pattern.
+      if (newIsNew) {
         this.isNew.set(true);
         this.actor.set(null);
         this.name = '';
         this.text = '';
         this.version = null;
-      } else {
+      }
+
+      await this.permissionService.loadForProject(this.projectName);
+      this.canEdit.set(this.permissionService.canEdit('Actor'));
+      this.canDelete.set(this.permissionService.canDelete('Actor'));
+
+      if (!newIsNew) {
         this.isNew.set(false);
         this.actorId = +idParam;
         this.loadActor();

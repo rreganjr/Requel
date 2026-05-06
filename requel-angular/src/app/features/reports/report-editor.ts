@@ -149,18 +149,26 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
     this.paramSub = this.route.paramMap.subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       const idParam = params.get('reportId');
-      await this.permissionService.loadForProject(this.projectName);
-      this.canEdit.set(this.permissionService.canEdit('ReportGenerator'));
-      this.canDelete.set(this.permissionService.canDelete('ReportGenerator'));
+      const newIsNew = !idParam || idParam === 'new';
 
-      if (idParam && idParam !== 'new') {
-        await this.loadReport(Number(idParam));
-      } else {
+      // Reset the form synchronously for the new-report path BEFORE the
+      // loadForProject await. Otherwise typing during the yield would later
+      // be clobbered by the reset and Angular change-detection would clear
+      // the input. See term-editor.ts for the same pattern.
+      if (newIsNew) {
         this.reportId.set(null);
         this.name = '';
         this.text = '';
         this.originalName = '';
         this.originalText = '';
+      }
+
+      await this.permissionService.loadForProject(this.projectName);
+      this.canEdit.set(this.permissionService.canEdit('ReportGenerator'));
+      this.canDelete.set(this.permissionService.canDelete('ReportGenerator'));
+
+      if (!newIsNew) {
+        await this.loadReport(Number(idParam));
       }
     });
   }

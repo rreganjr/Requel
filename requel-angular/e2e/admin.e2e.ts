@@ -46,7 +46,7 @@ test.describe('Admin user management', () => {
 
     // Wait for loadData() to finish — roles are fetched async; ngModel bindings aren't
     // active until the component is fully initialized
-    await expect(page.locator('.roles-section')).toBeVisible();
+    await expect(page.getByTestId('user-roles-section')).toBeVisible();
 
     await editorPage.fillUsername(username);
     await editorPage.fillName('E2E Test User');

@@ -1,20 +1,25 @@
 # E2E Coverage Improvement Plan
 
-## Status (2026-05-01)
+## Status (2026-05-05)
 
 | Phase | Status | Notes |
 | --- | --- | --- |
 | Phase 1: Small-screen branch coverage | ✅ Complete | `open-issues`, `project-list`, `report-list` all have the recommended state-variation tests. |
-| Phase 2: Project and account state coverage | ✅ Complete | `project-editor` covered (incl. dirty-switch). `edit-account` now has 4 failure-path tests (validation, generic error, network failure, dirty-guard). |
-| Phase 3: Representative failure-path coverage | ✅ Complete | `open-issues` load failure, project import failure, report list load failure, report run failure, edit-account validation/error/network failure. |
+| Phase 2: Project and account state coverage | ✅ Complete | `project-editor` covered (incl. dirty-switch and 3 save-failure paths added 2026-05-05). `edit-account` has 4 failure-path tests (validation, generic error, network failure, dirty-guard). |
+| Phase 3: Representative failure-path coverage | ✅ Complete | `open-issues` load failure, project import failure, project import-no-file warning, project save validation/error/network failure, report list load failure, report run failure, edit-account validation/error/network failure. |
 
 ### Verified branch coverage (rerun)
 
-| File | Before | Target | Actual |
+Last full coverage rerun: **2026-05-01**. The numbers below predate the 2026-05-05
+additions (project-list import-no-file warning, project-editor save validation/error/network
+failure tests, restricted-user hidden-actions test). A fresh rerun is expected to push
+`project-editor.ts` and `project-list.ts` materially higher.
+
+| File | Before | Target | Actual (2026-05-01) |
 | --- | ---: | ---: | ---: |
 | `open-issues/open-issues.ts` | 37.50% | ≥60% | **87.50%** ✅ |
-| `projects/project-list.ts` | 30.30% | ≥55% | **75.76%** ✅ |
-| `projects/project-editor.ts` | 53.73% | — | **63.77%** |
+| `projects/project-list.ts` | 30.30% | ≥55% | **75.76%** ✅ (pre 05-05) |
+| `projects/project-editor.ts` | 53.73% | — | **63.77%** (pre 05-05) |
 | `reports/report-list.ts` | 42.86% | — | **85.71%** |
 | `users/edit-account.ts` | 43.48% | — | **58.70%** |
 
@@ -192,11 +197,11 @@ Recommendation:
 ### Project List
 
 1. ✅ `admin user -> New Project and Import buttons visible`
-2. ❌ `restricted user -> New Project and Import buttons hidden` — only the positive case (`projectContext` user with `createProjects` permission) exists; an explicit hidden-button test for a user without the permission is still missing.
+2. ✅ `restricted user -> New Project and Import buttons hidden` — covered by `restricted project user without createProjects permission hides New Project and Import actions` in `projects.e2e.ts` (creates a fresh `ProjectUserRole` user without granting `createProjects`).
 3. ✅ `select project row -> navigates to project` — covered implicitly by `clickProject` in the edit/cancel/dirty-guard tests.
 4. ✅ `valid import -> success banner and project appears`
 5. ✅ `invalid import -> error banner shown`
-6. ❌ `no file selected on import change -> no action taken` — not yet implemented.
+6. ✅ `no file selected on import change -> no action taken` — covered by `import change with no selected file shows warning and does not call import` in `projects.e2e.ts`. The component now sets a `warningMessage` signal ("Select a project XML file to import.") rendered as a new `p-message[severity="warn"]` (`data-testid="project-list-warning"`) instead of silently no-op'ing on the empty-file branch.
 
 ## Targets
 
@@ -224,20 +229,33 @@ That should raise the weakest branch numbers with relatively little new test cod
 
 ## Remaining Work
 
-After this round, the small remaining gaps are:
+After the 2026-05-05 round, all of the previously listed branch-coverage gaps are now covered:
 
-1. **`project-list.ts` restricted-user hidden buttons** — explicit negative test for a user without `createProjects` permission. Currently only the positive case (admin and project user with permission) is covered.
-2. **`project-list.ts` import with no file selected** — change-event branch where the file input is cleared.
-3. **`project-editor.ts` save-failure path** — branch coverage is the lowest in the verified-numbers table at 63.77%; intercepting `EditProject` with a violation/error response would push it higher.
+1. ✅ **`project-list.ts` restricted-user hidden buttons** — covered by the new restricted-user test in `projects.e2e.ts` that creates a `ProjectUserRole` user without `createProjects` permission and asserts both action buttons are hidden.
+2. ✅ **`project-list.ts` import with no file selected** — the empty-file branch now sets a `warningMessage` signal and renders `p-message[severity="warn"]` (`data-testid="project-list-warning"`); covered by `import change with no selected file shows warning and does not call import`.
+3. ✅ **`project-editor.ts` save-failure path** — three new tests intercept `EditProject` to exercise the three cold result-shape branches:
+   - `project save validation failure shows violation messages` — `success: false` with a `violations` array; asserts joined messages render in the editor's error `p-message`.
+   - `project save generic failure shows error banner` — `success: false` with a top-level `error` string; asserts that string renders.
+   - `project save network failure shows fallback error banner` — aborts the request and asserts the `catch` branch produces a visible error banner.
+
+A fresh coverage rerun is needed to record the new numbers for `project-editor.ts` and `project-list.ts`; the §Verified branch coverage (rerun) table above flags this explicitly.
 
 ### Selector hygiene: replace class-based selectors with `data-testid`
 
-The suite still has three class-based locators left over from the early migration. Replace each with a `data-testid` for stability against CSS/styling changes:
+The suite started with three class-based locators left over from the early migration. All three are now replaced:
 
 | File | Selector | Replacement |
 | --- | --- | --- |
 | `e2e/account.e2e.ts:203` | `a.header-brand` | ✅ Replaced with `getByTestId('header-brand')` (added `data-testid="header-brand"` to `auth/layout.ts`). |
-| `e2e/projects.e2e.ts:253` | `.sidebar-tree` | Add a `data-testid="sidebar-tree"` to the sidebar nav root in `shared/sidebar-nav.ts`. |
-| `e2e/admin.e2e.ts:49` | `.roles-section` | Add a `data-testid="user-roles-section"` to the roles wrapper in the admin user editor. |
+| `e2e/projects.e2e.ts:402` | `.sidebar-tree` | ✅ Replaced with `getByTestId('sidebar-tree')` (added `data-testid="sidebar-tree"` to the `<p-tree>` in `shared/sidebar-nav.ts`). |
+| `e2e/admin.e2e.ts:49` | `.roles-section` | ✅ Replaced with `getByTestId('user-roles-section')` (the `data-testid` was already present on `users/user-editor.ts`; only the test selector needed swapping). |
 
-These are individually low-yield but reduce future test fragility — class names move with styling refactors, testids do not.
+These were individually low-yield but reduce future test fragility — class names move with styling refactors, testids do not.
+
+## Next Steps
+
+With the originally scoped Phase 1–3 work and all listed remaining gaps closed, the next useful E2E coverage pass should:
+
+1. **Rerun coverage** with `scripts/e2e-with-coverage.sh` to capture post-2026-05-05 numbers. The file-level branch table above is a snapshot from 2026-05-01; the project-editor and project-list rows are stale.
+2. **Reassess feature-level branches** from the fresh `lcov.info`. The previous lowest features were `projects` (46.00%), `open-issues` (37.50%), and several mid-tier features around 56–60% (`terms`, `actors`, `goals`, `users`). After today's additions, `projects` and `open-issues` should no longer be the floor; the next candidates are likely `actors`, `terms`, or `goals`, but pick from data, not memory.
+3. **Pick the new lowest file** the same way Phase 1 did: target a small set of state-variation tests (empty / populated, success / error, permission gates) rather than another deep editor pass.

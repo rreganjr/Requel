@@ -190,16 +190,15 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.paramSub = this.route.paramMap.subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       const idParam = params.get('termId');
-      await this.permissionService.loadForProject(this.projectName);
-      this.canEdit.set(this.permissionService.canEdit('GlossaryTerm'));
-      this.canDelete.set(this.permissionService.canDelete('GlossaryTerm'));
+      const newIsNew = !idParam || idParam === 'new';
 
-      // Load all terms for canonical selector (before loading detail)
-      await this.loadCanonicalOptions(idParam === 'new' ? null : Number(idParam));
-
-      if (idParam && idParam !== 'new') {
-        await this.loadTerm(Number(idParam));
-      } else {
+      // Reset the form synchronously for the new-term path BEFORE any awaits.
+      // The async work below (loadForProject, loadCanonicalOptions) yields the
+      // event loop, and any user input — or fast-typing E2E test — that lands
+      // during those yields would otherwise be clobbered when the reset
+      // eventually ran. Doing the reset first means subsequent ngModel writes
+      // from typing are preserved.
+      if (newIsNew) {
         this.termId.set(null);
         this.name = '';
         this.text = '';
@@ -207,6 +206,17 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.originalName = '';
         this.originalText = '';
         this.originalCanonicalTermId = null;
+      }
+
+      await this.permissionService.loadForProject(this.projectName);
+      this.canEdit.set(this.permissionService.canEdit('GlossaryTerm'));
+      this.canDelete.set(this.permissionService.canDelete('GlossaryTerm'));
+
+      // Load all terms for canonical selector (before loading detail)
+      await this.loadCanonicalOptions(newIsNew ? null : Number(idParam));
+
+      if (!newIsNew) {
+        await this.loadTerm(Number(idParam));
       }
     });
   }

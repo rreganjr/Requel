@@ -61,6 +61,16 @@ export class ProjectsPage extends BaseListPage {
     await expect(this.page.getByTestId('project-list-error')).toContainText(message);
   }
 
+  async expectImportWarning(message: string): Promise<void> {
+    await expect(this.page.getByTestId('project-list-warning')).toContainText(message);
+  }
+
+  async expectNoImportMessages(): Promise<void> {
+    await expect(this.page.getByTestId('project-list-success')).toHaveCount(0);
+    await expect(this.page.getByTestId('project-list-error')).toHaveCount(0);
+    await expect(this.page.getByTestId('project-list-warning')).toHaveCount(0);
+  }
+
   async expectNoProjectsMessage(): Promise<void> {
     await expect(this.page.getByTestId('project-list-empty')).toContainText('No projects found.');
   }
@@ -91,6 +101,16 @@ export class ProjectEditorPage {
     await this.page.getByTestId('project-save').click();
     // wait for navigation away from /new or for save to complete
     await this.page.waitForLoadState('domcontentloaded');
+  }
+
+  async expectError(message: string): Promise<void> {
+    await expect(this.page.locator('app-project-editor p-message[severity="error"]'))
+      .toContainText(message);
+  }
+
+  async expectAnyError(): Promise<void> {
+    await expect(this.page.locator('app-project-editor p-message[severity="error"]'))
+      .toBeVisible({ timeout: 5000 });
   }
 
   async cancel(): Promise<void> {

@@ -49,6 +49,9 @@ import { ListPageComponent } from '../../shared/list-page';
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" data-testid="project-list-error" />
       }
+      @if (warningMessage()) {
+        <p-message severity="warn" [text]="warningMessage()!" data-testid="project-list-warning" />
+      }
       @if (successMessage()) {
         <p-message severity="success" [text]="successMessage()!" data-testid="project-list-success" />
       }
@@ -94,6 +97,7 @@ export class ProjectListComponent implements OnInit {
   readonly loading = signal(true);
   readonly importing = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly warningMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
 
   readonly canCreateProjects = signal(false);
@@ -129,10 +133,16 @@ export class ProjectListComponent implements OnInit {
   async onImportFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (!file) return;
+    if (!file) {
+      this.errorMessage.set(null);
+      this.successMessage.set(null);
+      this.warningMessage.set('Select a project XML file to import.');
+      return;
+    }
 
     this.importing.set(true);
     this.errorMessage.set(null);
+    this.warningMessage.set(null);
     this.successMessage.set(null);
 
     try {

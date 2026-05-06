@@ -355,12 +355,14 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   ngOnInit(): void {
     this.paramSub = this.route.paramMap.subscribe(async params => {
       this.projectName = params.get('name') ?? '';
-      await this.permissionService.loadForProject(this.projectName);
-      this.canEdit.set(this.permissionService.canEdit('Scenario'));
-      this.canDelete.set(this.permissionService.canDelete('Scenario'));
-
       const idParam = params.get('scenarioId') ?? '';
-      if (idParam === 'new') {
+      const newIsNew = idParam === 'new';
+
+      // Reset the form synchronously for the new-scenario path BEFORE the
+      // loadForProject await. Otherwise typing during the yield would later
+      // be clobbered by the reset and Angular change-detection would clear
+      // the input. See term-editor.ts for the same pattern.
+      if (newIsNew) {
         this.isNew.set(true);
         this.scenario.set(null);
         this.name = '';
@@ -368,7 +370,13 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
         this.scenarioType = 'Primary';
         this.version = null;
         this.stepNodes.set([]);
-      } else {
+      }
+
+      await this.permissionService.loadForProject(this.projectName);
+      this.canEdit.set(this.permissionService.canEdit('Scenario'));
+      this.canDelete.set(this.permissionService.canDelete('Scenario'));
+
+      if (!newIsNew) {
         this.isNew.set(false);
         this.scenarioId = +idParam;
         this.loadScenario();
