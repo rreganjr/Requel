@@ -84,6 +84,17 @@ export interface PositionFixture {
   projectName: string;
 }
 
+export interface NoteFixture {
+  id: number;
+  projectName: string;
+}
+
+export interface ArgumentFixture {
+  id: number;
+  positionId: number;
+  projectName: string;
+}
+
 async function getAdminToken(api: APIRequestContext): Promise<string> {
   const username = process.env['E2E_ADMIN_USERNAME'] ?? 'admin';
   const password = process.env['E2E_ADMIN_PASSWORD'] ?? 'admin';
@@ -617,6 +628,50 @@ export async function addPosition(
   });
   const entity = result['entity'] as { id: number };
   return { id: entity.id, issueId, projectName };
+}
+
+/**
+ * Add a note to an entity (goal, story, etc.) via the EditNote command.
+ * Returns the created note's id so tests can target it directly.
+ */
+export async function addNote(
+  api: APIRequestContext,
+  projectName: string,
+  entityType: string,
+  entityId: number,
+  text: string
+): Promise<NoteFixture> {
+  const token = await getAdminToken(api);
+  const result = await command(api, token, 'EditNote', {
+    projectName,
+    entityType,
+    entityId,
+    text,
+  });
+  const entity = result['entity'] as { id: number };
+  return { id: entity.id, projectName };
+}
+
+/**
+ * Add an argument to a position via the EditArgument command.
+ * supportLevel must match the SupportLevel enum (For, StronglyFor, Against, StronglyAgainst, Neutral).
+ */
+export async function addArgument(
+  api: APIRequestContext,
+  projectName: string,
+  positionId: number,
+  text: string,
+  supportLevel = 'For'
+): Promise<ArgumentFixture> {
+  const token = await getAdminToken(api);
+  const result = await command(api, token, 'EditArgument', {
+    projectName,
+    positionId,
+    text,
+    supportLevel,
+  });
+  const entity = result['entity'] as { id: number };
+  return { id: entity.id, positionId, projectName };
 }
 
 export async function getPreferences(

@@ -86,13 +86,14 @@ import { AnnotationService } from '../core/annotation.service';
 
         <!-- Notes list -->
         @for (note of annotations().notes; track note.id) {
-          <div class="annotation note-item">
+          <div class="annotation note-item" data-testid="annotation-note">
             <div class="annotation-row">
-              <span class="annotation-badge note-badge">Note</span>
+              <span class="annotation-badge note-badge" data-testid="annotation-note-badge">Note</span>
               <span class="annotation-text">{{ note.text }}</span>
               <span class="annotation-creator">{{ note.createdBy }}</span>
               @if (canEdit) {
                 <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
+                          data-testid="annotation-delete-note"
                           (onClick)="deleteNote(note)" />
               }
             </div>
@@ -115,6 +116,7 @@ import { AnnotationService } from '../core/annotation.service';
               <span class="annotation-creator">{{ issue.createdBy }}</span>
               @if (canEdit) {
                 <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
+                          data-testid="annotation-delete-issue"
                           (onClick)="deleteIssue(issue)" />
               }
             </div>
@@ -143,6 +145,7 @@ import { AnnotationService } from '../core/annotation.service';
                   }
                   @if (canEdit) {
                     <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
+                              data-testid="annotation-delete-position"
                               (onClick)="deletePosition(pos)" />
                   }
                 </div>
@@ -158,6 +161,7 @@ import { AnnotationService } from '../core/annotation.service';
                       <span class="annotation-creator">{{ arg.createdBy }}</span>
                       @if (canEdit) {
                         <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
+                                  data-testid="annotation-delete-argument"
                                   (onClick)="deleteArgument(pos, arg)" />
                       }
                     </div>

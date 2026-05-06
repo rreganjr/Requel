@@ -980,7 +980,7 @@ Extra tests implemented: rename use case; delete use case; copy use case.
 
 Extra tests implemented: rename scenario; change scenario type; copy scenario.
 
-#### Annotations (IBIS) ✓ mostly done
+#### Annotations (IBIS) ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
@@ -989,73 +989,38 @@ Extra tests implemented: rename scenario; change scenario type; copy scenario.
 | ✓ | | Add argument to position → argument nested |
 | ✓ | | Resolve issue → status changes |
 | ✓ | | Open-issues page shows unresolved issues; click navigates to annotated entity |
-| — | | Add note to a goal → note appears in annotations section |
-| — | | Delete note → note removed from annotations section |
-| — | | Delete issue → issue removed from annotations section |
-| — | | Delete position → position removed (and its arguments cascade) |
-| — | | Delete argument → argument removed from position |
+| ✓ | | Add note to a goal → note appears in annotations section |
+| ✓ | | Delete note → note removed from annotations section |
+| ✓ | | Delete issue → issue removed from annotations section |
+| ✓ | | Delete position → position removed (and its arguments cascade) |
+| ✓ | | Delete argument → argument removed from position |
 
-**Coverage gap surfaced 2026-05-05.** `requel-angular/coverage/lcov.info`
-shows `src/app/core/annotation.service.ts` at 7/12 lines hit (58%) and
-6/11 functions hit (55%) — measurably the lowest-coverage core service.
-The five uncovered functions map exactly to the five `—` rows above:
-`addNote` (line 41), `deleteNote` (45), `deleteIssue` (53),
-`deletePosition` (61), `deleteArgument` (69). Note that `addIssue`,
-`addPosition`, `addArgument`, `resolveIssue`, and `getAnnotations` are
-already exercised by the existing E2E rows.
+**Coverage gap closed 2026-05-06.** Pre-existing audit of
+`requel-angular/coverage/lcov.info` flagged
+`src/app/core/annotation.service.ts` at 7/12 lines hit (58%) and 6/11
+functions hit (55%) — the lowest-coverage core service in the report.
+The five then-uncovered functions (`addNote`, `deleteNote`,
+`deleteIssue`, `deletePosition`, `deleteArgument`) are now each
+exercised by the five new rows above. A coverage rerun after these
+tests land should bring `annotation.service.ts` above 90% line/function
+coverage.
 
-The IBIS UI in `shared/annotations-section.ts` already wires every one
-of these flows up — there are visible `(onClick)="deleteNote(...)"` /
-`deleteIssue(...)` / `deletePosition(...)` / `deleteArgument(...)`
-trash-button handlers and a full add-note form (`annotation-add-note`,
-`annotation-note-form`, `annotation-note-text`, `annotation-save-note`
-testids) — so the gap is purely test coverage, not missing feature work.
-
-**Prerequisite testid additions to `shared/annotations-section.ts`** (the
-delete buttons and the note row are currently unmarked; adding the
-following five testids matches the existing `annotation-issue` /
-`annotation-position` / `annotation-argument` naming pattern and lets
-the new tests target the right elements without relying on the trash
-icon class):
-- `annotation-note` on the note item div (parallel to `annotation-issue`)
-- `annotation-note-badge` on the note badge span (parallel to `annotation-issue-badge`)
-- `annotation-delete-note` on the note's trash `p-button`
-- `annotation-delete-issue` on the issue's trash `p-button`
-- `annotation-delete-position` on the position's trash `p-button`
-- `annotation-delete-argument` on the argument's trash `p-button`
-
-**Prerequisite API-helper additions to `e2e/fixtures/api-helper.ts`** (so
-delete tests can seed annotations cheaply rather than building each
-through the UI):
-- `addNote(api, projectName, entityType, entityId, text)` — wraps
-  `EditNote` command (no helper today; needed for the delete-note test
-  setup).
-- `addArgument(api, projectName, positionId, text, supportLevel?)` —
-  wraps `EditArgument` command (no helper today; needed for the
-  delete-argument test setup). `addIssue` and `addPosition` already
-  exist and can be reused as-is for the delete-issue and delete-position
-  tests.
-
-**Test shape (each row above):**
-1. Seed via API helper: create project → create goal → add the
-   annotation (issue/position/argument/note) via the appropriate API
-   helper. The annotation tests share one project per `Date.now()`
-   nonce, with goals as the disposable per-test fixture.
-2. Drive the UI: log in via `adminContext`, navigate to the goal
-   editor via `GoalListPage`, scope to the specific annotation row by
-   `hasText` (same pattern as the existing add-issue test, since the
-   NLP assistant auto-creates lexical issues on every new goal — never
-   rely on being the only annotation in the section).
-3. Click the delete or save button; await the corresponding
-   `Delete{Note,Issue,Position,Argument}` (or `EditNote`) command
-   response.
-4. Assert the row is no longer in the DOM (delete) or that the new
-   row containing the typed text is visible (add note).
-
-A coverage rerun after these tests land should drop the 5 zero-hit
-functions to 5+ hits each and bring `annotation.service.ts` above 90%
-line/function coverage — closing what is currently the biggest core-
-service hole in `lcov.info`.
+**Implementation notes (2026-05-06):**
+- Added six prerequisite testids to `shared/annotations-section.ts`
+  (`annotation-note`, `annotation-note-badge`, `annotation-delete-note`,
+  `annotation-delete-issue`, `annotation-delete-position`,
+  `annotation-delete-argument`) — they match the existing
+  `annotation-issue` / `annotation-position` / `annotation-argument`
+  naming pattern.
+- Added `addNote(api, projectName, entityType, entityId, text)` and
+  `addArgument(api, projectName, positionId, text, supportLevel?)`
+  helpers to `e2e/fixtures/api-helper.ts` so the delete tests can seed
+  annotations cheaply via `EditNote` / `EditArgument` commands instead
+  of clicking through the UI.
+- Each delete test uses `hasText` filtering to scope to the
+  specifically-seeded annotation row, since the NLP assistant
+  auto-creates lexical issues on every new goal — tests must never rely
+  on being the only annotation in the section.
 
 #### Glossary terms ✓ done
 

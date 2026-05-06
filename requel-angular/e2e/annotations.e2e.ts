@@ -2,7 +2,7 @@ import { test, expect } from './fixtures/auth';
 import {
   createProject, deleteProject,
   createGoal, deleteGoal,
-  addIssue, addPosition,
+  addNote, addIssue, addPosition, addArgument,
   GoalFixture,
 } from './fixtures/api-helper';
 import { GoalListPage } from './pages/GoalEditorPage';
@@ -170,6 +170,149 @@ test.describe('Annotations (IBIS)', () => {
 
     await page.waitForURL(new RegExp(`/goals/${goalFixture.id}$`));
     await expect(page.locator('#name')).not.toHaveValue('');
+
+    await page.close();
+  });
+
+  test('add note to goal → appears in annotations section', async ({ adminContext, request }) => {
+    const noteText = 'This is a test note';
+    goalFixture = await createGoal(request, PROJECT_NAME, `e2e-ann-note-${Date.now()}`);
+
+    const page = await adminContext.newPage();
+    const listPage = new GoalListPage(page);
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickGoal(goalFixture.name);
+
+    const annotations = page.getByTestId('annotations-section');
+    await expect(annotations).toBeVisible();
+    await page.getByTestId('annotation-add-note').click();
+    await page.getByTestId('annotation-note-text').fill(noteText);
+
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/commands/EditNote')),
+      page.getByTestId('annotation-save-note').click(),
+    ]);
+
+    // Scope to the specific note text — the NLP assistant doesn't add notes, but
+    // future test runs against the same goal might, so we filter defensively.
+    const noteItem = page.getByTestId('annotation-note').filter({ hasText: noteText });
+    await expect(noteItem).toContainText(noteText);
+    await expect(noteItem.getByTestId('annotation-note-badge')).toContainText('Note');
+
+    await page.close();
+  });
+
+  test('delete note → note removed from annotations section', async ({ adminContext, request }) => {
+    const noteText = 'Note marked for deletion';
+    goalFixture = await createGoal(request, PROJECT_NAME, `e2e-ann-del-note-${Date.now()}`);
+    await addNote(request, PROJECT_NAME, 'Goal', goalFixture.id, noteText);
+
+    const page = await adminContext.newPage();
+    const listPage = new GoalListPage(page);
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickGoal(goalFixture.name);
+
+    const noteItem = page.getByTestId('annotation-note').filter({ hasText: noteText });
+    await expect(noteItem).toBeVisible({ timeout: 5000 });
+
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/commands/DeleteNote')),
+      noteItem.getByTestId('annotation-delete-note').click(),
+    ]);
+
+    // After the load() refresh the note item should be gone.
+    await expect(noteItem).toHaveCount(0);
+
+    await page.close();
+  });
+
+  test('delete issue → issue removed from annotations section', async ({ adminContext, request }) => {
+    const issueText = 'Issue marked for deletion';
+    goalFixture = await createGoal(request, PROJECT_NAME, `e2e-ann-del-issue-${Date.now()}`);
+    await addIssue(request, PROJECT_NAME, 'Goal', goalFixture.id, issueText);
+
+    const page = await adminContext.newPage();
+    const listPage = new GoalListPage(page);
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickGoal(goalFixture.name);
+
+    const issueItem = page.getByTestId('annotation-issue').filter({ hasText: issueText });
+    await expect(issueItem).toBeVisible({ timeout: 5000 });
+
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/commands/DeleteIssue')),
+      issueItem.getByTestId('annotation-delete-issue').click(),
+    ]);
+
+    // The exact issue text disappears; NLP-generated lexical issues remain.
+    await expect(issueItem).toHaveCount(0);
+
+    await page.close();
+  });
+
+  test('delete position → position (and its arguments) removed from issue', async ({ adminContext, request }) => {
+    const issueText = 'Issue whose position is deleted';
+    const positionText = 'Position marked for deletion';
+    const argText = 'Argument that should also disappear';
+    goalFixture = await createGoal(request, PROJECT_NAME, `e2e-ann-del-pos-${Date.now()}`);
+    const issue = await addIssue(request, PROJECT_NAME, 'Goal', goalFixture.id, issueText);
+    const position = await addPosition(request, PROJECT_NAME, issue.id, positionText);
+    // Add an argument so we can verify it cascades away with the position.
+    await addArgument(request, PROJECT_NAME, position.id, argText, 'For');
+
+    const page = await adminContext.newPage();
+    const listPage = new GoalListPage(page);
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickGoal(goalFixture.name);
+
+    const issueItem = page.getByTestId('annotation-issue').filter({ hasText: issueText });
+    const positionItem = issueItem.getByTestId('annotation-position').filter({ hasText: positionText });
+    await expect(positionItem).toBeVisible({ timeout: 5000 });
+    // Sanity: the argument is initially rendered under the position.
+    await expect(positionItem.getByTestId('annotation-argument').filter({ hasText: argText })).toBeVisible();
+
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/commands/DeletePosition')),
+      positionItem.getByTestId('annotation-delete-position').click(),
+    ]);
+
+    // Position gone, and so are any arguments that were nested under it.
+    await expect(positionItem).toHaveCount(0);
+    await expect(issueItem.getByTestId('annotation-argument').filter({ hasText: argText })).toHaveCount(0);
+    // Parent issue is still present; only the position+arg subtree was removed.
+    await expect(issueItem).toBeVisible();
+
+    await page.close();
+  });
+
+  test('delete argument → argument removed from position', async ({ adminContext, request }) => {
+    const issueText = 'Issue with an argument to delete';
+    const positionText = 'Position keeping its place';
+    const argText = 'Argument marked for deletion';
+    goalFixture = await createGoal(request, PROJECT_NAME, `e2e-ann-del-arg-${Date.now()}`);
+    const issue = await addIssue(request, PROJECT_NAME, 'Goal', goalFixture.id, issueText);
+    const position = await addPosition(request, PROJECT_NAME, issue.id, positionText);
+    await addArgument(request, PROJECT_NAME, position.id, argText, 'For');
+
+    const page = await adminContext.newPage();
+    const listPage = new GoalListPage(page);
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickGoal(goalFixture.name);
+
+    const issueItem = page.getByTestId('annotation-issue').filter({ hasText: issueText });
+    const positionItem = issueItem.getByTestId('annotation-position').filter({ hasText: positionText });
+    const argItem = positionItem.getByTestId('annotation-argument').filter({ hasText: argText });
+    await expect(argItem).toBeVisible({ timeout: 5000 });
+
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/commands/DeleteArgument')),
+      argItem.getByTestId('annotation-delete-argument').click(),
+    ]);
+
+    // Argument is gone; the parent position remains so we can still see its label.
+    await expect(argItem).toHaveCount(0);
+    await expect(positionItem).toBeVisible();
+    await expect(positionItem).toContainText(positionText);
 
     await page.close();
   });
