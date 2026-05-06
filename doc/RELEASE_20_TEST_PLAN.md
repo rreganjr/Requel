@@ -1065,11 +1065,11 @@ Extra tests implemented: username is pre-filled and disabled on self-edit form.
 | ✓ | | Non-admin cannot see admin nav link in sidebar (link-visibility only — direct URL navigation to admin route is still tracked under Forbidden-state UX below) |
 | ✓ | | Change own password → can log in with new password |
 
-#### Sidebar and project tree — file not created
+#### Sidebar and project tree
 
 | Status | File | Scenario |
 |---|---|---|
-| — | `sidebar.e2e.ts` | Import project XML via sidebar → project appears in list; entities visible in tree |
+| ✓ | `sidebar.e2e.ts` | Import project XML via sidebar → project appears in list; entities visible in tree |
 | — | | Edit a goal → project tree refreshes without full page reload (SSE event triggers update) |
 
 #### Forbidden-state UX (401 / 403)

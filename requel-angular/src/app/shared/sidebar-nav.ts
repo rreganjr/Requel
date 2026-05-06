@@ -73,8 +73,10 @@ import { ProjectDto, ProjectTreeNode } from '../models/project';
                 <p-button label="New" ariaLabel="New project" icon="pi pi-plus" size="small"
                           [text]="true" (onClick)="onNewProject()" />
                 <p-button label="Import" ariaLabel="Import project" icon="pi pi-upload" size="small"
-                          [text]="true" (onClick)="importInput.click()" />
+                          [text]="true" data-testid="sidebar-import-button"
+                          (onClick)="importInput.click()" />
                 <input #importInput type="file" accept=".xml"
+                       data-testid="sidebar-import-input"
                        (change)="onImportFile($event)" style="display:none" />
               }
               <a routerLink="/projects" class="sidebar-link" aria-label="List projects">
