@@ -21,6 +21,14 @@ import * as fs from 'fs';
  *     `connect(['Project:0'])` is the matching client subscription;
  *     `SidebarNavComponent.ngOnInit` re-runs `loadProjects()` on every
  *     `targetType === 'Project'` envelope.
+ *
+ *     The SSE-readiness wait is on the GET `/events/stream` *response*
+ *     (not the request) — the URL-param subscription is registered
+ *     server-side before headers are returned, so once we've seen the
+ *     200 we know any subsequent `Project` broadcast will reach this
+ *     client. Waiting only on the request being sent left a race where
+ *     the `EditGoal` broadcast could fire before subscription
+ *     registration completed.
  */
 test.describe('Sidebar', () => {
 
@@ -101,50 +109,61 @@ test.describe('Sidebar', () => {
     const sidebar = new SidebarPage(page);
 
     // Wait for both /api/projects (initial sidebar load) AND /events/stream
-    // (SSE connection initiated by auth-layout's connect(['Project:0'])).
-    // Without the SSE request being in flight, a backend broadcast that
-    // fires before the client subscribes would be lost — observing the
-    // request guarantees the connection is at least established.
-    const sseRequestPromise = page.waitForRequest('**/events/stream**');
+    // RESPONSE (not just the request — see comment below). The Project:0
+    // subscription rides in the URL params of `GET /events/stream`, so by
+    // the time the server returns 200 OK headers it has parsed the param,
+    // created the session, and registered the subscription. From that point
+    // on any Project broadcast is queued/flushed to this client.
+    //
+    // Waiting only for the request being SENT (waitForRequest) is the
+    // source of a known race: the test could fire `createGoal` before the
+    // server had finished registering the subscription, in which case the
+    // `Project:0` broadcast emitted by the EditGoal command would be lost
+    // to this client and the sidebar refresh would never happen.
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/api/projects') && r.status() === 200),
+      page.waitForResponse(
+        r => r.url().includes('/events/stream') &&
+             !r.url().includes('/events/stream/subscriptions') &&
+             r.status() === 200
+      ),
       page.goto('/projects'),
     ]);
-    await sseRequestPromise;
     await expect(sidebar.tree()).toBeVisible();
     await sidebar.expectProjectInTree(projectName);
-
-    // Detect the SSE-driven /api/projects reload that fires AFTER the
-    // EditGoal command is dispatched. Setting up the listener BEFORE the
-    // edit is what scopes it to the post-edit reload (Playwright's
-    // waitForResponse only matches responses that arrive after the
-    // listener is installed).
-    const sseRefreshPromise = page.waitForResponse(
-      r => r.url().includes('/api/projects') && r.status() === 200,
-      { timeout: 15_000 }
-    );
 
     // Trigger an EditGoal via the API — this is the "edit a goal in one
     // context" simulation. The goal is created, the backend runs both
     // publishEntityChangedIfPresent (Goal:newId — sidebar isn't subscribed
-    // to that, but the editor in the multi-context test below is) and
-    // publishProjectChangedIfScoped (Project:0 — the sidebar IS).
+    // to that, but the editor in the multi-context test in
+    // sse-refresh.e2e.ts is) and publishProjectChangedIfScoped (Project:0
+    // — the sidebar IS). By the time `await createGoal()` resolves, the
+    // server has already emitted the broadcast on its way to writing the
+    // HTTP response.
     await createGoal(request, projectName, goalName, 'SSE refresh test goal');
 
-    // The SSE event must arrive within the 15s timeout. Awaiting the
-    // second /api/projects response is the strongest signal we can take
-    // from outside the app — we never asked Playwright to navigate or
-    // reload, so this response could only have come from the sidebar's
-    // events$ subscriber firing on the Project broadcast.
-    await sseRefreshPromise;
-
-    // Re-render of the tree with `expanded: false` collapses any nodes
-    // the user (or earlier test step) had open, so we expand explicitly
-    // here before asserting the freshly-loaded count. The data inside
-    // the project node now reflects the new goal — Goals (1) — without
-    // the test ever issuing a navigation or page.reload().
-    await sidebar.expandProject(projectName);
-    await sidebar.expectEntityGroup(projectName, /^Goals \(1\)$/);
+    // Poll the UI for the count update rather than catching a specific
+    // `/api/projects` reload response. Two reasons:
+    //   1. The user-facing outcome IS the count change. Asserting on the
+    //      DOM is what we actually care about; the network request is a
+    //      means to that end.
+    //   2. Network-listener-based proofs are fragile around SSE timing.
+    //      `expect(...).toPass()` retries the whole closure until it passes
+    //      OR the timeout elapses, so SSE latency just delays the success
+    //      of an iteration rather than killing the test on first attempt.
+    //
+    // We re-expand inside the closure on every iteration because
+    // `projectTreeNodes` rebuilds with `expanded: false` whenever
+    // `loadProjects()` re-runs (which is exactly what we're asserting
+    // happened) — if we expanded once before the SSE refresh, the new
+    // render would have collapsed the node, hiding the children we want
+    // to inspect. The test never calls `page.reload()` or navigates, so
+    // the only thing that could possibly drive a count change here is the
+    // sidebar's `events$` subscriber firing on the Project broadcast.
+    await expect(async () => {
+      await sidebar.expandProject(projectName);
+      await sidebar.expectEntityGroup(projectName, /^Goals \(1\)$/);
+    }).toPass({ timeout: 15_000, intervals: [250, 500, 1_000, 2_000] });
 
     await page.close();
   });

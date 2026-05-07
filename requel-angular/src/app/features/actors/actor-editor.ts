@@ -68,7 +68,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
       </div>
 
       @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
+        <p-message severity="error" [text]="errorMessage()!" data-testid="actor-error" />
       }
 
       <div class="form-grid">
@@ -99,6 +99,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <h3>Goals</h3>
             @if (canEdit()) {
               <p-button label="Add Goal" icon="pi pi-plus" severity="secondary"
+                        data-testid="actor-add-goal"
                         [outlined]="true" (onClick)="showGoalSelector = true" />
             }
           </div>
@@ -110,11 +111,15 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               </tr>
             </ng-template>
             <ng-template #body let-g>
-              <tr>
-                <td><a class="entity-link" (click)="onGoalClick(g.id)">{{ g.name }}</a></td>
+              <tr data-testid="actor-goal-row">
+                <td>
+                  <a class="entity-link" data-testid="actor-goal-link"
+                     (click)="onGoalClick(g.id)">{{ g.name }}</a>
+                </td>
                 @if (canEdit()) {
                   <td>
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
+                              data-testid="actor-remove-goal"
                               [rounded]="true" (onClick)="onRemoveGoal(g)" />
                   </td>
                 }
@@ -146,8 +151,11 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <p class="ref-label">Use Cases</p>
             <p-table [value]="referencedByUseCases()" styleClass="p-datatable-sm">
               <ng-template pTemplate="body" let-ref>
-                <tr>
-                  <td><a class="entity-link" (click)="navigate('use-cases', ref.id)">{{ ref.name }}</a></td>
+                <tr data-testid="actor-refby-usecase-row">
+                  <td>
+                    <a class="entity-link" data-testid="actor-refby-usecase-link"
+                       (click)="navigate('use-cases', ref.id)">{{ ref.name }}</a>
+                  </td>
                 </tr>
               </ng-template>
             </p-table>
@@ -156,8 +164,11 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <p class="ref-label">Stories</p>
             <p-table [value]="referencedByStories()" styleClass="p-datatable-sm">
               <ng-template pTemplate="body" let-ref>
-                <tr>
-                  <td><a class="entity-link" (click)="navigate('stories', ref.id)">{{ ref.name }}</a></td>
+                <tr data-testid="actor-refby-story-row">
+                  <td>
+                    <a class="entity-link" data-testid="actor-refby-story-link"
+                       (click)="navigate('stories', ref.id)">{{ ref.name }}</a>
+                  </td>
                 </tr>
               </ng-template>
             </p-table>

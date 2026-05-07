@@ -1,12 +1,23 @@
 import { test, expect } from './fixtures/auth';
-import { createProject, deleteProject, createActor, deleteActor, getActorVersion, ActorFixture } from './fixtures/api-helper';
+import {
+  createProject, deleteProject,
+  createActor, deleteActor, getActorVersion, ActorFixture,
+  createGoal, deleteGoal, GoalFixture,
+  createStory, deleteStory, getStoryVersion, StoryFixture,
+  createUseCase, deleteUseCase, getUseCaseVersion, UseCaseFixture,
+  addGoalToActor,
+} from './fixtures/api-helper';
 import { ActorListPage, ActorEditorPage } from './pages/ActorEditorPage';
 import { StoryEditorPage } from './pages/StoryEditorPage';
 import { UseCaseEditorPage } from './pages/UseCaseEditorPage';
+import { GoalEditorPage } from './pages/GoalEditorPage';
 import { reloadAndWaitForGet } from './helpers/navigation';
 
 const PROJECT_NAME = `e2e-actors-${Date.now()}`;
 let actorToCleanup: ActorFixture | null = null;
+let goalToCleanup: GoalFixture | null = null;
+let storyToCleanup: StoryFixture | null = null;
+let ucToCleanup: UseCaseFixture | null = null;
 
 test.beforeAll(async ({ request }) => {
   await createProject(request, PROJECT_NAME, 'Actors E2E test project');
@@ -17,6 +28,26 @@ test.afterAll(async ({ request }) => {
 });
 
 test.afterEach(async ({ request }) => {
+  // Clean up referencing entities first (use cases / stories / goals) so the
+  // actor isn't left referenced when we try to delete it.
+  if (ucToCleanup) {
+    try {
+      const version = await getUseCaseVersion(request, ucToCleanup);
+      await deleteUseCase(request, { ...ucToCleanup, version });
+    } catch { /* ignore */ }
+    ucToCleanup = null;
+  }
+  if (storyToCleanup) {
+    try {
+      const version = await getStoryVersion(request, storyToCleanup);
+      await deleteStory(request, { ...storyToCleanup, version });
+    } catch { /* ignore */ }
+    storyToCleanup = null;
+  }
+  if (goalToCleanup) {
+    try { await deleteGoal(request, goalToCleanup); } catch { /* ignore */ }
+    goalToCleanup = null;
+  }
   if (actorToCleanup) {
     try {
       // Re-fetch current version — saves increment it, making stored version stale.
@@ -159,6 +190,152 @@ test.describe('Actor management', () => {
     await page.goto(`/projects/${encodeURIComponent(PROJECT_NAME)}/use-cases/new`);
     await expect(page.locator('#name')).toBeVisible();
     await ucEditorPage.expectActorInPrimaryActorDropdown(actorName);
+
+    await page.close();
+  });
+
+  test('back button on actor editor → returns to actor list', async ({ adminContext, request }) => {
+    const actorName = `e2e-actor-back-${Date.now()}`;
+    const actor = await createActor(request, PROJECT_NAME, actorName);
+    actorToCleanup = actor;
+
+    const page = await adminContext.newPage();
+    const listPage = new ActorListPage(page);
+    const editorPage = new ActorEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickActor(actorName);
+
+    await editorPage.navigateBack(PROJECT_NAME);
+    // navigateBack already waits for the URL — re-asserting keeps the test self-documenting.
+    expect(page.url()).toMatch(/\/actors$/);
+
+    await page.close();
+  });
+
+});
+
+test.describe('Actor sub-tables', () => {
+
+  test('add goal to actor → appears in goals table', async ({ adminContext, request }) => {
+    const actorName = `e2e-actor-goal-add-${Date.now()}`;
+    const goalName = `e2e-actor-goal-${Date.now()}`;
+    const actor = await createActor(request, PROJECT_NAME, actorName);
+    const goal = await createGoal(request, PROJECT_NAME, goalName);
+    actorToCleanup = actor;
+    goalToCleanup = goal;
+
+    const page = await adminContext.newPage();
+    const listPage = new ActorListPage(page);
+    const editorPage = new ActorEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickActor(actorName);
+
+    await editorPage.addGoal(goalName);
+    await editorPage.expectGoalInTable(goalName);
+
+    await page.close();
+  });
+
+  test('remove goal from actor → gone from goals table', async ({ adminContext, request }) => {
+    const actorName = `e2e-actor-goal-rm-${Date.now()}`;
+    const goalName = `e2e-actor-goalrm-${Date.now()}`;
+    const actor = await createActor(request, PROJECT_NAME, actorName);
+    const goal = await createGoal(request, PROJECT_NAME, goalName);
+    actorToCleanup = actor;
+    goalToCleanup = goal;
+    await addGoalToActor(request, PROJECT_NAME, actor.id, goal.id);
+
+    const page = await adminContext.newPage();
+    const listPage = new ActorListPage(page);
+    const editorPage = new ActorEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickActor(actorName);
+
+    await editorPage.expectGoalInTable(goalName);
+    await editorPage.removeGoal(goalName);
+    await editorPage.expectGoalNotInTable(goalName);
+
+    await page.close();
+  });
+
+  test('click goal link in actor goals table → navigates to goal editor', async ({ adminContext, request }) => {
+    const actorName = `e2e-actor-goal-nav-${Date.now()}`;
+    const goalName = `e2e-actor-goalnav-${Date.now()}`;
+    const actor = await createActor(request, PROJECT_NAME, actorName);
+    const goal = await createGoal(request, PROJECT_NAME, goalName);
+    actorToCleanup = actor;
+    goalToCleanup = goal;
+    await addGoalToActor(request, PROJECT_NAME, actor.id, goal.id);
+
+    const page = await adminContext.newPage();
+    const listPage = new ActorListPage(page);
+    const editorPage = new ActorEditorPage(page);
+    const goalEditorPage = new GoalEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickActor(actorName);
+
+    await editorPage.expectGoalInTable(goalName);
+    await editorPage.clickGoal(goalName);
+
+    await page.waitForURL(/\/goals\/\d+$/);
+    await goalEditorPage.expectNameValue(goalName);
+
+    await page.close();
+  });
+
+  test('click referenced-by use case link → navigates to use case editor', async ({ adminContext, request }) => {
+    const actorName = `e2e-actor-refuc-${Date.now()}`;
+    const ucName = `e2e-actor-refuc-uc-${Date.now()}`;
+    const actor = await createActor(request, PROJECT_NAME, actorName);
+    // The use case must reference this actor as primary or additional — the
+    // simplest path is creating the UC with this actor as primary; the backend
+    // wires up the referenced-by link automatically.
+    const uc = await createUseCase(request, PROJECT_NAME, ucName, '', actorName);
+    actorToCleanup = actor;
+    ucToCleanup = uc;
+
+    const page = await adminContext.newPage();
+    const listPage = new ActorListPage(page);
+    const editorPage = new ActorEditorPage(page);
+    const ucEditorPage = new UseCaseEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickActor(actorName);
+
+    await editorPage.expectReferencedByUseCase(ucName);
+    await editorPage.clickReferencedByUseCase(ucName);
+
+    await page.waitForURL(/\/use-cases\/\d+$/);
+    await ucEditorPage.expectNameValue(ucName);
+
+    await page.close();
+  });
+
+  test('click referenced-by story link → navigates to story editor', async ({ adminContext, request }) => {
+    const actorName = `e2e-actor-refstory-${Date.now()}`;
+    const storyName = `e2e-actor-refstory-name-${Date.now()}`;
+    const actor = await createActor(request, PROJECT_NAME, actorName);
+    const story = await createStory(request, PROJECT_NAME, storyName, 'Success', '', actorName);
+    actorToCleanup = actor;
+    storyToCleanup = story;
+
+    const page = await adminContext.newPage();
+    const listPage = new ActorListPage(page);
+    const editorPage = new ActorEditorPage(page);
+    const storyEditorPage = new StoryEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickActor(actorName);
+
+    await editorPage.expectReferencedByStory(storyName);
+    await editorPage.clickReferencedByStory(storyName);
+
+    await page.waitForURL(/\/stories\/\d+$/);
+    await storyEditorPage.expectNameValue(storyName);
 
     await page.close();
   });

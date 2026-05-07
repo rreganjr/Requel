@@ -84,16 +84,16 @@ describe('UserEditorComponent', () => {
     fixture.detectChanges();
     await flush();
     expect(userServiceMock.getUser).toHaveBeenCalledWith('bob');
-    expect(comp.username()).toBe('bob');
-    expect(comp.name()).toBe('Bob Smith');
+    expect(comp.username).toBe('bob');
+    expect(comp.name).toBe('Bob Smith');
     expect(comp.selectedRoleNames).toContain('ProjectUserRole');
   });
 
   it('onSave calls commandService.execute("EditUser") with roles and permissions', async () => {
     fixture.detectChanges();
     await flush();
-    comp.username.set('newuser');
-    comp.name.set('New User');
+    comp.username = 'newuser';
+    comp.name = 'New User';
     comp.selectedRoleNames = ['ProjectUserRole'];
     comp.selectedPermissions = { ProjectUserRole: ['editGoals'] };
     await comp.onSave();
@@ -108,7 +108,7 @@ describe('UserEditorComponent', () => {
   it('onSave sets successMessage when save succeeds', async () => {
     fixture.detectChanges();
     await flush();
-    comp.username.set('testuser');
+    comp.username = 'testuser';
     await comp.onSave();
     expect(comp.successMessage()).toBe('User saved successfully.');
     expect(comp.saving()).toBe(false);
@@ -117,7 +117,7 @@ describe('UserEditorComponent', () => {
   it('onSave navigates to /users/:username for new user after success', async () => {
     fixture.detectChanges();
     await flush();
-    comp.username.set('brandnewuser');
+    comp.username = 'brandnewuser';
     await comp.onSave();
     expect(router.navigate).toHaveBeenCalledWith(['/users', 'brandnewuser']);
   });

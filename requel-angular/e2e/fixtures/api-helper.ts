@@ -336,6 +336,21 @@ export async function addGoalToUseCase(
   });
 }
 
+export async function addGoalToActor(
+  api: APIRequestContext,
+  projectName: string,
+  actorId: number,
+  goalId: number
+): Promise<void> {
+  const token = await getAdminToken(api);
+  await command(api, token, 'AddGoalToGoalContainer', {
+    projectName,
+    goalContainerId: actorId,
+    goalId,
+    containerType: 'Actor',
+  });
+}
+
 export async function addStoryToUseCase(
   api: APIRequestContext,
   projectName: string,

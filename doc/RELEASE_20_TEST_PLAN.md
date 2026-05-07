@@ -1062,7 +1062,7 @@ Extra tests implemented: username is pre-filled and disabled on self-edit form.
 | ✓ | `admin.e2e.ts` | Create user and set roles |
 | ✓ | | Verify newly created user can log in |
 | ✓ | | Edit user account as admin → changes persist after reload |
-| ✓ | | Non-admin cannot see admin nav link in sidebar (link-visibility only — direct URL navigation to admin route is still tracked under Forbidden-state UX below) |
+| ✓ | | Non-admin cannot see admin nav link in sidebar (link-visibility layer; direct-URL navigation to admin routes is gated separately by `adminGuard` — see Forbidden-state UX below) |
 | ✓ | | Change own password → can log in with new password |
 
 #### Sidebar and project tree
@@ -1077,7 +1077,7 @@ Extra tests implemented: username is pre-filled and disabled on self-edit form.
 | Status | File | Scenario |
 |---|---|---|
 | ✓ | `forbidden.e2e.ts` | Accessing any protected route while logged out → redirected to `/login` |
-| 🚧 blocked on feature work | | Authenticated user accessing admin route without admin role → 403 page or redirect shown. **Currently the `/users` route has NO admin guard** — a project-only user can navigate directly to `/users` and see the full user list (documented by the existing `project user can access /users — no admin route guard` test in `forbidden.e2e.ts:35`). Implementing this plan item requires adding an admin guard to the `/users` (and `/users/:username`) route in `app.routes.ts`, then flipping the existing forbidden-state test to assert the redirect. The sidebar admin-link visibility check in `admin.e2e.ts:84` is unrelated — it's a UI hint, not a route guard. |
+| ✓ | `forbidden.e2e.ts` | Authenticated user accessing admin route without admin role → redirected to dashboard `/` by `adminGuard`. The new `core/admin.guard.ts` is wired onto both `/users` and `/users/:username` in `app.routes.ts` (in addition to the parent layout's `authGuard`, so unauthenticated users still bounce to `/login`). Two e2e tests in `forbidden.e2e.ts` cover the project-user paths to `/users` and `/users/:username`; both assert a redirect to `/` (not `/login`, since the user IS authenticated, just not authorized). The previous "no admin route guard" test was flipped to assert the new behavior. Unit coverage in `core/admin.guard.spec.ts` mirrors `auth.guard.spec.ts` — admin → `true`, non-admin → `UrlTree('/')`, unauthenticated user → `UrlTree('/')`. The sidebar admin-link visibility check in `admin.e2e.ts:84` is independent and remains the UX-hint layer. |
 | ✓ | | Token expires mid-session → next API call returns 401 → interceptor redirects to `/login`. Covered by the JWT expiry test in `auth.e2e.ts` (same scenario as the "JWT expiry" row in Authentication above — one test covers both). |
 
 #### SSE live refresh

@@ -94,4 +94,76 @@ export class ActorEditorPage {
   async currentUrl(): Promise<string> {
     return this.page.url();
   }
+
+  // ── Goals sub-table helpers ──
+
+  private goalRow(goalName: string) {
+    return this.page.getByTestId('actor-goal-row').filter({ hasText: goalName });
+  }
+
+  async addGoal(goalName: string): Promise<void> {
+    await this.page.getByTestId('actor-add-goal').click();
+    const dialog = this.page.getByRole('dialog', { name: 'Select Goal' });
+    await dialog.waitFor({ state: 'visible' });
+    await dialog.getByTestId('entity-selector-search').fill(goalName);
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/AddGoalToGoalContainer')),
+      dialog.getByTestId('entity-selector-row').filter({ hasText: goalName }).first().click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`AddGoalToGoalContainer failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  async removeGoal(goalName: string): Promise<void> {
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/RemoveGoalFromGoalContainer')),
+      this.goalRow(goalName).getByTestId('actor-remove-goal').click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`RemoveGoalFromGoalContainer failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  async clickGoal(goalName: string): Promise<void> {
+    await this.goalRow(goalName).getByTestId('actor-goal-link').first().click();
+  }
+
+  async expectGoalInTable(goalName: string): Promise<void> {
+    await expect(this.goalRow(goalName).first()).toBeVisible();
+  }
+
+  async expectGoalNotInTable(goalName: string): Promise<void> {
+    await expect(this.goalRow(goalName)).toHaveCount(0);
+  }
+
+  // ── Referenced By helpers ──
+
+  async clickReferencedByUseCase(name: string): Promise<void> {
+    await this.page.getByTestId('actor-refby-usecase-row')
+      .filter({ hasText: name })
+      .getByTestId('actor-refby-usecase-link')
+      .first()
+      .click();
+  }
+
+  async clickReferencedByStory(name: string): Promise<void> {
+    await this.page.getByTestId('actor-refby-story-row')
+      .filter({ hasText: name })
+      .getByTestId('actor-refby-story-link')
+      .first()
+      .click();
+  }
+
+  async expectReferencedByUseCase(name: string): Promise<void> {
+    await expect(
+      this.page.getByTestId('actor-refby-usecase-row').filter({ hasText: name }).first()
+    ).toBeVisible();
+  }
+
+  async expectReferencedByStory(name: string): Promise<void> {
+    await expect(
+      this.page.getByTestId('actor-refby-story-row').filter({ hasText: name }).first()
+    ).toBeVisible();
+  }
 }

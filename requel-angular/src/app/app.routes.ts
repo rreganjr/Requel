@@ -20,6 +20,7 @@
  */
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth.guard';
+import { adminGuard } from './core/admin.guard';
 import { dirtyCheckGuard } from './core/dirty-check.guard';
 import { LoginComponent } from './features/auth/login';
 import { LayoutComponent } from './features/auth/layout';
@@ -35,8 +36,8 @@ export const routes: Routes = [
       { path: '', component: DashboardComponent },
       { path: 'account', loadComponent: () => import('./features/users/edit-account').then(m => m.EditAccountComponent), canDeactivate: [dirtyCheckGuard] },
       { path: 'settings', loadComponent: () => import('./features/users/settings').then(m => m.SettingsComponent) },
-      { path: 'users', loadComponent: () => import('./features/users/user-list').then(m => m.UserListComponent) },
-      { path: 'users/:username', loadComponent: () => import('./features/users/user-editor').then(m => m.UserEditorComponent), canDeactivate: [dirtyCheckGuard] },
+      { path: 'users', canActivate: [adminGuard], loadComponent: () => import('./features/users/user-list').then(m => m.UserListComponent) },
+      { path: 'users/:username', canActivate: [adminGuard], loadComponent: () => import('./features/users/user-editor').then(m => m.UserEditorComponent), canDeactivate: [dirtyCheckGuard] },
       { path: 'projects', loadComponent: () => import('./features/projects/project-list').then(m => m.ProjectListComponent) },
       { path: 'projects/:name/stakeholders', loadComponent: () => import('./features/stakeholders/stakeholder-list').then(m => m.StakeholderListComponent) },
       { path: 'projects/:name/stakeholders/:stakeholderId', loadComponent: () => import('./features/stakeholders/stakeholder-editor').then(m => m.StakeholderEditorComponent), canDeactivate: [dirtyCheckGuard] },
