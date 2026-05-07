@@ -20,6 +20,35 @@
         <java.version>17</java.version>
     </properties>
 
+    <!--
+      Project-local Maven repository for jars that are not available on
+      Maven Central. Currently houses jwnl 1.4-rc2 (the original
+      SourceForge release; only 1.4_rc3 is on Central under
+      net.sf.jwnl). The repository lives under lib/maven-repo with the
+      standard groupId/artifactId/version/ layout, so any future legacy
+      jar can be dropped in there without touching this block.
+
+      ${maven.multiModuleProjectDirectory} resolves to the reactor root
+      (provided by Maven 3.3+), so child modules inherit a path that
+      points at the same lib/maven-repo regardless of which module is
+      the active build directory.
+    -->
+    <repositories>
+        <repository>
+            <id>project-local</id>
+            <name>Project-local repository for legacy jars</name>
+            <url>file://${maven.multiModuleProjectDirectory}/lib/maven-repo</url>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>never</updatePolicy>
+                <checksumPolicy>ignore</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+
     <build>
         <pluginManagement>
             <plugins>

@@ -56,12 +56,18 @@
             <artifactId>commons-digester3</artifactId>
             <version>3.2</version>
         </dependency>
+        <!--
+          jwnl 1.4-rc2 is not on Maven Central; only 1.4_rc3 under
+          net.sf.jwnl is. The matching jar lives in the project-local
+          repository at lib/maven-repo (declared in the parent POM's
+          <repositories> block), so this dependency resolves like any
+          other Maven artifact and the build picks it up cleanly on
+          fresh clones with no manual install-file step.
+        -->
         <dependency>
             <groupId>jwnl</groupId>
             <artifactId>jwnl</artifactId>
             <version>1.4-rc2</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/../../lib/nlp/jwnl-1.4rc2.jar</systemPath>
         </dependency>
     </dependencies>
 </project>

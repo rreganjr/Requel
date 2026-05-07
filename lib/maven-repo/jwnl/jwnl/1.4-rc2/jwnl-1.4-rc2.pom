@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Stub POM for the project-local copy of the Java WordNet Library (JWNL)
+  1.4-rc2 release. JWNL 1.4-rc2 was never published to Maven Central
+  (only 1.4_rc3 under net.sf.jwnl is available there), so this jar lives
+  in the project-local repository at lib/maven-repo, declared in the
+  parent POM's <repositories> block.
+
+  This stub exists solely so Maven recognises the artifact as a proper
+  dependency rather than via the deprecated <scope>system</scope> /
+  <systemPath> mechanism. It declares no transitive dependencies because
+  JWNL 1.4-rc2 has none beyond the JDK itself.
+
+  Source jar: lib/nlp/jwnl-1.4rc2.jar (kept as-is for backward
+  compatibility; the canonical Maven-laid-out copy is the one alongside
+  this POM).
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>jwnl</groupId>
+    <artifactId>jwnl</artifactId>
+    <version>1.4-rc2</version>
+    <packaging>jar</packaging>
+    <name>Java WordNet Library</name>
+    <description>JWNL 1.4-rc2 — original SourceForge release; not published to Maven Central.</description>
+</project>
