@@ -3,6 +3,12 @@ work/
 target/
 .m2/
 
+# Defensive: any errant `npx`/`npm` invocation from the repo root materializes
+# a node_modules tree here (vitest .vite cache, etc.). The real Angular deps
+# live under requel-angular/node_modules, which is ignored by that subdir's
+# own .gitignore.
+node_modules/
+
 # Playwright MCP browser tool session artifacts
 /.playwright-mcp/
 
