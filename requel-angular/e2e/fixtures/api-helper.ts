@@ -222,6 +222,30 @@ export async function deleteGoal(
   });
 }
 
+/**
+ * Update an existing goal via the EditGoal command (passing goalId + version
+ * triggers the update path; without them the same command creates). Returns
+ * a refreshed fixture with the bumped version so the caller can chain further
+ * updates without an optimistic-lock conflict.
+ */
+export async function updateGoal(
+  api: APIRequestContext,
+  goal: GoalFixture,
+  newName: string,
+  newText?: string
+): Promise<GoalFixture> {
+  const token = await getAdminToken(api);
+  const result = await command(api, token, 'EditGoal', {
+    projectName: goal.projectName,
+    goalId: goal.id,
+    version: goal.version,
+    name: newName,
+    text: newText ?? newName,
+  });
+  const entity = result['entity'] as { id: number; version: number; name: string };
+  return { id: entity.id, version: entity.version, name: entity.name, projectName: goal.projectName };
+}
+
 export async function createGoalRelation(
   api: APIRequestContext,
   projectName: string,

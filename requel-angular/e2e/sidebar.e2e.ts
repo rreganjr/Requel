@@ -13,10 +13,14 @@ import * as fs from 'fs';
  *   - Import project XML via the sidebar Import button → the new project
  *     appears in the sidebar tree, and its entity-group children render
  *     once the node is expanded.
- *
- * Planned (not yet implemented — see RELEASE_20_TEST_PLAN.md §4.4):
- *   - Edit a goal in one tab → sidebar tree refreshes via SSE without a
- *     full page reload.
+ *   - SSE-driven tree refresh: when a project-scoped command fires in
+ *     the same context (or any other context sharing the backend), the
+ *     sidebar reloads `/api/projects` without a manual page refresh.
+ *     Backend wiring: `CommandController.publishProjectChangedIfScoped`
+ *     broadcasts `Project:0` (PROJECT_BROADCAST_ID); auth-layout's
+ *     `connect(['Project:0'])` is the matching client subscription;
+ *     `SidebarNavComponent.ngOnInit` re-runs `loadProjects()` on every
+ *     `targetType === 'Project'` envelope.
  */
 test.describe('Sidebar', () => {
 
@@ -79,6 +83,68 @@ test.describe('Sidebar', () => {
     await sidebar.expectEntityGroup(importedName!, /^Goals \(1\)$/);
     await sidebar.expectEntityGroup(importedName!, /^Actors \(1\)$/);
     await sidebar.expectEntityGroup(importedName!, /^Stories \(1\)$/);
+
+    await page.close();
+  });
+
+  test('edit a goal via API → sidebar tree refreshes counts via SSE without a full page reload', async ({ adminContext, request }) => {
+    test.setTimeout(30_000);
+
+    // Project starts with zero goals so the SSE-driven refresh is observable
+    // as a clean "Goals (0)" → "Goals (1)" count change.
+    const nonce = Date.now();
+    const projectName = `e2e-sse-sidebar-${nonce}`;
+    const goalName = `SSE Sidebar Goal ${nonce}`;
+    await createProject(request, projectName, 'SSE-driven sidebar refresh source');
+
+    const page = await adminContext.newPage();
+    const sidebar = new SidebarPage(page);
+
+    // Wait for both /api/projects (initial sidebar load) AND /events/stream
+    // (SSE connection initiated by auth-layout's connect(['Project:0'])).
+    // Without the SSE request being in flight, a backend broadcast that
+    // fires before the client subscribes would be lost — observing the
+    // request guarantees the connection is at least established.
+    const sseRequestPromise = page.waitForRequest('**/events/stream**');
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/projects') && r.status() === 200),
+      page.goto('/projects'),
+    ]);
+    await sseRequestPromise;
+    await expect(sidebar.tree()).toBeVisible();
+    await sidebar.expectProjectInTree(projectName);
+
+    // Detect the SSE-driven /api/projects reload that fires AFTER the
+    // EditGoal command is dispatched. Setting up the listener BEFORE the
+    // edit is what scopes it to the post-edit reload (Playwright's
+    // waitForResponse only matches responses that arrive after the
+    // listener is installed).
+    const sseRefreshPromise = page.waitForResponse(
+      r => r.url().includes('/api/projects') && r.status() === 200,
+      { timeout: 15_000 }
+    );
+
+    // Trigger an EditGoal via the API — this is the "edit a goal in one
+    // context" simulation. The goal is created, the backend runs both
+    // publishEntityChangedIfPresent (Goal:newId — sidebar isn't subscribed
+    // to that, but the editor in the multi-context test below is) and
+    // publishProjectChangedIfScoped (Project:0 — the sidebar IS).
+    await createGoal(request, projectName, goalName, 'SSE refresh test goal');
+
+    // The SSE event must arrive within the 15s timeout. Awaiting the
+    // second /api/projects response is the strongest signal we can take
+    // from outside the app — we never asked Playwright to navigate or
+    // reload, so this response could only have come from the sidebar's
+    // events$ subscriber firing on the Project broadcast.
+    await sseRefreshPromise;
+
+    // Re-render of the tree with `expanded: false` collapses any nodes
+    // the user (or earlier test step) had open, so we expand explicitly
+    // here before asserting the freshly-loaded count. The data inside
+    // the project node now reflects the new goal — Goals (1) — without
+    // the test ever issuing a navigation or page.reload().
+    await sidebar.expandProject(projectName);
+    await sidebar.expectEntityGroup(projectName, /^Goals \(1\)$/);
 
     await page.close();
   });

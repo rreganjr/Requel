@@ -26,6 +26,21 @@ export class SidebarPage {
     await this.page.getByTestId('sidebar-import-input').setInputFiles(filePath);
   }
 
+  /**
+   * Same as `importProjectFromFile` but feeds the bytes directly via
+   * Playwright's in-memory `{ name, mimeType, buffer }` form. Lets tests
+   * avoid touching the filesystem (and the `node:fs` types) when the bytes
+   * already exist in memory — e.g. as the response from an authenticated
+   * export API call.
+   */
+  async importProjectFromBytes(name: string, xml: string): Promise<void> {
+    await this.page.getByTestId('sidebar-import-input').setInputFiles({
+      name,
+      mimeType: 'text/xml',
+      buffer: Buffer.from(xml, 'utf-8'),
+    });
+  }
+
   /** Locator for a project node in the sidebar tree, matched by exact name. */
   projectNode(name: string): Locator {
     return this.tree().getByRole('treeitem').filter({

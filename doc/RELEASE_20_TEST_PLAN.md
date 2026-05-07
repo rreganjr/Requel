@@ -1070,7 +1070,7 @@ Extra tests implemented: username is pre-filled and disabled on self-edit form.
 | Status | File | Scenario |
 |---|---|---|
 | ✓ | `sidebar.e2e.ts` | Import project XML via sidebar → project appears in list; entities visible in tree |
-| — | | Edit a goal → project tree refreshes without full page reload (SSE event triggers update) |
+| ✓ | | Edit a goal → project tree refreshes without full page reload (SSE event triggers update) |
 
 #### Forbidden-state UX (401 / 403)
 
@@ -1080,14 +1080,18 @@ Extra tests implemented: username is pre-filled and disabled on self-edit form.
 | 🚧 blocked on feature work | | Authenticated user accessing admin route without admin role → 403 page or redirect shown. **Currently the `/users` route has NO admin guard** — a project-only user can navigate directly to `/users` and see the full user list (documented by the existing `project user can access /users — no admin route guard` test in `forbidden.e2e.ts:35`). Implementing this plan item requires adding an admin guard to the `/users` (and `/users/:username`) route in `app.routes.ts`, then flipping the existing forbidden-state test to assert the redirect. The sidebar admin-link visibility check in `admin.e2e.ts:84` is unrelated — it's a UI hint, not a route guard. |
 | ✓ | | Token expires mid-session → next API call returns 401 → interceptor redirects to `/login`. Covered by the JWT expiry test in `auth.e2e.ts` (same scenario as the "JWT expiry" row in Authentication above — one test covers both). |
 
-#### SSE live refresh — file not created
+#### SSE live refresh
 
 | Status | File | Scenario |
 |---|---|---|
-| — | `sse-refresh.e2e.ts` | Open goal editor in browser context A; edit and save the same goal via API call (or second browser context B); goal editor in A reloads automatically without manual refresh |
+| ✓ | `sse-refresh.e2e.ts` | Open goal editor in browser context A; edit and save the same goal via API call (or second browser context B); goal editor in A reloads automatically without manual refresh |
 
-This test requires Playwright's multi-context support — two independent browser contexts
-against the same backend.
+The implemented test simulates the "second context" via an authenticated API
+call rather than a second browser context — from the SSE pipeline's
+perspective both look identical, since both produce backend command
+broadcasts that the already-open editor reacts to. A sentinel pinned in
+`window.__sseRefreshSentinel` is checked at the end of the test to prove
+no full page reload happened during the refresh.
 
 ### 4.5 CI integration
 
