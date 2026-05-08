@@ -34,7 +34,9 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.DeletePositionCommand;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.AddGlossaryTermPosition;
@@ -51,7 +53,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteGlossaryTermCommand")
 @Scope("prototype")
 public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand implements
-		DeleteGlossaryTermCommand {
+		DeleteGlossaryTermCommand, ProjectScopedCommand {
 
 	private GlossaryTerm glossaryTerm;
 
@@ -113,6 +115,12 @@ public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand im
 		}
 		glossaryTerm.getProjectOrDomain().getGlossaryTerms().remove(glossaryTerm);
 		getRepository().delete(glossaryTerm);
+	}
+
+	@Override
+	public Project getProject() {
+		if (glossaryTerm != null && glossaryTerm.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 }

@@ -318,6 +318,24 @@ class CommandControllerTest {
     }
 
     @Test
+    void targetedSsePublishFailureDoesNotFailSuccessfulCommand() throws Exception {
+        record GoalDto(Long id, String name) {}
+        GoalDto dto = new GoalDto(99L, "SSE Goal");
+        Command cmd = stubCommand("EditGoal", dto);
+        doThrow(new IllegalStateException("stream closed"))
+                .when(streamEventPublisher).publishTargetUpdate(eq("Goal"), eq(99L), any());
+
+        mockMvc.perform(post("/api/commands/EditGoal")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.entity.id").value(99));
+
+        verify(commandHandler).execute(cmd);
+    }
+
+    @Test
     void nonProjectCommandDoesNotPublishBroadcastSseEvent() throws Exception {
         stubCommand("EditUser", null);
 

@@ -58,7 +58,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
       </div>
 
       @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
+        <p-message severity="error" [text]="errorMessage()!" data-testid="term-error" />
       }
 
       <div class="form-grid">
@@ -72,6 +72,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
         <label for="canonical">Canonical Term</label>
         <p-select id="canonical" [options]="canonicalOptions()" [(ngModel)]="canonicalTermId"
                   optionLabel="label" optionValue="value"
+                  data-testid="term-canonical-select"
                   placeholder="None (this is a canonical term)" [showClear]="true" />
       </div>
 
@@ -82,7 +83,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
       <!-- Alternate Terms (terms that point to this as their canonical) -->
       @if (!isNew() && term()?.alternateTerms?.length) {
-        <div class="section">
+        <div class="section" data-testid="term-alternate-terms-section">
           <h3>Alternate Terms</h3>
           <p-table [value]="term()!.alternateTerms!" [rows]="10">
             <ng-template #header>
@@ -91,7 +92,8 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               </tr>
             </ng-template>
             <ng-template #body let-a>
-              <tr class="clickable-row" (click)="navigateToTerm(a.id)">
+              <tr class="clickable-row" data-testid="term-alternate-row"
+                  (click)="navigateToTerm(a.id)">
                 <td>{{ a.name }}</td>
               </tr>
             </ng-template>
@@ -101,7 +103,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 
       <!-- Referenced By -->
       @if (!isNew() && term()?.referers?.length) {
-        <div class="section">
+        <div class="section" data-testid="term-referenced-by-section">
           <h3>Referenced By</h3>
           <p-table [value]="term()!.referers!" [rows]="10">
             <ng-template #header>
@@ -111,7 +113,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               </tr>
             </ng-template>
             <ng-template #body let-r>
-              <tr>
+              <tr data-testid="term-referer-row">
                 <td>{{ r.entityType }}</td>
                 <td>{{ r.name }}</td>
               </tr>

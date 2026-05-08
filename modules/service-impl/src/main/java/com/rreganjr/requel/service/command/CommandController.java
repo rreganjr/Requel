@@ -188,6 +188,8 @@ public class CommandController {
             streamEventPublisher.publishTargetUpdate(entityType, entityId, Map.of("type", "refresh"));
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
             // Not an entity DTO with an id() accessor — skip silently
+        } catch (Exception e) {
+            log.warn("Failed to publish entity-changed SSE event: {}", e.getMessage());
         }
     }
 
@@ -199,16 +201,28 @@ public class CommandController {
     private void publishProjectChangedIfScoped(Command command) {
         try {
             Object entity = null;
+            String discriminant = "neither";
             if (command instanceof ProjectScopedCommand psc) {
                 entity = psc.getProject();
+                discriminant = "ProjectScopedCommand";
             } else if (command instanceof EditProjectOrDomainEntityCommand podCmd) {
                 entity = podCmd.getProjectOrDomain();
+                discriminant = "EditProjectOrDomainEntityCommand";
+            }
+            // Log at DEBUG so we can verify each command type is broadcasting
+            // by enabling DEBUG on this class without flooding production logs.
+            // See StreamService for the broadcast-side fan-out logging.
+            if (log.isDebugEnabled()) {
+                log.debug("publishProjectChangedIfScoped command={} discriminant={} entity={} → {}",
+                        command.getClass().getSimpleName(), discriminant,
+                        entity != null ? entity.getClass().getSimpleName() : "null",
+                        entity != null ? "BROADCAST" : "skip");
             }
             if (entity != null) {
                 streamEventPublisher.publishTargetUpdate("Project", PROJECT_BROADCAST_ID, Map.of("type", "refresh"));
             }
         } catch (Exception e) {
-            log.warn("Failed to publish project-changed SSE event: {}", e.getMessage());
+            log.warn("Failed to publish project-changed SSE event: {}", e.getMessage(), e);
         }
     }
 }

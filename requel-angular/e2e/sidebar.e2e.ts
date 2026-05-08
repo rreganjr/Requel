@@ -108,18 +108,103 @@ test.describe('Sidebar', () => {
     const page = await adminContext.newPage();
     const sidebar = new SidebarPage(page);
 
+    // CDP attached BEFORE navigation so the diagnostic timeline below
+    // captures the FULL lifecycle — initial /api/projects fetches, the
+    // /events/stream connection setup (and its requestId, which we need
+    // to attribute later `Network.dataReceived` chunks back to the SSE
+    // stream), keep-alives, the createGoal POST, and the SSE-triggered
+    // refresh fetch. Network.enable starts emitting events from this
+    // call onward; nothing is delivered retroactively, so the order
+    // matters.
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Network.enable');
+
+    type NetEvent = { kind: string; label: string; method?: string; status?: number; t: number };
+    const start = Date.now();
+    const netLog: NetEvent[] = [];
+    const interesting = (url: string) =>
+      url.includes('/api/') || url.includes('/events/');
+    // requestId → friendly label (last path segment). Lets us re-attribute
+    // dataReceived/loadingFailed events (which only carry requestId) back
+    // to "the /events/stream connection" or "/api/projects fetch", which
+    // is the whole reason this diagnostic exists.
+    const reqLabels = new Map<string, string>();
+    const labelFor = (url: string): string => {
+      try {
+        const u = new URL(url);
+        // For /events/stream specifically, preserve the query string so we
+        // can verify the `subscribe=Project:0` param is actually reaching
+        // the server. For everything else, pathname is enough noise.
+        if (u.pathname === '/api/events/stream') {
+          return u.pathname + (u.search || '');
+        }
+        return u.pathname;
+      } catch {
+        return url;
+      }
+    };
+    const labelById = (requestId: string): string =>
+      reqLabels.get(requestId) ?? `<reqId=${requestId}>`;
+
+    const onRequestWillBeSent = (event: { requestId: string; request: { url: string; method: string }; type?: string }) => {
+      if (interesting(event.request.url)) {
+        const label = labelFor(event.request.url);
+        reqLabels.set(event.requestId, label);
+        netLog.push({
+          kind: `req(${event.type ?? '?'})`,
+          label,
+          method: event.request.method,
+          t: Date.now() - start,
+        });
+      }
+    };
+    const onResponseReceived = (event: { requestId: string; response: { url: string; status: number; fromDiskCache?: boolean; fromServiceWorker?: boolean } }) => {
+      if (interesting(event.response.url)) {
+        netLog.push({
+          kind: `resp${event.response.fromDiskCache ? '(cache)' : event.response.fromServiceWorker ? '(sw)' : ''}`,
+          label: labelFor(event.response.url),
+          status: event.response.status,
+          t: Date.now() - start,
+        });
+      }
+    };
+    const onDataReceived = (event: { requestId: string; dataLength: number }) => {
+      // We only care about chunks on requests we already labeled as
+      // interesting — chunks on the SSE stream are the diagnostic signal
+      // for "is the event channel actually pushing bytes after EditGoal?"
+      if (event.dataLength > 0 && reqLabels.has(event.requestId)) {
+        netLog.push({
+          kind: `data(${event.dataLength}b)`,
+          label: labelById(event.requestId),
+          t: Date.now() - start,
+        });
+      }
+    };
+    const onLoadingFailed = (event: { requestId: string; errorText: string; canceled?: boolean }) => {
+      if (reqLabels.has(event.requestId)) {
+        netLog.push({
+          kind: `failed${event.canceled ? '(canceled)' : ''}`,
+          label: `${labelById(event.requestId)} — ${event.errorText}`,
+          t: Date.now() - start,
+        });
+      }
+    };
+
+    cdp.on('Network.requestWillBeSent', onRequestWillBeSent);
+    cdp.on('Network.responseReceived', onResponseReceived);
+    cdp.on('Network.dataReceived', onDataReceived);
+    cdp.on('Network.loadingFailed', onLoadingFailed);
+
+    const mark = (note: string) => {
+      netLog.push({ kind: 'MARK', label: note, t: Date.now() - start });
+    };
+
     // Wait for both /api/projects (initial sidebar load) AND /events/stream
     // RESPONSE (not just the request — see comment below). The Project:0
     // subscription rides in the URL params of `GET /events/stream`, so by
     // the time the server returns 200 OK headers it has parsed the param,
-    // created the session, and registered the subscription. From that point
-    // on any Project broadcast is queued/flushed to this client.
-    //
-    // Waiting only for the request being SENT (waitForRequest) is the
-    // source of a known race: the test could fire `createGoal` before the
-    // server had finished registering the subscription, in which case the
-    // `Project:0` broadcast emitted by the EditGoal command would be lost
-    // to this client and the sidebar refresh would never happen.
+    // created the session, and registered the subscription.
+    mark('navigating to /projects');
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/api/projects') && r.status() === 200),
       page.waitForResponse(
@@ -129,41 +214,99 @@ test.describe('Sidebar', () => {
       ),
       page.goto('/projects'),
     ]);
+    mark('initial /api/projects + /events/stream both 200');
     await expect(sidebar.tree()).toBeVisible();
     await sidebar.expectProjectInTree(projectName);
+    mark('expectProjectInTree settled');
+
+    let resolveSidebarRefresh!: () => void;
+    let rejectSidebarRefresh!: (err: Error) => void;
+    const sidebarRefresh = new Promise<void>((resolve, reject) => {
+      resolveSidebarRefresh = resolve;
+      rejectSidebarRefresh = reject;
+    });
+
+    let armed = false;
+    let resolved = false;
+    const refreshDetector = (event: { request: { url: string; method: string } }) => {
+      if (!armed || resolved) return;
+      if (event.request.method !== 'GET') return;
+      try {
+        if (new URL(event.request.url).pathname === '/api/projects') {
+          resolved = true;
+          resolveSidebarRefresh();
+        }
+      } catch { /* malformed URL — skip */ }
+    };
+    cdp.on('Network.requestWillBeSent', refreshDetector);
+
+    // Belt-and-braces timeout that produces a real network timeline when
+    // the SSE chain is broken — pinpointing whether the /events/stream
+    // connection died, no chunk arrived after EditGoal, no fetch was
+    // initiated, etc.
+    const refreshTimeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        const lines = netLog.map(e => {
+          const m = e.method ? ` [${e.method}]` : '';
+          const s = e.status != null ? ` → ${e.status}` : '';
+          return `  +${e.t.toString().padStart(5)}ms  ${e.kind.padEnd(14)}${m}${s}  ${e.label}`;
+        });
+        rejectSidebarRefresh(new Error(
+          'sidebar did not fire GET /api/projects within 15 s after EditGoal.\n\n' +
+          'SSE chain (server publishProjectChangedIfScoped → /events/stream →\n' +
+          'EventStreamService → sidebar events$ subscriber → loadProjects).\n\n' +
+          'Network timeline (only /api/* and /events/* shown — t=0 is when\n' +
+          'CDP attached, BEFORE page.goto. MARKs annotate test-side phases):\n' +
+          lines.join('\n') + '\n\n' +
+          'How to read this:\n' +
+          '  * If you see no `data(...)` rows on `/events/stream` AFTER\n' +
+          '    the `EditGoal-completed` MARK, the SSE chunk never reached\n' +
+          '    the browser → server didn\'t broadcast OR the connection\n' +
+          '    dropped (look for `failed`).\n' +
+          '  * If you DO see `data(...)` rows AFTER the MARK but no\n' +
+          '    subsequent `req(...) /api/projects`, the chunk arrived but\n' +
+          '    sidebar-nav.ts events$ subscriber didn\'t fire loadProjects\n' +
+          '    → JSON parse failed, targetType filter missed, subscription\n' +
+          '    leaked, etc.'
+        ));
+      }
+    }, 15_000);
+
+    armed = true;
+    mark('detector armed');
 
     // Trigger an EditGoal via the API — this is the "edit a goal in one
     // context" simulation. The goal is created, the backend runs both
     // publishEntityChangedIfPresent (Goal:newId — sidebar isn't subscribed
     // to that, but the editor in the multi-context test in
     // sse-refresh.e2e.ts is) and publishProjectChangedIfScoped (Project:0
-    // — the sidebar IS). By the time `await createGoal()` resolves, the
-    // server has already emitted the broadcast on its way to writing the
-    // HTTP response.
+    // — the sidebar IS).
+    mark('EditGoal-fired');
     await createGoal(request, projectName, goalName, 'SSE refresh test goal');
+    mark('EditGoal-completed');
 
-    // Poll the UI for the count update rather than catching a specific
-    // `/api/projects` reload response. Two reasons:
-    //   1. The user-facing outcome IS the count change. Asserting on the
-    //      DOM is what we actually care about; the network request is a
-    //      means to that end.
-    //   2. Network-listener-based proofs are fragile around SSE timing.
-    //      `expect(...).toPass()` retries the whole closure until it passes
-    //      OR the timeout elapses, so SSE latency just delays the success
-    //      of an iteration rather than killing the test on first attempt.
-    //
-    // We re-expand inside the closure on every iteration because
-    // `projectTreeNodes` rebuilds with `expanded: false` whenever
-    // `loadProjects()` re-runs (which is exactly what we're asserting
-    // happened) — if we expanded once before the SSE refresh, the new
-    // render would have collapsed the node, hiding the children we want
-    // to inspect. The test never calls `page.reload()` or navigates, so
-    // the only thing that could possibly drive a count change here is the
-    // sidebar's `events$` subscriber firing on the Project broadcast.
-    await expect(async () => {
-      await sidebar.expandProject(projectName);
-      await sidebar.expectEntityGroup(projectName, /^Goals \(1\)$/);
-    }).toPass({ timeout: 15_000, intervals: [250, 500, 1_000, 2_000] });
+    try {
+      await sidebarRefresh;
+    } finally {
+      clearTimeout(refreshTimeout);
+      cdp.off('Network.requestWillBeSent', refreshDetector);
+      cdp.off('Network.requestWillBeSent', onRequestWillBeSent);
+      cdp.off('Network.responseReceived', onResponseReceived);
+      cdp.off('Network.dataReceived', onDataReceived);
+      cdp.off('Network.loadingFailed', onLoadingFailed);
+    }
+
+    // `loadProjects()` rebuilds the tree with `expanded: false`, so we have
+    // to re-expand AFTER the refresh to see the entity-group children.
+    // We use Playwright's auto-retrying `expect()` for the count check —
+    // not a `toPass` closure. Auto-retry here covers only the trailing
+    // microtask gap between the GET response landing in `listProjects()`'s
+    // `await` and Angular flushing the signal-driven tree rebuild — at
+    // most one or two change-detection ticks. It is NOT polling for the
+    // SSE chain itself; that's already happened by the time we get here.
+    await sidebar.expandProject(projectName);
+    await sidebar.expectEntityGroup(projectName, /^Goals \(1\)$/);
 
     await page.close();
   });

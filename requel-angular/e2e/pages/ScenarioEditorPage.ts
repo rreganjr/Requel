@@ -38,6 +38,16 @@ export class ScenarioEditorPage {
     return this.page.getByTestId('scenario-step-row');
   }
 
+  private waitForScenarioDetailReload(): Promise<unknown> {
+    return this.page.waitForResponse(response => {
+      if (response.request().method() !== 'GET') {
+        return false;
+      }
+      const pathname = new URL(response.url()).pathname;
+      return /\/api\/projects\/[^/]+\/scenarios\/\d+$/.test(pathname);
+    }, { timeout: 5000 }).catch(() => null);
+  }
+
   async fillName(name: string): Promise<void> {
     const input = this.page.locator('#name');
     await input.clear();
@@ -54,6 +64,7 @@ export class ScenarioEditorPage {
 
   async save(): Promise<void> {
     await expect(this.saveButton()).toBeEnabled();
+    const scenarioReloadPromise = this.waitForScenarioDetailReload();
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/EditScenario')),
       this.saveButton().click(),
@@ -61,6 +72,11 @@ export class ScenarioEditorPage {
     if (!response.ok()) {
       throw new Error(`EditScenario failed: ${response.status()} ${await response.text()}`);
     }
+    const result = await response.json() as { success?: boolean; error?: string };
+    if (result.success === false) {
+      throw new Error(`EditScenario failed: ${result.error ?? 'command returned success=false'}`);
+    }
+    await scenarioReloadPromise;
   }
 
   async copy(): Promise<void> {
@@ -129,6 +145,19 @@ export class ScenarioEditorPage {
     ).toHaveValue(name);
   }
 
+  /**
+   * Assert that the step at `index` is a sub-scenario row (rendered as an
+   * <a class="entity-link step-name"> link, not an <input>) with the
+   * expected display text. Use this for steps where `isScenario === true`;
+   * regular text steps should still use `expectStepName()`, which asserts
+   * on the input value.
+   */
+  async expectSubScenarioStepLink(index: number, name: string): Promise<void> {
+    await expect(
+      this.stepRows().nth(index).getByTestId('scenario-step-link')
+    ).toHaveText(name);
+  }
+
   async removeStep(index: number): Promise<void> {
     const rows = this.stepRows();
     const initialCount = await rows.count();
@@ -155,6 +184,82 @@ export class ScenarioEditorPage {
   async applyStepEdit(): Promise<void> {
     await this.page.getByTestId('scenario-step-edit-apply').click();
     await expect(this.page.getByTestId('scenario-step-edit-overlay')).not.toBeVisible();
+  }
+
+  // ── Sub-scenario selector dialog ─────────────────────────────────────────
+
+  /** Locator for the dialog content. PrimeNG renders the dialog into <body>
+   * via appendTo="body", so this can't be scoped to the editor's DOM. */
+  private selectorDialog() {
+    return this.page.locator('.scenario-selector-dialog');
+  }
+
+  /** Click the "Add Sub-scenario" button on the steps section. */
+  async clickAddSubScenario(): Promise<void> {
+    await this.page.getByTestId('scenario-add-sub').click();
+  }
+
+  /** Wait for the selector dialog to be open and visible. */
+  async expectSelectorDialogOpen(): Promise<void> {
+    await expect(this.selectorDialog()).toBeVisible();
+  }
+
+  /** Wait for the selector dialog to close. */
+  async expectSelectorDialogClosed(): Promise<void> {
+    await expect(this.selectorDialog()).not.toBeVisible();
+  }
+
+  /**
+   * Pick an existing scenario from the selector's table by name. Filters the
+   * table via the search input first to keep the click target unique even
+   * when the project has many scenarios.
+   */
+  async pickScenarioInDialog(name: string): Promise<void> {
+    await this.page.getByTestId('scenario-selector-search').fill(name);
+    await this.selectorDialog()
+      .getByTestId('scenario-selector-row')
+      .filter({ hasText: name })
+      .first()
+      .click();
+  }
+
+  /** Toggle the inline "New Scenario" create form inside the selector dialog. */
+  async openNewScenarioFormInDialog(): Promise<void> {
+    await this.page.getByTestId('scenario-selector-new-button').click();
+    await expect(this.page.getByTestId('scenario-selector-create-form')).toBeVisible();
+  }
+
+  /** Fill the inline new-scenario name input. */
+  async fillNewScenarioName(name: string): Promise<void> {
+    const input = this.page.getByTestId('scenario-selector-name-input');
+    await input.clear();
+    await input.fill(name);
+  }
+
+  /**
+   * Click the inline form's "Create & Add" button and wait for the
+   * EditScenario command response so the test can synchronously act on the
+   * new step that the dialog appends to the parent scenario.
+   */
+  async clickCreateAndAddInDialog(): Promise<void> {
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/EditScenario')),
+      this.page.getByTestId('scenario-selector-create-add').click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`EditScenario failed inside selector dialog: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  /**
+   * Dismiss the selector dialog by pressing Escape — exercises PrimeNG's
+   * built-in Esc-to-close path which fires (onHide) → the dialog's onHide()
+   * handler. We don't expose an explicit close button on the dialog header,
+   * so Esc is the cleanest way to drive cancel.
+   */
+  async cancelSelectorDialog(): Promise<void> {
+    await this.page.keyboard.press('Escape');
+    await this.expectSelectorDialogClosed();
   }
 
   /**

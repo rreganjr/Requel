@@ -121,6 +121,7 @@ interface StepNodeData {
               <div class="section-actions">
                 <p-button label="Add Sub-scenario" icon="pi pi-sitemap" size="small"
                           severity="secondary" [outlined]="true"
+                          data-testid="scenario-add-sub"
                           (onClick)="showScenarioSelector = true" />
               </div>
             }
@@ -146,6 +147,7 @@ interface StepNodeData {
                   @if (step.isScenario) {
                     <i class="pi pi-sitemap step-icon"></i>
                     <a class="entity-link step-name"
+                       data-testid="scenario-step-link"
                        (click)="navigateToScenario(step.stepId!)">{{ step.name }}</a>
                     <span class="step-type-badge">{{ step.scenarioType }}</span>
                     @if (canEdit()) {

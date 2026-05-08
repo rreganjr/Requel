@@ -49,27 +49,32 @@ const SCENARIO_TYPE_OPTIONS = [
   imports: [FormsModule, DialogModule, TableModule, ButtonModule, InputText, SelectModule],
   template: `
     <p-dialog header="Add Sub-scenario" [(visible)]="visible" [modal]="true"
-              appendTo="body" [style]="{ width: '560px' }" (onHide)="onHide()">
+              appendTo="body" [style]="{ width: '560px' }" (onHide)="onHide()"
+              styleClass="scenario-selector-dialog">
 
       <!-- Inline new-scenario creation form -->
       @if (showCreateForm) {
-        <div class="create-form">
+        <div class="create-form" data-testid="scenario-selector-create-form">
           <h4>New Scenario</h4>
           <div class="create-grid">
             <label for="newScenarioName">Name</label>
-            <input id="newScenarioName" pInputText [(ngModel)]="newName" placeholder="Scenario name" />
+            <input id="newScenarioName" pInputText [(ngModel)]="newName"
+                   data-testid="scenario-selector-name-input"
+                   placeholder="Scenario name" />
             <label for="newScenarioType">Type</label>
             <p-select inputId="newScenarioType" [(ngModel)]="newType" [options]="typeOptions"
                       optionLabel="label" optionValue="value" />
           </div>
           <div class="create-actions">
             <p-button label="Create & Add" icon="pi pi-check" size="small"
+                      data-testid="scenario-selector-create-add"
                       [disabled]="!newName.trim()" (onClick)="onCreateAndAdd()" />
             <p-button label="Cancel" severity="secondary" [outlined]="true" size="small"
+                      data-testid="scenario-selector-cancel-create"
                       (onClick)="showCreateForm = false" />
           </div>
           @if (createError()) {
-            <p class="create-error">{{ createError() }}</p>
+            <p class="create-error" data-testid="scenario-selector-create-error">{{ createError() }}</p>
           }
         </div>
         <hr />
@@ -78,16 +83,19 @@ const SCENARIO_TYPE_OPTIONS = [
       <div class="dialog-toolbar">
         <input pInputText [(ngModel)]="searchText" placeholder="Search..."
                aria-label="Search scenarios"
+               data-testid="scenario-selector-search"
                (input)="dt.filterGlobal(searchText, 'contains')" style="width:100%" />
         @if (!showCreateForm) {
           <p-button label="New Scenario" icon="pi pi-plus" size="small" severity="secondary"
-                    [outlined]="true" (onClick)="showCreateForm = true" />
+                    [outlined]="true" data-testid="scenario-selector-new-button"
+                    (onClick)="showCreateForm = true" />
         }
       </div>
 
       <p-table #dt [value]="scenarios()" [loading]="loading()" [paginator]="true" [rows]="8"
                [rowHover]="true" selectionMode="single" (onRowSelect)="onSelect($event)"
-               [globalFilterFields]="['name']">
+               [globalFilterFields]="['name']"
+               styleClass="scenario-selector-table">
         <ng-template #header>
           <tr>
             <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
@@ -95,7 +103,7 @@ const SCENARIO_TYPE_OPTIONS = [
           </tr>
         </ng-template>
         <ng-template #body let-s>
-          <tr [pSelectableRow]="s">
+          <tr [pSelectableRow]="s" data-testid="scenario-selector-row">
             <td>{{ s.name }}</td>
             <td>{{ s.scenarioType }}</td>
           </tr>

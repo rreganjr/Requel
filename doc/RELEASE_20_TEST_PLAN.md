@@ -968,7 +968,7 @@ Note: EditUseCase always auto-creates a Primary scenario on new use case creatio
 
 Extra tests implemented: rename use case; delete use case; copy use case.
 
-#### Scenarios ✓ mostly done
+#### Scenarios ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
@@ -977,6 +977,9 @@ Extra tests implemented: rename use case; delete use case; copy use case.
 | ✓ | | Step order change (remove + re-add) → persists after save and reload |
 | ✓ | | Delete step → gone after save and reload |
 | ✓ | | Edit step via popup → name and text persist after save and reload |
+| ✓ | | Add Sub-scenario via selector dialog: pick existing scenario → appears as sub-scenario step (added 2026-05-07 to lift `scenario-selector-dialog.ts` E2E coverage from 36 %) |
+| ✓ | | Add Sub-scenario via selector dialog: inline `New Scenario` form + `Create & Add` dispatches `EditScenario` from inside the dialog and appends the new scenario as a step |
+| ✓ | | Add Sub-scenario via selector dialog: Escape dismisses the dialog without adding a step (covers `onHide` no-op exit) |
 
 Extra tests implemented: rename scenario; change scenario type; copy scenario.
 
@@ -1029,6 +1032,10 @@ coverage.
 | ✓ | `terms.e2e.ts` | Create glossary term → appears in term list |
 | ✓ | | Edit term text → persists after save and page reload |
 | ✓ | | Delete term → removed from list |
+| ✓ | | Save with empty name → `Term name is required.` validation message; no API call fires (added 2026-05-07 to lift `term-editor.ts` E2E coverage from 75 % toward 90 %) |
+| ✓ | | Alternate-terms section: term B with `canonicalTermId = A` appears under A's "Alternate Terms" table; clicking the row navigates to B's editor (covers the `navigateToTerm()` and the `@if alternateTerms?.length` branch) |
+| ✓ | | Setting a canonical term via the UI p-select → save → reload → the chosen canonical persists (verified via the canonical's "Alternate Terms" section showing the updated term back-pointer) |
+| ✓ | | Back button → returns to term list (covers `onBack()`) |
 
 #### Reports ✓ done
 

@@ -28,7 +28,10 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -41,7 +44,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("removeGoalFromGoalContainerCommand")
 @Scope("prototype")
 public class RemoveGoalFromGoalContainerCommandImpl extends AbstractEditProjectCommand implements
-		RemoveGoalFromGoalContainerCommand {
+		RemoveGoalFromGoalContainerCommand, ProjectScopedCommand {
 
 	/**
 	 * @param assistantManager
@@ -102,5 +105,14 @@ public class RemoveGoalFromGoalContainerCommandImpl extends AbstractEditProjectC
 		removingContainer = getRepository().merge(removingContainer);
 		setGoal(removedGoal);
 		setGoalContainer(removingContainer);
+	}
+
+	@Override
+	public Project getProject() {
+		if (goalContainer instanceof Project project) return project;
+		if (goalContainer instanceof ProjectOrDomainEntity pode
+				&& pode.getProjectOrDomain() instanceof Project project) return project;
+		if (goal != null && goal.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 }

@@ -29,7 +29,10 @@ import org.springframework.scheduling.TaskScheduler;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 
 import static org.assertj.core.api.Assertions.*;
@@ -199,5 +202,117 @@ class StreamServiceTest {
     void closeConnectionOnUnknownSessionIsNoOp() {
         // localEmitters.get returns null; the null-guard prevents any action
         assertThatNoException().isThrownBy(() -> streamService.closeConnection("no-such-session"));
+    }
+
+    // -------------------------------------------------------------------------
+    // pushToSubscribedSessions — broadcast resilience
+    //
+    // Regression coverage for the bug surfaced in coverage/web.log on the
+    // SSE refresh E2E: when one session's emitter throws (broken pipe from
+    // a hard-aborted client), the original loop terminated and the remaining
+    // subscribers never received the event. The fix adds per-session
+    // try/catch and prunes the dead session so future broadcasts skip it.
+    // -------------------------------------------------------------------------
+
+    /**
+     * Replace the live emitter behind {@code sessionId} with a mock so the test
+     * can dictate what {@code emitter.send(...)} does. We use reflection because
+     * {@code localEmitters} is intentionally private — exposing a setter just
+     * for tests would weaken the encapsulation. Reflection is contained to this
+     * helper so the brittleness lives in one place.
+     */
+    @SuppressWarnings("unchecked")
+    private SseEmitter swapInMockEmitter(String sessionId) throws Exception {
+        Field localEmittersField = StreamService.class.getDeclaredField("localEmitters");
+        localEmittersField.setAccessible(true);
+        Map<String, Object> localEmitters =
+                (Map<String, Object>) localEmittersField.get(streamService);
+
+        Object oldHolder = localEmitters.get(sessionId);
+        assertThat(oldHolder).as("test must seed session via createStream first").isNotNull();
+
+        // EmitterHolder is a private record — reflectively read its three components
+        // and rebuild it with a mock emitter swapped in.
+        Class<?> holderClass = oldHolder.getClass();
+        Field emitterField = holderClass.getDeclaredField("emitter");
+        Field keepAliveField = holderClass.getDeclaredField("keepAlive");
+        Field expiryField = holderClass.getDeclaredField("expiryFuture");
+        emitterField.setAccessible(true);
+        keepAliveField.setAccessible(true);
+        expiryField.setAccessible(true);
+
+        SseEmitter mockEmitter = mock(SseEmitter.class);
+        var holderCtor = holderClass.getDeclaredConstructors()[0];
+        holderCtor.setAccessible(true);
+        Object newHolder = holderCtor.newInstance(
+                mockEmitter, keepAliveField.get(oldHolder), expiryField.get(oldHolder));
+        localEmitters.put(sessionId, newHolder);
+        return mockEmitter;
+    }
+
+    @Test
+    void pushBroadcastDeliversToHealthySessionsEvenWhenOneSessionThrowsIOException() throws Exception {
+        // Three sessions all subscribed to Project:0. Middle one's emitter
+        // throws "Broken pipe" on send — represents a browser tab that was
+        // closed without a graceful disconnect.
+        streamService.createStream("alive-1", "alice", 0L, List.of("Project:0"));
+        streamService.createStream("dead",    "alice", 0L, List.of("Project:0"));
+        streamService.createStream("alive-2", "alice", 0L, List.of("Project:0"));
+
+        SseEmitter alive1 = swapInMockEmitter("alive-1");
+        SseEmitter dead   = swapInMockEmitter("dead");
+        SseEmitter alive2 = swapInMockEmitter("alive-2");
+
+        doThrow(new IOException("Broken pipe")).when(dead).send(any(SseEmitter.SseEventBuilder.class));
+
+        // Must not propagate — single-session failure is contained.
+        assertThatNoException().isThrownBy(
+                () -> streamService.pushToSubscribedSessions("Project", 0L, Map.of("type", "refresh")));
+
+        // Both healthy sessions received the event. The dead session was attempted
+        // (so it threw) and then pruned via completeWithError + onEmitterDone.
+        verify(alive1).send(any(SseEmitter.SseEventBuilder.class));
+        verify(alive2).send(any(SseEmitter.SseEventBuilder.class));
+        verify(dead).send(any(SseEmitter.SseEventBuilder.class));
+        verify(dead).completeWithError(any(IOException.class));
+
+        // Dead session removed from the index so the next broadcast won't keep
+        // re-attempting it. Healthy sessions remain.
+        assertThat(sessionStore.getSessionsForTarget("Project:0"))
+                .containsExactlyInAnyOrder("alive-1", "alive-2");
+    }
+
+    @Test
+    void pushBroadcastSurvivesIllegalStateExceptionFromCompleteWithError() throws Exception {
+        // Reproduces the exact production trace: send() throws IOException, then
+        // completeWithError(e) ALSO throws IllegalStateException because Tomcat
+        // already fired AsyncListener.onError. Original code didn't catch the
+        // second throw and aborted the loop.
+        streamService.createStream("alive",  "alice", 0L, List.of("Project:0"));
+        streamService.createStream("doomed", "alice", 0L, List.of("Project:0"));
+
+        SseEmitter alive  = swapInMockEmitter("alive");
+        SseEmitter doomed = swapInMockEmitter("doomed");
+
+        doThrow(new IOException("Broken pipe")).when(doomed)
+                .send(any(SseEmitter.SseEventBuilder.class));
+        doThrow(new IllegalStateException(
+                "A non-container (application) thread attempted to use the AsyncContext after an error had occurred"))
+                .when(doomed).completeWithError(any());
+
+        assertThatNoException().isThrownBy(
+                () -> streamService.pushToSubscribedSessions("Project", 0L, Map.of("type", "refresh")));
+
+        // Healthy session received the event despite the cascade failure.
+        verify(alive).send(any(SseEmitter.SseEventBuilder.class));
+    }
+
+    @Test
+    void pushBroadcastIsNoOpWhenNoSessionsAreSubscribed() {
+        streamService.createStream("sess-1", "alice", 0L, List.of("Goal:5"));
+
+        // No subscribers for Project:0 — must not throw, must not visit any session
+        assertThatNoException().isThrownBy(
+                () -> streamService.pushToSubscribedSessions("Project", 0L, Map.of("type", "refresh")));
     }
 }

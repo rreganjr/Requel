@@ -28,7 +28,10 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ActorImpl;
@@ -48,7 +51,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("addGoalToGoalContainerCommand")
 @Scope("prototype")
 public class AddGoalToGoalContainerCommandImpl extends AbstractEditProjectCommand implements
-		AddGoalToGoalContainerCommand {
+		AddGoalToGoalContainerCommand, ProjectScopedCommand {
 
 	/**
 	 * @param assistantManager
@@ -109,6 +112,19 @@ public class AddGoalToGoalContainerCommandImpl extends AbstractEditProjectComman
 		addingContainer = getRepository().merge(addingContainer);
 		setGoal(addedGoal);
 		setGoalContainer(addingContainer);
+	}
+
+	@Override
+	public Project getProject() {
+		// GoalContainer can be Project, or any of UseCase/Scenario/Story/Actor/
+		// NonUserStakeholder — the latter all extend ProjectOrDomainEntity.
+		// Walk up to the Project either way so the SSE broadcaster recognises
+		// this command as project-scoped and the sidebar refreshes counts.
+		if (goalContainer instanceof Project project) return project;
+		if (goalContainer instanceof ProjectOrDomainEntity pode
+				&& pode.getProjectOrDomain() instanceof Project project) return project;
+		if (goal != null && goal.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 	/**

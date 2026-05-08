@@ -740,7 +740,8 @@ export async function createTerm(
   api: APIRequestContext,
   projectName: string,
   name: string,
-  text = ''
+  text = '',
+  canonicalTermId: number | null = null
 ): Promise<TermFixture> {
   const token = await getAdminToken(api);
   const result = await command(api, token, 'EditGlossaryTerm', {
@@ -748,7 +749,7 @@ export async function createTerm(
     termId: null,
     name,
     text: text || null,
-    canonicalTermId: null,
+    canonicalTermId,
   });
   const entity = result['entity'] as { id: number; version: number; name: string };
   return { id: entity.id, version: entity.version, name: entity.name, projectName };
@@ -763,6 +764,43 @@ export async function deleteTerm(
     projectName: term.projectName,
     termId: term.id,
   });
+}
+
+export interface GlossaryTermDetail {
+  id: number;
+  version: number;
+  name: string;
+  // GlossaryTermDto on the server is annotated @JsonInclude(NON_NULL),
+  // which means any null field is OMITTED from the JSON entirely rather
+  // than serialized as `"field": null`. We model that here as an optional
+  // property — it'll be `undefined` (not `null`) when absent.
+  text?: string;
+  createdBy?: string;
+  canonicalTermId?: number;
+  canonicalTermName?: string;
+  alternateTerms?: { entityType: string; id: number; name: string }[];
+  referers?: { entityType: string; id: number; name: string }[];
+}
+
+/**
+ * GET /api/projects/{name}/terms/{termId} — fetches the detail DTO for a term,
+ * including the alternateTerms[] (terms that reference this one as canonical)
+ * and referers[]. Returns the parsed JSON; throws if the call is non-2xx.
+ */
+export async function getTermDetail(
+  api: APIRequestContext,
+  projectName: string,
+  termId: number
+): Promise<GlossaryTermDetail> {
+  const token = await getAdminToken(api);
+  const res = await api.get(
+    `${BASE_URL}/api/projects/${encodeURIComponent(projectName)}/terms/${termId}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok()) {
+    throw new Error(`getTermDetail failed: ${res.status()} ${await res.text()}`);
+  }
+  return res.json() as Promise<GlossaryTermDetail>;
 }
 
 export async function createReport(

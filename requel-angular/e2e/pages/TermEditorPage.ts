@@ -84,4 +84,52 @@ export class TermEditorPage {
   async expectTextValue(text: string): Promise<void> {
     await expect(this.page.locator('#text')).toHaveValue(text);
   }
+
+  /** Wait for the validation/error <p-message> to render with the given text. */
+  async expectErrorMessage(message: string | RegExp): Promise<void> {
+    await expect(this.page.getByTestId('term-error')).toBeVisible();
+    await expect(this.page.getByTestId('term-error')).toContainText(message);
+  }
+
+  /**
+   * Pick a canonical term in the p-select. Opens the dropdown, clicks the
+   * matching option, then waits for the select's panel to close so callers
+   * can act on the dirtied form synchronously.
+   */
+  async selectCanonicalTerm(name: string): Promise<void> {
+    await this.page.getByTestId('term-canonical-select').click();
+    await this.page.getByRole('option', { name, exact: true }).click();
+  }
+
+  /**
+   * Wait for the alternate-terms section to appear with the given alternate listed.
+   *
+   * The section is rendered behind `@if (!isNew() && term()?.alternateTerms?.length)`,
+   * so it only materializes after loadTerm() has set the `term` signal with a
+   * non-empty alternateTerms array. Under e2e-with-coverage's Dockerized backend
+   * the cold-cache load chain (permissionService → listTerms → getTerm) can take
+   * noticeably longer than the default 5s for the first few hits, so we give the
+   * conditional render a more generous window before we conclude the data is
+   * actually missing.
+   */
+  async expectAlternateTermInTable(name: string): Promise<void> {
+    const section = this.page.getByTestId('term-alternate-terms-section');
+    await expect(section).toBeVisible({ timeout: 15_000 });
+    await expect(
+      section.getByTestId('term-alternate-row').filter({ hasText: name })
+    ).toBeVisible({ timeout: 5_000 });
+  }
+
+  /**
+   * Click an alternate-term row, exercising navigateToTerm() in the editor
+   * (the only path through the alternate-terms <tr (click)> handler).
+   */
+  async clickAlternateTerm(name: string): Promise<void> {
+    await this.page.getByTestId('term-alternate-terms-section')
+      .getByTestId('term-alternate-row')
+      .filter({ hasText: name })
+      .first()
+      .click();
+    await this.page.waitForURL(/\/terms\/\d+/);
+  }
 }

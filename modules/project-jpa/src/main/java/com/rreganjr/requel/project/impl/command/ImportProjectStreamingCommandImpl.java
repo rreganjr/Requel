@@ -35,6 +35,7 @@ import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.StakeholderPermission;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -85,7 +86,8 @@ import org.springframework.util.StringUtils;
  */
 @Controller("importProjectCommand")
 @Scope("prototype")
-public class ImportProjectStreamingCommandImpl extends AbstractEditProjectCommand implements ImportProjectCommand {
+public class ImportProjectStreamingCommandImpl extends AbstractEditProjectCommand
+        implements ImportProjectCommand, ProjectScopedCommand {
 
     private final ActorStaxImporter actorStaxImporter;
     private final com.rreganjr.requel.utils.jaxb.imports.GoalStaxImporter goalStaxImporter;

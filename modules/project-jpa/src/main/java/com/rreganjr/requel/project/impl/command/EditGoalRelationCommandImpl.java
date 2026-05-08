@@ -31,8 +31,10 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalRelation;
 import com.rreganjr.requel.project.GoalRelationType;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.EditGoalRelationCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.exception.GoalSelfRelationException;
@@ -47,7 +49,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editGoalRelationCommand")
 @Scope("prototype")
 public class EditGoalRelationCommandImpl extends AbstractProjectCommand implements
-		EditGoalRelationCommand {
+		EditGoalRelationCommand, ProjectScopedCommand {
 
 	private ProjectOrDomain projectOrDomain;
 	private GoalRelation goalRelation;
@@ -194,5 +196,20 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 	@Override
 	public void invokeAnalysis() {
 		// TODO: do goal relations need to be analyzed?
+	}
+
+	@Override
+	public Project getProject() {
+		// projectOrDomain is set by the registrar from the request body's projectName.
+		// Fall back to the goal relation's endpoints if needed (e.g. when reused
+		// from internal command chains that wired only the GoalRelation).
+		if (projectOrDomain instanceof Project project) return project;
+		if (goalRelation != null) {
+			if (goalRelation.getFromGoal() != null
+					&& goalRelation.getFromGoal().getProjectOrDomain() instanceof Project project) return project;
+			if (goalRelation.getToGoal() != null
+					&& goalRelation.getToGoal().getProjectOrDomain() instanceof Project project) return project;
+		}
+		return null;
 	}
 }

@@ -26,7 +26,9 @@ import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -39,7 +41,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("removeScenarioFromUseCaseCommand")
 @Scope("prototype")
 public class RemoveScenarioFromUseCaseCommandImpl extends AbstractEditProjectCommand
-		implements RemoveScenarioFromUseCaseCommand {
+		implements RemoveScenarioFromUseCaseCommand, ProjectScopedCommand {
 
 	@Autowired
 	public RemoveScenarioFromUseCaseCommandImpl(AssistantFacade assistantManager,
@@ -65,5 +67,12 @@ public class RemoveScenarioFromUseCaseCommandImpl extends AbstractEditProjectCom
 		useCaseImpl.getAdditionalScenarios().remove(scenarioImpl);
 		getRepository().merge(useCaseImpl);
 		setUseCase(useCaseImpl);
+	}
+
+	@Override
+	public Project getProject() {
+		if (useCase != null && useCase.getProjectOrDomain() instanceof Project project) return project;
+		if (scenario != null && scenario.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 }

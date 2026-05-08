@@ -31,7 +31,9 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.CopyScenarioCommand;
@@ -48,7 +50,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("copyUseCaseCommand")
 @Scope("prototype")
 public class CopyUseCaseCommandImpl extends AbstractEditProjectCommand implements
-		CopyUseCaseCommand {
+		CopyUseCaseCommand, ProjectScopedCommand {
 
 	private UseCase originalUseCase;
 	private UseCase newUseCase;
@@ -137,6 +139,13 @@ public class CopyUseCaseCommandImpl extends AbstractEditProjectCommand implement
 		}
 		newUseCase = getProjectRepository().merge(newUseCase);
 		setNewUseCase(newUseCase);
+	}
+
+	@Override
+	public Project getProject() {
+		if (newUseCase != null && newUseCase.getProjectOrDomain() instanceof Project project) return project;
+		if (originalUseCase != null && originalUseCase.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 	private String generateNewUseCaseName(String originalName) {

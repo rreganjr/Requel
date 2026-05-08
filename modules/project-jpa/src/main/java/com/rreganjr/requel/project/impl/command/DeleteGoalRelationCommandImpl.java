@@ -32,7 +32,9 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.GoalRelation;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -45,7 +47,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteGoalRelationCommand")
 @Scope("prototype")
 public class DeleteGoalRelationCommandImpl extends AbstractEditProjectCommand implements
-		DeleteGoalRelationCommand {
+		DeleteGoalRelationCommand, ProjectScopedCommand {
 
 	private GoalRelation goalRelation;
 
@@ -83,6 +85,20 @@ public class DeleteGoalRelationCommandImpl extends AbstractEditProjectCommand im
 		goalRelation.getFromGoal().getRelationsFromThisGoal().remove(goalRelation);
 		goalRelation.getToGoal().getRelationsToThisGoal().remove(goalRelation);
 		getRepository().delete(goalRelation);
+	}
+
+	@Override
+	public Project getProject() {
+		// GoalRelation lives in the same Project as its endpoints; both fromGoal
+		// and toGoal must belong to the same Project, so either side resolves
+		// to the right one.
+		if (goalRelation != null) {
+			if (goalRelation.getFromGoal() != null
+					&& goalRelation.getFromGoal().getProjectOrDomain() instanceof Project project) return project;
+			if (goalRelation.getToGoal() != null
+					&& goalRelation.getToGoal().getProjectOrDomain() instanceof Project project) return project;
+		}
+		return null;
 	}
 
 }

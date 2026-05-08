@@ -88,12 +88,40 @@ mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests \
 
 # ---------------------------------------------------------------------------
 # 3. Start Docker services with JaCoCo agent attached
+#
+#    `docker compose up -d` exits non-zero if a service (e.g. db) reports
+#    unhealthy. When that happens, the `trap cleanup EXIT` fires `compose
+#    down --remove-orphans` and the container is destroyed before its
+#    logs can be inspected. So we capture db + web logs into coverage/
+#    BEFORE re-raising the error, giving us evidence to actually debug
+#    "container requel-db-1 is unhealthy"-style failures.
 # ---------------------------------------------------------------------------
 echo "Starting services..."
-docker compose \
+if ! docker compose \
   -f "$REPO_ROOT/docker-compose.yml" \
   -f "$REPO_ROOT/docker-compose.e2e-coverage.yml" \
-  up -d
+  up -d; then
+  echo ""
+  echo "ERROR: docker compose up -d failed. Capturing logs before cleanup..."
+  mkdir -p "$COVERAGE_DIR"
+  docker compose \
+    -f "$REPO_ROOT/docker-compose.yml" \
+    -f "$REPO_ROOT/docker-compose.e2e-coverage.yml" \
+    logs --no-log-prefix db > "$COVERAGE_DIR/db.log" 2>&1 || true
+  docker compose \
+    -f "$REPO_ROOT/docker-compose.yml" \
+    -f "$REPO_ROOT/docker-compose.e2e-coverage.yml" \
+    logs --no-log-prefix web > "$COVERAGE_DIR/web.log" 2>&1 || true
+  echo "  Logs saved to:"
+  echo "    $COVERAGE_DIR/db.log"
+  echo "    $COVERAGE_DIR/web.log"
+  echo ""
+  echo "  Last 40 lines of db.log:"
+  echo "  --------------------------------"
+  tail -n 40 "$COVERAGE_DIR/db.log" 2>/dev/null | sed 's/^/  /' || echo "  (db.log empty)"
+  echo "  --------------------------------"
+  exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # 4. Wait for backend AND data initializer to complete

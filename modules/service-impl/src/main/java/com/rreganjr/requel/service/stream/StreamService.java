@@ -91,13 +91,22 @@ public class StreamService {
         EmitterHolder holder = new EmitterHolder(emitter, keepAlive, expiryFuture);
         localEmitters.put(sessionId, holder);
 
-        // Send Session event
-        sendEvent(sessionId, StreamEventEnvelope.session(sessionId));
-
-        // Register initial subscriptions
+        // Register initial subscriptions BEFORE sending the Session event.
+        // Reasoning: emitter.send() inside sendEvent may commit the HTTP
+        // response (200 OK + first chunk) — at that point the client's
+        // waitForResponse for /events/stream resolves and the test may
+        // proceed to fire commands. Registering subscriptions first
+        // closes a (small but real) race window where a Project broadcast
+        // emitted between sendEvent and addSubscription would find no
+        // subscribers and be silently dropped.
         for (String key : initialSubscriptionKeys) {
             sessionStore.addSubscription(sessionId, key);
         }
+        log.debug("createStream session={} owner={} initialSubs={} (existingSessionId={})",
+                sessionId, ownerUsername, initialSubscriptionKeys, existingSessionId);
+
+        // Send Session event
+        sendEvent(sessionId, StreamEventEnvelope.session(sessionId));
 
         // Cleanup callbacks
         emitter.onCompletion(() -> onEmitterDone(sessionId, holder));
@@ -140,32 +149,76 @@ public class StreamService {
 
     /**
      * Push an event to all sessions subscribed to the given target.
+     *
+     * Resilience contract: a failure to deliver to one session MUST NOT prevent
+     * delivery to the others. Stale sessions (browsers that closed without a
+     * graceful disconnect) accumulate in the session store until {@code onError}
+     * / {@code onCompletion} fire — that callback may not fire promptly on a
+     * hard-aborted connection, so a broken-pipe write here is the first signal
+     * we get that a session is dead. We catch every throwable from {@link #sendEvent}
+     * per-session and prune the offender so future broadcasts skip it.
      */
     public void pushToSubscribedSessions(String targetType, Long targetId, Object payload) {
         String targetKey = targetType + ":" + targetId;
         Set<String> sessionIds = sessionStore.getSessionsForTarget(targetKey);
+        log.debug("pushToSubscribedSessions targetKey={} sessions={}", targetKey, sessionIds.size());
         StreamEventEnvelope envelope = payload != null
                 ? StreamEventEnvelope.data(targetType, targetId, payload)
                 : StreamEventEnvelope.targetDeleted(targetType, targetId);
         for (String sessionId : sessionIds) {
-            sendEvent(sessionId, envelope);
+            try {
+                sendEvent(sessionId, envelope);
+            } catch (RuntimeException broadcastFailure) {
+                // sendEvent already logs at WARN with diagnostic detail and
+                // attempts to clean up the dead session. Swallow here so the
+                // remaining recipients still get the event. Anything that
+                // bubbles past sendEvent's own catches is a genuine bug, not
+                // a per-session-delivery failure — log it loud and keep going.
+                log.warn("Unexpected error broadcasting to session {} for target {}: {}",
+                        sessionId, targetKey, broadcastFailure.getMessage(), broadcastFailure);
+            }
         }
     }
 
     private void sendEvent(String sessionId, StreamEventEnvelope envelope) {
         EmitterHolder holder = localEmitters.get(sessionId);
-        if (holder == null) return;
+        if (holder == null) {
+            // Session was already pruned (e.g. by a previous broken-pipe in this
+            // same broadcast) but the targetToSessions index is eventually-consistent.
+            // Make sure the index also forgets it so we don't keep iterating it.
+            sessionStore.removeSession(sessionId);
+            log.debug("sendEvent session={} eventType={} → DROPPED (no emitter, pruned from index)",
+                    sessionId, envelope.eventType());
+            return;
+        }
         try {
             String json = objectMapper.writeValueAsString(envelope);
             holder.emitter().send(SseEmitter.event().data(json));
-        } catch (IOException e) {
-            log.debug("Failed to send event to session {}: {}", sessionId, e.getMessage());
-            holder.emitter().completeWithError(e);
-        } catch (IllegalStateException e) {
-            // Tomcat throws this when a background thread (e.g. NLP taskExecutor) tries to
-            // write to an AsyncContext that the client already closed. The onError/onCompletion
-            // callbacks handle session cleanup; just swallow the error here.
-            log.debug("AsyncContext already closed for session {}: {}", sessionId, e.getMessage());
+            log.debug("sendEvent session={} eventType={} target={}:{} → flushed {} bytes",
+                    sessionId, envelope.eventType(), envelope.targetType(), envelope.targetId(),
+                    json.length());
+        } catch (IOException | IllegalStateException e) {
+            // IOException: typically "Broken pipe" — the client disconnected without
+            //   a graceful close so onCompletion/onError haven't fired yet.
+            // IllegalStateException: Tomcat throws this when a background thread
+            //   (e.g. NLP taskExecutor, or a broadcast triggered by a previous
+            //   send error) tries to use the AsyncContext after onError already
+            //   ran. completeWithError(e) below ALSO throws IllegalStateException
+            //   in that case — we catch both varieties here.
+            // Either way the session is dead. Best-effort completeWithError to
+            // tell Spring; if that itself throws, swallow (the session is going
+            // away regardless). Then prune the holder so subsequent broadcasts
+            // skip it instead of repeating the failure.
+            log.warn("sendEvent session={} target={}:{} → {}: {} — pruning dead session",
+                    sessionId, envelope.targetType(), envelope.targetId(),
+                    e.getClass().getSimpleName(), e.getMessage());
+            try {
+                holder.emitter().completeWithError(e);
+            } catch (RuntimeException completeFailure) {
+                log.debug("completeWithError on session {} also failed: {}",
+                        sessionId, completeFailure.getMessage());
+            }
+            onEmitterDone(sessionId, holder);
         }
     }
 
@@ -174,8 +227,20 @@ public class StreamService {
         if (holder == null) return;
         try {
             holder.emitter().send(SseEmitter.event().comment("keep-alive"));
-        } catch (IOException e) {
-            log.debug("Keep-alive failed for session {}", sessionId);
+        } catch (IOException | IllegalStateException e) {
+            // Same dead-session signal as in sendEvent (see comment there). For a
+            // session that never receives broadcasts, the keep-alive is the only
+            // signal that the connection died — without proactive pruning here
+            // the session would linger in the store forever (the cause of the
+            // stale-session accumulation we saw in coverage/web.log).
+            log.debug("Keep-alive failed for session {}: {} — pruning dead session",
+                    sessionId, e.getMessage());
+            try {
+                holder.emitter().completeWithError(e);
+            } catch (RuntimeException ignored) {
+                // already-completed emitter; nothing more to do
+            }
+            onEmitterDone(sessionId, holder);
         }
     }
 

@@ -34,7 +34,9 @@ import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCom
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
@@ -56,7 +58,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteUseCaseCommand")
 @Scope("prototype")
 public class DeleteUseCaseCommandImpl extends AbstractEditProjectCommand implements
-		DeleteUseCaseCommand {
+		DeleteUseCaseCommand, ProjectScopedCommand {
 
 	private UseCase usecase;
 
@@ -140,6 +142,12 @@ public class DeleteUseCaseCommandImpl extends AbstractEditProjectCommand impleme
 		// TODO: delete the main scenario?
 		usecase.getProjectOrDomain().getUseCases().remove(usecase);
 		getRepository().delete(usecase);
+	}
+
+	@Override
+	public Project getProject() {
+		if (usecase != null && usecase.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 }

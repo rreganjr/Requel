@@ -32,7 +32,9 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.DeleteScenarioCommand;
@@ -50,7 +52,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteScenarioCommand")
 @Scope("prototype")
 public class DeleteScenarioCommandImpl extends AbstractEditProjectCommand implements
-		DeleteScenarioCommand {
+		DeleteScenarioCommand, ProjectScopedCommand {
 
 	private Scenario scenario;
 
@@ -110,6 +112,12 @@ public class DeleteScenarioCommandImpl extends AbstractEditProjectCommand implem
 		}
 		scenario.getProjectOrDomain().getScenarios().remove(scenario);
 		getRepository().delete(scenario);
+	}
+
+	@Override
+	public Project getProject() {
+		if (scenario != null && scenario.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 }

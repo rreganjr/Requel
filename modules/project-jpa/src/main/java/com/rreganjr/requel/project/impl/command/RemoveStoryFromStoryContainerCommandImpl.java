@@ -26,7 +26,10 @@ import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -41,7 +44,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("removeStoryFromStoryContainerCommand")
 @Scope("prototype")
 public class RemoveStoryFromStoryContainerCommandImpl extends AbstractEditProjectCommand implements
-		RemoveStoryFromStoryContainerCommand {
+		RemoveStoryFromStoryContainerCommand, ProjectScopedCommand {
 
 	/**
 	 * @param assistantManager
@@ -99,5 +102,14 @@ public class RemoveStoryFromStoryContainerCommandImpl extends AbstractEditProjec
 		removingContainer = getRepository().merge(removingContainer);
 		setStory(removedStory);
 		setStoryContainer(removingContainer);
+	}
+
+	@Override
+	public Project getProject() {
+		if (storyContainer instanceof Project project) return project;
+		if (storyContainer instanceof ProjectOrDomainEntity pode
+				&& pode.getProjectOrDomain() instanceof Project project) return project;
+		if (story != null && story.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 }

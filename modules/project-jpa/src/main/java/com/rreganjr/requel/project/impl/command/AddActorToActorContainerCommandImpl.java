@@ -28,7 +28,10 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ActorContainer;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.AddActorToActorContainerCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.GoalImpl;
@@ -45,7 +48,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("addActorToActorContainerCommand")
 @Scope("prototype")
 public class AddActorToActorContainerCommandImpl extends AbstractEditProjectCommand implements
-		AddActorToActorContainerCommand {
+		AddActorToActorContainerCommand, ProjectScopedCommand {
 
 	/**
 	 * @param assistantManager
@@ -103,6 +106,19 @@ public class AddActorToActorContainerCommandImpl extends AbstractEditProjectComm
 		addingContainer = getRepository().merge(addingContainer);
 		setActor(addedActor);
 		setActorContainer(addingContainer);
+	}
+
+	@Override
+	public Project getProject() {
+		// ActorContainer can be a Project (most common), or UseCase/Goal/Story —
+		// the latter three are ProjectOrDomainEntity, so walk up via getProjectOrDomain().
+		// Either path lets the SSE broadcaster recognise this command as
+		// project-scoped and refresh the sidebar.
+		if (actorContainer instanceof Project project) return project;
+		if (actorContainer instanceof ProjectOrDomainEntity pode
+				&& pode.getProjectOrDomain() instanceof Project project) return project;
+		if (actor != null && actor.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 	private static String actorContainerDiscriminator(ActorContainer container) {

@@ -31,7 +31,9 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.command.DeleteReportGeneratorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -48,7 +50,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteReportGeneratorCommand")
 @Scope("prototype")
 public class DeleteReportGeneratorCommandImpl extends AbstractEditProjectCommand implements
-		DeleteReportGeneratorCommand {
+		DeleteReportGeneratorCommand, ProjectScopedCommand {
 
 	private ReportGenerator reportGenerator;
 
@@ -93,6 +95,12 @@ public class DeleteReportGeneratorCommandImpl extends AbstractEditProjectCommand
 		}
 		reportGenerator.getProjectOrDomain().getReportGenerators().remove(reportGenerator);
 		getRepository().delete(reportGenerator);
+	}
+
+	@Override
+	public Project getProject() {
+		if (reportGenerator != null && reportGenerator.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 }

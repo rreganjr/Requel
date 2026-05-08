@@ -31,7 +31,9 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.CopyActorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ActorImpl;
@@ -44,7 +46,8 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("copyActorCommand")
 @Scope("prototype")
-public class CopyActorCommandImpl extends AbstractEditProjectCommand implements CopyActorCommand {
+public class CopyActorCommandImpl extends AbstractEditProjectCommand
+		implements CopyActorCommand, ProjectScopedCommand {
 
 	private Actor originalActor;
 	private Actor newActor;
@@ -123,6 +126,15 @@ public class CopyActorCommandImpl extends AbstractEditProjectCommand implements 
 		}
 		newActor = getProjectRepository().merge(newActor);
 		setNewActor(newActor);
+	}
+
+	@Override
+	public Project getProject() {
+		// Prefer the persisted newActor if execute already ran; fall back to
+		// the original. Either way we walk to the Project so SSE broadcasts.
+		if (newActor != null && newActor.getProjectOrDomain() instanceof Project project) return project;
+		if (originalActor != null && originalActor.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 
 	private String generateNewActorName(String originalName) {

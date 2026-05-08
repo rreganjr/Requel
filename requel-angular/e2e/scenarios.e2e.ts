@@ -206,6 +206,114 @@ test.describe('Scenario steps', () => {
     await page.close();
   });
 
+  test('add sub-scenario via selector dialog: pick existing → step appears as scenario link', async ({ adminContext, request }) => {
+    // Sub-scenario flow boosts coverage on the otherwise-cold scenario-selector-dialog.ts:
+    // dialog open, table render, search filter, row click, onSelect → emits ref → editor
+    // appends a step with isScenario=true. Two scenarios are needed: the parent (whose
+    // editor we drive) and the sub-scenario candidate (the row we click).
+    const parentName = `e2e-scenario-sub-pick-parent-${Date.now()}`;
+    const subName = `e2e-scenario-sub-pick-child-${Date.now()}`;
+    const parent = await createScenario(request, PROJECT_NAME, parentName);
+    const sub = await createScenario(request, PROJECT_NAME, subName);
+    scenarioToCleanup = parent; // sub gets cleaned up via the project teardown
+
+    const page = await adminContext.newPage();
+    const listPage = new ScenarioListPage(page);
+    const editorPage = new ScenarioEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickScenario(parentName);
+
+    await editorPage.clickAddSubScenario();
+    await editorPage.expectSelectorDialogOpen();
+    await editorPage.pickScenarioInDialog(subName);
+    await editorPage.expectSelectorDialogClosed();
+
+    // The dialog closes synchronously and the step list now has the picked
+    // scenario at the bottom. Sub-scenario steps render as a clickable link
+    // (<a data-testid="scenario-step-link">), not as an <input>, so assert
+    // via the link helper rather than expectStepName (which is for the
+    // text-step <input>). Save and reload to verify the link persists.
+    await editorPage.expectStepCount(1);
+    await editorPage.expectSubScenarioStepLink(0, subName);
+    await editorPage.save();
+
+    await reloadAndWaitForGet(page, r => /\/scenarios\/\d+$/.test(r.url()));
+    await editorPage.expectStepCount(1);
+    await editorPage.expectSubScenarioStepLink(0, subName);
+
+    // Manual cleanup: the sub-scenario fixture isn't tracked in scenarioToCleanup
+    // and would otherwise leak inside this PROJECT_NAME, but afterAll deletes
+    // the whole project so we leave it.
+    void sub;
+
+    await page.close();
+  });
+
+  test('add sub-scenario via selector dialog: inline Create & Add appends new scenario as step', async ({ adminContext, request }) => {
+    // Drives the showCreateForm = true branch + onCreateAndAdd() success path
+    // in scenario-selector-dialog.ts. The dialog dispatches an EditScenario
+    // command from inside itself via CommandService, then emits the new scenario
+    // back to the parent editor as a step.
+    const parentName = `e2e-scenario-sub-create-parent-${Date.now()}`;
+    const inlineName = `e2e-scenario-sub-create-inline-${Date.now()}`;
+    const parent = await createScenario(request, PROJECT_NAME, parentName);
+    scenarioToCleanup = parent;
+
+    const page = await adminContext.newPage();
+    const listPage = new ScenarioListPage(page);
+    const editorPage = new ScenarioEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickScenario(parentName);
+
+    await editorPage.clickAddSubScenario();
+    await editorPage.expectSelectorDialogOpen();
+    await editorPage.openNewScenarioFormInDialog();
+    await editorPage.fillNewScenarioName(inlineName);
+    await editorPage.clickCreateAndAddInDialog();
+    await editorPage.expectSelectorDialogClosed();
+
+    // The newly-created scenario was appended as a sub-scenario step — it
+    // renders as a link, not an <input>, since the inline form set
+    // isScenario=true on the emitted ref (see onCreateAndAdd → selected.emit).
+    await editorPage.expectStepCount(1);
+    await editorPage.expectSubScenarioStepLink(0, inlineName);
+
+    // Save the parent so the step persists, then reload to assert.
+    await editorPage.save();
+    await reloadAndWaitForGet(page, r => /\/scenarios\/\d+$/.test(r.url()));
+    await editorPage.expectStepCount(1);
+    await editorPage.expectSubScenarioStepLink(0, inlineName);
+
+    await page.close();
+  });
+
+  test('add sub-scenario via selector dialog: Escape cancels and adds nothing', async ({ adminContext, request }) => {
+    // Opens the dialog and dismisses it via Escape (PrimeNG fires (onHide) → the
+    // component's onHide() emits closed). Verifies that no step was appended,
+    // covering the no-op exit path.
+    const parentName = `e2e-scenario-sub-cancel-${Date.now()}`;
+    const parent = await createScenario(request, PROJECT_NAME, parentName);
+    scenarioToCleanup = parent;
+
+    const page = await adminContext.newPage();
+    const listPage = new ScenarioListPage(page);
+    const editorPage = new ScenarioEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickScenario(parentName);
+
+    await editorPage.clickAddSubScenario();
+    await editorPage.expectSelectorDialogOpen();
+    await editorPage.cancelSelectorDialog();
+
+    // No step was added — the parent stays empty.
+    await editorPage.expectStepCount(0);
+
+    await page.close();
+  });
+
   test('step order change persists after save and reload', async ({ adminContext, request }) => {
     // Note: CDK DragDrop mouse/keyboard drag is unreliable in headless Playwright against
     // the nested scroll container (.main-content overflow-y:auto inside overflow:hidden

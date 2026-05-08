@@ -26,7 +26,9 @@ import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -39,7 +41,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("setPrimaryScenarioOnUseCaseCommand")
 @Scope("prototype")
 public class SetPrimaryScenarioOnUseCaseCommandImpl extends AbstractEditProjectCommand
-		implements SetPrimaryScenarioOnUseCaseCommand {
+		implements SetPrimaryScenarioOnUseCaseCommand, ProjectScopedCommand {
 
 	@Autowired
 	public SetPrimaryScenarioOnUseCaseCommandImpl(AssistantFacade assistantManager,
@@ -66,5 +68,12 @@ public class SetPrimaryScenarioOnUseCaseCommandImpl extends AbstractEditProjectC
 		getRepository().merge(useCaseImpl);
 		setUseCase(useCaseImpl);
 		setScenario(scenarioImpl);
+	}
+
+	@Override
+	public Project getProject() {
+		if (useCase != null && useCase.getProjectOrDomain() instanceof Project project) return project;
+		if (scenario != null && scenario.getProjectOrDomain() instanceof Project project) return project;
+		return null;
 	}
 }
