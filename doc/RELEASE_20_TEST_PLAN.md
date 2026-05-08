@@ -895,7 +895,7 @@ test.beforeEach(async ({ request }) => {
 Tests live in `requel-angular/e2e/`. The Spring Boot backend + MySQL must be running before
 the E2E suite runs (use `docker-compose up` for CI).
 
-#### Authentication ✓ mostly done
+#### Authentication ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
@@ -906,7 +906,7 @@ the E2E suite runs (use `docker-compose up` for CI).
 
 Extra tests implemented (not in original plan): admin sees admin section in sidebar; project user does not see admin section.
 
-#### Project management
+#### Project management ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
@@ -919,7 +919,7 @@ Extra tests implemented: cancel on project editor navigates back; dirty guard �
 
 **Out of scope for 2.0 — Delete project.** No `DeleteProject` command exists in the backend, no soft-delete infrastructure (`deletedAt`, `@SQLDelete`, `Project[Delete]` permission row) exists, and the Authorization section above explicitly notes "`Project` has no Delete permission — `DeleteProject` is not a supported command." The `e2e/fixtures/api-helper.ts` `deleteProject` helper is a documented no-op. Adding project delete is a feature change (multi-aggregate cascade across goals, stories, actors, use-cases, scenarios, stakeholders, terms, reports, plus annotations attached to all of them); if/when it's prioritized, capture the design in a dedicated `doc/project-delete-support-plan.md` rather than treating it as a missing E2E test row.
 
-#### Goals
+#### Goals ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
@@ -932,7 +932,7 @@ Extra tests implemented: cancel on project editor navigates back; dirty guard �
 
 Extra tests implemented: back button navigates to goal list.
 
-#### Stories
+#### Stories ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
@@ -944,7 +944,7 @@ Extra tests implemented: back button navigates to goal list.
 
 Extra tests implemented: rename story; delete story.
 
-#### Actors ✓ mostly done
+#### Actors ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
@@ -954,7 +954,7 @@ Extra tests implemented: rename story; delete story.
 | ✓ | | Delete actor → removed from list |
 | ✓ | | Actor appears in primary actor dropdown for story and use-case. Covered by `newly-created actor appears in the primary-actor dropdown for both story and use-case editors`, which creates a fresh actor via API, then opens `/stories/new` and `/use-cases/new` and asserts via the new `expectActorInPrimaryActorDropdown` page-object helper that the actor is one of the visible options in each editor's primary-actor `p-select`. |
 
-#### Use Cases
+#### Use Cases ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
@@ -1046,14 +1046,14 @@ coverage.
 | ✓ | | Run report → output or download link appears |
 | ✓ | | Delete report generator → removed from list |
 
-#### Settings and preferences
+#### Settings and preferences ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
 | ✓ | `settings.e2e.ts` | Change sidebar project limit and staleness filter → values persist after page reload |
 | ✓ | | Reset to defaults → saved and reflected in UI (`reset to defaults → limit=10 and staleness=3 months after reload`) |
 
-#### Account self-edit
+#### Account self-edit ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
@@ -1062,7 +1062,7 @@ coverage.
 
 Extra tests implemented: username is pre-filled and disabled on self-edit form.
 
-#### Administration
+#### Administration ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
@@ -1072,14 +1072,14 @@ Extra tests implemented: username is pre-filled and disabled on self-edit form.
 | ✓ | | Non-admin cannot see admin nav link in sidebar (link-visibility layer; direct-URL navigation to admin routes is gated separately by `adminGuard` — see Forbidden-state UX below) |
 | ✓ | | Change own password → can log in with new password |
 
-#### Sidebar and project tree
+#### Sidebar and project tree ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
 | ✓ | `sidebar.e2e.ts` | Import project XML via sidebar → project appears in list; entities visible in tree |
 | ✓ | | Edit a goal → project tree refreshes without full page reload (SSE event triggers update) |
 
-#### Forbidden-state UX (401 / 403)
+#### Forbidden-state UX (401 / 403) ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
@@ -1087,7 +1087,7 @@ Extra tests implemented: username is pre-filled and disabled on self-edit form.
 | ✓ | `forbidden.e2e.ts` | Authenticated user accessing admin route without admin role → redirected to dashboard `/` by `adminGuard`. The new `core/admin.guard.ts` is wired onto both `/users` and `/users/:username` in `app.routes.ts` (in addition to the parent layout's `authGuard`, so unauthenticated users still bounce to `/login`). Two e2e tests in `forbidden.e2e.ts` cover the project-user paths to `/users` and `/users/:username`; both assert a redirect to `/` (not `/login`, since the user IS authenticated, just not authorized). The previous "no admin route guard" test was flipped to assert the new behavior. Unit coverage in `core/admin.guard.spec.ts` mirrors `auth.guard.spec.ts` — admin → `true`, non-admin → `UrlTree('/')`, unauthenticated user → `UrlTree('/')`. The sidebar admin-link visibility check in `admin.e2e.ts:84` is independent and remains the UX-hint layer. |
 | ✓ | | Token expires mid-session → next API call returns 401 → interceptor redirects to `/login`. Covered by the JWT expiry test in `auth.e2e.ts` (same scenario as the "JWT expiry" row in Authentication above — one test covers both). |
 
-#### SSE live refresh
+#### SSE live refresh ✓ done
 
 | Status | File | Scenario |
 |---|---|---|
