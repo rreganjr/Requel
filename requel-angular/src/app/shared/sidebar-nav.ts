@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ElementRef } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, untracked, ViewChild, ElementRef } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AccordionModule } from 'primeng/accordion';
@@ -30,6 +30,35 @@ import { AuthService } from '../core/auth.service';
 import { EventStreamService } from '../core/event-stream.service';
 import { ProjectService } from '../core/project.service';
 import { ProjectDto, ProjectTreeNode } from '../models/project';
+
+/**
+ * localStorage key for the names of projects the user has expanded in the
+ * sidebar tree. Persisted so an SSE-driven `loadProjects()` (which rebuilds
+ * the tree) and a full page refresh both retain the user's open projects.
+ */
+const SIDEBAR_EXPANDED_PROJECTS_KEY = 'requel_sidebar_expanded_projects';
+
+function loadExpandedProjectNames(): Set<string> {
+  try {
+    const raw = localStorage.getItem(SIDEBAR_EXPANDED_PROJECTS_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((s): s is string => typeof s === 'string'));
+  } catch {
+    return new Set();
+  }
+}
+
+function persistExpandedProjectNames(names: Set<string>): void {
+  try {
+    localStorage.setItem(SIDEBAR_EXPANDED_PROJECTS_KEY, JSON.stringify([...names]));
+  } catch {
+    // Storage may be unavailable (private mode, quota exceeded). The
+    // expanded state is a UX nicety, not data — drop the persistence
+    // silently rather than break the sidebar.
+  }
+}
 
 /**
  * Sidebar accordion navigation.
@@ -90,6 +119,8 @@ import { ProjectDto, ProjectTreeNode } from '../models/project';
               <p-tree [value]="projectTreeNodes()"
                       selectionMode="single" [metaKeySelection]="false"
                       (onNodeSelect)="onNodeSelect($event)"
+                      (onNodeExpand)="onNodeExpand($event)"
+                      (onNodeCollapse)="onNodeCollapse($event)"
                       styleClass="sidebar-tree" data-testid="sidebar-tree" />
             }
           </p-accordion-content>
@@ -154,6 +185,19 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
   readonly loading = signal(false);
   private readonly projects = signal<ProjectDto[]>([]);
 
+  /**
+   * Names of projects the user has expanded in the tree. Seeded from
+   * localStorage so the open set survives a page refresh, and updated by
+   * the tree's expand/collapse events so the persisted set stays in sync
+   * with what the user actually sees.
+   *
+   * Read via `untracked()` inside `projectTreeNodes` so toggling a single
+   * project doesn't force every node to be re-created — the expand/collapse
+   * is already reflected visually by PrimeNG's own click handler; we only
+   * need the set when the tree is rebuilt (initial load, SSE refresh).
+   */
+  private readonly expandedProjects = signal<Set<string>>(loadExpandedProjectNames());
+
   readonly isAdmin = computed(() => {
     const user = this.authService.user();
     return user?.roles?.includes('SystemAdminUserRole') ?? false;
@@ -182,12 +226,17 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
   /**
    * Build tree nodes: each project is a parent node, entity groups are children.
    * Project name click → open editor. Entity group click → open list (future).
+   *
+   * `expanded` is seeded from the persisted set so a tree rebuild (SSE refresh
+   * or page reload) leaves the user's open projects open.
    */
   readonly projectTreeNodes = computed<TreeNode[]>(() => {
-    return this.projects().map(project => ({
+    const projects = this.projects();
+    const expanded = untracked(() => this.expandedProjects());
+    return projects.map(project => ({
       label: project.name,
       icon: 'pi pi-folder',
-      expanded: false,
+      expanded: expanded.has(project.name),
       data: { type: 'project', name: project.name },
       children: this.entityGroups(project)
     }));
@@ -239,6 +288,32 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
     } finally {
       input.value = '';
     }
+  }
+
+  /**
+   * Persist a newly-expanded project so the next tree rebuild restores it.
+   * Only project-level nodes are tracked; entity-group children are leaves.
+   */
+  onNodeExpand(event: { node: TreeNode }): void {
+    const data = event.node.data;
+    if (data?.type !== 'project' || typeof data.name !== 'string') return;
+    const next = new Set(this.expandedProjects());
+    if (next.has(data.name)) return;
+    next.add(data.name);
+    this.expandedProjects.set(next);
+    persistExpandedProjectNames(next);
+  }
+
+  /**
+   * Drop a now-collapsed project from the persisted open set.
+   */
+  onNodeCollapse(event: { node: TreeNode }): void {
+    const data = event.node.data;
+    if (data?.type !== 'project' || typeof data.name !== 'string') return;
+    const next = new Set(this.expandedProjects());
+    if (!next.delete(data.name)) return;
+    this.expandedProjects.set(next);
+    persistExpandedProjectNames(next);
   }
 
   onNodeSelect(event: { node: TreeNode }): void {

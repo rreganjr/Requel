@@ -26,6 +26,8 @@ const MOCK_PROJECT: ProjectDto = {
   glossaryTermCount: 2, reportGeneratorCount: 1
 };
 
+const SIDEBAR_EXPANDED_KEY = 'requel_sidebar_expanded_projects';
+
 describe('SidebarNavComponent', () => {
   let authServiceMock: { user: ReturnType<typeof signal<UserDto | null>> };
   let projectServiceMock: {
@@ -35,6 +37,12 @@ describe('SidebarNavComponent', () => {
   };
   let eventStreamServiceMock: { events$: typeof EMPTY };
   let comp: SidebarNavComponent;
+
+  beforeEach(() => {
+    // Each test starts with a clean expanded-state store so tests don't
+    // leak the persisted set into one another.
+    localStorage.removeItem(SIDEBAR_EXPANDED_KEY);
+  });
 
   function setup(user: UserDto | null = null) {
     authServiceMock = { user: signal(user) };
@@ -209,5 +217,79 @@ describe('SidebarNavComponent', () => {
     await comp.onImportFile(event);
     expect(projectServiceMock.importProject).toHaveBeenCalledWith(file);
     expect(projectServiceMock.listProjects).toHaveBeenCalled();
+  });
+
+  // ----- expanded-project persistence ----------------------------------
+  // The sidebar tree's `expanded` state needs to survive both an
+  // SSE-driven `loadProjects()` rebuild and a full page reload. The
+  // contract is: project names the user has expanded are written to
+  // localStorage under `requel_sidebar_expanded_projects`, and the
+  // computed `projectTreeNodes` reads that set when assembling node
+  // objects so a rebuild reapplies the open state.
+
+  it('onNodeExpand persists the project name to localStorage', () => {
+    setup(makeUser(['ProjectUserRole']));
+    comp.onNodeExpand({ node: { data: { type: 'project', name: 'Proj A' } } });
+    const raw = localStorage.getItem(SIDEBAR_EXPANDED_KEY);
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw!)).toEqual(['Proj A']);
+  });
+
+  it('onNodeCollapse removes the project name from localStorage', () => {
+    localStorage.setItem(SIDEBAR_EXPANDED_KEY, JSON.stringify(['Proj A', 'Proj B']));
+    setup(makeUser(['ProjectUserRole']));
+    comp.onNodeCollapse({ node: { data: { type: 'project', name: 'Proj A' } } });
+    const raw = localStorage.getItem(SIDEBAR_EXPANDED_KEY);
+    expect(JSON.parse(raw!)).toEqual(['Proj B']);
+  });
+
+  it('onNodeExpand ignores non-project nodes (entity-group children are leaves)', () => {
+    setup(makeUser(['ProjectUserRole']));
+    comp.onNodeExpand({ node: { data: { type: 'Goals', projectName: 'Proj A' } } });
+    expect(localStorage.getItem(SIDEBAR_EXPANDED_KEY)).toBeNull();
+  });
+
+  it('projectTreeNodes() reflects persisted expanded state on first load', async () => {
+    localStorage.setItem(SIDEBAR_EXPANDED_KEY, JSON.stringify(['Proj A']));
+    setup(makeUser(['ProjectUserRole']));
+    await comp.loadProjects();
+    const nodes = comp.projectTreeNodes();
+    expect(nodes[0].label).toBe('Proj A');
+    expect(nodes[0].expanded).toBe(true);
+  });
+
+  it('projectTreeNodes() leaves projects collapsed when not in the persisted set', async () => {
+    localStorage.setItem(SIDEBAR_EXPANDED_KEY, JSON.stringify(['Other Proj']));
+    setup(makeUser(['ProjectUserRole']));
+    await comp.loadProjects();
+    expect(comp.projectTreeNodes()[0].expanded).toBe(false);
+  });
+
+  it('expanded state survives a loadProjects() rebuild (the SSE-refresh path)', async () => {
+    setup(makeUser(['ProjectUserRole']));
+    await comp.loadProjects();
+    comp.onNodeExpand({ node: { data: { type: 'project', name: 'Proj A' } } });
+
+    // Simulate the SSE-driven rebuild: same data comes back, but the
+    // computed must re-emit nodes with `expanded: true` for Proj A so
+    // the tree doesn't snap closed under the user.
+    await comp.loadProjects();
+    expect(comp.projectTreeNodes()[0].expanded).toBe(true);
+  });
+
+  it('treats a corrupted localStorage value as no persisted state', async () => {
+    localStorage.setItem(SIDEBAR_EXPANDED_KEY, '{not json');
+    setup(makeUser(['ProjectUserRole']));
+    await comp.loadProjects();
+    expect(comp.projectTreeNodes()[0].expanded).toBe(false);
+  });
+
+  it('ignores a localStorage value that is not a JSON array', async () => {
+    // A string-shaped value should be discarded rather than blowing up
+    // (or, worse, being interpreted as an iterable of characters).
+    localStorage.setItem(SIDEBAR_EXPANDED_KEY, JSON.stringify('Proj A'));
+    setup(makeUser(['ProjectUserRole']));
+    await comp.loadProjects();
+    expect(comp.projectTreeNodes()[0].expanded).toBe(false);
   });
 });

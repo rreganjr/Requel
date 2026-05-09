@@ -297,8 +297,14 @@ test.describe('Sidebar', () => {
       cdp.off('Network.loadingFailed', onLoadingFailed);
     }
 
-    // `loadProjects()` rebuilds the tree with `expanded: false`, so we have
-    // to re-expand AFTER the refresh to see the entity-group children.
+    // `loadProjects()` rebuilds the tree, but reapplies the persisted set of
+    // expanded project names from localStorage
+    // (`requel_sidebar_expanded_projects`) so any user-expanded project
+    // would survive the rebuild. In this test the user never expanded the
+    // project before the SSE refresh, so the rebuild leaves it collapsed
+    // and we expand it here for the first time to assert the count.
+    // (See the dedicated "expanded state persists" test below for a direct
+    // check that an expansion DOES survive an SSE-driven rebuild.)
     // We use Playwright's auto-retrying `expect()` for the count check —
     // not a `toPass` closure. Auto-retry here covers only the trailing
     // microtask gap between the GET response landing in `listProjects()`'s
@@ -307,6 +313,73 @@ test.describe('Sidebar', () => {
     // SSE chain itself; that's already happened by the time we get here.
     await sidebar.expandProject(projectName);
     await sidebar.expectEntityGroup(projectName, /^Goals \(1\)$/);
+
+    await page.close();
+  });
+
+  test('expanded project state persists across page reload and SSE refresh', async ({ adminContext, request }) => {
+    test.setTimeout(30_000);
+
+    // Two projects so we can assert the expanded one stays open and the
+    // untouched one stays closed across both a page reload and an
+    // SSE-driven `loadProjects()` rebuild.
+    const nonce = Date.now();
+    const expandedName = `e2e-sidebar-persist-open-${nonce}`;
+    const collapsedName = `e2e-sidebar-persist-closed-${nonce}`;
+    await createProject(request, expandedName, 'Sidebar persistence: expanded');
+    await createProject(request, collapsedName, 'Sidebar persistence: collapsed');
+
+    const page = await adminContext.newPage();
+    const sidebar = new SidebarPage(page);
+
+    // ---- 1. expand one project, leave the other collapsed --------------
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/projects') && r.status() === 200),
+      page.goto('/projects'),
+    ]);
+    await expect(sidebar.tree()).toBeVisible();
+    await sidebar.expectProjectInTree(expandedName);
+    await sidebar.expectProjectInTree(collapsedName);
+    await sidebar.expandProject(expandedName);
+
+    // Sanity-check the persisted set — the localStorage entry is the
+    // contract that makes the rest of this test work. If the component
+    // ever stops writing the key, this assertion fails fast with a clear
+    // signal of where the persistence chain broke.
+    const persisted = await page.evaluate(
+      () => localStorage.getItem('requel_sidebar_expanded_projects')
+    );
+    expect(persisted, 'localStorage records the expanded project').toBeTruthy();
+    const persistedNames = JSON.parse(persisted!) as string[];
+    expect(persistedNames).toContain(expandedName);
+    expect(persistedNames).not.toContain(collapsedName);
+
+    // ---- 2. full page reload — expand state should restore -------------
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/projects') && r.status() === 200),
+      page.reload(),
+    ]);
+    await expect(sidebar.tree()).toBeVisible();
+    await sidebar.expectProjectExpanded(expandedName);
+    await expect(sidebar.projectNode(collapsedName))
+      .toHaveAttribute('aria-expanded', 'false');
+
+    // ---- 3. SSE-driven loadProjects() rebuild — expand state preserved -
+    // Editing a goal in *either* project triggers a Project:0 broadcast,
+    // so the sidebar's events$ subscriber fires loadProjects() and the
+    // tree is rebuilt from scratch. Without persistence both nodes would
+    // reset to `expanded: false`.
+    const refreshFired = page.waitForResponse(r =>
+      r.url().includes('/api/projects') &&
+      r.request().method() === 'GET' &&
+      r.status() === 200
+    );
+    await createGoal(request, collapsedName, `Persistence Goal ${nonce}`, 'goal text');
+    await refreshFired;
+
+    await sidebar.expectProjectExpanded(expandedName);
+    await expect(sidebar.projectNode(collapsedName))
+      .toHaveAttribute('aria-expanded', 'false');
 
     await page.close();
   });

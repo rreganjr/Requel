@@ -69,6 +69,17 @@ export class SidebarPage {
   }
 
   /**
+   * Assert that a project node is currently expanded WITHOUT toggling it.
+   * Use this to verify the persisted expand state is being applied — e.g.
+   * across an SSE-driven tree rebuild or a page reload — where calling
+   * `expandProject()` would flip an already-open node back to collapsed.
+   */
+  async expectProjectExpanded(name: string, timeout = 5_000): Promise<void> {
+    const node = this.projectNode(name);
+    await expect(node).toHaveAttribute('aria-expanded', 'true', { timeout });
+  }
+
+  /**
    * Assert that an entity-group child label is rendered under the named
    * project. The sidebar formats counts inline (e.g. `Goals (1)`), so
    * `groupLabelPattern` should be a regex that tolerates the count tail —
