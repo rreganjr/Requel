@@ -615,7 +615,115 @@ The Release itself is automatic via the workflow in §10.4 — no GitHub UI work
 
 ---
 
-## 12. Open Questions
+## 12. Dependabot Alert Triage
+
+The 2.0 release inherits a backlog of Dependabot security alerts on `master`. As of the May 2026 scan, the repository shows 26 total alerts — 20 already closed as `fixed` and 6 still `open`. The triage below confirms that none of the open alerts require new tracking issues: all six are pre-resolved by the work already on `release/2.0` and will auto-close when the branch merges to `master`.
+
+### 12.1 Pulling the alerts
+
+The list comes from the Dependabot REST API and requires a token with `security_events` scope (classic) or `Dependabot alerts: Read` permission (fine-grained):
+
+```bash
+cd $REQUEL_ROOT
+gh api -H "Accept: application/vnd.github+json" \
+  /repos/rreganjr/Requel/dependabot/alerts \
+  --paginate \
+  > doc/dependabot-alerts.json
+```
+
+Quick summary by state:
+
+```bash
+jq '[.[] | .state] | group_by(.) | map({state: .[0], count: length})' doc/dependabot-alerts.json
+```
+
+### 12.2 The 6 open alerts
+
+All six are the same package and the same manifest:
+
+| # | Severity | CVE | Summary |
+|---|----------|-----|---------|
+| 19 | High | CVE-2021-4104 | JMSAppender deserialization of untrusted data |
+| 20 | High | CVE-2022-23302 | Deserialization in Log4j 1.x |
+| 21 | Critical | CVE-2022-23305 | SQL Injection in Log4j 1.2.x |
+| 22 | Critical | CVE-2022-23307 | Deserialization in Apache Log4j |
+| 23 | Critical | CVE-2019-17571 | Deserialization in Log4j |
+| 24 | High | CVE-2023-26464 | Log4j 1.x (EOL) Denial of Service |
+
+Package: `log4j:log4j` (Maven), manifest: `modules/dictionary-jpa/pom.xml`.
+
+Log4j 1.x has been end-of-life since 2015. Five of these six CVEs have no patch in the 1.x series; the only fix path is removal or replacement.
+
+### 12.3 Why no new issues are needed
+
+`master` carries a direct dependency on `log4j:log4j:1.2.17` in `modules/dictionary-jpa/pom.xml`. The `release/2.0` branch has already deleted that block:
+
+```diff
+-        <dependency>
+-            <groupId>log4j</groupId>
+-            <artifactId>log4j</artifactId>
+-            <version>1.2.17</version>
+-        </dependency>
+```
+
+`mvn -pl modules/dictionary-jpa dependency:tree -Dincludes=log4j:log4j` on `release/2.0` returns an empty result, confirming log4j is no longer on the classpath. Spring Boot 3's Logback is the active logging implementation; nothing in the project depends on log4j 1.x classes anymore.
+
+Because Dependabot scans the default branch (`master`), the six alerts will remain open until `release/2.0` lands on `master`. The merge itself is the fix — no separate tracking issue, no separate PR.
+
+### 12.4 Verification after the merge to `master`
+
+Once `release/2.0` is merged, re-run the fetch and confirm the count drops to zero:
+
+```bash
+gh api -H "Accept: application/vnd.github+json" \
+  /repos/rreganjr/Requel/dependabot/alerts \
+  --jq '[.[] | select(.state == "open")] | length'
+```
+
+Expected: `0`. Allow up to a few hours for Dependabot to re-scan; alternatively trigger an immediate rescan at **Settings → Code security → Dependabot alerts → "Check for updates"**.
+
+If any alerts remain open after the rescan, file individual issues at that point (the triage assumption was wrong, or new alerts have appeared since the May 2026 scan).
+
+### 12.5 Sanity check on the 20 fixed alerts
+
+The 20 closed alerts are worth a quick scan to confirm they were genuinely fixed by dependency upgrades, not silently dismissed:
+
+```bash
+jq '[.[] | select(.state == "fixed") | {number, package: .security_vulnerability.package.name, fixed_at}] | sort_by(.fixed_at)' doc/dependabot-alerts.json
+```
+
+A cluster of `fixed_at` timestamps around the Spring Boot 3 / Java 17 upgrade work (release 1.2, 2025) is the expected pattern. Any entries with `dismissed_reason` set rather than `fixed_at` got hidden manually and deserve a second look.
+
+### 12.6 Going forward: enable Dependabot version updates
+
+Dependabot has two features that look similar but do different things. The alerts above are from **Dependabot security alerts** (already on), which surface CVE-affected dependencies. The repo does not appear to have **Dependabot version updates** enabled — that's the feature that automatically opens PRs to bump dependencies on a schedule, regardless of CVE status. The one existing `dependabot/maven/.../opennlp-tools-2.5.9` PR on the repo is the result of an ad-hoc bump, not a configured schedule.
+
+To turn on scheduled version updates, add `.github/dependabot.yml` with at minimum:
+
+```yaml
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /requel-angular
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+```
+
+This is independent of the 2.0 release but worth doing during the cycle so 2.0.1 and later don't accumulate a fresh backlog. Treat it as a separate small PR into `release/2.0`.
+
+---
+
+## 13. Open Questions
 
 These need decisions before the plan can be executed end-to-end:
 

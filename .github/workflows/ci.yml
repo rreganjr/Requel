@@ -1,0 +1,115 @@
+name: CI
+
+# Build, test, and report coverage on every push and pull request that
+# targets master or any release/* branch. The release/2.0 cycle uses this
+# workflow as the gate for merging feature branches into the integration
+# branch. See doc/20-release-plan.md §5.1.
+
+on:
+  push:
+    branches:
+      - master
+      - "release/**"
+  pull_request:
+    branches:
+      - master
+      - "release/**"
+
+# Cancel earlier runs of the same workflow on the same ref. Useful when
+# someone force-pushes a feature branch and the in-flight run becomes stale.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      # The root pom's maven-toolchains-plugin runs during the `validate`
+      # phase and requires ~/.m2/toolchains.xml to contain a matching JDK
+      # entry (vendor=any, version=17). GitHub runners don't ship one, so
+      # without this step every Maven build fails before reaching compile.
+      # See doc/MAVEN_TOOLCHAINS.md for the local-dev equivalent.
+      - name: Write Maven toolchains.xml
+        run: |
+          mkdir -p "$HOME/.m2"
+          cat > "$HOME/.m2/toolchains.xml" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <toolchains>
+            <toolchain>
+              <type>jdk</type>
+              <provides>
+                <version>17</version>
+                <vendor>any</vendor>
+              </provides>
+              <configuration>
+                <jdkHome>${JAVA_HOME}</jdkHome>
+              </configuration>
+            </toolchain>
+          </toolchains>
+          EOF
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: requel-angular/package-lock.json
+
+      # `mvn verify` triggers the frontend-maven-plugin in modules/requel-app
+      # which downloads its own Node into target/ and runs `npm install` +
+      # `ng build` for the Angular bundle, then proceeds with the Java build.
+      # Surefire runs the unit suite during the `test` phase; failsafe (added
+      # to the root pom alongside this workflow) runs the *IT.java integration
+      # tests during the `integration-test`/`verify` phases. JaCoCo writes a
+      # combined HTML+XML coverage report to **/target/site/jacoco/.
+      - name: Maven build, unit + integration tests, Angular bundle
+        run: >
+          mvn -pl modules/requel-app -am verify
+          --batch-mode --no-transfer-progress
+          -Dstyle.color=always
+
+      # The frontend-maven-plugin only invokes `ng build`, not `ng test`.
+      # Run the Vitest unit suite separately using the host-installed Node.
+      # `--no-watch` makes the runner exit after one pass (default is watch).
+      - name: Angular unit tests (Vitest)
+        working-directory: requel-angular
+        run: |
+          npm ci
+          npm test -- --no-watch
+
+      - name: Upload JaCoCo coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage
+          path: "**/target/site/jacoco/"
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
+          if-no-files-found: ignore
+          retention-days: 14
