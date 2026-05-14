@@ -21,3 +21,6 @@ node_modules/
 # Local draft files (not for version control)
 /commit.md
 /ticket.md
+
+# macOS Finder metadata (appears anywhere directories get browsed)
+.DS_Store

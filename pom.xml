@@ -82,6 +82,35 @@
                     </configuration>
                 </plugin>
                 <plugin>
+                    <!--
+                      Integration tests live in *IT.java files (e.g. AuthorizationIT,
+                      ProjectXmlRoundTripIT). Surefire's default patterns don't match
+                      *IT.java, so without failsafe these classes would only run when
+                      invoked explicitly via -Dtest=…. Binding failsafe to the standard
+                      integration-test/verify goals makes `mvn verify` run the full
+                      suite — surefire (unit) then failsafe (integration) — which is
+                      what CI and the release plan assume.
+                    -->
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>3.2.5</version>
+                    <configuration>
+                        <includes>
+                            <include>**/*IT.java</include>
+                        </includes>
+                        <failIfNoTests>false</failIfNoTests>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>integration-tests</id>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>0.8.12</version>
@@ -148,6 +177,12 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
+            <!-- Activate the failsafe plugin (configured in pluginManagement above)
+                 so `mvn verify` runs integration tests in every module. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
             </plugin>
             <!-- Enforce Java 17 for the build to fail fast if an older JDK is used -->
             <plugin>
