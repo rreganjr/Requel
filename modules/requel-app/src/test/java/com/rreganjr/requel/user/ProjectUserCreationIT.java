@@ -21,7 +21,6 @@
 package com.rreganjr.requel.user;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,8 +28,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 
 import com.rreganjr.requel.Application;
+import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.UserRepository;
-import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.impl.repository.init.ProjectUserInitializer;
 
 @SpringBootTest(classes = Application.class)
@@ -47,13 +46,30 @@ class ProjectUserCreationIT {
     @Autowired
     private ProjectUserInitializer projectUserInitializer;
 
+    /**
+     * The application's {@code DatabaseInitializationRunner} (an
+     * {@code @EventListener(ApplicationReadyEvent.class)} component) runs every
+     * registered {@code SystemInitializer} — including this one — during
+     * context startup. By the time the test method executes, the "project"
+     * user has already been created. The contract we still need to hold is
+     * that the initializer is idempotent: re-running it on already-initialized
+     * state must not throw, must not duplicate the user, and must leave the
+     * existing record intact. (The runner can fire again on context refresh,
+     * and tests may invoke initializers explicitly during their own setup.)
+     */
     @Test
-    void projectUserInitializerCreatesMissingUser() throws Exception {
-        assertThatThrownBy(() -> userRepository.findUserByUsername("project"))
-                .isInstanceOf(NoSuchUserException.class);
+    void projectUserInitializerIsIdempotent() throws Exception {
+        User initialUser = userRepository.findUserByUsername("project");
+        assertThat(initialUser)
+                .as("DatabaseInitializationRunner should have pre-created the project user")
+                .isNotNull();
+        Long initialId = initialUser.getId();
 
         projectUserInitializer.initialize();
 
-        assertThat(userRepository.findUserByUsername("project")).isNotNull();
+        User reinitialized = userRepository.findUserByUsername("project");
+        assertThat(reinitialized.getId())
+                .as("re-running the initializer must not duplicate or replace the user")
+                .isEqualTo(initialId);
     }
 }
