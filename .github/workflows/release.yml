@@ -1,0 +1,105 @@
+name: Release
+
+# Fires only on tag pushes matching v* (e.g. v2.0.0-rc1, v2.0.0).
+# Builds the project, runs the full test suite, and creates a GitHub
+# Release with auto-generated notes and the Spring Boot JAR attached.
+# See doc/20-release-plan.md §5.4.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# Don't cancel a release run in flight if the same tag gets re-pushed.
+# Killing mid-publish could leave a half-created Release. CI workflows
+# can afford to be aggressive about cancellation; this one should not.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # required by softprops/action-gh-release to create the Release
+
+jobs:
+  release:
+    name: Build & release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out at tag
+        uses: actions/checkout@v4
+        with:
+          # softprops/action-gh-release walks git history to auto-generate
+          # release notes (comparing this tag to the previous tag's commit).
+          # The default shallow clone (depth 1) leaves nothing to compare
+          # against and the notes come back empty.
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      # Same toolchains stanza ci.yml writes. The root pom's
+      # maven-toolchains-plugin runs during the `validate` phase and
+      # demands a matching JDK entry; without this step every Maven
+      # build fails before reaching compile. See doc/MAVEN_TOOLCHAINS.md
+      # for the local-dev equivalent.
+      - name: Write Maven toolchains.xml
+        run: |
+          mkdir -p "$HOME/.m2"
+          cat > "$HOME/.m2/toolchains.xml" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <toolchains>
+            <toolchain>
+              <type>jdk</type>
+              <provides>
+                <version>17</version>
+                <vendor>any</vendor>
+              </provides>
+              <configuration>
+                <jdkHome>${JAVA_HOME}</jdkHome>
+              </configuration>
+            </toolchain>
+          </toolchains>
+          EOF
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: requel-angular/package-lock.json
+
+      # Full build + test as defense in depth. The CI gate on the
+      # merge that landed this commit already ran the same `mvn verify`,
+      # but a release tag could in principle be created outside the
+      # normal PR flow (e.g. directly against master). Re-running here
+      # ensures the artifact attached to the Release is one that built
+      # cleanly and passed its tests.
+      - name: Maven build, unit + integration tests, Angular bundle
+        run: >
+          mvn -pl modules/requel-app -am verify
+          --batch-mode --no-transfer-progress
+          -Dstyle.color=always
+          -Dmaven.test.redirectTestOutputToFile=true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # GitHub auto-generates the changelog body by listing PRs
+          # merged into the default branch since the previous tag.
+          # See https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
+          generate_release_notes: true
+          # Tag suffixes containing `-rc` (e.g. v2.0.0-rc1) are flagged
+          # as pre-releases in the GitHub UI so they don't appear as
+          # the current "latest" release. Final tags (v2.0.0, v2.1.0)
+          # do not match this pattern and post as full releases.
+          prerelease: ${{ contains(github.ref_name, '-rc') }}
+          # Attach the runnable JAR as a release asset. The wildcard
+          # is intentional — finalName follows ${artifactId}-${version}
+          # which matches the Maven coordinate.
+          files: modules/requel-app/target/requel-app-*.jar
