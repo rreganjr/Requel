@@ -28,13 +28,22 @@
             <testResource>
                 <directory>${project.basedir}/src/test/resources</directory>
             </testResource>
+            <!--
+              The repo-root doc/samples directory holds canonical example
+              project XML and its XSD. Copy both onto the test classpath
+              at doc/samples/* so tests can load them via the usual
+              classpath mechanism (ClassLoader.getResourceAsStream)
+              instead of relative filesystem paths that break under
+              surefire's CWD (which is the module root, not the repo
+              root). See ProjectXmlStreamingRoundTripIT.
+            -->
             <testResource>
                 <directory>${project.basedir}/../../doc/samples</directory>
                 <includes>
                     <include>Requel.xml</include>
                     <include>project.xsd</include>
                 </includes>
-                <targetPath>samples</targetPath>
+                <targetPath>doc/samples</targetPath>
             </testResource>
         </testResources>
         <plugins>
