@@ -196,14 +196,24 @@ class ProjectXmlStreamingRoundTripIT {
 
 	@Test
 	@Transactional
-	@Disabled("https://github.com/rreganjr/Requel/issues/46 — relative path to"
-			+ " doc/samples/Requel.xml does not resolve under surefire's CWD"
-			+ " (modules/requel-app/). Re-enable once the sample is reached via"
-			+ " the test classpath like project.xsd is.")
 	void importingSampleXmlPreservesCanonicalGlossaryTerms() throws Exception {
 		initializeBaselineData();
 		User projectUser = ensureProjectUserExists();
-		byte[] sampleXml = Files.readAllBytes(Path.of("doc", "samples", "Requel.xml"));
+		// The canonical sample lives at <repo-root>/doc/samples/Requel.xml.
+		// Reading it via a relative filesystem path doesn't work under surefire
+		// (CWD is the module root, not the repo root). The repo-root copy is
+		// copied onto the test classpath at doc/samples/Requel.xml by a
+		// <testResource> block in this module's pom.xml.
+		byte[] sampleXml;
+		try (InputStream sampleStream = getClass().getClassLoader()
+				.getResourceAsStream("doc/samples/Requel.xml")) {
+			if (sampleStream == null) {
+				throw new IllegalStateException(
+						"doc/samples/Requel.xml not found on test classpath. "
+								+ "Check the <testResource> block in modules/requel-app/pom.xml.");
+			}
+			sampleXml = sampleStream.readAllBytes();
+		}
 		String importedProjectName = "Sample Import " + UUID.randomUUID();
 		Project imported = importProject(sampleXml, projectUser, importedProjectName);
 
