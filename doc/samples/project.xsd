@@ -508,6 +508,7 @@
             </xs:complexType>
           </xs:element>
           <xs:element name="name" type="xs:string" form="qualified" minOccurs="0"/>
+          <xs:element name="primaryActorRef" type="xs:IDREF" form="qualified" minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="storyType" type="xs:string"/>
         <xs:attribute name="id" type="xs:ID"/>

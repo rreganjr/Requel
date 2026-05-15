@@ -44,7 +44,6 @@ import javax.xml.validation.Validator;
 
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.impl.repository.jpa.JpaUserRepository;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -147,9 +146,6 @@ class ProjectXmlStreamingRoundTripIT {
 
 	@Test
 	@Transactional
-	@Disabled("https://github.com/rreganjr/Requel/issues/47 — exported XML emits"
-			+ " <primaryActorRef> in a position the XSD doesn't expect."
-			+ " Re-enable once the XSD ordering and the JAXB marshaller agree.")
 	void importExportRoundTripKeepsProjectRoundTrippable() throws Exception {
 		initializeBaselineData();
 
