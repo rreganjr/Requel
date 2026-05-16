@@ -48,6 +48,9 @@ public class StoryImportXml {
     @XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
     private String text;
 
+    @XmlElement(name = "primaryActorRef", namespace = "http://www.rreganjr.com/requel")
+    private String primaryActorRef;
+
     @XmlElementWrapper(name = "goals", namespace = "http://www.rreganjr.com/requel")
     @XmlElement(name = "goalRef", namespace = "http://www.rreganjr.com/requel")
     private List<String> goalRefs = new ArrayList<>();
@@ -69,6 +72,7 @@ public class StoryImportXml {
     public String getStoryType() { return storyType; }
     public String getName() { return name; }
     public String getText() { return text; }
+    public String getPrimaryActorRef() { return primaryActorRef; }
     public List<String> getGoalRefs() { return goalRefs; }
     public List<String> getActorRefs() { return actorRefs; }
     public List<String> getAnnotationRefs() { return annotationRefs; }

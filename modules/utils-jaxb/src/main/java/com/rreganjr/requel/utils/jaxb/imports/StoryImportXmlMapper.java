@@ -37,6 +37,7 @@ public class StoryImportXmlMapper {
                 .name(xml.getName())
                 .description(xml.getText())
                 .storyType(xml.getStoryType())
+                .primaryActorExternalId(xml.getPrimaryActorRef())
                 .goalExternalIds(new HashSet<>(xml.getGoalRefs()))
                 .actorExternalIds(new HashSet<>(xml.getActorRefs()))
                 .annotationExternalIds(new HashSet<>(xml.getAnnotationRefs()))
