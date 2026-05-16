@@ -89,6 +89,17 @@ public class StoryAssembler implements AggregateAssembler<StoryImportDraft, Stor
             });
         });
 
+        // 2.0 adds a single primary actor on stories alongside the additional
+        // actors collection (V7 Flyway migration, primary_actor_id column). The
+        // streaming import flow previously dropped this on the floor — the
+        // round-trip test in #47 caught it. Resolve via the same unit-of-work
+        // the actors collection uses; actors are assembled before stories, so
+        // by the time we get here the actor is registered.
+        if (StringUtils.hasText(draft.getPrimaryActorExternalId())) {
+            unitOfWork.resolve(Actor.class, draft.getPrimaryActorExternalId())
+                    .ifPresent(story::setPrimaryActor);
+        }
+
         attachGlossaryTerms(story, draft.getGlossaryTermExternalIds(), unitOfWork);
 
         return story;
