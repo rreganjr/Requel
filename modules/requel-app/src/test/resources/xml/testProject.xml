@@ -1111,7 +1111,7 @@
                 <username>assistant</username>
                 <password>f549cd73f694aa6f5541b4ae30894eea</password>
                 <name>Analysis Assistant</name>
-                <emailAddress>rreganjr@users.sourceforge.net</emailAddress>
+                <emailAddress>assistant@requel.invalid</emailAddress>
                 <organization name="Requel"/>
                 <userRoles>
                     <projectUserRole>
@@ -1130,7 +1130,7 @@
                 <username>project</username>
                 <password>46f86faa6bbf9ac94a7e459509a20ed0</password>
                 <name>Builtin Project User</name>
-                <emailAddress>rreganjr@users.sourceforge.net</emailAddress>
+                <emailAddress>project@requel.invalid</emailAddress>
                 <organization name="Requel"/>
                 <userRoles>
                     <projectUserRole>
@@ -1189,7 +1189,7 @@
                 <username>admin</username>
                 <password>21232f297a57a5a743894a0e4a801fc3</password>
                 <name>System Administrator</name>
-                <emailAddress>rreganjr@users.sourceforge.net</emailAddress>
+                <emailAddress>admin@requel.invalid</emailAddress>
                 <organization name="Requel"/>
                 <userRoles>
                     <projectUserRole>
