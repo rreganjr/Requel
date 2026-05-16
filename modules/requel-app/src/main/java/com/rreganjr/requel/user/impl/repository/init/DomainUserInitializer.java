@@ -59,7 +59,7 @@ public class DomainUserInitializer extends AbstractSystemInitializer {
 				command.setUsername("domain");
 				command.setPassword("domain");
 				command.setRepassword("domain");
-				command.setEmailAddress("rreganjr@users.sourceforge.net");
+				command.setEmailAddress("domain@requel.invalid");
 				command.setOrganizationName("Requel");
 				command.addUserRoleName(DomainAdminUserRole.getRoleName(DomainAdminUserRole.class));
 				commandHandler.execute(command);

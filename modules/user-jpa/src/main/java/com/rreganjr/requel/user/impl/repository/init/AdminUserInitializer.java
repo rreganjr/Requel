@@ -68,7 +68,7 @@ public class AdminUserInitializer extends AbstractSystemInitializer {
 				command.setPassword("admin");
 				command.setRepassword("admin");
 				command.setName("System Administrator");
-				command.setEmailAddress("rreganjr@users.sourceforge.net");
+				command.setEmailAddress("admin@requel.invalid");
 				command.setOrganizationName("Requel");
 				command.addUserRoleName(SystemAdminUserRole.getRoleName(SystemAdminUserRole.class));
 				commandHandler.execute(command);

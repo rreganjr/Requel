@@ -28,7 +28,7 @@ import java.util.Map;
  * http://bulba.sdsu.edu/jeanette/thesis/PennTags.html by JEANETTE PETTIBONE
  * pettibon@stanford.edu
  * 
- * @author rreganjr@users.sourceforge.net
+ * @author 11188410+rreganjr@users.noreply.github.com
  */
 public enum ParseTag {
 

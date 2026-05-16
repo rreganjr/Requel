@@ -66,7 +66,7 @@ public class ProjectUserInitializer extends AbstractSystemInitializer {
 				command.setPassword("project");
 				command.setRepassword("project");
 				command.setName("Builtin Project User");
-				command.setEmailAddress("rreganjr@users.sourceforge.net");
+				command.setEmailAddress("project@requel.invalid");
 				command.setOrganizationName("Requel");
 				command.addUserRoleName(ProjectUserRole.getRoleName(ProjectUserRole.class));
 				command.addUserRolePermissionName(ProjectUserRole
