@@ -675,6 +675,48 @@ export default defineConfig({
 `:4200` with `proxy.conf.json` forwarding `/api` to Spring Boot on `:8081`. Change `baseURL` to
 `http://localhost:4200` in this mode. Do not mix the two — pick one per environment.
 
+### 4.2.1 Dev-only reset endpoints for E2E
+
+E2E tests need built-in users (`admin`, `project`, …) in known-canonical state at the start
+of every run, regardless of what happened to those records during prior debugging or test
+runs on a developer's local database. To support this, the server exposes dev-only reset
+endpoints under `/api/dev/*` that re-seed each built-in user. The endpoints are registered
+only when the matching `requel.dev.reset-*.enabled` flag is `true`, so they are absent from
+production builds.
+
+| Endpoint | Property flag | What it resets |
+|---|---|---|
+| `POST /api/dev/reset-admin` | `requel.dev.reset-admin.enabled` | admin's password (default `admin`) |
+| `POST /api/dev/reset-project` | `requel.dev.reset-project.enabled` | project user's name, password (`project`), and roles (forces back to `ProjectUserRole` only — drops any drift such as a manually-added `SystemAdminUserRole`) |
+
+`e2e/global-setup.ts` calls both endpoints before every E2E run; if either is absent (404),
+the call is silently skipped with a console warning.
+
+The simplest way to enable both endpoints (and a couple of other dev-only conveniences like
+CORS for the Angular dev server) is to activate the `dev` Spring profile when running the
+JAR locally:
+
+```bash
+java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
+  --spring.profiles.active=dev \
+  --server.port=8080
+```
+
+This activates `modules/requel-app/src/main/resources/application-dev.properties` which
+flips both reset-endpoint flags. Equivalent explicit-flag form (useful for opting in to
+only one endpoint, or for non-`dev` profile situations):
+
+```bash
+java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
+  --requel.dev.reset-admin.enabled=true \
+  --requel.dev.reset-project.enabled=true \
+  --server.port=8080
+```
+
+Docker-compose runs (`docker-compose up`) start with a fresh database every time and don't
+activate the `dev` profile — those endpoints are useful primarily for developers running
+e2e against a persistent local install.
+
 ### 4.3 Test generation approach
 
 Writing Playwright tests from scratch is slow and produces fragile selectors. The recommended
