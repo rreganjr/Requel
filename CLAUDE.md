@@ -51,12 +51,12 @@ mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests
 # With local MySQL (Angular served from the JAR at /)
 java -jar modules/requel-app/target/requel-app-1.2.0.jar \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
-  --spring.datasource.username=root --spring.datasource.password=password --server.port=8081
+  --spring.datasource.username=root --spring.datasource.password=password --server.port=8080
 
 # Angular dev server (hot reload) + Spring Boot backend
 # Start backend with dev profile so CORS allows localhost:4200:
 java -jar modules/requel-app/target/requel-app-1.2.0.jar \
-  --spring.profiles.active=dev --server.port=8081 \
+  --spring.profiles.active=dev --server.port=8080 \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
   --spring.datasource.username=root --spring.datasource.password=password
 # Then in requel-angular/:
@@ -66,7 +66,7 @@ cd requel-angular && ng serve
 docker-compose up
 ```
 
-Default login: **admin** / **admin** at http://localhost:8081/
+Default login: **admin** / **admin** at http://localhost:8080/
 
 ## Architecture
 

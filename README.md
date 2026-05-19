@@ -71,7 +71,7 @@ java -jar modules/requel-app/target/requel-app-2.0.0.jar \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
   --spring.datasource.username=root \
   --spring.datasource.password=password \
-  --server.port=8081
+  --server.port=8080
 
 # Linux
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
@@ -81,10 +81,10 @@ java -jar modules/requel-app/target/requel-app-2.0.0.jar \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
   --spring.datasource.username=root \
   --spring.datasource.password=password \
-  --server.port=8081
+  --server.port=8080
 ```
 
-Then open http://localhost:8081/ and log in as **admin** / **admin**.
+Then open http://localhost:8080/ and log in as **admin** / **admin**.
 
 `--spring.profiles.active=dev` activates [`application-dev.properties`](modules/requel-app/src/main/resources/application-dev.properties) which:
 
