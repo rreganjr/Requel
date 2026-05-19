@@ -1,11 +1,19 @@
-import { Locator, Page, expect } from '@playwright/test';
+import { Locator, Page, Response, expect } from '@playwright/test';
+
+type ResponseMatcher = string | ((response: Response) => boolean);
 
 export abstract class BaseListPage {
   protected constructor(protected readonly page: Page) {}
 
-  protected async gotoList(url: string, responseUrlFragment: string): Promise<void> {
+  protected async gotoList(url: string, responseMatcher: ResponseMatcher): Promise<void> {
+    const matchesResponse = (response: Response) => {
+      if (typeof responseMatcher === 'string') {
+        return response.url().includes(responseMatcher);
+      }
+      return responseMatcher(response);
+    };
     await Promise.all([
-      this.page.waitForResponse(r => r.url().includes(responseUrlFragment) && r.status() === 200),
+      this.page.waitForResponse(r => matchesResponse(r) && r.status() === 200),
       this.page.goto(url),
     ]);
   }

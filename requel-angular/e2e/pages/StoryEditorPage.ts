@@ -7,7 +7,11 @@ export class StoryListPage extends BaseListPage {
   }
 
   async goto(projectName: string): Promise<void> {
-    await this.gotoList(`/projects/${encodeURIComponent(projectName)}/stories`, '/stories');
+    const encodedProjectName = encodeURIComponent(projectName);
+    await this.gotoList(
+      `/projects/${encodedProjectName}/stories`,
+      response => new URL(response.url()).pathname === `/api/projects/${encodedProjectName}/stories`
+    );
   }
 
   async searchFor(name: string): Promise<void> {
@@ -122,7 +126,7 @@ export class StoryEditorPage {
   async delete(): Promise<void> {
     await this.page.getByTestId('story-delete').click();
     const [response] = await Promise.all([
-      this.page.waitForResponse(r => r.url().includes('/api/commands/DeleteStory') && r.status() === 200),
+      this.page.waitForResponse(r => r.url().includes('/api/commands/DeleteStory')),
       this.page.getByRole('button', { name: 'Yes' }).click(),
     ]);
     if (!response.ok()) {
