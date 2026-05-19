@@ -67,6 +67,7 @@ Requires **Java 17** and a running **MySQL 8.4** instance.
 # macOS
 JAVA_HOME=$(/usr/libexec/java_home -v 17) PATH="$JAVA_HOME/bin:$PATH" \
 java -jar modules/requel-app/target/requel-app-2.0.0.jar \
+  --spring.profiles.active=dev \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
   --spring.datasource.username=root \
   --spring.datasource.password=password \
@@ -76,6 +77,7 @@ java -jar modules/requel-app/target/requel-app-2.0.0.jar \
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 export PATH="$JAVA_HOME/bin:$PATH"
 java -jar modules/requel-app/target/requel-app-2.0.0.jar \
+  --spring.profiles.active=dev \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
   --spring.datasource.username=root \
   --spring.datasource.password=password \
@@ -83,6 +85,13 @@ java -jar modules/requel-app/target/requel-app-2.0.0.jar \
 ```
 
 Then open http://localhost:8081/ and log in as **admin** / **admin**.
+
+`--spring.profiles.active=dev` activates [`application-dev.properties`](modules/requel-app/src/main/resources/application-dev.properties) which:
+
+- allows the Angular dev server on `:4200` to reach the API (CORS),
+- registers `/api/dev/reset-admin` and `/api/dev/reset-project` endpoints used by the Playwright E2E global-setup to put built-in users back to canonical state before each run.
+
+The reset endpoints are unauthenticated and destructive, so leaving the `dev` profile off (the default, what Docker Compose runs with) keeps them out of the running server.
 
 > **zsh users:** quote the JDBC URL (contains `?`) or prefix the command with `noglob`.
 

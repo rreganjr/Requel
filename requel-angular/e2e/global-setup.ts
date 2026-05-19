@@ -16,7 +16,7 @@ async function resetAdminPassword(): Promise<void> {
   try {
     const res = await ctx.post('/api/dev/reset-admin');
     if (res.status() === 404) {
-      console.warn('[global-setup] /api/dev/reset-admin not available — start the server with --requel.dev.reset-admin.enabled=true to auto-reset admin credentials before each run');
+      console.warn('[global-setup] /api/dev/reset-admin not available — start the server with --spring.profiles.active=dev (or --requel.dev.reset-admin.enabled=true) to auto-reset admin credentials before each run');
     }
   } finally {
     await ctx.dispose();
@@ -37,7 +37,7 @@ async function resetProjectUser(): Promise<void> {
   try {
     const res = await ctx.post('/api/dev/reset-project');
     if (res.status() === 404) {
-      console.warn('[global-setup] /api/dev/reset-project not available — start the server with --requel.dev.reset-project.enabled=true to auto-reset the project user to canonical state before each run');
+      console.warn('[global-setup] /api/dev/reset-project not available — start the server with --spring.profiles.active=dev (or --requel.dev.reset-project.enabled=true) to auto-reset the project user to canonical state before each run');
     }
   } finally {
     await ctx.dispose();

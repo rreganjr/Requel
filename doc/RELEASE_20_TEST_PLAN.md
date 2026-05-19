@@ -690,8 +690,21 @@ production builds.
 | `POST /api/dev/reset-project` | `requel.dev.reset-project.enabled` | project user's name, password (`project`), and roles (forces back to `ProjectUserRole` only — drops any drift such as a manually-added `SystemAdminUserRole`) |
 
 `e2e/global-setup.ts` calls both endpoints before every E2E run; if either is absent (404),
-the call is silently skipped with a console warning. To enable them when running e2e
-locally, start the server with both flags:
+the call is silently skipped with a console warning.
+
+The simplest way to enable both endpoints (and a couple of other dev-only conveniences like
+CORS for the Angular dev server) is to activate the `dev` Spring profile when running the
+JAR locally:
+
+```bash
+java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
+  --spring.profiles.active=dev \
+  --server.port=8080
+```
+
+This activates `modules/requel-app/src/main/resources/application-dev.properties` which
+flips both reset-endpoint flags. Equivalent explicit-flag form (useful for opting in to
+only one endpoint, or for non-`dev` profile situations):
 
 ```bash
 java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
@@ -701,8 +714,8 @@ java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
 ```
 
 Docker-compose runs (`docker-compose up`) start with a fresh database every time and don't
-need the flags — those endpoints are useful primarily for developers running e2e against a
-persistent local install.
+activate the `dev` profile — those endpoints are useful primarily for developers running
+e2e against a persistent local install.
 
 ### 4.3 Test generation approach
 
