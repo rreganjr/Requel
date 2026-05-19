@@ -77,6 +77,7 @@ import { CommandService } from '../../core/command.service';
             <p-select id="org" inputId="userOrgInput" data-testid="user-organization"
                       [(ngModel)]="organizationName" name="org"
                       [options]="orgOptions()" [editable]="true"
+                      appendTo="body"
                       placeholder="Select or type organization" />
           </div>
 

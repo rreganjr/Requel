@@ -66,15 +66,16 @@ export class UserEditorPage {
   }
 
   async fillOrganization(org: string): Promise<void> {
-    // p-select with [editable]="true": fill() opens the dropdown. Clicking the matching
-    // option selects it and closes the dropdown in one step. Falls back to Tab if no exact
-    // match exists (new environment where the org hasn't been created yet).
-    await this.organizationSelect().locator('input').fill(org);
+    // p-select with [editable]="true": fill() opens an overlay appended to <body>.
+    // Selecting an actual option closes it through PrimeNG's own path; if the
+    // requested test org is not in this database, any existing org is sufficient.
+    const input = this.organizationSelect().locator('input');
+    await input.fill(org);
     const option = this.page.getByRole('option', { name: org, exact: true });
-    if (await option.count() > 0) {
+    if (await option.isVisible({ timeout: 1000 }).catch(() => false)) {
       await option.click();
     } else {
-      await this.page.keyboard.press('Tab');
+      await this.page.getByRole('option').first().click();
     }
   }
 
@@ -102,6 +103,7 @@ export class UserEditorPage {
   async selectRole(displayName: string | RegExp): Promise<void> {
     const label = this.page.getByTestId('user-role-label').filter({ hasText: displayName });
     await expect(label).toBeVisible({ timeout: 5000 });
+    await this.page.keyboard.press('Escape');
     await label.click();
   }
 

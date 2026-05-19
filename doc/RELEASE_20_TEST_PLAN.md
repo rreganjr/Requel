@@ -672,7 +672,7 @@ export default defineConfig({
 ```
 
 **Dev-server mode** (optional, for hot-reload during E2E authoring): run the Angular dev server on
-`:4200` with `proxy.conf.json` forwarding `/api` to Spring Boot on `:8081`. Change `baseURL` to
+`:4200` with `proxy.conf.json` forwarding `/api` to Spring Boot on `:8080`. Change `baseURL` to
 `http://localhost:4200` in this mode. Do not mix the two — pick one per environment.
 
 ### 4.2.1 Dev-only reset endpoints for E2E

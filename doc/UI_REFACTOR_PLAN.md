@@ -8,7 +8,7 @@ The Echo2 framework is a legacy Java RIA that renders server-side components ove
 - Clean separation between backend API and frontend rendering
 - A command-based API that maps directly to the existing domain command pattern
 - Query endpoints for reads, command dispatch for writes (CQRS)
-- Independent development cycles (Angular dev server on port 4200, Spring Boot on 8081) with single-artifact deployment
+- Independent development cycles (Angular dev server on port 4200, Spring Boot on 8080) with single-artifact deployment
 
 ## 2. Current State
 
@@ -317,7 +317,7 @@ PrimeNG aligns its major version with Angular — PrimeNG 19 targets Angular 19,
 | Setting | Dev | Production | Source |
 |---|---|---|---|
 | **JWT signing secret** | Config default (e.g. `requel.jwt.secret` in `application.properties`) | Environment variable or external config — **never hardcoded** | Spring Boot config |
-| **API base URL** | `http://localhost:8081` (Angular `proxy.conf.json` proxies `/api` to Spring Boot) | Same-origin (static from JAR) — no config needed | Angular `environment.ts` / proxy |
+| **API base URL** | `http://localhost:8080` (Angular `proxy.conf.json` proxies `/api` to Spring Boot) | Same-origin (static from JAR) — no config needed | Angular `environment.ts` / proxy |
 | **CORS allowed origins** | `http://localhost:4200` (Angular dev server) | Disabled or restricted to single origin (same-origin after Phase 10) | Spring Security CORS config |
 
 #### Angular 21 Conventions
@@ -996,7 +996,7 @@ Each phase delivers a working increment. The Angular app and Echo2 app can coexi
 5. Auth: login page (standalone component importing PrimeNG `InputText`, `Password`, `Button`), `AuthService` (JWT stored as `signal<string | null>`), functional HTTP interceptor (`authInterceptor`), functional route guard (`authGuard`)
 6. `EventStreamService` — fetch-based SSE streaming service (see Section 3.5). Connection lifecycle (idle/connecting/open/closed/error), session tracking, dynamic subscribe/unsubscribe, late-subscriber reconciliation, exponential backoff reconnect, generation counter for stale connection prevention, graceful server-side disconnect, identity-safe unsubscribe, SSE text parsing via `ReadableStream`.
 7. Main layout: standalone `AppLayout` component with `p-menubar` (Edit Account, User Guide, Logout), sidebar `p-tree`, content area with `p-tabView`
-8. Configure `proxy.conf.json` to proxy `/api` requests to Spring Boot (port 8081) during development; add `environment.ts` / `environment.prod.ts` for any environment-specific settings
+8. Configure `proxy.conf.json` to proxy `/api` requests to Spring Boot (port 8080) during development; add `environment.ts` / `environment.prod.ts` for any environment-specific settings
 9. Verify login → protected route → SSE connection → logout flow works end-to-end
 
 **Auth endpoints (these remain conventional REST, not commands):**
