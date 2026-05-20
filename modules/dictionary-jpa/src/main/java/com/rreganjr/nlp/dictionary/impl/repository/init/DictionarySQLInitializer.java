@@ -31,6 +31,7 @@ import java.sql.Statement;
 import java.util.zip.GZIPInputStream;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Scope;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -46,6 +47,9 @@ import com.rreganjr.nlp.dictionary.DictionaryRepository;
  * 
  * @author ron
  */
+@ConditionalOnProperty(name = "requel.dictionary.sql-initializer.enabled",
+		havingValue = "true",
+		matchIfMissing = true)
 @Component("dictionarySQLInitializer")
 @Scope("prototype")
 public class DictionarySQLInitializer extends AbstractSystemInitializer {

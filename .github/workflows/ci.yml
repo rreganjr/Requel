@@ -203,6 +203,7 @@ jobs:
             '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
             --spring.datasource.username=root \
             --spring.datasource.password=password \
+            --requel.dictionary.sql-initializer.enabled=false \
             > requel-e2e.log 2>&1 &
           APP_PID=$!
           trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
