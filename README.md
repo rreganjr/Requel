@@ -1,5 +1,15 @@
 ## Requel 2.0
 
+[![CI](https://github.com/rreganjr/Requel/actions/workflows/ci.yml/badge.svg)](https://github.com/rreganjr/Requel/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/rreganjr/Requel/branch/master/graph/badge.svg)](https://codecov.io/gh/rreganjr/Requel)
+[![License](https://img.shields.io/github/license/rreganjr/Requel)](LICENSE)
+[![Release](https://img.shields.io/badge/Release-2.0%20pending-yellow)](https://github.com/rreganjr/Requel/releases)
+[![Last commit](https://img.shields.io/github/last-commit/rreganjr/Requel)](https://github.com/rreganjr/Requel/commits/master)
+[![Docker Pulls](https://img.shields.io/docker/pulls/rreganjr/requel)](https://hub.docker.com/r/rreganjr/requel)
+[![Java](https://img.shields.io/badge/Java-17-007396?logo=openjdk)](https://openjdk.org/projects/jdk/17/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
+[![Angular](https://img.shields.io/badge/Angular-21-DD0031?logo=angular)](https://angular.dev/)
+
 Requel is a web-based requirements management system that supports collaboration among all
 stakeholders and provides automated assistance to validate requirements and suggest improvements.
 It models requirements as goals, stories, actors, scenarios, and use-cases with an IBIS-style
