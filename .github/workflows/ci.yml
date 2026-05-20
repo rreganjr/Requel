@@ -219,7 +219,22 @@ jobs:
             exit 1
           fi
 
-          curl -fsS -X POST http://localhost:8080/api/dev/reset-admin > /dev/null
+          reset_dev_fixture() {
+            local path="$1"
+            for i in {1..60}; do
+              if curl -fsS -X POST "http://localhost:8080${path}" > /dev/null; then
+                return 0
+              fi
+              sleep 2
+            done
+            echo "Timed out waiting for ${path}"
+            cat requel-e2e.log
+            exit 1
+          }
+
+          reset_dev_fixture /api/dev/reset-admin
+          reset_dev_fixture /api/dev/reset-project
+
           (cd requel-angular && npm run e2e:coverage)
 
       - name: Upload E2E coverage to Codecov
