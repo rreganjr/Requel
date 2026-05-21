@@ -20,6 +20,7 @@ export default defineConfig({
   workers: 1,
   reporter: [
     ['html', { outputFolder: 'playwright-report' }],
+    ['junit', { outputFile: './test-results/playwright.junit.xml' }],
     [
       'monocart-reporter',
       {
