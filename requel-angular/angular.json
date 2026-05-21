@@ -77,7 +77,11 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "tsConfig": "tsconfig.spec.json",
-            "setupFiles": ["src/test-setup.ts"]
+            "setupFiles": ["src/test-setup.ts"],
+            "reporters": [
+              "default",
+              ["junit", { "outputFile": "test-results/vitest.junit.xml" }]
+            ]
           }
         }
       }

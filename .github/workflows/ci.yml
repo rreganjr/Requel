@@ -114,6 +114,32 @@ jobs:
           fail_ci_if_error: false
           use_oidc: true
 
+      - name: Upload backend test results to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: "**/target/surefire-reports/TEST-*.xml,**/target/failsafe-reports/TEST-*.xml"
+          flags: backend
+          name: junit-backend
+          report_type: test_results
+          disable_search: true
+          handle_no_reports_found: true
+          fail_ci_if_error: false
+          use_oidc: true
+
+      - name: Upload Angular unit test results to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: requel-angular/test-results/vitest.junit.xml
+          flags: frontend-unit
+          name: vitest-frontend-unit
+          report_type: test_results
+          disable_search: true
+          handle_no_reports_found: true
+          fail_ci_if_error: false
+          use_oidc: true
+
       - name: Upload test reports on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -122,6 +148,7 @@ jobs:
           path: |
             **/target/surefire-reports/
             **/target/failsafe-reports/
+            requel-angular/test-results/
           if-no-files-found: ignore
           retention-days: 14
 
@@ -237,6 +264,7 @@ jobs:
           reset_dev_fixture /api/dev/reset-project
 
           (cd requel-angular && npm run e2e:coverage)
+          perl -0pi -e 's#^SF:src/#SF:requel-angular/src/#mg' requel-angular/coverage/lcov.info
 
       - name: Upload E2E coverage to Codecov
         if: always()
@@ -248,6 +276,19 @@ jobs:
           fail_ci_if_error: false
           use_oidc: true
 
+      - name: Upload E2E test results to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: requel-angular/test-results/playwright.junit.xml
+          flags: frontend-e2e
+          name: playwright-frontend-e2e
+          report_type: test_results
+          disable_search: true
+          handle_no_reports_found: true
+          fail_ci_if_error: false
+          use_oidc: true
+
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -255,6 +296,7 @@ jobs:
           name: playwright-report
           path: |
             requel-angular/playwright-report/
+            requel-angular/test-results/
             requel-e2e.log
           if-no-files-found: ignore
           retention-days: 14
