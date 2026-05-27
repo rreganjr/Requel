@@ -30,6 +30,7 @@ import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.platform.identity.User;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * Test the GoalAssistant
@@ -37,6 +38,13 @@ import org.junit.jupiter.api.Test;
  * @author ron
  */
 public class GoalAssistantTest extends AbstractIntegrationTestCase {
+
+	private AssistantTaskRunner assistantTaskRunner;
+
+	@Autowired
+	protected void setAssistantTaskRunner(AssistantTaskRunner assistantTaskRunner) {
+		this.assistantTaskRunner = assistantTaskRunner;
+	}
 
 	/**
 	 * Test the goal assistant with a spelling error in the goal name.
@@ -85,5 +93,31 @@ public class GoalAssistantTest extends AbstractIntegrationTestCase {
 						annotation.getText());
 			}
 		}
+	}
+
+	@Test
+	public void testAssistantTaskRunnerAnalyzesDetachedGoal() throws Exception {
+		ensureDictionaryLoaded();
+		long uniqueifier = System.currentTimeMillis();
+		String projectName = "Test Project " + uniqueifier;
+		String organizationName = "Test Organization " + uniqueifier;
+		User creator = getUserRepository().findUserByUsername("project");
+		EditProjectCommand editProjectCommand = getProjectCommandFactory().newEditProjectCommand();
+		editProjectCommand.setEditedBy(creator);
+		editProjectCommand.setName(projectName);
+		editProjectCommand.setOrganizationName(organizationName);
+		editProjectCommand = getCommandHandler().execute(editProjectCommand);
+		Project project = editProjectCommand.getProject();
+
+		EditGoalCommand editGoalCommand = getProjectCommandFactory().newEditGoalCommand();
+		editGoalCommand.setEditedBy(creator);
+		editGoalCommand.setGoalContainer(project);
+		editGoalCommand.setName("Test groal " + uniqueifier);
+		editGoalCommand.setText("new content must be distinguished "
+				+ "from archive content with a tag or other visual marker.");
+		editGoalCommand = getCommandHandler().execute(editGoalCommand);
+		Goal goal = editGoalCommand.getGoal();
+
+		assertDoesNotThrow(() -> assistantTaskRunner.analyzeGoal(goal));
 	}
 }
