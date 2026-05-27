@@ -26,11 +26,8 @@ import org.springframework.core.task.TaskExecutor;
  * Test-profile task executor that discards all submitted tasks.
  *
  * NLP analysis tasks submitted via {@code AssistantFacade} are fire-and-forget
- * in production, but running them synchronously in tests (via
- * {@code SyncTaskExecutor}) causes {@code LazyInitializationException} because
- * the Hibernate session has already closed when the analysis runs. Discarding
- * the tasks entirely is simpler and more correct for command integration tests
- * that are not testing the NLP pipeline.
+ * in production. Discarding them keeps command integration tests focused on the
+ * command result instead of running the NLP pipeline for every edited entity.
  */
 public class TestNoOpTaskExecutor implements TaskExecutor {
 

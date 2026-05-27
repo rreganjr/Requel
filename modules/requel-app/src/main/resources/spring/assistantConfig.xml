@@ -28,10 +28,9 @@
 	</beans>
 	<beans profile="test">
 		<!-- Discard NLP analysis tasks entirely in tests.
-		     SyncTaskExecutor would run them synchronously, but after the command
-		     transaction commits the Hibernate session is closed, causing
-		     LazyInitializationException on lazy collections in the NLP pipeline.
-		     NLP behaviour is covered by the dedicated NLP test classes. -->
+		     The production executor makes assistant analysis fire-and-forget, and
+		     most command integration tests are not testing the NLP pipeline.
+		     AssistantTaskRunner has dedicated coverage for transactional analysis. -->
 		<bean id="assistantTaskExecutor" class="com.rreganjr.TestNoOpTaskExecutor"/>
 	</beans>
 

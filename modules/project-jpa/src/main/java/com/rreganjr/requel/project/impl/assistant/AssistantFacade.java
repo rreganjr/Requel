@@ -28,22 +28,15 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Component;
 
-import com.rreganjr.command.CommandHandler;
-import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
-import com.rreganjr.nlp.dictionary.DictionaryRepository;
-import com.rreganjr.requel.annotation.AnnotationRepository;
-import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
-import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ProjectOrDomain;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
-import com.rreganjr.requel.project.command.ProjectCommandFactory;
-import com.rreganjr.platform.identity.User;
-import com.rreganjr.requel.user.UserRepository;
 
 /**
  * A Facade for applying assistants to projects and project entities.
@@ -73,84 +66,31 @@ public class AssistantFacade {
 	private static final Logger log = Logger.getLogger(AssistantFacade.class);
 
 	private final TaskExecutor taskExecutor;
-	private final CommandHandler commandHandler;
-	private final AnnotationCommandFactory annotationCommandFactory;
-	private final ProjectCommandFactory projectCommandFactory;
-	private final UserRepository userRepository;
-	private final ProjectRepository projectRepository;
-	private final AnnotationRepository annotationRepository;
-	private final DictionaryRepository dictionaryRepository;
-	private final NLPProcessorFactory nlpProcessorFactory;
+	private final AssistantTaskRunner assistantTaskRunner;
 	private final UpdatedEntityNotifier updatedEntityNotifier;
 
 	/**
 	 * @param taskExecutor
-	 * @param commandHandler
-	 * @param projectCommandFactory
-	 * @param annotationCommandFactory
-	 * @param projectRepository
-	 * @param userRepository
-	 * @param dictionaryRepository
-	 * @param annotationRepository
-	 * @param nlpProcessorFactory
+	 * @param assistantTaskRunner
 	 * @param updatedEntityNotifier -
 	 *            after an entity is analyzed it is passed to the notifier to
 	 *            tell the UI components that reference the entity to refresh
 	 */
 	@Autowired
 	public AssistantFacade(@Qualifier("assistantTaskExecutor") TaskExecutor taskExecutor,
-			CommandHandler commandHandler,
-			ProjectCommandFactory projectCommandFactory,
-			AnnotationCommandFactory annotationCommandFactory, ProjectRepository projectRepository,
-			UserRepository userRepository, DictionaryRepository dictionaryRepository,
-			AnnotationRepository annotationRepository, NLPProcessorFactory nlpProcessorFactory,
+			AssistantTaskRunner assistantTaskRunner,
 			UpdatedEntityNotifier updatedEntityNotifier) {
 		this.taskExecutor = taskExecutor;
-		this.commandHandler = commandHandler;
-		this.projectCommandFactory = projectCommandFactory;
-		this.annotationCommandFactory = annotationCommandFactory;
-		this.projectRepository = projectRepository;
-		this.userRepository = userRepository;
-		this.annotationRepository = annotationRepository;
-		this.dictionaryRepository = dictionaryRepository;
-		this.nlpProcessorFactory = nlpProcessorFactory;
+		this.assistantTaskRunner = assistantTaskRunner;
 		this.updatedEntityNotifier = updatedEntityNotifier;
-	}
-
-	protected CommandHandler getCommandHandler() {
-		return commandHandler;
-	}
-
-	protected ProjectCommandFactory getProjectCommandFactory() {
-		return projectCommandFactory;
-	}
-
-	protected AnnotationCommandFactory getAnnotationCommandFactory() {
-		return annotationCommandFactory;
-	}
-
-	protected UserRepository getUserRepository() {
-		return userRepository;
-	}
-
-	protected ProjectRepository getProjectRepository() {
-		return projectRepository;
-	}
-
-	protected AnnotationRepository getAnnotationRepository() {
-		return annotationRepository;
-	}
-
-	protected DictionaryRepository getDictionaryRepository() {
-		return dictionaryRepository;
 	}
 
 	protected TaskExecutor getTaskExecutor() {
 		return taskExecutor;
 	}
 
-	protected NLPProcessorFactory getNlpProcessorFactory() {
-		return nlpProcessorFactory;
+	protected AssistantTaskRunner getAssistantTaskRunner() {
+		return assistantTaskRunner;
 	}
 
 	protected UpdatedEntityNotifier getUpdatedEntityNotifier() {
@@ -163,44 +103,16 @@ public class AssistantFacade {
 	 * @param project
 	 */
 	public void analyzeProject(final Project project) {
-		try {
-			getTaskExecutor().execute(new Runnable() {
-				@Override
-				public void run() {
-					try {
-						User assistantUser = getUserRepository().findUserByUsername("assistant");
-						LexicalAssistant lexicalAssistant = new LexicalAssistant(
-								getCommandHandler(), getProjectCommandFactory(),
-								getAnnotationCommandFactory(), getAnnotationRepository(),
-								getProjectRepository(), getDictionaryRepository(),
-								getNlpProcessorFactory());
-						ProjectAssistant projectAssistant = new ProjectAssistant(lexicalAssistant,
-								assistantUser);
-
-						// TODO: the DomainObjectWrappingAdvice that wraps
-						// persistence objects with a DomainObjectWrapper isn't
-						// getting invoked in the command's invokeAnalysis()
-						// method because the get() method for the domain object
-						// is called locally in the object. Reloading the object
-						// through a repository solves the problem, but using
-						// aspectj may be better.
-						projectAssistant.analyze(getProjectRepository().get(project));
-						getUpdatedEntityNotifier().entityUpdated(project);
-					} catch (Exception e) {
-						log.error("exception in project assistant: " + e, e);
-					}
-				}
-			});
-			log.info("started analysis of " + project);
-		} catch (TaskRejectedException e) {
-			log.error("failed to execute analysis on '" + project + "' ", e);
-		}
+		submitAnalysis(project, "project", new Runnable() {
+			@Override
+			public void run() {
+				getAssistantTaskRunner().analyzeProject(project);
+			}
+		});
 	}
 
 	/**
-	 * TODO: this executes the analysis in a seperate thread using resources
-	 * originating in this thread. That may cause problems in a multi-user
-	 * system.
+	 * Execute goal analysis in the assistant task runner.
 	 * 
 	 * @param updatedGoal -
 	 *            the goal that has been edited
@@ -210,33 +122,12 @@ public class AssistantFacade {
 	 *            supplied everything in updatedGoal will be analyzed.
 	 */
 	public void analyzeGoal(final Goal updatedGoal) {
-		try {
-			getTaskExecutor().execute(new Runnable() {
-				@Override
-				public void run() {
-					User assistantUser = getUserRepository().findUserByUsername("assistant");
-					LexicalAssistant lexicalAssistant = new LexicalAssistant(getCommandHandler(),
-							getProjectCommandFactory(), getAnnotationCommandFactory(),
-							getAnnotationRepository(), getProjectRepository(),
-							getDictionaryRepository(), getNlpProcessorFactory());
-					GoalAssistant goalAssistant = new GoalAssistant(lexicalAssistant, assistantUser);
-
-					// TODO: the DomainObjectWrappingAdvice that wraps
-					// persistence objects with a DomainObjectWrapper isn't
-					// getting invoked in the command's invokeAnalysis()
-					// method because the get() method for the domain object
-					// is called locally in the object. Reloading the object
-					// through a repository solves the problem, but using
-					// aspectj may be better.
-					goalAssistant.setEntity(getProjectRepository().get(updatedGoal));
-					goalAssistant.analyze();
-					getUpdatedEntityNotifier().entityUpdated(updatedGoal);
-				}
-			});
-			log.info("started analysis of " + updatedGoal);
-		} catch (TaskRejectedException e) {
-			log.error("failed to execute analysis on '" + updatedGoal + "' ", e);
-		}
+		submitAnalysis(updatedGoal, "goal", new Runnable() {
+			@Override
+			public void run() {
+				getAssistantTaskRunner().analyzeGoal(updatedGoal);
+			}
+		});
 	}
 
 	/**
@@ -244,34 +135,12 @@ public class AssistantFacade {
 	 * @param originalStory
 	 */
 	public void analyzeStory(final Story updatedStory) {
-		try {
-			getTaskExecutor().execute(new Runnable() {
-				@Override
-				public void run() {
-					User assistantUser = getUserRepository().findUserByUsername("assistant");
-					LexicalAssistant lexicalAssistant = new LexicalAssistant(getCommandHandler(),
-							getProjectCommandFactory(), getAnnotationCommandFactory(),
-							getAnnotationRepository(), getProjectRepository(),
-							getDictionaryRepository(), getNlpProcessorFactory());
-					StoryAssistant storyAssistant = new StoryAssistant(lexicalAssistant,
-							assistantUser);
-
-					// TODO: the DomainObjectWrappingAdvice that wraps
-					// persistence objects with a DomainObjectWrapper isn't
-					// getting invoked in the command's invokeAnalysis()
-					// method because the get() method for the domain object
-					// is called locally in the object. Reloading the object
-					// through a repository solves the problem, but using
-					// aspectj may be better.
-					storyAssistant.setEntity(getProjectRepository().get(updatedStory));
-					storyAssistant.analyze();
-					getUpdatedEntityNotifier().entityUpdated(updatedStory);
-				}
-			});
-			log.info("started analysis of " + updatedStory);
-		} catch (TaskRejectedException e) {
-			log.error("failed to execute analysis on '" + updatedStory + "' ", e);
-		}
+		submitAnalysis(updatedStory, "story", new Runnable() {
+			@Override
+			public void run() {
+				getAssistantTaskRunner().analyzeStory(updatedStory);
+			}
+		});
 	}
 
 	/**
@@ -279,106 +148,36 @@ public class AssistantFacade {
 	 * @param originalActor
 	 */
 	public void analyzeActor(final Actor updatedActor) {
-
-		try {
-			getTaskExecutor().execute(new Runnable() {
-				@Override
-				public void run() {
-					User assistantUser = getUserRepository().findUserByUsername("assistant");
-					LexicalAssistant lexicalAssistant = new LexicalAssistant(getCommandHandler(),
-							getProjectCommandFactory(), getAnnotationCommandFactory(),
-							getAnnotationRepository(), getProjectRepository(),
-							getDictionaryRepository(), getNlpProcessorFactory());
-					ActorAssistant actorAssistant = new ActorAssistant(lexicalAssistant,
-							assistantUser);
-					// TODO: the DomainObjectWrappingAdvice that wraps
-					// persistence objects with a DomainObjectWrapper isn't
-					// getting invoked in the command's invokeAnalysis()
-					// method because the get() method for the domain object
-					// is called locally in the object. Reloading the object
-					// through a repository solves the problem, but using
-					// aspectj may be better.
-					actorAssistant.setEntity(getProjectRepository().get(updatedActor));
-					actorAssistant.analyze();
-					getUpdatedEntityNotifier().entityUpdated(updatedActor);
-				}
-			});
-			log.info("started analysis of " + updatedActor);
-		} catch (TaskRejectedException e) {
-			log.error("failed to execute analysis on '" + updatedActor + "' ", e);
-		}
+		submitAnalysis(updatedActor, "actor", new Runnable() {
+			@Override
+			public void run() {
+				getAssistantTaskRunner().analyzeActor(updatedActor);
+			}
+		});
 	}
 
 	/**
 	 * @param updatedUseCase
 	 */
 	public void analyzeUseCase(final UseCase updatedUseCase) {
-
-		try {
-			getTaskExecutor().execute(new Runnable() {
-				@Override
-				public void run() {
-					User assistantUser = getUserRepository().findUserByUsername("assistant");
-					LexicalAssistant lexicalAssistant = new LexicalAssistant(getCommandHandler(),
-							getProjectCommandFactory(), getAnnotationCommandFactory(),
-							getAnnotationRepository(), getProjectRepository(),
-							getDictionaryRepository(), getNlpProcessorFactory());
-					ScenarioAssistant scenarioAssistant = new ScenarioAssistant(lexicalAssistant,
-							assistantUser);
-					ActorAssistant actorAssistant = new ActorAssistant(lexicalAssistant,
-							assistantUser);
-					UseCaseAssistant useCaseAssistant = new UseCaseAssistant(lexicalAssistant,
-							scenarioAssistant, actorAssistant, assistantUser);
-
-					// TODO: the DomainObjectWrappingAdvice that wraps
-					// persistence objects with a DomainObjectWrapper isn't
-					// getting invoked in the command's invokeAnalysis()
-					// method because the get() method for the domain object
-					// is called locally in the object. Reloading the object
-					// through a repository solves the problem, but using
-					// aspectj may be better.
-					useCaseAssistant.setEntity(getProjectRepository().get(updatedUseCase));
-					useCaseAssistant.analyze();
-					getUpdatedEntityNotifier().entityUpdated(updatedUseCase);
-				}
-			});
-			log.info("started analysis of " + updatedUseCase);
-		} catch (TaskRejectedException e) {
-			log.error("failed to execute analysis on '" + updatedUseCase + "' ", e);
-		}
+		submitAnalysis(updatedUseCase, "use case", new Runnable() {
+			@Override
+			public void run() {
+				getAssistantTaskRunner().analyzeUseCase(updatedUseCase);
+			}
+		});
 	}
 
 	/**
 	 * @param updatedScenarioStep
 	 */
 	public void analyzeScenarioStep(final Step updatedScenarioStep) {
-		try {
-			getTaskExecutor().execute(new Runnable() {
-				@Override
-				public void run() {
-					User assistantUser = getUserRepository().findUserByUsername("assistant");
-					LexicalAssistant lexicalAssistant = new LexicalAssistant(getCommandHandler(),
-							getProjectCommandFactory(), getAnnotationCommandFactory(),
-							getAnnotationRepository(), getProjectRepository(),
-							getDictionaryRepository(), getNlpProcessorFactory());
-					ScenarioAssistant scenarioAssistant = new ScenarioAssistant(lexicalAssistant,
-							assistantUser);
-					// TODO: the DomainObjectWrappingAdvice that wraps
-					// persistence objects with a DomainObjectWrapper isn't
-					// getting invoked in the command's invokeAnalysis()
-					// method because the get() method for the domain object
-					// is called locally in the object. Reloading the object
-					// through a repository solves the problem, but using
-					// aspectj may be better.
-					scenarioAssistant.setEntity(getProjectRepository().get(updatedScenarioStep));
-					scenarioAssistant.analyze();
-					getUpdatedEntityNotifier().entityUpdated(updatedScenarioStep);
-				}
-			});
-			log.info("started analysis of " + updatedScenarioStep);
-		} catch (TaskRejectedException e) {
-			log.error("failed to execute analysis on '" + updatedScenarioStep + "' ", e);
-		}
+		submitAnalysis(updatedScenarioStep, "scenario step", new Runnable() {
+			@Override
+			public void run() {
+				getAssistantTaskRunner().analyzeScenarioStep(updatedScenarioStep);
+			}
+		});
 	}
 
 	/**
@@ -386,5 +185,45 @@ public class AssistantFacade {
 	 */
 	public void analyzeScenario(final Scenario updatedScenario) {
 		analyzeScenarioStep(updatedScenario);
+	}
+
+	private void submitAnalysis(final ProjectOrDomain updatedEntity, String targetType,
+			final Runnable analysisTask) {
+		try {
+			getTaskExecutor().execute(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						analysisTask.run();
+						getUpdatedEntityNotifier().entityUpdated(updatedEntity);
+					} catch (Exception e) {
+						log.error("exception in " + targetType + " assistant: " + e, e);
+					}
+				}
+			});
+			log.info("started analysis of " + updatedEntity);
+		} catch (TaskRejectedException e) {
+			log.error("failed to execute analysis on '" + updatedEntity + "' ", e);
+		}
+	}
+
+	private void submitAnalysis(final ProjectOrDomainEntity updatedEntity, String targetType,
+			final Runnable analysisTask) {
+		try {
+			getTaskExecutor().execute(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						analysisTask.run();
+						getUpdatedEntityNotifier().entityUpdated(updatedEntity);
+					} catch (Exception e) {
+						log.error("exception in " + targetType + " assistant: " + e, e);
+					}
+				}
+			});
+			log.info("started analysis of " + updatedEntity);
+		} catch (TaskRejectedException e) {
+			log.error("failed to execute analysis on '" + updatedEntity + "' ", e);
+		}
 	}
 }
