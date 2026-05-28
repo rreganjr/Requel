@@ -244,6 +244,8 @@
         <module>modules/project-jpa</module>
         <module>modules/nlp-jpa</module>
         <module>modules/service-api</module>
+        <module>modules/assistant-api</module>
+        <module>modules/assistant-core</module>
         <module>modules/service-impl</module>
         <module>modules/requel-app</module>
   </modules>
