@@ -37,7 +37,7 @@ This plan has been updated for the modularized Spring Boot 3 / Java 17 direction
 
 - Analysis is invoked after successful edit commands by `AnalysisInvokingCommandHandler`, which calls `AnalyzableEditCommand.invokeAnalysis()`.
 - Project command implementations call specific `AssistantFacade` methods such as `analyzeGoal`, `analyzeStory`, `analyzeActor`, `analyzeUseCase`, `analyzeScenario`, and `analyzeProject`.
-- `AssistantFacade` queues work on `assistantTaskExecutor`, reloads entities through `ProjectRepository`, finds the `assistant` pseudo-user, manually constructs `LexicalAssistant` and concrete entity assistants, and calls `UpdatedEntityNotifier`.
+- After issue #39, `AssistantFacade` is a thin async submission and notification layer only. It submits work onto `assistantTaskExecutor` and calls `UpdatedEntityNotifier` after each task completes. The analysis bodies themselves now live in `AssistantTaskRunner`, a `@Component` whose entry points are reached through a Spring transactional proxy. The runner reloads target entities in a new transaction, resolves the `assistant` pseudo-user, and constructs `LexicalAssistant` plus the concrete entity assistants per call. Issue #43 work must preserve this transactional-proxy boundary when migrating from `AssistantTaskRunner` to `AssistantDispatcher` so lazy Hibernate collections continue to have an active session during analysis.
 - Assistants live in `project-jpa`:
   - `AbstractAssistant`
   - `LexicalAssistant`
@@ -51,26 +51,28 @@ This plan has been updated for the modularized Spring Boot 3 / Java 17 direction
 
 ## Target Module Shape
 
-Preferred modules:
+Decided shape (issue #43):
 
 - `assistant-api`
   - Stable SPI contracts and simple value objects.
-  - Depends only on `platform-core`, `platform-identity`, and possibly small reference types from `project-domain` / `annotation-domain`.
+  - Depends only on `platform-core`, `platform-identity`, and interface types from `project-domain` / `annotation-domain` (per resolved decision; JPA modules remain forbidden).
   - Must not depend on `project-jpa`, `annotation-jpa`, `user-jpa`, `nlp-jpa`, `service-impl`, OpenAI SDKs, or Spring MVC.
-- `assistant-core` or `assistant-impl`
-  - Dispatcher, registry, result applicator interfaces, run/activity model, idempotency support, and default no-op/fake implementations.
-  - Can integrate with `CommandHandler`, `AnnotationCommandFactory`, repositories, and transaction management.
-- `project-analysis` or `assistant-legacy-nlp`
-  - Adapters for the existing NLP assistants and `LexicalAssistant` behavior.
+- `assistant-core`
+  - Dispatcher, registry, result applicator, run/activity persistence, idempotency support, finding state machine, and default no-op/fake implementations.
+  - Integrates with `CommandHandler`, `AnnotationCommandFactory`, repositories, and transaction management.
+  - Hosts the migrated `AssistantTaskRunner` body (refactored into `AssistantDispatcher` and `AssistantRunWorker`) so the issue #39 transactional-proxy boundary is preserved.
+  - **May depend on `service-api`** (query interfaces and projection DTOs) so context-pack builders can read project state through stable, authenticated query contracts. **Must not depend on `service-impl`** (REST controllers, Spring MVC, JWT plumbing). If REST-shaped DTOs ever evolve in ways that are awkward for AI input, the migration path is to introduce a small `AssistantDataGateway` interface in `assistant-core` with an adapter in `service-impl` — analogous to the `ProjectQueryGateway` pattern used by `mcp-server`. That gateway is not introduced up front; the current direct dependency is acceptable because the context-pack builders translate `service-api` DTOs into assistant-shaped context packs (size caps, redaction, version stamps) before any provider call.
+- `assistant-legacy-nlp` (also acceptable as `project-analysis` if other lexical/NLP code moves with it)
+  - Adapters wrapping the existing `LexicalAssistant`, `TextEntityAssistant`, and concrete entity assistants as `RequelAssistant<T>` implementations.
   - Depends on project/annotation APIs and the NLP module, not the other way around.
-- `assistant-openai` or `assistant-ai`
+- `assistant-openai`
   - Provider-specific `AiAnalysisClient` implementations and AI-backed assistants.
-  - Depends on `assistant-api`, context-pack DTOs/services, and provider SDK/client code.
-- `mcp-server` or `service-impl` extension
-  - MCP resources/tools backed by authenticated query/application services.
-  - Should feed the AI context path but not become a dependency of `assistant-api`.
+  - Depends on `assistant-api`, context-pack DTOs/services, and the provider SDK/client code.
+- `mcp-server`
+  - MCP protocol handlers, resources, and tools.
+  - Bundled in-process with `requel-app` for the first cut. Every tool/resource calls a `ProjectQueryGateway` abstraction so a future standalone bridge can drop in a REST-backed gateway plus auth exchange without rewriting the tools. Must not become a dependency of `assistant-api`.
 
-If creating all modules at once is too much churn, start with `assistant-api` plus implementation classes in `project-jpa`, but keep package names and dependencies shaped so extraction is mechanical.
+`assistant-api` and `assistant-core` are introduced together in the first implementation branch. `assistant-legacy-nlp`, `assistant-openai`, and `mcp-server` follow in later phases per `doc/ai-assistance-plan.md` rollout.
 
 ## Proposed SPI
 
@@ -207,11 +209,23 @@ Move from command-specific `invokeAnalysis()` methods toward central analysis re
 7. Run/activity records are written.
 8. `UpdatedEntityNotifier` and/or `StreamEventPublisher` publishes affected entity updates.
 
-Short-term compatibility:
+### Dispatcher transactions and async boundaries
+
+Async execution and transactional execution are split across two collaborating beans so the Spring proxy can open a new transaction on the executor thread, not on the caller thread:
+
+- `AssistantDispatcher.dispatch(AnalysisRequest)` is the public entry point. It validates the request, persists a `QUEUED` `AssistantRun` row, hands work to `assistantTaskExecutor`, and returns an `AssistantRunHandle`. **`dispatch(...)` is not transactional and does not touch entity state directly.**
+- The executor invokes `AssistantRunWorker.runInNewTransaction(runId)` on a separate Spring bean. That method is annotated `@Transactional(propagation = REQUIRES_NEW)` so the Spring proxy opens a fresh Hibernate session on the executor thread. The worker reloads targets via the appropriate repository, resolves the configured assistants, invokes them, and hands their `AssistantResult`s to `AssistantResultApplicator`.
+- The worker is a distinct bean from the dispatcher so the proxy can intercept the call. A `@Transactional` self-invocation from inside `AssistantDispatcher.dispatch(...)` would bypass the proxy and lose the new transaction. Issue #39 was specifically about preserving this boundary; the dispatcher/worker split keeps it intact.
+- `AssistantResultApplicator.apply(...)` calls `CommandHandler` inside that same `REQUIRES_NEW` transaction so authorization, validation, audit, optimistic locking, and SSE all behave consistently.
+
+Short-term compatibility (migration from `AssistantTaskRunner`):
 
 - Keep `AnalyzableEditCommand.invokeAnalysis()` as a bridge.
 - Have existing `invokeAnalysis()` methods create `AnalysisRequest`s instead of directly calling type-specific facade methods.
 - Mark the type-specific `AssistantFacade.analyzeX` methods as transitional.
+- Introduce `AssistantDispatcher` and `AssistantRunWorker` per the boundary above. The worker replaces the body that currently lives in `AssistantTaskRunner`; the existing `AssistantTaskRunner` is the closest reference for the transactional-proxy pattern that must be preserved.
+- Migrate one `analyzeX` path at a time. `AssistantFacade` continues to submit work onto `assistantTaskExecutor`; what it submits gradually changes from "analyze this entity by type" to "dispatch this `AnalysisRequest`". When every path has been migrated, the type-specific `analyzeX` methods are removed and `AssistantFacade` is collapsed into the dispatcher (or a small backwards-compat adapter).
+- The legacy assistant implementations are wrapped as `RequelAssistant<T>` adapters in `assistant-legacy-nlp` (or `project-analysis`); their direct `AnnotationCommandFactory` calls move into `AnnotationAction` results applied by `AssistantResultApplicator`.
 
 ### Registry And Discovery
 
@@ -266,24 +280,147 @@ This should allow NLP to be optional and replaceable without forcing `project-do
 
 ## Activity, Audit, And UI
 
-Assistant runs should be visible enough to debug and govern:
+Assistant runs should be visible enough to debug and govern. Concrete persistence is detailed in `Data Model and Applicator Contract` below; the high-level commitments are:
 
-- Add an `AssistantRun` or `AssistantActivity` record with assistant id, target, status, triggering user, assistant user, timestamps, error summary, and produced annotation ids.
-- Add `AssistantFinding` records or equivalent metadata if idempotency and evidence need more than annotation fields can hold.
-- Reuse or link to `CommandAuditLog` for command applications, but do not rely on command audit alone to explain skipped/failed AI runs.
+- `AssistantRun` rows are written for every dispatch, including skipped and failed ones, so a reviewer can always answer "did the assistant run, and what did it do?"
+- `AssistantFinding` rows carry the idempotency key, evidence, applied-annotation pointer, and finding state. Annotation rows additionally carry the idempotency key for fast reverse lookup and a source label.
+- Reuse or link to `CommandAuditLog` for command applications, but do not rely on command audit alone to explain skipped/failed AI runs — assistant activity must be readable on its own.
 - Expose run history through service APIs before enabling external AI broadly.
 - Use annotations as the first UI surface. Later, Angular can add project assistant settings, run history, and manual run controls.
 
 Echo-specific UI work is no longer the primary planning target. New user-facing assistant controls should be designed for Angular/service APIs.
 
+## Data Model and Applicator Contract
+
+This section locks down the implementation specifics the review called out as missing before code starts.
+
+### Persistence
+
+`AssistantRun` (one row per dispatched run, including skipped/failed):
+
+- `id` (uuid)
+- `assistant_id` (e.g. `legacy-lexical`, `requirements-review-openai`)
+- `assistant_user_id` (which pseudo-user attribution should use; one of `requel-ai-assistant`, `requel-legacy-nlp`, or a per-client external pseudo-user)
+- `triggered_by_user_id`
+- `project_id`, `target_type`, `target_id`
+- `task_type` (nullable for non-AI runs; e.g. `REQUIREMENTS_REVIEW` for AI)
+- `provider`, `model`, `template_id`, `template_version`, `template_source` (`resource` / `db_override:<row_id>` / `null`)
+- `status` (`QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`, `SKIPPED`, `CANCELLED`)
+- `started_at`, `completed_at`, `latency_ms`
+- `error_kind`, `error_summary`
+- `findings_count`
+- `body_capture_reason` (`null`, `failure`, `project_capture_window`, `user_opt_in`, `sampled`)
+- `body_retained_until` (when body capture is in effect)
+
+`AssistantFinding` (one row per logical finding, surviving across runs via the idempotency key):
+
+- `id` (uuid)
+- `idempotency_key` = `assistantId + ':' + targetType + ':' + targetId + ':' + findingType + ':' + normalizedEvidenceHash`
+- `assistant_id`
+- `project_id`, `target_type`, `target_id`
+- `finding_type` (free-form per assistant, e.g. `unknown-word`, `ambiguous-language`, `missing-actor`)
+- `severity`, `confidence`
+- `summary`
+- `evidence_json`
+- `applied_annotation_id` (nullable; set when a `NOTE`/`ISSUE` annotation was created)
+- `state` (`ACTIVE`, `SUPERSEDED`, `AUTO_RESOLVED`, `MANUALLY_RESOLVED`, `DROPPED`)
+- `created_run_id`, `last_seen_run_id`, `superseded_by_run_id`
+- `created_at`, `last_seen_at`, `closed_at`
+
+`AssistantUsage` (one row per provider call; an AI-backed `AssistantRun` may have one usage row per call):
+
+- `id` (uuid)
+- `run_id` → `AssistantRun`
+- `provider`, `model`
+- `input_tokens`, `output_tokens`, `cached_input_tokens`
+- `cost_estimate`
+- `latency_ms`
+- `request_body` (nullable; populated only when `body_capture_reason` is non-null and TTL hasn't elapsed; encrypted at rest with a separate key)
+- `response_body` (same)
+
+Annotation rows are extended with two new fields:
+
+- `assistant_idempotency_key` (nullable, indexed) — duplicates the value on `AssistantFinding` for fast reverse lookup.
+- `source` (`HUMAN` / `ASSISTANT:<assistant_id>`) — drives source labeling in the UI without joining `AssistantFinding`.
+
+Optional `AssistantProjectSettings`:
+
+- `project_id`
+- `ai_enabled` (per resolved decision: project-scoped only in Phase 1; global default + project override layered in later)
+- `external_provider_allowed`
+- `allowed_assistant_ids`
+- `body_capture_window_until` (nullable; for the per-project capture-window opt-in)
+- `body_capture_user_opt_in_ceiling` (max per-run user opt-ins allowed per day/week)
+- budget settings
+
+### Finding State Machine
+
+Each `AssistantFinding` row moves through a small state machine. Transitions are owned by `AssistantResultApplicator`:
+
+- `ACTIVE` → `SUPERSEDED`: a later run with the same `(assistant_id, target, finding_type)` and a *different* evidence hash, when the assistant's cleanup policy is `MARK_SUPERSEDED`. The applicator stamps `superseded_by_run_id`, posts a system position on the linked annotation noting the supersession, and leaves the annotation open.
+- `ACTIVE` → `AUTO_RESOLVED`: a later run with the same `(assistant_id, target, finding_type)` omits this finding *and* the linked annotation has no human edits, replies, or non-assistant positions, *and* the assistant's cleanup policy is `AUTO_RESOLVE_IF_UNTOUCHED`. The applicator closes the annotation through the appropriate annotation command, stamps `closed_at`.
+- `ACTIVE` → `MANUALLY_RESOLVED`: human user resolved the linked annotation. The applicator listens for annotation-close events and stamps the finding accordingly; the finding row stays for audit.
+- `ACTIVE` → `DROPPED`: applicator rejected the finding at apply time (schema violation, stale entity version, length cap exceeded). No annotation is created. `error_summary` on the run records why.
+- `ACTIVE` → `ACTIVE` (touched): a rerun of the *same* finding (same idempotency key) updates `last_seen_run_id` and `last_seen_at` only; no annotation churn.
+
+Assistants whose cleanup policy is `MANUAL` skip both `SUPERSEDED` and `AUTO_RESOLVED` transitions; the applicator only ever moves them between `ACTIVE` and `DROPPED` / `MANUALLY_RESOLVED`.
+
+### AssistantResultApplicator Command Mapping
+
+The applicator never writes directly through repositories. Every `AnnotationAction` it accepts is translated into a call through `CommandHandler` using the existing `AnnotationCommandFactory` (in `annotation-domain`). The factory follows an "Edit" naming convention for both create and update — the same `Edit*Command` instance handles a fresh annotation (no id) and an existing one (id set). This preserves authorization, audit, optimistic locking, and SSE:
+
+| `AnnotationAction` kind | Existing factory method |
+| --- | --- |
+| Create or update a note | `newEditNoteCommand()` |
+| Delete a note | `newDeleteNoteCommand()` |
+| Create or update a general issue | `newEditIssueCommand()` |
+| Create or update a lexical issue (glossary/spelling/unknown-word) | `newEditLexicalIssueCommand()` |
+| Resolve an issue | `newResolveIssueCommand(Position)` (Position determines the resolve variant) |
+| Delete an issue | `newDeleteIssueCommand()` |
+| Create or update a general position | `newEditPositionCommand()` |
+| Create or update a "change spelling" position | `newEditChangeSpellingPositionCommand()` |
+| Create or update an "add word to dictionary" position | `newEditAddWordToDictionaryPositionCommand()` |
+| Delete a position | `newDeletePositionCommand()` |
+| Create or update an argument | `newEditArgumentCommand()` |
+| Delete an argument | `newDeleteArgumentCommand()` |
+| Remove an annotation from a specific annotatable (keep elsewhere) | `newRemoveAnnotationFromAnnotatableCommand()` |
+
+Notes:
+
+- The `AnnotationAction` value types in `assistant-api` are kept abstract enough that the applicator can pick the right factory variant from action metadata. For example, a `CreatePosition` action against a lexical issue with `kind = CHANGE_SPELLING` resolves to `newEditChangeSpellingPositionCommand()`, not `newEditPositionCommand()`. The action type itself does not name the factory method.
+- For updates, the applicator looks up the existing annotation via the idempotency key, populates the `Edit*Command` input with the existing id and the existing optimistic-lock version, then sets new field values. The command implementation handles validation, audit, and SSE.
+- `AUTO_RESOLVE_IF_UNTOUCHED` cleanup uses `newResolveIssueCommand(Position)` when a resolve position exists, and `newRemoveAnnotationFromAnnotatableCommand()` when configured to remove the annotation from the target instead. Hard delete via `newDelete*Command()` is reserved for assistant lifecycle operations (e.g., clearing assistant-owned findings from a target during a project reset), never for normal stale-finding cleanup.
+- Issues, positions, and arguments that map to the IBIS layer use the existing `Annotatable` discriminator dispatch through `AnnotatableTypeRegistry`; the applicator never builds annotation entities directly.
+
+### Execution Identity and Authorization
+
+The applicator does not introduce new command-handler infrastructure. Per the resolved cleanup decision:
+
+- Commands are executed as the **triggering user** via the existing `AuthorizingCommandHandler` chain. Authorization mirrors what the triggering user could do through the REST API. An AI assistant cannot cause a write the triggering user could not have made themselves.
+- Assistant attribution lives on **separate fields**, not on the command-handler "executing user":
+  - `AssistantRun.assistant_user_id` records which assistant pseudo-user the run belongs to (`requel-ai-assistant`, `requel-legacy-nlp`, or a per-client external pseudo-user).
+  - The new `source` column on the annotation row carries `ASSISTANT:<assistant_id>` (or `HUMAN` for non-assistant writes), so source labeling does not need to join `AssistantFinding` or `AssistantRun`.
+  - `created_by` on the annotation row stays as the triggering user, which is also the row's optimistic-lock owner.
+- If a future use case requires writes attributable in `CommandAuditLog` to the assistant pseudo-user (rather than the triggering user), the migration path is to extend the command metadata with a separate `executedAs` field. That is deferred until a concrete need surfaces; it is not in scope for the first implementation branch.
+
+### Context Pack DTO Ownership
+
+Context pack DTOs (`ProjectContextPack`, `EntityContextPack`, `IssueContextPack` from `doc/ai-assistance-plan.md`) live in `assistant-core`, not `service-api`.
+
+Rationale: these DTOs are tuned for assistant input (size caps, redaction flags, version-id stamps, evidence references) and should not be coupled to REST response shapes that change for UI reasons. `service-api` already exposes the projection DTOs that the context-pack builders consume; the context-pack builders in `assistant-core` produce assistant-specific shapes from those. If a third format is needed (e.g. an `mcp-server` resource representation), it lives in `mcp-server` and is built from the same `service-api` projections, not from the context packs.
+
+### No-op Behavior
+
+When NLP or AI is disabled, `RequelAssistant` implementations return **explicit empty results** (`AssistantResult.builder().assistantId(...).summary("disabled").build()`), not `null`. The applicator must treat empty results as "this run produced no findings" rather than as an error, so that `requel.nlp.enabled=false` or `requel.ai.enabled=false` deployments still record clean `AssistantRun` rows. See also `doc/nlp-optional-plan.md` for the NLP-side no-op contract.
+
 ## Security And Privacy
 
 - Assistant execution must respect project access rules and command authorization.
 - External AI must be disabled by default and enabled globally plus per project or allowlist.
-- Use separate audit fields for triggering user and assistant user.
+- Use separate audit fields for triggering user and assistant user. Multiple assistant pseudo-users coexist (internal `requel-ai-assistant`, `requel-legacy-nlp`, and one per registered external MCP client) so audit and policy can distinguish them.
 - Redact sensitive data before context packing, provider calls, or MCP responses.
-- Store provider request/response bodies only behind an explicit debug flag.
-- Add rate limits, concurrency limits, and provider budgets before broad AI rollout.
+- Provider request/response retention follows the resolved policy in `doc/ai-assistance-plan.md`: metadata only by default; bodies retained for failed runs, project-scoped capture windows, per-run user opt-in within a project ceiling, and a configurable success-sampling rate. All retained bodies have a hard TTL and are encrypted at rest with a separate key. `AssistantRun.body_capture_reason` records why bodies were retained for any given run.
+- Add rate limits, concurrency limits, and provider budgets before broad AI rollout. Limits are enforced per assistant pseudo-user so external MCP clients can be capped independently.
 - Treat assistant output as untrusted text: validate, cap, escape, and reject unknown action types.
 
 ## Testing Strategy
@@ -298,19 +435,19 @@ Echo-specific UI work is no longer the primary planning target. New user-facing 
 
 ## Minimal Incremental Steps
 
-1. Create `assistant-api` with immutable SPI contracts and reference/value types.
-2. Add `AssistantRegistry`, `AnalysisRequest`, and dispatcher skeleton while keeping `AssistantFacade` as a compatibility facade.
-3. Add `AssistantResultApplicator` that applies `AnnotationAction`s through existing commands.
-4. Add idempotency keys and activity/run persistence.
-5. Wrap one legacy assistant, preferably lexical/text analysis, as a `RequelAssistant<TextEntity>`.
-6. Convert existing facade methods to dispatch `AnalysisRequest`s.
-7. Add no-op/fake assistants for tests and disabled-analysis profiles.
-8. Extract NLP-heavy code toward `project-analysis` or an assistant legacy NLP module.
+1. Create `assistant-api` and `assistant-core` modules with immutable SPI contracts, reference/value types, and the `AssistantRun`/`AssistantFinding`/`AssistantUsage` persistence shapes from `Data Model and Applicator Contract`.
+2. Add `AssistantRegistry`, `AnalysisRequest`, and an `AssistantDispatcher` skeleton in `assistant-core`. Reach the dispatcher through a Spring transactional proxy that mirrors the issue #39 `AssistantTaskRunner` boundary (new transaction + entity reload before invoking assistants). `AssistantFacade` stays as a compatibility submission/notification facade during migration.
+3. Add `AssistantResultApplicator` that applies `AnnotationAction`s through `CommandHandler` per the applicator command mapping above, including the finding state machine and per-assistant cleanup policy hooks.
+4. Add idempotency keys, `assistant_idempotency_key` and `source` columns on annotations, and `AssistantRun`/`AssistantFinding`/`AssistantUsage` persistence.
+5. Wrap one legacy assistant, preferably `LexicalAssistant`/text analysis, as a `RequelAssistant<TextEntity>` adapter inside `assistant-legacy-nlp`. Direct `AnnotationCommandFactory` calls move into `AnnotationAction` results.
+6. Convert existing `analyzeX` paths in `AssistantFacade` / `AssistantTaskRunner` to dispatch `AnalysisRequest`s one at a time. Remove the `analyzeX` methods once every path is migrated.
+7. Add no-op/fake assistants for tests and disabled-analysis profiles. Returns must be explicit empty `AssistantResult`s, not `null`.
+8. Extract NLP-heavy code into `assistant-legacy-nlp` (or `project-analysis`) following the modularization plan.
 9. Add AI-backed assistants and MCP support following `doc/ai-assistance-plan.md`.
 
 ## Resolved Decisions
 
-Resolved during issue #43 walkthrough. See `43-comment.md` and `doc/ai-assistance-plan.md` for the full record.
+Resolved during issue #43 walkthrough. See the full record at <https://github.com/rreganjr/Requel/issues/43#issuecomment-4560006774>, and the AI-side decisions in `doc/ai-assistance-plan.md`.
 
 - **Module shape.** `assistant-api` + `assistant-core` from day one. AI/provider modules (`assistant-openai`, etc.) layered in later. `assistant-api` holds pure contracts and value types; `assistant-core` holds dispatcher, registry, applicator, run persistence, and legacy adapters.
 - **SPI dependencies.** `assistant-api` may depend on `project-domain` and `annotation-domain` interfaces. JPA modules (`project-jpa`, `annotation-jpa`, `user-jpa`) are forbidden. This allows strongly-typed signatures such as `RequelAssistant<Goal>` and `RequelAssistant<Scenario>`.
