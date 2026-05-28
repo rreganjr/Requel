@@ -76,3 +76,10 @@ Goal: allow Requel to start and function (in a degraded but safe mode) when the 
 3) Gate assistant beans with `@ConditionalOnBean(NLPProcessorFactory.class)` or property checks.
 4) Add a smoke test profile with `requel.nlp.enabled=false` to ensure the app boots and presents a graceful “NLP disabled” behavior.
 
+## Resolved Decisions
+
+Resolved during issue #43 walkthrough. See `43-comment.md` for the full record.
+
+- **Default flag value.** `requel.nlp.enabled=true` remains the default (`matchIfMissing=true`). Lean builds opt out explicitly; existing deployments behave unchanged on upgrade.
+- **Coexistence with AI assistants.** Legacy NLP is not deprecated when AI-backed assistants land. Both run in parallel; legacy NLP stays enabled by default. The flag exists for opt-out, not as a planned default flip.
+

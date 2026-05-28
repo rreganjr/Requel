@@ -308,13 +308,15 @@ Echo-specific UI work is no longer the primary planning target. New user-facing 
 8. Extract NLP-heavy code toward `project-analysis` or an assistant legacy NLP module.
 9. Add AI-backed assistants and MCP support following `doc/ai-assistance-plan.md`.
 
-## Open Decisions
+## Resolved Decisions
 
-- Module names: `assistant-api` plus `assistant-core`, or a single `assistant-spi` module first?
-- Should `assistant-api` reference `project-domain` / `annotation-domain` types, or should it use only generic `EntityRef` / `ProjectRef` value objects?
-- Where should idempotency keys be stored: annotation metadata, dedicated `AssistantFinding`, or both?
-- How much stale-finding cleanup should be automatic versus manual?
-- Should assistant settings be project-scoped only, or also organization/global scoped?
-- Should MCP authenticate as the triggering user, the assistant user, or both with separate audit context?
-- Should legacy NLP stay enabled by default after AI assistance is available, or become one optional assistant bundle?
+Resolved during issue #43 walkthrough. See `43-comment.md` and `doc/ai-assistance-plan.md` for the full record.
+
+- **Module shape.** `assistant-api` + `assistant-core` from day one. AI/provider modules (`assistant-openai`, etc.) layered in later. `assistant-api` holds pure contracts and value types; `assistant-core` holds dispatcher, registry, applicator, run persistence, and legacy adapters.
+- **SPI dependencies.** `assistant-api` may depend on `project-domain` and `annotation-domain` interfaces. JPA modules (`project-jpa`, `annotation-jpa`, `user-jpa`) are forbidden. This allows strongly-typed signatures such as `RequelAssistant<Goal>` and `RequelAssistant<Scenario>`.
+- **Idempotency key storage.** Dedicated `AssistantFinding` table is the source of truth. The idempotency key is also stamped on the annotation row for fast reverse-lookup and source labeling.
+- **Stale-finding cleanup.** Configurable per assistant. Each assistant declares one of `MANUAL`, `MARK_SUPERSEDED`, or `AUTO_RESOLVE_IF_UNTOUCHED` in its registration metadata. Default is `MARK_SUPERSEDED` for assistants that do not declare a policy.
+- **Assistant settings scope.** Project-scoped only in Phase 1. Global-default + project-override added later. No organization/tenant tier planned.
+- **MCP identity.** Both identities carried on every MCP session. Authorization uses the triggering user; an internal `requel-ai-assistant` pseudo-user plus one pseudo-user per registered external MCP client (e.g. `claude-code`, `codex-cli`) provides audit attribution and per-client policy/rate-limit control. Internal and external assistants share the same data model.
+- **Legacy NLP coexistence.** AI is additive: legacy NLP and AI-backed assistants run in parallel. Legacy NLP stays enabled by default. Deprecation will be revisited once usage and overlap data are available; legacy checks are expected to fade naturally as new assistants displace them.
 

@@ -299,14 +299,18 @@ The first release can skip most UI and rely on annotations plus logs, but run hi
 - Add project settings, run history, manual run controls, and clearer AI source labels.
 - Add budget/rate-limit dashboards and provider health indicators.
 
-## Open Questions
+## Resolved Decisions
 
-- Should the first AI assistant augment legacy NLP findings or replace specific legacy checks when enabled?
-- Is `assistant-api` allowed to depend on annotation/project domain types, or should it use only references and DTOs?
-- Should MCP tools authenticate as the triggering user, the assistant user, or both with separate audit fields?
-- Where should prompt/schema templates live: resources in `assistant-openai`, database-configurable templates, or both?
-- How much of provider request/response data can be stored under project privacy expectations?
-- Do we need per-organization AI settings before per-project settings?
+Resolved during issue #43 walkthrough. See `43-comment.md` for the full record. Cross-cutting SPI decisions are also listed in `doc/assistant-spi-plan.md` under `Resolved Decisions`.
+
+- **First AI assistant vs legacy NLP.** Both run in parallel — AI is additive. Legacy NLP stays enabled by default. The first AI assistant does not replace specific legacy checks; overlap is expected initially and will fade as new assistants displace older ones.
+- **SPI dependencies on domain types.** `assistant-api` may depend on `project-domain` and `annotation-domain` interfaces (not JPA modules). `RequelAssistant<Goal>` / `RequelAssistant<Scenario>` are valid signatures so per-entity rules can stay strongly typed.
+- **MCP identity.** MCP sessions carry both identities. Authorization uses the triggering user (the AI client never sees more than the human can). Each registered AI client gets its own assistant pseudo-user — `requel-ai-assistant` for the internal dispatcher, plus one per external MCP client (`claude-code`, `codex-cli`, etc.). This lets each be policy-controlled, rate-limited, and audited separately.
+- **Prompt/schema template location.** Classpath resources in the provider module as defaults; DB overrides allowed by `(template_id, version)`. `AssistantRun` records the resolved template id, version, and source (`resource` or `db_override:<row_id>`) so every run is reproducible.
+- **Provider request/response retention.** Default is metadata only. Bodies are stored unconditionally for failed runs (schema-validation failure, timeout, provider error). Per-project capture windows let an admin enable body retention for a specific project for a bounded time. Per-run user opt-in lets the triggering user flag a single run for retention, up to a project-admin-set ceiling. A configurable success-sampling rate (default 1%, off in dev/test profiles) captures bodies for ongoing quality monitoring. All body data has a hard TTL (default 14 days, configurable) and is encrypted at rest with a separate key. `AssistantRun` records whether bodies exist and why (`failure`, `project_capture_window`, `user_opt_in`, `sampled`).
+- **Per-organization AI settings.** Not needed before per-project settings. Phase 1 is project-scoped only; global-default + project-override is added later. No org/tenant tier is planned.
+- **MCP module placement.** New `mcp-server` Maven module, bundled in-process with `requel-app`. Every tool/resource goes through a `ProjectQueryGateway`-style abstraction so a future standalone bridge is mostly an auth-exchange + REST-client problem rather than a rewrite.
+- **First two AI tasks.** Start with `REQUIREMENTS_REVIEW` only. Prove the full pipeline end-to-end against real projects before picking the second task type.
 
 ## Near-Term Recommendation
 
