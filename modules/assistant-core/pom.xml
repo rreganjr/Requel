@@ -29,7 +29,22 @@
         </dependency>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
+            <artifactId>project-domain</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>annotation-domain</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
             <artifactId>platform-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>platform-identity</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

@@ -27,15 +27,14 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.stereotype.Component;
-
 import com.rreganjr.requel.assistant.api.AnalysisRequest;
 
 /**
- * Temporary run store for the Phase 1 dispatcher skeleton. It gives callers a
- * concrete run lifecycle before the AssistantRun table is introduced.
+ * In-memory {@link AssistantRunStore} kept for unit tests that don't load a
+ * Spring context. The production wiring is
+ * {@link com.rreganjr.requel.assistant.core.persistence.JpaAssistantRunStore};
+ * this class is no longer a {@code @Component} since Phase 2.
  */
-@Component
 public class InMemoryAssistantRunStore implements AssistantRunStore {
 
 	private final Clock clock;
