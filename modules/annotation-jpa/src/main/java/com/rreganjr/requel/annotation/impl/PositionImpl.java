@@ -141,7 +141,8 @@ public class PositionImpl implements Position, Serializable {
 	}
 
 	@Version
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 

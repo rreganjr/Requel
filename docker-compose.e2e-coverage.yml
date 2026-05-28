@@ -1,10 +1,17 @@
 # Compose override for E2E coverage runs. Use together with docker-compose.yml:
-#   docker compose -f docker-compose.yml -f docker-compose.e2e-coverage.yml up -d
+#   SPRING_PROFILES_ACTIVE=dev \
+#     docker compose -f docker-compose.yml -f docker-compose.e2e-coverage.yml up -d
 #
 # Adds JaCoCo file-output agent to the web service. On graceful JVM shutdown
 # the agent writes the exec file to a host-mounted volume — no TCP networking
 # needed. The agent JAR must be present at coverage/jacoco/jacocoagent.jar
 # before starting (scripts/e2e-with-coverage.sh handles this automatically).
+#
+# Dev-mode reset endpoints used by Playwright's global-setup
+# (/api/dev/reset-admin, /api/dev/reset-project) are enabled by the dev
+# Spring profile (application-dev.properties), not by per-property env vars
+# in this file. Pass SPRING_PROFILES_ACTIVE=dev to docker compose — the base
+# docker-compose.yml honors that variable.
 services:
   web:
     volumes:
@@ -16,6 +23,3 @@ services:
       # JVM standard for tooling injection; _JAVA_OPTIONS (memory settings)
       # still applies from the base compose file — the two env vars do not conflict.
       - "JAVA_TOOL_OPTIONS=-javaagent:/jacoco/jacocoagent.jar=output=file,append=false,destfile=/jacoco/output/jacoco-e2e.exec,includes=com.rreganjr.*"
-      # Enable the dev-only admin password reset endpoint used by global-setup.ts
-      # to guarantee admin/admin credentials before each E2E run.
-      - "REQUEL_DEV_RESET_ADMIN_ENABLED=true"

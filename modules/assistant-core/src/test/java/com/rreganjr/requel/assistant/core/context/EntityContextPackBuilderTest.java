@@ -55,8 +55,8 @@ class EntityContextPackBuilderTest {
 		when(goal.getName()).thenReturn("Reduce churn");
 		when(goal.getText()).thenReturn("Churn target");
 		LinkedHashSet<Annotation> annotations = new LinkedHashSet<>();
-		annotations.add(stubIssue("Ambiguous wording", false, false));
-		annotations.add(stubNote("nice phrasing"));
+		annotations.add(stubIssue(101L, 2, "Ambiguous wording", false, false));
+		annotations.add(stubNote(102L, 1, "nice phrasing"));
 		when(goal.getAnnotations()).thenReturn(annotations);
 		GlossaryTerm term = mock(GlossaryTerm.class);
 		when(term.getId()).thenReturn(7L);
@@ -73,7 +73,11 @@ class EntityContextPackBuilderTest {
 		assertThat(((GoalSnapshot) pack.snapshot()).name()).isEqualTo("Reduce churn");
 		assertThat(pack.annotations()).extracting(AnnotationSnapshot::kind)
 				.containsExactly(AnnotationKind.ISSUE, AnnotationKind.NOTE);
+		assertThat(pack.annotations().get(0).id()).isEqualTo(101L);
+		assertThat(pack.annotations().get(0).version()).isEqualTo(2);
 		assertThat(pack.annotations().get(0).mustBeResolved()).isFalse();
+		assertThat(pack.annotations().get(1).id()).isEqualTo(102L);
+		assertThat(pack.annotations().get(1).version()).isEqualTo(1);
 		assertThat(pack.relatedTerms()).extracting(GlossaryTermSnapshot::name)
 				.containsExactly("Churn");
 	}
@@ -90,9 +94,9 @@ class EntityContextPackBuilderTest {
 		when(goal.getName()).thenReturn("G");
 		when(goal.getText()).thenReturn("text");
 		LinkedHashSet<Annotation> annotations = new LinkedHashSet<>();
-		annotations.add(stubNote("note 1"));
-		annotations.add(stubNote("note 2"));
-		annotations.add(stubNote("note 3"));
+		annotations.add(stubNote(201L, 1, "note 1"));
+		annotations.add(stubNote(202L, 1, "note 2"));
+		annotations.add(stubNote(203L, 1, "note 3"));
 		when(goal.getAnnotations()).thenReturn(annotations);
 		when(goal.getGlossaryTerms()).thenReturn(Set.of());
 
@@ -111,8 +115,11 @@ class EntityContextPackBuilderTest {
 				.hasMessageContaining("Unsupported target type");
 	}
 
-	private static Issue stubIssue(String text, boolean mustBeResolved, boolean resolved) {
+	private static Issue stubIssue(long id, int version, String text, boolean mustBeResolved,
+			boolean resolved) {
 		Issue issue = mock(Issue.class);
+		when(issue.getId()).thenReturn(id);
+		when(issue.getVersion()).thenReturn(version);
 		when(issue.getText()).thenReturn(text);
 		when(issue.isMustBeResolved()).thenReturn(mustBeResolved);
 		when(issue.isResolved()).thenReturn(resolved);
@@ -121,8 +128,10 @@ class EntityContextPackBuilderTest {
 		return issue;
 	}
 
-	private static Note stubNote(String text) {
+	private static Note stubNote(long id, int version, String text) {
 		Note note = mock(Note.class);
+		when(note.getId()).thenReturn(id);
+		when(note.getVersion()).thenReturn(version);
 		when(note.getText()).thenReturn(text);
 		when(note.isMustBeResolved()).thenReturn(false);
 		when(note.isResolved()).thenReturn(false);

@@ -30,7 +30,6 @@ import java.util.Objects;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.requel.annotation.Annotation;
-import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.assistant.api.EntityRef;
@@ -101,8 +100,9 @@ public class EntityContextPackBuilder {
 				String annText = ContextPackTextUtils.prepareText(
 						"annotation[" + count + "].text", annotation.getText(), maxField,
 						redactionPolicy, redacted, truncated);
-				annotations.add(new AnnotationSnapshot(annotationKind(annotation), annText,
-						annotation.isMustBeResolved(), annotation.isResolved(),
+				annotations.add(new AnnotationSnapshot(annotation.getId(), annotation.getVersion(),
+						annotationKind(annotation), annText, annotation.isMustBeResolved(),
+						annotation.isResolved(),
 						ContextPackTextUtils.username(annotation.getCreatedBy()),
 						toInstant(annotation.getDateCreated())));
 				budget.add(annText);
@@ -238,15 +238,22 @@ public class EntityContextPackBuilder {
 				"Unsupported target type for EntityContextPack: " + target.getClass().getName());
 	}
 
+	/**
+	 * Map an {@link Annotation} subtype to its pack-level {@link AnnotationKind}.
+	 * Only {@code Issue} and {@code Note} are reachable here; {@code Argument}
+	 * and {@code Position} are separate type hierarchies that do not extend
+	 * {@link Annotation} (they hang off {@link Issue#getPositions()} and
+	 * {@link com.rreganjr.requel.annotation.Position#getArguments()}
+	 * respectively). The {@code ARGUMENT} value on {@link AnnotationKind}
+	 * exists for {@code AnnotationAction.createArgument(...)} on the write
+	 * path, not for pack-level reads.
+	 */
 	private static AnnotationKind annotationKind(Annotation annotation) {
 		if (annotation instanceof Issue) {
 			return AnnotationKind.ISSUE;
 		}
 		if (annotation instanceof Note) {
 			return AnnotationKind.NOTE;
-		}
-		if (annotation instanceof Argument) {
-			return AnnotationKind.ARGUMENT;
 		}
 		return AnnotationKind.NOTE;
 	}

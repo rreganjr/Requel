@@ -167,10 +167,11 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 	/**
 	 * Reconstructs an {@link AnalysisRequest} from persisted fields for status
 	 * lookups. {@code AnalysisRequest} requires non-null target, triggering
-	 * user, and assistant user, so missing values (which should not occur for
-	 * rows produced by {@link #queueRun}) are filled with sentinel placeholders
-	 * rather than throwing. The rebuilt request is not a faithful round-trip
-	 * of the original {@code attributes} map.
+	 * user, and assistant user; {@code UserRef} additionally requires non-null
+	 * {@code userId} and {@code username}. The DB only stores user ids, so the
+	 * rebuilt {@code UserRef.username} is filled with a synthetic placeholder
+	 * derived from the id. The rebuilt request is not a faithful round-trip
+	 * of the original {@code attributes} map either.
 	 */
 	private static AnalysisRequest rebuildRequest(AssistantRunEntity entity) {
 		EntityRef targetRef = entity.getTargetType() != null && entity.getTargetId() != null
@@ -179,14 +180,17 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 		EntityRef projectRef = entity.getProjectId() != null
 				? EntityRef.of("Project", entity.getProjectId())
 				: null;
-		UserRef triggeringUser = entity.getTriggeredByUserId() != null
-				? new UserRef(entity.getTriggeredByUserId(), null)
-				: new UserRef(0L, "unknown");
-		UserRef assistantUser = entity.getAssistantUserId() != null
-				? new UserRef(entity.getAssistantUserId(), null)
-				: new UserRef(0L, "unknown");
+		UserRef triggeringUser = placeholderUserRef(entity.getTriggeredByUserId());
+		UserRef assistantUser = placeholderUserRef(entity.getAssistantUserId());
 		return new AnalysisRequest(targetRef, projectRef, triggeringUser, assistantUser,
 				entity.getTaskType(), java.util.Map.of());
+	}
+
+	private static UserRef placeholderUserRef(Long userId) {
+		if (userId == null) {
+			return new UserRef(0L, "unknown");
+		}
+		return new UserRef(userId, "id:" + userId);
 	}
 
 	/**

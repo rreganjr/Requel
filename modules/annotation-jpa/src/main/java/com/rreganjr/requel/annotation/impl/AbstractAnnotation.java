@@ -151,7 +151,8 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	}
 
 	@Version
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 

@@ -23,12 +23,12 @@ package com.rreganjr.requel.assistant.core.context;
 import java.time.Instant;
 
 /**
- * Pack-level view of an annotation. The {@code annotation-domain} interface
- * does not expose id / version (they live on the JPA implementation), so this
- * snapshot is read-only context — assistants reference annotations by their
- * idempotency key when they create or update findings, not by id from the
- * pack.
+ * Pack-level view of an annotation. Carries {@code id} and {@code version}
+ * so the assistant applicator can reject stale AI output by comparing the
+ * persisted annotation's optimistic-lock version against the snapshot the
+ * assistant produced findings against.
  */
-public record AnnotationSnapshot(AnnotationKind kind, String text, boolean mustBeResolved,
-		boolean resolved, String createdByUsername, Instant dateCreated) {
+public record AnnotationSnapshot(Long id, int version, AnnotationKind kind, String text,
+		boolean mustBeResolved, boolean resolved, String createdByUsername,
+		Instant dateCreated) {
 }

@@ -48,8 +48,8 @@ class IssueContextPackBuilderTest {
 
 	@Test
 	void buildsPackWithTargetIssuesAndProjectSweep() {
-		Issue targetOpen = stubIssue("ambiguous", false);
-		Issue targetResolved = stubIssue("resolved already", true);
+		Issue targetOpen = stubIssue(201L, 3, "ambiguous", false);
+		Issue targetResolved = stubIssue(202L, 1, "resolved already", true);
 		Goal target = mock(Goal.class);
 		when(target.getId()).thenReturn(42L);
 		when(target.getVersion()).thenReturn(1);
@@ -58,7 +58,7 @@ class IssueContextPackBuilderTest {
 		when(target.getProjectOrDomainEntityInterface())
 				.thenAnswer(invocation -> Goal.class);
 
-		Issue otherIssue = stubIssue("missing actor", false);
+		Issue otherIssue = stubIssue(301L, 1, "missing actor", false);
 		Goal otherGoal = mock(Goal.class);
 		when(otherGoal.getId()).thenReturn(100L);
 		when(otherGoal.getVersion()).thenReturn(1);
@@ -79,15 +79,20 @@ class IssueContextPackBuilderTest {
 
 		assertThat(pack.target().entityType()).isEqualTo("Goal");
 		assertThat(pack.target().entityId()).isEqualTo(42L);
-		assertThat(pack.targetIssues()).extracting(IssueSnapshot::text)
-				.containsExactly("ambiguous");
-		assertThat(pack.projectOpenIssues()).extracting(IssueSnapshot::text)
-				.containsExactly("missing actor");
+		assertThat(pack.targetIssues()).hasSize(1);
+		assertThat(pack.targetIssues().get(0).id()).isEqualTo(201L);
+		assertThat(pack.targetIssues().get(0).version()).isEqualTo(3);
+		assertThat(pack.targetIssues().get(0).text()).isEqualTo("ambiguous");
+		assertThat(pack.projectOpenIssues()).hasSize(1);
+		assertThat(pack.projectOpenIssues().get(0).id()).isEqualTo(301L);
+		assertThat(pack.projectOpenIssues().get(0).text()).isEqualTo("missing actor");
 		assertThat(pack.projectOpenIssues().get(0).target().entityType()).isEqualTo("Goal");
 	}
 
-	private static Issue stubIssue(String text, boolean resolved) {
+	private static Issue stubIssue(long id, int version, String text, boolean resolved) {
 		Issue issue = mock(Issue.class);
+		when(issue.getId()).thenReturn(id);
+		when(issue.getVersion()).thenReturn(version);
 		when(issue.getText()).thenReturn(text);
 		when(issue.isResolved()).thenReturn(resolved);
 		when(issue.isMustBeResolved()).thenReturn(false);

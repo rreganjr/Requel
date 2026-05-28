@@ -97,6 +97,11 @@ mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests \
 #    "container requel-db-1 is unhealthy"-style failures.
 # ---------------------------------------------------------------------------
 echo "Starting services..."
+# Activate the dev Spring profile so application-dev.properties registers
+# /api/dev/reset-admin and /api/dev/reset-project, which Playwright's
+# global-setup calls to put the admin and project users back to canonical
+# state before each run.
+export SPRING_PROFILES_ACTIVE=dev
 if ! docker compose \
   -f "$REPO_ROOT/docker-compose.yml" \
   -f "$REPO_ROOT/docker-compose.e2e-coverage.yml" \

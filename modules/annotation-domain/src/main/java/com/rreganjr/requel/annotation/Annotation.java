@@ -34,6 +34,20 @@ import com.rreganjr.platform.domain.Describable;
 public interface Annotation extends Comparable<Annotation>, CreatedEntity, Describable {
 
 	/**
+	 * @return the persistent identity of this annotation, or {@code null}
+	 *         for transient instances that have not been persisted yet.
+	 */
+	public Long getId();
+
+	/**
+	 * @return the optimistic-lock version; incremented on each
+	 *         user-initiated modification. Used by edit commands to detect
+	 *         concurrent writes and by the assistant applicator to detect
+	 *         stale snapshots before applying findings.
+	 */
+	public int getVersion();
+
+	/**
 	 * @return an object used as a context for a group of annotations.
 	 */
 	public Object getGroupingObject();

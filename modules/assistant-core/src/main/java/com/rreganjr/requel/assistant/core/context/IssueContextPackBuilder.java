@@ -134,11 +134,12 @@ public class IssueContextPackBuilder {
 			for (Position position : issue.getPositions()) {
 				String positionText = ContextPackTextUtils.prepareText("issue.position.text",
 						position.getText(), maxField, redactionPolicy, redacted, truncated);
-				positions.add(new PositionSnapshot(positionText));
+				positions.add(new PositionSnapshot(position.getId(), position.getVersion(),
+						positionText));
 				budget.add(positionText);
 			}
-			sink.add(new IssueSnapshot(text, issue.isMustBeResolved(), issue.isResolved(), sourceRef,
-					positions));
+			sink.add(new IssueSnapshot(issue.getId(), issue.getVersion(), text,
+					issue.isMustBeResolved(), issue.isResolved(), sourceRef, positions));
 			budget.add(text);
 		}
 		return false;

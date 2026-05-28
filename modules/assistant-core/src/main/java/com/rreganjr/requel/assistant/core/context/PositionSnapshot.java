@@ -21,8 +21,9 @@
 package com.rreganjr.requel.assistant.core.context;
 
 /**
- * Pack-level view of a position. Omits id / version for the same reason as
- * {@link AnnotationSnapshot} — they are not exposed by annotation-domain.
+ * Pack-level view of a position. Carries {@code id} and {@code version} so
+ * the applicator can detect stale state (the {@code Position} domain
+ * interface now exposes both).
  */
-public record PositionSnapshot(String text) {
+public record PositionSnapshot(Long id, int version, String text) {
 }
