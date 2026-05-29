@@ -35,12 +35,17 @@ class AiPropertiesTest {
 			AiProperties properties = context.getBean(AiProperties.class);
 
 			assertThat(properties.isEnabled()).isFalse();
-			assertThat(properties.getProvider()).isEqualTo("noop");
-			assertThat(properties.getModel()).isEqualTo("noop");
-			assertThat(properties.getTimeout()).isEqualTo(Duration.ofSeconds(30));
-			assertThat(properties.getMaxInputTokens()).isEqualTo(16000);
-			assertThat(properties.getMaxOutputTokens()).isEqualTo(4000);
-		});
+					assertThat(properties.getProvider()).isEqualTo("noop");
+					assertThat(properties.getModel()).isEqualTo("noop");
+					assertThat(properties.getApiKey()).isNull();
+					assertThat(properties.getApiKeyEnvironmentVariable()).isEqualTo("OPENAI_API_KEY");
+					assertThat(properties.getEndpoint()).isEqualTo(
+							"https://api.openai.com/v1/responses");
+					assertThat(properties.getTimeout()).isEqualTo(Duration.ofSeconds(30));
+					assertThat(properties.getMaxRetries()).isEqualTo(2);
+					assertThat(properties.getMaxInputTokens()).isEqualTo(16000);
+					assertThat(properties.getMaxOutputTokens()).isEqualTo(4000);
+				});
 	}
 
 	@Test
@@ -51,7 +56,11 @@ class AiPropertiesTest {
 						"requel.ai.enabled=true",
 						"requel.ai.provider=openai",
 						"requel.ai.model=gpt-test",
+						"requel.ai.api-key=test-key",
+						"requel.ai.api-key-environment-variable=TEST_OPENAI_KEY",
+						"requel.ai.endpoint=http://localhost:9000/v1/responses",
 						"requel.ai.timeout=5s",
+						"requel.ai.max-retries=3",
 						"requel.ai.max-input-tokens=2000",
 						"requel.ai.max-output-tokens=500",
 						"requel.ai.project-allowlist=Alpha,Beta")
@@ -61,7 +70,13 @@ class AiPropertiesTest {
 					assertThat(properties.isEnabled()).isTrue();
 					assertThat(properties.getProvider()).isEqualTo("openai");
 					assertThat(properties.getModel()).isEqualTo("gpt-test");
+					assertThat(properties.getApiKey()).isEqualTo("test-key");
+					assertThat(properties.getApiKeyEnvironmentVariable()).isEqualTo(
+							"TEST_OPENAI_KEY");
+					assertThat(properties.getEndpoint()).isEqualTo(
+							"http://localhost:9000/v1/responses");
 					assertThat(properties.getTimeout()).isEqualTo(Duration.ofSeconds(5));
+					assertThat(properties.getMaxRetries()).isEqualTo(3);
 					assertThat(properties.getMaxInputTokens()).isEqualTo(2000);
 					assertThat(properties.getMaxOutputTokens()).isEqualTo(500);
 					assertThat(properties.getProjectAllowlist()).containsExactly("Alpha", "Beta");

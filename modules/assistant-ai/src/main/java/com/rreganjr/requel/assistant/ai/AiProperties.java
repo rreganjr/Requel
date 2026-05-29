@@ -23,6 +23,7 @@ package com.rreganjr.requel.assistant.ai;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -32,7 +33,11 @@ public class AiProperties {
 	private boolean enabled = false;
 	private String provider = "noop";
 	private String model = "noop";
+	private String apiKey;
+	private String apiKeyEnvironmentVariable = "OPENAI_API_KEY";
+	private String endpoint = "https://api.openai.com/v1/responses";
 	private Duration timeout = Duration.ofSeconds(30);
+	private int maxRetries = 2;
 	private int maxInputTokens = 16000;
 	private int maxOutputTokens = 4000;
 	private List<String> projectAllowlist = new ArrayList<String>();
@@ -61,12 +66,44 @@ public class AiProperties {
 		this.model = model;
 	}
 
+	public String getApiKey() {
+		return apiKey;
+	}
+
+	public void setApiKey(String apiKey) {
+		this.apiKey = apiKey;
+	}
+
+	public String getApiKeyEnvironmentVariable() {
+		return apiKeyEnvironmentVariable;
+	}
+
+	public void setApiKeyEnvironmentVariable(String apiKeyEnvironmentVariable) {
+		this.apiKeyEnvironmentVariable = apiKeyEnvironmentVariable;
+	}
+
+	public String getEndpoint() {
+		return endpoint;
+	}
+
+	public void setEndpoint(String endpoint) {
+		this.endpoint = endpoint;
+	}
+
 	public Duration getTimeout() {
 		return timeout;
 	}
 
 	public void setTimeout(Duration timeout) {
 		this.timeout = timeout;
+	}
+
+	public int getMaxRetries() {
+		return maxRetries;
+	}
+
+	public void setMaxRetries(int maxRetries) {
+		this.maxRetries = maxRetries;
 	}
 
 	public int getMaxInputTokens() {
@@ -90,6 +127,7 @@ public class AiProperties {
 	}
 
 	public void setProjectAllowlist(List<String> projectAllowlist) {
-		this.projectAllowlist = new ArrayList<String>(projectAllowlist);
+		this.projectAllowlist = new ArrayList<String>(Objects.requireNonNull(projectAllowlist,
+				"projectAllowlist"));
 	}
 }
