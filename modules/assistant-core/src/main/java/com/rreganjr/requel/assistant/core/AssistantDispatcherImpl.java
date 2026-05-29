@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
@@ -44,6 +45,7 @@ public class AssistantDispatcherImpl implements AssistantDispatcher {
 	private final AssistantRunStore runStore;
 	private final AssistantRunWorker runWorker;
 
+	@Autowired
 	public AssistantDispatcherImpl(@Qualifier("assistantTaskExecutor") TaskExecutor taskExecutor,
 			AssistantRunStore runStore, AssistantRunWorker runWorker) {
 		this.taskExecutor = taskExecutor;

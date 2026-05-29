@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.requel.annotation.Annotatable;
@@ -48,6 +49,7 @@ public class IssueContextPackBuilder {
 	private final ContextPackSizeLimits limits;
 	private final Clock clock;
 
+	@Autowired
 	public IssueContextPackBuilder(RedactionPolicy redactionPolicy,
 			ContextPackSizeLimits limits) {
 		this(redactionPolicy, limits, Clock.systemUTC());

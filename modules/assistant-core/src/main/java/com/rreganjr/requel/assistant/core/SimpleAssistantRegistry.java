@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.requel.assistant.api.AssistantContext;
@@ -39,6 +40,7 @@ public class SimpleAssistantRegistry implements AssistantRegistry {
 
 	private final List<RequelAssistant<?>> assistants;
 
+	@Autowired
 	public SimpleAssistantRegistry(List<RequelAssistant<?>> assistants) {
 		this.assistants = List.copyOf(assistants);
 	}

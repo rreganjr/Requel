@@ -22,6 +22,7 @@ package com.rreganjr.requel.mcp;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -41,6 +42,7 @@ public class InProcessProjectQueryGateway implements ProjectQueryGateway {
 
 	private final ProjectQueryController projectQueryController;
 
+	@Autowired
 	public InProcessProjectQueryGateway(ProjectQueryController projectQueryController) {
 		this.projectQueryController = projectQueryController;
 	}

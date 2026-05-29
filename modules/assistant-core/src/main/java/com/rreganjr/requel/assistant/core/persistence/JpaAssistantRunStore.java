@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +57,7 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 	private final AssistantRunRepository runRepository;
 	private final Clock clock;
 
+	@Autowired
 	public JpaAssistantRunStore(AssistantRunRepository runRepository) {
 		this(runRepository, Clock.systemUTC());
 	}

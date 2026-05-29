@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.requel.assistant.api.EntityRef;
@@ -56,6 +57,7 @@ public class ProjectContextPackBuilder {
 	private final ContextPackSizeLimits limits;
 	private final Clock clock;
 
+	@Autowired
 	public ProjectContextPackBuilder(RedactionPolicy redactionPolicy,
 			ContextPackSizeLimits limits) {
 		this(redactionPolicy, limits, Clock.systemUTC());

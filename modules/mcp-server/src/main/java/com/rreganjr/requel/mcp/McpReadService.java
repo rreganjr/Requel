@@ -23,6 +23,7 @@ package com.rreganjr.requel.mcp;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -36,6 +37,7 @@ public class McpReadService {
 	private final ProjectQueryGateway projectQueryGateway;
 	private final ObjectMapper objectMapper;
 
+	@Autowired
 	public McpReadService(ProjectQueryGateway projectQueryGateway, ObjectMapper objectMapper) {
 		this.projectQueryGateway = projectQueryGateway;
 		this.objectMapper = objectMapper;

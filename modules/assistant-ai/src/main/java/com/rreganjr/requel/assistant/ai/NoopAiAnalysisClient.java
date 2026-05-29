@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Component;
 
@@ -43,6 +44,7 @@ public class NoopAiAnalysisClient implements AiAnalysisClient {
 	private final AiProperties properties;
 	private final ObjectMapper objectMapper;
 
+	@Autowired
 	public NoopAiAnalysisClient(AiProperties properties, ObjectMapper objectMapper) {
 		this.properties = properties;
 		this.objectMapper = objectMapper;
