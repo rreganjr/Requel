@@ -337,6 +337,11 @@
         </dependency>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
+            <artifactId>assistant-ai</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
             <artifactId>utils-jaxb</artifactId>
             <version>${project.version}</version>
         </dependency>
