@@ -332,6 +332,11 @@
         </dependency>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
+            <artifactId>mcp-server</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
             <artifactId>utils-jaxb</artifactId>
             <version>${project.version}</version>
         </dependency>

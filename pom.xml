@@ -246,6 +246,7 @@
         <module>modules/service-api</module>
         <module>modules/assistant-api</module>
         <module>modules/assistant-core</module>
+        <module>modules/mcp-server</module>
         <module>modules/service-impl</module>
         <module>modules/requel-app</module>
   </modules>
