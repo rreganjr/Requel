@@ -47,6 +47,24 @@ public interface ProjectRepository extends Repository {
 	public Project findProjectByName(String name) throws NoSuchProjectException;
 
 	/**
+	 * Find a project-scoped entity by its persistent id. {@code entityType} is the
+	 * domain interface (e.g. {@link Goal}, {@link Story}, {@link Project}). Ids are
+	 * stable across renames, so this is the preferred lookup for tooling that holds
+	 * an id reference (assistant analysis, MCP, etc.) rather than a name.
+	 *
+	 * @param <T>
+	 *            the entity type
+	 * @param entityType -
+	 *            the domain interface class of the entity to load.
+	 * @param id -
+	 *            the persistent id.
+	 * @return the entity of the requested type with the supplied id.
+	 * @throws NoSuchEntityException -
+	 *             if no entity of {@code entityType} has the supplied id.
+	 */
+	public <T> T findById(Class<T> entityType, Long id) throws NoSuchEntityException;
+
+	/**
 	 * @param projectOrDomain -
 	 *            the project or domain that contains the goal.
 	 * @param name -
