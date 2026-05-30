@@ -34,6 +34,11 @@
         </dependency>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
+            <artifactId>project-jpa</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
             <artifactId>dictionary-jpa</artifactId>
             <version>${project.version}</version>
         </dependency>
