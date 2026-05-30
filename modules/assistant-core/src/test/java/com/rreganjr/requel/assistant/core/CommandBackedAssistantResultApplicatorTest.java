@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
@@ -58,6 +59,7 @@ class CommandBackedAssistantResultApplicatorTest {
 	private final CommandHandler commandHandler = mock(CommandHandler.class);
 	private final AnnotationCommandFactory annotationCommandFactory = mock(
 			AnnotationCommandFactory.class);
+	private final ProjectCommandFactory projectCommandFactory = mock(ProjectCommandFactory.class);
 	private final AnnotationRepository annotationRepository = mock(AnnotationRepository.class);
 	private final UserRepository userRepository = mock(UserRepository.class);
 	private final AssistantFindingRepository findingRepository = mock(
@@ -68,8 +70,8 @@ class CommandBackedAssistantResultApplicatorTest {
 
 	private CommandBackedAssistantResultApplicator newApplicator() {
 		return new CommandBackedAssistantResultApplicator(commandHandler, annotationCommandFactory,
-				annotationRepository, userRepository, findingRepository, runRepository, List.of(),
-				fixedClock);
+				projectCommandFactory, annotationRepository, userRepository, findingRepository,
+				runRepository, List.of(), fixedClock);
 	}
 
 	@Test

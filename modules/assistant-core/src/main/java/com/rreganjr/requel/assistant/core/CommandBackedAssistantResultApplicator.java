@@ -67,16 +67,32 @@ import com.rreganjr.requel.assistant.core.persistence.AssistantFindingRepository
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingState;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunRepository;
+import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.project.command.EditAddActorToProjectPositionCommand;
+import com.rreganjr.requel.project.command.EditAddWordToGlossaryPositionCommand;
+import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.user.UserRepository;
 
 /**
  * Command-backed applicator: turns each {@link AnnotationAction} into a call
- * through the existing {@link AnnotationCommandFactory} + {@link CommandHandler}
- * chain so authorization, validation, audit, optimistic locking, and SSE behave
- * exactly as they do for UI-driven edits. Commands are executed as the
- * triggering user (resolved by username), which is what
- * {@code AuthorizingCommandHandler} checks via {@code getEditedBy()}.
+ * through the existing command + {@link CommandHandler} chain so authorization,
+ * validation, audit, optimistic locking, and SSE behave exactly as they do for
+ * UI-driven edits. Commands are executed as the triggering user (resolved by
+ * username), which is what {@code AuthorizingCommandHandler} checks via
+ * {@code getEditedBy()}.
+ *
+ * <p>
+ * Most actions map to {@link AnnotationCommandFactory} (notes, issues, lexical
+ * issues, and the change-spelling / add-word-to-dictionary / plain positions).
+ * The project-scoped positions an assistant can raise &mdash; "add word to
+ * glossary" and "add actor to project", selected via {@code metadata.kind} on a
+ * {@code CREATE_OR_UPDATE_POSITION} action &mdash; are resolve-positions that
+ * mutate the project when accepted, so they are created through
+ * {@link ProjectCommandFactory} and carry the owning {@code ProjectOrDomain}
+ * (taken from the parent issue's grouping object). Both factories are reached
+ * through the same {@link CommandHandler}, so authorization and audit are
+ * identical regardless of which one produced the command.
  *
  * <p>
  * Idempotency: each primary action (note / issue) is keyed by its
@@ -101,6 +117,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 
 	private final CommandHandler commandHandler;
 	private final AnnotationCommandFactory annotationCommandFactory;
+	private final ProjectCommandFactory projectCommandFactory;
 	private final AnnotationRepository annotationRepository;
 	private final UserRepository userRepository;
 	private final AssistantFindingRepository findingRepository;
@@ -112,21 +129,25 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	@Autowired
 	public CommandBackedAssistantResultApplicator(CommandHandler commandHandler,
 			AnnotationCommandFactory annotationCommandFactory,
+			ProjectCommandFactory projectCommandFactory,
 			AnnotationRepository annotationRepository, UserRepository userRepository,
 			AssistantFindingRepository findingRepository, AssistantRunRepository runRepository,
 			List<AssistantTargetLoader> targetLoaders) {
-		this(commandHandler, annotationCommandFactory, annotationRepository, userRepository,
-				findingRepository, runRepository, targetLoaders, Clock.systemUTC());
+		this(commandHandler, annotationCommandFactory, projectCommandFactory, annotationRepository,
+				userRepository, findingRepository, runRepository, targetLoaders, Clock.systemUTC());
 	}
 
 	CommandBackedAssistantResultApplicator(CommandHandler commandHandler,
 			AnnotationCommandFactory annotationCommandFactory,
+			ProjectCommandFactory projectCommandFactory,
 			AnnotationRepository annotationRepository, UserRepository userRepository,
 			AssistantFindingRepository findingRepository, AssistantRunRepository runRepository,
 			List<AssistantTargetLoader> targetLoaders, Clock clock) {
 		this.commandHandler = Objects.requireNonNull(commandHandler, "commandHandler");
 		this.annotationCommandFactory = Objects.requireNonNull(annotationCommandFactory,
 				"annotationCommandFactory");
+		this.projectCommandFactory = Objects.requireNonNull(projectCommandFactory,
+				"projectCommandFactory");
 		this.annotationRepository = Objects.requireNonNull(annotationRepository,
 				"annotationRepository");
 		this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
@@ -289,6 +310,15 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		String text = truncate(action.text(), MAX_TEXT_LENGTH);
 		String kind = stringMeta(action, "kind");
 
+		// Project-specific positions go through ProjectCommandFactory and carry the
+		// owning ProjectOrDomain. The legacy assistant created these without a
+		// content dedupe, so we do not look up an existing position for them.
+		if ("ADD_WORD_TO_GLOSSARY".equalsIgnoreCase(kind)
+				|| "ADD_ACTOR_TO_PROJECT".equalsIgnoreCase(kind)) {
+			return applyProjectPosition(kind, issue, grouping, text, editedBy, action,
+					createdByActionKey);
+		}
+
 		EditPositionCommand command;
 		if ("CHANGE_SPELLING".equalsIgnoreCase(kind)) {
 			EditChangeSpellingPositionCommand changeSpelling = annotationCommandFactory
@@ -307,6 +337,41 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		Position existing = tryFindPosition(grouping, text);
 		if (existing != null) {
 			command.setPosition(existing);
+		}
+		command.setIssue(issue);
+		command.setText(text);
+		command.setEditedBy(editedBy);
+		command = commandHandler.execute(command);
+		Position position = command.getPosition();
+		createdByActionKey.put(action.actionKey(), position);
+		return new AppliedAction(position.getId());
+	}
+
+	/**
+	 * Apply an "add word to glossary" / "add actor to project" position. These
+	 * are resolve-positions tied to project commands (they mutate the project when
+	 * a user accepts them), so they are created through {@link ProjectCommandFactory}
+	 * and carry the owning {@link ProjectOrDomain}.
+	 */
+	private AppliedAction applyProjectPosition(String kind, Issue issue, Object grouping,
+			String text, User editedBy, AnnotationAction action,
+			Map<String, Object> createdByActionKey) throws Exception {
+		if (!(grouping instanceof ProjectOrDomain projectOrDomain)) {
+			log.info("Skipping project position action {} — issue grouping is not a ProjectOrDomain",
+					action.actionKey());
+			return null;
+		}
+		EditPositionCommand command;
+		if ("ADD_WORD_TO_GLOSSARY".equalsIgnoreCase(kind)) {
+			EditAddWordToGlossaryPositionCommand glossary = projectCommandFactory
+					.newEditAddWordToGlossaryPositionCommand();
+			glossary.setProjectOrDomain(projectOrDomain);
+			command = glossary;
+		} else {
+			EditAddActorToProjectPositionCommand actor = projectCommandFactory
+					.newEditAddActorToProjectPositionCommand();
+			actor.setProjectOrDomain(projectOrDomain);
+			command = actor;
 		}
 		command.setIssue(issue);
 		command.setText(text);
