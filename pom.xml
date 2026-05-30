@@ -247,6 +247,7 @@
         <module>modules/assistant-api</module>
         <module>modules/assistant-core</module>
         <module>modules/assistant-ai</module>
+        <module>modules/assistant-openai</module>
         <module>modules/mcp-server</module>
         <module>modules/service-impl</module>
         <module>modules/requel-app</module>

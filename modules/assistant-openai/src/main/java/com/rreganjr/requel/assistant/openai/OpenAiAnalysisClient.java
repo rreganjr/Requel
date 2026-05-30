@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.assistant.ai;
+package com.rreganjr.requel.assistant.openai;
 
 import java.io.IOException;
 import java.net.URI;
@@ -43,6 +43,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.rreganjr.requel.assistant.ai.AiAnalysisClient;
+import com.rreganjr.requel.assistant.ai.AiAnalysisException;
+import com.rreganjr.requel.assistant.ai.AiAnalysisRequest;
+import com.rreganjr.requel.assistant.ai.AiAnalysisResponse;
+import com.rreganjr.requel.assistant.ai.AiFindingDraft;
+import com.rreganjr.requel.assistant.ai.AiProperties;
+import com.rreganjr.requel.assistant.ai.AiUsage;
 import com.rreganjr.requel.assistant.api.AssistantMessage;
 
 /**

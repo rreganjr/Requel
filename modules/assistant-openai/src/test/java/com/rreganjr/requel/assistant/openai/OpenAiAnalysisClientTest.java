@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.assistant.ai;
+package com.rreganjr.requel.assistant.openai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,6 +43,11 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.rreganjr.requel.assistant.ai.AiAnalysisException;
+import com.rreganjr.requel.assistant.ai.AiAnalysisRequest;
+import com.rreganjr.requel.assistant.ai.AiAnalysisResponse;
+import com.rreganjr.requel.assistant.ai.AiFindingDraft;
+import com.rreganjr.requel.assistant.ai.AiProperties;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.AssistantMessage.Level;
 import com.sun.net.httpserver.HttpExchange;

@@ -72,10 +72,13 @@ The response should be structured JSON validated by Requel before any action is 
 - suggested commands only as drafts, never as directly executable operations
 - provider metadata, usage, latency, and model id
 
-Initial implementations:
+Initial implementations (module placement): the provider-neutral contracts
+(`AiAnalysisClient`, request/response/finding/usage value types, `AiProperties`) and the
+`NoopAiAnalysisClient` live in `assistant-ai`. Each provider-specific client lives in its
+own module depending on `assistant-ai`; `OpenAiAnalysisClient` lives in `assistant-openai`.
 
-- `NoopAiAnalysisClient` for local/dev/test.
-- `OpenAiAnalysisClient` using the OpenAI Responses API with a configurable model. Official OpenAI docs currently describe Codex-class models as usable through the Responses API, and current model pages also expose structured outputs/function calling/MCP support depending on model. Keep the exact model id in configuration instead of hardcoding it in assistant logic.
+- `NoopAiAnalysisClient` for local/dev/test — in `assistant-ai`.
+- `OpenAiAnalysisClient` using the OpenAI Responses API with a configurable model — in `assistant-openai`. Official OpenAI docs currently describe Codex-class models as usable through the Responses API, and current model pages also expose structured outputs/function calling/MCP support depending on model. Keep the exact model id in configuration instead of hardcoding it in assistant logic.
 - Optional later: `LocalModelAnalysisClient` for a self-hosted model if privacy or cost requires it.
 
 Configuration:
@@ -160,17 +163,22 @@ Add a Requel MCP server so AI clients can query the project through least-privil
 
 ### Initial MCP tools
 
-- `search_project_entities(projectName, query, entityTypes, limit)`
-- `get_project_context(projectName, includeGlossary, includeOpenIssues)`
-- `get_entity(entityType, entityId)`
-- `get_entity_neighbors(entityType, entityId, depth)`
-- `get_annotations(entityType, entityId)`
-- `draft_annotation(entityType, entityId, kind, text, positions)`
+Tool naming convention: MCP imposes no case standard on tool names, so Requel uses a
+`requel.` server namespace prefix plus a camelCase verb, matching the implemented
+`requel.listProjects` / `requel.getProject` / `requel.getProjectTree` tools. Resource
+identifiers stay lowercase URIs (`requel://...`) since they are paths.
+
+- `requel.searchProjectEntities(projectName, query, entityTypes, limit)`
+- `requel.getProjectContext(projectName, includeGlossary, includeOpenIssues)`
+- `requel.getEntity(entityType, entityId)`
+- `requel.getEntityNeighbors(entityType, entityId, depth)`
+- `requel.getAnnotations(entityType, entityId)`
+- `requel.draftAnnotation(entityType, entityId, kind, text, positions)`
 
 ### Tool policy
 
 - Query tools are read-only and available to MCP sessions that have project access through the triggering user.
-- `draft_annotation` does not persist directly at first. It returns a structured `AnnotationAction` draft to the assistant result applicator.
+- `requel.draftAnnotation` does not persist directly at first. It returns a structured `AnnotationAction` draft to the assistant result applicator.
 - Persisting tools, if added later, must require an assistant run id, user/project authorization, idempotency key, and command-handler execution.
 - Never expose generic SQL, arbitrary repository access, filesystem access, or unrestricted command execution over MCP.
 
@@ -281,7 +289,7 @@ The first release can skip most UI and rely on annotations plus logs, but run hi
 
 All Phase 0 decisions are resolved (see `Resolved Decisions` below and <https://github.com/rreganjr/Requel/issues/43#issuecomment-4560006774>):
 
-- Module names: `assistant-api`, `assistant-core`, `assistant-legacy-nlp`, `assistant-openai`, `mcp-server`.
+- Module names: `assistant-api`, `assistant-core`, `assistant-legacy-nlp`, `assistant-ai` (provider-neutral AI contracts + Noop), `assistant-openai` (OpenAI client; one module per provider), `mcp-server`.
 - MCP lives in a new `mcp-server` module, bundled in-process with `requel-app`, with `ProjectQueryGateway` seams for a future standalone bridge.
 - First AI task: `REQUIREMENTS_REVIEW` only. The second task is chosen after the full pipeline is proven end-to-end.
 - Initial opt-in policy: project-scoped settings only in Phase 1; global default + project override added later.

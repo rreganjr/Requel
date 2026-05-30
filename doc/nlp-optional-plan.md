@@ -73,5 +73,11 @@ Resolved during issue #43 walkthrough. See the full record at <https://github.co
 - **Default flag value.** `requel.nlp.enabled=true` remains the default (`matchIfMissing=true`). Lean builds opt out explicitly; existing deployments behave unchanged on upgrade.
 - **Coexistence with AI assistants.** Legacy NLP is not deprecated when AI-backed assistants land. Both run in parallel; legacy NLP stays enabled by default. The flag exists for opt-out, not as a planned default flip.
 - **Initial scope.** Phase 1 of this plan delivers Scope 1 (in-module disable via the property flag). Scope 2 (absent-module startup) is contingent on a later `nlp-api` extraction and is not pursued as part of issue #43.
+
+> **Implementation status (2026-05-29).** Scope 1 is not yet implemented — there is no
+> `requel.nlp.enabled` flag, conditional auto-config, or `NoOpNLPProcessorFactory` in the
+> tree; `NLPProcessorFactoryImpl` is still an unconditional `@Component`. Scope 1 is
+> scheduled in `doc/43-phase-4.5-plan.md` (Phase 4.5), tied to the assistant SPI's no-op
+> contract so disabled-NLP assistant runs record `SKIPPED` with an explicit empty result.
 - **No-op behavior.** Safe empty values, not `null`. The no-op factory is the single source of truth for the "disabled" contract that the assistant SPI's no-op assistants also rely on.
 
