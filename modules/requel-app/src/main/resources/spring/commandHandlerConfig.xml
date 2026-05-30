@@ -33,6 +33,9 @@
 												<constructor-arg index="0">
 													<bean class="com.rreganjr.command.DefaultCommandHandler" scope="singleton"/>
 												</constructor-arg>
+												<constructor-arg index="1">
+													<ref bean="analysisRequestDispatcher"/>
+												</constructor-arg>
 											</bean>
 										</constructor-arg>
 									</bean>

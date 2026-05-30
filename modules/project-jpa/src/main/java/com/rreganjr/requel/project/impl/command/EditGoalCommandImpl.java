@@ -39,6 +39,7 @@ import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.GoalImpl;
@@ -52,7 +53,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editGoalCommand")
 @Scope("prototype")
 public class EditGoalCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditGoalCommand, AuthorizableCommand, ProjectScopedCommand {
+		EditGoalCommand, AuthorizableCommand, ProjectScopedCommand, AnalysisRequestSource {
 
 	private GoalContainer goalContainer;
 	private Goal goal;
@@ -150,11 +151,27 @@ public class EditGoalCommandImpl extends AbstractEditProjectOrDomainEntityComman
 		setGoalContainer(goalContainer);
 	}
 
+	/**
+	 * Legacy fallback. The Goal path is migrated to the assistant SPI (issue #43):
+	 * the command-handler layer detects {@link AnalysisRequestSource} and dispatches
+	 * through {@code AnalysisRequestDispatcher}, so this method is normally not
+	 * invoked for goals. It is retained as a safe fallback.
+	 */
 	@Override
 	public void invokeAnalysis() {
 		if (isAnalysisEnabled()) {
 			getAssistantManager().analyzeGoal(getGoal());
 		}
+	}
+
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return getGoal();
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
 	}
 
 	@Override

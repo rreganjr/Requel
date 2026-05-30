@@ -35,6 +35,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -127,7 +128,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	private final Clock clock;
 
 	@Autowired
-	public CommandBackedAssistantResultApplicator(CommandHandler commandHandler,
+	public CommandBackedAssistantResultApplicator(@Lazy CommandHandler commandHandler,
 			AnnotationCommandFactory annotationCommandFactory,
 			ProjectCommandFactory projectCommandFactory,
 			AnnotationRepository annotationRepository, UserRepository userRepository,
