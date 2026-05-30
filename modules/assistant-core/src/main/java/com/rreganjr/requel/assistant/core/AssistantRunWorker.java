@@ -22,7 +22,6 @@ package com.rreganjr.requel.assistant.core;
 
 import java.time.Clock;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -88,7 +87,7 @@ public class AssistantRunWorker {
 
 			Object target = targetValue.get();
 			AssistantContext context = new AssistantContext(runId, request.triggeringUser(),
-					request.assistantUser(), request.projectRef(), Locale.getDefault(), clock,
+					request.assistantUser(), request.projectRef(), request.locale(), clock,
 					request.attributes());
 			List<RequelAssistant<?>> assistants = assistantRegistry.findAssistantsFor(target,
 					context);

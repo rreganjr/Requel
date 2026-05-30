@@ -75,6 +75,24 @@ Problem (review gap #1): only `NoOpAssistantResultApplicator` exists; no `Comman
 - Tests: idempotent re-apply (same key → update, not duplicate); unknown action rejected;
   over-length text capped; command executed as triggering user; SSE/audit fire.
 
+> **Status (landed).** `CommandBackedAssistantResultApplicator` is implemented in
+> `assistant-core` (annotation-jpa + user-domain added as deps; `@Primary` over the
+> retained `NoOpAssistantResultApplicator`). It covers the **CREATE_OR_UPDATE family**
+> (note, issue incl. lexical via `metadata.kind`, position incl. change-spelling /
+> add-word, argument), resolves the target annotatable via `AssistantTargetLoader`, the
+> grouping object via `ProjectOrDomainEntity.getProjectOrDomain()`, and the editedBy user
+> by username (authorization keys off `getEditedBy()`, so no SecurityContext is needed on
+> the worker thread). `parentActionKey` links a position/argument to an issue/position
+> created earlier in the same result. Idempotency uses `AssistantFinding` (upsert by
+> action key, touch on re-run) plus the repository's content-level find-by-text dedupe;
+> text is length-capped; `findings_count` is bumped on the run.
+>
+> **Moved to Step 6** (needs the find-by-id/state-machine work): the `RESOLVE_ISSUE`,
+> `DELETE_*`, and `REMOVE_ANNOTATION_FROM_ANNOTATABLE` action types (currently skipped with
+> a log line, not applied), the SUPERSEDED / AUTO_RESOLVED / MANUALLY_RESOLVED transitions,
+> and stamping the `assistant_idempotency_key` / `source` columns on the annotation row
+> (idempotency currently lives entirely on `AssistantFinding`).
+
 ### 4. Wrap one legacy assistant as a `RequelAssistant<T>` adapter
 
 Problem (review gap #4): no production `RequelAssistant`; the legacy assistants in

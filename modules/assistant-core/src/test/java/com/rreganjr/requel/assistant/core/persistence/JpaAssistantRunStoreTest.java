@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -67,6 +68,10 @@ class JpaAssistantRunStoreTest {
 		assertThat(entity.getTargetId()).isEqualTo(42L);
 		assertThat(entity.getTriggeredByUserId()).isEqualTo(3L);
 		assertThat(entity.getAssistantUserId()).isEqualTo(11L);
+		assertThat(entity.getTriggeredByUsername()).isEqualTo("ron");
+		assertThat(entity.getAssistantUsername()).isEqualTo("assistant");
+		assertThat(entity.getLocale()).isEqualTo("en-US");
+		assertThat(entity.getAttributesJson()).contains("unit-test");
 		assertThat(entity.getCreatedAt()).isEqualTo(fixedNow);
 		assertThat(entity.getUpdatedAt()).isEqualTo(fixedNow);
 		assertThat(entity.getFindingsCount()).isZero();
@@ -118,6 +123,10 @@ class JpaAssistantRunStoreTest {
 		entity.setTaskType("REQUIREMENTS_REVIEW");
 		entity.setTriggeredByUserId(3L);
 		entity.setAssistantUserId(11L);
+		entity.setTriggeredByUsername("ron");
+		entity.setAssistantUsername("assistant");
+		entity.setLocale("en-US");
+		entity.setAttributesJson("{\"source\":\"unit-test\"}");
 		when(repository.findById(runId.toString())).thenReturn(Optional.of(entity));
 
 		Optional<AssistantRunRecord> found = store.findRun(runId);
@@ -128,8 +137,11 @@ class JpaAssistantRunStoreTest {
 		assertThat(record.status()).isEqualTo(AssistantRunStatus.RUNNING);
 		assertThat(record.request().targetRef()).isEqualTo(EntityRef.of("Goal", 42L));
 		assertThat(record.request().projectRef()).isEqualTo(EntityRef.of("Project", 7L));
-		assertThat(record.request().triggeringUser().userId()).isEqualTo(3L);
-		assertThat(record.request().assistantUser().userId()).isEqualTo(11L);
+		// Step 1: faithful round-trip of user refs, locale, and attributes.
+		assertThat(record.request().triggeringUser()).isEqualTo(new UserRef(3L, "ron"));
+		assertThat(record.request().assistantUser()).isEqualTo(new UserRef(11L, "assistant"));
+		assertThat(record.request().locale()).isEqualTo(Locale.US);
+		assertThat(record.request().attributes()).isEqualTo(Map.of("source", "unit-test"));
 	}
 
 	@Test
@@ -139,7 +151,7 @@ class JpaAssistantRunStoreTest {
 		// AnalysisRequest requires non-null target / triggering / assistant
 		// users; projectRef and taskType may be null.
 		AnalysisRequest minimal = new AnalysisRequest(EntityRef.of("Goal", 42L), null,
-				new UserRef(3L, "ron"), new UserRef(11L, "assistant"), null, Map.of());
+				new UserRef(3L, "ron"), new UserRef(11L, "assistant"), null, Locale.ROOT, Map.of());
 
 		store.queueRun(minimal);
 
@@ -172,6 +184,6 @@ class JpaAssistantRunStoreTest {
 			long triggeringUserId, long assistantUserId) {
 		return new AnalysisRequest(EntityRef.of("Goal", goalId), EntityRef.of("Project", projectId),
 				new UserRef(triggeringUserId, "ron"), new UserRef(assistantUserId, "assistant"),
-				taskType, Map.of());
+				taskType, Locale.US, Map.of("source", "unit-test"));
 	}
 }

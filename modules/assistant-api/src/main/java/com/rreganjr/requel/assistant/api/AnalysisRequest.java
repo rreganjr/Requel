@@ -20,20 +20,27 @@
  */
 package com.rreganjr.requel.assistant.api;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
 /**
  * Request to run assistants for a target.
+ *
+ * <p>
+ * {@code locale} is carried on the request (rather than defaulted on the worker
+ * thread) so per-run locale is preserved end-to-end. Construct it from the
+ * triggering user's locale; use {@link Locale#ROOT} when no locale applies.
  */
 public record AnalysisRequest(EntityRef targetRef, EntityRef projectRef, UserRef triggeringUser,
-		UserRef assistantUser, String taskType, Map<String, Object> attributes) {
+		UserRef assistantUser, String taskType, Locale locale, Map<String, Object> attributes) {
 
 	public AnalysisRequest {
 		Objects.requireNonNull(targetRef, "targetRef");
 		Objects.requireNonNull(triggeringUser, "triggeringUser");
 		Objects.requireNonNull(assistantUser, "assistantUser");
+		Objects.requireNonNull(locale, "locale");
 		attributes = Map.copyOf(Objects.requireNonNull(attributes, "attributes"));
 	}
 

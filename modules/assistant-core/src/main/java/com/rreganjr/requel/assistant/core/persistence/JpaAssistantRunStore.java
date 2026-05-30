@@ -22,6 +22,8 @@ package com.rreganjr.requel.assistant.core.persistence;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +33,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.assistant.api.AnalysisRequest;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
@@ -56,6 +61,7 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 
 	private final AssistantRunRepository runRepository;
 	private final Clock clock;
+	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Autowired
 	public JpaAssistantRunStore(AssistantRunRepository runRepository) {
@@ -78,10 +84,12 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 		UserRef triggeringUser = request.triggeringUser();
 		if (triggeringUser != null) {
 			entity.setTriggeredByUserId(triggeringUser.userId());
+			entity.setTriggeredByUsername(triggeringUser.username());
 		}
 		UserRef assistantUser = request.assistantUser();
 		if (assistantUser != null) {
 			entity.setAssistantUserId(assistantUser.userId());
+			entity.setAssistantUsername(assistantUser.username());
 		}
 		EntityRef projectRef = request.projectRef();
 		if (projectRef != null) {
@@ -93,6 +101,10 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 			entity.setTargetId(targetRef.entityId());
 		}
 		entity.setTaskType(request.taskType());
+		if (request.locale() != null) {
+			entity.setLocale(request.locale().toLanguageTag());
+		}
+		entity.setAttributesJson(writeAttributes(request.attributes()));
 		runRepository.save(entity);
 		return toRecord(entity, request);
 	}
@@ -155,11 +167,12 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 	/**
 	 * Translate an entity to the lightweight record. {@code request} may be
 	 * {@code null} when the caller is reading a previously queued run from
-	 * persistence; in that case the returned record carries a stub
-	 * {@link AnalysisRequest} reconstructed from persisted fields, which is
-	 * enough for status/lookup but not a faithful round-trip of attributes.
+	 * persistence; in that case the returned record carries an
+	 * {@link AnalysisRequest} reconstructed from persisted fields. Since Step 1
+	 * of the Phase 4.5 plan, the reconstruction is faithful: usernames, locale,
+	 * and the attributes map are persisted and round-tripped.
 	 */
-	private static AssistantRunRecord toRecord(AssistantRunEntity entity, AnalysisRequest request) {
+	private AssistantRunRecord toRecord(AssistantRunEntity entity, AnalysisRequest request) {
 		AnalysisRequest effective = request != null ? request : rebuildRequest(entity);
 		return new AssistantRunRecord(entity.getRunId(), effective,
 				AssistantRunStatus.valueOf(entity.getStatus()), entity.getCreatedAt(),
@@ -167,32 +180,57 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 	}
 
 	/**
-	 * Reconstructs an {@link AnalysisRequest} from persisted fields for status
-	 * lookups. {@code AnalysisRequest} requires non-null target, triggering
-	 * user, and assistant user; {@code UserRef} additionally requires non-null
-	 * {@code userId} and {@code username}. The DB only stores user ids, so the
-	 * rebuilt {@code UserRef.username} is filled with a synthetic placeholder
-	 * derived from the id. The rebuilt request is not a faithful round-trip
-	 * of the original {@code attributes} map either.
+	 * Reconstructs an {@link AnalysisRequest} from persisted fields. The target
+	 * ref, project ref, triggering/assistant user refs (id + username), task
+	 * type, locale, and attributes are all stored, so the rebuilt request equals
+	 * the dispatched one (modulo absent optional fields). When the target ref was
+	 * not stored, an {@code Unknown:0} placeholder is used to satisfy
+	 * {@code AnalysisRequest}'s non-null target contract.
 	 */
-	private static AnalysisRequest rebuildRequest(AssistantRunEntity entity) {
+	private AnalysisRequest rebuildRequest(AssistantRunEntity entity) {
 		EntityRef targetRef = entity.getTargetType() != null && entity.getTargetId() != null
 				? EntityRef.of(entity.getTargetType(), entity.getTargetId())
 				: EntityRef.of("Unknown", 0L);
 		EntityRef projectRef = entity.getProjectId() != null
 				? EntityRef.of("Project", entity.getProjectId())
 				: null;
-		UserRef triggeringUser = placeholderUserRef(entity.getTriggeredByUserId());
-		UserRef assistantUser = placeholderUserRef(entity.getAssistantUserId());
+		UserRef triggeringUser = userRef(entity.getTriggeredByUserId(),
+				entity.getTriggeredByUsername());
+		UserRef assistantUser = userRef(entity.getAssistantUserId(), entity.getAssistantUsername());
+		Locale locale = entity.getLocale() != null ? Locale.forLanguageTag(entity.getLocale())
+				: Locale.ROOT;
 		return new AnalysisRequest(targetRef, projectRef, triggeringUser, assistantUser,
-				entity.getTaskType(), java.util.Map.of());
+				entity.getTaskType(), locale, readAttributes(entity.getAttributesJson()));
 	}
 
-	private static UserRef placeholderUserRef(Long userId) {
-		if (userId == null) {
-			return new UserRef(0L, "unknown");
+	private static UserRef userRef(Long userId, String username) {
+		long id = userId != null ? userId : 0L;
+		String name = username != null && !username.isBlank() ? username
+				: (userId != null ? "id:" + userId : "unknown");
+		return new UserRef(id, name);
+	}
+
+	private String writeAttributes(Map<String, Object> attributes) {
+		if (attributes == null || attributes.isEmpty()) {
+			return null;
 		}
-		return new UserRef(userId, "id:" + userId);
+		try {
+			return objectMapper.writeValueAsString(attributes);
+		} catch (JsonProcessingException e) {
+			throw new IllegalStateException("Could not serialize assistant run attributes", e);
+		}
+	}
+
+	private Map<String, Object> readAttributes(String json) {
+		if (json == null || json.isBlank()) {
+			return Map.of();
+		}
+		try {
+			return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {
+			});
+		} catch (JsonProcessingException e) {
+			throw new IllegalStateException("Could not read assistant run attributes", e);
+		}
 	}
 
 	/**

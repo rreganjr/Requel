@@ -55,6 +55,6 @@ class AssistantDispatcherImplTest {
 	private AnalysisRequest request() {
 		return new AnalysisRequest(EntityRef.of("Goal", 1L), EntityRef.of("Project", 2L),
 				new UserRef(3L, "human"), new UserRef(4L, "assistant"),
-				"REQUIREMENTS_REVIEW", Map.of());
+				"REQUIREMENTS_REVIEW", java.util.Locale.ROOT, Map.of());
 	}
 }

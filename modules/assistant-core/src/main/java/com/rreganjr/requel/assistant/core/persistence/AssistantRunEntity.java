@@ -63,6 +63,18 @@ public class AssistantRunEntity {
 	@Column(name = "task_type", length = 80)
 	private String taskType;
 
+	@Column(name = "triggered_by_username", length = 255)
+	private String triggeredByUsername;
+
+	@Column(name = "assistant_username", length = 255)
+	private String assistantUsername;
+
+	@Column(name = "locale", length = 40)
+	private String locale;
+
+	@Column(name = "attributes_json")
+	private String attributesJson;
+
 	@Column(name = "provider", length = 80)
 	private String provider;
 
@@ -187,6 +199,38 @@ public class AssistantRunEntity {
 
 	public void setTaskType(String taskType) {
 		this.taskType = taskType;
+	}
+
+	public String getTriggeredByUsername() {
+		return triggeredByUsername;
+	}
+
+	public void setTriggeredByUsername(String triggeredByUsername) {
+		this.triggeredByUsername = triggeredByUsername;
+	}
+
+	public String getAssistantUsername() {
+		return assistantUsername;
+	}
+
+	public void setAssistantUsername(String assistantUsername) {
+		this.assistantUsername = assistantUsername;
+	}
+
+	public String getLocale() {
+		return locale;
+	}
+
+	public void setLocale(String locale) {
+		this.locale = locale;
+	}
+
+	public String getAttributesJson() {
+		return attributesJson;
+	}
+
+	public void setAttributesJson(String attributesJson) {
+		this.attributesJson = attributesJson;
 	}
 
 	public String getProvider() {

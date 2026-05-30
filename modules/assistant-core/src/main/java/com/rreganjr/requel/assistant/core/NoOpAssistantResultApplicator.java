@@ -28,8 +28,11 @@ import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 
 /**
- * Initial applicator placeholder. Real command-backed application lands after
- * the SPI and dispatcher compile as separate modules.
+ * Fallback applicator that records nothing. The command-backed
+ * {@link CommandBackedAssistantResultApplicator} is annotated {@code @Primary},
+ * so it is preferred for injection wherever the annotation command stack is
+ * available; this no-op remains as a safe default (and is what the worker uses
+ * in unit tests that construct it directly).
  */
 @Component
 public class NoOpAssistantResultApplicator implements AssistantResultApplicator {
