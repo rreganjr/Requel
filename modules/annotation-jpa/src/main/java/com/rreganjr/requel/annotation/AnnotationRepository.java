@@ -126,6 +126,23 @@ public interface AnnotationRepository extends Repository {
 	public Note findNote(Object groupingObject, Annotatable annotatable, String message);
 
 	/**
+	 * Find an annotation by its persistent id, or {@code null} if none exists.
+	 * {@code entityType} is the domain interface (e.g. {@link Issue}, {@link Note});
+	 * the lookup is polymorphic, so a subtype row (e.g. a lexical issue) is returned
+	 * for {@code Issue.class}. Ids are stable, so this is the preferred lookup for
+	 * assistant findings that hold an {@code applied_annotation_id} reference.
+	 *
+	 * @param <T>
+	 *            the annotation type
+	 * @param entityType
+	 *            the domain interface class of the annotation to load.
+	 * @param id
+	 *            the persistent id.
+	 * @return the annotation, or {@code null} if no annotation of that type has the id.
+	 */
+	public <T> T findById(Class<T> entityType, Long id);
+
+	/**
 	 * Remove a single row from the annotation_annotatable join table using a
 	 * native query. Required to work around a Hibernate 6.5 bug where
 	 * {@code @ManyToAny} collection removal generates invalid parameterized SQL.

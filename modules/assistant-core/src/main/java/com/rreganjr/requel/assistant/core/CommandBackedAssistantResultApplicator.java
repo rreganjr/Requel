@@ -47,7 +47,6 @@ import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.Issue;
-import com.rreganjr.requel.annotation.NoSuchAnnotationException;
 import com.rreganjr.requel.annotation.NoSuchPositionException;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.Position;
@@ -241,7 +240,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		Object grouping = grouping(annotatable);
 		String text = truncate(action.text(), MAX_TEXT_LENGTH);
 		EditNoteCommand command = annotationCommandFactory.newEditNoteCommand();
-		Note existing = tryFindNote(grouping, annotatable, text);
+		Note existing = loadExistingAnnotation(action.actionKey(), Note.class);
 		if (existing != null) {
 			command.setNote(existing);
 		}
@@ -268,20 +267,21 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		boolean mustResolve = booleanMeta(action, "mustResolve", true);
 		String kind = stringMeta(action, "kind");
 
+		// Idempotency is keyed on the action key via the AssistantFinding's applied
+		// annotation id, not on content. This lets the same word raise distinct issues
+		// from different assistants/finding-types without one overwriting another, and
+		// avoids hijacking human-authored annotations with matching text.
+		Issue existing = loadExistingAnnotation(action.actionKey(), Issue.class);
+
 		Issue issue;
 		if ("LEXICAL".equalsIgnoreCase(kind)) {
 			EditLexicalIssueCommand command = annotationCommandFactory.newEditLexicalIssueCommand();
 			String word = stringMeta(action, "word");
 			String propertyName = stringMeta(action, "annotatableEntityPropertyName");
-			boolean hasWord = word != null && !word.isBlank();
-			// Word-oriented lexical issues (spelling, vague, glossary) dedupe by word;
-			// word-less property-level lexical issues (e.g. complexity) dedupe by text.
-			Issue existing = hasWord ? tryFindLexicalIssue(grouping, annotatable, word, propertyName)
-					: tryFindIssue(grouping, annotatable, text);
 			if (existing != null) {
 				command.setIssue(existing);
 			}
-			if (hasWord) {
+			if (word != null && !word.isBlank()) {
 				command.setWord(word);
 			}
 			if (propertyName != null) {
@@ -296,7 +296,6 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			issue = command.getIssue();
 		} else {
 			EditIssueCommand command = annotationCommandFactory.newEditIssueCommand();
-			Issue existing = tryFindIssue(grouping, annotatable, text);
 			if (existing != null) {
 				command.setIssue(existing);
 			}
@@ -433,6 +432,19 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		}
 	}
 
+	/**
+	 * Resolve the annotation a finding previously created, for key-based
+	 * (not content-based) update. Looks up the {@link AssistantFindingEntity} by the
+	 * action key and loads the annotation it points at; returns {@code null} for a
+	 * first-time finding or when the linked annotation no longer exists.
+	 */
+	private <T> T loadExistingAnnotation(String actionKey, Class<T> annotationType) {
+		return findingRepository.findByIdempotencyKey(actionKey)
+				.map(AssistantFindingEntity::getAppliedAnnotationId)
+				.map(annotationId -> annotationRepository.findById(annotationType, annotationId))
+				.orElse(null);
+	}
+
 	// ---- finding upsert -------------------------------------------------------
 
 	/**
@@ -523,38 +535,6 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		}
 		Object parent = createdByActionKey.get(action.parentActionKey());
 		return type.isInstance(parent) ? type.cast(parent) : null;
-	}
-
-	private Note tryFindNote(Object grouping, Annotatable annotatable, String text) {
-		try {
-			return annotationRepository.findNote(grouping, annotatable, text);
-		} catch (NoSuchAnnotationException e) {
-			return null;
-		}
-	}
-
-	private Issue tryFindIssue(Object grouping, Annotatable annotatable, String text) {
-		try {
-			return annotationRepository.findIssue(grouping, annotatable, text);
-		} catch (NoSuchAnnotationException e) {
-			return null;
-		}
-	}
-
-	private Issue tryFindLexicalIssue(Object grouping, Annotatable annotatable, String word,
-			String propertyName) {
-		if (word == null) {
-			return null;
-		}
-		try {
-			if (propertyName != null) {
-				return annotationRepository.findLexicalIssue(grouping, annotatable, word,
-						propertyName);
-			}
-			return annotationRepository.findLexicalIssue(grouping, annotatable, word);
-		} catch (NoSuchAnnotationException e) {
-			return null;
-		}
 	}
 
 	private Position tryFindPosition(Object grouping, String text) {

@@ -95,6 +95,25 @@ public class JpaAnnotationRepository extends AbstractJpaRepository implements An
 	}
 
 	@Override
+	public <T> T findById(Class<T> entityType, Long id) {
+		if (id == null) {
+			return null;
+		}
+		// Annotation entity names follow the "<Interface>Impl" convention (IssueImpl,
+		// NoteImpl, ...); the query is polymorphic so a subtype (e.g. a lexical issue)
+		// is returned for Issue.class.
+		String entityName = entityType.getSimpleName() + "Impl";
+		try {
+			Query query = getEntityManager()
+					.createQuery("select e from " + entityName + " as e where e.id = :id");
+			query.setParameter("id", id);
+			return entityType.cast(query.getSingleResult());
+		} catch (NoResultException e) {
+			return null;
+		}
+	}
+
+	@Override
 	public Position findPosition(Object groupingObject, String text) throws NoSuchPositionException {
 		try {
 			// TODO: use named query so it can be configured externally
