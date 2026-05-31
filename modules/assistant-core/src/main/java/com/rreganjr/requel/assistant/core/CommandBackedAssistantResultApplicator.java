@@ -266,11 +266,17 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			EditLexicalIssueCommand command = annotationCommandFactory.newEditLexicalIssueCommand();
 			String word = stringMeta(action, "word");
 			String propertyName = stringMeta(action, "annotatableEntityPropertyName");
-			Issue existing = tryFindLexicalIssue(grouping, annotatable, word, propertyName);
+			boolean hasWord = word != null && !word.isBlank();
+			// Word-oriented lexical issues (spelling, vague, glossary) dedupe by word;
+			// word-less property-level lexical issues (e.g. complexity) dedupe by text.
+			Issue existing = hasWord ? tryFindLexicalIssue(grouping, annotatable, word, propertyName)
+					: tryFindIssue(grouping, annotatable, text);
 			if (existing != null) {
 				command.setIssue(existing);
 			}
-			command.setWord(word);
+			if (hasWord) {
+				command.setWord(word);
+			}
 			if (propertyName != null) {
 				command.setAnnotatableEntityPropertyName(propertyName);
 			}
