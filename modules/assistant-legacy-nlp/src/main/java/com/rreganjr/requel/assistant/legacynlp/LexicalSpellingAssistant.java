@@ -37,6 +37,7 @@ import com.rreganjr.nlp.dictionary.PartOfSpeech;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
+import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.EvidenceRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
@@ -88,6 +89,18 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 	@Override
 	public Class<TextEntity> targetType() {
 		return TextEntity.class;
+	}
+
+	/**
+	 * Spelling findings become stale when the misspelled word is corrected (or the
+	 * property is cleared), so this assistant auto-resolves untouched findings a
+	 * re-run no longer reports — reproducing the legacy
+	 * {@code removeUnneededLexicalIssues} cleanup. Resolved issues (a human accepted
+	 * a position) are preserved.
+	 */
+	@Override
+	public CleanupPolicy cleanupPolicy() {
+		return CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED;
 	}
 
 	@Override

@@ -41,6 +41,7 @@ import com.rreganjr.nlp.dictionary.Sense;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
+import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.EvidenceRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
@@ -95,6 +96,16 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 	@Override
 	public Class<TextEntity> targetType() {
 		return TextEntity.class;
+	}
+
+	/**
+	 * Vague-word findings become stale when the flagged word is replaced, so this
+	 * assistant auto-resolves untouched findings a re-run no longer reports.
+	 * Resolved issues are preserved.
+	 */
+	@Override
+	public CleanupPolicy cleanupPolicy() {
+		return CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED;
 	}
 
 	@Override
