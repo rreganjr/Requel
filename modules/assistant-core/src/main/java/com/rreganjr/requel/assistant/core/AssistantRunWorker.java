@@ -26,6 +26,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -43,6 +45,8 @@ import com.rreganjr.requel.assistant.api.RequelAssistant;
  */
 @Component
 public class AssistantRunWorker {
+
+	private static final Logger log = LoggerFactory.getLogger(AssistantRunWorker.class);
 
 	private final AssistantRunStore runStore;
 	private final AssistantRegistry assistantRegistry;
@@ -97,12 +101,21 @@ public class AssistantRunWorker {
 				return;
 			}
 
+			// Isolate per-assistant failures: one assistant erroring must not abort
+			// the others or fail the whole run (mirrors the legacy per-check
+			// resilience). Infrastructure failures (target reload, registry) still
+			// fail the run via the outer catch.
 			for (RequelAssistant<?> assistant : assistants) {
-				AssistantResult result = analyze(assistant, context, target);
-				resultApplicator.apply(context, result);
+				try {
+					AssistantResult result = analyze(assistant, context, target);
+					resultApplicator.apply(context, result);
+				} catch (RuntimeException | AssistantException e) {
+					log.warn("assistant {} failed for run {}: {}", assistant.assistantId(), runId,
+							e.toString(), e);
+				}
 			}
 			runStore.markSucceeded(runId);
-		} catch (RuntimeException | AssistantException e) {
+		} catch (RuntimeException e) {
 			runStore.markFailed(runId, e);
 			throw new AssistantWorkerException("Assistant run failed: " + runId, e);
 		}

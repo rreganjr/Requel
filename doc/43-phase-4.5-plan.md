@@ -134,6 +134,28 @@ transition code; no cleanup policy.
 - Tests for each transition, including "untouched" detection (no human edits/replies/
   non-assistant positions on the linked annotation).
 
+> **Status (in progress).** Landed so far: `CleanupPolicy` enum + `RequelAssistant.cleanupPolicy()`
+> default (`MARK_SUPERSEDED`); per-assistant failure isolation in `AssistantRunWorker` (one
+> assistant erroring is logged and skipped rather than failing the run — this also subsumes the
+> "per-assistant isolation" item the lexical adapters previously worked around with internal
+> try/catch); and the re-run idempotency integration test. Still to do: the actual
+> SUPERSEDED / AUTO_RESOLVED / MANUALLY_RESOLVED transitions, the annotation
+> `source` / `assistant_idempotency_key` column mapping, the manual-resolved annotation-close
+> listener, and the deferred RESOLVE / DELETE / REMOVE actions + `removeUnneededLexicalIssues`
+> + glossary-term-referer edit.
+>
+> **Known issue to fix here — cross-assistant lexical-word collision.** The applicator's
+> `LEXICAL` dedupe matches by word: spelling raises a lexical issue for a word *with* an
+> `annotatableEntityPropertyName` (4-arg `findLexicalIssue`), while glossary raises one for the
+> same word *without* a property (3-arg). The 3-arg lookup can match the spelling issue, and
+> because `CREATE_OR_UPDATE` always calls `setText(...)` it can overwrite the spelling issue's
+> text with the glossary message (the legacy `addGlossaryIssue` only re-attaches when it finds
+> an existing issue, never rewriting text). This does not break idempotency (counts stay stable
+> across re-runs) but is a correctness nuance. Fix options: scope the dedupe key by
+> finding-type / property so different assistants don't collide on the same word, or make the
+> applicator skip the text update when reusing an annotation it did not create. Decide and
+> implement as part of the state-machine work.
+
 ### 7. NLP-optional Scope 1 (`doc/nlp-optional-plan.md`)
 
 Problem (review gap #7): unimplemented.

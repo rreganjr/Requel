@@ -23,12 +23,19 @@ package com.rreganjr.requel.assistant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Locale;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.assistant.api.AnalysisRequest;
+import com.rreganjr.requel.assistant.api.AssistantDispatcher;
+import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.assistant.api.UserRef;
 import com.rreganjr.requel.assistant.core.AssistantRunWorker;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunRepository;
@@ -56,6 +63,7 @@ public class LexicalSpellingDispatchTest extends AbstractIntegrationTestCase {
 
 	private AssistantRunWorker assistantRunWorker;
 	private AssistantRunRepository assistantRunRepository;
+	private AssistantDispatcher assistantDispatcher;
 
 	@Autowired
 	protected void setAssistantRunWorker(AssistantRunWorker assistantRunWorker) {
@@ -65,6 +73,11 @@ public class LexicalSpellingDispatchTest extends AbstractIntegrationTestCase {
 	@Autowired
 	protected void setAssistantRunRepository(AssistantRunRepository assistantRunRepository) {
 		this.assistantRunRepository = assistantRunRepository;
+	}
+
+	@Autowired
+	protected void setAssistantDispatcher(AssistantDispatcher assistantDispatcher) {
+		this.assistantDispatcher = assistantDispatcher;
 	}
 
 	@Test
@@ -111,5 +124,69 @@ public class LexicalSpellingDispatchTest extends AbstractIntegrationTestCase {
 						&& annotation.getText().contains("groal"));
 		assertTrue(hasUnknownWordIssue,
 				"expected an unknown-word issue mentioning the misspelled word");
+	}
+
+	/**
+	 * Re-running analysis for the same target must not duplicate findings: the
+	 * AssistantFinding upsert (keyed by action key) plus the applicator's
+	 * content-level dedupe reuse the existing annotation. (Phase 4.5 exit
+	 * criterion.)
+	 */
+	@Test
+	public void reRunningAnalysisDoesNotDuplicateFindings() throws Exception {
+		ensureDictionaryLoaded();
+		long ts = System.currentTimeMillis();
+		User creator = getUserRepository().findUserByUsername("project");
+		User assistantUser = getUserRepository().findUserByUsername("assistant");
+
+		EditProjectCommand projectCommand = getProjectCommandFactory().newEditProjectCommand();
+		projectCommand.setEditedBy(creator);
+		projectCommand.setName("Idempotency Project " + ts);
+		projectCommand.setOrganizationName("Idempotency Org " + ts);
+		projectCommand = getCommandHandler().execute(projectCommand);
+		Project project = projectCommand.getProject();
+
+		EditGoalCommand goalCommand = getProjectCommandFactory().newEditGoalCommand();
+		goalCommand.setEditedBy(creator);
+		goalCommand.setGoalContainer(project);
+		goalCommand.setName("Another groal " + ts);
+		goalCommand.setText("a clear requirement.");
+		goalCommand = getCommandHandler().execute(goalCommand);
+		Goal goal = goalCommand.getGoal();
+
+		// First analysis (the command already queued it).
+		runLatestQueuedRun(goal.getId());
+		long afterFirstRun = countUnknownWordIssues(goal.getId());
+		assertTrue(afterFirstRun >= 1, "expected an unknown-word issue after the first run");
+
+		// Dispatch a second analysis for the same goal and run it.
+		AnalysisRequest request = new AnalysisRequest(EntityRef.of("Goal", goal.getId()),
+				EntityRef.of("Project", project.getId()),
+				new UserRef(creator.getId(), creator.getUsername()),
+				new UserRef(assistantUser.getId(), assistantUser.getUsername()), null,
+				Locale.getDefault(), Map.of());
+		assistantDispatcher.dispatch(request).toCompletableFuture().get();
+		runLatestQueuedRun(goal.getId());
+
+		long afterSecondRun = countUnknownWordIssues(goal.getId());
+		assertEquals(afterFirstRun, afterSecondRun,
+				"re-running analysis must not duplicate the unknown-word issue");
+	}
+
+	private void runLatestQueuedRun(Long goalId) {
+		AssistantRunEntity queued = assistantRunRepository.findAll().stream()
+				.filter(run -> "Goal".equals(run.getTargetType()) && goalId.equals(run.getTargetId())
+						&& "QUEUED".equals(run.getStatus()))
+				.reduce((first, second) -> second)
+				.orElseThrow(() -> new AssertionError("no QUEUED assistant run for the goal"));
+		assistantRunWorker.runInNewTransaction(queued.getRunId());
+	}
+
+	private long countUnknownWordIssues(Long goalId) {
+		Goal reloaded = getProjectRepository().findById(Goal.class, goalId);
+		return reloaded.getAnnotations().stream()
+				.filter(annotation -> annotation instanceof Issue && annotation.getText() != null
+						&& annotation.getText().contains("groal"))
+				.count();
 	}
 }

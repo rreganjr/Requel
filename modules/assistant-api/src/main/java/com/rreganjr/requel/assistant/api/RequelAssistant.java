@@ -33,4 +33,14 @@ public interface RequelAssistant<T> {
 	Class<T> targetType();
 
 	AssistantResult analyze(AssistantContext context, T target) throws AssistantException;
+
+	/**
+	 * The stale-finding cleanup policy for this assistant. Defaults to
+	 * {@link CleanupPolicy#MARK_SUPERSEDED}; override to opt into auto-resolution
+	 * or to disable automatic cleanup. The result applicator reads this when
+	 * reconciling a run's findings against previously recorded ones.
+	 */
+	default CleanupPolicy cleanupPolicy() {
+		return CleanupPolicy.MARK_SUPERSEDED;
+	}
 }
