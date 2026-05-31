@@ -91,7 +91,7 @@ Those are scenario-shape gaps, not click reliability gaps.
 
 This is now the weakest branch target in terms of payoff per test.
 
-Likely uncovered branches in [open-issues.ts](/Users/rregan_platformq/gh-acc/rreganjr/Requel/requel-angular/src/app/features/open-issues/open-issues.ts:1):
+Likely uncovered branches in [open-issues.ts](./Requel/requel-angular/src/app/features/open-issues/open-issues.ts:1):
 
 - `mustResolveCount() > 0` badge shown versus hidden
 - `errorMessage()` branch
@@ -111,7 +111,7 @@ Recommended tests:
 
 This is currently the lowest-branch file in the feature set.
 
-Likely uncovered branches in [project-list.ts](/Users/rregan_platformq/gh-acc/rreganjr/Requel/requel-angular/src/app/features/projects/project-list.ts:1):
+Likely uncovered branches in [project-list.ts](./Requel/requel-angular/src/app/features/projects/project-list.ts:1):
 
 - `canCreateProjects()` true versus false
 - import button flow with file selected versus no file selected

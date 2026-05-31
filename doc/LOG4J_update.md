@@ -18,8 +18,8 @@ That combination is the core problem. The old Log4j 1.x artifact is what trigger
 
 The root build inherits from Spring Boot:
 
-- [pom.xml](/Users/rregan_platformq/gh-acc/rreganjr/Requel/pom.xml:9) uses `spring-boot-starter-parent` `3.3.4`
-- [pom.xml](/Users/rregan_platformq/gh-acc/rreganjr/Requel/pom.xml:20) sets `java.version` to `17`
+- [pom.xml](./Requel/pom.xml:9) uses `spring-boot-starter-parent` `3.3.4`
+- [pom.xml](./Requel/pom.xml:20) sets `java.version` to `17`
 
 Spring Boot starters bring `spring-boot-starter-logging`, which brings Logback. Maven dependency tree confirmed `ch.qos.logback:logback-classic` is already on the app classpath.
 
@@ -27,7 +27,7 @@ Spring Boot starters bring `spring-boot-starter-logging`, which brings Logback. 
 
 There is one explicit dependency on the legacy implementation:
 
-- [modules/dictionary-jpa/pom.xml](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/dictionary-jpa/pom.xml:50)
+- [modules/dictionary-jpa/pom.xml](./Requel/modules/dictionary-jpa/pom.xml:50)
 
 ```xml
 <dependency>
@@ -43,8 +43,8 @@ That dependency flows into the app through `dictionary-jpa` and then onward into
 
 These modules already depend on the bridge:
 
-- [modules/platform-core/pom.xml](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/platform-core/pom.xml:24)
-- [modules/requel-app/pom.xml](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/pom.xml:442)
+- [modules/platform-core/pom.xml](./Requel/modules/platform-core/pom.xml:24)
+- [modules/requel-app/pom.xml](./Requel/modules/requel-app/pom.xml:442)
 
 `log4j-over-slf4j` provides Log4j 1.x API classes that route logging into SLF4J/Logback.
 
@@ -68,7 +68,7 @@ Current reactor usage by module:
 
 Most usages are simple `Logger` calls and should migrate cleanly to SLF4J later. I found only one active reactor class importing `org.apache.log4j.Level`:
 
-- [modules/nlp-jpa/src/main/java/com/rreganjr/nlp/impl/StanfordLexicalizedParser.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/nlp-jpa/src/main/java/com/rreganjr/nlp/impl/StanfordLexicalizedParser.java:33)
+- [modules/nlp-jpa/src/main/java/com/rreganjr/nlp/impl/StanfordLexicalizedParser.java](./Requel/modules/nlp-jpa/src/main/java/com/rreganjr/nlp/impl/StanfordLexicalizedParser.java:33)
 
 So the code migration is broad, but not especially complex.
 
@@ -82,13 +82,13 @@ log4j:WARN No appenders could be found for logger (com.rreganjr.ResourceBundleHe
 
 That logger is created in:
 
-- [modules/platform-core/src/main/java/com/rreganjr/ResourceBundleHelper.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/platform-core/src/main/java/com/rreganjr/ResourceBundleHelper.java:87)
+- [modules/platform-core/src/main/java/com/rreganjr/ResourceBundleHelper.java](./Requel/modules/platform-core/src/main/java/com/rreganjr/ResourceBundleHelper.java:87)
 
 The warning strongly suggests the real Log4j 1.x implementation is being loaded at runtime and it does not see a usable Log4j 1.x configuration.
 
 There is a legacy config file here:
 
-- [conf/log4j.properties](/Users/rregan_platformq/gh-acc/rreganjr/Requel/conf/log4j.properties:1)
+- [conf/log4j.properties](./Requel/conf/log4j.properties:1)
 
 But I found no build or runtime references to that file, and it is not under `src/main/resources`. It also contains old placeholder tokens like `@log4j.rootLogger.level@` and Tomcat-era paths like `${catalina.base}/logs/...`, which do not match the current Spring Boot packaging model.
 
@@ -128,7 +128,7 @@ The first step should be low risk. The second step touches many files, but the c
 
 ### Recommended now
 
-1. Remove `log4j:log4j:1.2.17` from [modules/dictionary-jpa/pom.xml](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/dictionary-jpa/pom.xml:50).
+1. Remove `log4j:log4j:1.2.17` from [modules/dictionary-jpa/pom.xml](./Requel/modules/dictionary-jpa/pom.xml:50).
 2. Keep `log4j-over-slf4j` for now.
 3. Verify the app starts without the `log4j:WARN No appenders` messages.
 4. Add Spring Boot logging configuration only if you want custom levels or file output.

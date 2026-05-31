@@ -16,12 +16,12 @@ Validation run:
 
 This is the biggest gap in the current implementation.
 
-- The build config only wires `maven-surefire-plugin` in [pom.xml](/Users/rregan_platformq/gh-acc/rreganjr/Requel/pom.xml:45).
+- The build config only wires `maven-surefire-plugin` in [pom.xml](./Requel/pom.xml:45).
 - There is no `maven-failsafe-plugin` configuration, and the `mvn test` run did not produce Surefire reports for:
-  - [ProjectXmlStreamingRoundTripIT.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/ProjectXmlStreamingRoundTripIT.java:107)
-  - [ProjectXmlRoundTripIT.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/ProjectXmlRoundTripIT.java:101)
-  - [ProjectUserCreationIT.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/user/ProjectUserCreationIT.java:42)
-  - [AuthorizationIT.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/AuthorizationIT.java:84)
+  - [ProjectXmlStreamingRoundTripIT.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/ProjectXmlStreamingRoundTripIT.java:107)
+  - [ProjectXmlRoundTripIT.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/ProjectXmlRoundTripIT.java:101)
+  - [ProjectUserCreationIT.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/user/ProjectUserCreationIT.java:42)
+  - [AuthorizationIT.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/AuthorizationIT.java:84)
 
 Impact:
 
@@ -34,9 +34,9 @@ Recommended fix:
 
 ### 2. `AuthControllerTest` does not verify the actual anonymous login contract
 
-- The class is annotated with `@WithMockUser` at [AuthControllerTest.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/auth/AuthControllerTest.java:72).
-- That means the login tests at lines [87](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/auth/AuthControllerTest.java:87), [109](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/auth/AuthControllerTest.java:109), and [123](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/auth/AuthControllerTest.java:123) are all executed as authenticated requests.
-- The suite also has no unauthenticated `/api/auth/me` test; only the happy path exists at [140](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/auth/AuthControllerTest.java:140).
+- The class is annotated with `@WithMockUser` at [AuthControllerTest.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/auth/AuthControllerTest.java:72).
+- That means the login tests at lines [87](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/auth/AuthControllerTest.java:87), [109](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/auth/AuthControllerTest.java:109), and [123](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/auth/AuthControllerTest.java:123) are all executed as authenticated requests.
+- The suite also has no unauthenticated `/api/auth/me` test; only the happy path exists at [140](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/auth/AuthControllerTest.java:140).
 
 Impact:
 
@@ -62,21 +62,21 @@ Current coverage stops at:
 - scenarios list
 - stakeholders list
 
-See [ProjectQueryControllerTest.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/query/ProjectQueryControllerTest.java:130).
+See [ProjectQueryControllerTest.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/query/ProjectQueryControllerTest.java:130).
 
 But `ProjectQueryController` exposes additional endpoints:
 
-- `/api/projects/stakeholder-permissions` at [ProjectQueryController.java:150](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:150)
-- `/api/projects/{name}/my-permissions` at [179](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:179)
-- `/api/projects/{name}/tree` at [213](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:213)
-- `/api/projects/{name}/export` at [239](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:239)
-- stakeholder detail at [285](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:285)
-- story detail at [372](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:372)
-- scenario detail at [456](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:456)
-- use-case detail at [497](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:497)
-- terms list/detail at [797](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:797) and [817](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:817)
-- reports list/detail/run at [865](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:865), [885](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:885), and [906](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:906)
-- open issues at [957](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:957)
+- `/api/projects/stakeholder-permissions` at [ProjectQueryController.java:150](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:150)
+- `/api/projects/{name}/my-permissions` at [179](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:179)
+- `/api/projects/{name}/tree` at [213](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:213)
+- `/api/projects/{name}/export` at [239](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:239)
+- stakeholder detail at [285](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:285)
+- story detail at [372](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:372)
+- scenario detail at [456](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:456)
+- use-case detail at [497](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:497)
+- terms list/detail at [797](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:797) and [817](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:817)
+- reports list/detail/run at [865](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:865), [885](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:885), and [906](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:906)
+- open issues at [957](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/query/ProjectQueryController.java:957)
 
 Impact:
 
@@ -86,16 +86,16 @@ Impact:
 
 Skipped tests are concentrated in legacy JAXB/NLP paths:
 
-- [ImportProjectCommandTest.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/ImportProjectCommandTest.java:36)
-- [ProjectXmlRoundTripIT.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/ProjectXmlRoundTripIT.java:97)
-- [ProjectJAXBTest.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/ProjectJAXBTest.java:47)
-- [ProjectAssistantTest.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/assistant/ProjectAssistantTest.java:34)
-- [DictionaryRepositoryTest.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/nlp/dictionary/DictionaryRepositoryTest.java:40)
-- [LemmatizerTests.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/nlp/dictionary/LemmatizerTests.java:34)
-- [NERTests.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/nlp/dictionary/NERTests.java:38)
-- [SemanticRoleLabelerTests.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/nlp/SemanticRoleLabelerTests.java:36)
-- [VerbNetImporterTests.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/nlp/VerbNetImporterTests.java:55)
-- [NLPConstituentParseTests.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/nlp/NLPConstituentParseTests.java:51)
+- [ImportProjectCommandTest.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/ImportProjectCommandTest.java:36)
+- [ProjectXmlRoundTripIT.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/ProjectXmlRoundTripIT.java:97)
+- [ProjectJAXBTest.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/ProjectJAXBTest.java:47)
+- [ProjectAssistantTest.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/assistant/ProjectAssistantTest.java:34)
+- [DictionaryRepositoryTest.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/nlp/dictionary/DictionaryRepositoryTest.java:40)
+- [LemmatizerTests.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/nlp/dictionary/LemmatizerTests.java:34)
+- [NERTests.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/nlp/dictionary/NERTests.java:38)
+- [SemanticRoleLabelerTests.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/nlp/SemanticRoleLabelerTests.java:36)
+- [VerbNetImporterTests.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/nlp/VerbNetImporterTests.java:55)
+- [NLPConstituentParseTests.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/nlp/NLPConstituentParseTests.java:51)
 
 Impact:
 
@@ -106,8 +106,8 @@ Impact:
 
 ### 5. `EditProjectCommandImplTest` only tests creation
 
-- The file is named [EditProjectCommandImplTest.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/EditProjectCommandImplTest.java:36).
-- It contains exactly one test, `testProjectCreation`, at line [38](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/EditProjectCommandImplTest.java:38).
+- The file is named [EditProjectCommandImplTest.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/EditProjectCommandImplTest.java:36).
+- It contains exactly one test, `testProjectCreation`, at line [38](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/EditProjectCommandImplTest.java:38).
 
 Missing:
 
@@ -117,8 +117,8 @@ Missing:
 
 ### 6. `ReportGeneratorCommandTest` only covers create and delete
 
-- Create is at [80](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/ReportGeneratorCommandTest.java:80).
-- Delete is at [101](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/ReportGeneratorCommandTest.java:101).
+- Create is at [80](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/ReportGeneratorCommandTest.java:80).
+- Delete is at [101](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/ReportGeneratorCommandTest.java:101).
 
 Missing:
 
@@ -128,8 +128,8 @@ Missing:
 
 ### 7. `CopyCommandTest` does not fully cover the copy-command matrix and explicitly works around one known bug
 
-- The scenario-step test documents a known bug instead of asserting the intended behavior at [296](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/CopyCommandTest.java:296).
-- Only `CopyGoal` has explicit-name coverage at [159](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/CopyCommandTest.java:159).
+- The scenario-step test documents a known bug instead of asserting the intended behavior at [296](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/CopyCommandTest.java:296).
+- Only `CopyGoal` has explicit-name coverage at [159](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/impl/command/CopyCommandTest.java:159).
 
 Missing:
 
@@ -144,14 +144,14 @@ The test class explicitly documents that:
 - there is no separate `DeleteUser` command
 - there is no separate `ChangePassword` command
 
-See [EditUserCommandTest.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/user/impl/command/EditUserCommandTest.java:36).
+See [EditUserCommandTest.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/user/impl/command/EditUserCommandTest.java:36).
 
 This is not a failing test, but it means the test plan is stale in this area. Do not schedule `DeleteUser` test work unless the command is actually being added.
 
 ### 9. `CommandControllerTest` does not cover the multipart upload dispatch path
 
-- `CommandController` has a multipart handler at [CommandController.java:92](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/command/CommandController.java:92).
-- [CommandControllerTest.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/command/CommandControllerTest.java:102) tests only JSON POSTs.
+- `CommandController` has a multipart handler at [CommandController.java:92](./Requel/modules/service-impl/src/main/java/com/rreganjr/requel/service/command/CommandController.java:92).
+- [CommandControllerTest.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/command/CommandControllerTest.java:102) tests only JSON POSTs.
 
 Missing:
 
@@ -169,24 +169,24 @@ Current coverage is limited to:
 - stakeholder-permission lookup/catalog
 - duplicate project name
 
-See [ProjectRepositoryTest.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/ProjectRepositoryTest.java:94).
+See [ProjectRepositoryTest.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/ProjectRepositoryTest.java:94).
 
 But `ProjectRepository` also exposes untested methods such as:
 
-- `findUseCaseByProjectOrDomainAndName` at [ProjectRepository.java:71](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:71)
-- `findStoryByProjectOrDomainAndName` at [83](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:83)
-- `findScenarioByProjectOrDomainAndName` at [94](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:94)
-- stakeholder lookups at [113](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:113) and [126](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:126)
-- glossary lookups at [159](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:159) and [167](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:167)
-- report generator lookup at [207](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:207)
+- `findUseCaseByProjectOrDomainAndName` at [ProjectRepository.java:71](./Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:71)
+- `findStoryByProjectOrDomainAndName` at [83](./Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:83)
+- `findScenarioByProjectOrDomainAndName` at [94](./Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:94)
+- stakeholder lookups at [113](./Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:113) and [126](./Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:126)
+- glossary lookups at [159](./Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:159) and [167](./Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:167)
+- report generator lookup at [207](./Requel/modules/project-jpa/src/main/java/com/rreganjr/requel/project/ProjectRepository.java:207)
 
 Also:
 
-- `duplicateProjectNameThrowsEntityException` uses `assertThrows(Exception.class, ...)` at [209](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/ProjectRepositoryTest.java:209), which is too broad to catch regression in exception mapping.
+- `duplicateProjectNameThrowsEntityException` uses `assertThrows(Exception.class, ...)` at [209](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/project/ProjectRepositoryTest.java:209), which is too broad to catch regression in exception mapping.
 
 ### 11. There is still no dedicated annotation repository test for `Issue -> Position -> Argument` persistence across entity types
 
-- [AnnotationAnyMappingTest.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/annotation/AnnotationAnyMappingTest.java:51) verifies only a single `Note -> Actor` `@Any/@ManyToAny` load path.
+- [AnnotationAnyMappingTest.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/annotation/AnnotationAnyMappingTest.java:51) verifies only a single `Note -> Actor` `@Any/@ManyToAny` load path.
 
 Missing:
 
@@ -205,7 +205,7 @@ Current HTTP coverage focuses on command authorization for:
 - projects
 - admin editing another user
 
-See [AuthorizationIT.java](/Users/rregan_platformq/gh-acc/rreganjr/Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/AuthorizationIT.java:227).
+See [AuthorizationIT.java](./Requel/modules/requel-app/src/test/java/com/rreganjr/requel/service/AuthorizationIT.java:227).
 
 Still missing:
 
