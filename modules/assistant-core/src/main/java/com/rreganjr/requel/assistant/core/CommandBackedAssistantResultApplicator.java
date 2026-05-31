@@ -51,6 +51,7 @@ import com.rreganjr.requel.annotation.NoSuchAnnotationException;
 import com.rreganjr.requel.annotation.NoSuchPositionException;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.Position;
+import com.rreganjr.requel.annotation.impl.AbstractAnnotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.EditArgumentCommand;
 import com.rreganjr.requel.annotation.command.EditChangeSpellingPositionCommand;
@@ -164,6 +165,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		Objects.requireNonNull(result, "result");
 
 		User editedBy = resolveUser(context);
+		String source = "ASSISTANT:" + result.assistantId();
 		List<Long> annotationIds = new ArrayList<Long>();
 		// Annotations created earlier in this same result, keyed by action key,
 		// so a position can attach to an issue with no persisted id yet.
@@ -177,6 +179,11 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 				if (applied == null) {
 					continue;
 				}
+				// Stamp provenance (source label + idempotency key) on the created /
+				// updated annotation for reverse lookup and source labeling. The entity
+				// is managed in this transaction, so the change flushes on commit.
+				stampProvenance(createdByActionKey.get(action.actionKey()), source,
+						action.actionKey());
 				if (applied.annotationId() != null) {
 					annotationIds.add(applied.annotationId());
 				}
@@ -410,6 +417,20 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		Argument argument = command.getArgument();
 		createdByActionKey.put(action.actionKey(), argument);
 		return new AppliedAction(argument.getId());
+	}
+
+	/**
+	 * Stamp the assistant provenance ({@code source} = {@code ASSISTANT:<id>} and
+	 * the idempotency key) on a created/updated annotation. The annotation is
+	 * managed in the current transaction, so the change flushes on commit; this
+	 * gives the UI a source label and provides a fast finding -> annotation reverse
+	 * lookup without joining the assistant tables.
+	 */
+	private static void stampProvenance(Object annotation, String source, String idempotencyKey) {
+		if (annotation instanceof AbstractAnnotation persistentAnnotation) {
+			persistentAnnotation.setSource(source);
+			persistentAnnotation.setAssistantIdempotencyKey(idempotencyKey);
+		}
 	}
 
 	// ---- finding upsert -------------------------------------------------------
