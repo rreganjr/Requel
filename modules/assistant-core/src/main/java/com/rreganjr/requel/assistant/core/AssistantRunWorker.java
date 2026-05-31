@@ -108,7 +108,8 @@ public class AssistantRunWorker {
 			for (RequelAssistant<?> assistant : assistants) {
 				try {
 					AssistantResult result = analyze(assistant, context, target);
-					resultApplicator.apply(context, result);
+					resultApplicator.apply(context, result, assistant.cleanupPolicy(),
+							request.targetRef());
 				} catch (RuntimeException | AssistantException e) {
 					log.warn("assistant {} failed for run {}: {}", assistant.assistantId(), runId,
 							e.toString(), e);

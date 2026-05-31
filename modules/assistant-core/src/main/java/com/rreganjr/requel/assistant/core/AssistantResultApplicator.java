@@ -22,11 +22,28 @@ package com.rreganjr.requel.assistant.core;
 
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
+import com.rreganjr.requel.assistant.api.CleanupPolicy;
+import com.rreganjr.requel.assistant.api.EntityRef;
 
 /**
  * Applies assistant result actions through existing Requel commands.
  */
 public interface AssistantResultApplicator {
 
-	AppliedAssistantResult apply(AssistantContext context, AssistantResult result);
+	/**
+	 * Apply a result and reconcile the producing assistant's findings for the
+	 * dispatch target.
+	 *
+	 * @param context
+	 *            the run context.
+	 * @param result
+	 *            the assistant result to apply.
+	 * @param cleanupPolicy
+	 *            the producing assistant's stale-finding cleanup policy.
+	 * @param dispatchTarget
+	 *            the entity the run was dispatched for; used so stale findings can
+	 *            be reconciled even when this run produced no actions for it.
+	 */
+	AppliedAssistantResult apply(AssistantContext context, AssistantResult result,
+			CleanupPolicy cleanupPolicy, EntityRef dispatchTarget);
 }

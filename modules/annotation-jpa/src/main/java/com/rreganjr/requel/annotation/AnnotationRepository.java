@@ -143,6 +143,17 @@ public interface AnnotationRepository extends Repository {
 	public <T> T findById(Class<T> entityType, Long id);
 
 	/**
+	 * Find any annotation (note, issue, position, argument, ...) by its persistent
+	 * id, or {@code null} if none exists. Use when the concrete annotation type is
+	 * not known up front (e.g. reconciling a finding's linked annotation).
+	 *
+	 * @param id
+	 *            the persistent id.
+	 * @return the annotation, or {@code null}.
+	 */
+	public Annotation findAnnotationById(Long id);
+
+	/**
 	 * Remove a single row from the annotation_annotatable join table using a
 	 * native query. Required to work around a Hibernate 6.5 bug where
 	 * {@code @ManyToAny} collection removal generates invalid parameterized SQL.

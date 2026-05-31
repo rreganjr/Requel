@@ -41,6 +41,7 @@ import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
+import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingRepository;
@@ -79,7 +80,8 @@ class CommandBackedAssistantResultApplicatorTest {
 		AssistantResult result = AssistantResult.builder().assistantId("legacy-lexical")
 				.summary("nothing to do").build();
 
-		AppliedAssistantResult applied = newApplicator().apply(context(), result);
+		AppliedAssistantResult applied = newApplicator().apply(context(), result,
+				CleanupPolicy.MARK_SUPERSEDED, EntityRef.of("Goal", 1L));
 
 		assertThat(applied.appliedActionCount()).isZero();
 		assertThat(applied.annotationIds()).isEmpty();
@@ -96,7 +98,8 @@ class CommandBackedAssistantResultApplicatorTest {
 		AssistantResult result = AssistantResult.builder().assistantId("legacy-lexical")
 				.summary("one stale finding").annotationAction(delete).build();
 
-		AppliedAssistantResult applied = newApplicator().apply(context(), result);
+		AppliedAssistantResult applied = newApplicator().apply(context(), result,
+				CleanupPolicy.MARK_SUPERSEDED, EntityRef.of("Goal", 1L));
 
 		assertThat(applied.appliedActionCount()).isZero();
 		verifyNoInteractions(annotationCommandFactory);

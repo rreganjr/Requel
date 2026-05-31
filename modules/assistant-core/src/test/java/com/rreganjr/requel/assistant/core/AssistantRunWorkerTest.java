@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import com.rreganjr.requel.assistant.api.AnalysisRequest;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
+import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
 import com.rreganjr.requel.assistant.api.UserRef;
@@ -94,7 +95,8 @@ class AssistantRunWorkerTest {
 		private final List<AssistantResult> appliedResults = new java.util.ArrayList<AssistantResult>();
 
 		@Override
-		public AppliedAssistantResult apply(AssistantContext context, AssistantResult result) {
+		public AppliedAssistantResult apply(AssistantContext context, AssistantResult result,
+				CleanupPolicy cleanupPolicy, EntityRef dispatchTarget) {
 			appliedResults.add(result);
 			return new AppliedAssistantResult(0, List.of());
 		}

@@ -44,4 +44,12 @@ public interface AssistantFindingRepository
 	 * the finding {@code MANUALLY_RESOLVED}.
 	 */
 	List<AssistantFindingEntity> findByAppliedAnnotationId(Long appliedAnnotationId);
+
+	/**
+	 * All findings for an assistant on a target in a given state. Used by the
+	 * applicator to reconcile a run's findings against previously recorded ones
+	 * (auto-resolving stale {@code ACTIVE} findings the new run no longer reports).
+	 */
+	List<AssistantFindingEntity> findByAssistantIdAndTargetTypeAndTargetIdAndState(
+			String assistantId, String targetType, Long targetId, String state);
 }

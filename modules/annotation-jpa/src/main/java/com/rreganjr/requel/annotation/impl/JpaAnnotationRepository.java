@@ -44,6 +44,7 @@ import com.rreganjr.repository.jpa.GenericPropertyValueExceptionAdapter;
 import com.rreganjr.repository.jpa.InvalidStateExceptionAdapter;
 import com.rreganjr.repository.jpa.OptimisticLockExceptionAdapter;
 import com.rreganjr.requel.annotation.Annotatable;
+import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.AnnotationExistsException;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.Argument;
@@ -108,6 +109,21 @@ public class JpaAnnotationRepository extends AbstractJpaRepository implements An
 					.createQuery("select e from " + entityName + " as e where e.id = :id");
 			query.setParameter("id", id);
 			return entityType.cast(query.getSingleResult());
+		} catch (NoResultException e) {
+			return null;
+		}
+	}
+
+	@Override
+	public Annotation findAnnotationById(Long id) {
+		if (id == null) {
+			return null;
+		}
+		try {
+			Query query = getEntityManager()
+					.createQuery("select e from AbstractAnnotation as e where e.id = :id");
+			query.setParameter("id", id);
+			return (Annotation) query.getSingleResult();
 		} catch (NoResultException e) {
 			return null;
 		}

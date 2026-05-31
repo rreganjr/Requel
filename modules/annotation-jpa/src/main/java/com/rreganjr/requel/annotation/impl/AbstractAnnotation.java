@@ -25,6 +25,16 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.hibernate.annotations.Any;
+import org.hibernate.annotations.AnyDiscriminator;
+import org.hibernate.annotations.AnyKeyJavaClass;
+import org.hibernate.annotations.ManyToAny;
+
+import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.annotation.Annotatable;
+import com.rreganjr.requel.annotation.Annotation;
+import com.rreganjr.requel.user.impl.UserImpl;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
@@ -54,16 +64,6 @@ import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import org.hibernate.annotations.Any;
-import org.hibernate.annotations.AnyDiscriminator;
-import org.hibernate.annotations.AnyKeyJavaClass;
-import org.hibernate.annotations.ManyToAny;
-
-import com.rreganjr.requel.annotation.Annotatable;
-import com.rreganjr.requel.annotation.Annotation;
-import com.rreganjr.platform.identity.User;
-import com.rreganjr.requel.user.impl.UserImpl;
-
 /**
  * @author ron
  */
@@ -79,7 +79,7 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	private Object groupingObject;
 	private String text;
 	private String type;
-	private Set<Annotatable> annotatables = new HashSet<Annotatable>();
+	private Set<Annotatable> annotatables = new HashSet<>();
 	// private Set<Annotation> annotations = new TreeSet<Annotation>();
 	private User createdBy;
 	private Date dateCreated = new Date();

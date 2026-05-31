@@ -26,6 +26,8 @@ import org.springframework.stereotype.Component;
 
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
+import com.rreganjr.requel.assistant.api.CleanupPolicy;
+import com.rreganjr.requel.assistant.api.EntityRef;
 
 /**
  * Fallback applicator that records nothing. The command-backed
@@ -38,7 +40,8 @@ import com.rreganjr.requel.assistant.api.AssistantResult;
 public class NoOpAssistantResultApplicator implements AssistantResultApplicator {
 
 	@Override
-	public AppliedAssistantResult apply(AssistantContext context, AssistantResult result) {
+	public AppliedAssistantResult apply(AssistantContext context, AssistantResult result,
+			CleanupPolicy cleanupPolicy, EntityRef dispatchTarget) {
 		return new AppliedAssistantResult(0, List.of());
 	}
 }

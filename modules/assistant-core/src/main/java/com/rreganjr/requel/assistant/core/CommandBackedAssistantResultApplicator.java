@@ -26,10 +26,12 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -44,6 +46,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.annotation.Annotatable;
+import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.Issue;
@@ -53,6 +56,7 @@ import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.annotation.impl.AbstractAnnotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.EditArgumentCommand;
+import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.annotation.command.EditChangeSpellingPositionCommand;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
@@ -61,6 +65,7 @@ import com.rreganjr.requel.annotation.command.EditPositionCommand;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
+import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingEntity;
@@ -159,7 +164,8 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	}
 
 	@Override
-	public AppliedAssistantResult apply(AssistantContext context, AssistantResult result) {
+	public AppliedAssistantResult apply(AssistantContext context, AssistantResult result,
+			CleanupPolicy cleanupPolicy, EntityRef dispatchTarget) {
 		Objects.requireNonNull(context, "context");
 		Objects.requireNonNull(result, "result");
 
@@ -169,6 +175,9 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		// Annotations created earlier in this same result, keyed by action key,
 		// so a position can attach to an issue with no persisted id yet.
 		Map<String, Object> createdByActionKey = new HashMap<String, Object>();
+		// Finding keys this run produced, grouped by the entity they target, so
+		// stale findings on each target can be reconciled afterward.
+		Map<EntityRef, Set<String>> producedKeysByTarget = new HashMap<EntityRef, Set<String>>();
 		int newFindings = 0;
 
 		for (AnnotationAction action : result.annotationActions()) {
@@ -187,6 +196,9 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 					annotationIds.add(applied.annotationId());
 				}
 				if (action.targetRef() != null) {
+					producedKeysByTarget
+							.computeIfAbsent(action.targetRef(), key -> new HashSet<String>())
+							.add(action.actionKey());
 					if (upsertFinding(context, result, action, applied.annotationId())) {
 						newFindings++;
 					}
@@ -200,6 +212,8 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		}
 
 		bumpFindingsCount(context.runId(), newFindings);
+		reconcileStaleFindings(result.assistantId(), cleanupPolicy, dispatchTarget,
+				producedKeysByTarget, editedBy);
 		return new AppliedAssistantResult(annotationIds.size(), annotationIds);
 	}
 
@@ -494,6 +508,134 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			run.setFindingsCount(run.getFindingsCount() + newFindings);
 			runRepository.save(run);
 		});
+	}
+
+	// ---- stale-finding reconciliation -----------------------------------------
+
+	/**
+	 * Reconcile previously-recorded {@code ACTIVE} findings for this assistant
+	 * against what the current run produced. Only runs when the assistant opts
+	 * into {@link CleanupPolicy#AUTO_RESOLVE_IF_UNTOUCHED}; the default
+	 * {@link CleanupPolicy#MARK_SUPERSEDED} (and {@link CleanupPolicy#MANUAL})
+	 * leave stale findings untouched here.
+	 *
+	 * <p>
+	 * Reconciliation is per target entity. The set of targets to check is the
+	 * union of every entity this run raised an action against and the original
+	 * dispatch target (so a re-run that produces <em>no</em> actions still clears
+	 * out the prior findings on the entity that was analyzed). For each prior
+	 * {@code ACTIVE} finding on a target whose idempotency key the current run did
+	 * not re-emit, {@link #autoResolveIfUntouched} removes the annotation and
+	 * marks the finding {@code AUTO_RESOLVED} — but only if the annotation is still
+	 * assistant-owned and untouched by a human.
+	 */
+	private void reconcileStaleFindings(String assistantId, CleanupPolicy cleanupPolicy,
+			EntityRef dispatchTarget, Map<EntityRef, Set<String>> producedKeysByTarget,
+			User editedBy) {
+		if (cleanupPolicy != CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED) {
+			return;
+		}
+		Set<EntityRef> targets = new HashSet<EntityRef>(producedKeysByTarget.keySet());
+		if (dispatchTarget != null) {
+			targets.add(dispatchTarget);
+		}
+		for (EntityRef target : targets) {
+			Set<String> producedKeys = producedKeysByTarget.getOrDefault(target,
+					java.util.Collections.<String>emptySet());
+			List<AssistantFindingEntity> priorActive = findingRepository
+					.findByAssistantIdAndTargetTypeAndTargetIdAndState(assistantId,
+							target.entityType(), target.entityId(),
+							AssistantFindingState.ACTIVE.name());
+			for (AssistantFindingEntity finding : priorActive) {
+				if (producedKeys.contains(finding.getIdempotencyKey())) {
+					continue;
+				}
+				autoResolveIfUntouched(finding, target, editedBy);
+			}
+		}
+	}
+
+	/**
+	 * Auto-resolve one stale finding: if its applied annotation is still present
+	 * and {@link #isUntouched untouched} by a human, remove the annotation from
+	 * its target and mark the finding {@code AUTO_RESOLVED}. If the annotation was
+	 * edited or resolved by a human (or already gone) the finding is left
+	 * {@code ACTIVE} so the human's work is preserved.
+	 */
+	private void autoResolveIfUntouched(AssistantFindingEntity finding, EntityRef target,
+			User editedBy) {
+		Long annotationId = finding.getAppliedAnnotationId();
+		if (annotationId == null) {
+			// Nothing was applied; the finding is purely advisory. Close it.
+			markAutoResolved(finding);
+			return;
+		}
+		Annotation annotation = annotationRepository.findAnnotationById(annotationId);
+		if (annotation == null) {
+			// Annotation already removed elsewhere; the finding is moot.
+			markAutoResolved(finding);
+			return;
+		}
+		if (!isUntouched(annotation)) {
+			// A human edited or resolved it — leave it (and the finding) alone.
+			return;
+		}
+		Annotatable annotatable = resolveAnnotatable(target);
+		if (annotatable == null) {
+			log.info("Cannot auto-resolve finding {} — target {} did not resolve",
+					finding.getIdempotencyKey(), target);
+			return;
+		}
+		try {
+			RemoveAnnotationFromAnnotatableCommand command = annotationCommandFactory
+					.newRemoveAnnotationFromAnnotatableCommand();
+			command.setAnnotation(annotation);
+			command.setAnnotatable(annotatable);
+			command.setEditedBy(editedBy);
+			commandHandler.execute(command);
+		} catch (RuntimeException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new IllegalStateException("Failed to auto-resolve assistant finding "
+					+ finding.getIdempotencyKey(), e);
+		}
+		markAutoResolved(finding);
+	}
+
+	private void markAutoResolved(AssistantFindingEntity finding) {
+		finding.setState(AssistantFindingState.AUTO_RESOLVED.name());
+		finding.setClosedAt(clock.instant());
+		findingRepository.save(finding);
+	}
+
+	/**
+	 * An annotation is "untouched" — safe to auto-remove — when it is still
+	 * assistant-owned and unresolved: its {@code source} is an {@code ASSISTANT:}
+	 * label and it is not resolved. A resolved annotation means a human acted on
+	 * the finding, so it is preserved. This mirrors the legacy
+	 * {@code removeUnneededLexicalIssues}, which removed a no-longer-relevant
+	 * lexical issue only when it was unresolved.
+	 *
+	 * <p>
+	 * Positions are not inspected: {@code PositionImpl} is not an
+	 * {@link AbstractAnnotation}, so it carries no provenance {@code source}, and
+	 * commands run as the triggering user, so a position's {@code createdBy} cannot
+	 * distinguish an assistant-authored position from a human one. The resolved
+	 * flag is the reliable human-engagement signal.
+	 */
+	private static boolean isUntouched(Annotation annotation) {
+		if (!isAssistantSourced(annotation)) {
+			return false;
+		}
+		return !annotation.isResolved();
+	}
+
+	private static boolean isAssistantSourced(Annotation annotation) {
+		if (annotation instanceof AbstractAnnotation persistentAnnotation) {
+			String source = persistentAnnotation.getSource();
+			return source != null && source.startsWith("ASSISTANT:");
+		}
+		return false;
 	}
 
 	// ---- resolution helpers ---------------------------------------------------
