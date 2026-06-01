@@ -226,12 +226,14 @@ public class LexicalSpellingDispatchTest extends AbstractIntegrationTestCase {
 
 		// First run raises the unknown-word issue and an ACTIVE finding. (Reads use a
 		// fresh EntityManager so they reflect the worker's committed REQUIRES_NEW
-		// transaction, not the test session's first-level cache.)
+		// transaction, not the test session's first-level cache. We target the "groal"
+		// finding specifically so an unrelated lexical finding does not perturb the test.)
 		runLatestQueuedRun(goal.getId());
-		List<AssistantFindingEntity> active = spellingFindingsFresh(goal.getId(),
-				AssistantFindingState.ACTIVE);
-		assertFalse(active.isEmpty(), "expected an ACTIVE spelling finding after the first run");
-		Long issueId = active.get(0).getAppliedAnnotationId();
+		AssistantFindingEntity finding = groalFindingFresh(goal.getId());
+		assertNotNull(finding, "expected a 'groal' spelling finding after the first run");
+		assertEquals(AssistantFindingState.ACTIVE.name(), finding.getState(),
+				"the 'groal' finding should start ACTIVE");
+		Long issueId = finding.getAppliedAnnotationId();
 		assertNotNull(issueId, "the spelling finding should reference its applied annotation");
 		assertTrue(annotationExistsFresh(issueId), "the unknown-word issue should exist");
 
@@ -248,13 +250,38 @@ public class LexicalSpellingDispatchTest extends AbstractIntegrationTestCase {
 		// The stale finding is AUTO_RESOLVED and its annotation removed. (markAutoResolved
 		// runs only after the remove command succeeds, so the finding state is the
 		// authoritative signal that reconciliation ran.)
-		assertTrue(spellingFindingsFresh(goal.getId(), AssistantFindingState.ACTIVE).isEmpty(),
-				"no ACTIVE spelling finding should remain after auto-resolution");
-		assertFalse(
-				spellingFindingsFresh(goal.getId(), AssistantFindingState.AUTO_RESOLVED).isEmpty(),
-				"the stale finding should be marked AUTO_RESOLVED");
+		AssistantFindingEntity afterFix = groalFindingFresh(goal.getId());
+		String diag = " [issueStillExists=" + annotationExistsFresh(issueId) + ", issueSource='"
+				+ annotationSourceFresh(issueId) + "', goalName='" + freshGoalName(goal.getId())
+				+ "', findingState=" + (afterFix == null ? "<none>" : afterFix.getState()) + "]";
+		assertNotNull(afterFix, "the 'groal' finding row should still exist" + diag);
+		assertEquals(AssistantFindingState.AUTO_RESOLVED.name(), afterFix.getState(),
+				"the stale 'groal' finding should be AUTO_RESOLVED" + diag);
 		assertFalse(annotationExistsFresh(issueId),
-				"stale unknown-word issue should have been auto-resolved (removed)");
+				"stale unknown-word issue should have been auto-resolved (removed)" + diag);
+	}
+
+	/** Fresh read of a goal's current name (bypasses the test session cache). */
+	private String freshGoalName(Long goalId) {
+		EntityManager em = entityManagerFactory.createEntityManager();
+		try {
+			com.rreganjr.requel.project.Goal g = em
+					.find(com.rreganjr.requel.project.impl.GoalImpl.class, goalId);
+			return g == null ? "<missing>" : g.getName();
+		} finally {
+			em.close();
+		}
+	}
+
+	/** Fresh read of an annotation's provenance source, or "&lt;missing&gt;" if gone. */
+	private String annotationSourceFresh(Long annotationId) {
+		EntityManager em = entityManagerFactory.createEntityManager();
+		try {
+			AbstractAnnotation a = em.find(AbstractAnnotation.class, annotationId);
+			return a == null ? "<missing>" : String.valueOf(a.getSource());
+		} finally {
+			em.close();
+		}
 	}
 
 	/**
@@ -312,9 +339,63 @@ public class LexicalSpellingDispatchTest extends AbstractIntegrationTestCase {
 
 		assertTrue(annotationExistsFresh(issueId),
 				"a human-resolved issue must not be auto-resolved away");
-		assertTrue(
-				spellingFindingsFresh(goal.getId(), AssistantFindingState.AUTO_RESOLVED).isEmpty(),
-				"a resolved finding must not be marked AUTO_RESOLVED");
+		AssistantFindingEntity afterFix = groalFindingFresh(goal.getId());
+		assertNotNull(afterFix, "the 'groal' finding row should still exist");
+		assertEquals(AssistantFindingState.MANUALLY_RESOLVED.name(), afterFix.getState(),
+				"a resolved finding should stay MANUALLY_RESOLVED (never AUTO_RESOLVED) but was "
+						+ afterFix.getState());
+	}
+
+	/**
+	 * When a human resolves an assistant-raised issue, the FindingResolutionTracking
+	 * handler moves the finding {@code ACTIVE -> MANUALLY_RESOLVED} (Phase 4.5 Step 6).
+	 */
+	@Test
+	public void resolvingAssistantIssueMarksFindingManuallyResolved() throws Exception {
+		ensureDictionaryLoaded();
+		long ts = System.currentTimeMillis();
+		User creator = getUserRepository().findUserByUsername("project");
+
+		EditProjectCommand projectCommand = getProjectCommandFactory().newEditProjectCommand();
+		projectCommand.setEditedBy(creator);
+		projectCommand.setName("ManualResolve Project " + ts);
+		projectCommand.setOrganizationName("ManualResolve Org " + ts);
+		projectCommand = getCommandHandler().execute(projectCommand);
+		Project project = projectCommand.getProject();
+
+		EditGoalCommand goalCommand = getProjectCommandFactory().newEditGoalCommand();
+		goalCommand.setEditedBy(creator);
+		goalCommand.setGoalContainer(project);
+		goalCommand.setName("Manual groal " + ts);
+		goalCommand.setText("a clear requirement.");
+		goalCommand = getCommandHandler().execute(goalCommand);
+		Goal goal = goalCommand.getGoal();
+
+		runLatestQueuedRun(goal.getId());
+		Issue unknownWordIssue = findUnknownWordIssue(goal.getId());
+		assertNotNull(unknownWordIssue, "expected an unknown-word issue after the first run");
+		AssistantFindingEntity before = groalFindingFresh(goal.getId());
+		assertNotNull(before, "expected a 'groal' spelling finding before resolution");
+		assertEquals(AssistantFindingState.ACTIVE.name(), before.getState(),
+				"the 'groal' finding should start ACTIVE");
+
+		// A human resolves the issue by accepting the "Ignore this word." position.
+		Position ignorePosition = unknownWordIssue.getPositions().stream()
+				.filter(position -> "Ignore this word.".equals(position.getText())).findFirst()
+				.orElseThrow(() -> new AssertionError("no ignore position on the lexical issue"));
+		ResolveIssueCommand resolveCommand = getAnnotationCommandFactory()
+				.newResolveIssueCommand(ignorePosition);
+		resolveCommand.setEditedBy(creator);
+		resolveCommand.setIssue(unknownWordIssue);
+		resolveCommand.setPosition(ignorePosition);
+		resolveCommand.setAnnotatable(goal);
+		getCommandHandler().execute(resolveCommand);
+
+		// The finding moved ACTIVE -> MANUALLY_RESOLVED.
+		AssistantFindingEntity after = groalFindingFresh(goal.getId());
+		assertNotNull(after, "the 'groal' finding row should still exist");
+		assertEquals(AssistantFindingState.MANUALLY_RESOLVED.name(), after.getState(),
+				"the finding should be MANUALLY_RESOLVED but was " + after.getState());
 	}
 
 	private Issue findUnknownWordIssue(Long goalId) {
@@ -328,21 +409,23 @@ public class LexicalSpellingDispatchTest extends AbstractIntegrationTestCase {
 	}
 
 	/**
-	 * Read findings through a fresh {@link EntityManager} so assertions reflect the
-	 * worker's committed (REQUIRES_NEW) transaction rather than the test session's
-	 * first-level cache.
+	 * Load the spelling assistant's finding for the misspelled word "groal" on the given
+	 * goal, through a fresh {@link EntityManager} so the read reflects the worker's
+	 * committed (REQUIRES_NEW) transaction rather than the test session's first-level
+	 * cache. Targeting the specific finding (by summary) keeps the assertions stable even
+	 * if NLP warm-up flags an unrelated word in a different run.
 	 */
-	private List<AssistantFindingEntity> spellingFindingsFresh(Long goalId,
-			AssistantFindingState state) {
+	private AssistantFindingEntity groalFindingFresh(Long goalId) {
 		EntityManager em = entityManagerFactory.createEntityManager();
 		try {
 			// "legacy-lexical" == LexicalSpellingAssistant.ASSISTANT_ID
-			return em.createQuery(
+			List<AssistantFindingEntity> findings = em.createQuery(
 					"select f from AssistantFindingEntity f where f.assistantId = :aid "
-							+ "and f.targetType = :tt and f.targetId = :tid and f.state = :st",
+							+ "and f.targetType = :tt and f.targetId = :tid and f.summary like :sum",
 					AssistantFindingEntity.class)
 					.setParameter("aid", "legacy-lexical").setParameter("tt", "Goal")
-					.setParameter("tid", goalId).setParameter("st", state.name()).getResultList();
+					.setParameter("tid", goalId).setParameter("sum", "%groal%").getResultList();
+			return findings.isEmpty() ? null : findings.get(0);
 		} finally {
 			em.close();
 		}
