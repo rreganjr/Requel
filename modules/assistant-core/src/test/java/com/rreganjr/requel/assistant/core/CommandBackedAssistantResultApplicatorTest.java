@@ -21,8 +21,12 @@
 package com.rreganjr.requel.assistant.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -30,13 +34,16 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.AnnotationRepository;
+import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.annotation.command.DeleteNoteCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
@@ -44,15 +51,18 @@ import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
+import com.rreganjr.requel.assistant.core.persistence.AssistantFindingEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingRepository;
+import com.rreganjr.requel.assistant.core.persistence.AssistantFindingState;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunRepository;
 import com.rreganjr.requel.user.UserRepository;
 
 /**
  * Unit coverage for the parts of {@link CommandBackedAssistantResultApplicator}
- * that do not need the full command stack: empty results and action types that
- * are intentionally skipped until the Step 6 finding state machine lands. The
- * create-or-update paths are exercised end-to-end by the Step 5 integration
+ * that do not need the full command stack: empty results and the cleanup action
+ * types (delete / resolve / remove) — both the no-op case (no matching finding)
+ * and a delete that executes its command and transitions the finding to DROPPED.
+ * The create-or-update paths are exercised end-to-end by the Step 5 integration
  * test against the real command handler.
  */
 class CommandBackedAssistantResultApplicatorTest {
@@ -91,7 +101,9 @@ class CommandBackedAssistantResultApplicatorTest {
 	}
 
 	@Test
-	void unsupportedActionTypesAreSkippedNotApplied() {
+	void cleanupActionWithNoExistingAnnotationIsNoOp() {
+		// A delete action whose key matches no finding resolves no annotation, so no
+		// delete command is issued and no finding is written.
 		AnnotationAction delete = new AnnotationAction("legacy-lexical:Goal:1:stale",
 				AnnotationAction.ActionType.DELETE_NOTE, EntityRef.of("Goal", 1L), null,
 				"obsolete", null, null, List.of(), Map.of());
@@ -103,7 +115,36 @@ class CommandBackedAssistantResultApplicatorTest {
 
 		assertThat(applied.appliedActionCount()).isZero();
 		verifyNoInteractions(annotationCommandFactory);
-		verifyNoInteractions(findingRepository);
+		verify(findingRepository, never()).save(any());
+	}
+
+	@Test
+	void deleteNoteActionExecutesDeleteAndDropsFinding() throws Exception {
+		String key = "legacy-lexical:Goal:1:note";
+		AssistantFindingEntity finding = new AssistantFindingEntity(UUID.randomUUID(), key,
+				"legacy-lexical", "Goal", 1L, "note", AssistantFindingState.ACTIVE.name(),
+				UUID.randomUUID(), Instant.parse("2026-05-29T00:00:00Z"));
+		finding.setAppliedAnnotationId(55L);
+		when(findingRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(finding));
+		Note note = mock(Note.class);
+		when(annotationRepository.findById(Note.class, 55L)).thenReturn(note);
+		DeleteNoteCommand deleteCommand = mock(DeleteNoteCommand.class);
+		when(annotationCommandFactory.newDeleteNoteCommand()).thenReturn(deleteCommand);
+		when(commandHandler.execute(deleteCommand)).thenReturn(deleteCommand);
+
+		AnnotationAction delete = new AnnotationAction(key, AnnotationAction.ActionType.DELETE_NOTE,
+				EntityRef.of("Goal", 1L), null, null, null, null, List.of(), Map.of());
+		AssistantResult result = AssistantResult.builder().assistantId("legacy-lexical")
+				.annotationAction(delete).build();
+
+		newApplicator().apply(context(), result, CleanupPolicy.MARK_SUPERSEDED,
+				EntityRef.of("Goal", 1L));
+
+		verify(deleteCommand).setNote(note);
+		verify(commandHandler).execute(deleteCommand);
+		assertThat(finding.getState()).isEqualTo(AssistantFindingState.DROPPED.name());
+		assertThat(finding.getClosedAt()).isEqualTo(Instant.parse("2026-05-29T00:00:00Z"));
+		verify(findingRepository).save(finding);
 	}
 
 	private static AssistantContext context() {

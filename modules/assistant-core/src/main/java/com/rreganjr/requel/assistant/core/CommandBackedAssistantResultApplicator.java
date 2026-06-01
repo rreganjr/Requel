@@ -55,6 +55,10 @@ import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.annotation.impl.AbstractAnnotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.annotation.command.DeleteArgumentCommand;
+import com.rreganjr.requel.annotation.command.DeleteIssueCommand;
+import com.rreganjr.requel.annotation.command.DeleteNoteCommand;
+import com.rreganjr.requel.annotation.command.DeletePositionCommand;
 import com.rreganjr.requel.annotation.command.EditArgumentCommand;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.annotation.command.EditChangeSpellingPositionCommand;
@@ -62,6 +66,7 @@ import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
 import com.rreganjr.requel.annotation.command.EditNoteCommand;
 import com.rreganjr.requel.annotation.command.EditPositionCommand;
+import com.rreganjr.requel.annotation.command.ResolveIssueCommand;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
@@ -182,6 +187,13 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 
 		for (AnnotationAction action : result.annotationActions()) {
 			try {
+				if (isCleanupAction(action.actionType())) {
+					// Cleanup actions (resolve / delete / remove) reference an annotation a
+					// prior finding created, by the same actionKey; they execute the matching
+					// command and transition the finding rather than producing a new one.
+					applyCleanupAction(action, editedBy, createdByActionKey);
+					continue;
+				}
 				AppliedAction applied = applyAction(context, result, action, editedBy,
 						createdByActionKey);
 				if (applied == null) {
@@ -217,6 +229,20 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		return new AppliedAssistantResult(annotationIds.size(), annotationIds);
 	}
 
+	private static boolean isCleanupAction(AnnotationAction.ActionType type) {
+		switch (type) {
+			case RESOLVE_ISSUE:
+			case DELETE_NOTE:
+			case DELETE_ISSUE:
+			case DELETE_POSITION:
+			case DELETE_ARGUMENT:
+			case REMOVE_ANNOTATION_FROM_ANNOTATABLE:
+				return true;
+			default:
+				return false;
+		}
+	}
+
 	private AppliedAction applyAction(AssistantContext context, AssistantResult result,
 			AnnotationAction action, User editedBy, Map<String, Object> createdByActionKey)
 			throws Exception {
@@ -229,18 +255,161 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 				return applyPosition(action, editedBy, createdByActionKey);
 			case CREATE_OR_UPDATE_ARGUMENT:
 				return applyArgument(action, editedBy, createdByActionKey);
-			case RESOLVE_ISSUE:
-			case DELETE_NOTE:
-			case DELETE_ISSUE:
-			case DELETE_POSITION:
-			case DELETE_ARGUMENT:
-			case REMOVE_ANNOTATION_FROM_ANNOTATABLE:
 			default:
-				// Implemented with the finding state machine in Step 6.
-				log.info("Skipping unsupported assistant action type {} (key {})",
-						action.actionType(), action.actionKey());
+				log.info("Skipping unhandled create action type {} (key {})", action.actionType(),
+						action.actionKey());
 				return null;
 		}
+	}
+
+	// ---- cleanup actions (resolve / delete / remove) --------------------------
+
+	/**
+	 * Apply a cleanup action against an annotation a prior finding created. The
+	 * annotation is resolved by the action's {@code actionKey} (the same key used
+	 * when it was created), via the finding's {@code applied_annotation_id}. When
+	 * the annotation can no longer be resolved (already gone) the action is a no-op.
+	 * On success the linked finding is transitioned: {@code DROPPED} for delete /
+	 * remove, {@code AUTO_RESOLVED} for an assistant-initiated resolve.
+	 */
+	private void applyCleanupAction(AnnotationAction action, User editedBy,
+			Map<String, Object> createdByActionKey) throws Exception {
+		switch (action.actionType()) {
+			case DELETE_NOTE:
+				deleteNote(action, editedBy);
+				break;
+			case DELETE_ISSUE:
+				deleteIssue(action, editedBy);
+				break;
+			case DELETE_POSITION:
+				deletePosition(action, editedBy);
+				break;
+			case DELETE_ARGUMENT:
+				deleteArgument(action, editedBy);
+				break;
+			case REMOVE_ANNOTATION_FROM_ANNOTATABLE:
+				removeAnnotationFromAnnotatable(action, editedBy);
+				break;
+			case RESOLVE_ISSUE:
+				resolveIssue(action, editedBy, createdByActionKey);
+				break;
+			default:
+				break;
+		}
+	}
+
+	private void deleteNote(AnnotationAction action, User editedBy) throws Exception {
+		Note note = loadExistingAnnotation(action.actionKey(), Note.class);
+		if (note == null) {
+			logCleanupSkip(action, "note");
+			return;
+		}
+		DeleteNoteCommand command = annotationCommandFactory.newDeleteNoteCommand();
+		command.setNote(note);
+		command.setEditedBy(editedBy);
+		commandHandler.execute(command);
+		transitionFinding(action.actionKey(), AssistantFindingState.DROPPED);
+	}
+
+	private void deleteIssue(AnnotationAction action, User editedBy) throws Exception {
+		Issue issue = loadExistingAnnotation(action.actionKey(), Issue.class);
+		if (issue == null) {
+			logCleanupSkip(action, "issue");
+			return;
+		}
+		DeleteIssueCommand command = annotationCommandFactory.newDeleteIssueCommand();
+		command.setIssue(issue);
+		command.setEditedBy(editedBy);
+		commandHandler.execute(command);
+		transitionFinding(action.actionKey(), AssistantFindingState.DROPPED);
+	}
+
+	private void deletePosition(AnnotationAction action, User editedBy) throws Exception {
+		Position position = loadExistingAnnotation(action.actionKey(), Position.class);
+		if (position == null) {
+			logCleanupSkip(action, "position");
+			return;
+		}
+		DeletePositionCommand command = annotationCommandFactory.newDeletePositionCommand();
+		command.setPosition(position);
+		command.setEditedBy(editedBy);
+		commandHandler.execute(command);
+		transitionFinding(action.actionKey(), AssistantFindingState.DROPPED);
+	}
+
+	private void deleteArgument(AnnotationAction action, User editedBy) throws Exception {
+		Argument argument = loadExistingAnnotation(action.actionKey(), Argument.class);
+		if (argument == null) {
+			logCleanupSkip(action, "argument");
+			return;
+		}
+		DeleteArgumentCommand command = annotationCommandFactory.newDeleteArgumentCommand();
+		command.setArgument(argument);
+		command.setEditedBy(editedBy);
+		commandHandler.execute(command);
+		transitionFinding(action.actionKey(), AssistantFindingState.DROPPED);
+	}
+
+	private void removeAnnotationFromAnnotatable(AnnotationAction action, User editedBy)
+			throws Exception {
+		Annotation annotation = loadExistingAnnotationById(action.actionKey());
+		Annotatable annotatable = resolveAnnotatable(action.targetRef());
+		if (annotation == null || annotatable == null) {
+			logCleanupSkip(action, "annotation/annotatable");
+			return;
+		}
+		RemoveAnnotationFromAnnotatableCommand command = annotationCommandFactory
+				.newRemoveAnnotationFromAnnotatableCommand();
+		command.setAnnotation(annotation);
+		command.setAnnotatable(annotatable);
+		command.setEditedBy(editedBy);
+		commandHandler.execute(command);
+		transitionFinding(action.actionKey(), AssistantFindingState.DROPPED);
+	}
+
+	private void resolveIssue(AnnotationAction action, User editedBy,
+			Map<String, Object> createdByActionKey) throws Exception {
+		Issue issue = loadExistingAnnotation(action.actionKey(), Issue.class);
+		Position resolvingPosition = parentOfType(action, createdByActionKey, Position.class);
+		Annotatable annotatable = resolveAnnotatable(action.targetRef());
+		if (issue == null || resolvingPosition == null || annotatable == null) {
+			log.info("Skipping resolve-issue action {} — issue, resolving position (parent key {}),"
+					+ " or annotatable {} did not resolve", action.actionKey(),
+					action.parentActionKey(), action.targetRef());
+			return;
+		}
+		ResolveIssueCommand command = annotationCommandFactory
+				.newResolveIssueCommand(resolvingPosition);
+		command.setIssue(issue);
+		command.setPosition(resolvingPosition);
+		command.setAnnotatable(annotatable);
+		command.setEditedBy(editedBy);
+		commandHandler.execute(command);
+		transitionFinding(action.actionKey(), AssistantFindingState.AUTO_RESOLVED);
+	}
+
+	private void logCleanupSkip(AnnotationAction action, String what) {
+		log.info("Skipping {} action {} — no existing {} resolved for key", action.actionType(),
+				action.actionKey(), what);
+	}
+
+	/**
+	 * Move the finding identified by {@code actionKey} to {@code state} with a
+	 * close timestamp. No-op when no finding matches the key.
+	 */
+	private void transitionFinding(String actionKey, AssistantFindingState state) {
+		findingRepository.findByIdempotencyKey(actionKey).ifPresent(finding -> {
+			finding.setState(state.name());
+			finding.setClosedAt(clock.instant());
+			findingRepository.save(finding);
+		});
+	}
+
+	/** Load the annotation a finding created (by action key), concrete type unknown. */
+	private Annotation loadExistingAnnotationById(String actionKey) {
+		return findingRepository.findByIdempotencyKey(actionKey)
+				.map(AssistantFindingEntity::getAppliedAnnotationId)
+				.map(annotationRepository::findAnnotationById).orElse(null);
 	}
 
 	private AppliedAction applyNote(AnnotationAction action, User editedBy,
