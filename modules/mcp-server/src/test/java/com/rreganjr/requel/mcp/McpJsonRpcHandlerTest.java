@@ -50,7 +50,7 @@ class McpJsonRpcHandlerTest {
 
 		assertThat(response.error()).isNull();
 		JsonNode result = objectMapper.valueToTree(response.result());
-		assertThat(result.path("tools")).hasSize(8);
+		assertThat(result.path("tools")).hasSize(9);
 		assertThat(result.path("tools").get(0).path("name").asText()).isEqualTo(
 				"requel.listProjects");
 	}

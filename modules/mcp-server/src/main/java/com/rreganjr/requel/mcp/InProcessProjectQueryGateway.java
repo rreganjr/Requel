@@ -23,7 +23,9 @@ package com.rreganjr.requel.mcp;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -152,6 +154,38 @@ public class InProcessProjectQueryGateway implements ProjectQueryGateway {
 			neighbors.put("referers", nullToEmpty(term.referers()));
 		}
 		return neighbors;
+	}
+
+	@Override
+	public List<EntityReferenceDto> searchProjectEntities(String projectName, String query) {
+		String needle = query == null ? "" : query.toLowerCase(Locale.ROOT);
+		List<EntityReferenceDto> matches = new ArrayList<>();
+		addMatches(matches, "Goal", projectQueryController.listGoals(projectName),
+				GoalDto::id, GoalDto::name, needle);
+		addMatches(matches, "Story", projectQueryController.listStories(projectName),
+				StoryDto::id, StoryDto::name, needle);
+		addMatches(matches, "Actor", projectQueryController.listActors(projectName),
+				ActorDto::id, ActorDto::name, needle);
+		addMatches(matches, "UseCase", projectQueryController.listUseCases(projectName),
+				UseCaseDto::id, UseCaseDto::name, needle);
+		addMatches(matches, "Scenario", projectQueryController.listScenarios(projectName),
+				ScenarioDto::id, ScenarioDto::name, needle);
+		addMatches(matches, "GlossaryTerm", projectQueryController.listTerms(projectName),
+				GlossaryTermDto::id, GlossaryTermDto::name, needle);
+		return matches;
+	}
+
+	@SuppressWarnings("unchecked")
+	private <T> void addMatches(List<EntityReferenceDto> out, String entityType,
+			ResponseEntity<?> response, Function<T, Long> idFn, Function<T, String> nameFn,
+			String needle) {
+		List<T> items = (List<T>) unwrap(response);
+		for (T item : items) {
+			String name = nameFn.apply(item);
+			if (name != null && name.toLowerCase(Locale.ROOT).contains(needle)) {
+				out.add(new EntityReferenceDto(entityType, idFn.apply(item), name));
+			}
+		}
 	}
 
 	private static List<EntityReferenceDto> nullToEmpty(List<EntityReferenceDto> refs) {

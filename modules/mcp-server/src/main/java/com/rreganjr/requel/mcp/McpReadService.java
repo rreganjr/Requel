@@ -77,7 +77,10 @@ public class McpReadService {
 						entityRefSchema()),
 				new McpToolDescriptor("requel.getEntityNeighbors",
 						"Read an entity's related entities, grouped by relationship.",
-						entityRefSchema())));
+						entityRefSchema()),
+				new McpToolDescriptor("requel.searchProjectEntities",
+						"Search a project's entities by name (case-insensitive substring).",
+						searchSchema())));
 	}
 
 	public Map<String, Object> callTool(JsonNode params) {
@@ -102,6 +105,8 @@ public class McpReadService {
 			case "requel.getEntityNeighbors" -> projectQueryGateway.getEntityNeighbors(
 					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
 					requiredLong(arguments, "entityId"));
+			case "requel.searchProjectEntities" -> projectQueryGateway.searchProjectEntities(
+					requiredText(arguments, "projectName"), requiredText(arguments, "query"));
 			default -> throw new McpInvalidParamsException("Unknown MCP tool: " + name);
 		};
 		return Map.of("content", List.of(new McpTextContent("text", toJson(result))),
@@ -166,6 +171,15 @@ public class McpReadService {
 						"entityType", Map.of("type", "string"),
 						"entityId", Map.of("type", "integer")),
 				"required", List.of("projectName", "entityType", "entityId"),
+				"additionalProperties", false);
+	}
+
+	private Map<String, Object> searchSchema() {
+		return Map.of("type", "object",
+				"properties", Map.of(
+						"projectName", Map.of("type", "string"),
+						"query", Map.of("type", "string")),
+				"required", List.of("projectName", "query"),
 				"additionalProperties", false);
 	}
 

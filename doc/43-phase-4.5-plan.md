@@ -232,10 +232,12 @@ Problem (review gap #6): ~3 of 12 surfaces implemented.
 > GlossaryTerm) by type + id, routing through the gateway to the existing per-entity
 > controller getters (unknown type -> `-32602`); and `requel.getEntityNeighbors`, which
 > returns an entity's related entities grouped by relationship (as `EntityReferenceDto`s),
-> derived in the gateway from the detail DTOs. Still to do: `requel.searchProjectEntities`
-> and `requel.getProjectContext` (need new controller query methods), and
-> `requel.draftAnnotation` (returns an `AnnotationAction` draft — needs an `assistant-api`
-> dependency on `mcp-server`, which it does not have today).
+> derived in the gateway from the detail DTOs; and `requel.searchProjectEntities`, which
+> name-matches across goals / stories / actors / use cases / scenarios / glossary terms by
+> reusing the existing `list*` controllers and filtering (case-insensitive substring). Still
+> to do: `requel.getProjectContext` (a composite context bundle), and `requel.draftAnnotation`
+> (returns an `AnnotationAction` draft — needs an `assistant-api` dependency on `mcp-server`,
+> which it does not have today).
 
 ## Deferred to Phase 5+ (explicitly out of scope here)
 

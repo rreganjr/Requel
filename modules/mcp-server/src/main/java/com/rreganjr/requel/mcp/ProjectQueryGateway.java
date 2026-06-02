@@ -60,4 +60,10 @@ public interface ProjectQueryGateway {
 	 */
 	Map<String, List<EntityReferenceDto>> getEntityNeighbors(String projectName, String entityType,
 			long entityId);
+
+	/**
+	 * Find a project's goals / stories / actors / use cases / scenarios / glossary terms whose
+	 * name contains {@code query} (case-insensitive), as {@link EntityReferenceDto}s.
+	 */
+	List<EntityReferenceDto> searchProjectEntities(String projectName, String query);
 }

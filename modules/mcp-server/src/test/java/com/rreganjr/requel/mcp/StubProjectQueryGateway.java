@@ -78,6 +78,11 @@ class StubProjectQueryGateway implements ProjectQueryGateway {
 				List.of(new EntityReferenceDto("Story", 20L, "Login story")));
 	}
 
+	@Override
+	public List<EntityReferenceDto> searchProjectEntities(String projectName, String query) {
+		return List.of(new EntityReferenceDto("Goal", 10L, "Improve login"));
+	}
+
 	private ProjectDto project() {
 		return new ProjectDto(1L, 2, "Sample", "A sample project", "Requel", "admin",
 				"ACTIVE", 1, 2, 3, 4, 5, 6, 7, 8);
