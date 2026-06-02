@@ -30,13 +30,22 @@ public class McpJsonRpcHandler {
 	private static final int INTERNAL_ERROR = -32603;
 
 	private final McpReadService mcpReadService;
+	private final McpCallAuditor auditor;
 
 	@Autowired
-	public McpJsonRpcHandler(McpReadService mcpReadService) {
+	public McpJsonRpcHandler(McpReadService mcpReadService, McpCallAuditor auditor) {
 		this.mcpReadService = mcpReadService;
+		this.auditor = auditor;
 	}
 
 	public McpJsonRpcResponse handle(McpJsonRpcRequest request) {
+		long startNanos = System.nanoTime();
+		McpJsonRpcResponse response = dispatch(request);
+		auditor.record(request, response, startNanos);
+		return response;
+	}
+
+	private McpJsonRpcResponse dispatch(McpJsonRpcRequest request) {
 		if (request == null) {
 			return McpJsonRpcResponse.error(null, INTERNAL_ERROR, "Request body is required");
 		}

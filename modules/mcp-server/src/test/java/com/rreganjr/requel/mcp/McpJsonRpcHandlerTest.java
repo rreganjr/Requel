@@ -31,10 +31,19 @@ class McpJsonRpcHandlerTest {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
+	/**
+	 * Auditing is a side concern here; this auditor has null collaborators and its
+	 * {@code record} swallows the resulting failures, so it is a safe no-op for these
+	 * dispatch-focused unit tests. Audit persistence is covered by McpCallAuditIT.
+	 */
+	private static McpCallAuditor noOpAuditor() {
+		return new McpCallAuditor(null, null);
+	}
+
 	@Test
 	void handlesToolsListRequest() {
 		McpJsonRpcHandler handler = new McpJsonRpcHandler(new McpReadService(
-				new StubProjectQueryGateway(), objectMapper));
+				new StubProjectQueryGateway(), objectMapper), noOpAuditor());
 
 		McpJsonRpcResponse response = handler.handle(new McpJsonRpcRequest("2.0",
 				objectMapper.valueToTree(1), "tools/list", null));
@@ -49,7 +58,7 @@ class McpJsonRpcHandlerTest {
 	@Test
 	void returnsMethodNotFoundForUnknownMethod() {
 		McpJsonRpcHandler handler = new McpJsonRpcHandler(new McpReadService(
-				new StubProjectQueryGateway(), objectMapper));
+				new StubProjectQueryGateway(), objectMapper), noOpAuditor());
 
 		McpJsonRpcResponse response = handler.handle(new McpJsonRpcRequest("2.0",
 				objectMapper.valueToTree("abc"), "prompts/list", null));

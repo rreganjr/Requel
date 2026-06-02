@@ -197,6 +197,20 @@ triggering-user vs assistant-pseudo-user handling, no audit stamping.
 - Lower priority: this gates *external* AI rollout, not the internal close-the-loop, so it
   can trail steps 1–6.
 
+> **Status.** The concrete, non-speculative part landed: an `mcp_calls` audit table
+> (`V10__mcp_calls.sql`) + `McpCallAudit` entity / `McpCallAuditRepository` /
+> `McpCallAuditor`, wired into `McpJsonRpcHandler` so every JSON-RPC call records the
+> triggering user (resolved from the security context), method, tool/resource name,
+> outcome (OK / error code + summary), and duration. Auditing is best-effort (failures
+> logged, never breaking the call). The MCP endpoint is already JWT-secured under
+> `/api/**` and tools already run query authz in the caller's security context, so
+> "authz mirrors REST" already holds. `assistant_user_id` / `run_id` columns exist but
+> are nullable: the short-lived **session token + dual identity** (triggering user +
+> assistant pseudo-user) exist to let the *internal AI runtime* call back into MCP during
+> a run, and that AI assistant is deferred to Phase 5+ — so the token minting/validation
+> and dual-identity stamping are **deferred to Phase 5+** alongside their first caller,
+> rather than built as infrastructure ahead of any consumer.
+
 ### 9. MCP remaining read surfaces
 
 Problem (review gap #6): ~3 of 12 surfaces implemented.
