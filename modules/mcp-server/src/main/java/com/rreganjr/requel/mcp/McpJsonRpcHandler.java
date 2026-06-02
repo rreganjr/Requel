@@ -27,6 +27,7 @@ import org.springframework.stereotype.Component;
 public class McpJsonRpcHandler {
 
 	private static final int METHOD_NOT_FOUND = -32601;
+	private static final int INVALID_PARAMS = -32602;
 	private static final int INTERNAL_ERROR = -32603;
 
 	private final McpReadService mcpReadService;
@@ -61,6 +62,8 @@ public class McpJsonRpcHandler {
 			return McpJsonRpcResponse.result(request.id(), result);
 		} catch (McpMethodNotFoundException e) {
 			return McpJsonRpcResponse.error(request.id(), METHOD_NOT_FOUND, e.getMessage());
+		} catch (McpInvalidParamsException e) {
+			return McpJsonRpcResponse.error(request.id(), INVALID_PARAMS, e.getMessage());
 		} catch (RuntimeException e) {
 			return McpJsonRpcResponse.error(request.id(), INTERNAL_ERROR, e.getMessage());
 		}

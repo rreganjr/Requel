@@ -67,4 +67,31 @@ class McpJsonRpcHandlerTest {
 		assertThat(response.error().code()).isEqualTo(-32601);
 		assertThat(response.error().message()).contains("prompts/list");
 	}
+
+	@Test
+	void returnsInvalidParamsForUnknownTool() {
+		McpJsonRpcHandler handler = new McpJsonRpcHandler(new McpReadService(
+				new StubProjectQueryGateway(), objectMapper), noOpAuditor());
+		JsonNode params = objectMapper.createObjectNode().put("name", "requel.bogusTool");
+
+		McpJsonRpcResponse response = handler.handle(new McpJsonRpcRequest("2.0",
+				objectMapper.valueToTree(2), "tools/call", params));
+
+		assertThat(response.result()).isNull();
+		assertThat(response.error().code()).isEqualTo(-32602);
+	}
+
+	@Test
+	void returnsInvalidParamsForMissingRequiredArgument() {
+		McpJsonRpcHandler handler = new McpJsonRpcHandler(new McpReadService(
+				new StubProjectQueryGateway(), objectMapper), noOpAuditor());
+		// requel.getProject requires arguments.projectName, which is absent here.
+		JsonNode params = objectMapper.createObjectNode().put("name", "requel.getProject");
+
+		McpJsonRpcResponse response = handler.handle(new McpJsonRpcRequest("2.0",
+				objectMapper.valueToTree(3), "tools/call", params));
+
+		assertThat(response.result()).isNull();
+		assertThat(response.error().code()).isEqualTo(-32602);
+	}
 }

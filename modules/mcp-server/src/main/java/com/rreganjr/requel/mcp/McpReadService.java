@@ -73,7 +73,7 @@ public class McpReadService {
 					"projectName"));
 			case "requel.getProjectTree" -> projectQueryGateway.getProjectTree(requiredText(
 					arguments, "projectName"));
-			default -> throw new IllegalArgumentException("Unknown MCP tool: " + name);
+			default -> throw new McpInvalidParamsException("Unknown MCP tool: " + name);
 		};
 		return Map.of("content", List.of(new McpTextContent("text", toJson(result))),
 				"isError", false);
@@ -98,7 +98,7 @@ public class McpReadService {
 		}
 		String prefix = "requel://projects/";
 		if (!uri.startsWith(prefix)) {
-			throw new IllegalArgumentException("Unsupported MCP resource URI: " + uri);
+			throw new McpInvalidParamsException("Unsupported MCP resource URI: " + uri);
 		}
 		String remainder = uri.substring(prefix.length());
 		if (remainder.endsWith("/tree")) {
@@ -116,7 +116,7 @@ public class McpReadService {
 
 	private String requiredText(JsonNode params, String fieldName) {
 		if (params == null || params.get(fieldName) == null || !params.get(fieldName).isTextual()) {
-			throw new IllegalArgumentException("Missing required string field: " + fieldName);
+			throw new McpInvalidParamsException("Missing required string field: " + fieldName);
 		}
 		return params.get(fieldName).asText();
 	}
