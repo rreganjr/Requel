@@ -76,12 +76,13 @@ import com.rreganjr.requel.assistant.api.UserRef;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingRepository;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingState;
-import com.rreganjr.requel.assistant.core.persistence.AssistantRunEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunRepository;
+import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.command.EditAddActorToProjectPositionCommand;
 import com.rreganjr.requel.project.command.EditAddWordToGlossaryPositionCommand;
+import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.user.UserRepository;
 
@@ -187,6 +188,12 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 
 		for (AnnotationAction action : result.annotationActions()) {
 			try {
+				if (action.actionType() == AnnotationAction.ActionType.ADD_GLOSSARY_TERM_REFERER) {
+					// Project edit (not an annotation): link the target entity to an existing
+					// glossary term. Idempotent at the domain level, so no finding is recorded.
+					applyGlossaryTermReferer(action, editedBy);
+					continue;
+				}
 				if (isCleanupAction(action.actionType())) {
 					// Cleanup actions (resolve / delete / remove) reference an annotation a
 					// prior finding created, by the same actionKey; they execute the matching
@@ -410,6 +417,34 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		return findingRepository.findByIdempotencyKey(actionKey)
 				.map(AssistantFindingEntity::getAppliedAnnotationId)
 				.map(annotationRepository::findAnnotationById).orElse(null);
+	}
+
+	// ---- project edits (glossary-term referer) --------------------------------
+
+	/**
+	 * Add the action's {@code targetRef} entity as a referer to an existing glossary term
+	 * (identified by {@code metadata.glossaryTermType} / {@code glossaryTermId}), through
+	 * {@link EditGlossaryTermCommand#setAddReferers}. This is a project edit, not an
+	 * annotation: it produces no finding and is idempotent at the domain level (the referer
+	 * collection is a {@code Set}). A no-op when either entity can no longer be resolved.
+	 */
+	private void applyGlossaryTermReferer(AnnotationAction action, User editedBy) throws Exception {
+		Object refererObject = resolveTargetEntity(action.targetRef());
+		Long termId = longMeta(action, "glossaryTermId");
+		String termType = stringMeta(action, "glossaryTermType");
+		Object termObject = termId == null ? null
+				: resolveTargetEntity(EntityRef.of(termType, termId));
+		if (!(refererObject instanceof ProjectOrDomainEntity referer)
+				|| !(termObject instanceof GlossaryTerm glossaryTerm)) {
+			log.info("Skipping glossary-term-referer action {} — referer {} or term {} did not"
+					+ " resolve", action.actionKey(), action.targetRef(), termId);
+			return;
+		}
+		EditGlossaryTermCommand command = projectCommandFactory.newEditGlossaryTermCommand();
+		command.setGlossaryTerm(glossaryTerm);
+		command.setAddReferers(new HashSet<ProjectOrDomainEntity>(List.of(referer)));
+		command.setEditedBy(editedBy);
+		commandHandler.execute(command);
 	}
 
 	private AppliedAction applyNote(AnnotationAction action, User editedBy,
@@ -834,6 +869,22 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 
 	// ---- resolution helpers ---------------------------------------------------
 
+	/** Resolve an entity by ref through the target loaders, or {@code null}. */
+	private Object resolveTargetEntity(EntityRef ref) {
+		if (ref == null) {
+			return null;
+		}
+		for (AssistantTargetLoader loader : targetLoaders) {
+			if (loader.supports(ref)) {
+				Optional<Object> target = loader.loadTarget(ref);
+				if (target.isPresent()) {
+					return target.get();
+				}
+			}
+		}
+		return null;
+	}
+
 	private Annotatable resolveAnnotatable(EntityRef ref) {
 		if (ref == null) {
 			return null;
@@ -891,6 +942,17 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	private static String stringMeta(AnnotationAction action, String key) {
 		Object value = action.metadata().get(key);
 		return value == null ? null : value.toString();
+	}
+
+	private static Long longMeta(AnnotationAction action, String key) {
+		Object value = action.metadata().get(key);
+		if (value instanceof Number number) {
+			return number.longValue();
+		}
+		if (value != null) {
+			return Long.valueOf(value.toString());
+		}
+		return null;
 	}
 
 	private static boolean booleanMeta(AnnotationAction action, String key, boolean defaultValue) {

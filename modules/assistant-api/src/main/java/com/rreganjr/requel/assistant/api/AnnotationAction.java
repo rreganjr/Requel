@@ -66,7 +66,15 @@ public record AnnotationAction(String actionKey, ActionType actionType, EntityRe
 		CREATE_OR_UPDATE_ARGUMENT,
 		DELETE_ARGUMENT,
 		/** Detach an annotation from one annotatable while keeping it elsewhere. */
-		REMOVE_ANNOTATION_FROM_ANNOTATABLE
+		REMOVE_ANNOTATION_FROM_ANNOTATABLE,
+		/**
+		 * Project edit (not an annotation): add the action's {@code targetRef} entity as a
+		 * referer to an existing glossary term. The glossary term is identified by
+		 * {@code metadata.glossaryTermType} / {@code metadata.glossaryTermId}. Applied through
+		 * {@code EditGlossaryTermCommand.setAddReferers}; idempotent at the domain level (the
+		 * referer set is a {@code Set}), so it produces no finding.
+		 */
+		ADD_GLOSSARY_TERM_REFERER
 	}
 
 	public AnnotationAction {

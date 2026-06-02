@@ -150,10 +150,14 @@ transition code; no cleanup policy.
 > place); and the RESOLVE / DELETE / REMOVE action types in the applicator
 > (`applyCleanupAction`, transitioning the finding to `DROPPED` / `AUTO_RESOLVED`).
 >
-> Still to do (tracked as follow-up slices): the `removeUnneededLexicalIssues` +
-> glossary-term-referer project-edit parity. The finding state machine itself
+> The glossary-term-referer project edit also landed: `LexicalGlossaryTermAssistant` now emits
+> an `ADD_GLOSSARY_TERM_REFERER` action when a phrase matches an existing glossary term, and
+> the applicator applies it through `EditGlossaryTermCommand.setAddReferers` (idempotent at the
+> domain level, so it records no finding). The `removeUnneededLexicalIssues` behaviour is
+> covered by the `AUTO_RESOLVE_IF_UNTOUCHED` reconciliation the lexical adapters opted into.
+> The finding state machine
 > (`ACTIVE → SUPERSEDED / AUTO_RESOLVED / MANUALLY_RESOLVED / DROPPED / ACTIVE(touched)`) is
-> now complete.
+> complete, and Step 6 is done.
 >
 > **Known issue — cross-assistant lexical-word collision: RESOLVED.** Originally the
 > applicator deduped `LEXICAL` issues by word, so glossary's 3-arg `findLexicalIssue` (no

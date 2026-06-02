@@ -45,6 +45,7 @@ import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.EvidenceRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
+import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.TextEntity;
@@ -65,10 +66,10 @@ import com.rreganjr.requel.project.exception.NoSuchGlossaryTermException;
  * <li>The diagnostic NLP notes the legacy emits (constituent/dependency/semantic
  * printers and word-sense notes) are omitted — they are debug output, not
  * findings.</li>
- * <li>When a phrase matches an <em>existing</em> glossary term, the legacy adds
- * the analyzed entity as a referer to that term (a project edit). That path is
- * routed to Step 6 (it needs the project-edit action type), so it is skipped
- * here rather than emitted.</li>
+ * <li>When a phrase matches an <em>existing</em> glossary term, the legacy adds the
+ * analyzed entity as a referer to that term (a project edit). This is emitted as an
+ * {@code ADD_GLOSSARY_TERM_REFERER} action, which the applicator applies through
+ * {@code EditGlossaryTermCommand.setAddReferers} (Phase 4.5 Step 6).</li>
  * </ul>
  */
 @Component
@@ -223,8 +224,11 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 			return;
 		}
 		try {
-			projectRepository.findGlossaryTermForProjectOrDomain(projectOrDomain, termText);
-			// Term already exists: legacy adds the entity as a referer (project edit) — Step 6.
+			GlossaryTerm existingTerm = projectRepository
+					.findGlossaryTermForProjectOrDomain(projectOrDomain, termText);
+			// Term already exists: reproduce the legacy behaviour of adding the analyzed
+			// entity as a referer to that glossary term (a project edit, not an annotation).
+			emitGlossaryTermReferer(builder, targetRef, existingTerm, termText);
 			return;
 		} catch (NoSuchGlossaryTermException e) {
 			// fall through to the actor check
@@ -245,6 +249,22 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 			}
 		}
 		emitGlossaryIssue(builder, targetRef, termText);
+	}
+
+	/**
+	 * Emit a project-edit action linking the analyzed entity ({@code targetRef}) as a referer
+	 * to an existing glossary term. Idempotent at the domain level (the referer set is a
+	 * {@code Set}), so the applicator runs it without recording a finding.
+	 */
+	private void emitGlossaryTermReferer(AssistantResult.Builder builder, EntityRef targetRef,
+			GlossaryTerm existingTerm, String termText) {
+		String actionKey = ASSISTANT_ID + ":" + targetRef.entityType() + ":" + targetRef.entityId()
+				+ ":glossary-referer:" + existingTerm.getId();
+		builder.annotationAction(new AnnotationAction(actionKey,
+				AnnotationAction.ActionType.ADD_GLOSSARY_TERM_REFERER, targetRef, null, null, null,
+				null, List.of(EvidenceRef.ofSnippet(termText)),
+				Map.of("glossaryTermType", "GlossaryTerm", "glossaryTermId",
+						existingTerm.getId())));
 	}
 
 	private void emitGlossaryIssue(AssistantResult.Builder builder, EntityRef targetRef,
