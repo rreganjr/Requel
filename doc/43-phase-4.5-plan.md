@@ -261,3 +261,43 @@ Problem (review gap #6): ~3 of 12 surfaces implemented.
 2. Re-running on an unchanged target does not duplicate findings (idempotency holds).
 3. `requel.nlp.enabled=false` boots cleanly and records `SKIPPED` assistant runs.
 4. `mvn test` green across the reactor; no regressions in existing IT suites.
+
+## Completion (Phase 4.5 — done)
+
+The command → dispatch → assistant → annotation loop now runs end-to-end on the migrated
+legacy paths, with the bug fixes and NLP-optional work it depended on. All nine work items
+landed:
+
+1. Faithful `AnalysisRequest` round-trip in `JpaAssistantRunStore` (refs, locale, taskType,
+   attributes) — the `Unknown/unknown` placeholder bug is gone.
+2. `locale` added to `AnalysisRequest` and threaded through the worker.
+3. `CommandBackedAssistantResultApplicator` — executes as the triggering user through the
+   existing command/authorization chain, key-based idempotency, `ASSISTANT:<id>` provenance,
+   text caps, unknown-type rejection, findings written. `NoOp` retained as the disabled/test
+   fallback.
+4. Legacy lexical parity as SPI adapters (spelling, vague-word, complexity, glossary-term) +
+   step-structure; 5 edit paths migrated (`EditGoal/Story/Actor/UseCase/ScenarioStep`
+   implement `AnalysisRequestSource`).
+5. `AnalysisRequestDispatcher` + end-to-end integration test on the Goal path.
+6. Finding state machine complete: `ACTIVE → SUPERSEDED / AUTO_RESOLVED / MANUALLY_RESOLVED
+   / DROPPED`, per-assistant cleanup policies, RESOLVE/DELETE/REMOVE action types; the
+   cross-assistant lexical-word collision fixed via key-based dedupe.
+7. NLP-optional Scope 1: `requel.nlp.enabled` flag, conditional factory +
+   `NoOpNLPProcessorFactory`, gated adapters; disabled-NLP runs record `SKIPPED`.
+8. MCP call audit log (`mcp_calls`) stamping the triggering user, method, and outcome.
+9. JSON-RPC `-32602` (Invalid params) fix + read surfaces: glossary, open-issues, entity
+   annotations, `getEntity`, `getEntityNeighbors`, `searchProjectEntities`,
+   `getProjectContext` (+ resources), and `draftAnnotation` (returns an un-persisted
+   `AnnotationAction` draft).
+
+Exit criteria met: migrated-path dispatch produces the expected annotations; re-runs don't
+duplicate findings; `requel.nlp.enabled=false` boots and records `SKIPPED`; `mvn clean verify`
+green across the reactor (surefire + failsafe).
+
+**Deferred to Phase 5+** (nothing in 4.5 depends on these): the AI-backed `RequelAssistant`
+for `REQUIREMENTS_REVIEW` + wiring `assistant-ai` / `assistant-openai` into the dispatcher;
+`requel.ai.maxInputTokens` enforcement and AI output length bounds; the MCP session-token +
+dual-identity (triggering user + assistant pseudo-user) stamping of `assistant_user_id` /
+`run_id`; migrating the remaining `analyzeX` paths and retiring `AssistantFacade` /
+`AssistantTaskRunner`; and `AssistantProjectSettings` persistence + the
+assistant-settings / run-history APIs.

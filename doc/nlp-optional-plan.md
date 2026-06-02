@@ -87,7 +87,8 @@ Resolved during issue #43 walkthrough. See the full record at <https://github.co
 > assistants and the worker records it `SKIPPED` with the reason "No assistants registered for
 > …" (verified by `NlpDisabledDispatchTest`). This realises the "disabled-NLP runs are skipped,
 > not failed" contract by not invoking the assistants at all rather than invoking them and
-> discarding an empty result. Scope 1 is complete. Scope 2 (absent-module startup via an
-> `nlp-api` extraction) remains out of scope.
+> discarding an empty result. Scope 1 is complete (delivered as Step 7 of issue #43's
+> Phase 4.5 — see `doc/43-phase-4.5-plan.md`, Completion section). Scope 2 (absent-module
+> startup via an `nlp-api` extraction) remains out of scope.
 - **No-op behavior.** Safe empty values, not `null`. The no-op factory is the single source of truth for the "disabled" contract that the assistant SPI's no-op assistants also rely on.
 

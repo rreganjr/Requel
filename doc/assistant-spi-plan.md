@@ -35,6 +35,16 @@ This plan has been updated for the modularized Spring Boot 3 / Java 17 direction
 
 ## Current State
 
+> **Status (Phase 4.5 landed — issue #43).** The SPI runtime loop described below is now
+> implemented and exercised end-to-end: `AnalysisRequestDispatcher` →
+> `AssistantRunWorker` → `RequelAssistant` adapters → `CommandBackedAssistantResultApplicator`
+> → annotations, with the finding state machine (`Finding State Machine` section) and the
+> command mapping (`AssistantResultApplicator Command Mapping` section) fully realized. Five
+> edit paths (`EditGoal/Story/Actor/UseCase/ScenarioStep`) dispatch through the SPI; the
+> remaining `analyzeX` paths and the retirement of `AssistantFacade` / `AssistantTaskRunner`
+> are deferred to Phase 5+. See `doc/43-phase-4.5-plan.md` (Completion section) for the full
+> record. The pre-#43 description below is retained for context.
+
 - Analysis is invoked after successful edit commands by `AnalysisInvokingCommandHandler`, which calls `AnalyzableEditCommand.invokeAnalysis()`.
 - Project command implementations call specific `AssistantFacade` methods such as `analyzeGoal`, `analyzeStory`, `analyzeActor`, `analyzeUseCase`, `analyzeScenario`, and `analyzeProject`.
 - After issue #39, `AssistantFacade` is a thin async submission and notification layer only. It submits work onto `assistantTaskExecutor` and calls `UpdatedEntityNotifier` after each task completes. The analysis bodies themselves now live in `AssistantTaskRunner`, a `@Component` whose entry points are reached through a Spring transactional proxy. The runner reloads target entities in a new transaction, resolves the `assistant` pseudo-user, and constructs `LexicalAssistant` plus the concrete entity assistants per call. Issue #43 work must preserve this transactional-proxy boundary when migrating from `AssistantTaskRunner` to `AssistantDispatcher` so lazy Hibernate collections continue to have an active session during analysis.

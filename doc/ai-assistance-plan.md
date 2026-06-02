@@ -285,6 +285,17 @@ The first release can skip most UI and rely on annotations plus logs, but run hi
 
 ## Rollout Plan
 
+> **Status (issue #43, Phase 4.5 "Close the Loop" landed).** Phases 1–3 are implemented and
+> proven end-to-end, plus the NLP-optional work: the SPI + `AnalysisRequestDispatcher` /
+> `AssistantRunWorker`, the command-backed idempotent `AnnotationAction` applicator with the
+> finding state machine, `AssistantRun` activity records, and the read-only MCP tools /
+> resources (with a `-32602` fix and an `mcp_calls` audit log). The AI provider layer modules
+> (`assistant-ai` / `assistant-openai`, Phase 4) exist but are **not yet wired into the
+> dispatcher**. Phase 5 (first AI assistant) is the next step. The MCP session-token +
+> dual-identity flow (see "Authentication and Session Flow"), `requel.ai.maxInputTokens`
+> enforcement, and retiring `AssistantFacade` / `AssistantTaskRunner` are deferred to Phase 5+.
+> Full record: `doc/43-phase-4.5-plan.md` (Completion section).
+
 ### Phase 0 - Decisions (resolved)
 
 All Phase 0 decisions are resolved (see `Resolved Decisions` below and <https://github.com/rreganjr/Requel/issues/43#issuecomment-4560006774>):
