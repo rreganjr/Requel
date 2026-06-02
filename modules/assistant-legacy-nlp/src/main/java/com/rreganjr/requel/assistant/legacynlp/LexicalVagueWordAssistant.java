@@ -28,6 +28,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
@@ -60,6 +61,7 @@ import com.rreganjr.requel.project.TextEntity;
  * Step 4d). Runs in the same dispatch as the other lexical adapters; each
  * processes the Name and Text properties of the {@link TextEntity}.
  */
+@ConditionalOnProperty(name = "requel.nlp.enabled", havingValue = "true", matchIfMissing = true)
 @Component
 public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 

@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.nlp.dictionary.NLPProcessor;
@@ -58,6 +59,7 @@ import com.rreganjr.requel.project.TextEntity;
  * Phase 4.5 Step 4b). Vague-word, glossary-term, and complexity checks follow as
  * additional adapters; together they reach parity with the legacy path.
  */
+@ConditionalOnProperty(name = "requel.nlp.enabled", havingValue = "true", matchIfMissing = true)
 @Component
 public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 

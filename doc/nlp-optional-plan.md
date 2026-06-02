@@ -80,9 +80,14 @@ Resolved during issue #43 walkthrough. See the full record at <https://github.co
 > nulls) wired by `NoOpNlpConfig` (`@ConditionalOnProperty(havingValue=false)` +
 > `@ConditionalOnMissingBean`), so exactly one factory is active. `requel.nlp.enabled=true` is
 > the default in `application.properties`, and `NlpDisabledSmokeTest` boots the app with NLP
-> disabled and asserts the no-op factory + its safe empty returns. Still to do (next slice):
-> record disabled-NLP assistant runs as `SKIPPED` with an NLP-disabled `AssistantMessage` and
-> the SPI's explicit empty `AssistantResult` (today they simply produce no findings and the run
-> succeeds). Scope 2 (absent-module startup via an `nlp-api` extraction) remains out of scope.
+> disabled and asserts the no-op factory + its safe empty returns. The five legacy NLP
+> assistants (four lexical + step-structure) are also gated by
+> `@ConditionalOnProperty(requel.nlp.enabled, havingValue=true, matchIfMissing=true)`, so when
+> NLP is disabled they are not registered: an analysis run for a target then finds no
+> assistants and the worker records it `SKIPPED` with the reason "No assistants registered for
+> …" (verified by `NlpDisabledDispatchTest`). This realises the "disabled-NLP runs are skipped,
+> not failed" contract by not invoking the assistants at all rather than invoking them and
+> discarding an empty result. Scope 1 is complete. Scope 2 (absent-module startup via an
+> `nlp-api` extraction) remains out of scope.
 - **No-op behavior.** Safe empty values, not `null`. The no-op factory is the single source of truth for the "disabled" contract that the assistant SPI's no-op assistants also rely on.
 

@@ -31,6 +31,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
@@ -78,6 +79,7 @@ import com.rreganjr.requel.project.UseCase;
  * worklist instead.</li>
  * </ul>
  */
+@ConditionalOnProperty(name = "requel.nlp.enabled", havingValue = "true", matchIfMissing = true)
 @Component
 public class StepStructureAssistant implements RequelAssistant<Step> {
 

@@ -27,6 +27,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
@@ -56,6 +57,7 @@ import com.rreganjr.requel.project.TextEntity;
  * intentionally omitted here. Part of incremental legacy parity (issue #43,
  * Phase 4.5 Step 4d).
  */
+@ConditionalOnProperty(name = "requel.nlp.enabled", havingValue = "true", matchIfMissing = true)
 @Component
 public class LexicalComplexityAssistant implements RequelAssistant<TextEntity> {
 

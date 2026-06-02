@@ -237,14 +237,18 @@ public class LexicalSpellingDispatchTest extends AbstractIntegrationTestCase {
 		assertNotNull(issueId, "the spelling finding should reference its applied annotation");
 		assertTrue(annotationExistsFresh(issueId), "the unknown-word issue should exist");
 
-		// Fix the spelling; editing the goal dispatches a fresh analysis run.
+		// Fix the spelling; editing the goal dispatches a fresh analysis run. (Edit the
+		// existing goal the way GoalCommandTest.editGoal does — setGoal + setName/setText,
+		// without re-setting the container — and confirm the rename actually took before
+		// relying on it.)
 		EditGoalCommand fixCommand = getProjectCommandFactory().newEditGoalCommand();
 		fixCommand.setEditedBy(creator);
 		fixCommand.setGoal(goal);
-		fixCommand.setGoalContainer(project);
 		fixCommand.setName("Test goal " + ts); // corrected
 		fixCommand.setText("a clear requirement.");
-		getCommandHandler().execute(fixCommand);
+		fixCommand = getCommandHandler().execute(fixCommand);
+		assertEquals("Test goal " + ts, freshGoalName(goal.getId()),
+				"precondition: the fix must persist the corrected goal name so 'groal' is gone");
 		runLatestQueuedRun(goal.getId());
 
 		// The stale finding is AUTO_RESOLVED and its annotation removed. (markAutoResolved
@@ -331,10 +335,11 @@ public class LexicalSpellingDispatchTest extends AbstractIntegrationTestCase {
 		EditGoalCommand fixCommand = getProjectCommandFactory().newEditGoalCommand();
 		fixCommand.setEditedBy(creator);
 		fixCommand.setGoal(goal);
-		fixCommand.setGoalContainer(project);
 		fixCommand.setName("Resolve goal " + ts);
 		fixCommand.setText("a clear requirement.");
-		getCommandHandler().execute(fixCommand);
+		fixCommand = getCommandHandler().execute(fixCommand);
+		assertEquals("Resolve goal " + ts, freshGoalName(goal.getId()),
+				"precondition: the fix must persist the corrected goal name");
 		runLatestQueuedRun(goal.getId());
 
 		assertTrue(annotationExistsFresh(issueId),
