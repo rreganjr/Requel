@@ -30,6 +30,7 @@ import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import org.apache.log4j.Logger;
 import org.springframework.beans.BeansException;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Scope;
@@ -49,6 +50,7 @@ import com.rreganjr.nlp.impl.wsd.WordnetWSD;
  * 
  * @author ron
  */
+@ConditionalOnProperty(name = "requel.nlp.enabled", havingValue = "true", matchIfMissing = true)
 @Component("nlpProcessorFactory")
 @Scope("singleton")
 public class NLPProcessorFactoryImpl implements NLPProcessorFactory, ApplicationContextAware {

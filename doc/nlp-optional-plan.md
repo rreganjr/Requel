@@ -74,10 +74,15 @@ Resolved during issue #43 walkthrough. See the full record at <https://github.co
 - **Coexistence with AI assistants.** Legacy NLP is not deprecated when AI-backed assistants land. Both run in parallel; legacy NLP stays enabled by default. The flag exists for opt-out, not as a planned default flip.
 - **Initial scope.** Phase 1 of this plan delivers Scope 1 (in-module disable via the property flag). Scope 2 (absent-module startup) is contingent on a later `nlp-api` extraction and is not pursued as part of issue #43.
 
-> **Implementation status (2026-05-29).** Scope 1 is not yet implemented — there is no
-> `requel.nlp.enabled` flag, conditional auto-config, or `NoOpNLPProcessorFactory` in the
-> tree; `NLPProcessorFactoryImpl` is still an unconditional `@Component`. Scope 1 is
-> scheduled in `doc/43-phase-4.5-plan.md` (Phase 4.5), tied to the assistant SPI's no-op
-> contract so disabled-NLP assistant runs record `SKIPPED` with an explicit empty result.
+> **Implementation status (2026-06).** Scope 1 is largely implemented. `NLPProcessorFactoryImpl`
+> is now gated by `@ConditionalOnProperty(requel.nlp.enabled, havingValue=true,
+> matchIfMissing=true)`; `requel-app` provides `NoOpNLPProcessorFactory` (safe empty values, no
+> nulls) wired by `NoOpNlpConfig` (`@ConditionalOnProperty(havingValue=false)` +
+> `@ConditionalOnMissingBean`), so exactly one factory is active. `requel.nlp.enabled=true` is
+> the default in `application.properties`, and `NlpDisabledSmokeTest` boots the app with NLP
+> disabled and asserts the no-op factory + its safe empty returns. Still to do (next slice):
+> record disabled-NLP assistant runs as `SKIPPED` with an NLP-disabled `AssistantMessage` and
+> the SPI's explicit empty `AssistantResult` (today they simply produce no findings and the run
+> succeeds). Scope 2 (absent-module startup via an `nlp-api` extraction) remains out of scope.
 - **No-op behavior.** Safe empty values, not `null`. The no-op factory is the single source of truth for the "disabled" contract that the assistant SPI's no-op assistants also rely on.
 
