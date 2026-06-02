@@ -22,6 +22,9 @@ package com.rreganjr.requel.mcp;
 
 import java.util.List;
 
+import com.rreganjr.requel.service.api.dto.AnnotationsDto;
+import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
+import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
 
@@ -41,6 +44,22 @@ class StubProjectQueryGateway implements ProjectQueryGateway {
 	public List<ProjectTreeNodeDto> getProjectTree(String projectName) {
 		return List.of(new ProjectTreeNodeDto("Goals", "Goals",
 				List.of(new ProjectTreeNodeDto(10L, "Goals", "Improve login"))));
+	}
+
+	@Override
+	public List<GlossaryTermDto> getGlossaryTerms(String projectName) {
+		return List.of();
+	}
+
+	@Override
+	public List<OpenIssueDto> getOpenIssues(String projectName) {
+		return List.of(new OpenIssueDto(5L, "What is the SLA?", true, "Goal", 10L,
+				"Improve login"));
+	}
+
+	@Override
+	public AnnotationsDto getAnnotations(String projectName, String entityType, long entityId) {
+		return new AnnotationsDto(List.of(), List.of());
 	}
 
 	private ProjectDto project() {

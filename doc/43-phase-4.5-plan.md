@@ -222,6 +222,17 @@ Problem (review gap #6): ~3 of 12 surfaces implemented.
   the applicator (step 3) rather than persisting.
 - Fix JSON-RPC error codes (`-32601` / `-32602` instead of `-32603`).
 
+> **Status (in progress).** Landed: the `-32602` (Invalid params) error code via
+> `McpInvalidParamsException`; and the read surfaces that reuse existing query controllers —
+> glossary (`requel.getGlossary` + `requel://projects/{name}/glossary`), open-issues
+> (`requel.getOpenIssues` + `requel://projects/{name}/open-issues`), and entity annotations
+> (`requel.getAnnotations` tool). These delegate through new `ProjectQueryGateway` methods to
+> `ProjectQueryController.listTerms` / `getOpenIssues` and `AnnotationQueryController`. Still
+> to do: `requel.getEntity` / `requel.getEntityNeighbors` (single entity + neighbors),
+> `requel.searchProjectEntities` and `requel.getProjectContext` (need new controller query
+> methods), and `requel.draftAnnotation` (returns an `AnnotationAction` draft — needs an
+> `assistant-api` dependency on `mcp-server`, which it does not have today).
+
 ## Deferred to Phase 5+ (explicitly out of scope here)
 
 - The AI-backed `RequelAssistant` for `REQUIREMENTS_REVIEW` and wiring `assistant-ai` /

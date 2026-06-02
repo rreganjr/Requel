@@ -72,6 +72,41 @@ class McpReadServiceTest {
 		assertThat(contents.get(0).path("text").asText()).contains("\"Sample\"");
 	}
 
+	@Test
+	void callsOpenIssuesTool() {
+		Map<String, Object> response = service.callTool(json("""
+				{ "name": "requel.getOpenIssues", "arguments": { "projectName": "Sample" } }
+				"""));
+
+		JsonNode content = objectMapper.valueToTree(response.get("content"));
+		assertThat(content.get(0).path("text").asText()).contains("What is the SLA?");
+		assertThat(response.get("isError")).isEqualTo(false);
+	}
+
+	@Test
+	void callsGetAnnotationsTool() {
+		Map<String, Object> response = service.callTool(json("""
+				{
+				  "name": "requel.getAnnotations",
+				  "arguments": { "projectName": "Sample", "entityType": "Goal", "entityId": 10 }
+				}
+				"""));
+
+		JsonNode content = objectMapper.valueToTree(response.get("content"));
+		assertThat(content.get(0).path("type").asText()).isEqualTo("text");
+		assertThat(response.get("isError")).isEqualTo(false);
+	}
+
+	@Test
+	void readsOpenIssuesResource() {
+		Map<String, Object> response = service.readResource(json("""
+				{ "uri": "requel://projects/Sample/open-issues" }
+				"""));
+
+		JsonNode contents = objectMapper.valueToTree(response.get("contents"));
+		assertThat(contents.get(0).path("text").asText()).contains("What is the SLA?");
+	}
+
 	private JsonNode json(String json) {
 		try {
 			return objectMapper.readTree(json);

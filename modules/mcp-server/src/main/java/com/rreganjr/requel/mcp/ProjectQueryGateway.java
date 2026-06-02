@@ -22,6 +22,9 @@ package com.rreganjr.requel.mcp;
 
 import java.util.List;
 
+import com.rreganjr.requel.service.api.dto.AnnotationsDto;
+import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
+import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
 
@@ -32,4 +35,13 @@ public interface ProjectQueryGateway {
 	ProjectDto getProject(String projectName);
 
 	List<ProjectTreeNodeDto> getProjectTree(String projectName);
+
+	/** The project's glossary terms (summary form). */
+	List<GlossaryTermDto> getGlossaryTerms(String projectName);
+
+	/** Unresolved issues across all of the project's entities. */
+	List<OpenIssueDto> getOpenIssues(String projectName);
+
+	/** Notes and issues attached to one annotatable entity in the project. */
+	AnnotationsDto getAnnotations(String projectName, String entityType, long entityId);
 }

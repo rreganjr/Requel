@@ -61,7 +61,16 @@ public class McpReadService {
 						projectNameSchema()),
 				new McpToolDescriptor("requel.getProjectTree",
 						"Read the project content tree by project name.",
-						projectNameSchema())));
+						projectNameSchema()),
+				new McpToolDescriptor("requel.getGlossary",
+						"Read the glossary terms defined in a project.",
+						projectNameSchema()),
+				new McpToolDescriptor("requel.getOpenIssues",
+						"List the unresolved issues across all entities in a project.",
+						projectNameSchema()),
+				new McpToolDescriptor("requel.getAnnotations",
+						"Read the notes and issues attached to one entity (by type and id).",
+						entityAnnotationsSchema())));
 	}
 
 	public Map<String, Object> callTool(JsonNode params) {
@@ -73,6 +82,13 @@ public class McpReadService {
 					"projectName"));
 			case "requel.getProjectTree" -> projectQueryGateway.getProjectTree(requiredText(
 					arguments, "projectName"));
+			case "requel.getGlossary" -> projectQueryGateway.getGlossaryTerms(requiredText(
+					arguments, "projectName"));
+			case "requel.getOpenIssues" -> projectQueryGateway.getOpenIssues(requiredText(
+					arguments, "projectName"));
+			case "requel.getAnnotations" -> projectQueryGateway.getAnnotations(
+					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
+					requiredLong(arguments, "entityId"));
 			default -> throw new McpInvalidParamsException("Unknown MCP tool: " + name);
 		};
 		return Map.of("content", List.of(new McpTextContent("text", toJson(result))),
@@ -80,9 +96,16 @@ public class McpReadService {
 	}
 
 	public Map<String, Object> listResources() {
-		return Map.of("resources", List.of(new McpResourceDescriptor("requel://projects",
-				"Visible Requel projects", "Projects visible to the current user",
-				JSON_MIME_TYPE)));
+		return Map.of("resources", List.of(
+				new McpResourceDescriptor("requel://projects", "Visible Requel projects",
+						"Projects visible to the current user", JSON_MIME_TYPE),
+				new McpResourceDescriptor("requel://projects/{projectName}/glossary",
+						"Project glossary", "Glossary terms defined in a project (template URI)",
+						JSON_MIME_TYPE),
+				new McpResourceDescriptor("requel://projects/{projectName}/open-issues",
+						"Project open issues",
+						"Unresolved issues across a project's entities (template URI)",
+						JSON_MIME_TYPE)));
 	}
 
 	public Map<String, Object> readResource(JsonNode params) {
@@ -102,16 +125,43 @@ public class McpReadService {
 		}
 		String remainder = uri.substring(prefix.length());
 		if (remainder.endsWith("/tree")) {
-			String projectName = remainder.substring(0, remainder.length() - "/tree".length());
-			return projectQueryGateway.getProjectTree(projectName);
+			return projectQueryGateway.getProjectTree(stripSuffix(remainder, "/tree"));
+		}
+		if (remainder.endsWith("/glossary")) {
+			return projectQueryGateway.getGlossaryTerms(stripSuffix(remainder, "/glossary"));
+		}
+		if (remainder.endsWith("/open-issues")) {
+			return projectQueryGateway.getOpenIssues(stripSuffix(remainder, "/open-issues"));
 		}
 		return projectQueryGateway.getProject(remainder);
+	}
+
+	private static String stripSuffix(String value, String suffix) {
+		return value.substring(0, value.length() - suffix.length());
 	}
 
 	private Map<String, Object> projectNameSchema() {
 		return Map.of("type", "object",
 				"properties", Map.of("projectName", Map.of("type", "string")),
 				"required", List.of("projectName"), "additionalProperties", false);
+	}
+
+	private Map<String, Object> entityAnnotationsSchema() {
+		return Map.of("type", "object",
+				"properties", Map.of(
+						"projectName", Map.of("type", "string"),
+						"entityType", Map.of("type", "string"),
+						"entityId", Map.of("type", "integer")),
+				"required", List.of("projectName", "entityType", "entityId"),
+				"additionalProperties", false);
+	}
+
+	private long requiredLong(JsonNode params, String fieldName) {
+		JsonNode value = params == null ? null : params.get(fieldName);
+		if (value == null || !value.canConvertToLong()) {
+			throw new McpInvalidParamsException("Missing required integer field: " + fieldName);
+		}
+		return value.asLong();
 	}
 
 	private String requiredText(JsonNode params, String fieldName) {

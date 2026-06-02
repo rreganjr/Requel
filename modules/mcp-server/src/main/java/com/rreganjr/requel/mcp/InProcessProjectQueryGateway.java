@@ -28,8 +28,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.rreganjr.requel.service.api.dto.AnnotationsDto;
+import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
+import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
+import com.rreganjr.requel.service.query.AnnotationQueryController;
 import com.rreganjr.requel.service.query.ProjectQueryController;
 
 /**
@@ -41,10 +45,13 @@ import com.rreganjr.requel.service.query.ProjectQueryController;
 public class InProcessProjectQueryGateway implements ProjectQueryGateway {
 
 	private final ProjectQueryController projectQueryController;
+	private final AnnotationQueryController annotationQueryController;
 
 	@Autowired
-	public InProcessProjectQueryGateway(ProjectQueryController projectQueryController) {
+	public InProcessProjectQueryGateway(ProjectQueryController projectQueryController,
+			AnnotationQueryController annotationQueryController) {
 		this.projectQueryController = projectQueryController;
+		this.annotationQueryController = annotationQueryController;
 	}
 
 	@Override
@@ -62,6 +69,23 @@ public class InProcessProjectQueryGateway implements ProjectQueryGateway {
 		ResponseEntity<List<ProjectTreeNodeDto>> response = projectQueryController.getProjectTree(
 				projectName);
 		return unwrap(response);
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public List<GlossaryTermDto> getGlossaryTerms(String projectName) {
+		return (List<GlossaryTermDto>) unwrap(projectQueryController.listTerms(projectName));
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public List<OpenIssueDto> getOpenIssues(String projectName) {
+		return (List<OpenIssueDto>) unwrap(projectQueryController.getOpenIssues(projectName));
+	}
+
+	@Override
+	public AnnotationsDto getAnnotations(String projectName, String entityType, long entityId) {
+		return unwrap(annotationQueryController.getAnnotations(projectName, entityType, entityId));
 	}
 
 	private <T> T unwrap(ResponseEntity<?> response, Class<T> bodyType) {
