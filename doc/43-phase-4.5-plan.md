@@ -230,9 +230,10 @@ Problem (review gap #6): ~3 of 12 surfaces implemented.
 > `ProjectQueryController.listTerms` / `getOpenIssues` and `AnnotationQueryController`. Also
 > landed: `requel.getEntity` — reads one entity (Goal / Story / Actor / UseCase / Scenario /
 > GlossaryTerm) by type + id, routing through the gateway to the existing per-entity
-> controller getters (unknown type -> `-32602`). Still to do: `requel.getEntityNeighbors`
-> (an entity's related entities), `requel.searchProjectEntities` and
-> `requel.getProjectContext` (need new controller query methods), and
+> controller getters (unknown type -> `-32602`); and `requel.getEntityNeighbors`, which
+> returns an entity's related entities grouped by relationship (as `EntityReferenceDto`s),
+> derived in the gateway from the detail DTOs. Still to do: `requel.searchProjectEntities`
+> and `requel.getProjectContext` (need new controller query methods), and
 > `requel.draftAnnotation` (returns an `AnnotationAction` draft — needs an `assistant-api`
 > dependency on `mcp-server`, which it does not have today).
 

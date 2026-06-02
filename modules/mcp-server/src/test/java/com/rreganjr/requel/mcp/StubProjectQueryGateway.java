@@ -21,8 +21,10 @@
 package com.rreganjr.requel.mcp;
 
 import java.util.List;
+import java.util.Map;
 
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
+import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.GoalDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
@@ -67,6 +69,13 @@ class StubProjectQueryGateway implements ProjectQueryGateway {
 	public Object getEntity(String projectName, String entityType, long entityId) {
 		return new GoalDto(entityId, 1, "Improve login", "Make login faster", "admin",
 				List.of(), List.of(), List.of());
+	}
+
+	@Override
+	public Map<String, List<EntityReferenceDto>> getEntityNeighbors(String projectName,
+			String entityType, long entityId) {
+		return Map.of("referencedBy",
+				List.of(new EntityReferenceDto("Story", 20L, "Login story")));
 	}
 
 	private ProjectDto project() {

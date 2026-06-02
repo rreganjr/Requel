@@ -112,6 +112,20 @@ class McpReadServiceTest {
 	}
 
 	@Test
+	void callsGetEntityNeighborsTool() {
+		Map<String, Object> response = service.callTool(json("""
+				{
+				  "name": "requel.getEntityNeighbors",
+				  "arguments": { "projectName": "Sample", "entityType": "Goal", "entityId": 10 }
+				}
+				"""));
+
+		JsonNode content = objectMapper.valueToTree(response.get("content"));
+		assertThat(content.get(0).path("text").asText()).contains("Login story");
+		assertThat(response.get("isError")).isEqualTo(false);
+	}
+
+	@Test
 	void readsOpenIssuesResource() {
 		Map<String, Object> response = service.readResource(json("""
 				{ "uri": "requel://projects/Sample/open-issues" }

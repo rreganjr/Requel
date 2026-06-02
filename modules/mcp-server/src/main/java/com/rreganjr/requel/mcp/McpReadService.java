@@ -74,6 +74,9 @@ public class McpReadService {
 				new McpToolDescriptor("requel.getEntity",
 						"Read one entity (Goal, Story, Actor, UseCase, Scenario, or GlossaryTerm)"
 								+ " by type and id.",
+						entityRefSchema()),
+				new McpToolDescriptor("requel.getEntityNeighbors",
+						"Read an entity's related entities, grouped by relationship.",
 						entityRefSchema())));
 	}
 
@@ -94,6 +97,9 @@ public class McpReadService {
 					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
 					requiredLong(arguments, "entityId"));
 			case "requel.getEntity" -> projectQueryGateway.getEntity(
+					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
+					requiredLong(arguments, "entityId"));
+			case "requel.getEntityNeighbors" -> projectQueryGateway.getEntityNeighbors(
 					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
 					requiredLong(arguments, "entityId"));
 			default -> throw new McpInvalidParamsException("Unknown MCP tool: " + name);

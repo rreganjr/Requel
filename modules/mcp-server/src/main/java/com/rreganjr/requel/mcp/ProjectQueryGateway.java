@@ -21,8 +21,10 @@
 package com.rreganjr.requel.mcp;
 
 import java.util.List;
+import java.util.Map;
 
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
+import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
@@ -50,4 +52,12 @@ public interface ProjectQueryGateway {
 	 * domain-interface simple name and id, returning the corresponding detail DTO.
 	 */
 	Object getEntity(String projectName, String entityType, long entityId);
+
+	/**
+	 * Read an entity's related entities, grouped by relationship name (e.g. for a Goal:
+	 * {@code relationsFromThisGoal}, {@code relationsToThisGoal}, {@code referencedBy}). Each
+	 * neighbour is an {@link EntityReferenceDto} (type + id + name).
+	 */
+	Map<String, List<EntityReferenceDto>> getEntityNeighbors(String projectName, String entityType,
+			long entityId);
 }
