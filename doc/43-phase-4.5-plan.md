@@ -237,8 +237,10 @@ Problem (review gap #6): ~3 of 12 surfaces implemented.
 > reusing the existing `list*` controllers and filtering (case-insensitive substring); and
 > `requel.getProjectContext` (+ `requel://projects/{name}/context` resource), a composite
 > bundle of the project summary, tree, glossary, and open issues assembled from the existing
-> gateway methods. Still to do: `requel.draftAnnotation` (returns an `AnnotationAction`
-> draft — needs an `assistant-api` dependency on `mcp-server`, which it does not have today).
+> gateway methods; and `requel.draftAnnotation`, which builds an `AnnotationAction` (note /
+> issue) draft for an entity and returns it **without persisting** (for the applicator to
+> apply later) — this added the `assistant-api` dependency to `mcp-server`. **Step 9 is
+> complete:** the `-32602` error code plus all the planned read/draft surfaces are in place.
 
 ## Deferred to Phase 5+ (explicitly out of scope here)
 

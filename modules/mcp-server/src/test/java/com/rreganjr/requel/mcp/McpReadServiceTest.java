@@ -21,6 +21,7 @@
 package com.rreganjr.requel.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
@@ -159,6 +160,37 @@ class McpReadServiceTest {
 
 		JsonNode contents = objectMapper.valueToTree(response.get("contents"));
 		assertThat(contents.get(0).path("text").asText()).contains("\"glossary\"");
+	}
+
+	@Test
+	void draftAnnotationReturnsUnpersistedDraft() {
+		Map<String, Object> response = service.callTool(json("""
+				{
+				  "name": "requel.draftAnnotation",
+				  "arguments": {
+				    "entityType": "Goal", "entityId": 10, "kind": "ISSUE",
+				    "text": "Clarify the SLA"
+				  }
+				}
+				"""));
+
+		JsonNode content = objectMapper.valueToTree(response.get("content"));
+		String text = content.get(0).path("text").asText();
+		assertThat(text).contains("CREATE_OR_UPDATE_ISSUE").contains("Clarify the SLA")
+				.contains("Goal");
+		assertThat(response.get("isError")).isEqualTo(false);
+	}
+
+	@Test
+	void draftAnnotationRejectsUnknownKind() {
+		assertThatThrownBy(() -> service.callTool(json("""
+				{
+				  "name": "requel.draftAnnotation",
+				  "arguments": { "entityType": "Goal", "entityId": 10, "kind": "BOGUS",
+				    "text": "x" }
+				}
+				""")))
+				.isInstanceOf(McpInvalidParamsException.class);
 	}
 
 	@Test

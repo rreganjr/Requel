@@ -21,6 +21,7 @@
 package com.rreganjr.requel.mcp;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,8 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rreganjr.requel.assistant.api.AnnotationAction;
+import com.rreganjr.requel.assistant.api.EntityRef;
 
 @Service
 public class McpReadService {
@@ -84,7 +87,11 @@ public class McpReadService {
 				new McpToolDescriptor("requel.getProjectContext",
 						"Read a composite context bundle for a project (summary, tree, glossary,"
 								+ " open issues).",
-						projectNameSchema())));
+						projectNameSchema()),
+				new McpToolDescriptor("requel.draftAnnotation",
+						"Build a draft annotation (note or issue) for an entity and return it"
+								+ " WITHOUT persisting; the caller submits it for application.",
+						draftAnnotationSchema())));
 	}
 
 	public Map<String, Object> callTool(JsonNode params) {
@@ -113,6 +120,7 @@ public class McpReadService {
 					requiredText(arguments, "projectName"), requiredText(arguments, "query"));
 			case "requel.getProjectContext" -> projectQueryGateway.getProjectContext(
 					requiredText(arguments, "projectName"));
+			case "requel.draftAnnotation" -> draftAnnotation(arguments);
 			default -> throw new McpInvalidParamsException("Unknown MCP tool: " + name);
 		};
 		return Map.of("content", List.of(new McpTextContent("text", toJson(result))),
@@ -187,6 +195,45 @@ public class McpReadService {
 				"additionalProperties", false);
 	}
 
+	/**
+	 * Build an {@link AnnotationAction} draft from the tool arguments. Read-only: the draft is
+	 * returned to the caller, never persisted (the applicator applies it later).
+	 */
+	private AnnotationAction draftAnnotation(JsonNode arguments) {
+		String entityType = requiredText(arguments, "entityType");
+		long entityId = requiredLong(arguments, "entityId");
+		String kind = requiredText(arguments, "kind");
+		String text = requiredText(arguments, "text");
+		AnnotationAction.ActionType actionType = switch (kind.toUpperCase(Locale.ROOT)) {
+			case "NOTE" -> AnnotationAction.ActionType.CREATE_OR_UPDATE_NOTE;
+			case "ISSUE" -> AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE;
+			default -> throw new McpInvalidParamsException(
+					"Unsupported annotation kind: " + kind + " (expected NOTE or ISSUE)");
+		};
+		EntityRef targetRef = EntityRef.of(entityType, entityId);
+		String severity = optionalText(arguments, "severity");
+		Map<String, Object> metadata = actionType == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE
+				? Map.<String, Object>of("mustResolve", optionalBoolean(arguments, "mustResolve", true))
+				: Map.of();
+		String actionKey = "mcp-draft:" + entityType + ":" + entityId + ":"
+				+ kind.toLowerCase(Locale.ROOT) + ":" + Integer.toHexString(text.hashCode());
+		return new AnnotationAction(actionKey, actionType, targetRef, null, text, severity, null,
+				List.of(), metadata);
+	}
+
+	private Map<String, Object> draftAnnotationSchema() {
+		return Map.of("type", "object",
+				"properties", Map.of(
+						"entityType", Map.of("type", "string"),
+						"entityId", Map.of("type", "integer"),
+						"kind", Map.of("type", "string", "enum", List.of("NOTE", "ISSUE")),
+						"text", Map.of("type", "string"),
+						"severity", Map.of("type", "string"),
+						"mustResolve", Map.of("type", "boolean")),
+				"required", List.of("entityType", "entityId", "kind", "text"),
+				"additionalProperties", false);
+	}
+
 	private Map<String, Object> searchSchema() {
 		return Map.of("type", "object",
 				"properties", Map.of(
@@ -209,6 +256,17 @@ public class McpReadService {
 			throw new McpInvalidParamsException("Missing required string field: " + fieldName);
 		}
 		return params.get(fieldName).asText();
+	}
+
+	private static String optionalText(JsonNode params, String fieldName) {
+		JsonNode value = params == null ? null : params.get(fieldName);
+		return value == null || value.isNull() || !value.isTextual() ? null : value.asText();
+	}
+
+	private static boolean optionalBoolean(JsonNode params, String fieldName, boolean defaultValue) {
+		JsonNode value = params == null ? null : params.get(fieldName);
+		return value == null || value.isNull() || !value.isBoolean() ? defaultValue
+				: value.asBoolean();
 	}
 
 	private String toJson(Object value) {
