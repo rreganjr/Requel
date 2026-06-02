@@ -97,7 +97,9 @@ class CommandBackedAssistantResultApplicatorTest {
 		assertThat(applied.annotationIds()).isEmpty();
 		verifyNoInteractions(commandHandler);
 		verifyNoInteractions(annotationCommandFactory);
-		verifyNoInteractions(findingRepository);
+		// Under MARK_SUPERSEDED the dispatch target is reconciled even for an empty result,
+		// so findings are queried; with none present nothing is written.
+		verify(findingRepository, never()).save(any());
 	}
 
 	@Test
@@ -145,6 +147,43 @@ class CommandBackedAssistantResultApplicatorTest {
 		assertThat(finding.getState()).isEqualTo(AssistantFindingState.DROPPED.name());
 		assertThat(finding.getClosedAt()).isEqualTo(Instant.parse("2026-05-29T00:00:00Z"));
 		verify(findingRepository).save(finding);
+	}
+
+	@Test
+	void staleFindingIsSupersededUnderMarkSupersededPolicy() {
+		// A prior ACTIVE finding on the analyzed goal that this (empty) run does not
+		// re-report is marked SUPERSEDED, with its annotation left in place.
+		AssistantFindingEntity stale = new AssistantFindingEntity(UUID.randomUUID(),
+				"legacy-lexical:Goal:1:old", "legacy-lexical", "Goal", 1L, "unknown-word",
+				AssistantFindingState.ACTIVE.name(), UUID.randomUUID(),
+				Instant.parse("2026-05-20T00:00:00Z"));
+		stale.setAppliedAnnotationId(99L);
+		when(findingRepository.findByAssistantIdAndTargetTypeAndTargetIdAndState("legacy-lexical",
+				"Goal", 1L, AssistantFindingState.ACTIVE.name())).thenReturn(List.of(stale));
+
+		AssistantResult result = AssistantResult.builder().assistantId("legacy-lexical").build();
+
+		newApplicator().apply(context(), result, CleanupPolicy.MARK_SUPERSEDED,
+				EntityRef.of("Goal", 1L));
+
+		assertThat(stale.getState()).isEqualTo(AssistantFindingState.SUPERSEDED.name());
+		assertThat(stale.getSupersededByRunId()).isNotNull();
+		assertThat(stale.getClosedAt()).isEqualTo(Instant.parse("2026-05-29T00:00:00Z"));
+		assertThat(stale.getAppliedAnnotationId()).isEqualTo(99L); // annotation left intact
+		verify(findingRepository).save(stale);
+		// SUPERSEDED never touches annotations.
+		verifyNoInteractions(annotationCommandFactory);
+	}
+
+	@Test
+	void manualPolicyLeavesStaleFindingsUntouched() {
+		// Under MANUAL the applicator does not query or transition prior findings.
+		AssistantResult result = AssistantResult.builder().assistantId("legacy-lexical").build();
+
+		newApplicator().apply(context(), result, CleanupPolicy.MANUAL, EntityRef.of("Goal", 1L));
+
+		verifyNoInteractions(findingRepository);
+		verifyNoInteractions(annotationCommandFactory);
 	}
 
 	private static AssistantContext context() {

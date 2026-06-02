@@ -142,14 +142,18 @@ transition code; no cleanup policy.
 > `source` / `assistant_idempotency_key` column mapping + key-based dedupe; the
 > `AUTO_RESOLVE_IF_UNTOUCHED` reconciliation in the applicator
 > (`reconcileStaleFindings` / `autoResolveIfUntouched` / `isUntouched`), with the four lexical
-> adapters opted in and end-to-end coverage; and the `MANUALLY_RESOLVED` transition via the
+> adapters opted in and end-to-end coverage; the `MANUALLY_RESOLVED` transition via the
 > `FindingResolutionTrackingCommandHandler` chain decorator (a human resolving an
-> assistant-raised issue moves its finding `ACTIVE → MANUALLY_RESOLVED`).
+> assistant-raised issue moves its finding `ACTIVE → MANUALLY_RESOLVED`); the
+> `SUPERSEDED` transition for the default `MARK_SUPERSEDED` policy (`reconcileStaleFindings`
+> now stamps stale findings `SUPERSEDED` + `superseded_by_run_id`, leaving the annotation in
+> place); and the RESOLVE / DELETE / REMOVE action types in the applicator
+> (`applyCleanupAction`, transitioning the finding to `DROPPED` / `AUTO_RESOLVED`).
 >
-> Still to do (tracked as follow-up slices): the explicit `SUPERSEDED` transition for the
-> `MARK_SUPERSEDED` policy; the deferred RESOLVE / DELETE / REMOVE action types in the
-> applicator's `applyAction`; and the `removeUnneededLexicalIssues` + glossary-term-referer
-> project-edit parity. `DROPPED` is available in the state enum but not yet emitted.
+> Still to do (tracked as follow-up slices): the `removeUnneededLexicalIssues` +
+> glossary-term-referer project-edit parity. The finding state machine itself
+> (`ACTIVE → SUPERSEDED / AUTO_RESOLVED / MANUALLY_RESOLVED / DROPPED / ACTIVE(touched)`) is
+> now complete.
 >
 > **Known issue — cross-assistant lexical-word collision: RESOLVED.** Originally the
 > applicator deduped `LEXICAL` issues by word, so glossary's 3-arg `findLexicalIssue` (no

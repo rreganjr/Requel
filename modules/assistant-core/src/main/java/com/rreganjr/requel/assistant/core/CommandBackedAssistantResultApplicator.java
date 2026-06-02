@@ -225,7 +225,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 
 		bumpFindingsCount(context.runId(), newFindings);
 		reconcileStaleFindings(result.assistantId(), cleanupPolicy, dispatchTarget,
-				producedKeysByTarget, editedBy);
+				producedKeysByTarget, editedBy, context.runId());
 		return new AppliedAssistantResult(annotationIds.size(), annotationIds);
 	}
 
@@ -683,28 +683,35 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 
 	/**
 	 * Reconcile previously-recorded {@code ACTIVE} findings for this assistant
-	 * against what the current run produced. Only runs when the assistant opts
-	 * into {@link CleanupPolicy#AUTO_RESOLVE_IF_UNTOUCHED}; the default
-	 * {@link CleanupPolicy#MARK_SUPERSEDED} (and {@link CleanupPolicy#MANUAL})
-	 * leave stale findings untouched here.
+	 * against what the current run produced. Behaviour depends on the assistant's
+	 * {@link CleanupPolicy}:
+	 * <ul>
+	 * <li>{@link CleanupPolicy#AUTO_RESOLVE_IF_UNTOUCHED} — remove the annotation and
+	 * mark the finding {@code AUTO_RESOLVED}, but only if it is still assistant-owned
+	 * and untouched by a human (see {@link #autoResolveIfUntouched}).</li>
+	 * <li>{@link CleanupPolicy#MARK_SUPERSEDED} (the default) — mark the finding
+	 * {@code SUPERSEDED} (stamped with {@code superseded_by_run_id} = this run) and
+	 * leave the annotation in place; the finding is kept for history.</li>
+	 * <li>{@link CleanupPolicy#MANUAL} — never auto-transition; operator-managed.</li>
+	 * </ul>
 	 *
 	 * <p>
 	 * Reconciliation is per target entity. The set of targets to check is the
 	 * union of every entity this run raised an action against and the original
-	 * dispatch target (so a re-run that produces <em>no</em> actions still clears
-	 * out the prior findings on the entity that was analyzed). For each prior
+	 * dispatch target (so a re-run that produces <em>no</em> actions still reconciles
+	 * the prior findings on the entity that was analyzed). For each prior
 	 * {@code ACTIVE} finding on a target whose idempotency key the current run did
-	 * not re-emit, {@link #autoResolveIfUntouched} removes the annotation and
-	 * marks the finding {@code AUTO_RESOLVED} — but only if the annotation is still
-	 * assistant-owned and untouched by a human.
+	 * not re-emit, the policy-specific transition is applied.
 	 */
 	private void reconcileStaleFindings(String assistantId, CleanupPolicy cleanupPolicy,
 			EntityRef dispatchTarget, Map<EntityRef, Set<String>> producedKeysByTarget,
-			User editedBy) {
-		if (cleanupPolicy != CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED) {
+			User editedBy, UUID runId) {
+		if (cleanupPolicy != CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED
+				&& cleanupPolicy != CleanupPolicy.MARK_SUPERSEDED) {
+			// MANUAL (or any future operator-managed policy): leave findings as-is.
 			return;
 		}
-		Set<EntityRef> targets = new HashSet<EntityRef>(producedKeysByTarget.keySet());
+		Set<EntityRef> targets = new HashSet<>(producedKeysByTarget.keySet());
 		if (dispatchTarget != null) {
 			targets.add(dispatchTarget);
 		}
@@ -719,9 +726,27 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 				if (producedKeys.contains(finding.getIdempotencyKey())) {
 					continue;
 				}
-				autoResolveIfUntouched(finding, target, editedBy);
+				if (cleanupPolicy == CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED) {
+					autoResolveIfUntouched(finding, target, editedBy);
+				} else {
+					markSuperseded(finding, runId);
+				}
 			}
 		}
+	}
+
+	/**
+	 * Mark a stale finding {@code SUPERSEDED}: record the run that superseded it and
+	 * close it, leaving its annotation untouched. Used by the default
+	 * {@link CleanupPolicy#MARK_SUPERSEDED} when a re-run no longer reports the finding.
+	 */
+	private void markSuperseded(AssistantFindingEntity finding, UUID runId) {
+		finding.setState(AssistantFindingState.SUPERSEDED.name());
+		if (runId != null) {
+			finding.setSupersededByRunId(runId.toString());
+		}
+		finding.setClosedAt(clock.instant());
+		findingRepository.save(finding);
 	}
 
 	/**
