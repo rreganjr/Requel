@@ -175,6 +175,16 @@ public class InProcessProjectQueryGateway implements ProjectQueryGateway {
 		return matches;
 	}
 
+	@Override
+	public Map<String, Object> getProjectContext(String projectName) {
+		Map<String, Object> context = new LinkedHashMap<>();
+		context.put("project", getProject(projectName));
+		context.put("tree", getProjectTree(projectName));
+		context.put("glossary", getGlossaryTerms(projectName));
+		context.put("openIssues", getOpenIssues(projectName));
+		return context;
+	}
+
 	@SuppressWarnings("unchecked")
 	private <T> void addMatches(List<EntityReferenceDto> out, String entityType,
 			ResponseEntity<?> response, Function<T, Long> idFn, Function<T, String> nameFn,

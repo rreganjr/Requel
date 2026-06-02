@@ -80,7 +80,11 @@ public class McpReadService {
 						entityRefSchema()),
 				new McpToolDescriptor("requel.searchProjectEntities",
 						"Search a project's entities by name (case-insensitive substring).",
-						searchSchema())));
+						searchSchema()),
+				new McpToolDescriptor("requel.getProjectContext",
+						"Read a composite context bundle for a project (summary, tree, glossary,"
+								+ " open issues).",
+						projectNameSchema())));
 	}
 
 	public Map<String, Object> callTool(JsonNode params) {
@@ -107,6 +111,8 @@ public class McpReadService {
 					requiredLong(arguments, "entityId"));
 			case "requel.searchProjectEntities" -> projectQueryGateway.searchProjectEntities(
 					requiredText(arguments, "projectName"), requiredText(arguments, "query"));
+			case "requel.getProjectContext" -> projectQueryGateway.getProjectContext(
+					requiredText(arguments, "projectName"));
 			default -> throw new McpInvalidParamsException("Unknown MCP tool: " + name);
 		};
 		return Map.of("content", List.of(new McpTextContent("text", toJson(result))),
@@ -123,6 +129,10 @@ public class McpReadService {
 				new McpResourceDescriptor("requel://projects/{projectName}/open-issues",
 						"Project open issues",
 						"Unresolved issues across a project's entities (template URI)",
+						JSON_MIME_TYPE),
+				new McpResourceDescriptor("requel://projects/{projectName}/context",
+						"Project context bundle",
+						"Project summary, tree, glossary, and open issues (template URI)",
 						JSON_MIME_TYPE)));
 	}
 
@@ -150,6 +160,9 @@ public class McpReadService {
 		}
 		if (remainder.endsWith("/open-issues")) {
 			return projectQueryGateway.getOpenIssues(stripSuffix(remainder, "/open-issues"));
+		}
+		if (remainder.endsWith("/context")) {
+			return projectQueryGateway.getProjectContext(stripSuffix(remainder, "/context"));
 		}
 		return projectQueryGateway.getProject(remainder);
 	}

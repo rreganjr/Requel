@@ -66,4 +66,10 @@ public interface ProjectQueryGateway {
 	 * name contains {@code query} (case-insensitive), as {@link EntityReferenceDto}s.
 	 */
 	List<EntityReferenceDto> searchProjectEntities(String projectName, String query);
+
+	/**
+	 * A composite context bundle for a project: its summary, content tree, glossary, and open
+	 * issues — keyed {@code project} / {@code tree} / {@code glossary} / {@code openIssues}.
+	 */
+	Map<String, Object> getProjectContext(String projectName);
 }
