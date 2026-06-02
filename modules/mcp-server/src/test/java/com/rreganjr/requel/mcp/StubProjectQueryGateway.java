@@ -24,6 +24,7 @@ import java.util.List;
 
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
+import com.rreganjr.requel.service.api.dto.GoalDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
@@ -60,6 +61,12 @@ class StubProjectQueryGateway implements ProjectQueryGateway {
 	@Override
 	public AnnotationsDto getAnnotations(String projectName, String entityType, long entityId) {
 		return new AnnotationsDto(List.of(), List.of());
+	}
+
+	@Override
+	public Object getEntity(String projectName, String entityType, long entityId) {
+		return new GoalDto(entityId, 1, "Improve login", "Make login faster", "admin",
+				List.of(), List.of(), List.of());
 	}
 
 	private ProjectDto project() {

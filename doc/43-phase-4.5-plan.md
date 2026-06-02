@@ -227,11 +227,14 @@ Problem (review gap #6): ~3 of 12 surfaces implemented.
 > glossary (`requel.getGlossary` + `requel://projects/{name}/glossary`), open-issues
 > (`requel.getOpenIssues` + `requel://projects/{name}/open-issues`), and entity annotations
 > (`requel.getAnnotations` tool). These delegate through new `ProjectQueryGateway` methods to
-> `ProjectQueryController.listTerms` / `getOpenIssues` and `AnnotationQueryController`. Still
-> to do: `requel.getEntity` / `requel.getEntityNeighbors` (single entity + neighbors),
-> `requel.searchProjectEntities` and `requel.getProjectContext` (need new controller query
-> methods), and `requel.draftAnnotation` (returns an `AnnotationAction` draft — needs an
-> `assistant-api` dependency on `mcp-server`, which it does not have today).
+> `ProjectQueryController.listTerms` / `getOpenIssues` and `AnnotationQueryController`. Also
+> landed: `requel.getEntity` — reads one entity (Goal / Story / Actor / UseCase / Scenario /
+> GlossaryTerm) by type + id, routing through the gateway to the existing per-entity
+> controller getters (unknown type -> `-32602`). Still to do: `requel.getEntityNeighbors`
+> (an entity's related entities), `requel.searchProjectEntities` and
+> `requel.getProjectContext` (need new controller query methods), and
+> `requel.draftAnnotation` (returns an `AnnotationAction` draft — needs an `assistant-api`
+> dependency on `mcp-server`, which it does not have today).
 
 ## Deferred to Phase 5+ (explicitly out of scope here)
 

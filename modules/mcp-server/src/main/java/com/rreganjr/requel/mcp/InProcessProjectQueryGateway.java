@@ -88,6 +88,20 @@ public class InProcessProjectQueryGateway implements ProjectQueryGateway {
 		return unwrap(annotationQueryController.getAnnotations(projectName, entityType, entityId));
 	}
 
+	@Override
+	public Object getEntity(String projectName, String entityType, long entityId) {
+		ResponseEntity<?> response = switch (entityType) {
+			case "Goal" -> projectQueryController.getGoal(projectName, entityId);
+			case "Story" -> projectQueryController.getStory(projectName, entityId);
+			case "Actor" -> projectQueryController.getActor(projectName, entityId);
+			case "UseCase" -> projectQueryController.getUseCase(projectName, entityId);
+			case "Scenario" -> projectQueryController.getScenario(projectName, entityId);
+			case "GlossaryTerm" -> projectQueryController.getTerm(projectName, entityId);
+			default -> throw new McpInvalidParamsException("Unsupported entity type: " + entityType);
+		};
+		return unwrap(response);
+	}
+
 	private <T> T unwrap(ResponseEntity<?> response, Class<T> bodyType) {
 		Object body = unwrap(response);
 		if (!bodyType.isInstance(body)) {

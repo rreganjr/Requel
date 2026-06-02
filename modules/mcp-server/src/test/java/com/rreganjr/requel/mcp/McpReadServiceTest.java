@@ -98,6 +98,20 @@ class McpReadServiceTest {
 	}
 
 	@Test
+	void callsGetEntityTool() {
+		Map<String, Object> response = service.callTool(json("""
+				{
+				  "name": "requel.getEntity",
+				  "arguments": { "projectName": "Sample", "entityType": "Goal", "entityId": 10 }
+				}
+				"""));
+
+		JsonNode content = objectMapper.valueToTree(response.get("content"));
+		assertThat(content.get(0).path("text").asText()).contains("\"name\" : \"Improve login\"");
+		assertThat(response.get("isError")).isEqualTo(false);
+	}
+
+	@Test
 	void readsOpenIssuesResource() {
 		Map<String, Object> response = service.readResource(json("""
 				{ "uri": "requel://projects/Sample/open-issues" }

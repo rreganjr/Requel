@@ -70,7 +70,11 @@ public class McpReadService {
 						projectNameSchema()),
 				new McpToolDescriptor("requel.getAnnotations",
 						"Read the notes and issues attached to one entity (by type and id).",
-						entityAnnotationsSchema())));
+						entityRefSchema()),
+				new McpToolDescriptor("requel.getEntity",
+						"Read one entity (Goal, Story, Actor, UseCase, Scenario, or GlossaryTerm)"
+								+ " by type and id.",
+						entityRefSchema())));
 	}
 
 	public Map<String, Object> callTool(JsonNode params) {
@@ -87,6 +91,9 @@ public class McpReadService {
 			case "requel.getOpenIssues" -> projectQueryGateway.getOpenIssues(requiredText(
 					arguments, "projectName"));
 			case "requel.getAnnotations" -> projectQueryGateway.getAnnotations(
+					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
+					requiredLong(arguments, "entityId"));
+			case "requel.getEntity" -> projectQueryGateway.getEntity(
 					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
 					requiredLong(arguments, "entityId"));
 			default -> throw new McpInvalidParamsException("Unknown MCP tool: " + name);
@@ -146,7 +153,7 @@ public class McpReadService {
 				"required", List.of("projectName"), "additionalProperties", false);
 	}
 
-	private Map<String, Object> entityAnnotationsSchema() {
+	private Map<String, Object> entityRefSchema() {
 		return Map.of("type", "object",
 				"properties", Map.of(
 						"projectName", Map.of("type", "string"),

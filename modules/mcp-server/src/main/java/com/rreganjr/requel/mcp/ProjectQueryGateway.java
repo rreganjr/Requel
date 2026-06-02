@@ -44,4 +44,10 @@ public interface ProjectQueryGateway {
 
 	/** Notes and issues attached to one annotatable entity in the project. */
 	AnnotationsDto getAnnotations(String projectName, String entityType, long entityId);
+
+	/**
+	 * Read one entity (Goal / Story / Actor / UseCase / Scenario / GlossaryTerm) by its
+	 * domain-interface simple name and id, returning the corresponding detail DTO.
+	 */
+	Object getEntity(String projectName, String entityType, long entityId);
 }
