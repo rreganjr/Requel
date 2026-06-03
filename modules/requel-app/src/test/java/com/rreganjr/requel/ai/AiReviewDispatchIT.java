@@ -37,6 +37,7 @@ import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.assistant.core.AssistantRunWorker;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunRepository;
+import com.rreganjr.requel.assistant.core.persistence.AssistantUsageRepository;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.command.EditGoalCommand;
@@ -53,10 +54,16 @@ public class AiReviewDispatchIT extends AbstractIntegrationTestCase {
 	private AiReviewService aiReviewService;
 	private AssistantRunWorker assistantRunWorker;
 	private AssistantRunRepository assistantRunRepository;
+	private AssistantUsageRepository assistantUsageRepository;
 
 	@Autowired
 	protected void setAiReviewService(AiReviewService aiReviewService) {
 		this.aiReviewService = aiReviewService;
+	}
+
+	@Autowired
+	protected void setAssistantUsageRepository(AssistantUsageRepository assistantUsageRepository) {
+		this.assistantUsageRepository = assistantUsageRepository;
 	}
 
 	@Autowired
@@ -113,6 +120,11 @@ public class AiReviewDispatchIT extends AbstractIntegrationTestCase {
 				.orElseThrow(() -> new AssertionError("review run row vanished"));
 		assertEquals("SUCCEEDED", completed.getStatus(),
 				"the AI requirements review run (Noop provider) should succeed");
+
+		// Usage telemetry is recorded for the run (Noop reports a usage row).
+		assertEquals(false,
+				assistantUsageRepository.findByRunId(queued.getRunId().toString()).isEmpty(),
+				"an assistant_usages row should be recorded for the review run");
 	}
 
 	@Test

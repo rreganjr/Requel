@@ -98,7 +98,13 @@ is folded into the OpenAI wiring slice rather than shipped here.
   `REQUIREMENTS_REVIEW` `AnalysisRequest` for a given entity (authorized as the triggering
   user). Integration test drives manual trigger → run → (Noop) result.
 
-### 5. Usage persistence + input cap + output bounds
+### 5. Usage persistence + input cap + output bounds (landed)
+
+`RequirementsReviewAssistant` now persists an `AssistantUsageEntity` per call from
+`AiAnalysisResponse.usage` (provider/model/tokens/cost/latency; bodies not captured by
+default), refuses oversize input (estimated tokens from serialized context-pack length vs
+`requel.ai.maxInputTokens`) with a warning instead of calling the provider, and caps each
+AI-suggested annotation text to 4000 chars before it reaches the applicator (which also caps).
 
 - Persist an `AssistantUsageEntity` per run from `AiAnalysisResponse.usage`
   (provider/model/tokens/latency/cost); body capture per the retention flags (metadata-only by

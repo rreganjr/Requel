@@ -20,10 +20,12 @@
  */
 package com.rreganjr.requel.assistant.ai;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +33,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 
 import com.rreganjr.requel.assistant.api.AnnotationAction;
@@ -42,6 +45,8 @@ import com.rreganjr.requel.assistant.api.EvidenceRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
 import com.rreganjr.requel.assistant.core.context.EntityContextPack;
 import com.rreganjr.requel.assistant.core.context.EntityContextPackBuilder;
+import com.rreganjr.requel.assistant.core.persistence.AssistantUsageEntity;
+import com.rreganjr.requel.assistant.core.persistence.AssistantUsageRepository;
 import com.rreganjr.requel.project.TextEntity;
 
 /**
@@ -77,16 +82,37 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	static final String OUTPUT_SCHEMA_NAME = "RequirementsReviewOutput";
 	static final String OUTPUT_SCHEMA_VERSION = "1";
 
+	/** Upper bound on each AI-suggested annotation text, so oversize output is bounded before
+	 * it reaches the applicator (which also caps). */
+	static final int MAX_ANNOTATION_TEXT = 4000;
+
+	/** Rough chars-per-token used to estimate input size against {@code maxInputTokens}. */
+	private static final int CHARS_PER_TOKEN_ESTIMATE = 4;
+
 	private final AiAnalysisClient aiAnalysisClient;
 	private final EntityContextPackBuilder entityContextPackBuilder;
 	private final AiProperties aiProperties;
+	private final AssistantUsageRepository usageRepository;
+	private final ObjectMapper objectMapper;
+	private final Clock clock;
 
 	@Autowired
 	public RequirementsReviewAssistant(AiAnalysisClient aiAnalysisClient,
-			EntityContextPackBuilder entityContextPackBuilder, AiProperties aiProperties) {
+			EntityContextPackBuilder entityContextPackBuilder, AiProperties aiProperties,
+			AssistantUsageRepository usageRepository, ObjectMapper objectMapper) {
+		this(aiAnalysisClient, entityContextPackBuilder, aiProperties, usageRepository, objectMapper,
+				Clock.systemUTC());
+	}
+
+	RequirementsReviewAssistant(AiAnalysisClient aiAnalysisClient,
+			EntityContextPackBuilder entityContextPackBuilder, AiProperties aiProperties,
+			AssistantUsageRepository usageRepository, ObjectMapper objectMapper, Clock clock) {
 		this.aiAnalysisClient = aiAnalysisClient;
 		this.entityContextPackBuilder = entityContextPackBuilder;
 		this.aiProperties = aiProperties;
+		this.usageRepository = usageRepository;
+		this.objectMapper = objectMapper;
+		this.clock = clock;
 	}
 
 	@Override
@@ -121,17 +147,33 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 		EntityContextPack pack = entityContextPackBuilder.build(target);
 		EntityRef targetRef = EntityRef.of(target.getProjectOrDomainEntityInterface().getSimpleName(),
 				target.getId());
-		// Placeholder schema node until the REQUIREMENTS_REVIEW JSON schema resource lands
-		// (next-but-one slice); the request contract requires a non-null outputSchema.
-		AiAnalysisRequest request = new AiAnalysisRequest(ASSISTANT_ID, context.runId(), TASK_TYPE,
-				targetRef, context.projectRef(), context.locale(), List.of(pack),
-				OUTPUT_SCHEMA_NAME, OUTPUT_SCHEMA_VERSION, NullNode.getInstance(), Map.of(),
-				context.attributes());
+		List<Object> contextPacks = List.of(pack);
 
 		AssistantResult.Builder result = AssistantResult.builder().assistantId(ASSISTANT_ID)
 				.runId(context.runId());
+
+		// Refuse oversize input rather than send it to the provider (review concern #5).
+		int estimatedInputTokens = estimateInputTokens(contextPacks);
+		if (estimatedInputTokens > aiProperties.getMaxInputTokens()) {
+			log.info("Skipping AI review for run {}: estimated {} input tokens exceeds cap {}",
+					context.runId(), estimatedInputTokens, aiProperties.getMaxInputTokens());
+			return result.summary("Context exceeds the configured AI input cap; review skipped.")
+					.message(AssistantMessage.warning("Estimated " + estimatedInputTokens
+							+ " input tokens exceeds requel.ai.maxInputTokens="
+							+ aiProperties.getMaxInputTokens()))
+					.build();
+		}
+
+		// Placeholder schema node until the REQUIREMENTS_REVIEW JSON schema resource lands
+		// (OpenAI wiring slice); the request contract requires a non-null outputSchema.
+		AiAnalysisRequest request = new AiAnalysisRequest(ASSISTANT_ID, context.runId(), TASK_TYPE,
+				targetRef, context.projectRef(), context.locale(), contextPacks,
+				OUTPUT_SCHEMA_NAME, OUTPUT_SCHEMA_VERSION, NullNode.getInstance(), Map.of(),
+				context.attributes());
+
 		try {
 			AiAnalysisResponse response = aiAnalysisClient.analyze(request);
+			persistUsage(context.runId(), response.usage());
 			result.summary(response.summary());
 			if (response.messages() != null) {
 				response.messages().forEach(result::message);
@@ -151,6 +193,46 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	}
 
 	/**
+	 * Estimate the input size (in tokens) of the context packs from their serialized JSON
+	 * length. Best-effort: if serialization fails the estimate is {@code 0} so a serialization
+	 * hiccup never blocks a run on its own.
+	 */
+	private int estimateInputTokens(List<Object> contextPacks) {
+		try {
+			int chars = objectMapper.writeValueAsString(contextPacks).length();
+			return chars / CHARS_PER_TOKEN_ESTIMATE;
+		} catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
+			log.warn("Could not estimate AI input size: {}", e.getMessage());
+			return 0;
+		}
+	}
+
+	/**
+	 * Persist one {@link AssistantUsageEntity} for the run from the provider's usage telemetry
+	 * (provider / model / tokens / cost / latency). Bodies are not captured by default. Best
+	 * effort: a persistence failure is logged, never failing the run.
+	 */
+	private void persistUsage(UUID runId, AiUsage usage) {
+		if (usage == null) {
+			return;
+		}
+		try {
+			AssistantUsageEntity entity = new AssistantUsageEntity(UUID.randomUUID(), runId,
+					clock.instant());
+			entity.setProvider(usage.provider());
+			entity.setModel(usage.model());
+			entity.setInputTokens(usage.inputTokens());
+			entity.setOutputTokens(usage.outputTokens());
+			entity.setCachedInputTokens(usage.cachedInputTokens());
+			entity.setCostEstimate(usage.costEstimate());
+			entity.setLatencyMs(usage.latency() == null ? null : usage.latency().toMillis());
+			usageRepository.save(entity);
+		} catch (RuntimeException e) {
+			log.warn("Failed to persist AI usage for run {}: {}", runId, e.getMessage(), e);
+		}
+	}
+
+	/**
 	 * Map one AI finding to annotation actions: {@code suggestedIssueText} →
 	 * {@code CREATE_OR_UPDATE_ISSUE} (carrying the finding's severity / confidence / type and
 	 * any metadata) with its {@code suggestedPositions} as child positions; and
@@ -162,8 +244,8 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	private void mapFinding(AssistantResult.Builder result, EntityRef targetRef,
 			AiFindingDraft finding) {
 		List<EvidenceRef> evidence = evidenceRefs(finding.evidenceReferences());
-		String issueText = trimToNull(finding.suggestedIssueText());
-		String noteText = trimToNull(finding.suggestedNoteText());
+		String issueText = boundedText(finding.suggestedIssueText());
+		String noteText = boundedText(finding.suggestedNoteText());
 
 		if (issueText != null) {
 			String issueKey = actionKey(targetRef, "issue", finding.findingType(), issueText);
@@ -177,7 +259,7 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 					AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, targetRef, null, issueText,
 					finding.severity(), finding.confidence(), evidence, issueMeta));
 			for (String position : finding.suggestedPositions()) {
-				String positionText = trimToNull(position);
+				String positionText = boundedText(position);
 				if (positionText == null) {
 					continue;
 				}
@@ -228,8 +310,14 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 		return Integer.toHexString(text.hashCode());
 	}
 
-	private static String trimToNull(String text) {
-		return text == null || text.isBlank() ? null : text;
+	/** Trim to {@code null} when blank, otherwise cap to {@link #MAX_ANNOTATION_TEXT}. */
+	private static String boundedText(String text) {
+		if (text == null || text.isBlank()) {
+			return null;
+		}
+		String trimmed = text.strip();
+		return trimmed.length() <= MAX_ANNOTATION_TEXT ? trimmed
+				: trimmed.substring(0, MAX_ANNOTATION_TEXT);
 	}
 
 	/**

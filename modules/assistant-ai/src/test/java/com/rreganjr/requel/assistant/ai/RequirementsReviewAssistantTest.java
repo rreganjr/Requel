@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -41,14 +42,18 @@ import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.assistant.core.context.EntityContextPack;
 import com.rreganjr.requel.assistant.core.context.EntityContextPackBuilder;
+import com.rreganjr.requel.assistant.core.persistence.AssistantUsageRepository;
 import com.rreganjr.requel.project.TextEntity;
 
 class RequirementsReviewAssistantTest {
 
 	private final EntityContextPackBuilder packBuilder = mock(EntityContextPackBuilder.class);
 	private final RecordingAiClient aiClient = new RecordingAiClient();
+	private final AssistantUsageRepository usageRepository = mock(AssistantUsageRepository.class);
+	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Test
 	void handlesOnlyRequirementsReviewTask() {
@@ -99,8 +104,22 @@ class RequirementsReviewAssistantTest {
 		assertThat(aiClient.lastRequest.taskType()).isEqualTo("REQUIREMENTS_REVIEW");
 		assertThat(aiClient.lastRequest.assistantId()).isEqualTo("ai-requirements-review");
 		assertThat(result.summary()).isEqualTo("noop summary");
-		// Mapping AiFindingDrafts -> AnnotationActions is a later slice; none yet.
+		assertThat(result.annotationActions()).isEmpty(); // the canned response has no findings
+		verify(usageRepository).save(any()); // usage telemetry is persisted on a successful call
+	}
+
+	@Test
+	void skipsProviderWhenContextExceedsInputCap() {
+		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		AiProperties props = enabledProperties();
+		props.setMaxInputTokens(-1); // force any estimate to exceed the cap
+
+		AssistantResult result = newAssistant(props)
+				.analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
+
+		assertThat(aiClient.calls).isZero();
 		assertThat(result.annotationActions()).isEmpty();
+		assertThat(result.messages()).anyMatch(m -> m.text().contains("maxInputTokens"));
 	}
 
 	@Test
@@ -142,7 +161,8 @@ class RequirementsReviewAssistantTest {
 	}
 
 	private RequirementsReviewAssistant newAssistant(AiProperties properties) {
-		return new RequirementsReviewAssistant(aiClient, packBuilder, properties);
+		return new RequirementsReviewAssistant(aiClient, packBuilder, properties, usageRepository,
+				objectMapper);
 	}
 
 	private static AiProperties enabledProperties() {
