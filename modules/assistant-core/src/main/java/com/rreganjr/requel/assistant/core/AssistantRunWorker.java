@@ -91,8 +91,8 @@ public class AssistantRunWorker {
 
 			Object target = targetValue.get();
 			AssistantContext context = new AssistantContext(runId, request.triggeringUser(),
-					request.assistantUser(), request.projectRef(), request.locale(), clock,
-					request.attributes());
+					request.assistantUser(), request.projectRef(), request.taskType(),
+					request.locale(), clock, request.attributes());
 			List<RequelAssistant<?>> assistants = assistantRegistry.findAssistantsFor(target,
 					context);
 			if (assistants.isEmpty()) {

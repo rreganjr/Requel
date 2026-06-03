@@ -43,8 +43,9 @@ class AssistantRunWorkerTest {
 		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
 		AssistantRunRecord record = runStore.queueRun(request());
 		RecordingApplicator applicator = new RecordingApplicator();
+		StringAssistant assistant = new StringAssistant();
 		AssistantRunWorker worker = new AssistantRunWorker(runStore,
-				new SimpleAssistantRegistry(List.of(new StringAssistant())), applicator,
+				new SimpleAssistantRegistry(List.of(assistant)), applicator,
 				List.of(new StringTargetLoader()));
 
 		worker.runInNewTransaction(record.runId());
@@ -53,6 +54,8 @@ class AssistantRunWorkerTest {
 				updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED));
 		assertThat(applicator.appliedResults).hasSize(1);
 		assertThat(applicator.appliedResults.get(0).assistantId()).isEqualTo("string-assistant");
+		// The run's task type is threaded into the AssistantContext the assistant sees.
+		assertThat(assistant.seenTaskType).isEqualTo("REQUIREMENTS_REVIEW");
 	}
 
 	private AnalysisRequest request() {
@@ -74,6 +77,8 @@ class AssistantRunWorkerTest {
 	}
 
 	private static final class StringAssistant implements RequelAssistant<String> {
+		private String seenTaskType;
+
 		@Override
 		public String assistantId() {
 			return "string-assistant";
@@ -86,6 +91,7 @@ class AssistantRunWorkerTest {
 
 		@Override
 		public AssistantResult analyze(AssistantContext context, String target) {
+			this.seenTaskType = context.taskType();
 			return AssistantResult.builder().assistantId(assistantId()).runId(context.runId())
 					.summary(target).build();
 		}
