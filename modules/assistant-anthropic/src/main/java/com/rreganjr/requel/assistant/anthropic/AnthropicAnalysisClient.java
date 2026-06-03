@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.assistant.openai;
+package com.rreganjr.requel.assistant.anthropic;
 
 import java.io.IOException;
 import java.net.URI;
@@ -53,21 +53,34 @@ import com.rreganjr.requel.assistant.ai.AiUsage;
 import com.rreganjr.requel.assistant.api.AssistantMessage;
 
 /**
- * OpenAI Responses API implementation of {@link AiAnalysisClient}.
+ * Anthropic (Claude) Messages API implementation of {@link AiAnalysisClient}.
  *
- * <p>The client uses OpenAI Structured Outputs through {@code text.format}
- * with a caller-supplied JSON schema. It still validates the returned JSON
- * enough for Requel's provider-neutral contract before handing it to
- * assistant/application code.</p>
+ * <p>
+ * Structured JSON is obtained with a single forced tool: the caller-supplied output schema is
+ * registered as the tool's {@code input_schema} and {@code tool_choice} forces Claude to call it,
+ * so the model's reply is a {@code tool_use} block whose {@code input} is JSON conforming to the
+ * schema. This is the most stable way to get guaranteed-shape JSON from the raw Messages API. The
+ * result is validated against Requel's provider-neutral contract before being handed to
+ * assistant/application code.
+ *
+ * <p>
+ * Selected by {@code requel.ai.provider=anthropic}; mutually exclusive with the OpenAI and Noop
+ * clients (see {@code NoopAiAnalysisClient}).
  */
 @Component
-@ConditionalOnProperty(prefix = "requel.ai", name = "provider", havingValue = "openai")
-public class OpenAiAnalysisClient implements AiAnalysisClient {
+@ConditionalOnProperty(prefix = "requel.ai", name = "provider", havingValue = "anthropic")
+public class AnthropicAnalysisClient implements AiAnalysisClient {
 
-	private static final String PROVIDER = "openai";
+	private static final String PROVIDER = "anthropic";
 
-	/** Default Responses endpoint used when {@code requel.ai.endpoint} is left blank. */
-	static final String DEFAULT_ENDPOINT = "https://api.openai.com/v1/responses";
+	/** Default Messages endpoint used when {@code requel.ai.endpoint} is left blank. */
+	static final String DEFAULT_ENDPOINT = "https://api.anthropic.com/v1/messages";
+
+	/** Anthropic requires an explicit API version header. */
+	static final String ANTHROPIC_VERSION = "2023-06-01";
+
+	/** Name of the forced tool that carries the structured output. */
+	static final String TOOL_NAME = "requel_structured_output";
 
 	private final AiProperties properties;
 	private final ObjectMapper objectMapper;
@@ -75,13 +88,13 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 	private final Clock clock;
 
 	@Autowired
-	public OpenAiAnalysisClient(AiProperties properties, ObjectMapper objectMapper) {
+	public AnthropicAnalysisClient(AiProperties properties, ObjectMapper objectMapper) {
 		this(properties, objectMapper, HttpClient.newBuilder()
 				.connectTimeout(properties.getTimeout())
 				.build(), Clock.systemUTC());
 	}
 
-	OpenAiAnalysisClient(AiProperties properties, ObjectMapper objectMapper,
+	AnthropicAnalysisClient(AiProperties properties, ObjectMapper objectMapper,
 			HttpClient httpClient, Clock clock) {
 		this.properties = Objects.requireNonNull(properties, "properties");
 		this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
@@ -94,7 +107,7 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 		Objects.requireNonNull(request, "request");
 		String apiKey = resolveApiKey();
 		if (apiKey == null || apiKey.isBlank()) {
-			throw new AiAnalysisException("OpenAI API key is not configured");
+			throw new AiAnalysisException("Anthropic API key is not configured");
 		}
 		Instant startedAt = clock.instant();
 		JsonNode payload = requestPayload(request);
@@ -112,39 +125,33 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 	private JsonNode requestPayload(AiAnalysisRequest request) {
 		ObjectNode root = objectMapper.createObjectNode();
 		root.put("model", properties.getModel());
-		root.put("instructions", instructions(request));
-		root.put("max_output_tokens", properties.getMaxOutputTokens());
+		root.put("max_tokens", properties.getMaxOutputTokens());
+		root.put("system", instructions(request));
 
-		ArrayNode input = root.putArray("input");
-		ObjectNode message = input.addObject();
+		ArrayNode messages = root.putArray("messages");
+		ObjectNode message = messages.addObject();
 		message.put("role", "user");
-		ArrayNode content = message.putArray("content");
-		content.addObject()
-				.put("type", "input_text")
-				.put("text", prompt(request));
+		message.put("content", prompt(request));
 
-		ObjectNode text = root.putObject("text");
-		ObjectNode format = text.putObject("format");
-		format.put("type", "json_schema");
-		format.put("name", request.outputSchemaName());
-		format.put("strict", true);
-		format.set("schema", request.outputSchema());
+		ArrayNode tools = root.putArray("tools");
+		ObjectNode tool = tools.addObject();
+		tool.put("name", TOOL_NAME);
+		tool.put("description",
+				"Emit the requirements-review result as JSON matching the provided schema ("
+						+ request.outputSchemaName() + ").");
+		tool.set("input_schema", request.outputSchema());
 
-		ObjectNode metadata = root.putObject("metadata");
-		metadata.put("assistant_id", request.assistantId());
-		metadata.put("run_id", request.runId().toString());
-		metadata.put("task_type", request.taskType());
-		metadata.put("target_type", request.targetRef().entityType());
-		metadata.put("target_id", String.valueOf(request.targetRef().entityId()));
-		metadata.put("project_id", String.valueOf(request.projectRef().entityId()));
+		ObjectNode toolChoice = root.putObject("tool_choice");
+		toolChoice.put("type", "tool");
+		toolChoice.put("name", TOOL_NAME);
 		return root;
 	}
 
 	private String instructions(AiAnalysisRequest request) {
 		return """
-				You are a Requel requirements analysis assistant. Return only JSON matching
-				the supplied schema. Findings are drafts for reviewable Requel annotations;
-				do not invent commands that directly mutate project data.
+				You are a Requel requirements analysis assistant. Use the supplied tool to return
+				only JSON matching its schema. Findings are drafts for reviewable Requel
+				annotations; do not invent commands that directly mutate project data.
 				"""
 				+ "\nTask type: " + request.taskType()
 				+ "\nLocale: " + request.locale().toLanguageTag();
@@ -177,7 +184,7 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 		try {
 			body = objectMapper.writeValueAsString(payload);
 		} catch (JsonProcessingException e) {
-			throw new AiAnalysisException("Could not serialize OpenAI request", e);
+			throw new AiAnalysisException("Could not serialize Anthropic request", e);
 		}
 		int maxAttempts = Math.max(1, properties.getMaxRetries() + 1);
 		AiAnalysisException lastFailure = null;
@@ -185,7 +192,8 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 			try {
 				HttpRequest httpRequest = HttpRequest.newBuilder(URI.create(resolveEndpoint()))
 						.timeout(properties.getTimeout())
-						.header("Authorization", "Bearer " + apiKey)
+						.header("x-api-key", apiKey)
+						.header("anthropic-version", ANTHROPIC_VERSION)
 						.header("Content-Type", "application/json")
 						.POST(HttpRequest.BodyPublishers.ofString(body))
 						.build();
@@ -194,22 +202,22 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 				if (response.statusCode() >= 200 && response.statusCode() < 300) {
 					return response;
 				}
-				lastFailure = new AiAnalysisException("OpenAI request failed with HTTP "
+				lastFailure = new AiAnalysisException("Anthropic request failed with HTTP "
 						+ response.statusCode() + ": " + response.body());
 				if (!isRetryable(response.statusCode()) || attempt == maxAttempts) {
 					throw lastFailure;
 				}
 			} catch (IOException e) {
-				lastFailure = new AiAnalysisException("OpenAI request failed", e);
+				lastFailure = new AiAnalysisException("Anthropic request failed", e);
 				if (attempt == maxAttempts) {
 					throw lastFailure;
 				}
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
-				throw new AiAnalysisException("OpenAI request interrupted", e);
+				throw new AiAnalysisException("Anthropic request interrupted", e);
 			}
 		}
-		throw lastFailure == null ? new AiAnalysisException("OpenAI request failed") : lastFailure;
+		throw lastFailure == null ? new AiAnalysisException("Anthropic request failed") : lastFailure;
 	}
 
 	private static boolean isRetryable(int statusCode) {
@@ -220,56 +228,42 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 		try {
 			return objectMapper.readTree(body);
 		} catch (JsonProcessingException e) {
-			throw new AiAnalysisException("OpenAI response was not JSON", e);
+			throw new AiAnalysisException("Anthropic response was not JSON", e);
 		}
 	}
 
 	private JsonNode extractStructuredOutput(JsonNode response) throws AiAnalysisException {
-		JsonNode error = response.path("error");
-		if (error.isObject() && !error.isEmpty()) {
-			throw new AiAnalysisException("OpenAI response error: " + error.path("message")
-					.asText(error.toString()));
+		if ("error".equals(response.path("type").asText())) {
+			throw new AiAnalysisException("Anthropic response error: "
+					+ response.path("error").path("message").asText(response.toString()));
 		}
-		String status = response.path("status").asText("completed");
-		if (!"completed".equals(status)) {
-			throw new AiAnalysisException("OpenAI response was not completed: " + status);
-		}
-		for (JsonNode outputItem : response.path("output")) {
-			for (JsonNode contentItem : outputItem.path("content")) {
-				if ("output_text".equals(contentItem.path("type").asText())) {
-					return parseStructuredText(contentItem.path("text").asText());
+		for (JsonNode contentItem : response.path("content")) {
+			if ("tool_use".equals(contentItem.path("type").asText())
+					&& TOOL_NAME.equals(contentItem.path("name").asText())) {
+				JsonNode input = contentItem.path("input");
+				if (input.isObject()) {
+					return input;
 				}
 			}
 		}
-		JsonNode outputText = response.path("output_text");
-		if (outputText.isTextual()) {
-			return parseStructuredText(outputText.asText());
-		}
-		throw new AiAnalysisException("OpenAI response did not contain output_text content");
-	}
-
-	private JsonNode parseStructuredText(String text) throws AiAnalysisException {
-		try {
-			return objectMapper.readTree(text);
-		} catch (JsonProcessingException e) {
-			throw new AiAnalysisException("OpenAI output_text did not contain structured JSON", e);
-		}
+		throw new AiAnalysisException(
+				"Anthropic response did not contain a " + TOOL_NAME + " tool_use block");
 	}
 
 	private static void validateStructuredOutput(JsonNode structuredOutput)
 			throws AiAnalysisException {
 		if (!structuredOutput.isObject()) {
-			throw new AiAnalysisException("OpenAI structured output must be a JSON object");
+			throw new AiAnalysisException("Anthropic structured output must be a JSON object");
 		}
 		if (!structuredOutput.path("summary").isTextual()) {
-			throw new AiAnalysisException("OpenAI structured output missing textual summary");
+			throw new AiAnalysisException("Anthropic structured output missing textual summary");
 		}
 		if (!structuredOutput.path("findings").isArray()) {
-			throw new AiAnalysisException("OpenAI structured output missing findings array");
+			throw new AiAnalysisException("Anthropic structured output missing findings array");
 		}
 		for (JsonNode finding : structuredOutput.path("findings")) {
 			if (!finding.path("findingType").isTextual()) {
-				throw new AiAnalysisException("OpenAI structured finding missing findingType");
+				throw new AiAnalysisException("Anthropic structured finding missing findingType");
 			}
 		}
 	}
@@ -278,8 +272,7 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 		JsonNode usage = response.path("usage");
 		Integer inputTokens = integerOrNull(usage, "input_tokens");
 		Integer outputTokens = integerOrNull(usage, "output_tokens");
-		Integer cachedInputTokens = integerOrNull(usage.path("input_tokens_details"),
-				"cached_tokens");
+		Integer cachedInputTokens = integerOrNull(usage, "cache_read_input_tokens");
 		return new AiUsage(PROVIDER, response.path("model").asText(properties.getModel()),
 				inputTokens, outputTokens, cachedInputTokens, latency, null);
 	}
@@ -290,10 +283,8 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 		metadata.put("provider", PROVIDER);
 		metadata.put("httpStatus", httpResponse.statusCode());
 		putIfPresent(metadata, "responseId", response.path("id"));
-		putIfPresent(metadata, "status", response.path("status"));
+		putIfPresent(metadata, "stopReason", response.path("stop_reason"));
 		putIfPresent(metadata, "model", response.path("model"));
-		JsonNode incompleteReason = response.path("incomplete_details").path("reason");
-		putIfPresent(metadata, "incompleteReason", incompleteReason);
 		return metadata;
 	}
 

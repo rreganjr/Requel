@@ -4,21 +4,26 @@ This guide explains how to turn on Requel's AI requirements‑review assistant, 
 assumes **no prior experience** with API keys, environment variables, or Spring configuration —
 every step is spelled out. If you already know a step, skip ahead.
 
+Requel can use **one** AI provider at a time. This guide covers both supported providers —
+**OpenAI** and **Anthropic (Claude)** — and you pick one. Everything is configured with
+**environment variables**, so there is nothing to edit inside the application's configuration
+files.
+
 By the end you will have:
 
-1. An OpenAI account and an API key.
-2. That key stored safely on the machine that runs Requel.
-3. Requel configured to use the AI assistant.
+1. An account and an API key with your chosen provider (OpenAI or Anthropic).
+2. That key stored safely as an environment variable on the machine that runs Requel.
+3. A small set of `REQUEL_AI_*` environment variables that turn the assistant on.
 4. A working test that confirms the assistant runs.
 
 ---
 
 ## 1. What this feature does (and what it costs)
 
-Requel can ask an external AI model (OpenAI) to **review a requirement** — a goal, story, actor,
-use case, scenario, or step — and report quality problems such as ambiguity, missing detail, or
-untestable wording. Those findings are attached to the entity as discussion **issues** and
-**notes**, exactly like the findings the built‑in checks produce.
+Requel can ask an external AI model to **review a requirement** — a goal, story, actor, use case,
+scenario, or step — and report quality problems such as ambiguity, missing detail, or untestable
+wording. Those findings are attached to the entity as discussion **issues** and **notes**, exactly
+like the findings the built‑in checks produce.
 
 A few things to understand before you start:
 
@@ -26,189 +31,160 @@ A few things to understand before you start:
   network until you deliberately turn it on.
 - **It only runs when explicitly asked.** The assistant does **not** run automatically every time
   someone edits a requirement. It runs only when a "requirements review" is requested for a
-  specific entity (see [Section 6](#6-using-the-assistant)).
-- **It sends data to OpenAI.** When a review runs, the text of the entity (and a small amount of
-  surrounding context) is sent to OpenAI's servers to be analyzed. Do not enable this for projects
-  whose contents may not leave your organization without approval.
-- **It costs money.** OpenAI charges per use, based on the amount of text sent and received. Costs
-  are usually small per review, but they are not zero. You control spending limits in your OpenAI
-  account, and Requel records how many tokens each review used.
+  specific entity (see [Section 5](#5-using-the-assistant)).
+- **It sends data to your AI provider.** When a review runs, the text of the entity (and a small
+  amount of surrounding context) is sent to OpenAI's or Anthropic's servers to be analyzed. Do not
+  enable this for projects whose contents may not leave your organization without approval.
+- **It costs money.** Providers charge per use, based on the amount of text sent and received.
+  Costs are usually small per review, but they are not zero. You control spending limits in your
+  provider account, and Requel records how many tokens each review used.
 
 ---
 
-## 2. Create an OpenAI account and an API key
+## 2. Pick a provider, then create an account and API key
 
-An **API key** is a long secret password that lets a program (Requel) talk to OpenAI on your
-behalf. Treat it like a password: anyone who has it can spend money on your account.
+**Keep the key secret.** Never paste your API key into the Requel UI, a chat message, a Git
+commit, a screenshot, or anywhere public. The steps below store it as an *environment variable*,
+which keeps it out of Requel's configuration files.
 
-1. Go to **https://platform.openai.com** in a web browser and sign in, or create an account if you
-   don't have one. Note that this is the *developer platform*, which is separate from the ChatGPT
-   consumer product — you need a platform account here.
-2. Add a payment method and, ideally, a spending limit: open **Settings → Billing**, add a card,
-   and under **Limits** set a monthly budget you're comfortable with. This caps what Requel can
-   ever spend.
-3. Open the **API keys** page (find it under your account menu, usually **Dashboard → API keys**,
-   or go directly to **https://platform.openai.com/api-keys**).
-4. Click **Create new secret key**. Give it a name like `requel` so you remember what it's for.
-5. **Copy the key immediately** and paste it somewhere safe (a password manager is ideal). OpenAI
-   shows the full key **only once**. It looks like `sk-...` followed by a long string of letters
-   and numbers. If you lose it, you can't see it again — you'd just create a new one.
+Follow **2a** for OpenAI **or** **2b** for Anthropic — whichever you'll use.
 
-You'll also need to pick a **model** — the specific AI engine that does the work. Different models
-trade off cost, speed, and quality. You can see the available models and their prices on the
-OpenAI platform under **Docs → Models** (or **https://platform.openai.com/docs/models**). Pick a
-current general‑purpose model id; you'll paste that id into Requel's configuration in
-[Section 5](#5-configure-requel). If you're not sure, start with one of OpenAI's smaller, cheaper
-models — you can change it later by editing one line of configuration.
+### 2a. OpenAI
 
-> **Keep the key secret.** Never paste your API key into the Requel UI, a chat message, a Git
-> commit, a screenshot, or anywhere public. The steps below store it as an *environment variable*,
-> which keeps it out of Requel's configuration files.
+1. Go to **https://platform.openai.com** and sign in or create an account. This is the *developer
+   platform*, separate from the ChatGPT consumer product — you need a platform account here.
+2. Add a payment method and a spending limit under **Settings → Billing → Limits**. This caps what
+   Requel can ever spend.
+3. Open **https://platform.openai.com/api-keys** and click **Create new secret key**. Name it
+   `requel`.
+4. **Copy the key immediately** (it starts with `sk-`) and store it somewhere safe — OpenAI shows
+   it only once.
+5. Pick a model id from **https://platform.openai.com/docs/models** (start with a smaller, cheaper
+   general‑purpose model if unsure). You'll use this as `REQUEL_AI_MODEL`.
 
----
+### 2b. Anthropic (Claude)
 
-## 3. What an environment variable is
-
-An **environment variable** is a named value that the operating system holds in memory and hands
-to programs when they start. It's a standard way to give a program a secret (like an API key)
-*without writing the secret into any file the program reads*.
-
-Requel expects your key in an environment variable named **`OPENAI_API_KEY`**. When Requel starts,
-it looks for that variable and uses whatever value it finds.
-
-The next section shows how to set it on each operating system.
+1. Go to **https://console.anthropic.com** and sign in or create an account.
+2. Add a payment method and a spending limit under the **Billing / Limits** settings. This caps
+   what Requel can ever spend.
+3. Open the **API keys** page in the console and click **Create Key**. Name it `requel`.
+4. **Copy the key immediately** (it starts with `sk-ant-`) and store it somewhere safe — the
+   console shows it only once.
+5. Pick a model id from **https://docs.claude.com/en/docs/about-claude/models** (a current Claude
+   model). You'll use this as `REQUEL_AI_MODEL`.
 
 ---
 
-## 4. Store your API key as an environment variable
+## 3.Turn the assistant on with environment variables
 
-Pick the section for your operating system. In every example, replace
-`sk-your-key-goes-here` with the actual key you copied in Section 2.
+Requel reads all of its AI settings from environment variables whose names start with
+**`REQUEL_AI_`**. When Requel starts, it looks them up and configures itself accordingly. (Spring,
+the framework underneath Requel, automatically maps an environment variable like
+`REQUEL_AI_API_KEY` onto its internal setting `requel.ai.api-key` — you don't need to know the
+internal names.)
+
+Environment variables are only read **when the app starts**, so after changing any of them you
+must **restart** Requel.
+
+Set the variables below, then restart Requel. Use the block for your chosen provider; the variable
+*names* are identical for both — only `REQUEL_AI_PROVIDER`, `REQUEL_AI_MODEL`, and the key value
+differ. That's the whole point of the unified `REQUEL_AI_API_KEY`: switching providers means
+changing three values, not learning a new variable name.
+
+### The variables
+
+| Variable | Required? | What to set it to |
+| --- | --- | --- |
+| `REQUEL_AI_ENABLED` | yes | `true` to turn the assistant on. |
+| `REQUEL_AI_PROVIDER` | yes | `openai` or `anthropic` (or `noop` to test the plumbing with no network calls). |
+| `REQUEL_AI_MODEL` | yes | The model id you chose in Section 2. |
+| `REQUEL_AI_API_KEY` | yes | Your provider API key (the `sk-...` / `sk-ant-...` value). |
+| `REQUEL_AI_ENDPOINT` | no | Leave unset — each provider uses its correct default URL. Set only for a proxy/gateway. |
+| `REQUEL_AI_PROJECT_ALLOWLIST` | no | Comma‑separated project ids allowed to use AI. Unset = all projects. |
 
 ### macOS / Linux (Terminal)
 
-The most reliable approach is to set the variable in the **same terminal session** where you'll
-start Requel, right before you start it:
+Set the variables in the **same terminal session** where you'll start Requel. For **OpenAI**:
 
 ```bash
-export OPENAI_API_KEY="sk-your-key-goes-here"
+export REQUEL_AI_ENABLED=true
+export REQUEL_AI_PROVIDER=openai
+export REQUEL_AI_MODEL=<your-openai-model-id>
+export REQUEL_AI_API_KEY="sk-your-openai-key"
 ```
 
-This lasts only for that terminal window. To make it permanent, add the same line to your shell
-startup file — `~/.zshrc` on modern macOS, or `~/.bashrc` on most Linux systems:
+For **Anthropic**, only the provider, model, and key change:
 
 ```bash
-echo 'export OPENAI_API_KEY="sk-your-key-goes-here"' >> ~/.zshrc
-source ~/.zshrc
+export REQUEL_AI_ENABLED=true
+export REQUEL_AI_PROVIDER=anthropic
+export REQUEL_AI_MODEL=<your-claude-model-id>
+export REQUEL_AI_API_KEY="sk-ant-your-anthropic-key"
 ```
 
-Confirm it worked (this should print your key):
+To make them permanent, add the same `export` lines to `~/.zshrc` (modern macOS) or `~/.bashrc`
+(most Linux), then run `source ~/.zshrc`. Confirm with:
 
 ```bash
-echo $OPENAI_API_KEY
+echo $REQUEL_AI_PROVIDER $REQUEL_AI_MODEL
+echo $REQUEL_AI_API_KEY
 ```
 
 ### Windows (PowerShell)
 
-For the current PowerShell window only:
+For the current window (OpenAI shown; swap the three values for Anthropic):
 
 ```powershell
-$env:OPENAI_API_KEY = "sk-your-key-goes-here"
+$env:REQUEL_AI_ENABLED = "true"
+$env:REQUEL_AI_PROVIDER = "openai"
+$env:REQUEL_AI_MODEL = "<your-openai-model-id>"
+$env:REQUEL_AI_API_KEY = "sk-your-openai-key"
 ```
 
-To set it permanently for your user account (takes effect in *new* windows):
-
-```powershell
-setx OPENAI_API_KEY "sk-your-key-goes-here"
-```
-
-Close and reopen PowerShell, then confirm:
-
-```powershell
-echo $env:OPENAI_API_KEY
-```
+To persist for your user account (takes effect in *new* windows), use `setx` for each, e.g.
+`setx REQUEL_AI_API_KEY "sk-your-openai-key"`, then reopen PowerShell.
 
 ### Docker / docker‑compose
 
-If you run Requel with `docker-compose up`, pass the key into the container by adding it under the
-app service's `environment:` section in `docker-compose.yml`:
+Add the variables under the app service's `environment:` section in `docker-compose.yml`:
 
 ```yaml
 services:
   app:
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - REQUEL_AI_ENABLED=true
-      - REQUEL_AI_PROVIDER=openai
-      - REQUEL_AI_MODEL=<the-model-id-you-chose>
+      - REQUEL_AI_PROVIDER=openai            # or: anthropic
+      - REQUEL_AI_MODEL=${REQUEL_AI_MODEL}
+      - REQUEL_AI_API_KEY=${REQUEL_AI_API_KEY}
 ```
 
-The `${OPENAI_API_KEY}` syntax pulls the value from your shell's environment (set as in the macOS/
-Linux steps above) so the secret still isn't written into the file. Spring maps the uppercase
-`REQUEL_AI_*` variables onto the `requel.ai.*` properties described next.
+The `${...}` syntax pulls each value from your shell's environment so the secret isn't written
+into the file.
 
-> **Advanced (optional).** If you can't use an environment variable, you can instead set
-> `requel.ai.apiKey` directly (see the next section). This is **not recommended** because the key
-> ends up in a configuration file. If you do, never commit that file to Git.
+> You do **not** need to edit `application.properties`. The defaults there leave the assistant off;
+> these environment variables override them at startup. (If you ever must keep a vendor‑specific
+> key variable name like `OPENAI_API_KEY`, set `REQUEL_AI_API_KEY_ENVIRONMENT_VARIABLE` to that
+> name and Requel will read the key from it instead.)
+
+After setting the variables, **restart Requel**. On startup you should see a log line confirming
+the assistant is active, including the provider and model (never the key):
+
+```
+AI requirements-review assistant enabled (provider=openai, model=..., projectAllowlist=all projects)
+```
 
 ---
 
-## 5. Configure Requel
+## 5. Using the assistant
 
-Requel's settings live in
-`modules/requel-app/src/main/resources/application.properties`. The AI block is already there,
-disabled, with comments. Open the file in any text editor and set these three values:
-
-```properties
-requel.ai.enabled=true
-requel.ai.provider=openai
-requel.ai.model=<the-model-id-you-chose-in-section-2>
-```
-
-That's the minimum. With `OPENAI_API_KEY` set (Section 4) and these three lines, the assistant is
-ready.
-
-### All available settings
-
-Every setting has a sensible default; you only need to override the ones you care about.
-
-| Property | Default | What it does |
-| --- | --- | --- |
-| `requel.ai.enabled` | `false` | Master switch. Must be `true` to register the assistant at all. |
-| `requel.ai.provider` | `noop` | `openai` uses the real OpenAI API. `noop` (the default) is a built‑in stub that returns no findings — useful for testing the plumbing without spending money. |
-| `requel.ai.model` | `noop` | The OpenAI model id (e.g. the id you chose in Section 2). Required when `provider=openai`. |
-| `requel.ai.apiKeyEnvironmentVariable` | `OPENAI_API_KEY` | The name of the environment variable Requel reads the key from. Change only if you stored the key under a different name. |
-| `requel.ai.apiKey` | *(empty)* | A direct key value. Leave empty and use the environment variable instead (see the note above). |
-| `requel.ai.endpoint` | `https://api.openai.com/v1/responses` | The OpenAI API URL. Change only for a proxy or compatible gateway. |
-| `requel.ai.timeout` | `30s` | How long to wait for a response before giving up. |
-| `requel.ai.maxRetries` | `2` | How many times to retry on a temporary network/server error. |
-| `requel.ai.maxInputTokens` | `16000` | Safety cap on how much text is sent. If an entity's context is larger, the review is skipped with a warning instead of running up a large bill. |
-| `requel.ai.maxOutputTokens` | `4000` | Cap on how much the model may write back. |
-| `requel.ai.projectAllowlist` | *(empty = all projects)* | An optional list of project ids permitted to use AI. Empty means every project may. To restrict it, list ids comma‑separated, e.g. `requel.ai.projectAllowlist=12,34`. A project not on a non‑empty list has its reviews skipped. |
-
-> **Where the key actually comes from.** With the defaults, Requel reads
-> `requel.ai.apiKeyEnvironmentVariable` (which is `OPENAI_API_KEY`) and looks up that environment
-> variable at runtime. So setting the `OPENAI_API_KEY` environment variable in Section 4 is what
-> supplies the key — you do not put the key in `application.properties`.
-
-After editing the file, rebuild and restart Requel for the changes to take effect (see the project
-README / `CLAUDE.md` for the exact build and run commands).
-
----
-
-## 6. Using the assistant
-
-The assistant runs only when a review is **explicitly requested** for one entity. Reviews are
-triggered through the API endpoint `POST /api/ai/reviews`.
-
-Reviewable entity types are: **Goal, Story, Actor, UseCase, Scenario, Step**.
+The assistant runs only when a review is **explicitly requested** for one entity, via the API
+endpoint `POST /api/ai/reviews`. Reviewable entity types are: **Goal, Story, Actor, UseCase,
+Scenario, Step**.
 
 Because this endpoint lives under `/api/**`, it requires you to be logged in. Logging in returns a
-**token** that you include on the review request. Here is the full sequence with `curl` (a command
-line tool for making web requests; it's preinstalled on macOS and Linux, and available on Windows):
+**token** that you include on the review request. Full sequence with `curl`:
 
-1. **Log in** to get a token. Replace the username/password with your Requel credentials (the
-   default development login is `admin` / `admin`):
+1. **Log in** to get a token (default development login is `admin` / `admin`):
 
    ```bash
    curl -X POST http://localhost:8080/api/auth/login \
@@ -216,88 +192,118 @@ line tool for making web requests; it's preinstalled on macOS and Linux, and ava
      -d '{"username":"admin","password":"admin"}'
    ```
 
-   The response includes a `token` field — a long string. Copy its value.
+   Copy the `token` value from the response.
 
-2. **Request a review** for a specific entity, pasting the token after `Bearer `. Set
-   `entityType` to one of the reviewable types and `entityId` to the entity's numeric id:
+2. **Request a review** for a specific entity. Set `entityType` to one of the reviewable types and
+   `entityId` to the entity's numeric id:
 
    ```bash
-   curl -X POST "http://localhost:8080/api/ai/reviews?entityType=Goal&entityId=123" \
+   curl -i -X POST "http://localhost:8080/api/ai/reviews?entityType=UseCase&entityId=2" \
      -H "Authorization: Bearer PASTE_YOUR_TOKEN_HERE"
    ```
 
-   A successful request returns **HTTP 202 Accepted**, meaning the review was accepted and runs in
-   the background. If the entity id doesn't exist you'll get **404 Not Found**; if you lack access
-   to that entity's project you'll get **403 Forbidden**.
+   A successful request returns **HTTP 202 Accepted**; the review then runs in the background.
+   `404 Not Found` means no such entity; `403 Forbidden` means you lack access to that entity's
+   project; `401 Unauthorized` means the token is missing or expired.
 
-3. **See the results** in Requel: open the goal (or other entity) in the UI and look at its
-   discussion / annotations. The AI‑generated issues and notes appear there once the background
-   review finishes.
+3. **See the results** in Requel: open the entity in the UI and look at its discussion /
+   annotations. The AI‑generated issues and notes appear there once the review finishes.
 
-**Who is allowed to run a review.** You can review an entity only if you're either a system
-administrator or a stakeholder on that entity's project. This is enforced on top of the optional
-`projectAllowlist` setting.
+**Who is allowed to run a review.** You can review an entity only if you're a system administrator
+or a stakeholder on that entity's project. This is enforced on top of the optional
+`REQUEL_AI_PROJECT_ALLOWLIST`.
 
 ---
 
-## 7. Verifying your setup
+## 6. Verifying your setup
 
-Work through these in order:
-
-1. **App starts cleanly.** Start Requel. If `requel.ai.enabled=true` but the key is missing or the
-   model is wrong, the app still starts — failures surface only when a review is actually run.
-2. **Trigger a review** on a known entity using the steps in Section 6 and confirm you get
-   `202 Accepted`.
+1. **App starts and logs the assistant line** (Section 4). If you don't see it, `REQUEL_AI_ENABLED`
+   isn't `true` in the environment that launched Requel.
+2. **Trigger a review** (Section 5) and confirm **202 Accepted**.
 3. **Check the entity's annotations** in the UI for new AI‑sourced issues/notes after a few
    seconds.
-4. **Confirm a usage record was written.** Each successful review records a row in the
-   `assistant_usages` table (provider, model, token counts, estimated cost, latency). Seeing a row
-   there confirms the call reached OpenAI and returned.
+4. **Confirm the provider call succeeded** by checking the `assistant_usages` table — each
+   successful review records a row with the provider, model, token counts, estimated cost, and
+   latency:
 
-There is also an automated end‑to‑end test that calls the live OpenAI API:
-`OpenAiAnalysisClientLiveIT` in the `assistant-openai` module. It is **skipped unless**
-`OPENAI_API_KEY` is present in the environment, so it never runs (or fails) in CI without a key.
-To run it yourself, set the key (and optionally `OPENAI_MODEL` to override the default model) and
-run the module's tests with `mvn clean verify`.
+   ```sql
+   SELECT provider, model, input_tokens, output_tokens, cost_estimate, latency_ms
+   FROM assistant_usages ORDER BY id DESC LIMIT 1;
+   ```
+
+   The `provider` should match what you configured (`openai` or `anthropic`). A failed call writes
+   **no** row, so a stale `noop` row from an earlier test is a sign the latest run errored — check
+   the log.
+
+Each provider module also has a live end‑to‑end test that is **skipped unless** its key is present:
+`OpenAiAnalysisClientLiveIT` (gated on `OPENAI_API_KEY`) and `AnthropicAnalysisClientLiveIT` (gated
+on `ANTHROPIC_API_KEY`). These let you exercise the real API from a build without affecting CI.
 
 ---
 
-## 8. Troubleshooting
+## 7. Troubleshooting
+
+**The startup log shows `provider=noop`, or the usage row says `noop`.**
+`REQUEL_AI_PROVIDER` wasn't set to `openai`/`anthropic` in the environment that launched Requel, so
+the built‑in stub is active. Confirm the variable, then restart.
 
 **Reviews return 202 but no annotations appear.**
-The review runs in the background, so give it a few seconds. If nothing ever appears, check the
-application logs for an AI error, and confirm `requel.ai.provider=openai` (the default `noop`
-provider intentionally produces no findings).
+The review runs in the background — give it a few seconds. If nothing ever appears, check the
+application log for a `RequirementsReviewAssistant` warning.
 
 **Log mentions a missing API key.**
-The `OPENAI_API_KEY` environment variable isn't visible to the running app. Confirm it with
-`echo $OPENAI_API_KEY` (macOS/Linux) or `echo $env:OPENAI_API_KEY` (Windows) **in the same
-session/context that launched Requel**. A common mistake is setting it in one terminal but starting
-Requel from another. For Docker, confirm the variable is passed into the container.
+`REQUEL_AI_API_KEY` isn't visible to the running app. Confirm with `echo $REQUEL_AI_API_KEY`
+(macOS/Linux) **in the same session that launched Requel** — a common mistake is setting it in one
+terminal but starting Requel from another. For Docker, confirm it's passed into the container.
+
+**HTTP 429 `insufficient_quota` / quota or billing errors.**
+Your provider account is out of credits, has no payment method, or the key was disabled. Check your
+provider's billing page. This is not a Requel problem.
 
 **Reviews are skipped with a "maxInputTokens" warning.**
-The entity's context was larger than `requel.ai.maxInputTokens`. This is the cost guardrail doing
-its job. Raise the limit only if you understand it means sending (and paying for) more text.
+The entity's context was larger than the input cap (`REQUEL_AI_MAX_INPUT_TOKENS`, default 16000).
+This is the cost guardrail working. Raise it only if you accept sending (and paying for) more text.
 
 **403 Forbidden when requesting a review.**
 Either your user isn't a stakeholder/admin on that entity's project, or the project isn't on a
-non‑empty `requel.ai.projectAllowlist`. Check both.
+non‑empty `REQUEL_AI_PROJECT_ALLOWLIST`.
 
 **401 Unauthorized.**
-Your login token is missing, malformed, or expired. Log in again (Section 6, step 1) and reuse the
-fresh token. Tokens expire after the configured `requel.jwt.expiry-hours` (8 hours by default).
+Your login token is missing or expired (tokens last `requel.jwt.expiry-hours`, 8h by default). Log
+in again and reuse the fresh token.
 
-**Authentication / OpenAI billing errors in the log.**
-The key may be revoked, or your OpenAI account may have hit its spending limit or have no payment
-method. Check your account at **https://platform.openai.com**.
+**Wrong model id.**
+If `REQUEL_AI_MODEL` isn't a real model for the selected provider, the call returns a provider
+error (a `warn` in the log) rather than a usage row. Re‑check the id against the provider's model
+list.
 
 ---
 
-## 9. Turning it back off
+## 8. Turning it back off
 
-Set `requel.ai.enabled=false` in `application.properties` and restart. The assistant is no longer
-registered and no data is sent to OpenAI. You can leave the `OPENAI_API_KEY` environment variable
-in place; it's simply unused while the feature is off.
+Set `REQUEL_AI_ENABLED=false` (or unset it) and restart. The assistant is no longer registered and
+no data is sent to any provider. You can leave the other variables in place; they're simply unused
+while the feature is off.
+
+---
+
+## 9. Full settings reference
+
+Set these as environment variables (the `requel.ai.*` form is the internal Spring property name).
+
+| Environment variable | Property | Default | What it does |
+| --- | --- | --- | --- |
+| `REQUEL_AI_ENABLED` | `requel.ai.enabled` | `false` | Master switch. Must be `true` to register the assistant. |
+| `REQUEL_AI_PROVIDER` | `requel.ai.provider` | `noop` | Selects the client: `openai`, `anthropic`, or `noop` (stub, no network). Exactly one is active. |
+| `REQUEL_AI_MODEL` | `requel.ai.model` | `noop` | Model id for the chosen provider. |
+| `REQUEL_AI_API_KEY` | `requel.ai.api-key` | *(empty)* | API key for the chosen provider. Read from this variable by default. |
+| `REQUEL_AI_API_KEY_ENVIRONMENT_VARIABLE` | `requel.ai.api-key-environment-variable` | `REQUEL_AI_API_KEY` | Name of the env var the key is read from. Change only to reuse a vendor‑specific name. |
+| `REQUEL_AI_ENDPOINT` | `requel.ai.endpoint` | *(blank)* | API URL. Blank = each provider's default (OpenAI Responses / Anthropic Messages). Set for a proxy. |
+| `REQUEL_AI_TIMEOUT` | `requel.ai.timeout` | `30s` | Per‑request timeout. |
+| `REQUEL_AI_MAX_RETRIES` | `requel.ai.max-retries` | `2` | Retries on a temporary (429/5xx) error. |
+| `REQUEL_AI_MAX_INPUT_TOKENS` | `requel.ai.max-input-tokens` | `16000` | Safety cap on input size; oversize reviews are skipped with a warning. |
+| `REQUEL_AI_MAX_OUTPUT_TOKENS` | `requel.ai.max-output-tokens` | `4000` | Cap on how much the model may write back. |
+| `REQUEL_AI_PROJECT_ALLOWLIST` | `requel.ai.project-allowlist` | *(empty = all)* | CSV of project ids permitted to use AI. |
 
 ---
 

@@ -248,6 +248,7 @@
         <module>modules/assistant-core</module>
         <module>modules/assistant-ai</module>
         <module>modules/assistant-openai</module>
+        <module>modules/assistant-anthropic</module>
         <module>modules/assistant-legacy-nlp</module>
         <module>modules/mcp-server</module>
         <module>modules/service-impl</module>

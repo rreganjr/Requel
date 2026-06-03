@@ -34,8 +34,8 @@ public class AiProperties {
 	private String provider = "noop";
 	private String model = "noop";
 	private String apiKey;
-	private String apiKeyEnvironmentVariable = "OPENAI_API_KEY";
-	private String endpoint = "https://api.openai.com/v1/responses";
+	private String apiKeyEnvironmentVariable = "REQUEL_AI_API_KEY";
+	private String endpoint = "";
 	private Duration timeout = Duration.ofSeconds(30);
 	private int maxRetries = 2;
 	private int maxInputTokens = 16000;

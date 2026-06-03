@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -36,9 +36,20 @@ import com.rreganjr.requel.assistant.api.AssistantMessage;
 /**
  * Deterministic local/default client. It performs no network work and returns
  * a valid empty structured response so AI call sites can be tested safely.
+ *
+ * <p>
+ * Active unless an external provider is selected. This is gated on
+ * {@code requel.ai.provider} (default/missing or {@code noop}) rather than
+ * {@code @ConditionalOnMissingBean}, because component-scanned beans are registered in an
+ * undefined order — the missing-bean check could run before a provider client (e.g.
+ * {@link com.rreganjr.requel.assistant.openai.OpenAiAnalysisClient OpenAiAnalysisClient}, gated
+ * on {@code requel.ai.provider=openai}) is registered, leaving two {@code AiAnalysisClient}
+ * beans and an ambiguous injection. The property conditions are mutually exclusive, so exactly
+ * one client exists.
  */
 @Component
-@ConditionalOnMissingBean(AiAnalysisClient.class)
+@ConditionalOnProperty(prefix = "requel.ai", name = "provider", havingValue = "noop",
+		matchIfMissing = true)
 public class NoopAiAnalysisClient implements AiAnalysisClient {
 
 	private final AiProperties properties;

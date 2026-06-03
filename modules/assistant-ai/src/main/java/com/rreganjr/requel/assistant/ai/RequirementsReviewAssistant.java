@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.assistant.ai;
 
+import jakarta.annotation.PostConstruct;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Clock;
@@ -137,6 +139,20 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 					OUTPUT_SCHEMA_RESOURCE, e.getMessage(), e);
 			return NullNode.getInstance();
 		}
+	}
+
+	/**
+	 * Confirms at startup that the AI requirements-review assistant is active. This bean only
+	 * exists when {@code requel.ai.enabled=true}, so its presence is the signal; it logs the
+	 * provider and model (never the API key) so operators can verify the wiring from the boot log.
+	 */
+	@PostConstruct
+	void logStartupState() {
+		List<String> allowlist = aiProperties.getProjectAllowlist();
+		log.info(
+				"AI requirements-review assistant enabled (provider={}, model={}, projectAllowlist={})",
+				aiProperties.getProvider(), aiProperties.getModel(),
+				allowlist == null || allowlist.isEmpty() ? "all projects" : allowlist);
 	}
 
 	@Override

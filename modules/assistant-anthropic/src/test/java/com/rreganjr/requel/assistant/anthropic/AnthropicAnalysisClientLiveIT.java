@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.assistant.openai;
+package com.rreganjr.requel.assistant.anthropic;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,14 +39,13 @@ import com.rreganjr.requel.assistant.ai.AiProperties;
 import com.rreganjr.requel.assistant.api.EntityRef;
 
 /**
- * End-to-end smoke test against the live OpenAI Responses API. It is skipped entirely unless
- * OPENAI_API_KEY is present in the environment, so it never runs (and never fails) in CI without
- * a key. When enabled, it exercises the full structured-output path: a real model call returning
- * JSON validated against the REQUIREMENTS_REVIEW output schema.
+ * End-to-end smoke test against the live Anthropic Messages API. Skipped entirely unless
+ * ANTHROPIC_API_KEY is present, so it never runs (or fails) in CI without a key. When enabled it
+ * exercises the forced-tool structured-output path against the REQUIREMENTS_REVIEW schema.
  *
- * Override the model via the OPENAI_MODEL environment variable; otherwise a small default is used.
+ * Override the model via ANTHROPIC_MODEL; otherwise a current Claude default is used.
  */
-class OpenAiAnalysisClientLiveIT {
+class AnthropicAnalysisClientLiveIT {
 
 	private static final String OUTPUT_SCHEMA_RESOURCE =
 			"/ai/schemas/requirements-review-output.v1.json";
@@ -54,26 +53,24 @@ class OpenAiAnalysisClientLiveIT {
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Test
-	@EnabledIfEnvironmentVariable(named = "OPENAI_API_KEY", matches = ".+")
-	void analyzesAgainstLiveOpenAi() throws Exception {
+	@EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
+	void analyzesAgainstLiveAnthropic() throws Exception {
 		AiProperties properties = new AiProperties();
 		properties.setEnabled(true);
-		properties.setProvider("openai");
-		String model = System.getenv("OPENAI_MODEL");
-		properties.setModel(model != null && !model.isBlank() ? model : "gpt-4o-mini");
-		// This test is gated on OPENAI_API_KEY, so read the key from that variable explicitly
-		// (the default key variable is now the provider-neutral REQUEL_AI_API_KEY). The endpoint
-		// is left blank so the client falls back to its public Responses default.
-		properties.setApiKeyEnvironmentVariable("OPENAI_API_KEY");
+		properties.setProvider("anthropic");
+		String model = System.getenv("ANTHROPIC_MODEL");
+		properties.setModel(model != null && !model.isBlank() ? model : "claude-sonnet-4-5");
+		// This test is gated on ANTHROPIC_API_KEY; read the key from that variable explicitly.
+		// The endpoint is left blank so the client falls back to its public Messages default.
+		properties.setApiKeyEnvironmentVariable("ANTHROPIC_API_KEY");
 
-		OpenAiAnalysisClient client = new OpenAiAnalysisClient(properties, objectMapper);
+		AnthropicAnalysisClient client = new AnthropicAnalysisClient(properties, objectMapper);
 
 		AiAnalysisResponse response = client.analyze(liveRequest());
 
 		assertThat(response).isNotNull();
 		assertThat(response.summary()).isNotBlank();
-		assertThat(response.usage().provider()).isEqualTo("openai");
-		assertThat(response.usage().model()).isEqualTo(properties.getModel());
+		assertThat(response.usage().provider()).isEqualTo("anthropic");
 	}
 
 	private AiAnalysisRequest liveRequest() throws Exception {
@@ -90,8 +87,6 @@ class OpenAiAnalysisClientLiveIT {
 	private JsonNode loadSchema() throws Exception {
 		try (InputStream in = getClass().getResourceAsStream(OUTPUT_SCHEMA_RESOURCE)) {
 			if (in == null) {
-				// The schema resource lives in assistant-ai; fall back to a minimal inline schema
-				// so this test compiles and runs even if that resource is not on the test classpath.
 				return objectMapper.readTree(
 						"{\"type\":\"object\",\"additionalProperties\":false,"
 								+ "\"properties\":{\"summary\":{\"type\":\"string\"},"

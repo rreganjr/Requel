@@ -38,9 +38,8 @@ class AiPropertiesTest {
 					assertThat(properties.getProvider()).isEqualTo("noop");
 					assertThat(properties.getModel()).isEqualTo("noop");
 					assertThat(properties.getApiKey()).isNull();
-					assertThat(properties.getApiKeyEnvironmentVariable()).isEqualTo("OPENAI_API_KEY");
-					assertThat(properties.getEndpoint()).isEqualTo(
-							"https://api.openai.com/v1/responses");
+					assertThat(properties.getApiKeyEnvironmentVariable()).isEqualTo("REQUEL_AI_API_KEY");
+					assertThat(properties.getEndpoint()).isEmpty();
 					assertThat(properties.getTimeout()).isEqualTo(Duration.ofSeconds(30));
 					assertThat(properties.getMaxRetries()).isEqualTo(2);
 					assertThat(properties.getMaxInputTokens()).isEqualTo(16000);
