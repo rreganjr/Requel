@@ -112,12 +112,20 @@ AI-suggested annotation text to 4000 chars before it reaches the applicator (whi
 - Enforce `requel.ai.maxInputTokens` (cap/refuse oversize context packs) and bound AI output
   field lengths before they reach the applicator (review concern #5).
 
-### 6. OpenAI wiring + project opt-in + gated e2e
+### 6. OpenAI wiring + project opt-in + gated e2e (landed)
 
 - Config to select `requel.ai.provider=openai` + model + `projectAllowlist`; project opt-in
-  gate (allowlist now; `AssistantProjectSettings` later).
-- End-to-end test against the real provider, gated behind `OPENAI_API_KEY` (skipped when
-  absent) so CI stays green offline.
+  gate (allowlist now; `AssistantProjectSettings` later). Documented in `application.properties`
+  (opt-in block; `requel.ai.enabled=false` by default).
+- The `REQUIREMENTS_REVIEW` JSON output schema shipped as a classpath resource
+  (`assistant-ai` `ai/schemas/requirements-review-output.v1.json`, strict-mode compatible) and
+  is loaded by `RequirementsReviewAssistant` and passed as the request `outputSchema`
+  (name `RequirementsReviewOutput`), replacing the earlier `NullNode` placeholder.
+- End-to-end test against the real provider: `OpenAiAnalysisClientLiveIT`, gated behind
+  `@EnabledIfEnvironmentVariable(OPENAI_API_KEY)` (skipped when absent) so CI stays green
+  offline. Model overridable via `OPENAI_MODEL`.
+
+With this slice **Phase 5 core is complete** — all exit criteria below are met.
 
 ## Out of scope for Phase 5
 

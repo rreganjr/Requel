@@ -103,6 +103,9 @@ class RequirementsReviewAssistantTest {
 		assertThat(aiClient.calls).isEqualTo(1);
 		assertThat(aiClient.lastRequest.taskType()).isEqualTo("REQUIREMENTS_REVIEW");
 		assertThat(aiClient.lastRequest.assistantId()).isEqualTo("ai-requirements-review");
+		// The request carries the loaded REQUIREMENTS_REVIEW output schema.
+		assertThat(aiClient.lastRequest.outputSchemaName()).isEqualTo("RequirementsReviewOutput");
+		assertThat(aiClient.lastRequest.outputSchema().path("properties").has("findings")).isTrue();
 		assertThat(result.summary()).isEqualTo("noop summary");
 		assertThat(result.annotationActions()).isEmpty(); // the canned response has no findings
 		verify(usageRepository).save(any()); // usage telemetry is persisted on a successful call

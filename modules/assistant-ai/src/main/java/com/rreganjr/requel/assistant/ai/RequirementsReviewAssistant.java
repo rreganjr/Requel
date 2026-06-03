@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.assistant.ai;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,6 +35,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 
@@ -82,6 +85,9 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	static final String OUTPUT_SCHEMA_NAME = "RequirementsReviewOutput";
 	static final String OUTPUT_SCHEMA_VERSION = "1";
 
+	private static final String OUTPUT_SCHEMA_RESOURCE =
+			"/ai/schemas/requirements-review-output.v1.json";
+
 	/** Upper bound on each AI-suggested annotation text, so oversize output is bounded before
 	 * it reaches the applicator (which also caps). */
 	static final int MAX_ANNOTATION_TEXT = 4000;
@@ -95,6 +101,7 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	private final AssistantUsageRepository usageRepository;
 	private final ObjectMapper objectMapper;
 	private final Clock clock;
+	private final JsonNode outputSchema;
 
 	@Autowired
 	public RequirementsReviewAssistant(AiAnalysisClient aiAnalysisClient,
@@ -113,6 +120,23 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 		this.usageRepository = usageRepository;
 		this.objectMapper = objectMapper;
 		this.clock = clock;
+		this.outputSchema = loadOutputSchema(objectMapper);
+	}
+
+	private static JsonNode loadOutputSchema(ObjectMapper objectMapper) {
+		try (InputStream in = RequirementsReviewAssistant.class
+				.getResourceAsStream(OUTPUT_SCHEMA_RESOURCE)) {
+			if (in == null) {
+				log.warn("REQUIREMENTS_REVIEW output schema resource not found: {}",
+						OUTPUT_SCHEMA_RESOURCE);
+				return NullNode.getInstance();
+			}
+			return objectMapper.readTree(in);
+		} catch (IOException e) {
+			log.warn("Could not load REQUIREMENTS_REVIEW output schema {}: {}",
+					OUTPUT_SCHEMA_RESOURCE, e.getMessage(), e);
+			return NullNode.getInstance();
+		}
 	}
 
 	@Override
@@ -164,11 +188,9 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 					.build();
 		}
 
-		// Placeholder schema node until the REQUIREMENTS_REVIEW JSON schema resource lands
-		// (OpenAI wiring slice); the request contract requires a non-null outputSchema.
 		AiAnalysisRequest request = new AiAnalysisRequest(ASSISTANT_ID, context.runId(), TASK_TYPE,
 				targetRef, context.projectRef(), context.locale(), contextPacks,
-				OUTPUT_SCHEMA_NAME, OUTPUT_SCHEMA_VERSION, NullNode.getInstance(), Map.of(),
+				OUTPUT_SCHEMA_NAME, OUTPUT_SCHEMA_VERSION, outputSchema, Map.of(),
 				context.attributes());
 
 		try {
