@@ -80,7 +80,16 @@ filters matches by it (no handler → run `SKIPPED`). `RequirementsReviewAssista
 to serve only `REQUIREMENTS_REVIEW`. This cleanly separates the manual review run (AI only)
 from ordinary edits (lexical only) and must land before the manual trigger.
 
-### 4. Output schema + manual trigger
+### 4. Manual trigger (output schema deferred to the OpenAI slice)
+
+The manual REQUIREMENTS_REVIEW dispatch landed: `AnalysisRequestDispatcher.dispatch(target,
+user, taskType)` overload; `AiReviewService.requestReview(entityType, entityId)` (resolves the
+entity, authorizes the current user as system-admin-or-stakeholder mirroring the read API, and
+dispatches a `REQUIREMENTS_REVIEW` run); and `AiReviewController` (`POST /api/ai/reviews`). The
+JSON output schema resource is only consumed by the OpenAI provider (Noop ignores it), so it
+is folded into the OpenAI wiring slice rather than shipped here.
+
+### 4z. (original) Output schema + manual trigger
 
 - Add the `REQUIREMENTS_REVIEW` JSON output schema as a classpath resource
   (`outputSchemaName`/`outputSchemaVersion`), supplied on the `AiAnalysisRequest` so the

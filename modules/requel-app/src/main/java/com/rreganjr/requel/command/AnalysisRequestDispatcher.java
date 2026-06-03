@@ -63,6 +63,15 @@ public class AnalysisRequestDispatcher {
 	 * No-op when either is {@code null}.
 	 */
 	public void dispatch(ProjectOrDomainEntity target, User triggeringUser) {
+		dispatch(target, triggeringUser, null);
+	}
+
+	/**
+	 * Dispatch analysis of {@code target} for a specific {@code taskType} (e.g.
+	 * {@code "REQUIREMENTS_REVIEW"} for a manual AI review). A {@code null} task type is the
+	 * ordinary post-edit analysis. No-op when target or user is {@code null}.
+	 */
+	public void dispatch(ProjectOrDomainEntity target, User triggeringUser, String taskType) {
 		if (target == null || triggeringUser == null) {
 			return;
 		}
@@ -74,7 +83,7 @@ public class AnalysisRequestDispatcher {
 				: null;
 		UserRef triggeringUserRef = new UserRef(triggeringUser.getId(), triggeringUser.getUsername());
 		AnalysisRequest request = new AnalysisRequest(targetRef, projectRef, triggeringUserRef,
-				assistantUserRef(), null, Locale.getDefault(), Map.of());
+				assistantUserRef(), taskType, Locale.getDefault(), Map.of());
 		assistantDispatcher.dispatch(request);
 	}
 
