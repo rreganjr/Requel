@@ -93,10 +93,24 @@ public class AssistantRunWorker {
 			AssistantContext context = new AssistantContext(runId, request.triggeringUser(),
 					request.assistantUser(), request.projectRef(), request.taskType(),
 					request.locale(), clock, request.attributes());
-			List<RequelAssistant<?>> assistants = assistantRegistry.findAssistantsFor(target,
-					context);
-			if (assistants.isEmpty()) {
+			List<RequelAssistant<?>> matched = assistantRegistry.findAssistantsFor(target, context);
+			if (matched.isEmpty()) {
 				runStore.markSkipped(runId, "No assistants registered for "
+						+ target.getClass().getName());
+				return;
+			}
+			// Route by task type: an assistant runs only if it serves this run's task
+			// (default serves the null/post-edit task; e.g. REQUIREMENTS_REVIEW routes to the
+			// AI assistant and not the lexical ones, and edits do not trigger the AI assistant).
+			List<RequelAssistant<?>> assistants = new java.util.ArrayList<>();
+			for (RequelAssistant<?> candidate : matched) {
+				if (candidate.handlesTask(context.taskType())) {
+					assistants.add(candidate);
+				}
+			}
+			if (assistants.isEmpty()) {
+				runStore.markSkipped(runId, "No assistant handles task "
+						+ (context.taskType() == null ? "<default>" : context.taskType()) + " for "
 						+ target.getClass().getName());
 				return;
 			}

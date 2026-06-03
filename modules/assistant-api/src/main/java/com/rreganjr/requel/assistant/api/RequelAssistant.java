@@ -35,6 +35,23 @@ public interface RequelAssistant<T> {
 	AssistantResult analyze(AssistantContext context, T target) throws AssistantException;
 
 	/**
+	 * Whether this assistant serves the given run task type. The worker invokes an
+	 * assistant only when this returns {@code true}, so different task types route to
+	 * different assistants even though {@code SimpleAssistantRegistry} matches by target type.
+	 *
+	 * <p>
+	 * The default serves the ordinary post-edit analysis, identified by a {@code null} task
+	 * type (the path the legacy/NLP adapters handle). Task-specific assistants — e.g. the AI
+	 * requirements review ({@code "REQUIREMENTS_REVIEW"}) — override this so they run only for
+	 * their task and not on ordinary edits, and so ordinary edits do not trigger them.
+	 *
+	 * @param taskType the run's task type, or {@code null} for the default post-edit analysis
+	 */
+	default boolean handlesTask(String taskType) {
+		return taskType == null;
+	}
+
+	/**
 	 * The stale-finding cleanup policy for this assistant. Defaults to
 	 * {@link CleanupPolicy#MARK_SUPERSEDED}; override to opt into auto-resolution
 	 * or to disable automatic cleanup. The result applicator reads this when

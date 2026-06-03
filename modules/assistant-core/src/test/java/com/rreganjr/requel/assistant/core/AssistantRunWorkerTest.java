@@ -58,6 +58,23 @@ class AssistantRunWorkerTest {
 		assertThat(assistant.seenTaskType).isEqualTo("REQUIREMENTS_REVIEW");
 	}
 
+	@Test
+	void runIsSkippedWhenNoAssistantHandlesTheTask() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		RecordingApplicator applicator = new RecordingApplicator();
+		// DefaultTaskAssistant serves only the null/default task; the run is REQUIREMENTS_REVIEW.
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new DefaultTaskAssistant())), applicator,
+				List.of(new StringTargetLoader()));
+
+		worker.runInNewTransaction(record.runId());
+
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
+				updated.status()).isEqualTo(AssistantRunStatus.SKIPPED));
+		assertThat(applicator.appliedResults).isEmpty();
+	}
+
 	private AnalysisRequest request() {
 		return new AnalysisRequest(EntityRef.of("Goal", 1L), EntityRef.of("Project", 2L),
 				new UserRef(3L, "human"), new UserRef(4L, "assistant"),
@@ -90,10 +107,34 @@ class AssistantRunWorkerTest {
 		}
 
 		@Override
+		public boolean handlesTask(String taskType) {
+			return true; // handles any task, including the test's REQUIREMENTS_REVIEW run
+		}
+
+		@Override
 		public AssistantResult analyze(AssistantContext context, String target) {
 			this.seenTaskType = context.taskType();
 			return AssistantResult.builder().assistantId(assistantId()).runId(context.runId())
 					.summary(target).build();
+		}
+	}
+
+	/** Serves only the default (null) task via the SPI default {@code handlesTask}. */
+	private static final class DefaultTaskAssistant implements RequelAssistant<String> {
+		@Override
+		public String assistantId() {
+			return "default-task-assistant";
+		}
+
+		@Override
+		public Class<String> targetType() {
+			return String.class;
+		}
+
+		@Override
+		public AssistantResult analyze(AssistantContext context, String target) {
+			return AssistantResult.builder().assistantId(assistantId()).runId(context.runId())
+					.build();
 		}
 	}
 

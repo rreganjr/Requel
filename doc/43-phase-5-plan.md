@@ -71,6 +71,15 @@ issue; deterministic `actionKey` per finding for idempotency; evidence carried t
 use a **fake `AiAnalysisClient`** bean returning sample `AiFindingDraft`s and assert the
 applicator creates the expected annotations (no real provider).
 
+### 3b. Task routing (added prerequisite)
+
+`SimpleAssistantRegistry` matches by target type only, so a `REQUIREMENTS_REVIEW` run would
+also invoke the lexical assistants (and they would otherwise run on the AI task). Added
+`RequelAssistant.handlesTask(taskType)` (default: serves the `null`/post-edit task); the worker
+filters matches by it (no handler → run `SKIPPED`). `RequirementsReviewAssistant` overrides it
+to serve only `REQUIREMENTS_REVIEW`. This cleanly separates the manual review run (AI only)
+from ordinary edits (lexical only) and must land before the manual trigger.
+
 ### 4. Output schema + manual trigger
 
 - Add the `REQUIREMENTS_REVIEW` JSON output schema as a classpath resource

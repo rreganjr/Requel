@@ -51,6 +51,14 @@ class RequirementsReviewAssistantTest {
 	private final RecordingAiClient aiClient = new RecordingAiClient();
 
 	@Test
+	void handlesOnlyRequirementsReviewTask() {
+		RequirementsReviewAssistant assistant = newAssistant(enabledProperties());
+		assertThat(assistant.handlesTask("REQUIREMENTS_REVIEW")).isTrue();
+		assertThat(assistant.handlesTask(null)).isFalse();
+		assertThat(assistant.handlesTask("SOMETHING_ELSE")).isFalse();
+	}
+
+	@Test
 	void skipsWhenNotRequirementsReviewTask() {
 		AssistantResult result = newAssistant(enabledProperties())
 				.analyze(context(null), goalTarget());

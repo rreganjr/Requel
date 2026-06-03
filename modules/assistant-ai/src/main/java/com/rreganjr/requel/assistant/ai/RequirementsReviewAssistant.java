@@ -99,6 +99,16 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 		return TextEntity.class;
 	}
 
+	/**
+	 * Serves only the {@code REQUIREMENTS_REVIEW} task, so it runs for a manual review dispatch
+	 * and never on the ordinary post-edit path (and the lexical assistants, which serve the
+	 * default task, do not run on a review).
+	 */
+	@Override
+	public boolean handlesTask(String taskType) {
+		return TASK_TYPE.equals(taskType);
+	}
+
 	@Override
 	public AssistantResult analyze(AssistantContext context, TextEntity target) {
 		String skipReason = skipReason(context);
