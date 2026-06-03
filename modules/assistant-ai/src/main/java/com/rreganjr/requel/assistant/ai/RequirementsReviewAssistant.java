@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.assistant.ai;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,10 +33,12 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.node.NullNode;
 
+import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantMessage;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.assistant.api.EvidenceRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
 import com.rreganjr.requel.assistant.core.context.EntityContextPack;
 import com.rreganjr.requel.assistant.core.context.EntityContextPackBuilder;
@@ -122,8 +126,11 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 			if (response.messages() != null) {
 				response.messages().forEach(result::message);
 			}
-			// AiFindingDraft -> AnnotationAction mapping lands in the next slice; under the
-			// default Noop client there are no findings to map.
+			if (response.findings() != null) {
+				for (AiFindingDraft finding : response.findings()) {
+					mapFinding(result, targetRef, finding);
+				}
+			}
 		} catch (AiAnalysisException e) {
 			log.warn("AI requirements review failed for run {}: {}", context.runId(), e.getMessage(),
 					e);
@@ -131,6 +138,88 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 					.message(AssistantMessage.error(e.getMessage()));
 		}
 		return result.build();
+	}
+
+	/**
+	 * Map one AI finding to annotation actions: {@code suggestedIssueText} →
+	 * {@code CREATE_OR_UPDATE_ISSUE} (carrying the finding's severity / confidence / type and
+	 * any metadata) with its {@code suggestedPositions} as child positions; and
+	 * {@code suggestedNoteText} → {@code CREATE_OR_UPDATE_NOTE}. Action keys are derived from
+	 * the finding type + a hash of the text so a re-run updates rather than duplicates. A
+	 * finding with neither issue nor note text is skipped. The applicator caps text length and
+	 * rejects anything it cannot map, so AI output stays untrusted input.
+	 */
+	private void mapFinding(AssistantResult.Builder result, EntityRef targetRef,
+			AiFindingDraft finding) {
+		List<EvidenceRef> evidence = evidenceRefs(finding.evidenceReferences());
+		String issueText = trimToNull(finding.suggestedIssueText());
+		String noteText = trimToNull(finding.suggestedNoteText());
+
+		if (issueText != null) {
+			String issueKey = actionKey(targetRef, "issue", finding.findingType(), issueText);
+			Map<String, Object> issueMeta = new HashMap<String, Object>();
+			issueMeta.put("findingType", finding.findingType());
+			issueMeta.put("mustResolve", Boolean.TRUE);
+			if (finding.metadata() != null) {
+				issueMeta.putAll(finding.metadata());
+			}
+			result.annotationAction(new AnnotationAction(issueKey,
+					AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, targetRef, null, issueText,
+					finding.severity(), finding.confidence(), evidence, issueMeta));
+			for (String position : finding.suggestedPositions()) {
+				String positionText = trimToNull(position);
+				if (positionText == null) {
+					continue;
+				}
+				result.annotationAction(new AnnotationAction(issueKey + ":pos:" + hash(positionText),
+						AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION, null, issueKey,
+						positionText, null, null, evidence, Map.of()));
+			}
+		}
+
+		if (noteText != null) {
+			Map<String, Object> noteMeta = new HashMap<String, Object>();
+			noteMeta.put("findingType", finding.findingType());
+			if (finding.metadata() != null) {
+				noteMeta.putAll(finding.metadata());
+			}
+			result.annotationAction(new AnnotationAction(
+					actionKey(targetRef, "note", finding.findingType(), noteText),
+					AnnotationAction.ActionType.CREATE_OR_UPDATE_NOTE, targetRef, null, noteText, null,
+					finding.confidence(), evidence, noteMeta));
+		}
+
+		if (issueText == null && noteText == null) {
+			log.debug("Skipping AI finding of type {} with no issue or note text",
+					finding.findingType());
+		}
+	}
+
+	private static List<EvidenceRef> evidenceRefs(List<String> references) {
+		if (references == null || references.isEmpty()) {
+			return List.of();
+		}
+		List<EvidenceRef> refs = new ArrayList<EvidenceRef>(references.size());
+		for (String reference : references) {
+			if (reference != null && !reference.isBlank()) {
+				refs.add(EvidenceRef.ofLocator(reference));
+			}
+		}
+		return refs;
+	}
+
+	private static String actionKey(EntityRef targetRef, String kind, String findingType,
+			String text) {
+		return ASSISTANT_ID + ":" + targetRef.entityType() + ":" + targetRef.entityId() + ":" + kind
+				+ ":" + (findingType == null ? "" : findingType) + ":" + hash(text);
+	}
+
+	private static String hash(String text) {
+		return Integer.toHexString(text.hashCode());
+	}
+
+	private static String trimToNull(String text) {
+		return text == null || text.isBlank() ? null : text;
 	}
 
 	/**

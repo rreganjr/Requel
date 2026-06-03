@@ -36,6 +36,7 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.node.NullNode;
 
+import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
@@ -94,6 +95,44 @@ class RequirementsReviewAssistantTest {
 		assertThat(result.annotationActions()).isEmpty();
 	}
 
+	@Test
+	void mapsFindingsToAnnotationActions() {
+		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		aiClient.response = new AiAnalysisResponse("found two issues", NullNode.getInstance(),
+				List.of(
+						new AiFindingDraft("AMBIGUOUS", "HIGH", 0.9, List.of("Goal:10"),
+								"Requirement is ambiguous", null, List.of("Clarify the actor"),
+								Map.of()),
+						new AiFindingDraft("COMPLETENESS", null, null, List.of(), null,
+								"Consider error cases", List.of(), Map.of())),
+				List.of(), AiUsage.noop("noop", Duration.ZERO), Map.of());
+
+		AssistantResult result = newAssistant(enabledProperties())
+				.analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
+
+		List<AnnotationAction> actions = result.annotationActions();
+		assertThat(actions).hasSize(3); // issue + its position + note
+
+		AnnotationAction issue = actions.stream()
+				.filter(a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
+				.findFirst().orElseThrow();
+		assertThat(issue.text()).isEqualTo("Requirement is ambiguous");
+		assertThat(issue.severity()).isEqualTo("HIGH");
+		assertThat(issue.confidence()).isEqualTo(0.9);
+		assertThat(issue.targetRef()).isEqualTo(EntityRef.of("TextEntity", 10L));
+
+		AnnotationAction position = actions.stream()
+				.filter(a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION)
+				.findFirst().orElseThrow();
+		assertThat(position.parentActionKey()).isEqualTo(issue.actionKey());
+		assertThat(position.text()).isEqualTo("Clarify the actor");
+
+		AnnotationAction note = actions.stream()
+				.filter(a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_NOTE)
+				.findFirst().orElseThrow();
+		assertThat(note.text()).isEqualTo("Consider error cases");
+	}
+
 	private RequirementsReviewAssistant newAssistant(AiProperties properties) {
 		return new RequirementsReviewAssistant(aiClient, packBuilder, properties);
 	}
@@ -117,17 +156,19 @@ class RequirementsReviewAssistantTest {
 		return target;
 	}
 
-	/** Records invocations and returns a canned response (no real provider). */
+	/** Records invocations and returns a configurable response (no real provider). */
 	private static final class RecordingAiClient implements AiAnalysisClient {
 		private int calls;
 		private AiAnalysisRequest lastRequest;
+		private AiAnalysisResponse response = new AiAnalysisResponse("noop summary",
+				NullNode.getInstance(), List.of(), List.of(), AiUsage.noop("noop", Duration.ZERO),
+				Map.of());
 
 		@Override
 		public AiAnalysisResponse analyze(AiAnalysisRequest request) {
 			this.calls++;
 			this.lastRequest = request;
-			return new AiAnalysisResponse("noop summary", NullNode.getInstance(), List.of(),
-					List.of(), AiUsage.noop("noop", Duration.ZERO), Map.of());
+			return response;
 		}
 	}
 }
