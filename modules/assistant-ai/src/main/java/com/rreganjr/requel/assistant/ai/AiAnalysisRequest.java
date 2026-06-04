@@ -38,7 +38,8 @@ import com.rreganjr.requel.assistant.api.EntityRef;
 public record AiAnalysisRequest(String assistantId, UUID runId, String taskType,
 		EntityRef targetRef, EntityRef projectRef, Locale locale, List<Object> contextPacks,
 		String outputSchemaName, String outputSchemaVersion, JsonNode outputSchema,
-		Map<String, Object> dataHandlingFlags, Map<String, Object> attributes) {
+		Map<String, Object> dataHandlingFlags, Map<String, Object> attributes,
+		String instructions) {
 
 	public AiAnalysisRequest {
 		Objects.requireNonNull(assistantId, "assistantId");
@@ -54,5 +55,20 @@ public record AiAnalysisRequest(String assistantId, UUID runId, String taskType,
 		dataHandlingFlags = Map.copyOf(Objects.requireNonNull(dataHandlingFlags,
 				"dataHandlingFlags"));
 		attributes = Map.copyOf(Objects.requireNonNull(attributes, "attributes"));
+		// instructions is optional task guidance (the centralized review prompt); null/blank
+		// means the provider client falls back to its own generic instructions.
+	}
+
+	/**
+	 * Backward-compatible constructor without centralized {@code instructions} (defaults to
+	 * {@code null}, so the provider client uses its built-in generic guidance).
+	 */
+	public AiAnalysisRequest(String assistantId, UUID runId, String taskType, EntityRef targetRef,
+			EntityRef projectRef, Locale locale, List<Object> contextPacks, String outputSchemaName,
+			String outputSchemaVersion, JsonNode outputSchema, Map<String, Object> dataHandlingFlags,
+			Map<String, Object> attributes) {
+		this(assistantId, runId, taskType, targetRef, projectRef, locale, contextPacks,
+				outputSchemaName, outputSchemaVersion, outputSchema, dataHandlingFlags, attributes,
+				null);
 	}
 }

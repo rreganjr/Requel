@@ -106,6 +106,9 @@ class RequirementsReviewAssistantTest {
 		// The request carries the loaded REQUIREMENTS_REVIEW output schema.
 		assertThat(aiClient.lastRequest.outputSchemaName()).isEqualTo("RequirementsReviewOutput");
 		assertThat(aiClient.lastRequest.outputSchema().path("properties").has("findings")).isTrue();
+		// The centralized task guidance is carried on the request (not duplicated per provider).
+		assertThat(aiClient.lastRequest.instructions())
+				.contains("REQUIREMENTS_REVIEW", "suggestedIssueText", "NOT restate");
 		assertThat(result.summary()).isEqualTo("noop summary");
 		assertThat(result.annotationActions()).isEmpty(); // the canned response has no findings
 		verify(usageRepository).save(any()); // usage telemetry is persisted on a successful call

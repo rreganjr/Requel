@@ -109,6 +109,28 @@ class EntityContextPackBuilderTest {
 	}
 
 	@Test
+	void excludesAssistantSourcedAnnotationsFromContext() {
+		Goal goal = mock(Goal.class);
+		when(goal.getId()).thenReturn(42L);
+		when(goal.getVersion()).thenReturn(1);
+		when(goal.getName()).thenReturn("G");
+		when(goal.getText()).thenReturn("text");
+		LinkedHashSet<Annotation> annotations = new LinkedHashSet<>();
+		Issue human = stubIssue(301L, 1, "human concern", false, false); // source null = human
+		Note machine = stubNote(302L, 1, "machine echo");
+		when(machine.getSource()).thenReturn("ASSISTANT:ai-requirements-review");
+		annotations.add(human);
+		annotations.add(machine);
+		when(goal.getAnnotations()).thenReturn(annotations);
+		when(goal.getGlossaryTerms()).thenReturn(Set.of());
+
+		EntityContextPack pack = builder.build(goal);
+
+		// Only the human annotation survives; the assistant-sourced one is filtered out.
+		assertThat(pack.annotations()).extracting(AnnotationSnapshot::id).containsExactly(301L);
+	}
+
+	@Test
 	void throwsForUnsupportedTargetType() {
 		assertThatThrownBy(() -> builder.build("not a domain entity"))
 				.isInstanceOf(IllegalArgumentException.class)

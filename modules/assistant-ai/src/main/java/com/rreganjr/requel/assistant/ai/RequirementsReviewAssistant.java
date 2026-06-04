@@ -97,6 +97,40 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	/** Rough chars-per-token used to estimate input size against {@code maxInputTokens}. */
 	private static final int CHARS_PER_TOKEN_ESTIMATE = 4;
 
+	/**
+	 * Centralized task guidance for the REQUIREMENTS_REVIEW prompt, shared by every provider
+	 * client (each wraps it in its own envelope). Defined once here so the rules don't drift
+	 * across the OpenAI / Anthropic / openai-compat clients.
+	 */
+	static final String TASK_INSTRUCTIONS = """
+			You are a Requel requirements-analysis assistant performing a REQUIREMENTS_REVIEW.
+			Analyze ONLY the target requirement entity described in the context and return JSON
+			matching the supplied schema.
+
+			Finding types (choose the closest): AMBIGUOUS, INCOMPLETE, UNTESTABLE, INCONSISTENT,
+			REDUNDANT, UNCLEAR_ACTOR, MISSING_PRECONDITION, MISSING_ERROR_CASE, OTHER.
+
+			Rules:
+			- Do your own original analysis of the target entity's wording. The context may include
+			  an "annotations" list of EXISTING issues/notes already on the entity; these are for
+			  awareness only. Do NOT restate, echo, paraphrase, or duplicate them. Report only
+			  genuinely new problems you find in the requirement text itself.
+			- For EVERY finding you raise you MUST set "suggestedIssueText" to a clear, specific
+			  problem statement about THIS entity. Optionally add "suggestedPositions" with concrete
+			  ways to resolve it. Use "suggestedNoteText" only for a non-blocking observation.
+			- If the requirement has no real problems, return an empty "findings" array. Never
+			  invent issues to fill space.
+			- Keep every finding specific to this entity and grounded in its actual text; cite the
+			  relevant snippet in "evidenceReferences".
+
+			Example of a single well-formed finding:
+			{"findingType":"AMBIGUOUS","severity":"MEDIUM","confidence":0.7,
+			 "evidenceReferences":["the system should be fast"],
+			 "suggestedIssueText":"'fast' is not measurable; specify a target response time.",
+			 "suggestedNoteText":null,
+			 "suggestedPositions":["Define a concrete latency budget, e.g. 200ms p95."]}
+			""";
+
 	private final AiAnalysisClient aiAnalysisClient;
 	private final EntityContextPackBuilder entityContextPackBuilder;
 	private final AiProperties aiProperties;
@@ -207,7 +241,7 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 		AiAnalysisRequest request = new AiAnalysisRequest(ASSISTANT_ID, context.runId(), TASK_TYPE,
 				targetRef, context.projectRef(), context.locale(), contextPacks,
 				OUTPUT_SCHEMA_NAME, OUTPUT_SCHEMA_VERSION, outputSchema, Map.of(),
-				context.attributes());
+				context.attributes(), TASK_INSTRUCTIONS);
 
 		try {
 			AiAnalysisResponse response = aiAnalysisClient.analyze(request);

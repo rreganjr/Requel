@@ -81,4 +81,15 @@ public interface Annotation extends Comparable<Annotation>, CreatedEntity, Descr
 	 * @return a message appropriate for the state of the annotation.
 	 */
 	public String getStatusMessage();
+
+	/**
+	 * Provenance label for this annotation: {@code "HUMAN"} or {@code null} for user-created
+	 * annotations, {@code "ASSISTANT:<assistantId>"} for ones created by the assistant result
+	 * applicator. Used (among other things) to keep machine-generated annotations out of the
+	 * context packs fed to AI assistants, so they analyze the requirement rather than echo
+	 * existing automated findings.
+	 *
+	 * @return the source label, or {@code null} for human-created annotations.
+	 */
+	public String getSource();
 }

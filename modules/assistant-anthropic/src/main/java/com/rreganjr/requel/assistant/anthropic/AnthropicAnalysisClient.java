@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -71,7 +73,14 @@ import com.rreganjr.requel.assistant.api.AssistantMessage;
 @ConditionalOnProperty(prefix = "requel.ai", name = "provider", havingValue = "anthropic")
 public class AnthropicAnalysisClient implements AiAnalysisClient {
 
+	private static final Logger log = LoggerFactory.getLogger(AnthropicAnalysisClient.class);
+
 	private static final String PROVIDER = "anthropic";
+
+	private static final String DEFAULT_GUIDANCE =
+			"You are a Requel requirements analysis assistant. Use the supplied tool to return only "
+					+ "JSON matching its schema. Findings are drafts for reviewable Requel "
+					+ "annotations; do not invent commands that directly mutate project data.";
 
 	/** Default Messages endpoint used when {@code requel.ai.endpoint} is left blank. */
 	static final String DEFAULT_ENDPOINT = "https://api.anthropic.com/v1/messages";
@@ -115,6 +124,10 @@ public class AnthropicAnalysisClient implements AiAnalysisClient {
 		JsonNode responseNode = readResponse(httpResponse.body());
 		JsonNode structuredOutput = extractStructuredOutput(responseNode);
 		validateStructuredOutput(structuredOutput);
+		if (log.isDebugEnabled()) {
+			log.debug("anthropic structured output for run {} ({} findings): {}", request.runId(),
+					structuredOutput.path("findings").size(), structuredOutput);
+		}
 		Duration latency = Duration.between(startedAt, clock.instant());
 		AiUsage usage = usage(responseNode, latency);
 		Map<String, Object> metadata = providerMetadata(responseNode, httpResponse);
@@ -148,11 +161,11 @@ public class AnthropicAnalysisClient implements AiAnalysisClient {
 	}
 
 	private String instructions(AiAnalysisRequest request) {
-		return """
-				You are a Requel requirements analysis assistant. Use the supplied tool to return
-				only JSON matching its schema. Findings are drafts for reviewable Requel
-				annotations; do not invent commands that directly mutate project data.
-				"""
+		String guidance = request.instructions() != null && !request.instructions().isBlank()
+				? request.instructions()
+				: DEFAULT_GUIDANCE;
+		return guidance
+				+ "\n\nUse the supplied tool to return your answer."
 				+ "\nTask type: " + request.taskType()
 				+ "\nLocale: " + request.locale().toLanguageTag();
 	}

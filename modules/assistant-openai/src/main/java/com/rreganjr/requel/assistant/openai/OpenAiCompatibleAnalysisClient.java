@@ -55,28 +55,45 @@ import com.rreganjr.requel.assistant.ai.AiUsage;
 import com.rreganjr.requel.assistant.api.AssistantMessage;
 
 /**
- * OpenAI Responses API implementation of {@link AiAnalysisClient}.
+ * Generic OpenAI-<em>compatible</em> Chat Completions implementation of {@link AiAnalysisClient}.
  *
- * <p>The client uses OpenAI Structured Outputs through {@code text.format}
- * with a caller-supplied JSON schema. It still validates the returned JSON
- * enough for Requel's provider-neutral contract before handing it to
- * assistant/application code.</p>
+ * <p>
+ * Talks to any server that implements {@code POST /v1/chat/completions} — cloud OpenAI/Azure and
+ * self-hosted servers such as Ollama, LM Studio, vLLM, and LocalAI. Point it at the server with
+ * {@code requel.ai.endpoint}.
+ *
+ * <p>
+ * Because structured-output support varies across these servers, the request format is chosen by
+ * {@code requel.ai.structuredOutputMode}:
+ * <ul>
+ * <li>{@code json_schema} — strict schema via {@code response_format.json_schema} (cloud OpenAI,
+ * LM Studio, newer servers);</li>
+ * <li>{@code json_object} — broadly supported JSON mode (the default);</li>
+ * <li>{@code none} — no {@code response_format} at all (minimal servers, e.g. Ollama's
+ * compatibility endpoint).</li>
+ * </ul>
+ * In every mode the output JSON schema is also embedded in the system prompt, so the reply is
+ * schema-conforming JSON regardless of how much the server enforces. The result is validated
+ * against Requel's provider-neutral contract before use.
+ *
+ * <p>
+ * Selected by {@code requel.ai.provider=openai-compat}; mutually exclusive with the other clients.
  */
 @Component
-@ConditionalOnProperty(prefix = "requel.ai", name = "provider", havingValue = "openai")
-public class OpenAiAnalysisClient implements AiAnalysisClient {
+@ConditionalOnProperty(prefix = "requel.ai", name = "provider", havingValue = "openai-compat")
+public class OpenAiCompatibleAnalysisClient implements AiAnalysisClient {
 
-	private static final Logger log = LoggerFactory.getLogger(OpenAiAnalysisClient.class);
+	private static final Logger log = LoggerFactory.getLogger(OpenAiCompatibleAnalysisClient.class);
 
-	private static final String PROVIDER = "openai";
+	private static final String PROVIDER = "openai-compat";
 
 	private static final String DEFAULT_GUIDANCE =
-			"You are a Requel requirements analysis assistant. Return only JSON matching the "
-					+ "supplied schema. Findings are drafts for reviewable Requel annotations; do "
-					+ "not invent commands that directly mutate project data.";
+			"You are a Requel requirements analysis assistant. Analyze the target requirement and "
+					+ "report quality problems. Findings are drafts for reviewable Requel "
+					+ "annotations; do not invent commands that directly mutate project data.";
 
-	/** Default Responses endpoint used when {@code requel.ai.endpoint} is left blank. */
-	static final String DEFAULT_ENDPOINT = "https://api.openai.com/v1/responses";
+	/** Default Chat Completions endpoint (cloud OpenAI). Local servers override via endpoint. */
+	static final String DEFAULT_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 
 	private final AiProperties properties;
 	private final ObjectMapper objectMapper;
@@ -84,13 +101,13 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 	private final Clock clock;
 
 	@Autowired
-	public OpenAiAnalysisClient(AiProperties properties, ObjectMapper objectMapper) {
+	public OpenAiCompatibleAnalysisClient(AiProperties properties, ObjectMapper objectMapper) {
 		this(properties, objectMapper, HttpClient.newBuilder()
 				.connectTimeout(properties.getTimeout())
 				.build(), Clock.systemUTC());
 	}
 
-	OpenAiAnalysisClient(AiProperties properties, ObjectMapper objectMapper,
+	OpenAiCompatibleAnalysisClient(AiProperties properties, ObjectMapper objectMapper,
 			HttpClient httpClient, Clock clock) {
 		this.properties = Objects.requireNonNull(properties, "properties");
 		this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
@@ -101,10 +118,8 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 	@Override
 	public AiAnalysisResponse analyze(AiAnalysisRequest request) throws AiAnalysisException {
 		Objects.requireNonNull(request, "request");
+		// A key is optional for local servers; send a bearer header only when one is configured.
 		String apiKey = resolveApiKey();
-		if (apiKey == null || apiKey.isBlank()) {
-			throw new AiAnalysisException("OpenAI API key is not configured");
-		}
 		Instant startedAt = clock.instant();
 		JsonNode payload = requestPayload(request);
 		HttpResponse<String> httpResponse = sendWithRetries(payload, apiKey);
@@ -112,8 +127,8 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 		JsonNode structuredOutput = extractStructuredOutput(responseNode);
 		validateStructuredOutput(structuredOutput);
 		if (log.isDebugEnabled()) {
-			log.debug("openai structured output for run {} ({} findings): {}", request.runId(),
-					structuredOutput.path("findings").size(), structuredOutput);
+			log.debug("openai-compat structured output for run {} ({} findings): {}",
+					request.runId(), structuredOutput.path("findings").size(), structuredOutput);
 		}
 		Duration latency = Duration.between(startedAt, clock.instant());
 		AiUsage usage = usage(responseNode, latency);
@@ -125,41 +140,54 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 	private JsonNode requestPayload(AiAnalysisRequest request) {
 		ObjectNode root = objectMapper.createObjectNode();
 		root.put("model", properties.getModel());
-		root.put("instructions", instructions(request));
-		root.put("max_output_tokens", properties.getMaxOutputTokens());
+		root.put("max_tokens", properties.getMaxOutputTokens());
 
-		ArrayNode input = root.putArray("input");
-		ObjectNode message = input.addObject();
-		message.put("role", "user");
-		ArrayNode content = message.putArray("content");
-		content.addObject()
-				.put("type", "input_text")
-				.put("text", prompt(request));
+		ArrayNode messages = root.putArray("messages");
+		messages.addObject().put("role", "system").put("content", instructions(request));
+		messages.addObject().put("role", "user").put("content", prompt(request));
 
-		ObjectNode text = root.putObject("text");
-		ObjectNode format = text.putObject("format");
-		format.put("type", "json_schema");
-		format.put("name", request.outputSchemaName());
-		format.put("strict", true);
-		format.set("schema", request.outputSchema());
-
-		ObjectNode metadata = root.putObject("metadata");
-		metadata.put("assistant_id", request.assistantId());
-		metadata.put("run_id", request.runId().toString());
-		metadata.put("task_type", request.taskType());
-		metadata.put("target_type", request.targetRef().entityType());
-		metadata.put("target_id", String.valueOf(request.targetRef().entityId()));
-		metadata.put("project_id", String.valueOf(request.projectRef().entityId()));
+		applyResponseFormat(root, request);
 		return root;
 	}
 
+	/** Sets {@code response_format} per the configured mode; {@code none} omits it entirely. */
+	private void applyResponseFormat(ObjectNode root, AiAnalysisRequest request) {
+		String mode = structuredOutputMode();
+		if ("json_schema".equals(mode)) {
+			ObjectNode responseFormat = root.putObject("response_format");
+			responseFormat.put("type", "json_schema");
+			ObjectNode jsonSchema = responseFormat.putObject("json_schema");
+			jsonSchema.put("name", request.outputSchemaName());
+			jsonSchema.put("strict", true);
+			jsonSchema.set("schema", request.outputSchema());
+		} else if ("json_object".equals(mode)) {
+			root.putObject("response_format").put("type", "json_object");
+		}
+		// "none": no response_format; the prompt still demands schema-conforming JSON.
+	}
+
+	private String structuredOutputMode() {
+		String mode = properties.getStructuredOutputMode();
+		return mode == null ? "json_object" : mode.trim().toLowerCase();
+	}
+
 	private String instructions(AiAnalysisRequest request) {
+		String schema;
+		try {
+			schema = objectMapper.writerWithDefaultPrettyPrinter()
+					.writeValueAsString(request.outputSchema());
+		} catch (JsonProcessingException e) {
+			throw new IllegalStateException("Could not serialize AI output schema", e);
+		}
 		String guidance = request.instructions() != null && !request.instructions().isBlank()
 				? request.instructions()
 				: DEFAULT_GUIDANCE;
+		// Compat servers don't all enforce a schema, so always reinforce the JSON-only contract.
 		return guidance
-				+ "\nTask type: " + request.taskType()
-				+ "\nLocale: " + request.locale().toLanguageTag();
+				+ "\n\nTask type: " + request.taskType()
+				+ "\nLocale: " + request.locale().toLanguageTag()
+				+ "\n\nRespond with ONLY a single JSON object (no prose, no markdown code fences) "
+				+ "that conforms to this JSON Schema:\n" + schema;
 	}
 
 	private String prompt(AiAnalysisRequest request) {
@@ -189,39 +217,41 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 		try {
 			body = objectMapper.writeValueAsString(payload);
 		} catch (JsonProcessingException e) {
-			throw new AiAnalysisException("Could not serialize OpenAI request", e);
+			throw new AiAnalysisException("Could not serialize chat-completions request", e);
 		}
 		int maxAttempts = Math.max(1, properties.getMaxRetries() + 1);
 		AiAnalysisException lastFailure = null;
 		for (int attempt = 1; attempt <= maxAttempts; attempt++) {
 			try {
-				HttpRequest httpRequest = HttpRequest.newBuilder(URI.create(resolveEndpoint()))
+				HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(resolveEndpoint()))
 						.timeout(properties.getTimeout())
-						.header("Authorization", "Bearer " + apiKey)
 						.header("Content-Type", "application/json")
-						.POST(HttpRequest.BodyPublishers.ofString(body))
-						.build();
-				HttpResponse<String> response = httpClient.send(httpRequest,
+						.POST(HttpRequest.BodyPublishers.ofString(body));
+				if (apiKey != null && !apiKey.isBlank()) {
+					builder.header("Authorization", "Bearer " + apiKey);
+				}
+				HttpResponse<String> response = httpClient.send(builder.build(),
 						HttpResponse.BodyHandlers.ofString());
 				if (response.statusCode() >= 200 && response.statusCode() < 300) {
 					return response;
 				}
-				lastFailure = new AiAnalysisException("OpenAI request failed with HTTP "
+				lastFailure = new AiAnalysisException("Chat-completions request failed with HTTP "
 						+ response.statusCode() + ": " + response.body());
 				if (!isRetryable(response.statusCode()) || attempt == maxAttempts) {
 					throw lastFailure;
 				}
 			} catch (IOException e) {
-				lastFailure = new AiAnalysisException("OpenAI request failed", e);
+				lastFailure = new AiAnalysisException("Chat-completions request failed", e);
 				if (attempt == maxAttempts) {
 					throw lastFailure;
 				}
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
-				throw new AiAnalysisException("OpenAI request interrupted", e);
+				throw new AiAnalysisException("Chat-completions request interrupted", e);
 			}
 		}
-		throw lastFailure == null ? new AiAnalysisException("OpenAI request failed") : lastFailure;
+		throw lastFailure == null ? new AiAnalysisException("Chat-completions request failed")
+				: lastFailure;
 	}
 
 	private static boolean isRetryable(int statusCode) {
@@ -232,65 +262,72 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 		try {
 			return objectMapper.readTree(body);
 		} catch (JsonProcessingException e) {
-			throw new AiAnalysisException("OpenAI response was not JSON", e);
+			throw new AiAnalysisException("Chat-completions response was not JSON", e);
 		}
 	}
 
 	private JsonNode extractStructuredOutput(JsonNode response) throws AiAnalysisException {
 		JsonNode error = response.path("error");
 		if (error.isObject() && !error.isEmpty()) {
-			throw new AiAnalysisException("OpenAI response error: " + error.path("message")
-					.asText(error.toString()));
+			throw new AiAnalysisException("Chat-completions response error: "
+					+ error.path("message").asText(error.toString()));
 		}
-		String status = response.path("status").asText("completed");
-		if (!"completed".equals(status)) {
-			throw new AiAnalysisException("OpenAI response was not completed: " + status);
+		JsonNode message = response.path("choices").path(0).path("message");
+		JsonNode content = message.path("content");
+		if (!content.isTextual()) {
+			throw new AiAnalysisException(
+					"Chat-completions response did not contain a message content string");
 		}
-		for (JsonNode outputItem : response.path("output")) {
-			for (JsonNode contentItem : outputItem.path("content")) {
-				if ("output_text".equals(contentItem.path("type").asText())) {
-					return parseStructuredText(contentItem.path("text").asText());
-				}
-			}
-		}
-		JsonNode outputText = response.path("output_text");
-		if (outputText.isTextual()) {
-			return parseStructuredText(outputText.asText());
-		}
-		throw new AiAnalysisException("OpenAI response did not contain output_text content");
+		return parseStructuredText(content.asText());
 	}
 
+	/** Parses the model content as JSON, tolerating ```json fences some servers add. */
 	private JsonNode parseStructuredText(String text) throws AiAnalysisException {
+		String trimmed = stripCodeFence(text);
 		try {
-			return objectMapper.readTree(text);
+			return objectMapper.readTree(trimmed);
 		} catch (JsonProcessingException e) {
-			throw new AiAnalysisException("OpenAI output_text did not contain structured JSON", e);
+			throw new AiAnalysisException("Chat-completions content was not structured JSON", e);
 		}
+	}
+
+	private static String stripCodeFence(String text) {
+		String trimmed = text.strip();
+		if (trimmed.startsWith("```")) {
+			int firstNewline = trimmed.indexOf('\n');
+			if (firstNewline >= 0) {
+				trimmed = trimmed.substring(firstNewline + 1);
+			}
+			if (trimmed.endsWith("```")) {
+				trimmed = trimmed.substring(0, trimmed.length() - 3);
+			}
+		}
+		return trimmed.strip();
 	}
 
 	private static void validateStructuredOutput(JsonNode structuredOutput)
 			throws AiAnalysisException {
 		if (!structuredOutput.isObject()) {
-			throw new AiAnalysisException("OpenAI structured output must be a JSON object");
+			throw new AiAnalysisException("Chat-completions structured output must be a JSON object");
 		}
 		if (!structuredOutput.path("summary").isTextual()) {
-			throw new AiAnalysisException("OpenAI structured output missing textual summary");
+			throw new AiAnalysisException("Chat-completions structured output missing summary");
 		}
 		if (!structuredOutput.path("findings").isArray()) {
-			throw new AiAnalysisException("OpenAI structured output missing findings array");
+			throw new AiAnalysisException("Chat-completions structured output missing findings");
 		}
 		for (JsonNode finding : structuredOutput.path("findings")) {
 			if (!finding.path("findingType").isTextual()) {
-				throw new AiAnalysisException("OpenAI structured finding missing findingType");
+				throw new AiAnalysisException("Chat-completions finding missing findingType");
 			}
 		}
 	}
 
 	private AiUsage usage(JsonNode response, Duration latency) {
 		JsonNode usage = response.path("usage");
-		Integer inputTokens = integerOrNull(usage, "input_tokens");
-		Integer outputTokens = integerOrNull(usage, "output_tokens");
-		Integer cachedInputTokens = integerOrNull(usage.path("input_tokens_details"),
+		Integer inputTokens = integerOrNull(usage, "prompt_tokens");
+		Integer outputTokens = integerOrNull(usage, "completion_tokens");
+		Integer cachedInputTokens = integerOrNull(usage.path("prompt_tokens_details"),
 				"cached_tokens");
 		return new AiUsage(PROVIDER, response.path("model").asText(properties.getModel()),
 				inputTokens, outputTokens, cachedInputTokens, latency, null);
@@ -301,11 +338,11 @@ public class OpenAiAnalysisClient implements AiAnalysisClient {
 		Map<String, Object> metadata = new LinkedHashMap<String, Object>();
 		metadata.put("provider", PROVIDER);
 		metadata.put("httpStatus", httpResponse.statusCode());
+		metadata.put("structuredOutputMode", structuredOutputMode());
 		putIfPresent(metadata, "responseId", response.path("id"));
-		putIfPresent(metadata, "status", response.path("status"));
 		putIfPresent(metadata, "model", response.path("model"));
-		JsonNode incompleteReason = response.path("incomplete_details").path("reason");
-		putIfPresent(metadata, "incompleteReason", incompleteReason);
+		putIfPresent(metadata, "finishReason",
+				response.path("choices").path(0).path("finish_reason"));
 		return metadata;
 	}
 

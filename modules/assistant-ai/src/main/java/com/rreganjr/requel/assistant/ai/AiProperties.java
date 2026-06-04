@@ -40,6 +40,7 @@ public class AiProperties {
 	private int maxRetries = 2;
 	private int maxInputTokens = 16000;
 	private int maxOutputTokens = 4000;
+	private String structuredOutputMode = "json_object";
 	private List<String> projectAllowlist = new ArrayList<String>();
 
 	public boolean isEnabled() {
@@ -120,6 +121,21 @@ public class AiProperties {
 
 	public void setMaxOutputTokens(int maxOutputTokens) {
 		this.maxOutputTokens = maxOutputTokens;
+	}
+
+	/**
+	 * How the {@code openai-compat} client should request structured JSON:
+	 * {@code json_schema} (strict schema, for servers that honor it), {@code json_object}
+	 * (broadly supported JSON mode, the default), or {@code none} (prompt-and-parse, for minimal
+	 * servers). The output schema is always embedded in the system prompt regardless, so every
+	 * mode returns schema-conforming JSON. Ignored by the openai and anthropic providers.
+	 */
+	public String getStructuredOutputMode() {
+		return structuredOutputMode;
+	}
+
+	public void setStructuredOutputMode(String structuredOutputMode) {
+		this.structuredOutputMode = structuredOutputMode;
 	}
 
 	public List<String> getProjectAllowlist() {

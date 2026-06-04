@@ -91,6 +91,12 @@ public class EntityContextPackBuilder {
 			int maxAnnotations = limits.getMaxAnnotationsPerEntity();
 			int count = 0;
 			for (Annotation annotation : annotatable.getAnnotations()) {
+				// Keep machine-generated annotations out of the context: assistants (especially
+				// smaller models) tend to echo existing automated findings back as their own
+				// instead of analyzing the requirement. Human annotations remain as useful context.
+				if (isAssistantSourced(annotation)) {
+					continue;
+				}
 				if (count >= maxAnnotations) {
 					truncated.add("annotations list capped at " + maxAnnotations);
 					break;
@@ -250,6 +256,16 @@ public class EntityContextPackBuilder {
 	 * exists for {@code AnnotationAction.createArgument(...)} on the write
 	 * path, not for pack-level reads.
 	 */
+	/**
+	 * True if the annotation was created by an assistant (source {@code "ASSISTANT:<id>"}), so it
+	 * should be excluded from context packs. Human annotations (source {@code "HUMAN"} or
+	 * {@code null}) are kept.
+	 */
+	private static boolean isAssistantSourced(Annotation annotation) {
+		String source = annotation.getSource();
+		return source != null && source.startsWith("ASSISTANT:");
+	}
+
 	private static AnnotationKind annotationKind(Annotation annotation) {
 		if (annotation instanceof Issue) {
 			return AnnotationKind.ISSUE;

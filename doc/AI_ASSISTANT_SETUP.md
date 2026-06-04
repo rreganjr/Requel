@@ -4,10 +4,11 @@ This guide explains how to turn on Requel's AI requirements‑review assistant, 
 assumes **no prior experience** with API keys, environment variables, or Spring configuration —
 every step is spelled out. If you already know a step, skip ahead.
 
-Requel can use **one** AI provider at a time. This guide covers both supported providers —
-**OpenAI** and **Anthropic (Claude)** — and you pick one. Everything is configured with
-**environment variables**, so there is nothing to edit inside the application's configuration
-files.
+Requel can use **one** AI provider at a time. You have three choices: **OpenAI**,
+**Anthropic (Claude)**, or a **local model you run yourself in Docker** (no account, no API key,
+nothing leaves your machine — see [Section 4](#4-run-a-local-ai-model-in-docker-no-api-key)).
+Everything is configured with **environment variables**, so there is nothing to edit inside the
+application's configuration files.
 
 By the end you will have:
 
@@ -47,7 +48,8 @@ A few things to understand before you start:
 commit, a screenshot, or anywhere public. The steps below store it as an *environment variable*,
 which keeps it out of Requel's configuration files.
 
-Follow **2a** for OpenAI **or** **2b** for Anthropic — whichever you'll use.
+Follow **2a** for OpenAI **or** **2b** for Anthropic. If you'd rather run a local model with no
+key at all, skip this section and go to [Section 4](#4-run-a-local-ai-model-in-docker-no-api-key).
 
 ### 2a. OpenAI
 
@@ -75,7 +77,7 @@ Follow **2a** for OpenAI **or** **2b** for Anthropic — whichever you'll use.
 
 ---
 
-## 3.Turn the assistant on with environment variables
+## 3. Turn the assistant on with environment variables
 
 Requel reads all of its AI settings from environment variables whose names start with
 **`REQUEL_AI_`**. When Requel starts, it looks them up and configures itself accordingly. (Spring,
@@ -96,10 +98,10 @@ changing three values, not learning a new variable name.
 | Variable | Required? | What to set it to |
 | --- | --- | --- |
 | `REQUEL_AI_ENABLED` | yes | `true` to turn the assistant on. |
-| `REQUEL_AI_PROVIDER` | yes | `openai` or `anthropic` (or `noop` to test the plumbing with no network calls). |
-| `REQUEL_AI_MODEL` | yes | The model id you chose in Section 2. |
-| `REQUEL_AI_API_KEY` | yes | Your provider API key (the `sk-...` / `sk-ant-...` value). |
-| `REQUEL_AI_ENDPOINT` | no | Leave unset — each provider uses its correct default URL. Set only for a proxy/gateway. |
+| `REQUEL_AI_PROVIDER` | yes | `openai`, `anthropic`, `openai-compat` (local/self-hosted, see Section 4), or `noop` (test plumbing, no network). |
+| `REQUEL_AI_MODEL` | yes | The model id you chose in Section 2 (or the local model name for `openai-compat`). |
+| `REQUEL_AI_API_KEY` | yes\* | Your provider API key (`sk-...` / `sk-ant-...`). \*Optional for a local `openai-compat` server that doesn't require one. |
+| `REQUEL_AI_ENDPOINT` | no | Leave unset for `openai`/`anthropic` (correct default URL is used). **Required for `openai-compat`** — point it at your server. |
 | `REQUEL_AI_PROJECT_ALLOWLIST` | no | Comma‑separated project ids allowed to use AI. Unset = all projects. |
 
 ### macOS / Linux (Terminal)
@@ -165,6 +167,88 @@ into the file.
 > these environment variables override them at startup. (If you ever must keep a vendor‑specific
 > key variable name like `OPENAI_API_KEY`, set `REQUEL_AI_API_KEY_ENVIRONMENT_VARIABLE` to that
 > name and Requel will read the key from it instead.)
+
+---
+
+## 4. Run a local AI model in Docker (no API key)
+
+If you can't get a cloud API key (or don't want your data leaving the building), you can run a
+model **locally** and point Requel at it. The `openai-compat` provider talks to any server that
+implements the OpenAI‑style `POST /v1/chat/completions` API — including
+[Ollama](https://ollama.com), LM Studio, vLLM, and LocalAI. This guide uses **Ollama** because it
+runs in one Docker command.
+
+> **Structured‑output note.** Cloud OpenAI enforces a strict JSON schema; most local servers don't
+> fully support that. Requel still embeds the schema in the prompt, so the model returns
+> schema‑shaped JSON. The `REQUEL_AI_STRUCTURED_OUTPUT_MODE` variable controls how hard we ask:
+> `json_object` (default, broadly supported) is the right choice for Ollama; `json_schema` is for
+> servers that honor strict schemas; `none` is for minimal servers. Smaller local models are also
+> less precise than the big cloud ones — expect rougher findings. For *proving the pipeline*, it's
+> perfect.
+
+### 4a. Ollama in Docker, Requel running on your machine
+
+Use this when you start Requel from the jar (or `mvn spring-boot:run`) directly on your computer.
+
+1. Start Ollama and pull a model (one time):
+
+   ```bash
+   docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+   docker exec -it ollama ollama pull qwen2.5:3b
+   ```
+
+   > **Pick a model that fits your RAM.** A small model like `qwen2.5:3b` (~2 GB, and notably
+   > better at structured JSON than similarly sized models) or `llama3.2:3b` runs comfortably and
+   > is fine for proving the pipeline. Big models (e.g. `llama3.1` 8B) need 6–8 GB+ or Ollama gets
+   > killed mid-run — see the OOM note in Section 7.
+
+2. Point Requel at it (same terminal you start Requel from):
+
+   ```bash
+   export REQUEL_AI_ENABLED=true
+   export REQUEL_AI_PROVIDER=openai-compat
+   export REQUEL_AI_ENDPOINT=http://localhost:11434/v1/chat/completions
+   export REQUEL_AI_MODEL=llama3.1
+   export REQUEL_AI_API_KEY=ollama          # ignored by Ollama; any non-blank value
+   ```
+
+3. Start Requel and use it as normal (Section 5).
+
+### 4b. Everything in Docker (Requel + database + Ollama together)
+
+For a one‑command, fully self‑contained setup, use the bundled compose file
+**`docker-compose.local-ai.yml`** at the repo root. It runs MySQL, Requel, and Ollama on one
+network and wires the AI variables for you (the app reaches Ollama by the service name `ollama`,
+not `localhost`).
+
+```bash
+# start all three containers
+docker compose -f docker-compose.local-ai.yml up -d
+
+# pull the model into the Ollama container (one time; cached in a named volume)
+# this must match REQUEL_AI_MODEL in the compose file (default: qwen2.5:3b)
+docker compose -f docker-compose.local-ai.yml exec ollama ollama pull qwen2.5:3b
+```
+
+Then open Requel at http://localhost:8080/ and trigger a review (Section 5).
+
+The AI settings in this compose file are **hardcoded** (provider, endpoint, key, model) — it's
+tied to the bundled Ollama service, so they never vary, and fixing the model means a stray
+`REQUEL_AI_*` in your shell can't leak into the container. To use a different model, edit the
+`REQUEL_AI_MODEL=qwen2.5:3b` line in `docker-compose.local-ai.yml` to a name you've pulled, then
+recreate the app container:
+
+```bash
+docker compose -f docker-compose.local-ai.yml exec ollama ollama pull llama3.1   # pull it first
+# (after editing REQUEL_AI_MODEL in the compose file)
+docker compose -f docker-compose.local-ai.yml up -d --force-recreate web
+```
+
+> **Why `http://ollama:11434` and not `localhost`?** Inside Docker, each container's `localhost`
+> is itself. Containers reach each other by service name on the shared network, so the compose
+> file sets `REQUEL_AI_ENDPOINT=http://ollama:11434/v1/chat/completions`. If you instead run Ollama
+> in Docker but Requel on the host (Section 4a), use `localhost`; if Requel is in Docker but Ollama
+> is on the host, use `http://host.docker.internal:11434/...`.
 
 After setting the variables, **restart Requel**. On startup you should see a log line confirming
 the assistant is active, including the provider and model (never the key):
@@ -260,6 +344,18 @@ terminal but starting Requel from another. For Docker, confirm it's passed into 
 Your provider account is out of credits, has no payment method, or the key was disabled. Check your
 provider's billing page. This is not a Requel problem.
 
+**HTTP 500 `llama-server ... signal: killed` (local Ollama).**
+The model server was killed for running out of memory. The model is too large for the RAM Docker
+has. Either raise Docker Desktop's memory (Settings → Resources → Memory) well above the model
+size, or use a smaller model (e.g. `llama3.2:3b` or `qwen2.5:3b` instead of an 8B). Remember to
+`ollama pull` the new model and point `REQUEL_AI_MODEL` at it. Local CPU inference is also slow, so
+`REQUEL_AI_TIMEOUT` is raised to `180s` in `docker-compose.local-ai.yml`; increase it further if
+reviews time out on a big model.
+
+**HTTP 404 `model '<name>' not found` (local Ollama).**
+`REQUEL_AI_MODEL` names a model the server hasn't pulled. Run `ollama pull <name>` and confirm with
+`ollama list`; the value must match exactly.
+
 **Reviews are skipped with a "maxInputTokens" warning.**
 The entity's context was larger than the input cap (`REQUEL_AI_MAX_INPUT_TOKENS`, default 16000).
 This is the cost guardrail working. Raise it only if you accept sending (and paying for) more text.
@@ -294,7 +390,7 @@ Set these as environment variables (the `requel.ai.*` form is the internal Sprin
 | Environment variable | Property | Default | What it does |
 | --- | --- | --- | --- |
 | `REQUEL_AI_ENABLED` | `requel.ai.enabled` | `false` | Master switch. Must be `true` to register the assistant. |
-| `REQUEL_AI_PROVIDER` | `requel.ai.provider` | `noop` | Selects the client: `openai`, `anthropic`, or `noop` (stub, no network). Exactly one is active. |
+| `REQUEL_AI_PROVIDER` | `requel.ai.provider` | `noop` | Selects the client: `openai`, `anthropic`, `openai-compat` (local/self-hosted), or `noop` (stub, no network). Exactly one is active. |
 | `REQUEL_AI_MODEL` | `requel.ai.model` | `noop` | Model id for the chosen provider. |
 | `REQUEL_AI_API_KEY` | `requel.ai.api-key` | *(empty)* | API key for the chosen provider. Read from this variable by default. |
 | `REQUEL_AI_API_KEY_ENVIRONMENT_VARIABLE` | `requel.ai.api-key-environment-variable` | `REQUEL_AI_API_KEY` | Name of the env var the key is read from. Change only to reuse a vendor‑specific name. |
@@ -303,6 +399,7 @@ Set these as environment variables (the `requel.ai.*` form is the internal Sprin
 | `REQUEL_AI_MAX_RETRIES` | `requel.ai.max-retries` | `2` | Retries on a temporary (429/5xx) error. |
 | `REQUEL_AI_MAX_INPUT_TOKENS` | `requel.ai.max-input-tokens` | `16000` | Safety cap on input size; oversize reviews are skipped with a warning. |
 | `REQUEL_AI_MAX_OUTPUT_TOKENS` | `requel.ai.max-output-tokens` | `4000` | Cap on how much the model may write back. |
+| `REQUEL_AI_STRUCTURED_OUTPUT_MODE` | `requel.ai.structured-output-mode` | `json_object` | `openai-compat` only: how to request JSON — `json_schema`, `json_object`, or `none`. Ignored by other providers. |
 | `REQUEL_AI_PROJECT_ALLOWLIST` | `requel.ai.project-allowlist` | *(empty = all)* | CSV of project ids permitted to use AI. |
 
 ---

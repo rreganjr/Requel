@@ -1,0 +1,100 @@
+# Requel + a local AI model, all in Docker — no external API key required.
+#
+# This brings up three containers on one network: MySQL (db), the Requel app (web), and
+# Ollama (ollama) serving a local model over its OpenAI-compatible endpoint. The web service is
+# wired to talk to Ollama via the provider-neutral REQUEL_AI_* settings (provider=openai-compat),
+# so Requel's AI requirements-review runs entirely on your machine.
+#
+# Usage:
+#   1. Start everything:           docker compose -f docker-compose.local-ai.yml up -d
+#   2. Pull a model into Ollama:   docker compose -f docker-compose.local-ai.yml exec ollama ollama pull llama3.1
+#      (only needed once; the model is cached in the named volume below)
+#   3. Use Requel at http://localhost:8080/ and trigger a review (see doc/AI_ASSISTANT_SETUP.md).
+#
+# Override the model without editing this file, e.g.:
+#   REQUEL_AI_MODEL=qwen2.5 docker compose -f docker-compose.local-ai.yml up -d
+#
+# Note: inside the compose network the app reaches Ollama by its service name ("ollama"),
+# NOT localhost — that is why the endpoint below is http://ollama:11434/...
+
+services:
+  db:
+    image: mysql:8.4
+    ports:
+      - "3307:3306"
+    networks:
+      - requel-net
+    environment:
+      - "MYSQL_ROOT_PASSWORD=pa33w0rd"
+      - "MYSQL_DATABASE=requel"
+      - "MYSQL_ROOT_HOST=%"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    networks:
+      - requel-net
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  web:
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    image: rreganjr/requel:2.0.0-dev
+    ports:
+      - "8080:8080"
+    networks:
+      - requel-net
+    environment:
+      - "_JAVA_OPTIONS=-Xms2g -Xmx2g -XX:MaxMetaspaceSize=512m -XX:+UseG1GC"
+      - "SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/requel?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC"
+      - "SPRING_DATASOURCE_USERNAME=root"
+      - "SPRING_DATASOURCE_PASSWORD=pa33w0rd"
+      - "SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-}"
+      # --- AI assistant, pointed at the local Ollama container -----------------------------
+      # These are hardcoded on purpose: this file is tied to the bundled Ollama service, so the
+      # provider/endpoint/key never vary, and the model is fixed so a stray REQUEL_AI_* in your
+      # shell can't leak in. To use a different model, change REQUEL_AI_MODEL below to a name you
+      # have pulled (see ollama pull / ollama list), then: up -d --force-recreate web.
+      - "REQUEL_AI_ENABLED=true"
+      - "REQUEL_AI_PROVIDER=openai-compat"
+      - "REQUEL_AI_ENDPOINT=http://ollama:11434/v1/chat/completions"
+      # Small model by default so it loads in ~1-2GB and survives on a modest Docker memory
+      # allotment. A big model (e.g. llama3.1 8B) needs 6-8GB+ or Ollama gets OOM-killed
+      # ("llama-server ... signal: killed"). To use a bigger/better model, raise Docker Desktop's
+      # memory (Settings > Resources), change this to a model you've pulled, then recreate web.
+      # qwen2.5:3b is a good small default — notably better at filling structured JSON fields than
+      # similarly sized models. Must match a model pulled into Ollama (ollama list).
+      - "REQUEL_AI_MODEL=qwen2.5:3b"
+      # Ollama ignores the key, but the bearer header is harmless; any non-blank value works.
+      - "REQUEL_AI_API_KEY=ollama"
+      # Ollama's /v1 endpoint ignores strict json_schema; json_object is the reliable mode here.
+      - "REQUEL_AI_STRUCTURED_OUTPUT_MODE=json_object"
+      # CPU inference on a local model is slow; allow more time than the 30s default.
+      - "REQUEL_AI_TIMEOUT=180s"
+    restart: unless-stopped
+
+networks:
+  requel-net:
+    driver: bridge
+
+volumes:
+  ollama-models:

@@ -44,6 +44,7 @@ class AiPropertiesTest {
 					assertThat(properties.getMaxRetries()).isEqualTo(2);
 					assertThat(properties.getMaxInputTokens()).isEqualTo(16000);
 					assertThat(properties.getMaxOutputTokens()).isEqualTo(4000);
+					assertThat(properties.getStructuredOutputMode()).isEqualTo("json_object");
 				});
 	}
 
