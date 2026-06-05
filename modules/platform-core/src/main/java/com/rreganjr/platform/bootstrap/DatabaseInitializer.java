@@ -23,6 +23,8 @@ package com.rreganjr.platform.bootstrap;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -33,6 +35,8 @@ import org.springframework.stereotype.Component;
 @Component("databaseInitializer")
 @Scope("prototype")
 public class DatabaseInitializer {
+
+	private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
 
 	private final Set<SystemInitializer> entityInitializers;
 
@@ -52,7 +56,14 @@ public class DatabaseInitializer {
 	 */
 	public void initialize() {
 		for (SystemInitializer initializer : entityInitializers) {
-			initializer.initialize();
+			try {
+				initializer.initialize();
+			} catch (RuntimeException e) {
+				// Don't let one failing initializer abort the rest of the chain (e.g. user
+				// seeding ordered after it). Log and continue so the system still bootstraps.
+				log.error("System initializer {} failed; continuing with remaining initializers",
+						initializer.getClass().getSimpleName(), e);
+			}
 		}
 	}
 }
