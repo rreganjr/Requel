@@ -1,6 +1,6 @@
 ## Implementation plan — sliced sub-tasks
 
-We'll implement this ticket as reviewable slices, each a branch/PR off the `69-*` branch. Order
+We'll implement this ticket as reviewable slices, each on the `69-mcp-command-gateway` branch. Order
 reflects dependencies; slices 1–2 unblock the rest.
 
 ### Slice 1 — `gateway-api` (pure module)
