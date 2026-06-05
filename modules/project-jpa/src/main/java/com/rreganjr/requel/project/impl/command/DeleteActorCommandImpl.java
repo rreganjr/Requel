@@ -135,6 +135,9 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 			RemoveActorFromActorContainerCommand removeActorFromActorContainerCommand = getProjectCommandFactory()
 					.newRemoveActorFromActorContainerCommand();
 			removeActorFromActorContainerCommand.setEditedBy(editedBy);
+			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
+			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
+			((com.rreganjr.platform.command.AuthorizationExemptable) removeActorFromActorContainerCommand).setAuthorizationExempt(true);
 			removeActorFromActorContainerCommand.setActor(actor);
 			removeActorFromActorContainerCommand.setActorContainer(actorContainer);
 			getCommandHandler().execute(removeActorFromActorContainerCommand);

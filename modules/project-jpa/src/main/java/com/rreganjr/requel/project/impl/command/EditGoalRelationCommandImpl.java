@@ -35,6 +35,9 @@ import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.command.EditGoalRelationCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.exception.GoalSelfRelationException;
@@ -49,7 +52,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editGoalRelationCommand")
 @Scope("prototype")
 public class EditGoalRelationCommandImpl extends AbstractProjectCommand implements
-		EditGoalRelationCommand, ProjectScopedCommand {
+		EditGoalRelationCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Goal.class, "Edit");
+	}
 
 	private ProjectOrDomain projectOrDomain;
 	private GoalRelation goalRelation;

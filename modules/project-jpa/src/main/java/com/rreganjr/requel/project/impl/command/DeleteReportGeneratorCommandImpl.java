@@ -34,6 +34,9 @@ import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCom
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.command.DeleteReportGeneratorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -50,7 +53,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteReportGeneratorCommand")
 @Scope("prototype")
 public class DeleteReportGeneratorCommandImpl extends AbstractEditProjectCommand implements
-		DeleteReportGeneratorCommand, ProjectScopedCommand {
+		DeleteReportGeneratorCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.ReportGenerator.class, "Delete");
+	}
 
 	private ReportGenerator reportGenerator;
 

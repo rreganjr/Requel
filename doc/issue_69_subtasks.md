@@ -39,6 +39,8 @@ Needs an authorization requirement (proposed mapping — confirm during implemen
 Verify the `[Delete]` (and any new) permission types exist for every entity before relying on
 them; add missing permission definitions as part of this slice.
 
+**Cascade exemption (temporary, tracked by #75):** deletes cascade through detach commands (`RemoveGoalFromGoalContainer`, `DeleteGoalRelation`, etc.) that now require `Edit`, which would block a `Delete`-only stakeholder mid-delete. As a stop-gap, an `AuthorizationExemptable` flag lets a parent delete mark those internal sub-commands exempt from re-authorization; the proper permission-coherence model is #75.
+
 ### Slice 3 — in-process `CommandGateway` impl (`service-impl`)
 Wrap `ApiCommandFactory` + `CommandHandler`; enforce the allow/deny policy and the
 non-user-stakeholder delete guard. Resolve optimistic-lock handling (wire DTO `version` or prove

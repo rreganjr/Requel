@@ -111,6 +111,9 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 		for (Actor actor : story.getActors()) {
 			RemoveActorFromActorContainerCommand removeActorFromActorContainerCommand = getProjectCommandFactory().newRemoveActorFromActorContainerCommand();
 			removeActorFromActorContainerCommand.setEditedBy(editedBy);
+			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
+			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
+			((com.rreganjr.platform.command.AuthorizationExemptable) removeActorFromActorContainerCommand).setAuthorizationExempt(true);
 			removeActorFromActorContainerCommand.setActor(actor);
 			removeActorFromActorContainerCommand.setActorContainer(story);
 			getCommandHandler().execute(removeActorFromActorContainerCommand);
@@ -118,6 +121,9 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 		for (Goal goal : story.getGoals()) {
 			RemoveGoalFromGoalContainerCommand removeGoalFromGoalContainerCommand = getProjectCommandFactory().newRemoveGoalFromGoalContainerCommand();
 			removeGoalFromGoalContainerCommand.setEditedBy(editedBy);
+			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
+			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
+			((com.rreganjr.platform.command.AuthorizationExemptable) removeGoalFromGoalContainerCommand).setAuthorizationExempt(true);
 			removeGoalFromGoalContainerCommand.setGoal(goal);
 			removeGoalFromGoalContainerCommand.setGoalContainer(story);
 			getCommandHandler().execute(removeGoalFromGoalContainerCommand);
@@ -126,6 +132,9 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 		for (StoryContainer storyContainer : storyReferers) {
 			RemoveStoryFromStoryContainerCommand removeStoryFromStoryContainerCommand = getProjectCommandFactory().newRemoveStoryFromStoryContainerCommand();
 			removeStoryFromStoryContainerCommand.setEditedBy(editedBy);
+			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
+			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
+			((com.rreganjr.platform.command.AuthorizationExemptable) removeStoryFromStoryContainerCommand).setAuthorizationExempt(true);
 			removeStoryFromStoryContainerCommand.setStory(story);
 			removeStoryFromStoryContainerCommand.setStoryContainer(storyContainer);
 			getCommandHandler().execute(removeStoryFromStoryContainerCommand);

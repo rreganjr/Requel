@@ -34,6 +34,9 @@ import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.command.CopyStoryCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -48,7 +51,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("copyStoryCommand")
 @Scope("prototype")
 public class CopyStoryCommandImpl extends AbstractEditProjectCommand
-		implements CopyStoryCommand, ProjectScopedCommand {
+		implements CopyStoryCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Story.class, "Edit");
+	}
 
 	private Story originalStory;
 	private Story newStory;
