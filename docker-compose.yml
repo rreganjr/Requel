@@ -31,6 +31,13 @@ services:
       - "SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/requel?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC"
       - "SPRING_DATASOURCE_USERNAME=root"
       - "SPRING_DATASOURCE_PASSWORD=pa33w0rd"
+      # Spring profile(s) to activate. Empty by default = production-style run.
+      # Set SPRING_PROFILES_ACTIVE=dev on the command line (or in a .env file
+      # at the repo root) to enable application-dev.properties, which turns on
+      # the /api/dev/reset-admin and /api/dev/reset-project endpoints used by
+      # Playwright's global-setup. Example:
+      #   SPRING_PROFILES_ACTIVE=dev docker compose up -d
+      - "SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-}"
     restart: unless-stopped
 
 networks:

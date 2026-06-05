@@ -1,0 +1,61 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "One-paragraph summary of the requirements review."
+    },
+    "findings": {
+      "type": "array",
+      "description": "Quality findings for the reviewed requirement entity.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "findingType": {
+            "type": "string",
+            "description": "Stable finding category, e.g. AMBIGUOUS, INCOMPLETE, UNTESTABLE, INCONSISTENT."
+          },
+          "severity": {
+            "type": ["string", "null"],
+            "enum": ["LOW", "MEDIUM", "HIGH", null],
+            "description": "Relative severity, or null if unspecified."
+          },
+          "confidence": {
+            "type": ["number", "null"],
+            "description": "Model confidence 0.0-1.0, or null."
+          },
+          "evidenceReferences": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Locators into the supplied context (entity refs, snippets)."
+          },
+          "suggestedIssueText": {
+            "type": ["string", "null"],
+            "description": "Proposed issue text to raise, or null for none."
+          },
+          "suggestedNoteText": {
+            "type": ["string", "null"],
+            "description": "Proposed note text, or null for none."
+          },
+          "suggestedPositions": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Proposed resolve-position texts for the issue."
+          }
+        },
+        "required": [
+          "findingType",
+          "severity",
+          "confidence",
+          "evidenceReferences",
+          "suggestedIssueText",
+          "suggestedNoteText",
+          "suggestedPositions"
+        ]
+      }
+    }
+  },
+  "required": ["summary", "findings"]
+}

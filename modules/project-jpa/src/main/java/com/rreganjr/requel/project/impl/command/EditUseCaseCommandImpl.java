@@ -33,9 +33,11 @@ import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ProjectOrDomain;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ScenarioType;
 import com.rreganjr.requel.project.UseCase;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditScenarioCommand;
 import com.rreganjr.requel.project.command.EditScenarioStepCommand;
@@ -53,7 +55,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editUseCaseCommand")
 @Scope("prototype")
 public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditUseCaseCommand {
+		EditUseCaseCommand, AnalysisRequestSource {
 
 	private UseCase usecase;
 	private String primaryActorName;
@@ -202,10 +204,32 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 		setUseCase(usecaseImpl);
 	}
 
+	/**
+	 * Legacy fallback. The UseCase path is migrated to the assistant SPI (issue #43):
+	 * the command-handler layer detects {@link AnalysisRequestSource} and dispatches
+	 * through {@code AnalysisRequestDispatcher}, so this method is normally not
+	 * invoked for use cases. It is retained as a safe fallback.
+	 *
+	 * <p>
+	 * Note: the legacy {@code analyzeUseCase} also cascaded analysis to the use
+	 * case's primary actor and scenario. Under the SPI's per-target model those
+	 * entities are analyzed when they themselves are edited, so the cascade is not
+	 * reproduced.
+	 */
 	@Override
 	public void invokeAnalysis() {
 		if (isAnalysisEnabled()) {
 			getAssistantManager().analyzeUseCase(getUseCase());
 		}
+	}
+
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return getUseCase();
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
 	}
 }

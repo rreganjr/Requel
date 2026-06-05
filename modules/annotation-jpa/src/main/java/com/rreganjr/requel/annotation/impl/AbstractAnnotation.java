@@ -25,6 +25,16 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.hibernate.annotations.Any;
+import org.hibernate.annotations.AnyDiscriminator;
+import org.hibernate.annotations.AnyKeyJavaClass;
+import org.hibernate.annotations.ManyToAny;
+
+import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.annotation.Annotatable;
+import com.rreganjr.requel.annotation.Annotation;
+import com.rreganjr.requel.user.impl.UserImpl;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
@@ -54,16 +64,6 @@ import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
-import org.hibernate.annotations.Any;
-import org.hibernate.annotations.AnyDiscriminator;
-import org.hibernate.annotations.AnyKeyJavaClass;
-import org.hibernate.annotations.ManyToAny;
-
-import com.rreganjr.requel.annotation.Annotatable;
-import com.rreganjr.requel.annotation.Annotation;
-import com.rreganjr.platform.identity.User;
-import com.rreganjr.requel.user.impl.UserImpl;
-
 /**
  * @author ron
  */
@@ -79,10 +79,12 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	private Object groupingObject;
 	private String text;
 	private String type;
-	private Set<Annotatable> annotatables = new HashSet<Annotatable>();
+	private Set<Annotatable> annotatables = new HashSet<>();
 	// private Set<Annotation> annotations = new TreeSet<Annotation>();
 	private User createdBy;
 	private Date dateCreated = new Date();
+	private String source;
+	private String assistantIdempotencyKey;
 	private int version = 1; // start at 1 so hibernate recognizes the new
 
 	// instance as the initial value and not stale.
@@ -151,7 +153,8 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	}
 
 	@Version
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 
@@ -260,6 +263,39 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 
 	protected void setDateCreated(Date dateCreated) {
 		this.dateCreated = dateCreated;
+	}
+
+	/**
+	 * Provenance label for this annotation: {@code "HUMAN"} (or {@code null}) for
+	 * user-created annotations, {@code "ASSISTANT:<assistantId>"} for ones created
+	 * by the assistant result applicator. Drives source labeling in the UI and the
+	 * "untouched" detection used by assistant finding cleanup, without joining the
+	 * assistant tables. DB-only (not part of the project XML schema).
+	 */
+	@Column(name = "source", length = 100)
+	@XmlTransient
+	public String getSource() {
+		return source;
+	}
+
+	public void setSource(String source) {
+		this.source = source;
+	}
+
+	/**
+	 * Duplicates the {@code AssistantFinding} idempotency key on the annotation row
+	 * for fast reverse lookup (finding -> annotation) and source labeling.
+	 * {@code null} for human-created annotations. DB-only (not part of the project
+	 * XML schema).
+	 */
+	@Column(name = "assistant_idempotency_key", length = 255)
+	@XmlTransient
+	public String getAssistantIdempotencyKey() {
+		return assistantIdempotencyKey;
+	}
+
+	public void setAssistantIdempotencyKey(String assistantIdempotencyKey) {
+		this.assistantIdempotencyKey = assistantIdempotencyKey;
 	}
 
 	/**

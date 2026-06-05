@@ -42,6 +42,7 @@ import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ActorImpl;
@@ -55,7 +56,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editActorCommand")
 @Scope("prototype")
 public class EditActorCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditActorCommand, AuthorizableCommand, ProjectScopedCommand {
+		EditActorCommand, AuthorizableCommand, ProjectScopedCommand, AnalysisRequestSource {
 
 	private Set<ActorContainer> actorContainers;
 	private Set<ActorContainer> addActorContainers;
@@ -215,16 +216,27 @@ public class EditActorCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		}
 	}
 
+	/**
+	 * Legacy fallback. The Actor path is migrated to the assistant SPI (issue #43):
+	 * the command-handler layer detects {@link AnalysisRequestSource} and dispatches
+	 * through {@code AnalysisRequestDispatcher}, so this method is normally not
+	 * invoked for actors. It is retained as a safe fallback.
+	 */
 	@Override
 	public void invokeAnalysis() {
 		if (isAnalysisEnabled()) {
-			// TODO: because getActor() is being called locally in the
-			// command, the DomainObjectWrappingAdvice that wraps persistence
-			// objects with a DomainObjectWrapper isn't getting invoked.
-			// Reloading the object through a repository solves the problem, but
-			// using aspectj may be better.
 			getAssistantManager().analyzeActor(getRepository().get(getActor()));
 		}
+	}
+
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return getActor();
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
 	}
 
 	@Override

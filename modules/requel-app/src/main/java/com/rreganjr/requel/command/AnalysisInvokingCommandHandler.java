@@ -25,12 +25,21 @@ import org.slf4j.LoggerFactory;
 
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 
 /**
- * A CommandHandler decorator that executes a command, and then if it implements
- * the EditAnalyzableCommand interface and didn't through an exception it calls
- * the invokeAnalysis() method on the command.
- * 
+ * A CommandHandler decorator that executes a command and then triggers analysis
+ * of the result. Two paths are supported:
+ * <ul>
+ * <li>Commands that implement {@link AnalysisRequestSource} are dispatched
+ * through the assistant SPI via {@link AnalysisRequestDispatcher} — this keeps
+ * the project/command modules free of any SPI dependency.</li>
+ * <li>Commands that only implement the legacy {@link AnalyzableEditCommand} have
+ * their {@code invokeAnalysis()} called directly (the not-yet-migrated paths).</li>
+ * </ul>
+ * Analysis is fire-and-forget: a failure must never roll back the command that
+ * already committed.
+ *
  * @author ron
  */
 public class AnalysisInvokingCommandHandler implements CommandHandler {
@@ -38,24 +47,31 @@ public class AnalysisInvokingCommandHandler implements CommandHandler {
 	private static final Logger log = LoggerFactory.getLogger(AnalysisInvokingCommandHandler.class);
 
 	private final CommandHandler commandHandler;
+	private final AnalysisRequestDispatcher analysisRequestDispatcher;
 
-	/**
-	 * @param exceptionMapper
-	 * @param commandHandler
-	 */
-	public AnalysisInvokingCommandHandler(CommandHandler commandHandler) {
+	public AnalysisInvokingCommandHandler(CommandHandler commandHandler,
+			AnalysisRequestDispatcher analysisRequestDispatcher) {
 		this.commandHandler = commandHandler;
+		this.analysisRequestDispatcher = analysisRequestDispatcher;
 	}
 
 	public <T extends Command> T execute(T command) throws Exception {
 		T executedCommand = commandHandler.execute(command);
-		if (executedCommand instanceof AnalyzableEditCommand) {
+		if (executedCommand instanceof AnalysisRequestSource source
+				&& source.getAnalysisTarget() != null) {
 			try {
-				((AnalyzableEditCommand) executedCommand).invokeAnalysis();
+				analysisRequestDispatcher.dispatch(source.getAnalysisTarget(),
+						source.getAnalysisTriggeredBy());
 			} catch (Exception e) {
-				// Analysis is fire-and-forget: a failure must not roll back the command
-				// that already committed. Log and continue.
-				log.warn("NLP analysis failed for command {}: {}", command.getClass().getSimpleName(), e.getMessage(), e);
+				log.warn("Assistant dispatch failed for command {}: {}",
+						command.getClass().getSimpleName(), e.getMessage(), e);
+			}
+		} else if (executedCommand instanceof AnalyzableEditCommand analyzable) {
+			try {
+				analyzable.invokeAnalysis();
+			} catch (Exception e) {
+				log.warn("NLP analysis failed for command {}: {}",
+						command.getClass().getSimpleName(), e.getMessage(), e);
 			}
 		}
 		return executedCommand;

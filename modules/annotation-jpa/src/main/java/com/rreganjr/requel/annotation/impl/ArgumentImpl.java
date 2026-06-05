@@ -102,7 +102,8 @@ public class ArgumentImpl implements Argument, Serializable {
 	}
 
 	@Version
-	protected int getVersion() {
+	@Override
+	public int getVersion() {
 		return version;
 	}
 

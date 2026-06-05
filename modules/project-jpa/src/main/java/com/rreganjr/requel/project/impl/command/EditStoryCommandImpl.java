@@ -41,6 +41,7 @@ import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.StoryType;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.StoryImpl;
@@ -56,7 +57,7 @@ import org.slf4j.LoggerFactory;
 @Controller("editStoryCommand")
 @Scope("prototype")
 public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditStoryCommand, AuthorizableCommand, ProjectScopedCommand {
+		EditStoryCommand, AuthorizableCommand, ProjectScopedCommand, AnalysisRequestSource {
 
 	private static final Logger log = LoggerFactory.getLogger(EditStoryCommandImpl.class);
 
@@ -209,11 +210,27 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		setStory(getProjectRepository().merge(storyImpl));
 	}
 
+	/**
+	 * Legacy fallback. The Story path is migrated to the assistant SPI (issue #43):
+	 * the command-handler layer detects {@link AnalysisRequestSource} and dispatches
+	 * through {@code AnalysisRequestDispatcher}, so this method is normally not
+	 * invoked for stories. It is retained as a safe fallback.
+	 */
 	@Override
 	public void invokeAnalysis() {
 		if (isAnalysisEnabled()) {
 			getAssistantManager().analyzeStory(getStory());
 		}
+	}
+
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return getStory();
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
 	}
 
 	@Override

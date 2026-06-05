@@ -35,6 +35,16 @@ This plan has been updated for the modularized Spring Boot 3 / Java 17 direction
 
 ## Current State
 
+> **Status (Phase 4.5 landed — issue #43).** The SPI runtime loop described below is now
+> implemented and exercised end-to-end: `AnalysisRequestDispatcher` →
+> `AssistantRunWorker` → `RequelAssistant` adapters → `CommandBackedAssistantResultApplicator`
+> → annotations, with the finding state machine (`Finding State Machine` section) and the
+> command mapping (`AssistantResultApplicator Command Mapping` section) fully realized. Five
+> edit paths (`EditGoal/Story/Actor/UseCase/ScenarioStep`) dispatch through the SPI; the
+> remaining `analyzeX` paths and the retirement of `AssistantFacade` / `AssistantTaskRunner`
+> are deferred to Phase 5+. See `doc/43-phase-4.5-plan.md` (Completion section) for the full
+> record. The pre-#43 description below is retained for context.
+
 - Analysis is invoked after successful edit commands by `AnalysisInvokingCommandHandler`, which calls `AnalyzableEditCommand.invokeAnalysis()`.
 - Project command implementations call specific `AssistantFacade` methods such as `analyzeGoal`, `analyzeStory`, `analyzeActor`, `analyzeUseCase`, `analyzeScenario`, and `analyzeProject`.
 - After issue #39, `AssistantFacade` is a thin async submission and notification layer only. It submits work onto `assistantTaskExecutor` and calls `UpdatedEntityNotifier` after each task completes. The analysis bodies themselves now live in `AssistantTaskRunner`, a `@Component` whose entry points are reached through a Spring transactional proxy. The runner reloads target entities in a new transaction, resolves the `assistant` pseudo-user, and constructs `LexicalAssistant` plus the concrete entity assistants per call. Issue #43 work must preserve this transactional-proxy boundary when migrating from `AssistantTaskRunner` to `AssistantDispatcher` so lazy Hibernate collections continue to have an active session during analysis.
@@ -65,14 +75,23 @@ Decided shape (issue #43):
 - `assistant-legacy-nlp` (also acceptable as `project-analysis` if other lexical/NLP code moves with it)
   - Adapters wrapping the existing `LexicalAssistant`, `TextEntityAssistant`, and concrete entity assistants as `RequelAssistant<T>` implementations.
   - Depends on project/annotation APIs and the NLP module, not the other way around.
+- `assistant-ai`
+  - Provider-neutral AI contracts and generic code: `AiAnalysisClient`,
+    `AiAnalysisRequest`/`AiAnalysisResponse`/`AiFindingDraft`/`AiUsage`, `AiProperties`
+    configuration, and the default `NoopAiAnalysisClient`.
+  - Depends on `assistant-api` (and context-pack DTOs/services). Holds no
+    provider-specific client code.
 - `assistant-openai`
-  - Provider-specific `AiAnalysisClient` implementations and AI-backed assistants.
-  - Depends on `assistant-api`, context-pack DTOs/services, and the provider SDK/client code.
+  - OpenAI-specific `AiAnalysisClient` implementation (`OpenAiAnalysisClient`, Responses
+    API) and any future OpenAI-backed assistants.
+  - Depends on `assistant-ai` (for the neutral contracts/config) plus the provider
+    SDK/client code. Each additional provider gets its own sibling module (e.g.
+    `assistant-anthropic`, `assistant-local`).
 - `mcp-server`
   - MCP protocol handlers, resources, and tools.
   - Bundled in-process with `requel-app` for the first cut. Every tool/resource calls a `ProjectQueryGateway` abstraction so a future standalone bridge can drop in a REST-backed gateway plus auth exchange without rewriting the tools. Must not become a dependency of `assistant-api`.
 
-`assistant-api` and `assistant-core` are introduced together in the first implementation branch. `assistant-legacy-nlp`, `assistant-openai`, and `mcp-server` follow in later phases per `doc/ai-assistance-plan.md` rollout.
+`assistant-api` and `assistant-core` are introduced together in the first implementation branch. `assistant-legacy-nlp`, `assistant-ai` (neutral contracts + Noop), `assistant-openai` (OpenAI client), and `mcp-server` follow in later phases per `doc/ai-assistance-plan.md` rollout.
 
 ## Proposed SPI
 
@@ -139,30 +158,56 @@ AssistantResult result = AssistantResult.builder()
     .summary("Lexical analysis completed")
     .annotationAction(AnnotationAction.createIssue(
         "legacy-lexical:Goal:42:unknown-word:datalaek",
-        EntityRef.goal(42L),
+        EntityRef.of("Goal", 42L),
         "Unknown word 'datalaek'",
-        true))
-    .annotationAction(AnnotationAction.createPosition(
+        true,
+        List.of(EvidenceRef.ofLocator("field=description;tokens=12"))))
+    .annotationAction(AnnotationAction.createPositionForDraftIssue(
         "legacy-lexical:Goal:42:unknown-word:datalaek:add-to-glossary",
-        IssueRef.byActionKey("legacy-lexical:Goal:42:unknown-word:datalaek"),
-        "Add 'data lake' to glossary"))
+        "legacy-lexical:Goal:42:unknown-word:datalaek",
+        "Add 'data lake' to glossary",
+        List.of(EvidenceRef.ofSnippet("datalaek"))))
     .message(AssistantMessage.info("Candidate glossary term: data lake"))
     .build();
 ```
+
+The position above attaches to an issue created earlier in the *same* result. Because
+that issue has no persisted id yet, the position references it through
+`parentActionKey` (via `createPositionForDraftIssue`) rather than an `EntityRef`. The
+applicator resolves the parent's freshly-created annotation id before applying the
+position. Positions against an already-persisted issue use
+`AnnotationAction.createPosition(actionKey, EntityRef issueRef, text, evidence)`
+instead.
 
 ### AnnotationAction
 
 `AnnotationAction` replaces direct calls from assistants to `AnnotationCommandFactory`.
 
-Required fields:
+Fields (as implemented in `assistant-api`):
 
-- stable action key
-- action type: create/update/remove note, issue, position, argument, or annotation link
-- target entity reference
-- grouping/project reference
-- text and structured payload
-- severity/must-resolve/confidence where relevant
-- evidence references
+- `actionKey` — stable idempotency key for the action.
+- `actionType` — an `(operation x annotation kind)` enum:
+  `CREATE_OR_UPDATE_NOTE`, `DELETE_NOTE`, `CREATE_OR_UPDATE_ISSUE`, `RESOLVE_ISSUE`,
+  `DELETE_ISSUE`, `CREATE_OR_UPDATE_POSITION`, `DELETE_POSITION`,
+  `CREATE_OR_UPDATE_ARGUMENT`, `DELETE_ARGUMENT`, `REMOVE_ANNOTATION_FROM_ANNOTATABLE`.
+  `CREATE_OR_UPDATE_*` follows the "Edit" convention — create when no annotation matches
+  the idempotency key, update (by id + optimistic-lock version) when one does.
+- `targetRef` — `EntityRef` of the target annotatable. Optional **only** when
+  `parentActionKey` is set (e.g. a position attaching to a draft issue in the same
+  result).
+- `parentActionKey` — optional action key of another action in the same result this one
+  attaches to. Lets a position reference an issue created in the same run before that
+  issue has a persisted id.
+- `text` — the annotation/finding text.
+- `severity`, `confidence` — optional finding metadata.
+- `evidence` — a **first-class** `List<EvidenceRef>` (each carries an optional
+  `entityRef`, a stable `locator`, and a display `snippet`). Evidence is a typed field,
+  **not** an entry in `metadata`, because the finding idempotency key derives from a
+  normalized evidence hash.
+- `metadata` — free-form map used by the applicator to select factory sub-variants that
+  share an annotation kind but resolve to different commands (e.g.
+  `metadata.get("kind")` = `LEXICAL` / `CHANGE_SPELLING` / `ADD_WORD_TO_DICTIONARY`).
+  The action type itself never names a factory method.
 
 The result applicator applies actions through existing command factories and `CommandHandler`. It must be idempotent:
 
@@ -387,7 +432,7 @@ The applicator never writes directly through repositories. Every `AnnotationActi
 
 Notes:
 
-- The `AnnotationAction` value types in `assistant-api` are kept abstract enough that the applicator can pick the right factory variant from action metadata. For example, a `CreatePosition` action against a lexical issue with `kind = CHANGE_SPELLING` resolves to `newEditChangeSpellingPositionCommand()`, not `newEditPositionCommand()`. The action type itself does not name the factory method.
+- The `AnnotationAction` value types in `assistant-api` are kept abstract enough that the applicator can pick the right factory variant from action metadata. For example, a `CREATE_OR_UPDATE_POSITION` action against a lexical issue with `metadata.kind = CHANGE_SPELLING` resolves to `newEditChangeSpellingPositionCommand()`, not `newEditPositionCommand()`. The action type itself does not name the factory method. A `CREATE_OR_UPDATE_POSITION` carrying a `parentActionKey` (rather than a `targetRef`) attaches to an issue created earlier in the same result; the applicator resolves the parent's freshly-created annotation id first.
 - For updates, the applicator looks up the existing annotation via the idempotency key, populates the `Edit*Command` input with the existing id and the existing optimistic-lock version, then sets new field values. The command implementation handles validation, audit, and SSE.
 - `AUTO_RESOLVE_IF_UNTOUCHED` cleanup uses `newResolveIssueCommand(Position)` when a resolve position exists, and `newRemoveAnnotationFromAnnotatableCommand()` when configured to remove the annotation from the target instead. Hard delete via `newDelete*Command()` is reserved for assistant lifecycle operations (e.g., clearing assistant-owned findings from a target during a project reset), never for normal stale-finding cleanup.
 - Issues, positions, and arguments that map to the IBIS layer use the existing `Annotatable` discriminator dispatch through `AnnotatableTypeRegistry`; the applicator never builds annotation entities directly.
@@ -449,7 +494,7 @@ When NLP or AI is disabled, `RequelAssistant` implementations return **explicit 
 
 Resolved during issue #43 walkthrough. See the full record at <https://github.com/rreganjr/Requel/issues/43#issuecomment-4560006774>, and the AI-side decisions in `doc/ai-assistance-plan.md`.
 
-- **Module shape.** `assistant-api` + `assistant-core` from day one. AI/provider modules (`assistant-openai`, etc.) layered in later. `assistant-api` holds pure contracts and value types; `assistant-core` holds dispatcher, registry, applicator, run persistence, and legacy adapters.
+- **Module shape.** `assistant-api` + `assistant-core` from day one. AI modules layered in later: `assistant-ai` holds provider-neutral AI contracts/config and the `NoopAiAnalysisClient`; provider-specific clients each get their own module (`assistant-openai` first, with `OpenAiAnalysisClient`). `assistant-api` holds pure contracts and value types; `assistant-core` holds dispatcher, registry, applicator, run persistence, and legacy adapters.
 - **SPI dependencies.** `assistant-api` may depend on `project-domain` and `annotation-domain` interfaces. JPA modules (`project-jpa`, `annotation-jpa`, `user-jpa`) are forbidden. This allows strongly-typed signatures such as `RequelAssistant<Goal>` and `RequelAssistant<Scenario>`.
 - **Idempotency key storage.** Dedicated `AssistantFinding` table is the source of truth. The idempotency key is also stamped on the annotation row for fast reverse-lookup and source labeling.
 - **Stale-finding cleanup.** Configurable per assistant. Each assistant declares one of `MANUAL`, `MARK_SUPERSEDED`, or `AUTO_RESOLVE_IF_UNTOUCHED` in its registration metadata. Default is `MARK_SUPERSEDED` for assistants that do not declare a policy.

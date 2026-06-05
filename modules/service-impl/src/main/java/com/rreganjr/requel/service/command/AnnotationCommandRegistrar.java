@@ -241,53 +241,53 @@ public class AnnotationCommandRegistrar {
     }
 
     // --- DTO mappers ---
-    // Note/Issue/Position/Argument interfaces don't expose getId(); cast to concrete impls.
+    // Note/Issue/Position/Argument now expose getId() / getVersion() on the
+    // annotation-domain interfaces, so no downcasts to *Impl are needed.
+    // TODO(#43): replace the hardcoded `0` version with the real getVersion()
+    // value once the Angular edit flow is confirmed to round-trip versions.
 
     public static NoteDto toNoteDto(Note note) {
         if (note == null) return null;
-        NoteImpl impl = (NoteImpl) note;
         return new NoteDto(
-                impl.getId(),
+                note.getId(),
                 0,
-                impl.getText(),
-                impl.getCreatedBy() != null ? impl.getCreatedBy().getDisplayName() : null
+                note.getText(),
+                note.getCreatedBy() != null ? note.getCreatedBy().getDisplayName() : null
         );
     }
 
     public static IssueDto toIssueDto(Issue issue) {
         if (issue == null) return null;
-        IssueImpl impl = (IssueImpl) issue;
-        List<PositionDto> positions = impl.getPositions().stream()
+        List<PositionDto> positions = issue.getPositions().stream()
                 .sorted(Comparator.naturalOrder())
                 .map(AnnotationCommandRegistrar::toPositionDto)
                 .toList();
         return new IssueDto(
-                impl.getId(),
+                issue.getId(),
                 0,
-                impl.getText(),
-                impl.isMustBeResolved(),
-                impl.isResolved(),
-                impl.getResolvedByUser() != null ? impl.getResolvedByUser().getDisplayName() : null,
-                impl.getResolvedByPosition() != null ? impl.getResolvedByPosition().getText() : null,
-                impl.getCreatedBy() != null ? impl.getCreatedBy().getDisplayName() : null,
+                issue.getText(),
+                issue.isMustBeResolved(),
+                issue.isResolved(),
+                issue.getResolvedByUser() != null ? issue.getResolvedByUser().getDisplayName() : null,
+                issue.getResolvedByPosition() != null ? issue.getResolvedByPosition().getText() : null,
+                issue.getCreatedBy() != null ? issue.getCreatedBy().getDisplayName() : null,
                 positions
         );
     }
 
     public static PositionDto toPositionDto(Position position) {
         if (position == null) return null;
-        PositionImpl impl = (PositionImpl) position;
-        List<ArgumentDto> arguments = impl.getArguments().stream()
+        List<ArgumentDto> arguments = position.getArguments().stream()
                 .sorted(Comparator.naturalOrder())
                 .map(AnnotationCommandRegistrar::toArgumentDto)
                 .toList();
-        // Simple class name used by the UI to label and dispatch the correct resolve variant
-        String positionType = impl.getClass().getSimpleName();
+        // Simple class name used by the UI to label and dispatch the correct resolve variant.
+        String positionType = position.getClass().getSimpleName();
         return new PositionDto(
-                impl.getId(),
+                position.getId(),
                 0,
-                impl.getText(),
-                impl.getCreatedBy() != null ? impl.getCreatedBy().getDisplayName() : null,
+                position.getText(),
+                position.getCreatedBy() != null ? position.getCreatedBy().getDisplayName() : null,
                 positionType,
                 arguments
         );
@@ -295,13 +295,12 @@ public class AnnotationCommandRegistrar {
 
     public static ArgumentDto toArgumentDto(Argument argument) {
         if (argument == null) return null;
-        ArgumentImpl impl = (ArgumentImpl) argument;
         return new ArgumentDto(
-                impl.getId(),
+                argument.getId(),
                 0,
-                impl.getText(),
-                impl.getSupportLevel() != null ? impl.getSupportLevel().name() : null,
-                impl.getCreatedBy() != null ? impl.getCreatedBy().getDisplayName() : null
+                argument.getText(),
+                argument.getSupportLevel() != null ? argument.getSupportLevel().name() : null,
+                argument.getCreatedBy() != null ? argument.getCreatedBy().getDisplayName() : null
         );
     }
 }

@@ -27,9 +27,11 @@ import org.springframework.stereotype.Controller;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.ProjectOrDomain;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ScenarioType;
 import com.rreganjr.requel.project.Step;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.EditScenarioStepCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.StepImpl;
@@ -43,7 +45,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editScenarioStepCommand")
 @Scope("prototype")
 public class EditScenarioStepCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditScenarioStepCommand {
+		EditScenarioStepCommand, AnalysisRequestSource {
 
 	private Step step;
 	private String text;
@@ -116,10 +118,28 @@ public class EditScenarioStepCommandImpl extends AbstractEditProjectOrDomainEnti
 		setStep(getProjectRepository().merge(stepImpl));
 	}
 
+	/**
+	 * Legacy fallback. The Step / Scenario paths are migrated to the assistant SPI
+	 * (issue #43): the command-handler layer detects {@link AnalysisRequestSource} and
+	 * dispatches through {@code AnalysisRequestDispatcher}, so this method is normally
+	 * not invoked. It is retained as a safe fallback. {@code EditScenarioCommandImpl}
+	 * inherits {@link #getAnalysisTarget()} (its {@code getStep()} returns the scenario,
+	 * which is itself a {@link Step}).
+	 */
 	@Override
 	public void invokeAnalysis() {
 		if (isAnalysisEnabled()) {
 			getAssistantManager().analyzeScenarioStep(getStep());
 		}
+	}
+
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return getStep();
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
 	}
 }

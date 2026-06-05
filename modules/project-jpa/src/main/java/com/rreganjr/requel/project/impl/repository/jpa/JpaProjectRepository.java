@@ -127,6 +127,26 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
                 AddGlossaryTermPosition.class, AddActorPosition.class);
 	}
 
+	@Override
+	public <T> T findById(Class<T> entityType, Long id) throws NoSuchEntityException {
+		// Entity names follow the "<Interface>Impl" convention (e.g. GoalImpl,
+		// StoryImpl, ProjectImpl), so the impl class need not be imported here.
+		String entityName = entityType.getSimpleName() + "Impl";
+		try {
+			Query query = getEntityManager()
+					.createQuery("select e from " + entityName + " as e where e.id = :id");
+			query.setParameter("id", id);
+			return entityType.cast(query.getSingleResult());
+		} catch (NoResultException e) {
+			throw NoSuchEntityException.byQuery(entityType, new String[] { "id" },
+					new Object[] { id });
+		} catch (EntityException e) {
+			throw e;
+		} catch (Exception e) {
+			throw convertException(e, entityType, null, EntityExceptionActionType.Reading);
+		}
+	}
+
 	public Project findProjectByName(String name) throws NoSuchProjectException {
 		try {
 			// TODO: use named query so it can be configured externally

@@ -73,5 +73,22 @@ Resolved during issue #43 walkthrough. See the full record at <https://github.co
 - **Default flag value.** `requel.nlp.enabled=true` remains the default (`matchIfMissing=true`). Lean builds opt out explicitly; existing deployments behave unchanged on upgrade.
 - **Coexistence with AI assistants.** Legacy NLP is not deprecated when AI-backed assistants land. Both run in parallel; legacy NLP stays enabled by default. The flag exists for opt-out, not as a planned default flip.
 - **Initial scope.** Phase 1 of this plan delivers Scope 1 (in-module disable via the property flag). Scope 2 (absent-module startup) is contingent on a later `nlp-api` extraction and is not pursued as part of issue #43.
+
+> **Implementation status (2026-06).** Scope 1 is largely implemented. `NLPProcessorFactoryImpl`
+> is now gated by `@ConditionalOnProperty(requel.nlp.enabled, havingValue=true,
+> matchIfMissing=true)`; `requel-app` provides `NoOpNLPProcessorFactory` (safe empty values, no
+> nulls) wired by `NoOpNlpConfig` (`@ConditionalOnProperty(havingValue=false)` +
+> `@ConditionalOnMissingBean`), so exactly one factory is active. `requel.nlp.enabled=true` is
+> the default in `application.properties`, and `NlpDisabledSmokeTest` boots the app with NLP
+> disabled and asserts the no-op factory + its safe empty returns. The five legacy NLP
+> assistants (four lexical + step-structure) are also gated by
+> `@ConditionalOnProperty(requel.nlp.enabled, havingValue=true, matchIfMissing=true)`, so when
+> NLP is disabled they are not registered: an analysis run for a target then finds no
+> assistants and the worker records it `SKIPPED` with the reason "No assistants registered for
+> …" (verified by `NlpDisabledDispatchTest`). This realises the "disabled-NLP runs are skipped,
+> not failed" contract by not invoking the assistants at all rather than invoking them and
+> discarding an empty result. Scope 1 is complete (delivered as Step 7 of issue #43's
+> Phase 4.5 — see `doc/43-phase-4.5-plan.md`, Completion section). Scope 2 (absent-module
+> startup via an `nlp-api` extraction) remains out of scope.
 - **No-op behavior.** Safe empty values, not `null`. The no-op factory is the single source of truth for the "disabled" contract that the assistant SPI's no-op assistants also rely on.
 

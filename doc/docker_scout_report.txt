@@ -1,4 +1,4 @@
-rregan_platformq@admin-MacBook-Pro Requel % docker scout cves local://rreganjr/requel:1.2.0
+% docker scout cves local://rreganjr/requel:1.2.0
     i New version 1.18.4 available (installed version is 1.18.3) at https://github.com/docker/scout-cli
     ✓ SBOM of image already cached, 385 packages indexed
     ✗ Detected 35 vulnerable packages with a total of 62 vulnerabilities
@@ -655,7 +655,7 @@ What's next:
     View base image update recommendations → docker scout recommendations local://rreganjr/requel:1.2.0
 
 
-rregan_platformq@admin-MacBook-Pro Requel % docker scout recommendations local://rreganjr/requel:1.2.0
+% docker scout recommendations local://rreganjr/requel:1.2.0
     i New version 1.18.4 available (installed version is 1.18.3) at https://github.com/docker/scout-cli
     ✓ SBOM of image already cached, 385 packages indexed
 

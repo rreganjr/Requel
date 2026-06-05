@@ -356,6 +356,39 @@ public class ProjectRepositoryTest extends AbstractIntegrationTestCase {
     }
 
     // -------------------------------------------------------------------------
+    // findById (generic, id-based lookup)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void findByIdReturnsPersistedGoal() throws Exception {
+        Project project = createProject("Repo-findById-goal");
+        Goal goal = createGoal(project, "GoalById");
+
+        Goal found = getProjectRepository().findById(Goal.class, goal.getId());
+
+        assertNotNull(found);
+        assertEquals(goal.getId(), found.getId());
+        assertEquals("GoalById", found.getName());
+    }
+
+    @Test
+    void findByIdReturnsPersistedStory() throws Exception {
+        Project project = createProject("Repo-findById-story");
+        Story story = createStory(project, "StoryById");
+
+        Story found = getProjectRepository().findById(Story.class, story.getId());
+
+        assertNotNull(found);
+        assertEquals(story.getId(), found.getId());
+    }
+
+    @Test
+    void findByIdThrowsForUnknownId() {
+        assertThrows(NoSuchEntityException.class,
+                () -> getProjectRepository().findById(Goal.class, -1L));
+    }
+
+    // -------------------------------------------------------------------------
     // findStakeholderPermission (seeded by StakeholderPermissionsInitializer)
     // -------------------------------------------------------------------------
 

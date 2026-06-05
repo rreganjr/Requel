@@ -44,6 +44,7 @@ import com.rreganjr.repository.jpa.GenericPropertyValueExceptionAdapter;
 import com.rreganjr.repository.jpa.InvalidStateExceptionAdapter;
 import com.rreganjr.repository.jpa.OptimisticLockExceptionAdapter;
 import com.rreganjr.requel.annotation.Annotatable;
+import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.AnnotationExistsException;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.Argument;
@@ -92,6 +93,40 @@ public class JpaAnnotationRepository extends AbstractJpaRepository implements An
         addExceptionAdapter(ObjectOptimisticLockingFailureException.class,
                 new OptimisticLockExceptionAdapter(), Position.class, Issue.class, Note.class,
                 Argument.class);
+	}
+
+	@Override
+	public <T> T findById(Class<T> entityType, Long id) {
+		if (id == null) {
+			return null;
+		}
+		// Annotation entity names follow the "<Interface>Impl" convention (IssueImpl,
+		// NoteImpl, ...); the query is polymorphic so a subtype (e.g. a lexical issue)
+		// is returned for Issue.class.
+		String entityName = entityType.getSimpleName() + "Impl";
+		try {
+			Query query = getEntityManager()
+					.createQuery("select e from " + entityName + " as e where e.id = :id");
+			query.setParameter("id", id);
+			return entityType.cast(query.getSingleResult());
+		} catch (NoResultException e) {
+			return null;
+		}
+	}
+
+	@Override
+	public Annotation findAnnotationById(Long id) {
+		if (id == null) {
+			return null;
+		}
+		try {
+			Query query = getEntityManager()
+					.createQuery("select e from AbstractAnnotation as e where e.id = :id");
+			query.setParameter("id", id);
+			return (Annotation) query.getSingleResult();
+		} catch (NoResultException e) {
+			return null;
+		}
 	}
 
 	@Override
