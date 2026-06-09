@@ -21,7 +21,6 @@
 package com.rreganjr;
 
 import java.io.InputStream;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.GZIPInputStream;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -78,7 +77,6 @@ public abstract class AbstractIntegrationTestCase {
 	private StakeholderPermissionsInitializer stakeholderPermissionsInitializer;
 	private TestRoleGrantHelper testRoleGrantHelper;
 
-	private static final AtomicBoolean baselineInitialized = new AtomicBoolean(false);
 
 	protected ProjectCommandFactory getProjectCommandFactory() {
 		return projectCommandFactory;
@@ -158,23 +156,26 @@ public abstract class AbstractIntegrationTestCase {
 
     @BeforeEach
     public void initializeBaselineData() throws Exception {
-        boolean first = baselineInitialized.compareAndSet(false, true);
-        if (first) {
-            if (userRolePermissionsInitializer != null) {
-                userRolePermissionsInitializer.initialize();
-            }
-            if (stakeholderPermissionsInitializer != null) {
-                stakeholderPermissionsInitializer.initialize();
-			}
-			if (adminUserInitializer != null) {
-				adminUserInitializer.initialize();
-			}
-			if (assistantUserInitializer != null) {
-				assistantUserInitializer.initialize();
-            }
-            if (projectUserInitializer != null) {
-                projectUserInitializer.initialize();
-            }
+        // Seed baseline data for the CURRENT Spring context's database. Each test context gets
+        // its own in-memory DB (jdbc:h2:mem:requel-${random.uuid}, per #43/#76), so this must run
+        // per context, not once per JVM. The initializers are idempotent (check-then-create), so
+        // re-running against an already-seeded context is just cheap existence checks. (A prior
+        // JVM-wide AtomicBoolean guard left every context after the first unseeded -> intermittent
+        // "No user for username 'project'" in the full suite.)
+        if (userRolePermissionsInitializer != null) {
+            userRolePermissionsInitializer.initialize();
+        }
+        if (stakeholderPermissionsInitializer != null) {
+            stakeholderPermissionsInitializer.initialize();
+        }
+        if (adminUserInitializer != null) {
+            adminUserInitializer.initialize();
+        }
+        if (assistantUserInitializer != null) {
+            assistantUserInitializer.initialize();
+        }
+        if (projectUserInitializer != null) {
+            projectUserInitializer.initialize();
         }
         // Always ensure the key users have ProjectUserRole; idempotent and cheap.
         try { grantProjectRoleIfMissing("admin"); } catch (Exception e) { log.warn("grant admin project role failed", e); }
