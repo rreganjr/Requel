@@ -68,7 +68,16 @@ public class AbstractJpaRepository extends AbstractRepository {
 			}
 			Object id = getId(target);
 			if (id != null) {
-				return entityManager.merge(target);
+				// Detached, id-bearing entity. If the row exists this is an update -> merge. If
+				// the row is absent (an id carried from an import or a stale cross-context cache),
+				// Hibernate 6.6's merge issues a 0-row UPDATE and throws StaleObjectStateException;
+				// insert it as new instead (IDENTITY ids regenerate, assigned/natural keys kept).
+				// See issue #76.
+				if (entityManager.find(target.getClass(), id) != null) {
+					return entityManager.merge(target);
+				}
+				insertNew(target);
+				return target;
 			}
 			entityManager.persist(target);
 			return target;
@@ -76,6 +85,42 @@ public class AbstractJpaRepository extends AbstractRepository {
 			log.warn(e, e);
 			throw convertException(e, entity.getClass(), entity, EntityExceptionActionType.Creating);
 		}
+	}
+
+	/**
+	 * Import semantics: always INSERT a new row graph for the supplied (typically just-
+	 * deserialized) entity, regardless of any id it carries. {@link #persist(Object)} routes
+	 * id-bearing entities to {@code merge()}; under Hibernate 6.6 a merge of a detached entity
+	 * whose row is absent (e.g. an IDENTITY entity carrying an id used only for XML
+	 * cross-references) becomes a 0-row UPDATE and throws StaleObjectStateException. This forces
+	 * an insert of the whole cascade graph: IDENTITY ids are (re)generated, assigned/natural keys
+	 * (e.g. composite ids) are kept. See issue #76.
+	 *
+	 * <p>Uses Hibernate's legacy insert-graph primitive, deprecated-for-removal in Hibernate 7 —
+	 * revisit when upgrading past 6.x.
+	 */
+	public <T> T create(T entity) throws EntityException {
+		if (entity == null) {
+			return null;
+		}
+		try {
+			insertNew(entity);
+			return entity;
+		} catch (Exception e) {
+			log.warn(e, e);
+			throw convertException(e, entity.getClass(), entity, EntityExceptionActionType.Creating);
+		}
+	}
+
+	/**
+	 * Insert a new row (graph) for a detached/transient entity, (re)generating IDENTITY ids and
+	 * keeping assigned/natural keys. Uses Hibernate's legacy insert primitive (deprecated-for-
+	 * removal in Hibernate 7 — revisit then). Shared by {@link #create(Object)} and the
+	 * absent-row branch of {@link #persist(Object)}.
+	 */
+	@SuppressWarnings("deprecation")
+	private void insertNew(Object target) {
+		entityManager.unwrap(org.hibernate.Session.class).save(target);
 	}
 
 	/**
