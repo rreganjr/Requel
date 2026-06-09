@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.mcp;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -31,19 +32,31 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.gateway.QueryGateway;
 
 @Service
 public class McpReadService {
 
 	private static final String JSON_MIME_TYPE = "application/json";
 
-	private final ProjectQueryGateway projectQueryGateway;
+	private final QueryGateway projectQueryGateway;
+	private final McpWriteService writeService;
 	private final ObjectMapper objectMapper;
 
 	@Autowired
-	public McpReadService(ProjectQueryGateway projectQueryGateway, ObjectMapper objectMapper) {
+	public McpReadService(QueryGateway projectQueryGateway, McpWriteService writeService,
+			ObjectMapper objectMapper) {
 		this.projectQueryGateway = projectQueryGateway;
+		this.writeService = writeService;
 		this.objectMapper = objectMapper;
+	}
+
+	/**
+	 * Convenience constructor for read-only deployments and tests: no write tools are exposed
+	 * (a disabled {@link McpWriteService} with no command gateway).
+	 */
+	public McpReadService(QueryGateway projectQueryGateway, ObjectMapper objectMapper) {
+		this(projectQueryGateway, new McpWriteService(null, objectMapper, false), objectMapper);
 	}
 
 	public Map<String, Object> initialize() {
@@ -54,7 +67,7 @@ public class McpReadService {
 	}
 
 	public Map<String, Object> listTools() {
-		return Map.of("tools", List.of(
+		List<McpToolDescriptor> tools = new ArrayList<>(List.of(
 				new McpToolDescriptor("requel.listProjects",
 						"List projects visible to the current authenticated user.",
 						Map.of("type", "object", "properties", Map.of(), "additionalProperties",
@@ -92,11 +105,19 @@ public class McpReadService {
 						"Build a draft annotation (note or issue) for an entity and return it"
 								+ " WITHOUT persisting; the caller submits it for application.",
 						draftAnnotationSchema())));
+		// Append opt-in write tools (empty unless requel.gateway.write.enabled=true).
+		tools.addAll(writeService.toolDescriptors());
+		return Map.of("tools", tools);
 	}
 
 	public Map<String, Object> callTool(JsonNode params) {
 		String name = requiredText(params, "name");
 		JsonNode arguments = params != null ? params.get("arguments") : null;
+		if (writeService.handles(name)) {
+			Object writeResult = writeService.call(name, arguments);
+			return Map.of("content", List.of(new McpTextContent("text", toJson(writeResult))),
+					"isError", false);
+		}
 		Object result = switch (name) {
 			case "requel.listProjects" -> projectQueryGateway.listProjects();
 			case "requel.getProject" -> projectQueryGateway.getProject(requiredText(arguments,

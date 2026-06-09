@@ -14,12 +14,17 @@
     <artifactId>mcp-server</artifactId>
     <packaging>jar</packaging>
     <name>Requel MCP Server</name>
-    <description>Read-only MCP JSON-RPC tools and resources for Requel project data.</description>
+    <description>MCP JSON-RPC tools and resources for Requel: read tools over the gateway QueryGateway, plus opt-in write tools over the CommandGateway.</description>
 
     <dependencies>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
             <artifactId>service-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>gateway-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

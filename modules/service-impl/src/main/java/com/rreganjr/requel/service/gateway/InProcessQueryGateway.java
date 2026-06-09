@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.mcp;
+package com.rreganjr.requel.service.gateway;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -27,12 +27,12 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
@@ -50,18 +50,19 @@ import com.rreganjr.requel.service.query.AnnotationQueryController;
 import com.rreganjr.requel.service.query.ProjectQueryController;
 
 /**
- * In-process gateway for the first bundled MCP server. A future standalone
- * bridge can provide an HTTP-backed implementation of {@link ProjectQueryGateway}
- * without changing protocol handlers.
+ * In-process {@link QueryGateway}: the authorized, DTO-shaped read side of the gateway, backed by
+ * the same query controllers the REST API uses. This is the canonical home for the read contract
+ * the MCP server (and a future REST-backed client) consume — the mirror of
+ * {@code InProcessCommandGateway} on the write side. Relocated from the mcp-server module so reads
+ * and writes share one gateway-api contract (issue #69 Slice 4).
  */
 @Component
-public class InProcessProjectQueryGateway implements ProjectQueryGateway {
+public class InProcessQueryGateway implements QueryGateway {
 
 	private final ProjectQueryController projectQueryController;
 	private final AnnotationQueryController annotationQueryController;
 
-	@Autowired
-	public InProcessProjectQueryGateway(ProjectQueryController projectQueryController,
+	public InProcessQueryGateway(ProjectQueryController projectQueryController,
 			AnnotationQueryController annotationQueryController) {
 		this.projectQueryController = projectQueryController;
 		this.annotationQueryController = annotationQueryController;
@@ -110,7 +111,7 @@ public class InProcessProjectQueryGateway implements ProjectQueryGateway {
 			case "UseCase" -> projectQueryController.getUseCase(projectName, entityId);
 			case "Scenario" -> projectQueryController.getScenario(projectName, entityId);
 			case "GlossaryTerm" -> projectQueryController.getTerm(projectName, entityId);
-			default -> throw new McpInvalidParamsException("Unsupported entity type: " + entityType);
+			default -> throw new IllegalArgumentException("Unsupported entity type: " + entityType);
 		};
 		return unwrap(response);
 	}
@@ -214,7 +215,7 @@ public class InProcessProjectQueryGateway implements ProjectQueryGateway {
 	}
 
 	private static <T> List<EntityReferenceDto> refs(String entityType, List<T> items,
-			java.util.function.Function<T, Long> idFn, java.util.function.Function<T, String> nameFn) {
+			Function<T, Long> idFn, Function<T, String> nameFn) {
 		if (items == null) {
 			return List.of();
 		}
