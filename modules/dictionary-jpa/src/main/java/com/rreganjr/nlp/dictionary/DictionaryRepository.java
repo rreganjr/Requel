@@ -35,6 +35,14 @@ import com.rreganjr.repository.Repository;
 public interface DictionaryRepository extends Repository {
 
 	/**
+	 * Insert a new entity (graph) for an import, always creating new rows. Unlike
+	 * {@link Repository#persist(Object)}, this never routes an id-bearing deserialized entity to
+	 * {@code merge()} (which Hibernate 6.6 turns into a stale 0-row update for absent rows).
+	 * IDENTITY ids are regenerated; assigned/natural keys are kept. See issue #76.
+	 */
+	<T> T create(T entity) throws com.rreganjr.platform.exception.EntityException;
+
+	/**
 	 * @return The full dictonary of wordnet synsets, categories, and words.
 	 */
 	public Dictionary getDictionary();
