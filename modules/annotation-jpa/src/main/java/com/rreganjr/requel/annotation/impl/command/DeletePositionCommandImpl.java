@@ -41,7 +41,8 @@ import com.rreganjr.requel.annotation.command.DeletePositionCommand;
  */
 @Controller("deletePositionCommand")
 @Scope("prototype")
-public class DeletePositionCommandImpl extends AbstractEditCommand implements DeletePositionCommand {
+public class DeletePositionCommandImpl extends AbstractEditCommand implements DeletePositionCommand, com.rreganjr.requel.project.ProjectScopedCommand,
+		com.rreganjr.platform.command.AuthorizableCommand {
 
 	private Position position;
 
@@ -87,9 +88,22 @@ public class DeletePositionCommandImpl extends AbstractEditCommand implements De
 					.newDeleteArgumentCommand();
 			deleteArgumentCommand.setArgument(argument);
 			deleteArgumentCommand.setEditedBy(getEditedBy());
+			// #69/#75: intrinsic sub-delete of an already-authorized parent delete; exempt so a
+			// Delete-only stakeholder isn't re-checked for Annotation[Delete] mid-cascade.
+			((com.rreganjr.platform.command.AuthorizationExemptable) deleteArgumentCommand).setAuthorizationExempt(true);
 			getCommandHandler().execute(deleteArgumentCommand);
 		}
 		getRepository().delete(position);
 	}
 
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return AnnotationCommandProjectResolver.of(position);
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.annotation.Annotation.class, "Delete");
+	}
 }

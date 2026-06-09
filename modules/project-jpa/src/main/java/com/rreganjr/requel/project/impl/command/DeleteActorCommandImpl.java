@@ -157,6 +157,10 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 					.newDeletePositionCommand();
 			deletePositionCommand.setEditedBy(getEditedBy());
 			deletePositionCommand.setPosition(actorPosition);
+			// #69/#75: this DeletePosition is an intrinsic sub-step of deleting the parent
+			// entity; exempt it so a Delete-only stakeholder isn't re-checked for Annotation[Delete].
+			((com.rreganjr.platform.command.AuthorizationExemptable) deletePositionCommand)
+					.setAuthorizationExempt(true);
 			getCommandHandler().execute(deletePositionCommand);
 		} catch (NoSuchPositionException e) {
 		}
