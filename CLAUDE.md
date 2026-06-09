@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Requel is a web-based requirements management system supporting collaboration among stakeholders with automated NLP-based assistance. It models requirements as goals, stories, actors, scenarios, and use-cases with an IBIS-style annotation/discussion layer. Originally a 2009 Harvard ALM thesis project, now modernized to Spring Boot 3 / Java 17.
 
+
 ## Process Instructions
 
 Always write commit messages to commit.md at the root of the project. Clear out existing content unless you are updating the message as told. In the file following the format:
@@ -20,6 +21,10 @@ https://github.com/rreganjr/Requel/issues/38
 Never commit unless explicitly told to commit
 
 Never push changes to the github repo
+
+All plans, reviews, notes and documentation go in the doc folder.
+
+Never use `TL;DR` I hate that phrase, use summary
 
 ## Build Commands
 
@@ -91,6 +96,9 @@ DDD-inspired modular architecture with domain/persistence/UI separation:
 **UI:**
 - `requel-angular/` — Angular 17+ SPA (outside the Maven module tree); built by `frontend-maven-plugin` during `mvn package` and served from `classpath:/static/`
 
+**Assistants:**
+- `assistant-core, assistant-api` - A key feature or Requel is background assistants that analyze the requirements and add annotations to elements such as notes and issues. issues have positions that may automate a fix to the requirements. There are legacy assistants that use NLP and custom logic to suggest fixes. The future is ai assistants `assistant-ai, assistant-anthropic, assistant-openai` and MCP support so external ai agents can build Requel models.
+
 **Application:**
 - `requel-app` — Spring Boot entry point, Flyway migrations, integration tests; serves the Angular SPA at `/` and the CQRS API at `/api/**`
 
@@ -128,7 +136,7 @@ The Angular SPA is backed by a hybrid CQRS API:
 
 ## Key Documentation
 
-- `doc/UI_REFACTOR_PLAN.md` — Echo2→Angular migration plan, CQRS API, SSE streaming, phases
+- `doc/20-release-plan.md` - New release with new Angular UI, CQRS API, SSE streaming, AI assistance, MCP spport
 - `doc/AUTH_ARCH.md` — authorization architecture: AuthorizingCommandHandler, permission model, Angular PermissionService
 - `doc/MODULARIZATION_PLAN.md` — module dependency graph, refactoring roadmap, package conventions
 - `doc/unmarshalling_plan.md` — JAXB import strategy, aggregate assembly

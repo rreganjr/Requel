@@ -3,6 +3,8 @@
 We'll implement this ticket as reviewable slices, each on the `69-mcp-command-gateway` branch. Order
 reflects dependencies; slices 1–2 unblock the rest.
 
+**Dependency baseline:** Spring Boot **3.5.14** + Spring AI **1.1.7** (Java 17). The Boot bump from 3.3.4 is a prerequisite ticket (do it off `release/2.0` first); Slices 4/6/7 build on Spring AI 1.1.7.
+
 ### Slice 1 — `gateway-api` (pure module)
 `CommandGateway` / `QueryGateway` interfaces, `AllowDenyPolicy`, command/input **descriptors**
 (schemas, not just a predicate), and value types. Depends only on `service-api`. Wire into the
@@ -53,17 +55,29 @@ generic `requel.runCommand` + typed convenience tools. Add the write opt-in flag
 `ImportProject` (multipart) is **excluded** from `runCommand`; a local-file CLI import is a
 separate future discussion.
 
+
+
+_Updated (Spring AI): build the MCP transport on `spring-ai-starter-mcp-server-webmvc` (HTTP/SSE behind the existing JWT/OAuth2 chain) instead of the hand-rolled JSON-RPC; expose read + write tools via a `ToolCallbackProvider` that delegates to `QueryGateway`/`CommandGateway`; re-wire `McpCallAudit` via a tool advisor. The remote connector (#70) is largely subsumed by this transport. Fine-grained per-stakeholder authz stays in `CommandGateway`; **Spring Security/Requel config handles authentication**, Spring AI supplies transport + tool registration + coarse per-tool gating. Configure endpoint paths + Spring Security matchers explicitly (don't assume `/api/**` inheritance; Spring AI WebMVC defaults differ, e.g. `/sse` + `/mcp/message`). See `doc/port-tospring-boot-ai.md`._
+
 ### Slice 5 — identity + audit
 Carry a per-client identity, reusing the existing nullable `McpCallAudit.assistantUserId`. Record
-both the command-audit row and the MCP-call-audit row per write. Add a per-client rate-limit hook.
+both the command-audit row and the MCP-call-audit row per write. Add a per-client rate-limit hook. Set/restore the Spring Security current-user context inside MCP tool execution for both HTTP and stdio paths so `CommandGateway` authz runs as the triggering user.
 
 ### Slice 6 — REST-backed gateway client lib
 `gateway-client-rest` with login→JWT auth, for out-of-process front-ends.
+
+
+
+_Updated (Spring AI): **conditional / deferred** (not unnecessary). In-process stdio launches a full Requel subprocess (needs DB/app config + identity bootstrap); a thin REST bridge may be the simpler operational shape for desktop tools. Keep two distinct deployment shapes: server-hosted WebMVC/SSE for authenticated remote clients, and local stdio (bridge or full-app profile) for desktop clients._
 
 ### Slice 7 — `mcp-bridge` stdio front-end + e2e
 Standalone stdio MCP server over the REST gateway; decide credential storage. End-to-end smoke:
 create a project, goal, association, non-user stakeholder, and note; verify both audit surfaces
 and SSE.
+
+
+
+_Updated (Spring AI): prefer `spring-ai-starter-mcp-server` (stdio) with API-key (or PAT, #73) identity resolved via `McpTransportContext` into a Requel user — this **likely replaces a separate `mcp-bridge` process**. Requires the Spring AI **1.1.7** baseline (`McpTransportContext` is 1.1 behavior, not in 1.0.8)._
 
 ### Resolved for this ticket
 - `ImportProject` / multipart excluded from `runCommand`.
