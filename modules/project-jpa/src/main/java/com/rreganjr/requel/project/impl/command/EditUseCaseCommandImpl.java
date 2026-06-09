@@ -55,7 +55,17 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editUseCaseCommand")
 @Scope("prototype")
 public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditUseCaseCommand, AnalysisRequestSource {
+		EditUseCaseCommand, AnalysisRequestSource, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return (getProjectOrDomain() instanceof com.rreganjr.requel.project.Project p) ? p : null;
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.project.UseCase.class, "Edit");
+	}
 
 	private UseCase usecase;
 	private String primaryActorName;

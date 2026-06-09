@@ -45,7 +45,17 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editScenarioStepCommand")
 @Scope("prototype")
 public class EditScenarioStepCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditScenarioStepCommand, AnalysisRequestSource {
+		EditScenarioStepCommand, AnalysisRequestSource, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return (getProjectOrDomain() instanceof com.rreganjr.requel.project.Project p) ? p : null;
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.project.Scenario.class, "Edit");
+	}
 
 	private Step step;
 	private String text;
