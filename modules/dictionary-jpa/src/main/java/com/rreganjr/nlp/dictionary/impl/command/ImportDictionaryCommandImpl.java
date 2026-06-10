@@ -21,6 +21,8 @@
 package com.rreganjr.nlp.dictionary.impl.command;
 
 import java.io.InputStream;
+import java.util.HashSet;
+import java.util.Set;
 
 import jakarta.persistence.NoResultException;
 import jakarta.xml.bind.JAXBContext;
@@ -35,7 +37,6 @@ import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.UnmarshallerListener;
 import com.rreganjr.nlp.dictionary.Word;
 import com.rreganjr.nlp.dictionary.command.ImportDictionaryCommand;
-import com.rreganjr.nlp.dictionary.impl.repository.NoSuchWordException;
 
 /**
  * @author ron
@@ -82,15 +83,22 @@ public class ImportDictionaryCommandImpl extends AbstractDictionaryCommand imple
 			Unmarshaller unmarshaller = context.createUnmarshaller();
 			unmarshaller.setListener(new UnmarshallerListener(getDictionaryRepository()));
 			Dictionary dictionary = (Dictionary) unmarshaller.unmarshal(getInputStream());
+			// Idempotent import: skip lemmas already present so importing into a DB that already
+			// holds an individual word (e.g. inserted by an add-word-to-dictionary resolution in a
+			// test sharing the same context/DB) doesn't collide. Word uses IDENTITY id generation,
+			// so create() forces an immediate INSERT and a duplicate would throw mid-loop and poison
+			// the transaction — skipping avoids that entirely. The set is built from ONE query (not
+			// a lookup per word — the dictionary is large), and is empty on a fresh DB so nothing is
+			// skipped. It only ever holds the handful of words present before a full import, because
+			// ensureDictionaryLoaded short-circuits once the dictionary is fully loaded.
+			Set<String> existingLemmas = new HashSet<>();
+			for (Word existing : getDictionaryRepository().findWords()) {
+				existingLemmas.add(existing.getLemma());
+			}
 			for (Word word : dictionary.getWords()) {
 				try {
-					// Idempotent import: skip a lemma that's already present so importing into a DB
-					// that already holds an individual word (e.g. inserted by an
-					// add-word-to-dictionary resolution in a test sharing the same context/DB)
-					// doesn't collide. Word uses IDENTITY id generation, so create() forces an
-					// immediate INSERT and a duplicate would throw mid-loop and poison the
-					// transaction — checking first avoids that entirely. A fresh DB skips nothing.
-					if (word.getLemma() != null && wordAlreadyPresent(word.getLemma())) {
+					if (word.getLemma() != null && !existingLemmas.add(word.getLemma())) {
+						// already present (pre-existing, or a duplicate lemma within this file)
 						continue;
 					}
 					// Import always creates new rows (issue #76): persist() would route the
@@ -105,20 +113,6 @@ public class ImportDictionaryCommandImpl extends AbstractDictionaryCommand imple
 		} catch (Exception e) {
 			// Propagate so callers (tests) fail fast with a useful stack trace
 			throw new RuntimeException("Failed to import dictionary", e);
-		}
-	}
-
-	/**
-	 * @return true if a word with this exact lemma is already in the dictionary. Used to make the
-	 *         import idempotent (skip rather than collide) when the target DB was partially
-	 *         pre-populated.
-	 */
-	private boolean wordAlreadyPresent(String lemma) {
-		try {
-			getDictionaryRepository().findWordExact(lemma);
-			return true;
-		} catch (NoSuchWordException e) {
-			return false;
 		}
 	}
 }
