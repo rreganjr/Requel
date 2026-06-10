@@ -43,6 +43,15 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- Spring AI MCP server over Spring MVC (SSE / Streamable HTTP). Version managed by the
+             spring-ai-bom (1.1.7) imported in the root POM. Provides the MCP transport + tool
+             registration; tools are supplied as a ToolCallbackProvider (RequelMcpServerConfig).
+             The hand-rolled JSON-RPC server is kept alongside during the transition (issue #69
+             Slice 4b). -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
