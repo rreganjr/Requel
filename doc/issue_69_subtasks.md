@@ -76,6 +76,8 @@ _Done (HTTP path): the Spring AI tool path now records an MCP-call-audit row (`M
 
 _Updated (Spring AI): **conditional / deferred** (not unnecessary). In-process stdio launches a full Requel subprocess (needs DB/app config + identity bootstrap); a thin REST bridge may be the simpler operational shape for desktop tools. Keep two distinct deployment shapes: server-hosted WebMVC/SSE for authenticated remote clients, and local stdio (bridge or full-app profile) for desktop clients._
 
+_**Dropped.** A REST client library is not needed. Local stdio clients (Claude/Codex) reach the existing HTTP MCP transport (`/api/mcp/sse`) through the off-the-shelf `mcp-remote` stdio↔HTTP proxy — no Requel-built bridge and no REST client. The only real gap for a persistently-configured local client is durable credentials, tracked as #73 (API key / PAT). See `doc/mcp_remote_connection.md`._
+
 ### Slice 7 — `mcp-bridge` stdio front-end + e2e
 Standalone stdio MCP server over the REST gateway; decide credential storage. End-to-end smoke:
 create a project, goal, association, non-user stakeholder, and note; verify both audit surfaces
@@ -84,6 +86,18 @@ and SSE.
 
 
 _Updated (Spring AI): prefer `spring-ai-starter-mcp-server` (stdio) with API-key (or PAT, #73) identity resolved via `McpTransportContext` into a Requel user — this **likely replaces a separate `mcp-bridge` process**. Requires the Spring AI **1.1.7** baseline (`McpTransportContext` is 1.1 behavior, not in 1.0.8)._
+
+_**Resolved.** The standalone `mcp-bridge` is dropped (covered by `mcp-remote`, above). The **end-to-end smoke test was kept and delivered** as `RequelMcpEndToEndIT` (requel-app): it drives `tools/call` through `McpJsonRpcHandler` as an authorized stakeholder — create goal, create non-user stakeholder (`runCommand`), associate goal→stakeholder, add a note, read project context — and asserts both audit surfaces (command-audit rows for `EditGoal`/`EditNonUserStakeholder`/`AddGoalToGoalContainer`/`EditNote` + MCP-call-audit rows). The full-app stdio profile is not built: the user runs the server for the UI, so the `mcp-remote` path is the local-access story; full-app stdio (`spring.ai.mcp.server.stdio`) remains an option later if a no-server-running deployment is ever needed._
+
+### Closing #69
+The gateway, the read/write tool surface, the Spring AI HTTP transport (SSE, verified), and
+identity/audit are implemented and tested. Local client access is documented via `mcp-remote`
+(`doc/mcp_remote_connection.md`). Write tools default on (`requel.gateway.write.enabled=true`),
+with per-stakeholder authorization always enforced. Remaining work is tracked as separate tickets,
+not part of #69: **#73** (durable API token/PAT — the real unlock for a persistently-configured
+local client), the tracker→goals workflow (**#71**) and smart reconciliation (**#72**), and minor
+cleanups (retire the hand-rolled `McpJsonRpc*` server now that the Spring AI transport is proven;
+decide the Streamable-HTTP toggle — only SSE is verified).
 
 ### Resolved for this ticket
 - `ImportProject` / multipart excluded from `runCommand`.
