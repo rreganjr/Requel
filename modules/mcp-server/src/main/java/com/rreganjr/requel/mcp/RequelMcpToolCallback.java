@@ -43,12 +43,14 @@ final class RequelMcpToolCallback implements ToolCallback {
 	private final String toolName;
 	private final ToolDefinition toolDefinition;
 	private final McpReadService toolService;
+	private final McpCallAuditor auditor;
 	private final ObjectMapper objectMapper;
 
 	RequelMcpToolCallback(McpToolDescriptor descriptor, McpReadService toolService,
-			ObjectMapper objectMapper) {
+			McpCallAuditor auditor, ObjectMapper objectMapper) {
 		this.toolName = descriptor.name();
 		this.toolService = toolService;
+		this.auditor = auditor;
 		this.objectMapper = objectMapper;
 		this.toolDefinition = ToolDefinition.builder()
 				.name(descriptor.name())
@@ -64,12 +66,21 @@ final class RequelMcpToolCallback implements ToolCallback {
 
 	@Override
 	public String call(String toolInput) {
+		// The JSON-RPC transport audits via McpJsonRpcHandler; the Spring AI transport doesn't go
+		// through it, so record the MCP-call audit row here (issue #69 Slice 5).
+		long startNanos = System.nanoTime();
 		JsonNode arguments = parseArguments(toolInput);
 		ObjectNode params = objectMapper.createObjectNode();
 		params.put("name", toolName);
 		params.set("arguments", arguments);
-		Map<String, Object> result = toolService.callTool(params);
-		return extractText(result);
+		try {
+			Map<String, Object> result = toolService.callTool(params);
+			auditor.recordToolCall(toolName, true, null, null, startNanos);
+			return extractText(result);
+		} catch (RuntimeException e) {
+			auditor.recordToolCall(toolName, false, null, e.getMessage(), startNanos);
+			throw e;
+		}
 	}
 
 	private JsonNode parseArguments(String toolInput) {

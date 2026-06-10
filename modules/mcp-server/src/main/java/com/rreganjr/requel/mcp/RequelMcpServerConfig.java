@@ -49,13 +49,13 @@ public class RequelMcpServerConfig {
 
 	@Bean
 	public ToolCallbackProvider requelToolCallbackProvider(McpReadService toolService,
-			ObjectMapper objectMapper) {
+			McpCallAuditor auditor, ObjectMapper objectMapper) {
 		List<ToolCallback> callbacks = new ArrayList<>();
 		Object tools = toolService.listTools().get("tools");
 		if (tools instanceof List<?> descriptors) {
 			for (Object descriptor : descriptors) {
 				if (descriptor instanceof McpToolDescriptor toolDescriptor) {
-					callbacks.add(new RequelMcpToolCallback(toolDescriptor, toolService,
+					callbacks.add(new RequelMcpToolCallback(toolDescriptor, toolService, auditor,
 							objectMapper));
 				}
 			}

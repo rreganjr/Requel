@@ -67,6 +67,8 @@ _Split during implementation into two reviewable steps:_
 Carry a per-client identity, reusing the existing nullable `McpCallAudit.assistantUserId`. Record
 both the command-audit row and the MCP-call-audit row per write. Add a per-client rate-limit hook. Set/restore the Spring Security current-user context inside MCP tool execution for both HTTP and stdio paths so `CommandGateway` authz runs as the triggering user.
 
+_Done (HTTP path): the Spring AI tool path now records an MCP-call-audit row (`McpCallAuditor.recordToolCall`, wrapped around `RequelMcpToolCallback.call`), so a write produces both the MCP-call audit row and the command-audit row (the latter already emitted by the chain). On the HTTP transports the triggering user flows automatically — MCP endpoints are under `/api/mcp/**`, the JWT filter populates the `SecurityContext` on the servlet thread the tool executes on, and `CommandGateway`/`CurrentUserCommandHandler` run as that user. A per-client `clientId` is captured from the `X-Requel-Client` header (`McpClientContextFilter` → `McpClientContext`) and carried into `GatewayRequest.clientId`; `assistantUserId` is intentionally left null until real per-client accounts arrive with #73. A no-op rate-limit hook (`McpRateLimiter` + `NoOpMcpRateLimiter`) is invoked once per tool call at the shared `McpReadService.callTool` chokepoint (covers both transports). **Deferred to Slice 7:** explicitly set/restore the current-user context for the stdio path (no servlet thread / JWT there) via `McpTransportContext`._
+
 ### Slice 6 — REST-backed gateway client lib
 `gateway-client-rest` with login→JWT auth, for out-of-process front-ends.
 

@@ -114,6 +114,19 @@ class McpWriteServiceTest {
 	}
 
 	@Test
+	void clientIdFromContextIsCarriedIntoGatewayRequest() {
+		RecordingGateway gw = new RecordingGateway();
+		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
+		McpClientContext.setClientId("claude-desktop");
+		try {
+			svc.call("requel.createGoal", json("{\"projectName\":\"P\",\"name\":\"G\"}"));
+		} finally {
+			McpClientContext.clear();
+		}
+		assertThat(gw.last.clientId()).isEqualTo("claude-desktop");
+	}
+
+	@Test
 	void typedToolFixesCommandTypeAndForwardsArgs() {
 		RecordingGateway gw = new RecordingGateway();
 		McpWriteService svc = new McpWriteService(gw, objectMapper, true);

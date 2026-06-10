@@ -38,6 +38,20 @@ class McpReadServiceTest {
 			objectMapper);
 
 	@Test
+	void rateLimiterIsConsultedForEveryToolCall() {
+		McpRateLimiter blocking = (clientId, toolName) -> {
+			throw new McpRateLimitExceededException("over limit for " + toolName);
+		};
+		McpReadService limited = new McpReadService(new StubProjectQueryGateway(),
+				new McpWriteService(null, objectMapper, false), blocking, objectMapper);
+		assertThatThrownBy(() -> limited.callTool(json("""
+				{ "name": "requel.getProject", "arguments": { "projectName": "Sample" } }
+				""")))
+				.isInstanceOf(McpRateLimitExceededException.class)
+				.hasMessageContaining("requel.getProject");
+	}
+
+	@Test
 	void callsReadOnlyProjectTool() {
 		Map<String, Object> response = service.callTool(json("""
 				{

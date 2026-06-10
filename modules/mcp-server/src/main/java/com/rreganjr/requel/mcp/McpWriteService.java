@@ -150,7 +150,8 @@ public class McpWriteService {
 
 	private Object execute(String commandType, Object input) {
 		try {
-			GatewayResult result = commandGateway.execute(new GatewayRequest(commandType, input));
+			GatewayResult result = commandGateway.execute(
+					new GatewayRequest(commandType, input, McpClientContext.clientId()));
 			return result.result() != null ? result.result()
 					: Map.of("ok", true, "commandType", commandType);
 		} catch (GatewayException e) {

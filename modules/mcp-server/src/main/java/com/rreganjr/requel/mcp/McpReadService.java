@@ -41,22 +41,25 @@ public class McpReadService {
 
 	private final QueryGateway projectQueryGateway;
 	private final McpWriteService writeService;
+	private final McpRateLimiter rateLimiter;
 	private final ObjectMapper objectMapper;
 
 	@Autowired
 	public McpReadService(QueryGateway projectQueryGateway, McpWriteService writeService,
-			ObjectMapper objectMapper) {
+			McpRateLimiter rateLimiter, ObjectMapper objectMapper) {
 		this.projectQueryGateway = projectQueryGateway;
 		this.writeService = writeService;
+		this.rateLimiter = rateLimiter;
 		this.objectMapper = objectMapper;
 	}
 
 	/**
 	 * Convenience constructor for read-only deployments and tests: no write tools are exposed
-	 * (a disabled {@link McpWriteService} with no command gateway).
+	 * (a disabled {@link McpWriteService} with no command gateway) and the no-op rate limiter.
 	 */
 	public McpReadService(QueryGateway projectQueryGateway, ObjectMapper objectMapper) {
-		this(projectQueryGateway, new McpWriteService(null, objectMapper, false), objectMapper);
+		this(projectQueryGateway, new McpWriteService(null, objectMapper, false),
+				McpRateLimiter.NOOP, objectMapper);
 	}
 
 	public Map<String, Object> initialize() {
@@ -113,6 +116,8 @@ public class McpReadService {
 	public Map<String, Object> callTool(JsonNode params) {
 		String name = requiredText(params, "name");
 		JsonNode arguments = params != null ? params.get("arguments") : null;
+		// Single rate-limit chokepoint for every transport (JSON-RPC + Spring AI both route here).
+		rateLimiter.check(McpClientContext.clientId(), name);
 		if (writeService.handles(name)) {
 			Object writeResult = writeService.call(name, arguments);
 			return Map.of("content", List.of(new McpTextContent("text", toJson(writeResult))),

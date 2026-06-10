@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.gateway.GatewayResult;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,9 @@ class RequelMcpServerConfigTest {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 	private final RequelMcpServerConfig config = new RequelMcpServerConfig();
+	// Null repository/resolver: McpCallAuditor.recordToolCall is best-effort and swallows the
+	// resulting NPE, so it acts as a no-op auditor in these unit tests.
+	private final McpCallAuditor auditor = new McpCallAuditor(null, null);
 
 	private List<String> toolNames(ToolCallbackProvider provider) {
 		return Arrays.stream(provider.getToolCallbacks())
@@ -49,7 +53,7 @@ class RequelMcpServerConfigTest {
 	@Test
 	void exposesReadToolsAndOmitsWriteToolsWhenDisabled() {
 		McpReadService readOnly = new McpReadService(new StubProjectQueryGateway(), objectMapper);
-		ToolCallbackProvider provider = config.requelToolCallbackProvider(readOnly, objectMapper);
+		ToolCallbackProvider provider = config.requelToolCallbackProvider(readOnly, auditor, objectMapper);
 
 		List<String> names = toolNames(provider);
 		assertThat(names).contains("requel.listProjects", "requel.getProject",
@@ -63,16 +67,38 @@ class RequelMcpServerConfigTest {
 		McpWriteService writes = new McpWriteService(
 				request -> new GatewayResult(request.commandType(), null), objectMapper, true);
 		McpReadService withWrites = new McpReadService(new StubProjectQueryGateway(), writes,
+				McpRateLimiter.NOOP, objectMapper);
+		ToolCallbackProvider provider = config.requelToolCallbackProvider(withWrites, auditor,
 				objectMapper);
-		ToolCallbackProvider provider = config.requelToolCallbackProvider(withWrites, objectMapper);
 
 		assertThat(toolNames(provider)).contains("requel.runCommand", "requel.createGoal");
 	}
 
 	@Test
+	void toolCallIsAuditedOnTheSpringAiPath() {
+		List<String> audited = new ArrayList<>();
+		McpCallAuditor recording = new McpCallAuditor(null, null) {
+			@Override
+			public void recordToolCall(String toolName, boolean ok, Integer errorCode,
+					String errorSummary, long startNanos) {
+				audited.add(toolName + ":" + ok);
+			}
+		};
+		McpReadService readOnly = new McpReadService(new StubProjectQueryGateway(), objectMapper);
+		ToolCallbackProvider provider = config.requelToolCallbackProvider(readOnly, recording,
+				objectMapper);
+		ToolCallback getProject = Arrays.stream(provider.getToolCallbacks())
+				.filter(tc -> tc.getToolDefinition().name().equals("requel.getProject"))
+				.findFirst().orElseThrow();
+
+		getProject.call("{\"projectName\":\"Sample\"}");
+		assertThat(audited).contains("requel.getProject:true");
+	}
+
+	@Test
 	void callDelegatesToGateway() {
 		McpReadService readOnly = new McpReadService(new StubProjectQueryGateway(), objectMapper);
-		ToolCallbackProvider provider = config.requelToolCallbackProvider(readOnly, objectMapper);
+		ToolCallbackProvider provider = config.requelToolCallbackProvider(readOnly, auditor, objectMapper);
 		ToolCallback getProject = Arrays.stream(provider.getToolCallbacks())
 				.filter(tc -> tc.getToolDefinition().name().equals("requel.getProject"))
 				.findFirst().orElseThrow();
