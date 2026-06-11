@@ -45,17 +45,17 @@ class McpReadServiceTest {
 		McpReadService limited = new McpReadService(new StubProjectQueryGateway(),
 				new McpWriteService(null, objectMapper, false), blocking, objectMapper);
 		assertThatThrownBy(() -> limited.callTool(json("""
-				{ "name": "requel.getProject", "arguments": { "projectName": "Sample" } }
+				{ "name": "getProject", "arguments": { "projectName": "Sample" } }
 				""")))
 				.isInstanceOf(McpRateLimitExceededException.class)
-				.hasMessageContaining("requel.getProject");
+				.hasMessageContaining("getProject");
 	}
 
 	@Test
 	void callsReadOnlyProjectTool() {
 		Map<String, Object> response = service.callTool(json("""
 				{
-				  "name": "requel.getProject",
+				  "name": "getProject",
 				  "arguments": { "projectName": "Sample" }
 				}
 				"""));
@@ -90,7 +90,7 @@ class McpReadServiceTest {
 	@Test
 	void callsOpenIssuesTool() {
 		Map<String, Object> response = service.callTool(json("""
-				{ "name": "requel.getOpenIssues", "arguments": { "projectName": "Sample" } }
+				{ "name": "getOpenIssues", "arguments": { "projectName": "Sample" } }
 				"""));
 
 		JsonNode content = objectMapper.valueToTree(response.get("content"));
@@ -102,7 +102,7 @@ class McpReadServiceTest {
 	void callsGetAnnotationsTool() {
 		Map<String, Object> response = service.callTool(json("""
 				{
-				  "name": "requel.getAnnotations",
+				  "name": "getAnnotations",
 				  "arguments": { "projectName": "Sample", "entityType": "Goal", "entityId": 10 }
 				}
 				"""));
@@ -116,7 +116,7 @@ class McpReadServiceTest {
 	void callsGetEntityTool() {
 		Map<String, Object> response = service.callTool(json("""
 				{
-				  "name": "requel.getEntity",
+				  "name": "getEntity",
 				  "arguments": { "projectName": "Sample", "entityType": "Goal", "entityId": 10 }
 				}
 				"""));
@@ -130,7 +130,7 @@ class McpReadServiceTest {
 	void callsGetEntityNeighborsTool() {
 		Map<String, Object> response = service.callTool(json("""
 				{
-				  "name": "requel.getEntityNeighbors",
+				  "name": "getEntityNeighbors",
 				  "arguments": { "projectName": "Sample", "entityType": "Goal", "entityId": 10 }
 				}
 				"""));
@@ -144,7 +144,7 @@ class McpReadServiceTest {
 	void callsSearchProjectEntitiesTool() {
 		Map<String, Object> response = service.callTool(json("""
 				{
-				  "name": "requel.searchProjectEntities",
+				  "name": "searchProjectEntities",
 				  "arguments": { "projectName": "Sample", "query": "login" }
 				}
 				"""));
@@ -157,7 +157,7 @@ class McpReadServiceTest {
 	@Test
 	void callsGetProjectContextTool() {
 		Map<String, Object> response = service.callTool(json("""
-				{ "name": "requel.getProjectContext", "arguments": { "projectName": "Sample" } }
+				{ "name": "getProjectContext", "arguments": { "projectName": "Sample" } }
 				"""));
 
 		JsonNode content = objectMapper.valueToTree(response.get("content"));
@@ -180,7 +180,7 @@ class McpReadServiceTest {
 	void draftAnnotationReturnsUnpersistedDraft() {
 		Map<String, Object> response = service.callTool(json("""
 				{
-				  "name": "requel.draftAnnotation",
+				  "name": "draftAnnotation",
 				  "arguments": {
 				    "entityType": "Goal", "entityId": 10, "kind": "ISSUE",
 				    "text": "Clarify the SLA"
@@ -199,7 +199,7 @@ class McpReadServiceTest {
 	void draftAnnotationRejectsUnknownKind() {
 		assertThatThrownBy(() -> service.callTool(json("""
 				{
-				  "name": "requel.draftAnnotation",
+				  "name": "draftAnnotation",
 				  "arguments": { "entityType": "Goal", "entityId": 10, "kind": "BOGUS",
 				    "text": "x" }
 				}

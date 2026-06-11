@@ -35,7 +35,7 @@ import com.rreganjr.requel.gateway.GatewayResult;
 
 /**
  * MCP write tools, backed by the {@link CommandGateway}. Exposes a generic
- * {@code requel.runCommand} (any allowlisted command type + JSON input) plus a curated set of
+ * {@code runCommand} (any allowlisted command type + JSON input) plus a curated set of
  * ergonomic typed tools whose argument names already match the command input DTOs, so they are
  * thin wrappers that fix the command type and forward the arguments.
  * <p>
@@ -49,16 +49,16 @@ import com.rreganjr.requel.gateway.GatewayResult;
 public class McpWriteService {
 
 	/** Generic escape hatch: run any allowlisted command by type + input. */
-	static final String RUN_COMMAND = "requel.runCommand";
+	static final String RUN_COMMAND = "runCommand";
 
 	/** Typed convenience tools -> the gateway command type each forwards to. */
 	private static final Map<String, String> TYPED_TOOLS = Map.of(
-			"requel.createProject", "EditProject",
-			"requel.createGoal", "EditGoal",
-			"requel.editGoal", "EditGoal",
-			"requel.addGoalToContainer", "AddGoalToGoalContainer",
-			"requel.createNote", "EditNote",
-			"requel.createIssue", "EditIssue");
+			"createProject", "EditProject",
+			"createGoal", "EditGoal",
+			"editGoal", "EditGoal",
+			"addGoalToContainer", "AddGoalToGoalContainer",
+			"createNote", "EditNote",
+			"createIssue", "EditIssue");
 
 	private final CommandGateway commandGateway;
 	private final ObjectMapper objectMapper;
@@ -91,33 +91,33 @@ public class McpWriteService {
 								+ " object. Subject to the gateway allow/deny policy and the caller's"
 								+ " stakeholder permissions.",
 						runCommandSchema()),
-				new McpToolDescriptor("requel.createProject",
+				new McpToolDescriptor("createProject",
 						"Create a project. Arguments: name, organizationName, optional description.",
 						objectSchema(Map.of("name", stringType(), "organizationName", stringType(),
 								"description", stringType()), List.of("name", "organizationName"))),
-				new McpToolDescriptor("requel.createGoal",
+				new McpToolDescriptor("createGoal",
 						"Create a goal in a project. Arguments: projectName, name, optional text.",
 						objectSchema(Map.of("projectName", stringType(), "name", stringType(),
 								"text", stringType()), List.of("projectName", "name"))),
-				new McpToolDescriptor("requel.editGoal",
+				new McpToolDescriptor("editGoal",
 						"Edit an existing goal. Arguments: projectName, goalId, optional name/text.",
 						objectSchema(Map.of("projectName", stringType(), "goalId", integerType(),
 								"name", stringType(), "text", stringType()),
 								List.of("projectName", "goalId"))),
-				new McpToolDescriptor("requel.addGoalToContainer",
+				new McpToolDescriptor("addGoalToContainer",
 						"Associate a goal with a container (Project, Story, UseCase, Actor, or"
 								+ " Stakeholder). Arguments: projectName, goalId, goalContainerId,"
 								+ " containerType.",
 						objectSchema(Map.of("projectName", stringType(), "goalId", integerType(),
 								"goalContainerId", integerType(), "containerType", stringType()),
 								List.of("projectName", "goalId", "goalContainerId", "containerType"))),
-				new McpToolDescriptor("requel.createNote",
+				new McpToolDescriptor("createNote",
 						"Attach a note to an entity. Arguments: projectName, entityType, entityId,"
 								+ " text.",
 						objectSchema(Map.of("projectName", stringType(), "entityType", stringType(),
 								"entityId", integerType(), "text", stringType()),
 								List.of("projectName", "entityType", "entityId", "text"))),
-				new McpToolDescriptor("requel.createIssue",
+				new McpToolDescriptor("createIssue",
 						"Raise an issue on an entity. Arguments: projectName, entityType, entityId,"
 								+ " text, optional mustBeResolved.",
 						objectSchema(Map.of("projectName", stringType(), "entityType", stringType(),

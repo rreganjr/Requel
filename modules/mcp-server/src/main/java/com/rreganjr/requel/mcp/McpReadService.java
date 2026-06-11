@@ -71,40 +71,40 @@ public class McpReadService {
 
 	public Map<String, Object> listTools() {
 		List<McpToolDescriptor> tools = new ArrayList<>(List.of(
-				new McpToolDescriptor("requel.listProjects",
+				new McpToolDescriptor("listProjects",
 						"List projects visible to the current authenticated user.",
 						Map.of("type", "object", "properties", Map.of(), "additionalProperties",
 								false)),
-				new McpToolDescriptor("requel.getProject",
+				new McpToolDescriptor("getProject",
 						"Read one project summary by project name.",
 						projectNameSchema()),
-				new McpToolDescriptor("requel.getProjectTree",
+				new McpToolDescriptor("getProjectTree",
 						"Read the project content tree by project name.",
 						projectNameSchema()),
-				new McpToolDescriptor("requel.getGlossary",
+				new McpToolDescriptor("getGlossary",
 						"Read the glossary terms defined in a project.",
 						projectNameSchema()),
-				new McpToolDescriptor("requel.getOpenIssues",
+				new McpToolDescriptor("getOpenIssues",
 						"List the unresolved issues across all entities in a project.",
 						projectNameSchema()),
-				new McpToolDescriptor("requel.getAnnotations",
+				new McpToolDescriptor("getAnnotations",
 						"Read the notes and issues attached to one entity (by type and id).",
 						entityRefSchema()),
-				new McpToolDescriptor("requel.getEntity",
+				new McpToolDescriptor("getEntity",
 						"Read one entity (Goal, Story, Actor, UseCase, Scenario, or GlossaryTerm)"
 								+ " by type and id.",
 						entityRefSchema()),
-				new McpToolDescriptor("requel.getEntityNeighbors",
+				new McpToolDescriptor("getEntityNeighbors",
 						"Read an entity's related entities, grouped by relationship.",
 						entityRefSchema()),
-				new McpToolDescriptor("requel.searchProjectEntities",
+				new McpToolDescriptor("searchProjectEntities",
 						"Search a project's entities by name (case-insensitive substring).",
 						searchSchema()),
-				new McpToolDescriptor("requel.getProjectContext",
+				new McpToolDescriptor("getProjectContext",
 						"Read a composite context bundle for a project (summary, tree, glossary,"
 								+ " open issues).",
 						projectNameSchema()),
-				new McpToolDescriptor("requel.draftAnnotation",
+				new McpToolDescriptor("draftAnnotation",
 						"Build a draft annotation (note or issue) for an entity and return it"
 								+ " WITHOUT persisting; the caller submits it for application.",
 						draftAnnotationSchema())));
@@ -124,29 +124,29 @@ public class McpReadService {
 					"isError", false);
 		}
 		Object result = switch (name) {
-			case "requel.listProjects" -> projectQueryGateway.listProjects();
-			case "requel.getProject" -> projectQueryGateway.getProject(requiredText(arguments,
+			case "listProjects" -> projectQueryGateway.listProjects();
+			case "getProject" -> projectQueryGateway.getProject(requiredText(arguments,
 					"projectName"));
-			case "requel.getProjectTree" -> projectQueryGateway.getProjectTree(requiredText(
+			case "getProjectTree" -> projectQueryGateway.getProjectTree(requiredText(
 					arguments, "projectName"));
-			case "requel.getGlossary" -> projectQueryGateway.getGlossaryTerms(requiredText(
+			case "getGlossary" -> projectQueryGateway.getGlossaryTerms(requiredText(
 					arguments, "projectName"));
-			case "requel.getOpenIssues" -> projectQueryGateway.getOpenIssues(requiredText(
+			case "getOpenIssues" -> projectQueryGateway.getOpenIssues(requiredText(
 					arguments, "projectName"));
-			case "requel.getAnnotations" -> projectQueryGateway.getAnnotations(
+			case "getAnnotations" -> projectQueryGateway.getAnnotations(
 					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
 					requiredLong(arguments, "entityId"));
-			case "requel.getEntity" -> projectQueryGateway.getEntity(
+			case "getEntity" -> projectQueryGateway.getEntity(
 					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
 					requiredLong(arguments, "entityId"));
-			case "requel.getEntityNeighbors" -> projectQueryGateway.getEntityNeighbors(
+			case "getEntityNeighbors" -> projectQueryGateway.getEntityNeighbors(
 					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
 					requiredLong(arguments, "entityId"));
-			case "requel.searchProjectEntities" -> projectQueryGateway.searchProjectEntities(
+			case "searchProjectEntities" -> projectQueryGateway.searchProjectEntities(
 					requiredText(arguments, "projectName"), requiredText(arguments, "query"));
-			case "requel.getProjectContext" -> projectQueryGateway.getProjectContext(
+			case "getProjectContext" -> projectQueryGateway.getProjectContext(
 					requiredText(arguments, "projectName"));
-			case "requel.draftAnnotation" -> draftAnnotation(arguments);
+			case "draftAnnotation" -> draftAnnotation(arguments);
 			default -> throw new McpInvalidParamsException("Unknown MCP tool: " + name);
 		};
 		return Map.of("content", List.of(new McpTextContent("text", toJson(result))),

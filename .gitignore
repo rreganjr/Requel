@@ -3,6 +3,14 @@ work/
 target/
 .m2/
 
+# Secrets
+.env
+
+# Per-developer local AI-client config (MCP server wiring, machine-specific paths, tokens).
+# The portable setup is documented in doc/mcp_remote_connection.md instead.
+.cursor/
+.claude/
+
 # Defensive: any errant `npx`/`npm` invocation from the repo root materializes
 # a node_modules tree here (vitest .vite cache, etc.). The real Angular deps
 # live under requel-angular/node_modules, which is ignored by that subdir's

@@ -52,7 +52,7 @@ class McpJsonRpcHandlerTest {
 		JsonNode result = objectMapper.valueToTree(response.result());
 		assertThat(result.path("tools")).hasSize(11);
 		assertThat(result.path("tools").get(0).path("name").asText()).isEqualTo(
-				"requel.listProjects");
+				"listProjects");
 	}
 
 	@Test
@@ -72,7 +72,7 @@ class McpJsonRpcHandlerTest {
 	void returnsInvalidParamsForUnknownTool() {
 		McpJsonRpcHandler handler = new McpJsonRpcHandler(new McpReadService(
 				new StubProjectQueryGateway(), objectMapper), noOpAuditor());
-		JsonNode params = objectMapper.createObjectNode().put("name", "requel.bogusTool");
+		JsonNode params = objectMapper.createObjectNode().put("name", "bogusTool");
 
 		McpJsonRpcResponse response = handler.handle(new McpJsonRpcRequest("2.0",
 				objectMapper.valueToTree(2), "tools/call", params));
@@ -85,8 +85,8 @@ class McpJsonRpcHandlerTest {
 	void returnsInvalidParamsForMissingRequiredArgument() {
 		McpJsonRpcHandler handler = new McpJsonRpcHandler(new McpReadService(
 				new StubProjectQueryGateway(), objectMapper), noOpAuditor());
-		// requel.getProject requires arguments.projectName, which is absent here.
-		JsonNode params = objectMapper.createObjectNode().put("name", "requel.getProject");
+		// getProject requires arguments.projectName, which is absent here.
+		JsonNode params = objectMapper.createObjectNode().put("name", "getProject");
 
 		McpJsonRpcResponse response = handler.handle(new McpJsonRpcRequest("2.0",
 				objectMapper.valueToTree(3), "tools/call", params));
