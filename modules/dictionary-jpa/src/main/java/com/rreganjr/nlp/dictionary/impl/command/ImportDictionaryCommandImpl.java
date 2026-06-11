@@ -21,12 +21,6 @@
 package com.rreganjr.nlp.dictionary.impl.command;
 
 import java.io.InputStream;
-import java.util.HashSet;
-import java.util.Set;
-
-import jakarta.persistence.NoResultException;
-import jakarta.xml.bind.JAXBContext;
-import jakarta.xml.bind.Unmarshaller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
@@ -37,6 +31,9 @@ import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.UnmarshallerListener;
 import com.rreganjr.nlp.dictionary.Word;
 import com.rreganjr.nlp.dictionary.command.ImportDictionaryCommand;
+
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.Unmarshaller;
 
 /**
  * @author ron
@@ -83,24 +80,8 @@ public class ImportDictionaryCommandImpl extends AbstractDictionaryCommand imple
 			Unmarshaller unmarshaller = context.createUnmarshaller();
 			unmarshaller.setListener(new UnmarshallerListener(getDictionaryRepository()));
 			Dictionary dictionary = (Dictionary) unmarshaller.unmarshal(getInputStream());
-			// Idempotent import: skip lemmas already present so importing into a DB that already
-			// holds an individual word (e.g. inserted by an add-word-to-dictionary resolution in a
-			// test sharing the same context/DB) doesn't collide. Word uses IDENTITY id generation,
-			// so create() forces an immediate INSERT and a duplicate would throw mid-loop and poison
-			// the transaction — skipping avoids that entirely. The set is built from ONE query (not
-			// a lookup per word — the dictionary is large), and is empty on a fresh DB so nothing is
-			// skipped. It only ever holds the handful of words present before a full import, because
-			// ensureDictionaryLoaded short-circuits once the dictionary is fully loaded.
-			Set<String> existingLemmas = new HashSet<>();
-			for (Word existing : getDictionaryRepository().findWords()) {
-				existingLemmas.add(existing.getLemma());
-			}
 			for (Word word : dictionary.getWords()) {
 				try {
-					if (word.getLemma() != null && !existingLemmas.add(word.getLemma())) {
-						// already present (pre-existing, or a duplicate lemma within this file)
-						continue;
-					}
 					// Import always creates new rows (issue #76): persist() would route the
 					// id-bearing, just-unmarshalled Word to merge(), which Hibernate 6.6 turns
 					// into a stale 0-row update because the row is absent in a fresh DB.

@@ -235,6 +235,19 @@ public abstract class AbstractIntegrationTestCase {
 			// fall through to import
 		}
 
+		// Reset to a pristine, id-aligned word table before importing. The dictionary's `sense`
+		// rows reference words by their source ids, but Word is @GeneratedValue(IDENTITY), so the
+		// sense FKs only resolve when the import starts from an empty `word` table with the
+		// IDENTITY counter at 1 (source ids are 1..N in document order). Stray bare words — e.g. a
+		// spell-dictionary "add word to dictionary" resolution in a test sharing this Spring
+		// context/H2 DB — offset the counter and make `insert into sense(... wordid ...)` reference
+		// a non-existent word, which fails order-dependently in CI. Clearing + restarting here
+		// guarantees the precondition the current import relies on. Test-only (H2); the proper fix
+		// (Word should preserve the dictionary-assigned id) is tracked separately — see #<TICKET>.
+		jdbcTemplate.execute("DELETE FROM sense");
+		jdbcTemplate.execute("DELETE FROM word");
+		jdbcTemplate.execute("ALTER TABLE word ALTER COLUMN wordid RESTART WITH 1");
+
 		ImportDictionaryCommand importDictionary =
 				(ImportDictionaryCommand) applicationContext.getBean("importDictionaryCommand");
 		InputStream in = getClass().getClassLoader()
@@ -255,4 +268,9 @@ public abstract class AbstractIntegrationTestCase {
 
 	@Autowired
 	protected org.springframework.context.ApplicationContext applicationContext;
+
+	// Used by ensureDictionaryLoaded() to reset the dictionary tables to a pristine, id-aligned
+	// state before importing (test-only; H2).
+	@Autowired
+	private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 }
