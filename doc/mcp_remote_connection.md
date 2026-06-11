@@ -62,6 +62,7 @@ In `claude_desktop_config.json` (Settings → Developer → Edit Config):
       "args": [
         "mcp-remote",
         "http://localhost:8080/api/mcp/sse",
+        "--transport", "sse-only",
         "--header", "Authorization: Bearer ${REQUEL_TOKEN}",
         "--header", "X-Requel-Client: claude-desktop"
       ],
@@ -71,9 +72,13 @@ In `claude_desktop_config.json` (Settings → Developer → Edit Config):
 }
 ```
 
-Restart Claude Desktop. The Requel tools (`requel.listProjects`, `requel.getProject`,
-`requel.createGoal`, `requel.runCommand`, …) appear in the tools list. Write tools only appear when
-the server has writes enabled.
+Restart Claude Desktop. The Requel tools (`listProjects`, `getProject`, `createGoal`, `runCommand`,
+…) appear in the tools list. Write tools only appear when the server has writes enabled.
+
+`--transport sse-only` is important: `mcp-remote` defaults to Streamable HTTP and probes it first;
+since Requel currently serves only SSE, the probe fails and `mcp-remote` falls into an OAuth flow our
+server doesn't expose. Forcing SSE avoids that. (Tool names are bare — no `requel.` prefix — because
+MCP tool names must match `^[a-zA-Z0-9_-]{1,64}$`; dots are rejected by spec-compliant clients.)
 
 ### Codex (or any stdio MCP client)
 
@@ -81,12 +86,44 @@ Point the client's MCP server command at the same proxy invocation:
 
 ```
 npx mcp-remote http://localhost:8080/api/mcp/sse \
+  --transport sse-only \
   --header "Authorization: Bearer $REQUEL_TOKEN" \
   --header "X-Requel-Client: codex"
 ```
 
+### Cursor (and the robust wrapper-script pattern)
+
+Some clients (Cursor observed) pre-expand `$VAR` references and mangle quoting in the `args` of
+`mcp.json` before spawning the process, which produced an empty `Authorization: Bearer ` header.
+The reliable pattern is a tiny wrapper script that the client launches; the shell reads everything
+verbatim, loads the token from a gitignored `.env`, and execs the proxy. Keep the token only in
+`.env` — never in the script or `mcp.json`.
+
+`.cursor/mcp.json` (the per-developer config; gitignored):
+
+```json
+{ "mcpServers": { "requel": { "command": "/abs/path/to/requel-mcp.sh" } } }
+```
+
+`requel-mcp.sh` (also gitignored; make it executable):
+
+```sh
+#!/bin/sh
+# Load nvm (GUI-spawned shells often lack it on PATH) and the JWT from .env, then exec the proxy.
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+set -a; . /abs/path/to/Requel/.env; set +a   # provides REQUEL_JWT
+exec npx -y mcp-remote http://localhost:8080/api/mcp/sse \
+  --transport sse-only \
+  --header "Authorization: Bearer $REQUEL_JWT" \
+  --header "X-Requel-Client: cursor"
+```
+
+The same wrapper works for Claude Code (`claude mcp add`) when inline header expansion misbehaves.
+
 The `X-Requel-Client` header is optional; Requel records it for per-client audit attribution
-(`GatewayRequest.clientId` / the MCP call audit).
+(`GatewayRequest.clientId` / the MCP call audit). Per-developer `.cursor/` and `.claude/` configs
+are gitignored — only this portable recipe is committed.
 
 ## 3. Verify
 
