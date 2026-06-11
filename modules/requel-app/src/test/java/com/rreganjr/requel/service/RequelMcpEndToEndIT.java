@@ -141,30 +141,30 @@ public class RequelMcpEndToEndIT extends AbstractIntegrationTestCase {
 		long mcpCallsBefore = mcpCallAuditRepository.count();
 		try {
 			// 1. Create a goal.
-			JsonNode goal = callTool("requel.createGoal",
+			JsonNode goal = callTool("createGoal",
 					Map.of("projectName", projectName, "name", "E2E Goal", "text", "via mcp"));
 			long goalId = goal.get("id").asLong();
 			assertThat(goalId).isPositive();
 
 			// 2. Create a non-user stakeholder via the generic runCommand tool.
-			JsonNode stakeholder = callTool("requel.runCommand",
+			JsonNode stakeholder = callTool("runCommand",
 					Map.of("commandType", "EditNonUserStakeholder",
 							"input", Map.of("projectName", projectName, "name", "E2E Vendor")));
 			long stakeholderId = stakeholder.get("id").asLong();
 			assertThat(stakeholderId).isPositive();
 
 			// 3. Associate the goal with the stakeholder (a goal container).
-			callTool("requel.addGoalToContainer",
+			callTool("addGoalToContainer",
 					Map.of("projectName", projectName, "goalId", goalId,
 							"goalContainerId", stakeholderId, "containerType", "NonUserStakeholder"));
 
 			// 4. Attach a note to the goal.
-			callTool("requel.createNote",
+			callTool("createNote",
 					Map.of("projectName", projectName, "entityType", "Goal", "entityId", goalId,
 							"text", "a note added over MCP"));
 
 			// 5. Read the project context back and confirm the goal is present.
-			JsonNode context = callTool("requel.getProjectContext",
+			JsonNode context = callTool("getProjectContext",
 					Map.of("projectName", projectName));
 			assertThat(context.toString()).contains("E2E Goal");
 		} finally {

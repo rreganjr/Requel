@@ -33,7 +33,7 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <!-- AnnotationAction / EntityRef for the requel.draftAnnotation tool, which
+            <!-- AnnotationAction / EntityRef for the draftAnnotation tool, which
                  returns an annotation draft (not persisted) for the applicator. -->
             <groupId>com.rreganjr.requel</groupId>
             <artifactId>assistant-api</artifactId>

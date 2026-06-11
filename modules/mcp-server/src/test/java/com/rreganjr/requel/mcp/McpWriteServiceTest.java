@@ -72,8 +72,8 @@ class McpWriteServiceTest {
 	void writeToolsAbsentAndRejectedWhenDisabled() {
 		McpWriteService disabled = new McpWriteService(new RecordingGateway(), objectMapper, false);
 		assertThat(disabled.toolDescriptors()).isEmpty();
-		assertThat(disabled.handles("requel.createGoal")).isTrue();
-		assertThatThrownBy(() -> disabled.call("requel.createGoal",
+		assertThat(disabled.handles("createGoal")).isTrue();
+		assertThatThrownBy(() -> disabled.call("createGoal",
 				json("{\"projectName\":\"P\",\"name\":\"G\"}")))
 				.isInstanceOf(McpInvalidParamsException.class)
 				.hasMessageContaining("disabled");
@@ -85,17 +85,17 @@ class McpWriteServiceTest {
 		Map<String, Object> tools = readOnly.listTools();
 		@SuppressWarnings("unchecked")
 		List<McpToolDescriptor> descriptors = (List<McpToolDescriptor>) tools.get("tools");
-		assertThat(descriptors).noneMatch(d -> d.name().startsWith("requel.runCommand")
-				|| d.name().equals("requel.createGoal"));
+		assertThat(descriptors).noneMatch(d -> d.name().startsWith("runCommand")
+				|| d.name().equals("createGoal"));
 	}
 
 	@Test
 	void writeToolsListedWhenEnabled() {
 		McpWriteService enabled = new McpWriteService(new RecordingGateway(), objectMapper, true);
 		assertThat(enabled.toolDescriptors()).extracting(McpToolDescriptor::name)
-				.contains("requel.runCommand", "requel.createGoal", "requel.editGoal",
-						"requel.addGoalToContainer", "requel.createNote", "requel.createIssue",
-						"requel.createProject");
+				.contains("runCommand", "createGoal", "editGoal",
+						"addGoalToContainer", "createNote", "createIssue",
+						"createProject");
 	}
 
 	// ---- delegation ----------------------------------------------------------------------------
@@ -104,7 +104,7 @@ class McpWriteServiceTest {
 	void runCommandForwardsTypeAndInput() {
 		RecordingGateway gw = new RecordingGateway();
 		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
-		Object result = svc.call("requel.runCommand",
+		Object result = svc.call("runCommand",
 				json("{\"commandType\":\"EditGoal\",\"input\":{\"projectName\":\"P\",\"name\":\"G\"}}"));
 		assertThat(gw.last.commandType()).isEqualTo("EditGoal");
 		assertThat(gw.last.input()).isInstanceOf(Map.class);
@@ -119,7 +119,7 @@ class McpWriteServiceTest {
 		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
 		McpClientContext.setClientId("claude-desktop");
 		try {
-			svc.call("requel.createGoal", json("{\"projectName\":\"P\",\"name\":\"G\"}"));
+			svc.call("createGoal", json("{\"projectName\":\"P\",\"name\":\"G\"}"));
 		} finally {
 			McpClientContext.clear();
 		}
@@ -130,7 +130,7 @@ class McpWriteServiceTest {
 	void typedToolFixesCommandTypeAndForwardsArgs() {
 		RecordingGateway gw = new RecordingGateway();
 		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
-		svc.call("requel.createGoal",
+		svc.call("createGoal",
 				json("{\"projectName\":\"P\",\"name\":\"G\",\"text\":\"T\"}"));
 		assertThat(gw.last.commandType()).isEqualTo("EditGoal");
 		assertThat(asMap(gw.last.input()))
@@ -144,7 +144,7 @@ class McpWriteServiceTest {
 		RecordingGateway gw = new RecordingGateway();
 		gw.resultPayload = null; // e.g. AddGoalToGoalContainer returns no DTO
 		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
-		Object result = svc.call("requel.addGoalToContainer",
+		Object result = svc.call("addGoalToContainer",
 				json("{\"projectName\":\"P\",\"goalId\":1,\"goalContainerId\":2,"
 						+ "\"containerType\":\"Project\"}"));
 		assertThat(asMap(result)).containsEntry("ok", true)
@@ -158,7 +158,7 @@ class McpWriteServiceTest {
 		RecordingGateway gw = new RecordingGateway();
 		gw.toThrow = new GatewayException(GatewayException.Kind.NOT_ALLOWED, "denied");
 		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
-		assertThatThrownBy(() -> svc.call("requel.createGoal",
+		assertThatThrownBy(() -> svc.call("createGoal",
 				json("{\"projectName\":\"P\",\"name\":\"G\"}")))
 				.isInstanceOf(McpInvalidParamsException.class)
 				.hasMessageContaining("denied");
@@ -169,7 +169,7 @@ class McpWriteServiceTest {
 		RecordingGateway gw = new RecordingGateway();
 		gw.toThrow = new GatewayException(GatewayException.Kind.EXECUTION_ERROR, "boom");
 		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
-		assertThatThrownBy(() -> svc.call("requel.createGoal",
+		assertThatThrownBy(() -> svc.call("createGoal",
 				json("{\"projectName\":\"P\",\"name\":\"G\"}")))
 				.isInstanceOf(IllegalStateException.class)
 				.hasMessageContaining("boom");

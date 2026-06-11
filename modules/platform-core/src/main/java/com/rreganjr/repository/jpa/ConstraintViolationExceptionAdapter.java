@@ -50,12 +50,21 @@ public class ConstraintViolationExceptionAdapter implements EntityExceptionAdapt
 	@Override
 	public EntityException convert(Throwable original, Class<?> entityType, Object entity,
 			EntityExceptionActionType actionType) {
-        if (entityType == null && entity == null && original instanceof ConstraintViolationException) {
-            ConstraintViolationException cve = (ConstraintViolationException) original;
+        if (entityType == null && entity == null && original instanceof ConstraintViolationException cve) {
             SQLException sqle = cve.getSQLException();
-            // SQLState '23000' indicates integrity constraint violation across vendors
-            if (sqle != null && "23000".equals(sqle.getSQLState())) {
-                return EntityException.uniquenessConflict(sqle, sqle.getMessage());
+            // SQLState class "23" is the integrity-constraint-violation family — uniqueness AND
+            // referential-integrity (FK) violations. The old check only matched the exact "23000",
+            // so an H2 FK violation (e.g. SQLState 23506/23503) fell through to the generic
+            // "unknown" label below, masking a real referential-integrity failure during #69
+            // testing. Surface the actual constraint name + DB message for any 23xxx so the error
+            // is self-explanatory.
+            String sqlState = sqle != null ? sqle.getSQLState() : null;
+            if (sqlState != null && sqlState.startsWith("23")) {
+                String constraint = cve.getConstraintName();
+                String detail = (constraint != null && !constraint.isBlank())
+                        ? "constraint " + constraint + ": " + sqle.getMessage()
+                        : sqle.getMessage();
+                return EntityException.uniquenessConflict(sqle, detail);
             }
         }
         return EntityException.uniquenessConflict(entityType, entity, propertyName, actionType);

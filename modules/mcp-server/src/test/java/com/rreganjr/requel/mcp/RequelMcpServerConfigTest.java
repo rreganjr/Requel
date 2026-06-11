@@ -56,10 +56,10 @@ class RequelMcpServerConfigTest {
 		ToolCallbackProvider provider = config.requelToolCallbackProvider(readOnly, auditor, objectMapper);
 
 		List<String> names = toolNames(provider);
-		assertThat(names).contains("requel.listProjects", "requel.getProject",
-				"requel.getOpenIssues", "requel.draftAnnotation");
-		assertThat(names).noneMatch(n -> n.equals("requel.runCommand")
-				|| n.equals("requel.createGoal"));
+		assertThat(names).contains("listProjects", "getProject",
+				"getOpenIssues", "draftAnnotation");
+		assertThat(names).noneMatch(n -> n.equals("runCommand")
+				|| n.equals("createGoal"));
 	}
 
 	@Test
@@ -71,7 +71,7 @@ class RequelMcpServerConfigTest {
 		ToolCallbackProvider provider = config.requelToolCallbackProvider(withWrites, auditor,
 				objectMapper);
 
-		assertThat(toolNames(provider)).contains("requel.runCommand", "requel.createGoal");
+		assertThat(toolNames(provider)).contains("runCommand", "createGoal");
 	}
 
 	@Test
@@ -88,11 +88,11 @@ class RequelMcpServerConfigTest {
 		ToolCallbackProvider provider = config.requelToolCallbackProvider(readOnly, recording,
 				objectMapper);
 		ToolCallback getProject = Arrays.stream(provider.getToolCallbacks())
-				.filter(tc -> tc.getToolDefinition().name().equals("requel.getProject"))
+				.filter(tc -> tc.getToolDefinition().name().equals("getProject"))
 				.findFirst().orElseThrow();
 
 		getProject.call("{\"projectName\":\"Sample\"}");
-		assertThat(audited).contains("requel.getProject:true");
+		assertThat(audited).contains("getProject:true");
 	}
 
 	@Test
@@ -100,7 +100,7 @@ class RequelMcpServerConfigTest {
 		McpReadService readOnly = new McpReadService(new StubProjectQueryGateway(), objectMapper);
 		ToolCallbackProvider provider = config.requelToolCallbackProvider(readOnly, auditor, objectMapper);
 		ToolCallback getProject = Arrays.stream(provider.getToolCallbacks())
-				.filter(tc -> tc.getToolDefinition().name().equals("requel.getProject"))
+				.filter(tc -> tc.getToolDefinition().name().equals("getProject"))
 				.findFirst().orElseThrow();
 
 		String result = getProject.call("{\"projectName\":\"Sample\"}");
