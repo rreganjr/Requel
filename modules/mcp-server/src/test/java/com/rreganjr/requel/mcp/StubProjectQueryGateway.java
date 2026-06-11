@@ -23,6 +23,7 @@ package com.rreganjr.requel.mcp;
 import java.util.List;
 import java.util.Map;
 
+import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
@@ -31,7 +32,7 @@ import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
 
-class StubProjectQueryGateway implements ProjectQueryGateway {
+class StubProjectQueryGateway implements QueryGateway {
 
 	@Override
 	public List<ProjectDto> listProjects() {

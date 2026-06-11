@@ -23,6 +23,7 @@ package com.rreganjr.requel.command;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationExemptable;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.command.AuthorizationRequirement;
 import com.rreganjr.platform.command.AuthorizationRequirement.*;
@@ -53,6 +54,13 @@ public class AuthorizingCommandHandler implements CommandHandler {
 
     @Override
     public <T extends Command> T execute(T command) throws Exception {
+        // TODO(#75): TEMPORARY. Sub-commands a parent runs as part of an already-authorized
+        // operation (e.g. the detach cascade inside a delete) are marked exempt so a
+        // Delete-only stakeholder isn't re-checked for Edit on each container. Remove once the
+        // permission-coherence model lands: https://github.com/rreganjr/Requel/issues/75
+        if (command instanceof AuthorizationExemptable ae && ae.isAuthorizationExempt()) {
+            return delegate.execute(command);
+        }
         if (command instanceof AuthorizableCommand authCmd) {
             checkAuthorization(authCmd);
         }

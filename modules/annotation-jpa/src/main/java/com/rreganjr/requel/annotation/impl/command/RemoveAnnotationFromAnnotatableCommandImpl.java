@@ -121,12 +121,18 @@ public class RemoveAnnotationFromAnnotatableCommandImpl extends AbstractEditComm
 						.newDeleteIssueCommand();
 				deleteIssueCommand.setIssue((Issue) annotation);
 				deleteIssueCommand.setEditedBy(getEditedBy());
+				// #69/#75: intrinsic sub-delete of an already-authorized parent delete; exempt so a
+				// Delete-only stakeholder isn't re-checked for Annotation[Delete] mid-cascade.
+				((com.rreganjr.platform.command.AuthorizationExemptable) deleteIssueCommand).setAuthorizationExempt(true);
 				getCommandHandler().execute(deleteIssueCommand);
 			} else if (annotation instanceof Note) {
 				DeleteNoteCommand deleteNoteCommand = getAnnotationCommandFactory()
 						.newDeleteNoteCommand();
 				deleteNoteCommand.setNote((Note) annotation);
 				deleteNoteCommand.setEditedBy(getEditedBy());
+				// #69/#75: intrinsic sub-delete of an already-authorized parent delete; exempt so a
+				// Delete-only stakeholder isn't re-checked for Annotation[Delete] mid-cascade.
+				((com.rreganjr.platform.command.AuthorizationExemptable) deleteNoteCommand).setAuthorizationExempt(true);
 				getCommandHandler().execute(deleteNoteCommand);
 			}
 		}

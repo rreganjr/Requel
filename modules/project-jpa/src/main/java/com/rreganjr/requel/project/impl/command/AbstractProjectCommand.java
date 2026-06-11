@@ -27,11 +27,29 @@ import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.command.AbstractUserCommand;
+import com.rreganjr.platform.command.AuthorizationExemptable;
 
 /**
  * @author ron
  */
-public abstract class AbstractProjectCommand extends AbstractUserCommand {
+public abstract class AbstractProjectCommand extends AbstractUserCommand
+		implements AuthorizationExemptable {
+
+	// TODO(#75): temporary. Lets a parent command mark internally-invoked cascade sub-commands
+	// (e.g. detach steps in a delete) exempt from re-authorization, so a Delete-only stakeholder
+	// isn't re-checked for Edit on each container. Remove with the permission-coherence model:
+	// https://github.com/rreganjr/Requel/issues/75
+	private boolean authorizationExempt = false;
+
+	@Override
+	public boolean isAuthorizationExempt() {
+		return authorizationExempt;
+	}
+
+	@Override
+	public void setAuthorizationExempt(boolean authorizationExempt) {
+		this.authorizationExempt = authorizationExempt;
+	}
 
 	private final CommandHandler commandHandler;
 	private final ProjectCommandFactory projectCommandFactory;

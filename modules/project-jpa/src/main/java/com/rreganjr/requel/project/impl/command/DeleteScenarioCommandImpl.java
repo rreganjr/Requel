@@ -35,6 +35,9 @@ import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.DeleteScenarioCommand;
@@ -52,7 +55,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteScenarioCommand")
 @Scope("prototype")
 public class DeleteScenarioCommandImpl extends AbstractEditProjectCommand implements
-		DeleteScenarioCommand, ProjectScopedCommand {
+		DeleteScenarioCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Scenario.class, "Delete");
+	}
 
 	private Scenario scenario;
 

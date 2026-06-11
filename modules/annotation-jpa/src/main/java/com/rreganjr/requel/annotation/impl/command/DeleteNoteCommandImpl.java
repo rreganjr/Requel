@@ -36,7 +36,8 @@ import com.rreganjr.requel.annotation.command.DeleteNoteCommand;
  */
 @Controller("deleteNoteCommand")
 @Scope("prototype")
-public class DeleteNoteCommandImpl extends AbstractEditCommand implements DeleteNoteCommand {
+public class DeleteNoteCommandImpl extends AbstractEditCommand implements DeleteNoteCommand, com.rreganjr.requel.project.ProjectScopedCommand,
+		com.rreganjr.platform.command.AuthorizableCommand {
 
 	private Note note;
 
@@ -75,4 +76,14 @@ public class DeleteNoteCommandImpl extends AbstractEditCommand implements Delete
 		getRepository().delete(note);
 	}
 
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return AnnotationCommandProjectResolver.of(note);
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.annotation.Annotation.class, "Delete");
+	}
 }

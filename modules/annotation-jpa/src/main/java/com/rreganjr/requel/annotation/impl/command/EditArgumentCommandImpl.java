@@ -41,7 +41,8 @@ import com.rreganjr.platform.identity.User;
  */
 @Controller("editArgumentCommand")
 @Scope("prototype")
-public class EditArgumentCommandImpl extends AbstractEditCommand implements EditArgumentCommand {
+public class EditArgumentCommandImpl extends AbstractEditCommand implements EditArgumentCommand, com.rreganjr.requel.project.ProjectScopedCommand,
+		com.rreganjr.platform.command.AuthorizableCommand {
 
 	private Position position;
 	private Argument argument;
@@ -158,5 +159,19 @@ public class EditArgumentCommandImpl extends AbstractEditCommand implements Edit
 			throw EntityValidationException.validationFailed(Argument.class, "supportLevel",
 					"The specified support level \"" + getSupportLevelName() + "\" is not valid.");
 		}
+	}
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		com.rreganjr.requel.project.Project p = AnnotationCommandProjectResolver.of(position);
+		if (p != null) {
+			return p;
+		}
+		return AnnotationCommandProjectResolver.of(argument);
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.annotation.Annotation.class, "Edit");
 	}
 }

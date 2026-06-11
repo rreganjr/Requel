@@ -35,6 +35,9 @@ import com.rreganjr.requel.project.GoalRelation;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -47,7 +50,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteGoalRelationCommand")
 @Scope("prototype")
 public class DeleteGoalRelationCommandImpl extends AbstractEditProjectCommand implements
-		DeleteGoalRelationCommand, ProjectScopedCommand {
+		DeleteGoalRelationCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Goal.class, "Edit");
+	}
 
 	private GoalRelation goalRelation;
 

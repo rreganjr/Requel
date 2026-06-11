@@ -34,6 +34,9 @@ import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.CopyScenarioCommand;
@@ -50,7 +53,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("copyUseCaseCommand")
 @Scope("prototype")
 public class CopyUseCaseCommandImpl extends AbstractEditProjectCommand implements
-		CopyUseCaseCommand, ProjectScopedCommand {
+		CopyUseCaseCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.UseCase.class, "Edit");
+	}
 
 	private UseCase originalUseCase;
 	private UseCase newUseCase;

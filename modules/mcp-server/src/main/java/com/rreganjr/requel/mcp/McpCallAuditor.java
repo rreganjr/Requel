@@ -80,6 +80,28 @@ public class McpCallAuditor {
 		}
 	}
 
+	/**
+	 * Transport-neutral audit of a single {@code tools/call}, used by transports that don't go
+	 * through the JSON-RPC {@link #record} path (the Spring AI MCP server). Records the triggering
+	 * user (from the security context), the tool name, and the OK/ERROR outcome with timing.
+	 * {@code assistantUserId} is left null until real per-client identities exist (#73). Best-effort
+	 * — never throws.
+	 *
+	 * @param startNanos a {@link System#nanoTime()} reading captured before the tool executed
+	 */
+	public void recordToolCall(String toolName, boolean ok, Integer errorCode, String errorSummary,
+			long startNanos) {
+		try {
+			long durationMs = Math.max(0, (System.nanoTime() - startNanos) / 1_000_000L);
+			McpCallAudit audit = new McpCallAudit(resolveTriggeringUserId(), null, null,
+					"tools/call", toolName, ok ? "OK" : "ERROR", errorCode, truncate(errorSummary),
+					durationMs, clock.instant());
+			repository.save(audit);
+		} catch (RuntimeException e) {
+			log.warn("Failed to record MCP tool-call audit: {}", e.getMessage(), e);
+		}
+	}
+
 	private Long resolveTriggeringUserId() {
 		try {
 			User user = currentUserResolver.resolve();

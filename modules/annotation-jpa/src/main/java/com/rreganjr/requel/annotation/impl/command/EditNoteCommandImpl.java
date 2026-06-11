@@ -43,7 +43,8 @@ import com.rreganjr.platform.identity.User;
  */
 @Controller("editNoteCommand")
 @Scope("prototype")
-public class EditNoteCommandImpl extends AbstractAnnotationCommand implements EditNoteCommand {
+public class EditNoteCommandImpl extends AbstractAnnotationCommand implements EditNoteCommand, com.rreganjr.requel.project.ProjectScopedCommand,
+		com.rreganjr.platform.command.AuthorizableCommand {
 
 	private Note note;
 
@@ -111,5 +112,22 @@ public class EditNoteCommandImpl extends AbstractAnnotationCommand implements Ed
 			throw EntityValidationException.emptyRequiredProperty(Note.class, getNote(), "text",
 					EntityExceptionActionType.Updating);
 		}
+	}
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		if (getGroupingObject() instanceof com.rreganjr.requel.project.Project gp) {
+			return gp;
+		}
+		com.rreganjr.requel.project.Project p = AnnotationCommandProjectResolver.ofAnnotatable(getAnnotatable());
+		if (p != null) {
+			return p;
+		}
+		return AnnotationCommandProjectResolver.of(note);
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.annotation.Annotation.class, "Edit");
 	}
 }

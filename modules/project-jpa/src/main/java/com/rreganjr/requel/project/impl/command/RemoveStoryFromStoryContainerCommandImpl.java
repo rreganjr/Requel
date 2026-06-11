@@ -30,6 +30,9 @@ import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -44,7 +47,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("removeStoryFromStoryContainerCommand")
 @Scope("prototype")
 public class RemoveStoryFromStoryContainerCommandImpl extends AbstractEditProjectCommand implements
-		RemoveStoryFromStoryContainerCommand, ProjectScopedCommand {
+		RemoveStoryFromStoryContainerCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Story.class, "Edit");
+	}
 
 	/**
 	 * @param assistantManager

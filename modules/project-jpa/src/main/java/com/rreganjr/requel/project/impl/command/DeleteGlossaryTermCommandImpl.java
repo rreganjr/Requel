@@ -37,6 +37,9 @@ import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.AddGlossaryTermPosition;
@@ -53,7 +56,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteGlossaryTermCommand")
 @Scope("prototype")
 public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand implements
-		DeleteGlossaryTermCommand, ProjectScopedCommand {
+		DeleteGlossaryTermCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.GlossaryTerm.class, "Delete");
+	}
 
 	private GlossaryTerm glossaryTerm;
 
@@ -109,6 +117,10 @@ public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand im
 					.newDeletePositionCommand();
 			deletePositionCommand.setEditedBy(getEditedBy());
 			deletePositionCommand.setPosition(addGlossaryTermPosition);
+			// #69/#75: this DeletePosition is an intrinsic sub-step of deleting the parent
+			// entity; exempt it so a Delete-only stakeholder isn't re-checked for Annotation[Delete].
+			((com.rreganjr.platform.command.AuthorizationExemptable) deletePositionCommand)
+					.setAuthorizationExempt(true);
 			getCommandHandler().execute(deletePositionCommand);
 		} catch (NoSuchEntityException e) {
 

@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -77,5 +78,10 @@ public class CommandRegistryImpl implements CommandRegistry {
     @Override
     public boolean isRegistered(String commandType) {
         return registrations.containsKey(commandType);
+    }
+
+    @Override
+    public Set<String> registeredTypes() {
+        return Set.copyOf(registrations.keySet());
     }
 }

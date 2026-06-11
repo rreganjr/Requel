@@ -41,7 +41,8 @@ import com.rreganjr.platform.identity.User;
  */
 @Controller("editPositionCommand")
 @Scope("prototype")
-public class EditPositionCommandImpl extends AbstractEditCommand implements EditPositionCommand {
+public class EditPositionCommandImpl extends AbstractEditCommand implements EditPositionCommand, com.rreganjr.requel.project.ProjectScopedCommand,
+		com.rreganjr.platform.command.AuthorizableCommand {
 
 	private Position position;
 	private Issue issue;
@@ -141,5 +142,19 @@ public class EditPositionCommandImpl extends AbstractEditCommand implements Edit
 			throw EntityValidationException.emptyRequiredProperty(Position.class, getPosition(),
 					"text", EntityExceptionActionType.Updating);
 		}
+	}
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		com.rreganjr.requel.project.Project p = AnnotationCommandProjectResolver.of(getIssue());
+		if (p != null) {
+			return p;
+		}
+		return AnnotationCommandProjectResolver.of(position);
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.annotation.Annotation.class, "Edit");
 	}
 }

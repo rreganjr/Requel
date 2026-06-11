@@ -34,6 +34,9 @@ import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.command.CopyActorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ActorImpl;
@@ -47,7 +50,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("copyActorCommand")
 @Scope("prototype")
 public class CopyActorCommandImpl extends AbstractEditProjectCommand
-		implements CopyActorCommand, ProjectScopedCommand {
+		implements CopyActorCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.Actor.class, "Edit");
+	}
 
 	private Actor originalActor;
 	private Actor newActor;

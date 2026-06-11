@@ -29,6 +29,9 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -41,7 +44,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("removeScenarioFromUseCaseCommand")
 @Scope("prototype")
 public class RemoveScenarioFromUseCaseCommandImpl extends AbstractEditProjectCommand
-		implements RemoveScenarioFromUseCaseCommand, ProjectScopedCommand {
+		implements RemoveScenarioFromUseCaseCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.UseCase.class, "Edit");
+	}
 
 	@Autowired
 	public RemoveScenarioFromUseCaseCommandImpl(AssistantFacade assistantManager,

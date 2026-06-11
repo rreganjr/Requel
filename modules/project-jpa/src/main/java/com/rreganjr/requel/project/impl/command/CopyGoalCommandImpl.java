@@ -45,7 +45,17 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("copyGoalCommand")
 @Scope("prototype")
-public class CopyGoalCommandImpl extends AbstractEditProjectCommand implements CopyGoalCommand {
+public class CopyGoalCommandImpl extends AbstractEditProjectCommand implements CopyGoalCommand, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return (originalGoal != null && originalGoal.getProjectOrDomain() instanceof com.rreganjr.requel.project.Project p) ? p : null;
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.project.Goal.class, "Edit");
+	}
 
 	private Goal originalGoal;
 	private Goal newGoal;

@@ -111,6 +111,9 @@ public class DeleteGoalCommandImpl extends AbstractEditProjectCommand implements
 			RemoveGoalFromGoalContainerCommand removeGoalFromGoalContainerCommand = getProjectCommandFactory()
 					.newRemoveGoalFromGoalContainerCommand();
 			removeGoalFromGoalContainerCommand.setEditedBy(editedBy);
+			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
+			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
+			((com.rreganjr.platform.command.AuthorizationExemptable) removeGoalFromGoalContainerCommand).setAuthorizationExempt(true);
 			removeGoalFromGoalContainerCommand.setGoal(goal);
 			removeGoalFromGoalContainerCommand.setGoalContainer(goalContainer);
 			getCommandHandler().execute(removeGoalFromGoalContainerCommand);
@@ -122,6 +125,9 @@ public class DeleteGoalCommandImpl extends AbstractEditProjectCommand implements
 			DeleteGoalRelationCommand deleteGoalRelationCommand = getProjectCommandFactory()
 					.newDeleteGoalRelationCommand();
 			deleteGoalRelationCommand.setEditedBy(editedBy);
+			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
+			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
+			((com.rreganjr.platform.command.AuthorizationExemptable) deleteGoalRelationCommand).setAuthorizationExempt(true);
 			deleteGoalRelationCommand.setGoalRelation(goalRelation);
 			getCommandHandler().execute(deleteGoalRelationCommand);
 		}

@@ -36,7 +36,8 @@ import com.rreganjr.requel.annotation.command.DeleteArgumentCommand;
  */
 @Controller("deleteArgumentCommand")
 @Scope("prototype")
-public class DeleteArgumentCommandImpl extends AbstractEditCommand implements DeleteArgumentCommand {
+public class DeleteArgumentCommandImpl extends AbstractEditCommand implements DeleteArgumentCommand, com.rreganjr.requel.project.ProjectScopedCommand,
+		com.rreganjr.platform.command.AuthorizableCommand {
 
 	private Argument argument;
 
@@ -74,4 +75,14 @@ public class DeleteArgumentCommandImpl extends AbstractEditCommand implements De
 		getRepository().delete(argument);
 	}
 
+
+	@Override
+	public com.rreganjr.requel.project.Project getProject() {
+		return AnnotationCommandProjectResolver.of(argument);
+	}
+
+	@Override
+	public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+		return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission(com.rreganjr.requel.annotation.Annotation.class, "Delete");
+	}
 }

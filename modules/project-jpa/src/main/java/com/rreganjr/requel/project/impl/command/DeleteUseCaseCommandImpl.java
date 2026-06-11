@@ -37,6 +37,9 @@ import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
@@ -58,7 +61,12 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("deleteUseCaseCommand")
 @Scope("prototype")
 public class DeleteUseCaseCommandImpl extends AbstractEditProjectCommand implements
-		DeleteUseCaseCommand, ProjectScopedCommand {
+		DeleteUseCaseCommand, ProjectScopedCommand, AuthorizableCommand {
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(com.rreganjr.requel.project.UseCase.class, "Delete");
+	}
 
 	private UseCase usecase;
 
@@ -115,6 +123,9 @@ public class DeleteUseCaseCommandImpl extends AbstractEditProjectCommand impleme
 			removeActorFromActorContainerCommand.setActor(actor);
 			removeActorFromActorContainerCommand.setActorContainer(usecase);
 			removeActorFromActorContainerCommand.setEditedBy(getEditedBy());
+			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
+			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
+			((com.rreganjr.platform.command.AuthorizationExemptable) removeActorFromActorContainerCommand).setAuthorizationExempt(true);
 			getCommandHandler().execute(removeActorFromActorContainerCommand);
 		}
 		Set<Goal> goals = new HashSet<Goal>(usecase.getGoals());
@@ -124,6 +135,9 @@ public class DeleteUseCaseCommandImpl extends AbstractEditProjectCommand impleme
 			removeGoalFromGoalContainerCommand.setGoal(goal);
 			removeGoalFromGoalContainerCommand.setGoalContainer(usecase);
 			removeGoalFromGoalContainerCommand.setEditedBy(getEditedBy());
+			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
+			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
+			((com.rreganjr.platform.command.AuthorizationExemptable) removeGoalFromGoalContainerCommand).setAuthorizationExempt(true);
 			getCommandHandler().execute(removeGoalFromGoalContainerCommand);
 		}
 		Set<Story> stories = new HashSet<Story>(usecase.getStories());
@@ -133,6 +147,9 @@ public class DeleteUseCaseCommandImpl extends AbstractEditProjectCommand impleme
 			removeStoryFromStoryContainerCommand.setStory(story);
 			removeStoryFromStoryContainerCommand.setStoryContainer(usecase);
 			removeStoryFromStoryContainerCommand.setEditedBy(getEditedBy());
+			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
+			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
+			((com.rreganjr.platform.command.AuthorizationExemptable) removeStoryFromStoryContainerCommand).setAuthorizationExempt(true);
 			getCommandHandler().execute(removeStoryFromStoryContainerCommand);
 		}
 		for (Scenario scenario : getProjectRepository().findScenariosUsedByUseCase(usecase)) {

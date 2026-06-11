@@ -22,6 +22,7 @@ package com.rreganjr.requel.service.api;
 
 import com.rreganjr.command.Command;
 
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -107,4 +108,11 @@ public interface CommandRegistry {
      * @return true if a command type is registered
      */
     boolean isRegistered(String commandType);
+
+    /**
+     * @return an immutable snapshot of every registered command type. The gateway uses this to
+     *         build its allowlist (registered types minus the denylist) and the command catalog,
+     *         so the exposed surface stays in lockstep with what is actually registered.
+     */
+    Set<String> registeredTypes();
 }

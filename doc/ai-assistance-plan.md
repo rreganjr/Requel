@@ -6,6 +6,8 @@ Modernize Requel's background analysis so it can use a current AI model, such as
 
 This plan builds on `doc/assistant-spi-plan.md`. The SPI should remain the local extension point; AI-backed assistants should be one implementation family, not a special path wired directly into commands.
 
+**Dependency baseline:** Spring Boot **3.5.14** + Spring AI **1.1.7** (Java 17). The Boot bump from 3.3.4 is a prerequisite ticket; the provider layer is a single `SpringAiAnalysisClient` over Spring AI `ChatClient` (see `doc/issue_spring_ai_provider_clients.md` and `doc/port-tospring-boot-ai.md`).
+
 ## Current State
 
 - Analysis is invoked after successful edit commands by `AnalysisInvokingCommandHandler`, which calls `AnalyzableEditCommand.invokeAnalysis()`.
@@ -78,8 +80,8 @@ Initial implementations (module placement): the provider-neutral contracts
 own module depending on `assistant-ai`; `OpenAiAnalysisClient` lives in `assistant-openai`.
 
 - `NoopAiAnalysisClient` for local/dev/test — in `assistant-ai`.
-- `OpenAiAnalysisClient` using the OpenAI Responses API with a configurable model — in `assistant-openai`. Official OpenAI docs currently describe Codex-class models as usable through the Responses API, and current model pages also expose structured outputs/function calling/MCP support depending on model. Keep the exact model id in configuration instead of hardcoding it in assistant logic.
-- Optional later: `LocalModelAnalysisClient` for a self-hosted model if privacy or cost requires it.
+- A single `SpringAiAnalysisClient` backed by Spring AI's `ChatClient` (Spring AI 1.1.7 on Spring Boot 3.5.14). Provider choice (OpenAI / Anthropic / Azure / Ollama / OpenAI-compatible) is a starter dependency + `spring.ai.*` config, so `assistant-openai` / `assistant-anthropic` become starter/packaging choices rather than hand-written ~400-line clients. Keep the model id in configuration. Requel still **validates** structured output (shape, lengths, enums, evidence refs); use `responseEntity(...)` for `ChatResponse` metadata (model id, usage).
+- Optional later: a self-hosted/local model via an OpenAI-compatible starter pointed at a custom base-url.
 
 Configuration:
 
@@ -193,6 +195,8 @@ Every MCP session carries two identities, per the resolved decision. Authorizati
 3. Each MCP tool call hits the in-process `mcp-server`, which validates the session token, populates a Spring Security context as the triggering user (so query authz mirrors REST), and stamps `triggering_user_id`, `assistant_user_id`, and `run_id` on the MCP audit row.
 4. Tools delegate through `ProjectQueryGateway`. The in-process gateway calls the existing service/query beans in that security context.
 5. The session token expires when the run completes or after a short TTL, whichever comes first.
+
+> Review note (2026-06-09): with Spring AI, internal assistants can also receive Requel tools as direct Spring AI tool-callbacks (context packs + tools) instead of calling our own MCP transport in-process. Decide whether MCP is the external boundary only or also the internal tool boundary. If direct tool-callbacks are used internally, replicate the audit/rate-limit hooks above so internal and external tool use stay comparable.
 
 **External AI client → in-process `mcp-server`** (used when Claude Code, Codex CLI, Cursor, or a hosted model is connected as an MCP client):
 
@@ -327,7 +331,7 @@ All Phase 0 decisions are resolved (see `Resolved Decisions` below and <https://
 ### Phase 4 - AI Provider
 
 - Add `AiAnalysisClient` abstraction and `NoopAiAnalysisClient`.
-- Add `OpenAiAnalysisClient` with configurable model, timeout, retries, structured output validation, and usage capture.
+- Add a single `SpringAiAnalysisClient` over Spring AI `ChatClient` (Spring AI 1.1.7): retries/timeouts via `spring.ai.*`, structured output requested via the converter and **validated by Requel**, usage/metadata captured via `responseEntity(...)`. Provider = starter on the classpath.
 - Keep exact model ids in properties and document how to change them.
 
 ### Phase 5 - First AI Assistant
