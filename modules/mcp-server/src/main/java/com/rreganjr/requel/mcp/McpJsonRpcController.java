@@ -28,9 +28,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * JSON-RPC endpoint for the in-process MCP read server. It is mounted under
- * {@code /api/**}, so the existing JWT security chain and current-user
- * resolution are reused.
+ * JSON-RPC endpoint for the in-process MCP server, mounted under {@code /api/**} so the existing JWT
+ * security chain and current-user resolution are reused.
+ *
+ * <p><b>Retained intentionally (issue #82 decision).</b> The Spring AI MCP transport
+ * ({@code /api/mcp/sse}, see {@code RequelMcpServerConfig}) is the client-facing path. This
+ * hand-rolled JSON-RPC endpoint is kept as a thin, dependency-light POST transport and as the
+ * in-process driver used by {@code RequelMcpEndToEndIT}; both transports delegate to the same
+ * {@code McpReadService}/{@code McpWriteService} tool logic, so the duplication is minimal. Full
+ * removal was weighed and deferred as not worth the churn (it would require rewriting the e2e
+ * harness onto the {@code ToolCallback} path for no functional gain).
  */
 @RestController
 @RequestMapping("/api/mcp")
