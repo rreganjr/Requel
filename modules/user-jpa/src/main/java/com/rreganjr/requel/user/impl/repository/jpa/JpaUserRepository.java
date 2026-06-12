@@ -122,6 +122,15 @@ public class JpaUserRepository extends AbstractJpaRepository implements UserRepo
 		}
 	}
 
+	@Override
+	public User findUserById(Long id) {
+		if (id == null) {
+			return null;
+		}
+		// Returns null when absent (per the interface contract) — used by the PAT auth path (#73).
+		return getEntityManager().find(com.rreganjr.requel.user.impl.UserImpl.class, id);
+	}
+
 	public UserSet findUsers() {
 		try {
 			// TODO: use named query so it can be configured externally
