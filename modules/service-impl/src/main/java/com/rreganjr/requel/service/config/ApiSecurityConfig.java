@@ -20,8 +20,11 @@
  */
 package com.rreganjr.requel.service.config;
 
+import com.rreganjr.requel.service.auth.ApiTokenRepository;
 import com.rreganjr.requel.service.auth.JwtAuthenticationFilter;
 import com.rreganjr.requel.service.auth.JwtService;
+import com.rreganjr.requel.service.auth.UserDtoMapper;
+import com.rreganjr.requel.user.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -49,6 +52,9 @@ import java.util.List;
 public class ApiSecurityConfig {
 
     private final JwtService jwtService;
+    private final ApiTokenRepository apiTokenRepository;
+    private final UserRepository userRepository;
+    private final UserDtoMapper userDtoMapper;
 
     /**
      * Additional CORS allowed origins beyond same-origin (e.g. http://localhost:4200 for the
@@ -58,8 +64,12 @@ public class ApiSecurityConfig {
     @Value("${spring.cors.allowed-origins:}")
     private List<String> additionalAllowedOrigins;
 
-    public ApiSecurityConfig(JwtService jwtService) {
+    public ApiSecurityConfig(JwtService jwtService, ApiTokenRepository apiTokenRepository,
+            UserRepository userRepository, UserDtoMapper userDtoMapper) {
         this.jwtService = jwtService;
+        this.apiTokenRepository = apiTokenRepository;
+        this.userRepository = userRepository;
+        this.userDtoMapper = userDtoMapper;
     }
 
     @Bean
@@ -73,6 +83,11 @@ public class ApiSecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/api/dev/**").permitAll()
+                // Personal access token management (#73): project users only. PATs act against
+                // project data, so a pure system admin (no project role) has no use for one; an
+                // admin who also holds ProjectUserRole still qualifies through that role.
+                .requestMatchers("/api/auth/tokens", "/api/auth/tokens/**")
+                    .hasRole("ProjectUserRole")
                 .requestMatchers("/api/users/organizations").authenticated()
                 .requestMatchers("/api/users/**").hasRole("SystemAdminUserRole")
                 .requestMatchers("/api/commands/NewUser").hasRole("SystemAdminUserRole")
@@ -81,7 +96,8 @@ public class ApiSecurityConfig {
             )
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-            .addFilterBefore(new JwtAuthenticationFilter(jwtService),
+            .addFilterBefore(new JwtAuthenticationFilter(jwtService, apiTokenRepository,
+                    userRepository, userDtoMapper),
                     UsernamePasswordAuthenticationFilter.class)
             .anonymous(AbstractHttpConfigurer::disable);
 

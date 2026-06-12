@@ -40,6 +40,14 @@ public interface UserRepository extends com.rreganjr.repository.Repository {
 
     User findUserByUsername(String username) throws NoSuchUserException;
 
+    /**
+     * Look up a user by id. Returns {@code null} if no such user exists (unlike
+     * {@link #findUserByUsername}, which throws) so callers that resolve a stored owner id — e.g.
+     * the personal-access-token auth path (#73) — can treat absence as "not authenticated" without
+     * exception handling.
+     */
+    User findUserById(Long id);
+
     UserSet findUsers();
 
     UserSet findUsersForRole(Class<? extends UserRole> roleType);

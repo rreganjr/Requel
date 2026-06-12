@@ -25,12 +25,15 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
 import { PreferencesService } from '../../core/preferences.service';
+import { AuthService } from '../../core/auth.service';
 import { UserPreferencesDto, STALENESS_OPTIONS } from '../../models/preferences';
+import { ApiTokensComponent } from './api-tokens';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputNumberModule, SelectModule, MessageModule],
+  imports: [FormsModule, ButtonModule, InputNumberModule, SelectModule, MessageModule,
+    ApiTokensComponent],
   template: `
     <div class="settings" data-testid="settings-page">
       <div class="page-header">
@@ -70,6 +73,10 @@ import { UserPreferencesDto, STALENESS_OPTIONS } from '../../models/preferences'
                     [outlined]="true" (onClick)="onReset()" [loading]="saving()" />
         </div>
       </div>
+
+      @if (canManageTokens()) {
+        <app-api-tokens />
+      }
     </div>
   `,
   styles: [`
@@ -95,8 +102,17 @@ export class SettingsComponent implements OnInit {
 
   constructor(
     private preferencesService: PreferencesService,
+    private authService: AuthService,
     private cdr: ChangeDetectorRef
   ) {}
+
+  /**
+   * PATs act against project data, so only project users see the section. A pure system admin has
+   * no use for one; an admin who also holds ProjectUserRole still qualifies through that role.
+   */
+  canManageTokens(): boolean {
+    return this.authService.user()?.roles?.includes('ProjectUserRole') ?? false;
+  }
 
   async ngOnInit(): Promise<void> {
     try {
