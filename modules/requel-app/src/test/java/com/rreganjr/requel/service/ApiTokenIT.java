@@ -1,0 +1,179 @@
+/*
+ * This file is part of Requel - the Collaborative Requirements
+ * Elicitation System.
+ *
+ * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ *
+ * Requel is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Requel is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Requel. If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+package com.rreganjr.requel.service;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rreganjr.AbstractIntegrationTestCase;
+import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.command.EditUserCommand;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+/**
+ * End-to-end integration test for personal access tokens (issue #73, Slices 1-3 together): mint a
+ * PAT via {@code /api/auth/tokens}, use it as a bearer to reach a protected endpoint, confirm
+ * revocation takes effect on the next request, and that token management is strictly own-tokens-only.
+ * Exercises the REST API + the JwtAuthenticationFilter PAT branch as a real client would.
+ */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@AutoConfigureMockMvc
+public class ApiTokenIT extends AbstractIntegrationTestCase {
+
+	@Autowired
+	private MockMvc mockMvc;
+
+	@Autowired
+	private ObjectMapper objectMapper;
+
+	private String adminJwt;
+	private String otherUsername;
+	private String otherJwt;
+
+	@BeforeAll
+	void setUp() throws Exception {
+		initializeBaselineData();
+		adminJwt = login("admin", "admin");
+
+		long ts = System.currentTimeMillis();
+		otherUsername = "tok-other-" + ts;
+		createUser(otherUsername, "secret");
+		otherJwt = login(otherUsername, "secret");
+	}
+
+	@Test
+	void mintedTokenAuthenticatesAndIsListed() throws Exception {
+		String[] minted = mintToken(adminJwt, "ci");
+		String pat = minted[0];
+
+		// The PAT authenticates a protected endpoint as the owning user.
+		mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + pat))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.username").value("admin"));
+
+		// And the token is listed for its owner.
+		mockMvc.perform(get("/api/auth/tokens").header("Authorization", "Bearer " + pat))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[?(@.name=='ci')]").exists());
+	}
+
+	@Test
+	void revocationTakesEffectImmediately() throws Exception {
+		String[] minted = mintToken(adminJwt, "to-revoke");
+		String pat = minted[0];
+		String id = minted[1];
+
+		mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + pat))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(delete("/api/auth/tokens/" + id).header("Authorization", "Bearer " + adminJwt))
+				.andExpect(status().isNoContent());
+
+		// Next request with the revoked token is unauthenticated.
+		mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + pat))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void revokeIsOwnTokensOnly() throws Exception {
+		String[] minted = mintToken(adminJwt, "admins-token");
+		String id = minted[1];
+
+		// Another user cannot revoke admin's token (404, not revealing it exists).
+		mockMvc.perform(delete("/api/auth/tokens/" + id).header("Authorization", "Bearer " + otherJwt))
+				.andExpect(status().isNotFound());
+
+		// Admin's token still works.
+		mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + minted[0]))
+				.andExpect(status().isOk());
+	}
+
+	@Test
+	void unauthenticatedCreateIsRejected() throws Exception {
+		mockMvc.perform(post("/api/auth/tokens")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\":\"nope\"}"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void blankNameIsRejected() throws Exception {
+		mockMvc.perform(post("/api/auth/tokens")
+						.header("Authorization", "Bearer " + adminJwt)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"name\":\"  \"}"))
+				.andExpect(status().isBadRequest());
+	}
+
+	// ---- helpers ------------------------------------------------------------------------------
+
+	/** @return {plaintextToken, tokenId} */
+	private String[] mintToken(String jwt, String name) throws Exception {
+		MvcResult result = mockMvc.perform(post("/api/auth/tokens")
+						.header("Authorization", "Bearer " + jwt)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(Map.of("name", name))))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.token").value(org.hamcrest.Matchers.startsWith("reqpat_")))
+				.andExpect(jsonPath("$.tokenInfo.status").value("ACTIVE"))
+				.andReturn();
+		JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+		return new String[] {body.get("token").asText(), body.get("tokenInfo").get("id").asText()};
+	}
+
+	private String login(String username, String password) throws Exception {
+		MvcResult result = mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(
+								Map.of("username", username, "password", password))))
+				.andExpect(status().isOk())
+				.andReturn();
+		return objectMapper.readTree(result.getResponse().getContentAsString()).get("token").asText();
+	}
+
+	private void createUser(String username, String password) throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditUserCommand cmd = getUserCommandFactory().newEditUserCommand();
+		cmd.setEditedBy(admin);
+		cmd.setUsername(username);
+		cmd.setPassword(password);
+		cmd.setRepassword(password);
+		cmd.setName(username);
+		cmd.setEmailAddress(username + "@example.com");
+		cmd.setPhoneNumber("");
+		cmd.setOrganizationName("TokTestOrg");
+		cmd.addUserRoleName("ProjectUserRole");
+		getCommandHandler().execute(cmd);
+	}
+}

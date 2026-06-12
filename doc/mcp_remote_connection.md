@@ -34,19 +34,33 @@ is tracked separately (see "Durable credentials" below).
 
 ## 1. Get a token
 
-The MCP endpoints require a JWT, same as any `/api/**` call. Log in as the Requel user you want the
-client to act as:
+The MCP endpoints require a bearer credential, same as any `/api/**` call. Two options:
+
+**Recommended — a personal access token (PAT, #73):** a durable, revocable token you mint once and
+leave configured. First log in to get a short-lived JWT, then use it to mint the PAT:
 
 ```bash
-curl -s -X POST http://localhost:8080/api/auth/login \
+# one-time: log in, then mint a named PAT (optionally expiresInDays)
+JWT=$(curl -s -X POST http://localhost:8080/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"your-username","password":"your-password"}'
-# -> {"token":"<JWT>", ...}
+  -d '{"username":"your-username","password":"your-password"}' | jq -r .token)
+
+curl -s -X POST http://localhost:8080/api/auth/tokens \
+  -H "Authorization: Bearer $JWT" -H 'Content-Type: application/json' \
+  -d '{"name":"claude-desktop","expiresInDays":365}'
+# -> {"token":"reqpat_…","tokenInfo":{...}}   (the reqpat_ value is shown ONCE)
 ```
 
-The client will act as **that user** — its stakeholder permissions on each project govern what the
-tools can read and write. Use a user that is a stakeholder with the permissions you intend to grant
-the assistant (e.g. `Goal[Edit]`, `Annotation[Edit]`), not an over-privileged admin.
+Use the `reqpat_…` value as the bearer below. It doesn't expire on the JWT's ~8h schedule, and you
+can revoke it any time: `GET /api/auth/tokens` to list, `DELETE /api/auth/tokens/{id}` to revoke —
+revocation takes effect on the token's next request.
+
+**Quick alternative — the login JWT** (`…/api/auth/login` → `token`): fine for a one-off test, but it
+expires in ~8h, so a left-configured client will stop working. Prefer the PAT for anything persistent.
+
+Either way the client acts as **that user** — its stakeholder permissions on each project govern what
+the tools can read and write. Use a user scoped to what the assistant should do (e.g. `Goal[Edit]`,
+`Annotation[Edit]`), not an over-privileged admin.
 
 ## 2. Configure the client
 
@@ -151,10 +165,12 @@ In the client, list tools and call `requel.listProjects` to confirm reads, then 
 - **Auditing.** Every tool call is recorded as an MCP-call audit row, and every write additionally
   produces a command-audit row attributed to the acting user.
 
-## Durable credentials (follow-on: #73)
+## Durable credentials (PATs, #73)
 
-The login JWT is short-lived (~8h by default, `requel.jwt.expiry-hours`), so a left-configured
-client will need its token refreshed. Long-lived API keys / personal access tokens — minted for a
-chosen user and dropped into the `Authorization` header — are tracked in **issue #73**; that is the
-intended way to make this setup pleasant for a persistently-configured desktop client. Until then,
-re-run step 1 to refresh the token when it expires.
+The login JWT is short-lived (~8h by default, `requel.jwt.expiry-hours`), so it's a poor fit for a
+left-configured client. Personal access tokens (#73) are the durable answer: mint a named,
+revocable `reqpat_…` token for a chosen user (step 1), drop it in the `Authorization` header, and
+manage it via `GET`/`DELETE /api/auth/tokens` (revocation takes effect on the token's next request,
+and only the SHA-256 hash is stored server-side). Token *scoping* (read-only vs write-set) is a
+later enhancement; today a PAT carries its owner's full rights. Interactive OAuth 2.1 for agent
+clients that drive the discovery flow is a separate track (#83).
