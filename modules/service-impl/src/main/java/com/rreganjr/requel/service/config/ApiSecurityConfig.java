@@ -83,6 +83,11 @@ public class ApiSecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/api/dev/**").permitAll()
+                // Personal access token management (#73): project users only. PATs act against
+                // project data, so a pure system admin (no project role) has no use for one; an
+                // admin who also holds ProjectUserRole still qualifies through that role.
+                .requestMatchers("/api/auth/tokens", "/api/auth/tokens/**")
+                    .hasRole("ProjectUserRole")
                 .requestMatchers("/api/users/organizations").authenticated()
                 .requestMatchers("/api/users/**").hasRole("SystemAdminUserRole")
                 .requestMatchers("/api/commands/NewUser").hasRole("SystemAdminUserRole")
