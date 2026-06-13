@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.beans.factory.ObjectProvider;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -71,22 +72,52 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 					+ "report quality problems. Findings are drafts for reviewable Requel "
 					+ "annotations; do not invent commands that directly mutate project data.";
 
-	private final ChatClient chat;
+	/**
+	 * Supplies the {@link ChatClient.Builder} lazily. Injected as an {@link ObjectProvider} (rather
+	 * than the builder directly) on purpose: the autoconfigured `ChatClient.Builder` pulls in the
+	 * OpenAI `ChatModel`, whose `ToolCallingManager` collects every `ToolCallbackProvider` bean —
+	 * including the MCP server's, which depends back through the gateway/command chain into the
+	 * assistant and so into this client. Depending on the builder eagerly at construction therefore
+	 * forms a bean cycle (assistant ↔ MCP via Spring AI tool-calling). Resolving it lazily, after
+	 * the context is built, breaks the cycle. Null in the unit-test constructor.
+	 */
+	private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
+	private volatile ChatClient chat;
 	private final AiProperties properties;
 	private final ObjectMapper objectMapper;
 	private final Clock clock;
 
-	public SpringAiAnalysisClient(ChatClient.Builder builder, AiProperties properties,
-			ObjectMapper objectMapper) {
-		this(builder.build(), properties, objectMapper, Clock.systemUTC());
+	public SpringAiAnalysisClient(ObjectProvider<ChatClient.Builder> chatClientBuilderProvider,
+			AiProperties properties, ObjectMapper objectMapper) {
+		this.chatClientBuilderProvider = Objects.requireNonNull(chatClientBuilderProvider,
+				"chatClientBuilderProvider");
+		this.properties = Objects.requireNonNull(properties, "properties");
+		this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
+		this.clock = Clock.systemUTC();
 	}
 
 	SpringAiAnalysisClient(ChatClient chat, AiProperties properties, ObjectMapper objectMapper,
 			Clock clock) {
 		this.chat = Objects.requireNonNull(chat, "chat");
+		this.chatClientBuilderProvider = null;
 		this.properties = Objects.requireNonNull(properties, "properties");
 		this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
 		this.clock = Objects.requireNonNull(clock, "clock");
+	}
+
+	/** Builds the {@link ChatClient} on first use and memoizes it (see field doc for why lazy). */
+	private ChatClient chat() {
+		ChatClient local = this.chat;
+		if (local == null) {
+			synchronized (this) {
+				local = this.chat;
+				if (local == null) {
+					local = chatClientBuilderProvider.getObject().build();
+					this.chat = local;
+				}
+			}
+		}
+		return local;
 	}
 
 	@Override
@@ -100,7 +131,7 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 			// responseEntity(...) registers the JSON schema, forces the model to fill it (native
 			// Structured Outputs on OpenAI, prompt-embedded format on compatible servers), binds
 			// the reply, AND exposes the ChatResponse so we can read usage/finish metadata.
-			var responseEntity = chat.prompt()
+			var responseEntity = chat().prompt()
 					.system(instructions(request))
 					.user(prompt(request))
 					.call()

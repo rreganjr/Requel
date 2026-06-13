@@ -110,6 +110,22 @@ remain, gated by mutually-exclusive properties, until Slice 2 retires them).
 - CI default no-network (noop); real-provider smoke tests opt-in.
 - Full `mvn -pl modules/assistant-ai,modules/requel-app -am verify`.
 
+## Usage-field mapping (verified)
+
+`SpringAiAnalysisClient` builds `AiUsage` (the `assistant_usages` row) as follows:
+
+- `provider` / `model` — from `requel.ai.provider` / `requel.ai.model`. `REQUEL_AI_MODEL` also
+  feeds `spring.ai.openai.chat.options.model`, so the reported model matches the model actually
+  called.
+- `inputTokens` / `outputTokens` — from Spring AI's `ChatResponse` usage
+  (`Usage#getPromptTokens()` / `getCompletionTokens()`), read through a `Number` helper so the
+  historical `Long`→`Integer` return-type change is absorbed.
+- `cachedInputTokens` — currently `null`. OpenAI's `prompt_tokens_details.cached_tokens` and
+  Anthropic's `cache_read_input_tokens` are exposed via `Usage#getNativeUsage()`; wiring those is
+  deferred to the Anthropic fast-follow (documented, per the ticket's acceptance criterion).
+- `latency` — measured locally around the call.
+- `costEstimate` — `null` (Requel does not compute cost; unchanged from the prior clients).
+
 ## Fast-follows (separate tickets)
 - **Anthropic starter** — add `spring-ai-starter-model-anthropic`, route `requel.ai.provider=anthropic`
   to the same adapter, verify cache-read token mapping.

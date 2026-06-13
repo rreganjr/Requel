@@ -21,6 +21,7 @@
 package com.rreganjr.requel.assistant.ai.spring;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,8 +48,12 @@ public class SpringAiClientConfiguration {
 	@Bean
 	@ConditionalOnExpression("'${requel.ai.provider:noop}' == 'openai' "
 			+ "or '${requel.ai.provider:noop}' == 'openai-compat'")
-	public SpringAiAnalysisClient springAiAnalysisClient(ChatClient.Builder chatClientBuilder,
-			AiProperties properties, ObjectMapper objectMapper) {
-		return new SpringAiAnalysisClient(chatClientBuilder, properties, objectMapper);
+	public SpringAiAnalysisClient springAiAnalysisClient(
+			ObjectProvider<ChatClient.Builder> chatClientBuilderProvider, AiProperties properties,
+			ObjectMapper objectMapper) {
+		// ObjectProvider (not the builder directly) so this bean does not eagerly depend on the
+		// ChatClient.Builder — that dependency closes a cycle through Spring AI tool-calling and the
+		// MCP ToolCallbackProvider. SpringAiAnalysisClient resolves it lazily on first use.
+		return new SpringAiAnalysisClient(chatClientBuilderProvider, properties, objectMapper);
 	}
 }

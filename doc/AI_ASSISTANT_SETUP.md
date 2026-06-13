@@ -4,11 +4,24 @@ This guide explains how to turn on Requel's AI requirements‑review assistant, 
 assumes **no prior experience** with API keys, environment variables, or Spring configuration —
 every step is spelled out. If you already know a step, skip ahead.
 
-Requel can use **one** AI provider at a time. You have three choices: **OpenAI**,
-**Anthropic (Claude)**, or a **local model you run yourself in Docker** (no account, no API key,
-nothing leaves your machine — see [Section 4](#4-run-a-local-ai-model-in-docker-no-api-key)).
-Everything is configured with **environment variables**, so there is nothing to edit inside the
-application's configuration files.
+Requel can use **one** AI provider at a time. You have two choices today: **OpenAI**, or a
+**local model you run yourself in Docker** (no account, no API key, nothing leaves your machine —
+see [Section 4](#4-run-a-local-ai-model-in-docker-no-api-key)). Everything is configured with
+**environment variables**, so there is nothing to edit inside the application's configuration files.
+
+> **Spring AI migration (issue #77).** Requel's provider layer was rebuilt on Spring AI's
+> `ChatClient`, replacing the hand-rolled OpenAI/Anthropic/OpenAI-compatible clients with one
+> adapter. What changed for configuration:
+> - **Anthropic is temporarily unavailable** — the OpenAI starter shipped first; Anthropic returns
+>   as a fast-follow (it's a starter swap). For now use `openai`, `openai-compat`, or `noop`.
+>   Setting `REQUEL_AI_PROVIDER=anthropic` is not supported yet.
+> - **`REQUEL_AI_BASE_URL` replaces `REQUEL_AI_ENDPOINT`** for local/OpenAI-compatible servers, and
+>   it is the server **root** (e.g. `http://localhost:11434`) — Spring AI appends
+>   `/v1/chat/completions` itself. The old full-URL `REQUEL_AI_ENDPOINT` is no longer read.
+> - **`REQUEL_AI_STRUCTURED_OUTPUT_MODE` is gone** — Spring AI requests structured output and Requel
+>   validates it.
+> - **Timeout/retries** are now Spring AI's (`spring.ai.retry.*`); `REQUEL_AI_MAX_RETRIES` is still
+>   bridged. A configurable request timeout for slow local models is a known follow-up.
 
 By the end you will have:
 
@@ -48,7 +61,8 @@ A few things to understand before you start:
 commit, a screenshot, or anywhere public. The steps below store it as an *environment variable*,
 which keeps it out of Requel's configuration files.
 
-Follow **2a** for OpenAI **or** **2b** for Anthropic. If you'd rather run a local model with no
+Follow **2a** for OpenAI. (Anthropic — **2b** — is temporarily unavailable pending the Anthropic
+starter fast-follow; see the migration note at the top.) If you'd rather run a local model with no
 key at all, skip this section and go to [Section 4](#4-run-a-local-ai-model-in-docker-no-api-key).
 
 ### 2a. OpenAI
@@ -64,7 +78,11 @@ key at all, skip this section and go to [Section 4](#4-run-a-local-ai-model-in-d
 5. Pick a model id from **https://platform.openai.com/docs/models** (start with a smaller, cheaper
    general‑purpose model if unsure). You'll use this as `REQUEL_AI_MODEL`.
 
-### 2b. Anthropic (Claude)
+### 2b. Anthropic (Claude) — *not yet available*
+
+> Anthropic support was removed in the Spring AI port and returns as a fast-follow (adding the
+> `spring-ai-starter-model-anthropic` starter and routing `REQUEL_AI_PROVIDER=anthropic` to the same
+> adapter). The account steps below are retained for when it lands; they do nothing today.
 
 1. Go to **https://console.anthropic.com** and sign in or create an account.
 2. Add a payment method and a spending limit under the **Billing / Limits** settings. This caps
@@ -98,10 +116,10 @@ changing three values, not learning a new variable name.
 | Variable | Required? | What to set it to |
 | --- | --- | --- |
 | `REQUEL_AI_ENABLED` | yes | `true` to turn the assistant on. |
-| `REQUEL_AI_PROVIDER` | yes | `openai`, `anthropic`, `openai-compat` (local/self-hosted, see Section 4), or `noop` (test plumbing, no network). |
+| `REQUEL_AI_PROVIDER` | yes | `openai`, `openai-compat` (local/self-hosted, see Section 4), or `noop` (test plumbing, no network). (`anthropic` is a fast-follow — not yet available.) |
 | `REQUEL_AI_MODEL` | yes | The model id you chose in Section 2 (or the local model name for `openai-compat`). |
-| `REQUEL_AI_API_KEY` | yes\* | Your provider API key (`sk-...` / `sk-ant-...`). \*Optional for a local `openai-compat` server that doesn't require one. |
-| `REQUEL_AI_ENDPOINT` | no | Leave unset for `openai`/`anthropic` (correct default URL is used). **Required for `openai-compat`** — point it at your server. |
+| `REQUEL_AI_API_KEY` | yes\* | Your provider API key (`sk-...`). \*Optional for a local `openai-compat` server that doesn't require one (any non-blank value works). |
+| `REQUEL_AI_BASE_URL` | no | Leave unset for hosted `openai` (the default `https://api.openai.com` is used). **Set for `openai-compat`** — the server **root** (e.g. `http://localhost:11434`); Spring AI appends `/v1/chat/completions`. |
 | `REQUEL_AI_PROJECT_ALLOWLIST` | no | Comma‑separated project ids allowed to use AI. Unset = all projects. |
 
 ### macOS / Linux (Terminal)
@@ -115,14 +133,8 @@ export REQUEL_AI_MODEL=<your-openai-model-id>
 export REQUEL_AI_API_KEY="sk-your-openai-key"
 ```
 
-For **Anthropic**, only the provider, model, and key change:
-
-```bash
-export REQUEL_AI_ENABLED=true
-export REQUEL_AI_PROVIDER=anthropic
-export REQUEL_AI_MODEL=<your-claude-model-id>
-export REQUEL_AI_API_KEY="sk-ant-your-anthropic-key"
-```
+(Anthropic would be the same three values with `REQUEL_AI_PROVIDER=anthropic`, but it is not wired
+up yet — see the migration note at the top.)
 
 To make them permanent, add the same `export` lines to `~/.zshrc` (modern macOS) or `~/.bashrc`
 (most Linux), then run `source ~/.zshrc`. Confirm with:
@@ -178,13 +190,12 @@ implements the OpenAI‑style `POST /v1/chat/completions` API — including
 [Ollama](https://ollama.com), LM Studio, vLLM, and LocalAI. This guide uses **Ollama** because it
 runs in one Docker command.
 
-> **Structured‑output note.** Cloud OpenAI enforces a strict JSON schema; most local servers don't
-> fully support that. Requel still embeds the schema in the prompt, so the model returns
-> schema‑shaped JSON. The `REQUEL_AI_STRUCTURED_OUTPUT_MODE` variable controls how hard we ask:
-> `json_object` (default, broadly supported) is the right choice for Ollama; `json_schema` is for
-> servers that honor strict schemas; `none` is for minimal servers. Smaller local models are also
-> less precise than the big cloud ones — expect rougher findings. For *proving the pipeline*, it's
-> perfect.
+> **Structured‑output note.** Spring AI requests structured output (forcing guaranteed‑shape JSON)
+> and Requel validates it; there is no longer a `REQUEL_AI_STRUCTURED_OUTPUT_MODE` knob. Cloud
+> OpenAI enforces a strict schema natively; local servers vary in how strictly they honor it, but
+> Spring AI also embeds the schema in the prompt so the model returns schema‑shaped JSON either way.
+> Smaller local models are less precise than the big cloud ones — expect rougher findings. For
+> *proving the pipeline*, it's perfect.
 
 ### 4a. Ollama in Docker, Requel running on your machine
 
@@ -207,7 +218,7 @@ Use this when you start Requel from the jar (or `mvn spring-boot:run`) directly 
    ```bash
    export REQUEL_AI_ENABLED=true
    export REQUEL_AI_PROVIDER=openai-compat
-   export REQUEL_AI_ENDPOINT=http://localhost:11434/v1/chat/completions
+   export REQUEL_AI_BASE_URL=http://localhost:11434   # server ROOT; Spring AI adds /v1/chat/completions
    export REQUEL_AI_MODEL=llama3.1
    export REQUEL_AI_API_KEY=ollama          # ignored by Ollama; any non-blank value
    ```
@@ -246,9 +257,9 @@ docker compose -f docker-compose.local-ai.yml up -d --force-recreate web
 
 > **Why `http://ollama:11434` and not `localhost`?** Inside Docker, each container's `localhost`
 > is itself. Containers reach each other by service name on the shared network, so the compose
-> file sets `REQUEL_AI_ENDPOINT=http://ollama:11434/v1/chat/completions`. If you instead run Ollama
-> in Docker but Requel on the host (Section 4a), use `localhost`; if Requel is in Docker but Ollama
-> is on the host, use `http://host.docker.internal:11434/...`.
+> file sets `REQUEL_AI_BASE_URL=http://ollama:11434` (the server root). If you instead run Ollama
+> in Docker but Requel on the host (Section 4a), use `http://localhost:11434`; if Requel is in
+> Docker but Ollama is on the host, use `http://host.docker.internal:11434`.
 
 After setting the variables, **restart Requel**. On startup you should see a log line confirming
 the assistant is active, including the provider and model (never the key):
@@ -315,21 +326,23 @@ or a stakeholder on that entity's project. This is enforced on top of the option
    FROM assistant_usages ORDER BY id DESC LIMIT 1;
    ```
 
-   The `provider` should match what you configured (`openai` or `anthropic`). A failed call writes
-   **no** row, so a stale `noop` row from an earlier test is a sign the latest run errored — check
-   the log.
+   The `provider` should match what you configured (`openai` or `openai-compat`). A failed call
+   writes **no** row, so a stale `noop` row from an earlier test is a sign the latest run errored —
+   check the log.
 
-Each provider module also has a live end‑to‑end test that is **skipped unless** its key is present:
-`OpenAiAnalysisClientLiveIT` (gated on `OPENAI_API_KEY`) and `AnthropicAnalysisClientLiveIT` (gated
-on `ANTHROPIC_API_KEY`). These let you exercise the real API from a build without affecting CI.
+The provider‑specific live end‑to‑end ITs were removed in the Spring AI port (the per‑provider
+HTTP plumbing they exercised is now Spring AI's). CI runs no‑network by default (`provider=noop`);
+to exercise a real provider, configure `REQUEL_AI_*` for OpenAI (or a local `openai-compat` server)
+and run a review against a live instance as in Section 5. A reusable opt‑in smoke test over the
+Spring AI adapter is a follow‑up.
 
 ---
 
 ## 7. Troubleshooting
 
 **The startup log shows `provider=noop`, or the usage row says `noop`.**
-`REQUEL_AI_PROVIDER` wasn't set to `openai`/`anthropic` in the environment that launched Requel, so
-the built‑in stub is active. Confirm the variable, then restart.
+`REQUEL_AI_PROVIDER` wasn't set to `openai`/`openai-compat` in the environment that launched Requel,
+so the built‑in stub is active. Confirm the variable, then restart.
 
 **Reviews return 202 but no annotations appear.**
 The review runs in the background — give it a few seconds. If nothing ever appears, check the
@@ -348,9 +361,10 @@ provider's billing page. This is not a Requel problem.
 The model server was killed for running out of memory. The model is too large for the RAM Docker
 has. Either raise Docker Desktop's memory (Settings → Resources → Memory) well above the model
 size, or use a smaller model (e.g. `llama3.2:3b` or `qwen2.5:3b` instead of an 8B). Remember to
-`ollama pull` the new model and point `REQUEL_AI_MODEL` at it. Local CPU inference is also slow, so
-`REQUEL_AI_TIMEOUT` is raised to `180s` in `docker-compose.local-ai.yml`; increase it further if
-reviews time out on a big model.
+`ollama pull` the new model and point `REQUEL_AI_MODEL` at it. Local CPU inference is also slow; the
+request timeout is now governed by Spring AI's HTTP client defaults rather than the former
+`REQUEL_AI_TIMEOUT` knob. A configurable timeout for slow local models is a tracked follow-up — if
+reviews time out on a big model today, prefer a smaller/faster model.
 
 **HTTP 404 `model '<name>' not found` (local Ollama).**
 `REQUEL_AI_MODEL` names a model the server hasn't pulled. Run `ollama pull <name>` and confirm with
@@ -385,22 +399,34 @@ while the feature is off.
 
 ## 9. Full settings reference
 
-Set these as environment variables (the `requel.ai.*` form is the internal Spring property name).
+Since the Spring AI port (issue #77), Requel keeps only its governance settings under
+`requel.ai.*`; transport (key, base-url, model, output cap, retries) is owned by Spring AI under
+`spring.ai.*`. The familiar `REQUEL_AI_*` environment variables still work — `application.properties`
+bridges them to the matching `spring.ai.*` setting.
+
+**Requel governance (`requel.ai.*`):**
 
 | Environment variable | Property | Default | What it does |
 | --- | --- | --- | --- |
 | `REQUEL_AI_ENABLED` | `requel.ai.enabled` | `false` | Master switch. Must be `true` to register the assistant. |
-| `REQUEL_AI_PROVIDER` | `requel.ai.provider` | `noop` | Selects the client: `openai`, `anthropic`, `openai-compat` (local/self-hosted), or `noop` (stub, no network). Exactly one is active. |
-| `REQUEL_AI_MODEL` | `requel.ai.model` | `noop` | Model id for the chosen provider. |
-| `REQUEL_AI_API_KEY` | `requel.ai.api-key` | *(empty)* | API key for the chosen provider. Read from this variable by default. |
-| `REQUEL_AI_API_KEY_ENVIRONMENT_VARIABLE` | `requel.ai.api-key-environment-variable` | `REQUEL_AI_API_KEY` | Name of the env var the key is read from. Change only to reuse a vendor‑specific name. |
-| `REQUEL_AI_ENDPOINT` | `requel.ai.endpoint` | *(blank)* | API URL. Blank = each provider's default (OpenAI Responses / Anthropic Messages). Set for a proxy. |
-| `REQUEL_AI_TIMEOUT` | `requel.ai.timeout` | `30s` | Per‑request timeout. |
-| `REQUEL_AI_MAX_RETRIES` | `requel.ai.max-retries` | `2` | Retries on a temporary (429/5xx) error. |
-| `REQUEL_AI_MAX_INPUT_TOKENS` | `requel.ai.max-input-tokens` | `16000` | Safety cap on input size; oversize reviews are skipped with a warning. |
-| `REQUEL_AI_MAX_OUTPUT_TOKENS` | `requel.ai.max-output-tokens` | `4000` | Cap on how much the model may write back. |
-| `REQUEL_AI_STRUCTURED_OUTPUT_MODE` | `requel.ai.structured-output-mode` | `json_object` | `openai-compat` only: how to request JSON — `json_schema`, `json_object`, or `none`. Ignored by other providers. |
+| `REQUEL_AI_PROVIDER` | `requel.ai.provider` | `noop` | Selects the client: `openai`, `openai-compat` (local/self-hosted), or `noop` (stub, no network). `anthropic` is a fast-follow — not yet available. Exactly one is active. |
+| `REQUEL_AI_MODEL` | `requel.ai.model` | `noop` | Model id; also bridged to `spring.ai.openai.chat.options.model` so the call and the usage report stay in sync. |
+| `REQUEL_AI_MAX_INPUT_TOKENS` | `requel.ai.max-input-tokens` | `16000` | App-side safety cap on input size; oversize reviews are skipped with a warning. |
 | `REQUEL_AI_PROJECT_ALLOWLIST` | `requel.ai.project-allowlist` | *(empty = all)* | CSV of project ids permitted to use AI. |
+
+**Transport, bridged to Spring AI (`application.properties`):**
+
+| Environment variable | Bridged to | Default | What it does |
+| --- | --- | --- | --- |
+| `REQUEL_AI_API_KEY` | `spring.ai.openai.api-key` | `not-set` | Provider API key. The placeholder default lets the app boot with AI disabled; set a real key for `openai`. Optional (any non-blank value) for a local `openai-compat` server. |
+| `REQUEL_AI_BASE_URL` | `spring.ai.openai.base-url` | `https://api.openai.com` | Server **root** for `openai-compat` (e.g. `http://localhost:11434`); Spring AI appends `/v1/chat/completions`. Replaces the old full-URL `REQUEL_AI_ENDPOINT`. |
+| `REQUEL_AI_MAX_OUTPUT_TOKENS` | `spring.ai.openai.chat.options.max-tokens` | `4000` | Cap on how much the model may write back. |
+| `REQUEL_AI_MAX_RETRIES` | `spring.ai.retry.max-attempts` | `3` | Retries on a temporary (429/5xx) error. |
+
+> **Removed in the port:** `REQUEL_AI_ENDPOINT` (use `REQUEL_AI_BASE_URL`),
+> `REQUEL_AI_STRUCTURED_OUTPUT_MODE` (Spring AI owns structured output),
+> `REQUEL_AI_API_KEY_ENVIRONMENT_VARIABLE`, and `REQUEL_AI_TIMEOUT` (HTTP timeout is now Spring AI's;
+> a configurable knob is a tracked follow-up). Setting them has no effect.
 
 ---
 
