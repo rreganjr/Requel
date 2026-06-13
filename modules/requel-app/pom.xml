@@ -342,16 +342,6 @@
         </dependency>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
-            <artifactId>assistant-openai</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.rreganjr.requel</groupId>
-            <artifactId>assistant-anthropic</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.rreganjr.requel</groupId>
             <artifactId>assistant-legacy-nlp</artifactId>
             <version>${project.version}</version>
         </dependency>
