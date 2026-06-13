@@ -40,12 +40,12 @@ import com.rreganjr.requel.assistant.api.AssistantMessage;
  * <p>
  * Active unless an external provider is selected. This is gated on
  * {@code requel.ai.provider} (default/missing or {@code noop}) rather than
- * {@code @ConditionalOnMissingBean}, because component-scanned beans are registered in an
- * undefined order — the missing-bean check could run before a provider client (e.g.
- * {@link com.rreganjr.requel.assistant.openai.OpenAiAnalysisClient OpenAiAnalysisClient}, gated
- * on {@code requel.ai.provider=openai}) is registered, leaving two {@code AiAnalysisClient}
- * beans and an ambiguous injection. The property conditions are mutually exclusive, so exactly
- * one client exists.
+ * {@code @ConditionalOnMissingBean}, because beans are registered in an undefined order — the
+ * missing-bean check could run before the provider client (the
+ * {@link com.rreganjr.requel.assistant.ai.spring.SpringAiAnalysisClient SpringAiAnalysisClient},
+ * gated on {@code requel.ai.provider=openai} or {@code openai-compat}) is registered, leaving two
+ * {@code AiAnalysisClient} beans and an ambiguous injection. The property conditions are mutually
+ * exclusive, so exactly one client exists.
  */
 @Component
 @ConditionalOnProperty(prefix = "requel.ai", name = "provider", havingValue = "noop",

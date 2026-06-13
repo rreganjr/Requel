@@ -44,6 +44,16 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
+        <!--
+          Spring AI OpenAI starter: backs the single SpringAiAnalysisClient. Covers hosted OpenAI
+          AND any OpenAI-compatible local server (Ollama/vLLM/LM Studio/LocalAI) via
+          spring.ai.openai.base-url. Version is managed by the spring-ai-bom in the parent POM.
+          (Anthropic and native Ollama starters are additive fast-follows.)
+        -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

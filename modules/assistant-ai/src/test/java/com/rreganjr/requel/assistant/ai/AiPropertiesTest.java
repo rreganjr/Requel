@@ -22,32 +22,30 @@ package com.rreganjr.requel.assistant.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.Duration;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class AiPropertiesTest {
 
+	/**
+	 * Pure-POJO assertion of the defaults — no Spring context and no environment, so ambient
+	 * {@code REQUEL_AI_*} variables on the build machine cannot influence it.
+	 */
 	@Test
 	void defaultsToDisabledNoopProvider() {
-		new ApplicationContextRunner().withUserConfiguration(AiConfiguration.class).run(context -> {
-			AiProperties properties = context.getBean(AiProperties.class);
+		AiProperties properties = new AiProperties();
 
-			assertThat(properties.isEnabled()).isFalse();
-					assertThat(properties.getProvider()).isEqualTo("noop");
-					assertThat(properties.getModel()).isEqualTo("noop");
-					assertThat(properties.getApiKey()).isNull();
-					assertThat(properties.getApiKeyEnvironmentVariable()).isEqualTo("REQUEL_AI_API_KEY");
-					assertThat(properties.getEndpoint()).isEmpty();
-					assertThat(properties.getTimeout()).isEqualTo(Duration.ofSeconds(30));
-					assertThat(properties.getMaxRetries()).isEqualTo(2);
-					assertThat(properties.getMaxInputTokens()).isEqualTo(16000);
-					assertThat(properties.getMaxOutputTokens()).isEqualTo(4000);
-					assertThat(properties.getStructuredOutputMode()).isEqualTo("json_object");
-				});
+		assertThat(properties.isEnabled()).isFalse();
+		assertThat(properties.getProvider()).isEqualTo("noop");
+		assertThat(properties.getModel()).isEqualTo("noop");
+		assertThat(properties.getMaxInputTokens()).isEqualTo(16000);
+		assertThat(properties.getProjectAllowlist()).isEmpty();
 	}
 
+	/**
+	 * Binding still works through Spring. Inlined test property values are the highest-precedence
+	 * property source, so they override any ambient {@code REQUEL_AI_*} environment variables.
+	 */
 	@Test
 	void bindsConfiguredValues() {
 		new ApplicationContextRunner()
@@ -56,13 +54,7 @@ class AiPropertiesTest {
 						"requel.ai.enabled=true",
 						"requel.ai.provider=openai",
 						"requel.ai.model=gpt-test",
-						"requel.ai.api-key=test-key",
-						"requel.ai.api-key-environment-variable=TEST_OPENAI_KEY",
-						"requel.ai.endpoint=http://localhost:9000/v1/responses",
-						"requel.ai.timeout=5s",
-						"requel.ai.max-retries=3",
 						"requel.ai.max-input-tokens=2000",
-						"requel.ai.max-output-tokens=500",
 						"requel.ai.project-allowlist=Alpha,Beta")
 				.run(context -> {
 					AiProperties properties = context.getBean(AiProperties.class);
@@ -70,15 +62,7 @@ class AiPropertiesTest {
 					assertThat(properties.isEnabled()).isTrue();
 					assertThat(properties.getProvider()).isEqualTo("openai");
 					assertThat(properties.getModel()).isEqualTo("gpt-test");
-					assertThat(properties.getApiKey()).isEqualTo("test-key");
-					assertThat(properties.getApiKeyEnvironmentVariable()).isEqualTo(
-							"TEST_OPENAI_KEY");
-					assertThat(properties.getEndpoint()).isEqualTo(
-							"http://localhost:9000/v1/responses");
-					assertThat(properties.getTimeout()).isEqualTo(Duration.ofSeconds(5));
-					assertThat(properties.getMaxRetries()).isEqualTo(3);
 					assertThat(properties.getMaxInputTokens()).isEqualTo(2000);
-					assertThat(properties.getMaxOutputTokens()).isEqualTo(500);
 					assertThat(properties.getProjectAllowlist()).containsExactly("Alpha", "Beta");
 				});
 	}

@@ -23,6 +23,11 @@ package com.rreganjr.requel.assistant.ai;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Binds {@link AiProperties}. The provider-client wiring lives in
+ * {@link com.rreganjr.requel.assistant.ai.spring.SpringAiClientConfiguration} so that
+ * property-binding tests can load this class without pulling in a {@code ChatClient.Builder}.
+ */
 @Configuration
 @EnableConfigurationProperties(AiProperties.class)
 public class AiConfiguration {

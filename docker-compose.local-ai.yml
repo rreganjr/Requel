@@ -71,12 +71,14 @@ services:
       - "SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-}"
       # --- AI assistant, pointed at the local Ollama container -----------------------------
       # These are hardcoded on purpose: this file is tied to the bundled Ollama service, so the
-      # provider/endpoint/key never vary, and the model is fixed so a stray REQUEL_AI_* in your
+      # provider/base-url/key never vary, and the model is fixed so a stray REQUEL_AI_* in your
       # shell can't leak in. To use a different model, change REQUEL_AI_MODEL below to a name you
       # have pulled (see ollama pull / ollama list), then: up -d --force-recreate web.
       - "REQUEL_AI_ENABLED=true"
       - "REQUEL_AI_PROVIDER=openai-compat"
-      - "REQUEL_AI_ENDPOINT=http://ollama:11434/v1/chat/completions"
+      # Server ROOT (service name on the compose network, not localhost). Spring AI appends
+      # /v1/chat/completions. Replaces the former full-URL REQUEL_AI_ENDPOINT.
+      - "REQUEL_AI_BASE_URL=http://ollama:11434"
       # Small model by default so it loads in ~1-2GB and survives on a modest Docker memory
       # allotment. A big model (e.g. llama3.1 8B) needs 6-8GB+ or Ollama gets OOM-killed
       # ("llama-server ... signal: killed"). To use a bigger/better model, raise Docker Desktop's
@@ -86,10 +88,10 @@ services:
       - "REQUEL_AI_MODEL=qwen2.5:3b"
       # Ollama ignores the key, but the bearer header is harmless; any non-blank value works.
       - "REQUEL_AI_API_KEY=ollama"
-      # Ollama's /v1 endpoint ignores strict json_schema; json_object is the reliable mode here.
-      - "REQUEL_AI_STRUCTURED_OUTPUT_MODE=json_object"
-      # CPU inference on a local model is slow; allow more time than the 30s default.
-      - "REQUEL_AI_TIMEOUT=180s"
+      # Note: structured output is now handled by Spring AI (no REQUEL_AI_STRUCTURED_OUTPUT_MODE),
+      # and the request timeout is Spring AI's HTTP-client default (the former REQUEL_AI_TIMEOUT
+      # knob is no longer wired). CPU inference on a big local model is slow — prefer a small model
+      # like the default above; a configurable timeout is a tracked follow-up.
     restart: unless-stopped
 
 networks:
