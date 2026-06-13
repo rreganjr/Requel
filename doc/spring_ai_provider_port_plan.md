@@ -59,7 +59,13 @@ adapter-vs-noop, so exactly one `AiAnalysisClient` bean exists.
 ## Slices
 
 Each slice builds, tests, and commits independently; the build stays green throughout (old clients
-remain, gated by mutually-exclusive properties, until Slice 3 retires them).
+remain, gated by mutually-exclusive properties, until Slice 2 retires them).
+
+> **Execution note:** Slices 2 and 3 were swapped during implementation. Retiring the old clients
+> had to come first — they were gated on the same `provider` values as the new client (a latent
+> two-bean conflict) and still read the `AiProperties` transport fields, so they had to be removed
+> before the config could be bridged and `AiProperties` slimmed. The headings below reflect the
+> executed (and committed) order.
 
 ### Slice 1 — `SpringAiAnalysisClient` + OpenAI starter in `assistant-ai`
 - Add `spring-ai-starter-model-openai` to `assistant-ai/pom.xml` (version from the managed BOM).
@@ -77,20 +83,24 @@ remain, gated by mutually-exclusive properties, until Slice 3 retires them).
 - Test: `SpringAiAnalysisClientTest` against a **stubbed** `ChatClient`/`ChatModel` (no network) +
   record→response mapping unit test.
 
-### Slice 2 — Config & properties
-- Slim `AiProperties` per the decision; remove transport fields now owned by `spring.ai.*`.
-- Wire provider/model/key/base-url via `spring.ai.openai.*`; retries via `spring.ai.retry.*`.
-- Document the local base-url recipe (`spring.ai.openai.base-url=http://localhost:11434/v1`, dummy
-  key, local model name) in `doc/AI_ASSISTANT_SETUP.md`.
-- Make `AiPropertiesTest` hermetic so ambient `REQUEL_AI_*` env can't break "defaults to disabled".
-
-### Slice 3 — Retire `assistant-openai` + `assistant-anthropic`
+### Slice 2 — Retire `assistant-openai` + `assistant-anthropic`
 - Remove both `<module>` entries from the parent `pom.xml`; remove the two deps from
   `requel-app/pom.xml`; delete the module directories.
 - Port any still-relevant assertions from `OpenAiAnalysisClientTest`,
   `OpenAiCompatibleAnalysisClientTest`, `AnthropicAnalysisClientTest` into the Slice 1 adapter test;
-  drop the live ITs (or move to the opt-in smoke profile).
+  drop the live ITs (or move to the opt-in smoke profile). The deleted tests largely exercised
+  provider-specific HTTP/retry/structured-output plumbing that Spring AI now owns.
 - Build green with the single adapter.
+
+### Slice 3 — Config & properties
+- Slim `AiProperties` per the decision; remove transport fields now owned by `spring.ai.*`
+  (apiKey, apiKeyEnvironmentVariable, endpoint, timeout, maxRetries, maxOutputTokens,
+  structuredOutputMode). Keep enabled, provider, model, maxInputTokens, projectAllowlist.
+- Bridge the existing `REQUEL_AI_*` env vars to `spring.ai.openai.*` (key, base-url, model,
+  max-tokens) and `spring.ai.retry.*` (retries) in `application.properties`. Local servers use
+  `REQUEL_AI_BASE_URL` (server root) in place of the old full-URL `REQUEL_AI_ENDPOINT`.
+- Make `AiPropertiesTest` hermetic so ambient `REQUEL_AI_*` env can't break "defaults to disabled"
+  (defaults asserted on a plain `new AiProperties()`).
 
 ### Slice 4 — Docs + verification
 - `doc/AI_ASSISTANT_SETUP.md`: OpenAI hosted + local base-url config; note Anthropic + native

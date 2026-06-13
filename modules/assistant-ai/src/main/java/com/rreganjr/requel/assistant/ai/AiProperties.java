@@ -20,27 +20,34 @@
  */
 package com.rreganjr.requel.assistant.ai;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+/**
+ * Requel-specific AI governance. Transport concerns (API key, endpoint/base-url, timeout, retries,
+ * output-token cap, structured-output mode) are now owned by Spring AI and configured under
+ * {@code spring.ai.*} (see {@code application.properties}); this class keeps only the knobs Requel
+ * enforces itself:
+ * <ul>
+ * <li>{@code enabled} — whether the {@code RequirementsReviewAssistant} is registered;</li>
+ * <li>{@code provider} — selects the active {@link AiAnalysisClient}: {@code noop} (default) vs
+ * {@code openai}/{@code openai-compat} (Spring AI-backed);</li>
+ * <li>{@code model} — the model id, reported in usage and bridged to
+ * {@code spring.ai.openai.chat.options.model};</li>
+ * <li>{@code maxInputTokens} — app-side input budget hint included in the prompt;</li>
+ * <li>{@code projectAllowlist} — optional CSV of project ids permitted to use AI.</li>
+ * </ul>
+ */
 @ConfigurationProperties(prefix = "requel.ai")
 public class AiProperties {
 
 	private boolean enabled = false;
 	private String provider = "noop";
 	private String model = "noop";
-	private String apiKey;
-	private String apiKeyEnvironmentVariable = "REQUEL_AI_API_KEY";
-	private String endpoint = "";
-	private Duration timeout = Duration.ofSeconds(30);
-	private int maxRetries = 2;
 	private int maxInputTokens = 16000;
-	private int maxOutputTokens = 4000;
-	private String structuredOutputMode = "json_object";
 	private List<String> projectAllowlist = new ArrayList<String>();
 
 	public boolean isEnabled() {
@@ -67,75 +74,12 @@ public class AiProperties {
 		this.model = model;
 	}
 
-	public String getApiKey() {
-		return apiKey;
-	}
-
-	public void setApiKey(String apiKey) {
-		this.apiKey = apiKey;
-	}
-
-	public String getApiKeyEnvironmentVariable() {
-		return apiKeyEnvironmentVariable;
-	}
-
-	public void setApiKeyEnvironmentVariable(String apiKeyEnvironmentVariable) {
-		this.apiKeyEnvironmentVariable = apiKeyEnvironmentVariable;
-	}
-
-	public String getEndpoint() {
-		return endpoint;
-	}
-
-	public void setEndpoint(String endpoint) {
-		this.endpoint = endpoint;
-	}
-
-	public Duration getTimeout() {
-		return timeout;
-	}
-
-	public void setTimeout(Duration timeout) {
-		this.timeout = timeout;
-	}
-
-	public int getMaxRetries() {
-		return maxRetries;
-	}
-
-	public void setMaxRetries(int maxRetries) {
-		this.maxRetries = maxRetries;
-	}
-
 	public int getMaxInputTokens() {
 		return maxInputTokens;
 	}
 
 	public void setMaxInputTokens(int maxInputTokens) {
 		this.maxInputTokens = maxInputTokens;
-	}
-
-	public int getMaxOutputTokens() {
-		return maxOutputTokens;
-	}
-
-	public void setMaxOutputTokens(int maxOutputTokens) {
-		this.maxOutputTokens = maxOutputTokens;
-	}
-
-	/**
-	 * How the {@code openai-compat} client should request structured JSON:
-	 * {@code json_schema} (strict schema, for servers that honor it), {@code json_object}
-	 * (broadly supported JSON mode, the default), or {@code none} (prompt-and-parse, for minimal
-	 * servers). The output schema is always embedded in the system prompt regardless, so every
-	 * mode returns schema-conforming JSON. Ignored by the openai and anthropic providers.
-	 */
-	public String getStructuredOutputMode() {
-		return structuredOutputMode;
-	}
-
-	public void setStructuredOutputMode(String structuredOutputMode) {
-		this.structuredOutputMode = structuredOutputMode;
 	}
 
 	public List<String> getProjectAllowlist() {
