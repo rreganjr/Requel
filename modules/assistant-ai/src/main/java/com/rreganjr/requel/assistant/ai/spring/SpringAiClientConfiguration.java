@@ -33,9 +33,11 @@ import com.rreganjr.requel.assistant.ai.AiProperties;
  * Wires the single Spring AI-backed {@link com.rreganjr.requel.assistant.ai.AiAnalysisClient},
  * active when an OpenAI (or OpenAI-compatible local) provider is selected. Mutually exclusive with
  * {@link com.rreganjr.requel.assistant.ai.NoopAiAnalysisClient} (active for {@code noop}/missing),
- * so exactly one client bean exists. {@code openai} and {@code openai-compat} both route here — the
- * difference is purely {@code spring.ai.openai.*} config (notably {@code base-url} for a local
- * server).
+ * so exactly one client bean exists. {@code openai}, {@code openai-compat}, and {@code anthropic}
+ * all route to this same provider-agnostic client — the difference is purely Spring AI config: the
+ * OpenAI-style providers vary {@code spring.ai.openai.*} (notably {@code base-url} for Ollama/Gemini),
+ * while {@code anthropic} sets {@code spring.ai.model.chat=anthropic} so the Anthropic ChatModel is
+ * the single active one (see the {@code ai-*} profiles).
  *
  * <p>
  * Kept separate from {@link com.rreganjr.requel.assistant.ai.AiConfiguration} so property-binding
@@ -47,7 +49,8 @@ public class SpringAiClientConfiguration {
 
 	@Bean
 	@ConditionalOnExpression("'${requel.ai.provider:noop}' == 'openai' "
-			+ "or '${requel.ai.provider:noop}' == 'openai-compat'")
+			+ "or '${requel.ai.provider:noop}' == 'openai-compat' "
+			+ "or '${requel.ai.provider:noop}' == 'anthropic'")
 	public SpringAiAnalysisClient springAiAnalysisClient(
 			ObjectProvider<ChatClient.Builder> chatClientBuilderProvider, AiProperties properties,
 			ObjectMapper objectMapper) {

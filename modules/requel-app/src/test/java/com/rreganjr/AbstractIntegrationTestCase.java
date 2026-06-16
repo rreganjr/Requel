@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestPropertySource;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
@@ -58,6 +59,13 @@ import com.rreganjr.requel.user.command.UserCommandFactory;
  */
 @SpringBootTest(classes = Application.class)
 @ActiveProfiles("test")
+// Pin the AI assistant off and the provider to noop for integration tests so the suite is
+// deterministic regardless of any ambient REQUEL_AI_* environment variables on the developer's
+// machine (OS env vars outrank application-test.properties, so this must be a @TestPropertySource).
+// This only enforces the application's own shipped defaults. Tests that need the AI assistant on
+// (e.g. AiReviewDispatchIT) override requel.ai.enabled via their own @TestPropertySource, which
+// takes precedence over this inherited one.
+@TestPropertySource(properties = { "requel.ai.enabled=false", "requel.ai.provider=noop" })
 public abstract class AbstractIntegrationTestCase {
 	protected static final Logger log = LoggerFactory.getLogger(AbstractIntegrationTestCase.class);
 

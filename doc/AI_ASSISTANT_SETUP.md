@@ -12,9 +12,15 @@ see [Section 4](#4-run-a-local-ai-model-in-docker-no-api-key)). Everything is co
 > **Spring AI migration (issue #77).** Requel's provider layer was rebuilt on Spring AI's
 > `ChatClient`, replacing the hand-rolled OpenAI/Anthropic/OpenAI-compatible clients with one
 > adapter. What changed for configuration:
-> - **Anthropic is temporarily unavailable** — the OpenAI starter shipped first; Anthropic returns
->   as a fast-follow (it's a starter swap). For now use `openai`, `openai-compat`, or `noop`.
->   Setting `REQUEL_AI_PROVIDER=anthropic` is not supported yet.
+> - **Provider selection now has Spring profiles** — `ai-openai`, `ai-ollama`, `ai-gemini`, and
+>   `ai-anthropic` each enable the assistant and set that provider's transport defaults, so you only
+>   supply the secret (`REQUEL_AI_API_KEY`) at start time. See
+>   [Section 3a](#3a-quick-start-pick-a-provider-with-a-spring-profile). The `REQUEL_AI_*` env vars
+>   still work as overrides.
+> - **Anthropic is available again** — via the native Spring AI Anthropic starter and the
+>   `ai-anthropic` profile (or `REQUEL_AI_PROVIDER=anthropic`). OpenAI, OpenAI-compatible servers
+>   (Ollama, vLLM, LM Studio, LocalAI), Gemini's OpenAI-compatible endpoint, and `noop` are all
+>   supported.
 > - **`REQUEL_AI_BASE_URL` replaces `REQUEL_AI_ENDPOINT`** for local/OpenAI-compatible servers, and
 >   it is the server **root** (e.g. `http://localhost:11434`) — Spring AI appends
 >   `/v1/chat/completions` itself. The old full-URL `REQUEL_AI_ENDPOINT` is no longer read.
@@ -92,6 +98,55 @@ key at all, skip this section and go to [Section 4](#4-run-a-local-ai-model-in-d
    console shows it only once.
 5. Pick a model id from **https://docs.claude.com/en/docs/about-claude/models** (a current Claude
    model). You'll use this as `REQUEL_AI_MODEL`.
+
+---
+
+## 3a. Quick start: pick a provider with a Spring profile
+
+The simplest way to turn the assistant on is to activate one of the built-in **AI provider
+profiles**. Each profile enables the assistant (`requel.ai.enabled=true`), selects the provider, and
+sets that provider's transport defaults (base URL, default model). You then supply just the secret —
+`REQUEL_AI_API_KEY` — in the environment, and optionally override the model with `REQUEL_AI_MODEL`.
+
+| Profile | Provider | Notes |
+| --- | --- | --- |
+| `ai-openai` | Hosted OpenAI | Needs `REQUEL_AI_API_KEY` (an `sk-...` key). Default model `gpt-4o-mini`. |
+| `ai-ollama` | Local Ollama | No key needed. The model must be **pulled** on the Ollama server first (`ollama pull llama3.1`); set `REQUEL_AI_MODEL` to that model. Point at a remote/container server with `REQUEL_AI_BASE_URL` (default `http://localhost:11434`). |
+| `ai-gemini` | Google Gemini | Uses Gemini's OpenAI-compatible endpoint. Needs `REQUEL_AI_API_KEY` (Google AI Studio key). Default model `gemini-2.0-flash`. |
+| `ai-anthropic` | Anthropic Claude | Native Spring AI Anthropic starter. Needs `REQUEL_AI_API_KEY` (an `sk-ant-...` key). Default model `claude-3-5-sonnet-latest`. |
+
+Activate a profile alongside your normal run profile (comma-separated). For example, with the
+packaged JAR:
+
+```bash
+REQUEL_AI_API_KEY=sk-... \
+  java -jar modules/requel-app/target/requel-app-*.jar \
+  --spring.profiles.active=dev,ai-openai --server.port=8080 \
+  '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?...' \
+  --spring.datasource.username=root --spring.datasource.password=password
+```
+
+For a local model with Ollama (no key), after `ollama pull llama3.1`:
+
+```bash
+REQUEL_AI_MODEL=llama3.1 \
+  java -jar modules/requel-app/target/requel-app-*.jar \
+  --spring.profiles.active=dev,ai-ollama --server.port=8080 ...
+```
+
+Notes:
+
+- The API key has a **dummy default** so the app still boots with no key set (e.g. in tests/CI), but
+  a real review call needs a real key. Supply it via `REQUEL_AI_API_KEY` at start time. (Avoid
+  exporting `REQUEL_AI_API_KEY=` *empty* — an empty value is not the same as unset and will fail the
+  provider's key check.)
+- A profile only sets defaults; any `REQUEL_AI_*` variable you also set still wins (see
+  [Section 3](#3-turn-the-assistant-on-with-environment-variables) and the
+  [full reference](#9-full-settings-reference)).
+- The profile files live at `modules/requel-app/src/main/resources/application-ai-*.properties`.
+
+If you'd rather not use a profile, the environment-variable approach in Section 3 still works
+exactly as before.
 
 ---
 
