@@ -120,6 +120,60 @@ public class ApiTokenIT extends AbstractIntegrationTestCase {
 	}
 
 	@Test
+	void revokedTokenCanBeHardDeleted() throws Exception {
+		String[] minted = mintToken(adminJwt, "to-delete");
+		String id = minted[1];
+
+		// Revoke first, then hard-delete the row.
+		mockMvc.perform(delete("/api/auth/tokens/" + id).header("Authorization", "Bearer " + adminJwt))
+				.andExpect(status().isNoContent());
+		mockMvc.perform(delete("/api/auth/tokens/" + id + "/permanent")
+						.header("Authorization", "Bearer " + adminJwt))
+				.andExpect(status().isNoContent());
+
+		// It is gone from the owner's list.
+		mockMvc.perform(get("/api/auth/tokens").header("Authorization", "Bearer " + adminJwt))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[?(@.id==" + id + ")]").doesNotExist());
+	}
+
+	@Test
+	void activeTokenCannotBeHardDeleted() throws Exception {
+		String[] minted = mintToken(adminJwt, "still-active");
+		String pat = minted[0];
+		String id = minted[1];
+
+		// Deleting an active token is rejected; it must be revoked first.
+		mockMvc.perform(delete("/api/auth/tokens/" + id + "/permanent")
+						.header("Authorization", "Bearer " + adminJwt))
+				.andExpect(status().isConflict());
+
+		// The token still works.
+		mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + pat))
+				.andExpect(status().isOk());
+	}
+
+	@Test
+	void hardDeleteIsOwnTokensOnly() throws Exception {
+		String[] minted = mintToken(adminJwt, "admins-deletable");
+		String id = minted[1];
+
+		// Revoke it so it would otherwise be deletable.
+		mockMvc.perform(delete("/api/auth/tokens/" + id).header("Authorization", "Bearer " + adminJwt))
+				.andExpect(status().isNoContent());
+
+		// Another user cannot delete admin's token (404, not revealing it exists).
+		mockMvc.perform(delete("/api/auth/tokens/" + id + "/permanent")
+						.header("Authorization", "Bearer " + otherJwt))
+				.andExpect(status().isNotFound());
+
+		// Admin's token row is untouched (still listed, as REVOKED).
+		mockMvc.perform(get("/api/auth/tokens").header("Authorization", "Bearer " + adminJwt))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$[?(@.id==" + id + ")].status").value("REVOKED"));
+	}
+
+	@Test
 	void unauthenticatedCreateIsRejected() throws Exception {
 		mockMvc.perform(post("/api/auth/tokens")
 						.contentType(MediaType.APPLICATION_JSON)

@@ -51,8 +51,10 @@ import { ApiTokenDto } from '../../models/api-token';
         can be revoked at any time.
       </p>
 
-      @if (errorMessage()) { <p-message severity="error" [text]="errorMessage()" /> }
-      @if (successMessage()) { <p-message severity="success" [text]="successMessage()" /> }
+      <div class="message-slot">
+        @if (errorMessage()) { <p-message severity="error" [text]="errorMessage()" /> }
+        @if (successMessage()) { <p-message severity="success" [text]="successMessage()" /> }
+      </div>
 
       @if (loading()) {
         <p>Loading…</p>
@@ -75,6 +77,9 @@ import { ApiTokenDto } from '../../models/api-token';
                   @if (t.status === 'ACTIVE') {
                     <p-button label="Revoke" severity="danger" [text]="true"
                               (onClick)="revoke(t)" />
+                  } @else {
+                    <p-button label="Delete" icon="pi pi-trash" severity="danger" [text]="true"
+                              data-testid="pat-delete" (onClick)="deleteToken(t)" />
                   }
                 </td>
               </tr>
@@ -105,7 +110,9 @@ import { ApiTokenDto } from '../../models/api-token';
                      text="Copy this token now — it will not be shown again." />
           <div class="token-display">
             <code data-testid="pat-plaintext">{{ createdToken() }}</code>
-            <p-button label="Copy" icon="pi pi-copy" [text]="true" (onClick)="copy()" />
+            <p-button [label]="copied() ? 'Copied' : 'Copy'"
+                      [icon]="copied() ? 'pi pi-check' : 'pi pi-copy'"
+                      [text]="true" (onClick)="copy()" />
           </div>
           <div class="dialog-actions">
             <p-button label="Done" data-testid="pat-done" (onClick)="closeCreated()" />
@@ -119,6 +126,10 @@ import { ApiTokenDto } from '../../models/api-token';
     .section-header { display: flex; align-items: center; justify-content: space-between; }
     .section-header h3 { margin: 0; }
     .hint { color: var(--p-text-muted-color); margin: 0.25rem 0 1rem; }
+    /* Reserve fixed space (a single message line ≈ 2.13rem) so showing/clearing a
+       status message never shifts the table below it. */
+    .message-slot { min-height: 2.25rem; margin-bottom: 0.5rem; display: flex; align-items: center; }
+    .message-slot p-message { width: 100%; }
     .pat-table { width: 100%; border-collapse: collapse; }
     .pat-table th, .pat-table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--p-content-border-color); }
     .status { font-size: 0.8rem; font-weight: 600; }
@@ -142,6 +153,8 @@ export class ApiTokensComponent implements OnInit {
   readonly successMessage = signal('');
   /** The one-time plaintext after a successful create; null while filling the form. */
   readonly createdToken = signal<string | null>(null);
+  /** True briefly after a successful copy, to confirm to the user. */
+  readonly copied = signal(false);
 
   /** Fixed expiry choices (days); no "never" option for tokens minted from the UI. */
   readonly expiryOptions = [
@@ -177,6 +190,7 @@ export class ApiTokensComponent implements OnInit {
     this.newName = '';
     this.newExpiresInDays = 90;
     this.createdToken.set(null);
+    this.copied.set(false);
     this.successMessage.set('');
     this.createDialogVisible = true;
   }
@@ -223,14 +237,59 @@ export class ApiTokensComponent implements OnInit {
     }
   }
 
+  /** Permanently remove a revoked or expired token from the list (#87). */
+  async deleteToken(token: ApiTokenDto): Promise<void> {
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    try {
+      await this.tokenService.delete(token.id);
+      this.successMessage.set('Token deleted.');
+      await this.load();
+    } catch {
+      this.errorMessage.set('Failed to delete token.');
+    }
+  }
+
   async copy(): Promise<void> {
     const token = this.createdToken();
-    if (token) {
-      try {
-        await navigator.clipboard.writeText(token);
-      } catch {
-        // clipboard may be unavailable (non-secure context); the token stays visible to copy manually
-      }
+    if (!token) {
+      return;
     }
+    let success = false;
+    // navigator.clipboard exists only in secure contexts (HTTPS or localhost);
+    // on plain HTTP it is undefined, so fall back to execCommand.
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(token);
+        success = true;
+      } else {
+        success = this.legacyCopy(token);
+      }
+    } catch {
+      success = this.legacyCopy(token);
+    }
+    if (success) {
+      this.copied.set(true);
+      setTimeout(() => this.copied.set(false), 2000);
+    }
+  }
+
+  /** Fallback copy for non-secure contexts where navigator.clipboard is unavailable. */
+  private legacyCopy(text: string): boolean {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    let success = false;
+    try {
+      success = document.execCommand('copy');
+    } catch {
+      success = false;
+    }
+    document.body.removeChild(textarea);
+    return success;
   }
 }

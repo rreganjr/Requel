@@ -94,6 +94,27 @@ public class ApiTokenController {
 				.body(ErrorResponse.of("NOT_FOUND", "Token not found"));
 	}
 
+	/**
+	 * Hard-delete a token, removing the row (issue #87). Distinct from the revoke above: only a
+	 * non-active token (already revoked or expired) may be deleted, so a live credential cannot be
+	 * removed by accident — an active token returns 409 and must be revoked first. Own-tokens-only.
+	 */
+	@DeleteMapping("/{id}/permanent")
+	public ResponseEntity<?> delete(@PathVariable("id") Long id) {
+		Long ownerId = currentUserResolver.resolve().getId();
+		switch (tokenService.delete(ownerId, id)) {
+			case DELETED:
+				return ResponseEntity.noContent().build();
+			case NOT_DELETABLE:
+				return ResponseEntity.status(HttpStatus.CONFLICT).body(ErrorResponse.of("CONFLICT",
+						"An active token must be revoked before it can be deleted"));
+			case NOT_FOUND:
+			default:
+				return ResponseEntity.status(HttpStatus.NOT_FOUND)
+						.body(ErrorResponse.of("NOT_FOUND", "Token not found"));
+		}
+	}
+
 	private ApiTokenDto toDto(ApiToken token) {
 		String status;
 		if (token.isRevoked()) {

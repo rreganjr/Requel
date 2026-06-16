@@ -50,4 +50,11 @@ export class TokenService {
       this.http.delete<void>(`${environment.apiBaseUrl}/auth/tokens/${id}`)
     );
   }
+
+  /** Hard-delete a (revoked or expired) token, removing the row entirely (#87). */
+  async delete(id: number): Promise<void> {
+    return firstValueFrom(
+      this.http.delete<void>(`${environment.apiBaseUrl}/auth/tokens/${id}/permanent`)
+    );
+  }
 }

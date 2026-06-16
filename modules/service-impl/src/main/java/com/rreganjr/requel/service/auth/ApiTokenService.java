@@ -98,6 +98,36 @@ public class ApiTokenService {
 		return true;
 	}
 
+	/** Outcome of a hard-delete attempt, so the controller can map to 204 / 404 / 409 (issue #87). */
+	public enum DeleteOutcome {
+		/** The row was removed. */
+		DELETED,
+		/** No such token, or not owned by the caller — reported as 404 to avoid revealing existence. */
+		NOT_FOUND,
+		/** The token is still active; it must be revoked (or expire) before it can be hard-deleted. */
+		NOT_DELETABLE
+	}
+
+	/**
+	 * Permanently delete a token the caller owns (issue #87). Unlike {@link #revoke}, this removes the
+	 * row entirely. Only non-active tokens (already revoked, or past expiry) may be deleted; an active
+	 * token must be revoked first, so a live credential cannot be removed by accident. Own-tokens-only:
+	 * another user's token reports {@link DeleteOutcome#NOT_FOUND}, never revealing it exists.
+	 */
+	@Transactional
+	public DeleteOutcome delete(Long ownerUserId, Long tokenId) {
+		Optional<ApiToken> found = repository.findById(tokenId);
+		if (found.isEmpty() || !found.get().getOwnerUserId().equals(ownerUserId)) {
+			return DeleteOutcome.NOT_FOUND;
+		}
+		ApiToken token = found.get();
+		if (token.isActive(Instant.now())) {
+			return DeleteOutcome.NOT_DELETABLE;
+		}
+		repository.delete(token);
+		return DeleteOutcome.DELETED;
+	}
+
 	/** @return true if a bearer credential is a Requel PAT (by prefix), not a login JWT. */
 	public static boolean isApiToken(String credential) {
 		return credential != null && credential.startsWith(PREFIX);
