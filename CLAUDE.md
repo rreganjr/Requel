@@ -18,6 +18,12 @@ https://github.com/rreganjr/Requel/issues/38
 <details - file specific changes, including explaination when fixing bugs of what was broken and how the fix solves the problem>
 ```
 
+Claude (re)writes `commit.md` to describe the current change before each commit. `commit.md` is
+gitignored (`/commit.md`) and is **never committed** — it is only the source for the commit message
+and PR body, consumed via `git commit -F commit.md` and `gh pr create --body-file commit.md` (or
+copy/pasted into the VS Code commit box). So `commit.md` is never staged; stage only the changed
+source files.
+
 Never commit unless explicitly told to commit
 
 Never push changes to the github repo
@@ -25,6 +31,64 @@ Never push changes to the github repo
 All plans, reviews, notes and documentation go in the doc folder.
 
 Never use `TL;DR` I hate that phrase, use summary
+
+### Development Workflow
+
+Every change is tied to a GitHub issue and lands via a ticket branch and a PR — never commit straight
+onto `release/2.0`. Steps that create or change Git/GitHub state (branch, commit, push, PR, issue
+edits) are performed by Claude ONLY when explicitly told; the "never commit/push unless told" rules
+above always apply. Claude drives GitHub with the `gh` CLI / `gh api` (issues, comments, PRs) when
+asked.
+
+1. **Issue** — start from a GitHub issue. If none exists, create it (`gh issue create`) when told.
+   Record decisions/progress with `gh issue comment`.
+2. **Branch (at the start of work)** — cut a branch from `release/2.0` named
+   `<issue-number>-<short-slug>` (e.g. `87-pat-delete`, matching the existing `73-api-tokens` /
+   `77-spring-ai-provider-port` convention). Do all edits on that branch.
+3. **Implement, then verify (manual gate — must pass before committing):**
+   - Backend: `mvn clean verify` is green.
+   - Frontend (when `requel-angular/` changed): `cd requel-angular && ng test --watch=false` is green.
+
+   Do not commit until the relevant suite passes.
+4. **Commit message** — write it to `commit.md` in the format above. Include a closing keyword
+   (`Closes #<n>` / `Fixes #<n>`) so merging the PR closes the issue; reference related issues by URL.
+5. **Commit + push** — only when told; commit on the ticket branch and push it.
+6. **PR** — open with `gh pr create --base release/2.0` (when told), using the `commit.md` content as
+   the body. PRs are squash-merged.
+
+**Auto-close caveat:** the repo's default branch is `master`, but PRs target `release/2.0`. GitHub
+auto-closes an issue from `Closes #<n>` only when the PR merges into the **default** branch, so
+merging into `release/2.0` does **not** close the issue. Always close it explicitly after merge:
+`gh issue close <n> --comment "Merged to release/2.0 via #<pr>."`
+
+Command reference (Claude runs these only when told; `gh`/`mvn`/`ng` run in the developer's
+environment, not Claude's sandbox):
+
+```bash
+# 1. Issue (if none): gh issue create --repo rreganjr/Requel --title "..." --body "..."
+# 2. Branch from release/2.0 at the start of work:
+git switch -c <issue#>-<slug> release/2.0
+# 3. Verify before committing (must pass):
+mvn clean verify                              # backend
+cd requel-angular && ng test --watch=false    # frontend, only if requel-angular/ changed
+# 4. Write commit.md with a "Closes #<n>" line. commit.md is gitignored (/commit.md) — it is the
+#    message source for the commit/PR body, NOT a committed file, so do not `git add` it.
+# 5. Commit + push (stage only the changed source files):
+git add <changed files> && git commit -F commit.md && git push -u origin <issue#>-<slug>
+# 6. PR:
+gh pr create --repo rreganjr/Requel --base release/2.0 --head <issue#>-<slug> --body-file commit.md
+# after squash-merge (release/2.0 is not default, so close manually):
+gh issue close <n> --repo rreganjr/Requel --comment "Merged to release/2.0 via #<pr>."
+```
+
+Recovery — work accidentally committed onto `release/2.0`:
+
+- **Not yet pushed:** move the commits to a branch and rewind local `release/2.0`:
+  `git branch <issue#>-<slug>` then `git reset --hard origin/release/2.0` then
+  `git switch <issue#>-<slug>` and continue at step 5 above.
+- **Already pushed to `origin/release/2.0`:** do **not** rewrite the shared branch. The work is
+  integrated; just close the issue with a comment linking the commit
+  (`gh issue close <n> --comment "Done in <sha> on release/2.0: ..."`).
 
 ## Build Commands
 
