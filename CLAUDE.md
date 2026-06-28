@@ -30,18 +30,15 @@ Never push changes to the github repo
 
 All plans, reviews, notes and documentation go in the doc folder.
 
-Never use `TL;DR` I hate that phrase, use summary
+Never use `TL;DR` I hate that abbreviation, use `Summary`
 
 ### Development Workflow
 
-Every change is tied to a GitHub issue and lands via a ticket branch and a PR — never commit straight
-onto `release/2.0`. Steps that create or change Git/GitHub state (branch, commit, push, PR, issue
-edits) are performed by Claude ONLY when explicitly told; the "never commit/push unless told" rules
-above always apply. Claude drives GitHub with the `gh` CLI / `gh api` (issues, comments, PRs) when
-asked.
+Each release such as `release/2.0` has a github project, all issues for the release get added to the project. we use 'Story Point' and 'Story Point Retro' custom fields to track effort. 
 
-1. **Issue** — start from a GitHub issue. If none exists, create it (`gh issue create`) when told.
-   Record decisions/progress with `gh issue comment`.
+Every change is tied to a GitHub issue and lands via a ticket branch and a PR — never commit straight onto `release/2.0`. Steps that create or change Git/GitHub state (branch, commit, push, PR, issue edits) are performed by Claude ONLY when explicitly told; the "never commit/push unless told" rules above always apply. Claude drives GitHub with the `gh` CLI / `gh api` (issues, comments, PRs) when asked.
+
+1. **Issue** — start from a GitHub issue. If none exists, create it (`gh issue create`) when told. Record decisions/progress with `gh issue comment`.
 2. **Branch (at the start of work)** — cut a branch from `release/2.0` named
    `<issue-number>-<short-slug>` (e.g. `87-pat-delete`, matching the existing `73-api-tokens` /
    `77-spring-ai-provider-port` convention). Do all edits on that branch.
@@ -53,12 +50,9 @@ asked.
 4. **Commit message** — write it to `commit.md` in the format above. Include a closing keyword
    (`Closes #<n>` / `Fixes #<n>`) so merging the PR closes the issue; reference related issues by URL.
 5. **Commit + push** — only when told; commit on the ticket branch and push it.
-6. **PR** — open with `gh pr create --base release/2.0` (when told), using the `commit.md` content as
-   the body. PRs are squash-merged.
+6. **PR** — open with `gh pr create --base release/2.0` (when told), using the `commit.md` content as the body. PRs are squash-merged.
 
-**Auto-close caveat:** the repo's default branch is `master`, but PRs target `release/2.0`. GitHub
-auto-closes an issue from `Closes #<n>` only when the PR merges into the **default** branch, so
-merging into `release/2.0` does **not** close the issue. Always close it explicitly after merge:
+**Auto-close caveat:** the repo's default branch is `master`, but PRs target `release/2.0`. GitHub auto-closes an issue from `Closes #<n>` only when the PR merges into the **default** branch, so merging into `release/2.0` does **not** close the issue. Always close it explicitly after merge:
 `gh issue close <n> --comment "Merged to release/2.0 via #<pr>."`
 
 Command reference (Claude runs these only when told; `gh`/`mvn`/`ng` run in the developer's
