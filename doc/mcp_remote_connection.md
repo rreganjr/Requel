@@ -152,8 +152,8 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/api/mcp/sse
 curl -N -H "Authorization: Bearer $REQUEL_TOKEN" http://localhost:8080/api/mcp/sse
 ```
 
-In the client, list tools and call `requel.listProjects` to confirm reads, then (if writes are on)
-`requel.createGoal` against a project you have `Goal[Edit]` on.
+In the client, list tools and call `listProjects` to confirm reads, then (if writes are on)
+`createGoal` against a project you have `Goal[Edit]` on.
 
 ## Security notes
 
