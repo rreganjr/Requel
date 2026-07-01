@@ -233,12 +233,17 @@ form login must serve `/login`, which is outside the AS endpoints matcher).
 - Audience/issuer validation on the resource-server `JwtDecoder` is deferred to Slice 3 / hardening
   (same-app AS + RS means signature validation is sufficient for now).
 
-### Slice 3 — RFC 9728 Protected Resource Metadata
-- New controller serving `/.well-known/oauth-protected-resource` (JSON: `resource`,
-  `authorization_servers`, `bearer_methods_supported`, `scopes_supported`). Spring AS does not
-  provide this — it's a resource-server concern.
-- Emit `WWW-Authenticate: Bearer resource_metadata="<url>"` on MCP 401s via a custom
-  `AuthenticationEntryPoint` on chain 2.
+### Slice 3 — RFC 9728 Protected Resource Metadata (done)
+- New `ProtectedResourceMetadataController` serving `/.well-known/oauth-protected-resource` (JSON:
+  `resource`, `authorization_servers`, `scopes_supported: ["mcp"]`, `bearer_methods_supported:
+  ["header"]`). Spring AS does not provide this — it's a resource-server concern. Public (matched by
+  no security chain). Both the bare well-known path and the RFC 9728 resource-path-suffixed variant
+  (`/.well-known/oauth-protected-resource/api/mcp`) map to the same document. `resource` and the
+  issuer are derived from the request base URL when no explicit `requel.oauth.issuer` is configured.
+- New `McpAuthenticationEntryPoint` wired onto the MCP resource-server chain (Slice 2 chain, not the
+  AS chain): delegates to `BearerTokenAuthenticationEntryPoint` for standard status +
+  `error`/`error_description` formatting, then appends `resource_metadata="<url>"` to the
+  `WWW-Authenticate` header so agent clients can auto-discover the AS on a 401.
 
 ### Slice 4 — Dynamic Client Registration
 - Enable Spring AS's client-registration endpoint (OIDC `/connect/register`), gated per the DCR

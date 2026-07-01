@@ -22,6 +22,7 @@ package com.rreganjr.requel.service.config;
 
 import com.rreganjr.requel.service.auth.JwtAuthenticationFilter;
 import com.rreganjr.requel.service.auth.JwtService;
+import com.rreganjr.requel.service.auth.McpAuthenticationEntryPoint;
 import com.rreganjr.requel.service.auth.McpBearerTokenResolver;
 import com.rreganjr.requel.service.auth.McpJwtAuthenticationConverter;
 import com.rreganjr.requel.service.auth.UserDtoMapper;
@@ -89,6 +90,9 @@ public class McpResourceServerConfig {
             .addFilterBefore(new JwtAuthenticationFilter(jwtService, apiTokenRepository,
                     userRepository, userDtoMapper), BearerTokenAuthenticationFilter.class)
             .oauth2ResourceServer(oauth2 -> oauth2
+                // RFC 9728: 401s carry WWW-Authenticate: Bearer resource_metadata="…" so clients
+                // can discover the authorization server (issue #83, Slice 3).
+                .authenticationEntryPoint(new McpAuthenticationEntryPoint())
                 .bearerTokenResolver(new McpBearerTokenResolver())
                 .jwt(jwt -> jwt
                     .decoder(jwtDecoder)
