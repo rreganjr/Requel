@@ -146,7 +146,7 @@ config. Decide whether registered clients are seeded or created via DCR.
 
 | Question | Decision for this ticket |
 |----------|--------------------------|
-| DCR policy | **Enable RFC 7591 DCR, gated.** Allow **loopback** redirect URIs (`http://127.0.0.1[:*]`, `http://localhost[:*]`) for desktop clients out of the box. Registration is open by default for loopback-only clients (self-hosted, single-tenant), with an optional initial-access-token requirement toggled by `requel.oauth.dcr.require-initial-token` for exposed deployments. |
+| DCR policy | **Revised in Slice 4 (see note).** Original intent: open registration, loopback redirect URIs only. Reality: Spring Authorization Server implements **OIDC Dynamic Client Registration**, whose `/connect/register` endpoint is a protected resource requiring a short-lived, single-use **initial access token** (`client_credentials` + scope `client.create`); it does **not** do anonymous RFC 7591 registration natively. **Decision:** ship Slice 4 as Spring-AS-native **gated** DCR (initial access token + loopback-only redirect URIs + default client settings), which is the supported, secure, lower-effort path. Whether real MCP clients (Claude Code/Cursor) accept an initial token or require anonymous registration is unknown and is verified empirically in Slice 5; if they require anonymous, add a loopback-restricted anonymous shim then (with evidence), not speculatively. |
 | Consent screen | **Require consent for all MCP clients, no auto-approve** (custom minimal consent page showing a readable client name + scope descriptions). Agent clients are third-party; consent is the human gate that pairs with open DCR and is the phishing backstop. Remembered per client+scope, so it's a one-time prompt per tool. |
 | OAuth scopes | **Single coarse `mcp` scope** — "act as me through Requel's MCP tools." The real limits stay in the per-stakeholder gateway authorization; the token never grants more than the user already has. Finer `read`/`write` scopes deferred until a concrete need appears (additive, non-breaking later). |
 | Unify SPA auth onto OAuth? | **No — out of scope.** Keep the username/password → JWT chain (`/api/auth/login` + `JwtAuthenticationFilter`) for the SPA and scripts indefinitely. |
@@ -245,14 +245,36 @@ form login must serve `/login`, which is outside the AS endpoints matcher).
   `error`/`error_description` formatting, then appends `resource_metadata="<url>"` to the
   `WWW-Authenticate` header so agent clients can auto-discover the AS on a 401.
 
-### Slice 4 — Dynamic Client Registration
-- Enable Spring AS's client-registration endpoint (OIDC `/connect/register`), gated per the DCR
-  decision (loopback redirect URIs allowed; optional initial-access-token).
-- Configure default scopes for MCP clients and rotating refresh tokens.
+### Slice 4 — Dynamic Client Registration (Spring-AS-native, gated)
+- Enable Spring AS's OIDC client-registration endpoint via
+  `.oidc(o -> o.clientRegistrationEndpoint(...))` (`/connect/register` + `/connect/register` read).
+- **Initial access token** is required by Spring AS (it does not do anonymous DCR): register a
+  confidential **registrar client** (`client_credentials`, scope `client.create` only) that an admin
+  uses to mint the short-lived, single-use initial access token, which is then handed to the agent
+  client to register itself. Keeping the registrar's secret with the admin makes registration
+  admin-gated (secure); it can be loosened later if needed.
+- Apply defaults to newly-registered clients via the endpoint's authentication/registration
+  converter customization: **loopback-only redirect URIs** (`http://127.0.0.1[:*]`,
+  `http://localhost[:*]`), scope `mcp`, `requireProofKey(true)`, `requireAuthorizationConsent(true)`,
+  and the shared `defaultTokenSettings()` (1h access, 30d rotating refresh). Reject non-loopback
+  redirect URIs.
+- **Not** anonymous — see the revised DCR decision above. The empirical client check is Slice 5.
 
 ### Slice 5 — End-to-end verification & docs
 - Connect a real client (Cursor / Claude Code / Cowork) with **no** static token: discovery →
   authorization-code + PKCE → token → tool calls execute as the authenticated Requel user.
+- **DCR client-behavior gate (added after Slice 4).** Slice 4 shipped Spring-AS-native *gated* DCR
+  (initial access token required), because Spring AS does not do anonymous registration. Verify how
+  each real client actually registers:
+  - If the client can be given an **initial access token** (or a pre-registered `client_id`), the
+    gated flow is sufficient — document how to mint the initial access token from the registrar
+    client and hand it to the client.
+  - If a client **requires anonymous RFC 7591 registration** (no initial token, self-registers on
+    first connect) and cannot be configured otherwise, add a **loopback-restricted anonymous
+    registration path** then: permit unauthenticated `POST /connect/register` only for loopback
+    redirect URIs, still stamping the default settings (PKCE, consent, scope `mcp`, 1h/30d). Track as
+    a follow-up ticket if it materializes; do not build speculatively.
+  - Record which clients need which mode in `doc/mcp_remote_connection.md`.
 - Update `doc/mcp_remote_connection.md`: make OAuth the primary recipe; mark the static-bearer/PAT
   recipe dev-only or headless-only.
 

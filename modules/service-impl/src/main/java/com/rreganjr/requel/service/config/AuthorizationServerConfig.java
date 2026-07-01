@@ -39,8 +39,14 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.server.authorization.oidc.OidcClientRegistration;
+import org.springframework.security.oauth2.server.authorization.oidc.authentication.OidcClientRegistrationAuthenticationProvider;
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService;
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationConsentService;
@@ -62,8 +68,12 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * Embedded OAuth 2.1 Authorization Server for MCP client authentication (issue #83, Slice 1).
@@ -107,6 +117,21 @@ public class AuthorizationServerConfig {
     @Value("${requel.oauth.seed-dev-client:false}")
     private boolean seedDevClient;
 
+    /**
+     * Seed the DCR registrar client (issue #83, Slice 4). The client-registration endpoint is always
+     * enabled but is unusable until a registrar exists, since Spring AS requires an initial access
+     * token minted by a client holding the {@code client.create} scope. Off by default.
+     */
+    @Value("${requel.oauth.dcr.enabled:false}")
+    private boolean dcrEnabled;
+
+    @Value("${requel.oauth.dcr.registrar-client-id:requel-registrar}")
+    private String registrarClientId;
+
+    /** Registrar client secret (raw); required when {@code requel.oauth.dcr.enabled=true}. */
+    @Value("${requel.oauth.dcr.registrar-client-secret:}")
+    private String registrarClientSecret;
+
     // ---- Chain 1: authorization-server endpoints -------------------------------------------------
 
     @Bean
@@ -118,8 +143,12 @@ public class AuthorizationServerConfig {
         http
             .securityMatcher(authorizationServerConfigurer.getEndpointsMatcher())
             .with(authorizationServerConfigurer, (authorizationServer) -> authorizationServer
-                // OpenID Connect (userinfo, client-registration for DCR in Slice 4).
-                .oidc(Customizer.withDefaults())
+                // OpenID Connect: userinfo + Dynamic Client Registration (Slice 4). The registration
+                // endpoint requires an initial access token (client_credentials + client.create),
+                // minted by the seeded registrar client; see the DCR notes in doc/oauth_mcp_plan.md.
+                .oidc(oidc -> oidc
+                    .clientRegistrationEndpoint(clientRegistration ->
+                        clientRegistration.authenticationProviders(applyDcrClientDefaults())))
                 // Custom consent page (issue #83: consent required for all MCP clients).
                 .authorizationEndpoint(authorizationEndpoint ->
                         authorizationEndpoint.consentPage(OAuth2ConsentController.CONSENT_PAGE_URI))
@@ -281,6 +310,112 @@ public class AuthorizationServerConfig {
             registeredClientRepository.save(devClient);
             log.info("Seeded OAuth dev client '{}' (loopback PKCE, scope=mcp, consent required).",
                     clientId);
+        };
+    }
+
+    // ---- Dynamic Client Registration policy (Slice 4) -------------------------------------------
+
+    /**
+     * Stamps Requel's policy onto every dynamically-registered client (issue #83, Slice 4): rejects
+     * non-loopback redirect URIs, forces PKCE + consent, restricts scope to {@code mcp}, and applies
+     * the shared 1h/30d rotating token settings. Wraps Spring AS's default
+     * {@code OidcClientRegistration -> RegisteredClient} conversion.
+     */
+    private Consumer<List<AuthenticationProvider>> applyDcrClientDefaults() {
+        return authenticationProviders -> {
+            for (AuthenticationProvider provider : authenticationProviders) {
+                if (provider instanceof OidcClientRegistrationAuthenticationProvider registrationProvider) {
+                    registrationProvider.setRegisteredClientConverter(new DcrRegisteredClientConverter());
+                }
+            }
+        };
+    }
+
+    private static final class DcrRegisteredClientConverter
+            implements Converter<OidcClientRegistration, RegisteredClient> {
+
+        @Override
+        public RegisteredClient convert(OidcClientRegistration clientRegistration) {
+            // Spring AS's built-in OidcClientRegistration -> RegisteredClient converter is not public
+            // API, so build the client directly and impose Requel's policy: public (PKCE) loopback
+            // native-app client, consent required, scope=mcp, 1h/30d rotating tokens.
+            List<String> redirectUris = clientRegistration.getRedirectUris();
+            if (redirectUris == null || redirectUris.isEmpty()) {
+                throw new OAuth2AuthenticationException(new OAuth2Error(
+                        "invalid_redirect_uri",
+                        "At least one loopback redirect URI is required", null));
+            }
+            for (String redirectUri : redirectUris) {
+                if (!isLoopbackRedirectUri(redirectUri)) {
+                    throw new OAuth2AuthenticationException(new OAuth2Error(
+                            "invalid_redirect_uri",
+                            "Only loopback redirect URIs (127.0.0.1, [::1], localhost) are allowed",
+                            null));
+                }
+            }
+            String clientName = clientRegistration.getClientName();
+            RegisteredClient.Builder builder = RegisteredClient.withId(UUID.randomUUID().toString())
+                    .clientId(UUID.randomUUID().toString())
+                    .clientIdIssuedAt(Instant.now())
+                    .clientName(clientName != null ? clientName : "mcp-client")
+                    // Public, PKCE-only (loopback native app) — no client secret issued.
+                    .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                    .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                    .scope("mcp")
+                    .clientSettings(ClientSettings.builder()
+                            .requireProofKey(true)
+                            .requireAuthorizationConsent(true)
+                            .build())
+                    .tokenSettings(defaultTokenSettings());
+            redirectUris.forEach(builder::redirectUri);
+            return builder.build();
+        }
+    }
+
+    /** Loopback per OAuth 2.1 native-app guidance: 127.0.0.1, [::1]/::1, or localhost. */
+    private static boolean isLoopbackRedirectUri(String redirectUri) {
+        try {
+            String host = URI.create(redirectUri).getHost();
+            return host != null && (host.equals("127.0.0.1") || host.equals("[::1]")
+                    || host.equals("::1") || host.equalsIgnoreCase("localhost"));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Seeds the DCR registrar client (client_credentials + client.create/client.read) when
+     * {@code requel.oauth.dcr.enabled=true} and a secret is configured. An admin uses it to mint the
+     * single-use initial access token required to register new clients. Idempotent.
+     */
+    @Bean
+    public ApplicationRunner seedDcrRegistrarClient(RegisteredClientRepository registeredClientRepository,
+            PasswordEncoder passwordEncoder) {
+        return args -> {
+            if (!dcrEnabled) {
+                return;
+            }
+            if (registrarClientSecret == null || registrarClientSecret.isBlank()) {
+                log.warn("requel.oauth.dcr.enabled=true but requel.oauth.dcr.registrar-client-secret "
+                        + "is not set; DCR registrar client NOT seeded, so client registration is "
+                        + "unusable until a registrar exists.");
+                return;
+            }
+            if (registeredClientRepository.findByClientId(registrarClientId) != null) {
+                return;
+            }
+            RegisteredClient registrar = RegisteredClient.withId(UUID.randomUUID().toString())
+                    .clientId(registrarClientId)
+                    .clientSecret(passwordEncoder.encode(registrarClientSecret))
+                    .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                    .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+                    .scope("client.create")
+                    .scope("client.read")
+                    .build();
+            registeredClientRepository.save(registrar);
+            log.info("Seeded DCR registrar client '{}' (client_credentials; scopes client.create, "
+                    + "client.read).", registrarClientId);
         };
     }
 }
