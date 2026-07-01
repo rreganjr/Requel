@@ -209,14 +209,29 @@ form login must serve `/login`, which is outside the AS endpoints matcher).
   mode if needed).
 - RFC 8414 metadata (`/.well-known/oauth-authorization-server`) is provided by the AS chain.
 
-### Slice 2 — MCP resource server
-- Add `spring-boot-starter-oauth2-resource-server`.
-- New `McpResourceServerConfig` (`service/config/`): `@Order(2)` chain as specified above; renumber
-  `ApiSecurityConfig` to `@Order(3)`.
-- Subject→user mapping + live authorities via a small `JwtAuthenticationConverter`; confirm
-  `CommandGateway`/`AuthorizingCommandHandler` per-stakeholder checks run as the mapped user
-  (they already read `CurrentUserResolver`, so this should be transparent).
-- CORS: extend the config so `/api/mcp/**` is covered (browser-based agent clients may preflight).
+### Slice 2 — MCP resource server (done)
+- Added `spring-boot-starter-oauth2-resource-server`.
+- New `McpResourceServerConfig` (`service/config/`): `@Order(3)` chain on `/api/mcp/**`, `STATELESS`,
+  CORS via the shared source, `oauth2ResourceServer(jwt)` validating AS tokens with the AS's own
+  `JwtDecoder` bean. `ApiSecurityConfig` was renumbered to `@Order(4)` back in Slice 1.
+- **Credential routing refinement (beyond the original note).** Rather than relying only on the
+  HS256-vs-RS256 parse-failure fall-through, a custom `McpBearerTokenResolver` inspects the JWS
+  header `alg` and routes the credential: PAT (`reqpat_`) and HS256 login JWTs return `null` (so the
+  resource server ignores them and the pre-positioned `JwtAuthenticationFilter` handles them),
+  while asymmetric-signed (RS/PS/ES) AS tokens go to the resource server. This preserves PAT **and**
+  login-JWT on MCP (no regression) instead of rejecting login JWTs, and avoids the double-authenticate
+  conflict where the bearer filter would otherwise try to validate a PAT/login-JWT as an AS token.
+  The alg is read only to route; the actual signature check is done by the chosen authenticator.
+- Subject→user mapping + live authorities via `McpJwtAuthenticationConverter`: token `sub` →
+  `UserRepository.findUserByUsername`, authorities = `ROLE_<role>` (from `UserDtoMapper`) + `SCOPE_*`
+  (from the token). A subject that doesn't resolve to a user is rejected
+  (`InvalidBearerTokenException`). `CurrentUserResolver` then resolves the same user, so the gateway's
+  per-stakeholder checks run transparently as that user.
+- Existing MCP integration tests (`McpCallAuditIT`, `RequelMcpEndToEndIT`) drive the handler/gateway
+  in-process (they set the `SecurityContext` directly), so they are unaffected by the HTTP chain.
+- CORS covered via the shared `corsConfigurationSource` (`/api/**` includes `/api/mcp/**`).
+- Audience/issuer validation on the resource-server `JwtDecoder` is deferred to Slice 3 / hardening
+  (same-app AS + RS means signature validation is sufficient for now).
 
 ### Slice 3 — RFC 9728 Protected Resource Metadata
 - New controller serving `/.well-known/oauth-protected-resource` (JSON: `resource`,
