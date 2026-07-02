@@ -37,7 +37,7 @@ import picocli.CommandLine.Option;
  */
 @Command(name = "requel", mixinStandardHelpOptions = true, version = "requel-cli 2.0.0-dev",
         description = "Command-line access to a Requel server via the gateway.",
-        subcommands = {RunCommand.class})
+        subcommands = {RunCommand.class, LoginCommand.class, LogoutCommand.class})
 public class RequelCli implements Runnable {
 
     @Option(names = "--url", paramLabel = "URL",
@@ -56,9 +56,22 @@ public class RequelCli implements Runnable {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    /** The per-request bearer supplier passed to the REST gateway (blank/unset token → no header). */
+    /** Persisted PATs, keyed by server URL. Package-visible so subcommands and tests can use it. */
+    CredentialStore credentialStore = new CredentialStore();
+
+    /**
+     * The per-request bearer supplier passed to the REST gateway. Token precedence:
+     * {@code --token} flag &gt; {@code REQUEL_TOKEN} env (both already merged into {@link #token} by
+     * picocli) &gt; a token stored for this {@link #url} via {@code requel login}. Blank/absent → no
+     * Authorization header.
+     */
     BearerTokenSource tokenSource() {
-        return () -> (token == null || token.isBlank()) ? null : token;
+        return () -> {
+            if (token != null && !token.isBlank()) {
+                return token;
+            }
+            return credentialStore.find(url);
+        };
     }
 
     void printResult(GatewayResult result) {
