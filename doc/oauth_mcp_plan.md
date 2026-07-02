@@ -261,6 +261,9 @@ form login must serve `/login`, which is outside the AS endpoints matcher).
 - **Not** anonymous — see the revised DCR decision above. The empirical client check is Slice 5.
 
 ### Slice 5 — End-to-end verification & docs
+- **Runbook: `doc/83-oauth-verification.md`** (the manual steps that can't run in CI) and the
+  `mcp_remote_connection.md` updates are done; the actual client runs (Part D) are executed by the
+  developer against a running server, with outcomes recorded in the runbook's Findings table.
 - Connect a real client (Cursor / Claude Code / Cowork) with **no** static token: discovery →
   authorization-code + PKCE → token → tool calls execute as the authenticated Requel user.
 - **DCR client-behavior gate (added after Slice 4).** Slice 4 shipped Spring-AS-native *gated* DCR

@@ -28,8 +28,8 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -106,31 +106,51 @@ public class AuthorizationServerConfig {
     private static final Duration REFRESH_TOKEN_TTL = Duration.ofDays(30);
 
     /**
-     * Optional explicit issuer. When blank, {@link AuthorizationServerSettings} derives the issuer
-     * per request from the current context, which is correct for same-host self-hosted deployments.
-     * Set {@code requel.oauth.issuer} when Requel sits behind a proxy/!
+     * OAuth runtime flags are read from the {@link Environment} at point of use rather than via
+     * {@code @Value} fields. This class contributes {@code SecurityFilterChain} beans and is
+     * instantiated early enough that {@code @Value} placeholders resolved to their defaults (missing
+     * the command-line / external values). The Environment always carries the full, correctly-ordered
+     * property sources, so reading it at runtime binds correctly (issue #83).
      */
-    @Value("${requel.oauth.issuer:}")
-    private String issuer;
+    private final Environment environment;
 
-    /** Seed a loopback PKCE dev client so the flow is testable before DCR (Slice 4) lands. */
-    @Value("${requel.oauth.seed-dev-client:false}")
-    private boolean seedDevClient;
+    public AuthorizationServerConfig(Environment environment) {
+        this.environment = environment;
+    }
 
-    /**
-     * Seed the DCR registrar client (issue #83, Slice 4). The client-registration endpoint is always
-     * enabled but is unusable until a registrar exists, since Spring AS requires an initial access
-     * token minted by a client holding the {@code client.create} scope. Off by default.
-     */
-    @Value("${requel.oauth.dcr.enabled:false}")
-    private boolean dcrEnabled;
+    /** Optional explicit issuer; blank = derive per-request from the current context. */
+    private String issuer() {
+        return environment.getProperty("requel.oauth.issuer", "");
+    }
 
-    @Value("${requel.oauth.dcr.registrar-client-id:requel-registrar}")
-    private String registrarClientId;
+    /** Seed a loopback PKCE dev client so the flow is testable before/without DCR (Slice 4). */
+    private boolean seedDevClient() {
+        return environment.getProperty("requel.oauth.seed-dev-client", Boolean.class, false);
+    }
+
+    /** Seed the DCR registrar client. The registration endpoint is unusable until a registrar exists. */
+    private boolean dcrEnabled() {
+        return environment.getProperty("requel.oauth.dcr.enabled", Boolean.class, false);
+    }
+
+    private String registrarClientId() {
+        return environment.getProperty("requel.oauth.dcr.registrar-client-id", "requel-registrar");
+    }
 
     /** Registrar client secret (raw); required when {@code requel.oauth.dcr.enabled=true}. */
-    @Value("${requel.oauth.dcr.registrar-client-secret:}")
-    private String registrarClientSecret;
+    private String registrarClientSecret() {
+        return environment.getProperty("requel.oauth.dcr.registrar-client-secret", "");
+    }
+
+    /** Log the resolved OAuth flags at startup so seeding behavior is diagnosable (issue #83). */
+    @jakarta.annotation.PostConstruct
+    void logResolvedOAuthConfig() {
+        String secret = registrarClientSecret();
+        log.info("OAuth AS config resolved: seed-dev-client={}, dcr.enabled={}, "
+                + "dcr.registrar-client-id={}, registrar-secret-set={}, issuer='{}'",
+                seedDevClient(), dcrEnabled(), registrarClientId(),
+                (secret != null && !secret.isBlank()), issuer());
+    }
 
     // ---- Chain 1: authorization-server endpoints -------------------------------------------------
 
@@ -254,6 +274,7 @@ public class AuthorizationServerConfig {
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
         AuthorizationServerSettings.Builder builder = AuthorizationServerSettings.builder();
+        String issuer = issuer();
         if (issuer != null && !issuer.isBlank()) {
             builder.issuer(issuer);
         }
@@ -284,7 +305,7 @@ public class AuthorizationServerConfig {
     @Bean
     public ApplicationRunner seedOAuthDevClient(RegisteredClientRepository registeredClientRepository) {
         return args -> {
-            if (!seedDevClient) {
+            if (!seedDevClient()) {
                 return;
             }
             String clientId = "requel-dev-client";
@@ -393,21 +414,23 @@ public class AuthorizationServerConfig {
     public ApplicationRunner seedDcrRegistrarClient(RegisteredClientRepository registeredClientRepository,
             PasswordEncoder passwordEncoder) {
         return args -> {
-            if (!dcrEnabled) {
+            if (!dcrEnabled()) {
                 return;
             }
-            if (registrarClientSecret == null || registrarClientSecret.isBlank()) {
+            String registrarSecret = registrarClientSecret();
+            if (registrarSecret == null || registrarSecret.isBlank()) {
                 log.warn("requel.oauth.dcr.enabled=true but requel.oauth.dcr.registrar-client-secret "
                         + "is not set; DCR registrar client NOT seeded, so client registration is "
                         + "unusable until a registrar exists.");
                 return;
             }
-            if (registeredClientRepository.findByClientId(registrarClientId) != null) {
+            String registrarId = registrarClientId();
+            if (registeredClientRepository.findByClientId(registrarId) != null) {
                 return;
             }
             RegisteredClient registrar = RegisteredClient.withId(UUID.randomUUID().toString())
-                    .clientId(registrarClientId)
-                    .clientSecret(passwordEncoder.encode(registrarClientSecret))
+                    .clientId(registrarId)
+                    .clientSecret(passwordEncoder.encode(registrarSecret))
                     .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                     .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
                     .scope("client.create")
@@ -415,7 +438,7 @@ public class AuthorizationServerConfig {
                     .build();
             registeredClientRepository.save(registrar);
             log.info("Seeded DCR registrar client '{}' (client_credentials; scopes client.create, "
-                    + "client.read).", registrarClientId);
+                    + "client.read).", registrarId);
         };
     }
 }
