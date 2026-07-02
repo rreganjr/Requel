@@ -78,6 +78,21 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- OAuth 2.1 authorization server for MCP client auth (issue #83). Provides the embedded
+             AS (authorization-code + PKCE, token/JWK endpoints, RFC 8414 metadata, DCR) backed by
+             the Requel user store. The MCP resource server (Slice 2) uses spring-security's
+             oauth2-resource-server, pulled in transitively; add the starter explicitly there. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-authorization-server</artifactId>
+        </dependency>
+        <!-- OAuth 2.1 resource server for /api/mcp/** (issue #83, Slice 2): validates the AS-issued
+             JWTs so MCP agent clients authenticate via OAuth. PAT (#73) and login-JWT still work on
+             MCP via the existing JwtAuthenticationFilter (see McpResourceServerConfig). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
         <!-- JWT -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

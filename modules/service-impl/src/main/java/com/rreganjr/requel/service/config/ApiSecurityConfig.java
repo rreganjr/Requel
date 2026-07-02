@@ -72,8 +72,13 @@ public class ApiSecurityConfig {
         this.userDtoMapper = userDtoMapper;
     }
 
+    // @Order(4): after the OAuth chains (see AuthorizationServerConfig). This chain's matcher is
+    // /api/**, which is broader than the MCP resource-server chain's /api/mcp/** (Slice 2), so it
+    // must have a HIGHER order number (lower precedence) than that chain. Chain layering:
+    //   1 = AS endpoints, 2 = interactive login/consent, 3 = /api/mcp/** resource server (Slice 2),
+    //   4 = this /api/** JWT chain.
     @Bean
-    @Order(1)
+    @Order(4)
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/api/**")
