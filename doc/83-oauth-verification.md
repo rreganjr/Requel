@@ -78,7 +78,7 @@ CC=$(printf '%s' "$CV" | openssl dgst -sha256 -binary | openssl base64 | tr '+/'
 echo "http://localhost:8080/oauth2/authorize?response_type=code&client_id=requel-dev-client\
 &redirect_uri=http://127.0.0.1:8080/login/oauth2/code/requel-dev-client&scope=mcp\
 &code_challenge=$CC&code_challenge_method=S256&state=verify123"
-#   expect: redirect to /login -> Requel login form -> consent page naming the client + 'mcp'
+#   expect: redirect to /oauth2/login -> Requel login form -> consent page naming the client + 'mcp'
 #   scope -> redirect to the (handler-less) redirect URI with ?code=…&state=verify123
 
 # 3) Exchange the code (paste it) for tokens

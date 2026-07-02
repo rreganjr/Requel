@@ -166,9 +166,12 @@ form login must serve `/login`, which is outside the AS endpoints matcher).
    `getEndpointsMatcher()` (`/oauth2/**`, `/.well-known/oauth-authorization-server`,
    `/connect/register` for DCR), OIDC enabled, custom consent page at `/oauth2/consent`, and a
    `LoginUrlAuthenticationEntryPoint("/login")` for unauthenticated `text/html` requests.
-2. **`@Order(2)` — interactive login/consent chain.** `securityMatcher("/login",
-   "/oauth2/consent", "/logout")` with `formLogin` (Spring's generated login page) backed by
-   `RequelUserAuthenticationProvider` (reuses `User.isPassword` + `UserDtoMapper.getRoleStrings`).
+2. **`@Order(2)` — interactive login/consent chain.** `securityMatcher("/oauth2/login",
+   "/oauth2/consent")` with `formLogin` backed by `RequelUserAuthenticationProvider` (reuses
+   `User.isPassword` + `UserDtoMapper.getRoleStrings`). **The AS login page is at `/oauth2/login`, NOT
+   `/login`** — `/login` is the Angular SPA's own client route (`LoginComponent`), and putting the
+   AS form login there would shadow it with Spring's login page (this broke the auth e2e tests once;
+   don't reintroduce it). A small `OAuth2LoginPageController` renders the `/oauth2/login` page.
    Scoped so it never touches the SPA routes or `/api/**`. Sessions + CSRF are on (defaults) and
    shared with chain 1 via the session, so the consent form's CSRF token and the saved
    `/oauth2/authorize` request both carry across.

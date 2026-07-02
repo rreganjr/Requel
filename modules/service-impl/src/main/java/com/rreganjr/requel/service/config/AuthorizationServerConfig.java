@@ -21,6 +21,7 @@
 package com.rreganjr.requel.service.config;
 
 import com.rreganjr.requel.service.auth.OAuth2ConsentController;
+import com.rreganjr.requel.service.auth.OAuth2LoginPageController;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
@@ -174,10 +175,11 @@ public class AuthorizationServerConfig {
                         authorizationEndpoint.consentPage(OAuth2ConsentController.CONSENT_PAGE_URI))
             )
             .authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
-            // Unauthenticated browser requests to AS endpoints redirect to the login page.
+            // Unauthenticated browser requests to AS endpoints redirect to the AS login page.
+            // NOTE: /oauth2/login, NOT /login — /login belongs to the Angular SPA's own route.
             .exceptionHandling(exceptions -> exceptions
                 .defaultAuthenticationEntryPointFor(
-                    new LoginUrlAuthenticationEntryPoint("/login"),
+                    new LoginUrlAuthenticationEntryPoint(OAuth2LoginPageController.LOGIN_PAGE_URI),
                     new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
             // Accept the AS's own JWTs at the OIDC userinfo endpoint.
             .oauth2ResourceServer(resourceServer -> resourceServer.jwt(Customizer.withDefaults()));
@@ -191,15 +193,18 @@ public class AuthorizationServerConfig {
     @Order(2)
     public SecurityFilterChain authorizationServerLoginFilterChain(HttpSecurity http) throws Exception {
         http
-            // Scoped to the interactive pages only, so the SPA routes and the /api/** chain are
-            // untouched. Everything here is browser form flow.
-            .securityMatcher("/login", OAuth2ConsentController.CONSENT_PAGE_URI, "/logout")
+            // Scoped to the AS interactive pages only (NOT /login — that is the SPA's route), so the
+            // SPA routes and the /api/** chain are untouched. Everything here is browser form flow.
+            .securityMatcher(OAuth2LoginPageController.LOGIN_PAGE_URI, OAuth2ConsentController.CONSENT_PAGE_URI)
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/login").permitAll()
+                .requestMatchers(OAuth2LoginPageController.LOGIN_PAGE_URI).permitAll()
                 .anyRequest().authenticated())
-            // Spring Security's generated login page renders at GET /login; POST /login authenticates
-            // via the RequelUserAuthenticationProvider bean.
-            .formLogin(Customizer.withDefaults());
+            // Custom login page at /oauth2/login (OAuth2LoginPageController); the same URL is the
+            // form-login processing URL. Credentials are checked by RequelUserAuthenticationProvider.
+            .formLogin(form -> form
+                .loginPage(OAuth2LoginPageController.LOGIN_PAGE_URI)
+                .loginProcessingUrl(OAuth2LoginPageController.LOGIN_PAGE_URI)
+                .permitAll());
 
         return http.build();
     }
