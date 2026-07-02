@@ -260,6 +260,7 @@
         <module>modules/service-api</module>
         <module>modules/gateway-api</module>
         <module>modules/gateway-rest-client</module>
+        <module>modules/requel-cli</module>
         <module>modules/assistant-api</module>
         <module>modules/assistant-core</module>
         <module>modules/assistant-ai</module>
