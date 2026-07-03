@@ -51,13 +51,19 @@ Two layers, so the CLI works offline *and* stays in lockstep with the server:
    REST `CommandGateway` to `POST /api/gateway/commands/<CommandType>` (the server-side gateway
    facade — see below), so the allow/deny policy + authorization are enforced server-side. This is
    the reliable, scriptable core and needs no descriptors.
-2. **Typed convenience subcommands (runtime-discovered):** on startup the CLI fetches the descriptor
-   catalog and registers picocli subcommands dynamically (picocli supports programmatic subcommand
-   registration). This reflects exactly what the connected server allows — including the
-   `requel.gateway.write.enabled` flag (write commands absent/marked unavailable) — so it can't drift.
-   - **Server-side addition needed:** `GET /api/commands/descriptors` returning the
-     `GatewayCommandCatalog` as JSON (`commandType, title, description, write, authorizationHint`, and
-     a JSON schema for `inputType`). Small controller in `service-impl` over the existing catalog.
+2. **Runtime catalog discovery (`requel commands`, Milestone 4 — done):** the CLI fetches the
+   descriptor catalog from the server and lists the exposed write commands, so the operator sees
+   exactly what the connected server allows — including the `requel.gateway.write.enabled` flag (the
+   list is **empty** when writes are off, mirroring how the MCP server hides write tools), so it
+   can't drift.
+   - **Server-side addition (done):** `GET /api/gateway/commands/descriptors` returning the
+     `GatewayCommandCatalog` as JSON (`commandType, inputType (simple name), title, description,
+     write, authorizationHint`). Served by `GatewayCommandController`, gated by the write flag.
+   - **Client side (done):** `RestGatewayCatalog` in `gateway-rest-client` fetches it;
+     `requel commands` prints it (text or `--output json`).
+   - **Deferred (richer form):** dynamically *registering picocli subcommands* per command (with
+     per-field flags derived from the input DTO's JSON schema). MVP uses the generic
+     `requel run <CommandType> --input` for invocation; `requel commands` for discovery.
    - Offline / server-unreachable: only `run` + built-ins show in `--help`; that's acceptable.
 
 (This refines the earlier "static-primary" decision: because the catalog is server-side with no
@@ -103,8 +109,14 @@ The REST client just needs a bearer token; the CLI manages obtaining/refreshing 
    allow/deny policy is enforced server-side; returns the exact `GatewayException.Kind` in the error
    body) and `GatewayQueryController` (`GET /api/gateway/query/**`, delegates to the in-process
    `QueryGateway`). The REST client targets these, not the raw `/api/commands` / UI query endpoints.
-2. `GET /api/commands/descriptors` — expose `GatewayCommandCatalog` as JSON (+ input JSON schema).
-   (Milestone 4.)
+2. **Command catalog (done in Milestone 4):** `GatewayCommandCatalogImpl` (`service-impl`) implements
+   the `GatewayCommandCatalog` interface — the previously-unimplemented single source of truth —
+   derived from `GatewayPolicyConfig.ALLOWED` ∩ registered commands (input type via
+   `ApiCommandFactory`), so it can't drift from the allow/deny policy. Exposed at
+   `GET /api/gateway/commands/descriptors` (write-flag-gated). **Follow-up (separate ticket):** the MCP
+   server still generates its typed tools from its own hard-coded list; migrating MCP tool generation
+   onto this catalog (with an `MCP tools ⊆ catalog` lockstep test) changes a shipped tool surface, so
+   it's deliberately out of Milestone 4.
 3. Seed a `requel-cli` public/PKCE/loopback OAuth client in `AuthorizationServerConfig` (guarded by a
    flag, like the dev client), so interactive `requel login` works without a DCR initial token.
    (Milestone 5.)
@@ -116,7 +128,9 @@ The REST client just needs a bearer token; the CLI manages obtaining/refreshing 
 2. `requel-cli` skeleton with picocli, `--url`/config, `requel run` generic dispatch, output + exit
    codes.
 3. Auth: `requel login --token` (PAT) + credential store; wire bearer into the REST client.
-4. `GET /api/commands/descriptors` endpoint + runtime-discovered typed subcommands.
+4. Shared `GatewayCommandCatalog` impl + `GET /api/gateway/commands/descriptors` endpoint +
+   `RestGatewayCatalog` client + `requel commands` discovery subcommand. (MCP tool-generation
+   migration onto the catalog deferred to a separate ticket.)
 5. OAuth `requel login` (code+PKCE, loopback, refresh) + the seeded `requel-cli` client.
 6. Packaging (fat jar + wrapper) and docs.
 
@@ -132,9 +146,13 @@ The REST client just needs a bearer token; the CLI manages obtaining/refreshing 
 
 ## Decided
 
-- **Command discovery: runtime-primary** — fetch descriptors from `GET /api/commands/descriptors` at
-  startup and register subcommands dynamically; generic `run` is the offline fallback. (Build-time
-  static generation deferred.)
+- **Command discovery: runtime-primary** — fetch descriptors from
+  `GET /api/gateway/commands/descriptors` (implemented as the `requel commands` listing); generic
+  `run` is the offline fallback. Build-time static generation and dynamic per-command subcommand
+  registration both deferred.
+- **Shared catalog is authoritative (Milestone 4 decision "B").** `GatewayCommandCatalogImpl` is the
+  single source of truth, built from the same `ALLOWED` set as the gateway policy. Migrating MCP's
+  typed-tool generation onto it is a separate follow-up ticket (it alters a shipped tool surface).
 - **`gateway-rest-client` is its own module** (not inlined in `requel-cli`), for reuse.
 
 ## Open sub-decisions (resolve during implementation)

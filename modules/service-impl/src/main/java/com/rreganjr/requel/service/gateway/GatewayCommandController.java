@@ -20,14 +20,19 @@
  */
 package com.rreganjr.requel.service.gateway;
 
+import com.rreganjr.requel.gateway.CommandDescriptor;
 import com.rreganjr.requel.gateway.CommandGateway;
+import com.rreganjr.requel.gateway.GatewayCommandCatalog;
 import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
 import com.rreganjr.requel.gateway.GatewayResult;
+import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -54,9 +59,27 @@ import org.springframework.web.bind.annotation.RestController;
 public class GatewayCommandController {
 
     private final CommandGateway commandGateway;
+    private final GatewayCommandCatalog catalog;
+    private final boolean writeEnabled;
 
-    public GatewayCommandController(CommandGateway commandGateway) {
+    public GatewayCommandController(CommandGateway commandGateway, GatewayCommandCatalog catalog,
+            @Value("${requel.gateway.write.enabled:false}") boolean writeEnabled) {
         this.commandGateway = commandGateway;
+        this.catalog = catalog;
+        this.writeEnabled = writeEnabled;
+    }
+
+    /**
+     * The write-command catalog for client discovery (e.g. {@code requel commands}). Empty when
+     * writes are disabled ({@code requel.gateway.write.enabled=false}), mirroring how the MCP server
+     * hides write tools, so a client reflects exactly what is invocable here.
+     */
+    @GetMapping("/descriptors")
+    public List<DescriptorView> descriptors() {
+        if (!writeEnabled) {
+            return List.of();
+        }
+        return catalog.descriptors().stream().map(DescriptorView::from).toList();
     }
 
     @PostMapping(value = "/{commandType}", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -84,5 +107,16 @@ public class GatewayCommandController {
 
     /** Error envelope carrying the gateway failure category so clients get a stable {@code kind}. */
     public record GatewayErrorBody(String kind, String message) {
+    }
+
+    /** JSON view of a {@link CommandDescriptor} — the input type as a simple name, not a Class. */
+    public record DescriptorView(String commandType, String inputType, String title,
+            String description, boolean write, String authorizationHint) {
+
+        static DescriptorView from(CommandDescriptor d) {
+            return new DescriptorView(d.commandType(),
+                    d.inputType() == null ? null : d.inputType().getSimpleName(),
+                    d.title(), d.description(), d.write(), d.authorizationHint());
+        }
     }
 }
