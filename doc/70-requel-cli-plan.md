@@ -108,11 +108,21 @@ The REST client just needs a bearer token; the CLI manages obtaining/refreshing 
   `4` not-allowed/unauthorized (gateway `NOT_ALLOWED`/`UNAUTHORIZED`); `5` server/execution error;
   `1` unexpected. Map `GatewayException.Kind` → codes.
 
-## Packaging
+## Packaging (done in Milestone 6)
 
-- **Fat jar** via `spring-boot-maven-plugin` repackage (or `maven-shade-plugin`), main = the picocli
-  entry point. Ship a thin `requel` wrapper (`exec java -jar …`). Native image explicitly out of
-  scope (see issue Decisions).
+- **Fat jar via `maven-shade-plugin`** (not the Spring Boot repackager — requel-cli is a plain picocli
+  app, not a boot application): `mvn -pl modules/requel-cli -am package` produces a single executable
+  `modules/requel-cli/target/requel-cli-<version>.jar` with `Main-Class:
+  com.rreganjr.requel.cli.RequelCli`. `ServicesResourceTransformer` merges `META-INF/services` (Jackson
+  module auto-registration / any ServiceLoader wiring); signature files are filtered out so the merged
+  jar stays valid. Plugin version is managed by `spring-boot-starter-parent`.
+- **Thin `requel` wrapper** at `modules/requel-cli/src/main/scripts/requel`: `exec java -jar` over the
+  jar, resolving it from `$REQUEL_CLI_JAR`, next to the script, or `../target` (local build). Requires
+  Java 17+.
+- Native image explicitly out of scope (see issue Decisions).
+- **Manual smoke:** after `package`, `java -jar modules/requel-cli/target/requel-cli-<version>.jar
+  --help` (or `modules/requel-cli/src/main/scripts/requel --help`) lists `run`, `commands`, `login`,
+  `logout`.
 
 ## Server-side additions needed (small, in `service-impl`)
 
@@ -146,7 +156,7 @@ The REST client just needs a bearer token; the CLI manages obtaining/refreshing 
    migration onto the catalog deferred to a separate ticket.)
 5. OAuth `requel login --oauth` (code+PKCE, ephemeral loopback callback, auto-refresh via
    `CliTokenSource`) + the seeded `requel-cli` client. **(done)**
-6. Packaging (fat jar + wrapper) and docs.
+6. Packaging (fat jar via maven-shade + thin `requel` wrapper) and docs. **(done)**
 
 ## Testing strategy
 

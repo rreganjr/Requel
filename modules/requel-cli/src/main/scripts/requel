@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#
+# Thin launcher for the Requel CLI: `requel <args>` == `java -jar requel-cli-<version>.jar <args>`.
+#
+# Resolution order for the fat jar:
+#   1. $REQUEL_CLI_JAR, if set (explicit override).
+#   2. the newest requel-cli-*.jar next to this script (an unpacked release layout).
+#   3. the newest requel-cli-*.jar under ../target relative to this script (a local build:
+#      modules/requel-cli/target after `mvn -pl modules/requel-cli -am package`).
+#
+# Requires Java 17+ on the PATH (or set $JAVA_HOME).
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+java_bin="java"
+if [[ -n "${JAVA_HOME:-}" ]]; then
+  java_bin="$JAVA_HOME/bin/java"
+fi
+
+find_jar() {
+  # newest matching jar in the given dir, or nothing
+  ls -t "$1"/requel-cli-*.jar 2>/dev/null | grep -v -- '-sources\|-javadoc' | head -n1 || true
+}
+
+jar="${REQUEL_CLI_JAR:-}"
+if [[ -z "$jar" ]]; then
+  jar="$(find_jar "$script_dir")"
+fi
+if [[ -z "$jar" ]]; then
+  jar="$(find_jar "$script_dir/../target")"
+fi
+
+if [[ -z "$jar" || ! -f "$jar" ]]; then
+  echo "requel: could not find requel-cli-*.jar." >&2
+  echo "  Build it with:  mvn -pl modules/requel-cli -am package" >&2
+  echo "  or set REQUEL_CLI_JAR=/path/to/requel-cli-<version>.jar" >&2
+  exit 1
+fi
+
+exec "$java_bin" -jar "$jar" "$@"
