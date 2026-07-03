@@ -23,10 +23,12 @@ package com.rreganjr.requel.cli;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.rreganjr.requel.gateway.rest.OAuthTokens;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -59,6 +61,38 @@ class CredentialStoreTest {
     void persistsAcrossInstances(@TempDir Path dir) {
         new CredentialStore(dir).save("http://a:8080", "reqpat_A");
         assertThat(new CredentialStore(dir).find("http://a:8080")).isEqualTo("reqpat_A");
+    }
+
+    @Test
+    void savesAndFindsOAuthTokensPerUrl(@TempDir Path dir) {
+        CredentialStore store = new CredentialStore(dir);
+        Instant expiry = Instant.now().plusSeconds(3600);
+        store.saveOAuth("http://a:8080", new OAuthTokens("AT", "RT", "mcp", expiry));
+
+        OAuthTokens found = new CredentialStore(dir).findOAuth("http://a:8080");
+        assertThat(found).isNotNull();
+        assertThat(found.accessToken()).isEqualTo("AT");
+        assertThat(found.refreshToken()).isEqualTo("RT");
+        assertThat(found.scope()).isEqualTo("mcp");
+        assertThat(found.expiresAt().getEpochSecond()).isEqualTo(expiry.getEpochSecond());
+        assertThat(store.findOAuth("http://unknown")).isNull();
+    }
+
+    @Test
+    void oauthAndPatCoexistAndDeleteClearsBoth(@TempDir Path dir) {
+        CredentialStore store = new CredentialStore(dir);
+        store.save("http://a:8080", "reqpat_A");
+        store.saveOAuth("http://a:8080", new OAuthTokens("AT", "RT", "mcp",
+                Instant.now().plusSeconds(3600)));
+
+        // Both are stored independently.
+        assertThat(store.find("http://a:8080")).isEqualTo("reqpat_A");
+        assertThat(store.findOAuth("http://a:8080")).isNotNull();
+
+        store.delete("http://a:8080");
+
+        assertThat(store.find("http://a:8080")).isNull();
+        assertThat(store.findOAuth("http://a:8080")).isNull();
     }
 
     @Test

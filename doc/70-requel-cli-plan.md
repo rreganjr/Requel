@@ -77,13 +77,25 @@ The REST client just needs a bearer token; the CLI manages obtaining/refreshing 
 - **PAT (headless/scripting, simplest):** `requel login --token reqpat_…` (or `REQUEL_TOKEN` env, or
   read from the credential store). Stored and sent as `Authorization: Bearer`. Mint via the UI or
   `POST /api/auth/tokens`.
-- **OAuth login (interactive):** `requel login` runs authorization-code + PKCE against the #83 AS with
-  a **loopback callback** (same pattern Claude Code uses), stores the access + refresh tokens, and
-  refreshes automatically (1h access / 30d rotating refresh). On refresh-expiry, prompt to re-login.
-  - **Server-side addition needed (small):** seed a public, loopback, PKCE `requel-cli` OAuth client
-    (like the seeded dev client in `AuthorizationServerConfig`) so `requel login` works out of the box
-    without the operator having to mint a DCR initial token. Gated DCR stays the default for other
-    clients; this is one known first-party client.
+- **OAuth login (interactive) — done in Milestone 5:** `requel login --oauth` runs authorization-code
+  + PKCE against the #83 AS with a **loopback callback** (same pattern Claude Code uses), stores the
+  access + rotating refresh tokens, and `CliTokenSource` refreshes automatically (1h access / 30d
+  rotating refresh); on refresh failure it returns the stale token so the server rejects it and the
+  user re-runs `requel login`.
+  - **Loopback callback port:** the CLI binds an **ephemeral** `127.0.0.1` port at login time and
+    serves `/callback`. The seeded client registers the port-less redirect `http://127.0.0.1/callback`;
+    Spring Authorization Server relaxes the port when matching loopback redirect URIs (RFC 8252), so
+    any actual port matches. The IP literal (not `localhost`) is required for that relaxation.
+  - **Server-side addition (done):** `AuthorizationServerConfig` seeds a public, loopback, PKCE,
+    consent-required `requel-cli` OAuth client (scope `mcp`, auth-code + refresh) when
+    `requel.oauth.seed-cli-client=true`, so `requel login` works out of the box without the operator
+    minting a DCR initial token. Gated DCR stays the default for third-party clients; this is one known
+    first-party client.
+  - **Manual e2e:** the full browser flow can't run in `mvn test` (needs a browser + running AS), so it
+    is verified via the runbook like #83 Slice 5. Unit tests cover every seam: PKCE (RFC 7636 vector),
+    the loopback callback server (code capture, state-mismatch, AS error), the OAuth client (discover /
+    exchange / refresh against a stubbed server), token precedence + auto-refresh (`CliTokenSource`),
+    and the `login --oauth` orchestration with fakes.
 - **Token storage:** per-OS, `chmod 600` file under `~/.config/requel/credentials` (documented), or
   OS keychain later. Never in checked-in config. Config precedence: flag > env > credential file.
 
@@ -117,9 +129,10 @@ The REST client just needs a bearer token; the CLI manages obtaining/refreshing 
    server still generates its typed tools from its own hard-coded list; migrating MCP tool generation
    onto this catalog (with an `MCP tools ⊆ catalog` lockstep test) changes a shipped tool surface, so
    it's deliberately out of Milestone 4.
-3. Seed a `requel-cli` public/PKCE/loopback OAuth client in `AuthorizationServerConfig` (guarded by a
-   flag, like the dev client), so interactive `requel login` works without a DCR initial token.
-   (Milestone 5.)
+3. **Seeded `requel-cli` OAuth client (done in Milestone 5):** `AuthorizationServerConfig` seeds a
+   public/PKCE/loopback/consent client (scope `mcp`) when `requel.oauth.seed-cli-client=true`, so
+   interactive `requel login` works without a DCR initial token. Registered redirect is the port-less
+   loopback `http://127.0.0.1/callback` (Spring AS relaxes the port per RFC 8252).
 
 ## Milestones (incremental, each independently testable)
 
@@ -131,7 +144,8 @@ The REST client just needs a bearer token; the CLI manages obtaining/refreshing 
 4. Shared `GatewayCommandCatalog` impl + `GET /api/gateway/commands/descriptors` endpoint +
    `RestGatewayCatalog` client + `requel commands` discovery subcommand. (MCP tool-generation
    migration onto the catalog deferred to a separate ticket.)
-5. OAuth `requel login` (code+PKCE, loopback, refresh) + the seeded `requel-cli` client.
+5. OAuth `requel login --oauth` (code+PKCE, ephemeral loopback callback, auto-refresh via
+   `CliTokenSource`) + the seeded `requel-cli` client. **(done)**
 6. Packaging (fat jar + wrapper) and docs.
 
 ## Testing strategy
@@ -153,6 +167,10 @@ The REST client just needs a bearer token; the CLI manages obtaining/refreshing 
 - **Shared catalog is authoritative (Milestone 4 decision "B").** `GatewayCommandCatalogImpl` is the
   single source of truth, built from the same `ALLOWED` set as the gateway policy. Migrating MCP's
   typed-tool generation onto it is a separate follow-up ticket (it alters a shipped tool surface).
+- **Interactive OAuth uses an ephemeral loopback port (Milestone 5).** `requel login --oauth` binds a
+  random `127.0.0.1` port and the seeded client registers the port-less `http://127.0.0.1/callback`,
+  relying on Spring AS's RFC 8252 loopback port relaxation — no fixed port to collide, no per-machine
+  config. Gated behind `requel.oauth.seed-cli-client` server-side; opt-in.
 - **`gateway-rest-client` is its own module** (not inlined in `requel-cli`), for reuse.
 
 ## Open sub-decisions (resolve during implementation)

@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.cli;
 
+import com.rreganjr.requel.gateway.rest.OAuthTokens;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -27,6 +28,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Instant;
 import java.util.Properties;
 
 /**
@@ -72,12 +74,41 @@ public class CredentialStore {
         write(props);
     }
 
-    /** Remove any stored token for {@code baseUrl}. */
+    /** Remove any stored credentials for {@code baseUrl} — both a PAT and OAuth tokens. */
     public synchronized void delete(String baseUrl) {
         Properties props = load();
-        if (props.remove(key(baseUrl)) != null) {
+        boolean changed = props.remove(key(baseUrl)) != null;
+        for (String suffix : OAUTH_SUFFIXES) {
+            changed |= props.remove(oauthKey(baseUrl, suffix)) != null;
+        }
+        if (changed) {
             write(props);
         }
+    }
+
+    /** Store (or replace) the OAuth tokens for {@code baseUrl}. */
+    public synchronized void saveOAuth(String baseUrl, OAuthTokens tokens) {
+        Properties props = load();
+        props.setProperty(oauthKey(baseUrl, "access"), tokens.accessToken());
+        setOrRemove(props, oauthKey(baseUrl, "refresh"), tokens.refreshToken());
+        setOrRemove(props, oauthKey(baseUrl, "scope"), tokens.scope());
+        setOrRemove(props, oauthKey(baseUrl, "expiresAt"),
+                tokens.expiresAt() == null ? null : Long.toString(tokens.expiresAt().getEpochSecond()));
+        write(props);
+    }
+
+    /** @return the stored OAuth tokens for {@code baseUrl}, or {@code null} if none. */
+    public synchronized OAuthTokens findOAuth(String baseUrl) {
+        Properties props = load();
+        String access = props.getProperty(oauthKey(baseUrl, "access"));
+        if (access == null || access.isBlank()) {
+            return null;
+        }
+        String expiresAt = props.getProperty(oauthKey(baseUrl, "expiresAt"));
+        return new OAuthTokens(access,
+                props.getProperty(oauthKey(baseUrl, "refresh")),
+                props.getProperty(oauthKey(baseUrl, "scope")),
+                expiresAt == null ? null : Instant.ofEpochSecond(Long.parseLong(expiresAt)));
     }
 
     /** The credentials file location (for messages/tests). */
@@ -85,8 +116,23 @@ public class CredentialStore {
         return file;
     }
 
+    private static final String[] OAUTH_SUFFIXES = {"access", "refresh", "scope", "expiresAt"};
+
     private static String key(String baseUrl) {
         return baseUrl == null ? "" : baseUrl.trim();
+    }
+
+    /** OAuth keys are namespaced ({@code oauth.<url>.<field>}) so they never collide with a PAT key. */
+    private static String oauthKey(String baseUrl, String suffix) {
+        return "oauth." + key(baseUrl) + "." + suffix;
+    }
+
+    private static void setOrRemove(Properties props, String key, String value) {
+        if (value == null || value.isBlank()) {
+            props.remove(key);
+        } else {
+            props.setProperty(key, value);
+        }
     }
 
     private Properties load() {

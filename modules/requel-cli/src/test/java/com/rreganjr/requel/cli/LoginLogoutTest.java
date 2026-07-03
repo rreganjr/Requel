@@ -40,7 +40,7 @@ class LoginLogoutTest {
         RequelCli parent = cli(dir);
         LoginCommand login = new LoginCommand();
         login.parent = parent;
-        login.token = "reqpat_ABC";
+        login.mode.token = "reqpat_ABC";
 
         assertThat(login.call()).isEqualTo(ExitCode.SUCCESS);
         assertThat(parent.credentialStore.find("http://localhost:8080")).isEqualTo("reqpat_ABC");

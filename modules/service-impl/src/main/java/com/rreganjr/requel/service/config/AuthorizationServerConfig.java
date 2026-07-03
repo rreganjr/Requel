@@ -129,6 +129,11 @@ public class AuthorizationServerConfig {
         return environment.getProperty("requel.oauth.seed-dev-client", Boolean.class, false);
     }
 
+    /** Seed the first-party {@code requel-cli} OAuth client for {@code requel login} (#70, M5). */
+    private boolean seedCliClient() {
+        return environment.getProperty("requel.oauth.seed-cli-client", Boolean.class, false);
+    }
+
     /** Seed the DCR registrar client. The registration endpoint is unusable until a registrar exists. */
     private boolean dcrEnabled() {
         return environment.getProperty("requel.oauth.dcr.enabled", Boolean.class, false);
@@ -147,9 +152,9 @@ public class AuthorizationServerConfig {
     @jakarta.annotation.PostConstruct
     void logResolvedOAuthConfig() {
         String secret = registrarClientSecret();
-        log.info("OAuth AS config resolved: seed-dev-client={}, dcr.enabled={}, "
+        log.info("OAuth AS config resolved: seed-dev-client={}, seed-cli-client={}, dcr.enabled={}, "
                 + "dcr.registrar-client-id={}, registrar-secret-set={}, issuer='{}'",
-                seedDevClient(), dcrEnabled(), registrarClientId(),
+                seedDevClient(), seedCliClient(), dcrEnabled(), registrarClientId(),
                 (secret != null && !secret.isBlank()), issuer());
     }
 
@@ -336,6 +341,65 @@ public class AuthorizationServerConfig {
             registeredClientRepository.save(devClient);
             log.info("Seeded OAuth dev client '{}' (loopback PKCE, scope=mcp, consent required).",
                     clientId);
+        };
+    }
+
+    // ---- First-party requel-cli OAuth client (#70, Milestone 5) ---------------------------------
+
+    /** The client id the {@code requel} CLI uses for its interactive {@code requel login} flow. */
+    public static final String CLI_CLIENT_ID = "requel-cli";
+
+    /**
+     * The loopback redirect URI registered for {@link #CLI_CLIENT_ID}. Port-less on purpose: the CLI
+     * binds an ephemeral loopback port at login time, and Spring Authorization Server relaxes the port
+     * when matching loopback ({@code 127.0.0.1}) redirect URIs per RFC 8252, so any actual port on
+     * {@code http://127.0.0.1/callback} matches. The IP literal (not {@code localhost}) is required for
+     * that relaxation.
+     */
+    public static final String CLI_REDIRECT_URI = "http://127.0.0.1/callback";
+
+    /**
+     * The {@code requel-cli} registered client: a public (PKCE-only) loopback native app, consent
+     * required, scope {@code mcp}, authorization-code + refresh, sharing the standard 1h/30d rotating
+     * token settings. Factored out (and package-visible) so it can be asserted in a unit test without
+     * booting the AS.
+     */
+    static RegisteredClient requelCliRegisteredClient() {
+        return RegisteredClient.withId(UUID.randomUUID().toString())
+                .clientId(CLI_CLIENT_ID)
+                .clientName("Requel CLI")
+                // Public client (no secret): PKCE-only, like other native/desktop agent clients.
+                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                .redirectUri(CLI_REDIRECT_URI)
+                .scope("mcp")
+                .clientSettings(ClientSettings.builder()
+                        .requireAuthorizationConsent(true)
+                        .requireProofKey(true)
+                        .build())
+                .tokenSettings(defaultTokenSettings())
+                .build();
+    }
+
+    /**
+     * Registers the first-party {@link #CLI_CLIENT_ID} client on startup when
+     * {@code requel.oauth.seed-cli-client=true}, so {@code requel login} works out of the box without
+     * the operator minting a DCR initial access token. Gated DCR stays the default for third-party
+     * clients; this is one known first-party client. Idempotent.
+     */
+    @Bean
+    public ApplicationRunner seedOAuthCliClient(RegisteredClientRepository registeredClientRepository) {
+        return args -> {
+            if (!seedCliClient()) {
+                return;
+            }
+            if (registeredClientRepository.findByClientId(CLI_CLIENT_ID) != null) {
+                return;
+            }
+            registeredClientRepository.save(requelCliRegisteredClient());
+            log.info("Seeded OAuth client '{}' (loopback PKCE, scope=mcp, consent required) for "
+                    + "`requel login`.", CLI_CLIENT_ID);
         };
     }
 

@@ -60,18 +60,13 @@ public class RequelCli implements Runnable {
     CredentialStore credentialStore = new CredentialStore();
 
     /**
-     * The per-request bearer supplier passed to the REST gateway. Token precedence:
-     * {@code --token} flag &gt; {@code REQUEL_TOKEN} env (both already merged into {@link #token} by
-     * picocli) &gt; a token stored for this {@link #url} via {@code requel login}. Blank/absent → no
-     * Authorization header.
+     * The per-request bearer supplier passed to the REST gateway. Precedence: {@code --token} flag /
+     * {@code REQUEL_TOKEN} env (both already merged into {@link #token} by picocli) &gt; OAuth tokens
+     * from {@code requel login} (auto-refreshed) &gt; a PAT stored for this {@link #url}. Blank/absent
+     * → no Authorization header. See {@link CliTokenSource}.
      */
     BearerTokenSource tokenSource() {
-        return () -> {
-            if (token != null && !token.isBlank()) {
-                return token;
-            }
-            return credentialStore.find(url);
-        };
+        return new CliTokenSource(token, url, credentialStore);
     }
 
     void printResult(GatewayResult result) {
