@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.rreganjr.requel</groupId>
+        <artifactId>Requel-parent</artifactId>
+        <version>2.0.0-dev</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>requel-cli</artifactId>
+    <name>Requel CLI</name>
+    <description>Command-line front-end over the Requel gateway (issue #70, Phase A). A picocli app
+        that dispatches commands through the REST-backed gateway client with a PAT or OAuth token.
+        Not a Spring Boot server.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>gateway-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>gateway-rest-client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <version>4.7.6</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!--
+              Package requel-cli as a single self-contained executable jar (fat/uber jar):
+              `java -jar target/requel-cli-<version>.jar <args>`. requel-cli is NOT a Spring Boot
+              application, so we use maven-shade (a plain executable jar with a Main-Class), not the
+              Spring Boot repackager. ServicesResourceTransformer merges META-INF/services so Jackson
+              module auto-registration and any ServiceLoader wiring survive the merge. Version is
+              managed by spring-boot-starter-parent's pluginManagement.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration combine.self="override">
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <!-- combine.self="override" replaces spring-boot-starter-parent's managed
+                                 shade configuration wholesale; its transformer entries carry <resource>
+                                 elements that otherwise merge element-wise onto ours and fail to parse. -->
+                            <transformers>
+                                <transformer
+                                    implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.rreganjr.requel.cli.RequelCli</mainClass>
+                                </transformer>
+                                <transformer
+                                    implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <!-- Drop signature files from signed dependencies; they break a merged jar. -->
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                                <!-- A transitive dep drags in the legacy commons-logging, which owns the
+                                     same org.apache.commons.logging.* package as Spring's spring-jcl. Both
+                                     in one jar makes commons-logging print "Standard Commons Logging
+                                     discovery in action with spring-jcl…" to stdout, corrupting piped
+                                     output (e.g. JSON output through jq). Drop the legacy artifact;
+                                     spring-jcl supplies those classes. -->
+                                <filter>
+                                    <artifact>commons-logging:commons-logging</artifact>
+                                    <excludes>
+                                        <exclude>**</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
