@@ -5,8 +5,10 @@
 # Resolution order for the fat jar:
 #   1. $REQUEL_CLI_JAR, if set (explicit override).
 #   2. the newest requel-cli-*.jar next to this script (an unpacked release layout).
-#   3. the newest requel-cli-*.jar under ../target relative to this script (a local build:
-#      modules/requel-cli/target after `mvn -pl modules/requel-cli -am package`).
+#   3. the newest requel-cli-*.jar in the module's target dir (a local build:
+#      modules/requel-cli/target after `mvn -pl modules/requel-cli -am package`). From this script
+#      at src/main/scripts/, that is three levels up.
+# The shade plugin also leaves an `original-requel-cli-*.jar` (the pre-shade jar); it is excluded.
 #
 # Requires Java 17+ on the PATH (or set $JAVA_HOME).
 set -euo pipefail
@@ -19,8 +21,9 @@ if [[ -n "${JAVA_HOME:-}" ]]; then
 fi
 
 find_jar() {
-  # newest matching jar in the given dir, or nothing
-  ls -t "$1"/requel-cli-*.jar 2>/dev/null | grep -v -- '-sources\|-javadoc' | head -n1 || true
+  # newest matching jar in the given dir (excluding original-/sources/javadoc), or nothing
+  ls -t "$1"/requel-cli-*.jar 2>/dev/null \
+    | grep -v -- '-sources\|-javadoc\|/original-' | head -n1 || true
 }
 
 jar="${REQUEL_CLI_JAR:-}"
@@ -28,7 +31,7 @@ if [[ -z "$jar" ]]; then
   jar="$(find_jar "$script_dir")"
 fi
 if [[ -z "$jar" ]]; then
-  jar="$(find_jar "$script_dir/../target")"
+  jar="$(find_jar "$script_dir/../../../target")"
 fi
 
 if [[ -z "$jar" || ! -f "$jar" ]]; then

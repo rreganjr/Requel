@@ -88,6 +88,18 @@
                                         <exclude>META-INF/*.RSA</exclude>
                                     </excludes>
                                 </filter>
+                                <!-- A transitive dep drags in the legacy commons-logging, which owns the
+                                     same org.apache.commons.logging.* package as Spring's spring-jcl. Both
+                                     in one jar makes commons-logging print "Standard Commons Logging
+                                     discovery in action with spring-jcl…" to stdout, corrupting piped
+                                     output (e.g. JSON output through jq). Drop the legacy artifact;
+                                     spring-jcl supplies those classes. -->
+                                <filter>
+                                    <artifact>commons-logging:commons-logging</artifact>
+                                    <excludes>
+                                        <exclude>**</exclude>
+                                    </excludes>
+                                </filter>
                             </filters>
                         </configuration>
                     </execution>

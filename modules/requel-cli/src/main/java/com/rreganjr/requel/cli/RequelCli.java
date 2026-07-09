@@ -112,6 +112,8 @@ public class RequelCli implements Runnable {
         int code = new CommandLine(new RequelCli())
                 // Don't treat a leading '@' (e.g. --input-file @path) as a picocli argument file.
                 .setExpandAtFiles(false)
+                // Accept --output json/text as well as JSON/TEXT.
+                .setCaseInsensitiveEnumValuesAllowed(true)
                 .execute(args);
         System.exit(code);
     }
