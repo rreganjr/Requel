@@ -76,14 +76,20 @@ requel --url http://localhost:8080 commands
 requel --url http://localhost:8080 --output json commands | jq '.[0]'
 #   expect: {commandType, inputType, title, write:true, …}
 
-# Perform a real write as the logged-in user (use a project the user can edit)
-requel --url http://localhost:8080 run EditGoal --input '{"projectName":"Demo","name":"CLI smoke goal"}'
+# Read subcommands over the QueryGateway (#100) — find a project to write to
+requel --url http://localhost:8080 projects
+#   expect: one line per project you can see, with counts. Use a name from here below.
+requel --url http://localhost:8080 project "<name>" --tree     # content tree
+requel --url http://localhost:8080 search "<name>" goal        # find entities by name
+
+# Perform a real write as the logged-in user (use a project name from `requel projects`)
+requel --url http://localhost:8080 run EditGoal --input '{"projectName":"<name>","name":"CLI smoke goal"}'
 #   expect: OK EditGoal: … (id=…). The goal is created/edited as your user, through the gateway
 #   (allow/deny policy + per-stakeholder authorization enforced server-side).
 ```
 
-**Pass:** `commands` lists the catalog using the stored token; the write succeeds and is attributed to
-the logged-in user.
+**Pass:** `commands` lists the catalog and `projects` lists your projects using the stored token; the
+write succeeds and is attributed to the logged-in user.
 
 ## C. Writes-disabled and denylist behavior (optional, restart-gated)
 
