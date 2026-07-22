@@ -37,7 +37,10 @@ import picocli.CommandLine.Option;
  */
 @Command(name = "requel", mixinStandardHelpOptions = true, version = "requel-cli 2.0.0-dev",
         description = "Command-line access to a Requel server via the gateway.",
-        subcommands = {RunCommand.class, CommandsCommand.class, LoginCommand.class, LogoutCommand.class})
+        subcommands = {RunCommand.class, CommandsCommand.class,
+                ProjectsCommand.class, ProjectCommand.class, GlossaryCommand.class,
+                OpenIssuesCommand.class, SearchCommand.class, EntityCommand.class, ContextCommand.class,
+                LoginCommand.class, LogoutCommand.class})
 public class RequelCli implements Runnable {
 
     @Option(names = "--url", paramLabel = "URL",
