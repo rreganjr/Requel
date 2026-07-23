@@ -51,6 +51,7 @@ class McpWriteCatalogLockstepTest {
 		List<String> typedToolNames = writes.toolDescriptors().stream()
 				.map(McpToolDescriptor::name)
 				.filter(name -> !name.equals(McpWriteService.RUN_COMMAND))
+				.filter(name -> !McpWriteService.COMPOSITE_TOOLS.contains(name))
 				.toList();
 
 		// Subset (⊆) AND coverage: the typed write surface is exactly the catalog.

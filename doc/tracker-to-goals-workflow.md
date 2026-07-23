@@ -47,6 +47,23 @@ Inputs (only the first four are required; the rest are derived or optional):
 Result: the goal id, its final name (possibly disambiguated), the provenance note id, a
 `created` flag (created vs updated), and the `criterionHash`.
 
+### How to invoke it
+
+Two front-ends expose the same `RequirementGoalUpserter` core:
+
+- **MCP write tool** `upsertGoalFromRequirement` — advertised in `tools/list` only when gateway
+  writes are enabled (`requel.gateway.write.enabled=true`). The tool arguments are the fields in
+  the table above except `client`, which is taken from the MCP client context (the
+  `X-Requel-Client` identity), not the arguments. This is the path AI clients (Claude Desktop /
+  Code, the remote connector) use.
+- **CLI** `requel upsert-goal` — for scripting/bulk import, e.g.
+  `requel upsert-goal --project "Acme Auth" --criterion "The system shall allow login." --source-system jira --source-ref PROJ-123#ac1 --source-url https://acme.atlassian.net/browse/PROJ-123 --criterion-ref AC-1`.
+  Prints created-vs-updated with the goal and provenance-note ids (or the full result with
+  `--output json`). The CLI reports its client id as `requel-cli`.
+
+Both go through the same gateway command/authorization/audit path; there is no separate write
+path.
+
 The goal `name` is derived deterministically from `criterionText`: the leading clause (up to the
 first line break, then the first sentence terminator), whitespace-collapsed, trailing punctuation
 stripped, capped at 120 characters. The `criterionHash` is SHA-256 over a canonical normalization
