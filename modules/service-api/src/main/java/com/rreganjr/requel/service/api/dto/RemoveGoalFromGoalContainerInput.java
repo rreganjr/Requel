@@ -20,10 +20,13 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public record RemoveGoalFromGoalContainerInput(
-        String projectName,
-        Long goalContainerId,
-        Long goalId,
-        String containerType
+        @NotBlank String projectName,
+        @NotNull Long goalContainerId,
+        @NotNull Long goalId,
+        @NotBlank String containerType
 ) {
 }

@@ -20,9 +20,12 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public record CopyGoalInput(
-        String projectName,
-        Long goalId,
+        @NotBlank String projectName,
+        @NotNull Long goalId,
         String newGoalName
 ) {
 }

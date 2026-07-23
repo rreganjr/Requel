@@ -20,10 +20,12 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 import java.util.List;
 
 public record EditScenarioInput(
-    String projectName,
+    @NotBlank String projectName,
     Long scenarioId,
     String name,
     String text,

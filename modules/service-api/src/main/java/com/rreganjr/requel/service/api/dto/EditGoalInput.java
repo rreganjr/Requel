@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 /**
  * Input DTO for creating or editing a goal.
  *
@@ -30,9 +32,9 @@ package com.rreganjr.requel.service.api.dto;
  * @param version      optimistic lock version (null for create)
  */
 public record EditGoalInput(
-        String projectName,
+        @NotBlank String projectName,
         Long goalId,
-        String name,
+        @NotBlank String name,
         String text,
         Integer version
 ) {

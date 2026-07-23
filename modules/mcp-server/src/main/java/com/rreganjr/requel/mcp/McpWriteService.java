@@ -20,6 +20,9 @@
  */
 package com.rreganjr.requel.mcp;
 
+import java.lang.reflect.RecordComponent;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,16 +31,22 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rreganjr.requel.gateway.CommandDescriptor;
 import com.rreganjr.requel.gateway.CommandGateway;
+import com.rreganjr.requel.gateway.GatewayCommandCatalog;
 import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
 import com.rreganjr.requel.gateway.GatewayResult;
 
 /**
  * MCP write tools, backed by the {@link CommandGateway}. Exposes a generic
- * {@code runCommand} (any allowlisted command type + JSON input) plus a curated set of
- * ergonomic typed tools whose argument names already match the command input DTOs, so they are
- * thin wrappers that fix the command type and forward the arguments.
+ * {@code runCommand} (any allowlisted command type + JSON input) plus one typed tool per command
+ * in the shared {@link GatewayCommandCatalog}. The catalog is the single source of truth for the
+ * gateway's exposed write surface — the same set the allow/deny {@code CommandPolicy} enforces and
+ * the CLI discovers via {@code /api/gateway/commands/descriptors} — so MCP, the CLI, and the policy
+ * stay in lockstep (issue #104). Each typed tool is named after its command type (e.g.
+ * {@code EditGoal}) and its JSON schema is derived from the command's registered input DTO, so the
+ * tools can never drift from what the gateway actually permits.
  * <p>
  * Writes are <strong>opt-in</strong> via {@code requel.gateway.write.enabled} (default
  * {@code false}). When disabled, the write tools are omitted from {@code tools/list} and any direct
@@ -51,22 +60,16 @@ public class McpWriteService {
 	/** Generic escape hatch: run any allowlisted command by type + input. */
 	static final String RUN_COMMAND = "runCommand";
 
-	/** Typed convenience tools -> the gateway command type each forwards to. */
-	private static final Map<String, String> TYPED_TOOLS = Map.of(
-			"createProject", "EditProject",
-			"createGoal", "EditGoal",
-			"editGoal", "EditGoal",
-			"addGoalToContainer", "AddGoalToGoalContainer",
-			"createNote", "EditNote",
-			"createIssue", "EditIssue");
-
 	private final CommandGateway commandGateway;
+	private final GatewayCommandCatalog catalog;
 	private final ObjectMapper objectMapper;
 	private final boolean writeEnabled;
 
-	public McpWriteService(CommandGateway commandGateway, ObjectMapper objectMapper,
+	public McpWriteService(CommandGateway commandGateway, GatewayCommandCatalog catalog,
+			ObjectMapper objectMapper,
 			@Value("${requel.gateway.write.enabled:false}") boolean writeEnabled) {
 		this.commandGateway = commandGateway;
+		this.catalog = catalog;
 		this.objectMapper = objectMapper;
 		this.writeEnabled = writeEnabled;
 	}
@@ -77,7 +80,7 @@ public class McpWriteService {
 
 	/** @return true if {@code toolName} is a write tool (regardless of the opt-in flag). */
 	public boolean handles(String toolName) {
-		return RUN_COMMAND.equals(toolName) || TYPED_TOOLS.containsKey(toolName);
+		return RUN_COMMAND.equals(toolName) || catalog.find(toolName).isPresent();
 	}
 
 	/** Write tool descriptors for {@code tools/list}; empty when the write flag is disabled. */
@@ -85,45 +88,19 @@ public class McpWriteService {
 		if (!writeEnabled) {
 			return List.of();
 		}
-		return List.of(
-				new McpToolDescriptor(RUN_COMMAND,
-						"Execute any gateway-allowlisted Requel command by type with a JSON input"
-								+ " object. Subject to the gateway allow/deny policy and the caller's"
-								+ " stakeholder permissions.",
-						runCommandSchema()),
-				new McpToolDescriptor("createProject",
-						"Create a project. Arguments: name, organizationName, optional description.",
-						objectSchema(Map.of("name", stringType(), "organizationName", stringType(),
-								"description", stringType()), List.of("name", "organizationName"))),
-				new McpToolDescriptor("createGoal",
-						"Create a goal in a project. Arguments: projectName, name, optional text.",
-						objectSchema(Map.of("projectName", stringType(), "name", stringType(),
-								"text", stringType()), List.of("projectName", "name"))),
-				new McpToolDescriptor("editGoal",
-						"Edit an existing goal. Arguments: projectName, goalId, optional name/text.",
-						objectSchema(Map.of("projectName", stringType(), "goalId", integerType(),
-								"name", stringType(), "text", stringType()),
-								List.of("projectName", "goalId"))),
-				new McpToolDescriptor("addGoalToContainer",
-						"Associate a goal with a container (Project, Story, UseCase, Actor, or"
-								+ " Stakeholder). Arguments: projectName, goalId, goalContainerId,"
-								+ " containerType.",
-						objectSchema(Map.of("projectName", stringType(), "goalId", integerType(),
-								"goalContainerId", integerType(), "containerType", stringType()),
-								List.of("projectName", "goalId", "goalContainerId", "containerType"))),
-				new McpToolDescriptor("createNote",
-						"Attach a note to an entity. Arguments: projectName, entityType, entityId,"
-								+ " text.",
-						objectSchema(Map.of("projectName", stringType(), "entityType", stringType(),
-								"entityId", integerType(), "text", stringType()),
-								List.of("projectName", "entityType", "entityId", "text"))),
-				new McpToolDescriptor("createIssue",
-						"Raise an issue on an entity. Arguments: projectName, entityType, entityId,"
-								+ " text, optional mustBeResolved.",
-						objectSchema(Map.of("projectName", stringType(), "entityType", stringType(),
-								"entityId", integerType(), "text", stringType(),
-								"mustBeResolved", booleanType()),
-								List.of("projectName", "entityType", "entityId", "text"))));
+		List<McpToolDescriptor> tools = new ArrayList<>();
+		tools.add(new McpToolDescriptor(RUN_COMMAND,
+				"Execute any gateway-allowlisted Requel command by type with a JSON input"
+						+ " object. Subject to the gateway allow/deny policy and the caller's"
+						+ " stakeholder permissions.",
+				runCommandSchema()));
+		// One typed tool per catalog command, generated from the shared catalog so the MCP write
+		// surface is exactly the gateway's exposed write surface (issue #104).
+		for (CommandDescriptor descriptor : catalog.descriptors()) {
+			tools.add(new McpToolDescriptor(descriptor.commandType(), describe(descriptor),
+					schemaFor(descriptor.inputType())));
+		}
+		return tools;
 	}
 
 	/**
@@ -140,12 +117,12 @@ public class McpWriteService {
 			JsonNode input = arguments == null ? null : arguments.get("input");
 			return execute(commandType, input == null || input.isNull() ? Map.of() : toMap(input));
 		}
-		String commandType = TYPED_TOOLS.get(toolName);
-		if (commandType == null) {
+		// Typed tool: the tool name IS the catalog command type, and its argument names already
+		// match the command input DTO field names, so forward the arguments as-is.
+		if (catalog.find(toolName).isEmpty()) {
 			throw new McpInvalidParamsException("Unknown MCP write tool: " + toolName);
 		}
-		// Typed-tool arguments already match the command input DTO field names; forward as-is.
-		return execute(commandType, arguments == null ? Map.of() : toMap(arguments));
+		return execute(toolName, arguments == null ? Map.of() : toMap(arguments));
 	}
 
 	private Object execute(String commandType, Object input) {
@@ -165,13 +142,102 @@ public class McpWriteService {
 		}
 	}
 
-	// ---- schema + json helpers -----------------------------------------------------------------
+	// ---- schema + description helpers ----------------------------------------------------------
+
+	/** Human-readable tool description: the catalog title/description plus the input field names. */
+	private static String describe(CommandDescriptor descriptor) {
+		String base = descriptor.description() != null && !descriptor.description().isBlank()
+				? descriptor.description()
+				: descriptor.title();
+		List<String> fields = fieldNames(descriptor.inputType());
+		String fieldHint = fields.isEmpty() ? "" : " Input fields: " + String.join(", ", fields) + ".";
+		return base + "." + fieldHint;
+	}
 
 	private Map<String, Object> runCommandSchema() {
 		return objectSchema(Map.of(
 				"commandType", stringType(),
 				"input", Map.of("type", "object")),
 				List.of("commandType"));
+	}
+
+	/**
+	 * Derive a JSON schema for a command's input DTO. Input DTOs are Java records, so each record
+	 * component becomes a typed property. A component is marked <em>required</em> when it carries a
+	 * {@code jakarta.validation} {@code @NotNull}/{@code @NotBlank} annotation — those annotations
+	 * encode the fields the command's applicator dereferences unconditionally (issue #104). Unknown
+	 * fields are rejected so typos surface early. A {@code null}/{@link Void} input type yields an
+	 * empty object schema.
+	 */
+	private static Map<String, Object> schemaFor(Class<?> inputType) {
+		if (inputType == null || inputType == Void.class || !inputType.isRecord()) {
+			return objectSchema(Map.of(), List.of());
+		}
+		Map<String, Object> properties = new LinkedHashMap<>();
+		List<String> required = new ArrayList<>();
+		for (RecordComponent component : inputType.getRecordComponents()) {
+			properties.put(component.getName(), jsonType(component.getType()));
+			if (isRequired(component)) {
+				required.add(component.getName());
+			}
+		}
+		return objectSchema(properties, required);
+	}
+
+	/**
+	 * A record component is required when it (or its generated accessor) carries a
+	 * {@code jakarta.validation} {@code @NotNull} or {@code @NotBlank} annotation. Matched by fully
+	 * qualified name so this module needs no compile-time dependency on the validation API.
+	 */
+	private static boolean isRequired(RecordComponent component) {
+		return hasRequiredAnnotation(component.getAnnotations())
+				|| hasRequiredAnnotation(component.getAccessor().getAnnotations());
+	}
+
+	private static boolean hasRequiredAnnotation(java.lang.annotation.Annotation[] annotations) {
+		for (java.lang.annotation.Annotation a : annotations) {
+			String name = a.annotationType().getName();
+			if (name.equals("jakarta.validation.constraints.NotNull")
+					|| name.equals("jakarta.validation.constraints.NotBlank")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static List<String> fieldNames(Class<?> inputType) {
+		if (inputType == null || inputType == Void.class || !inputType.isRecord()) {
+			return List.of();
+		}
+		List<String> names = new ArrayList<>();
+		for (RecordComponent component : inputType.getRecordComponents()) {
+			names.add(component.getName());
+		}
+		return names;
+	}
+
+	/** Map a Java type to a JSON-schema type node. */
+	private static Map<String, Object> jsonType(Class<?> type) {
+		if (type == String.class || type == Character.class || type == char.class) {
+			return stringType();
+		}
+		if (type == Boolean.class || type == boolean.class) {
+			return booleanType();
+		}
+		if (type == Integer.class || type == int.class || type == Long.class || type == long.class
+				|| type == Short.class || type == short.class || type == Byte.class
+				|| type == byte.class) {
+			return integerType();
+		}
+		if (type == Double.class || type == double.class || type == Float.class
+				|| type == float.class) {
+			return Map.of("type", "number");
+		}
+		if (Iterable.class.isAssignableFrom(type) || type.isArray()) {
+			return Map.of("type", "array");
+		}
+		// Enums serialize as their name; everything else is a nested object.
+		return type.isEnum() ? stringType() : Map.of("type", "object");
 	}
 
 	private static Map<String, Object> objectSchema(Map<String, Object> properties,

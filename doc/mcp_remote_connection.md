@@ -161,7 +161,7 @@ In `claude_desktop_config.json` (Settings → Developer → Edit Config):
 }
 ```
 
-Restart Claude Desktop. The Requel tools (`listProjects`, `getProject`, `createGoal`, `runCommand`,
+Restart Claude Desktop. The Requel tools (`listProjects`, `getProject`, `EditGoal`, `runCommand`,
 …) appear in the tools list. Write tools only appear when the server has writes enabled.
 
 `--transport sse-only` is important: `mcp-remote` defaults to Streamable HTTP and probes it first;
@@ -229,7 +229,7 @@ curl -N -H "Authorization: Bearer $REQUEL_TOKEN" http://localhost:8080/api/mcp/s
 ```
 
 In the client, list tools and call `listProjects` to confirm reads, then (if writes are on)
-`createGoal` against a project you have `Goal[Edit]` on.
+`EditGoal` against a project you have `Goal[Edit]` on.
 
 ## Security notes
 

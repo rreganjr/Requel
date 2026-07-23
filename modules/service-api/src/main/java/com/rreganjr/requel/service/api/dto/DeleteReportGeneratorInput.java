@@ -20,8 +20,11 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 /**
  * Input DTO for DeleteReportGenerator command.
  */
-public record DeleteReportGeneratorInput(String projectName, Long reportId) {
+public record DeleteReportGeneratorInput(@NotBlank String projectName, @NotNull Long reportId) {
 }

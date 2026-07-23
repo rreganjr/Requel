@@ -40,5 +40,12 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
         </dependency>
+        <!-- @NotNull/@NotBlank on the input DTO records mark required fields; read reflectively
+             by the MCP schema generator (issue #104). Metadata only — no bean-validation provider
+             is wired here, so these do not change command behavior. -->
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
     </dependencies>
 </project>

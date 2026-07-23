@@ -20,4 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
-public record RemoveActorFromActorContainerInput(String projectName, Long actorContainerId, Long actorId) {}
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public record RemoveActorFromActorContainerInput(@NotBlank String projectName, @NotNull Long actorContainerId, @NotNull Long actorId) {}

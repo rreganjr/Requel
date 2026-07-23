@@ -20,5 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
-public record DeleteArgumentInput(String projectName, Long argumentId) {
+import jakarta.validation.constraints.NotNull;
+
+public record DeleteArgumentInput(String projectName, @NotNull Long argumentId) {
 }

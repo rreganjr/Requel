@@ -20,10 +20,12 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 public record EditUseCaseInput(
-        String projectName,
+        @NotBlank String projectName,
         Long useCaseId,
-        String name,
+        @NotBlank String name,
         String text,
         String primaryActorName,
         Integer version

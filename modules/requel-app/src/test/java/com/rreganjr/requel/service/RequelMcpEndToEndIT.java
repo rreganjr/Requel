@@ -140,8 +140,8 @@ public class RequelMcpEndToEndIT extends AbstractIntegrationTestCase {
 				new UsernamePasswordAuthenticationToken(username, "x", List.of()));
 		long mcpCallsBefore = mcpCallAuditRepository.count();
 		try {
-			// 1. Create a goal.
-			JsonNode goal = callTool("createGoal",
+			// 1. Create a goal (EditGoal creates when no id is supplied).
+			JsonNode goal = callTool("EditGoal",
 					Map.of("projectName", projectName, "name", "E2E Goal", "text", "via mcp"));
 			long goalId = goal.get("id").asLong();
 			assertThat(goalId).isPositive();
@@ -154,12 +154,12 @@ public class RequelMcpEndToEndIT extends AbstractIntegrationTestCase {
 			assertThat(stakeholderId).isPositive();
 
 			// 3. Associate the goal with the stakeholder (a goal container).
-			callTool("addGoalToContainer",
+			callTool("AddGoalToGoalContainer",
 					Map.of("projectName", projectName, "goalId", goalId,
 							"goalContainerId", stakeholderId, "containerType", "NonUserStakeholder"));
 
 			// 4. Attach a note to the goal.
-			callTool("createNote",
+			callTool("EditNote",
 					Map.of("projectName", projectName, "entityType", "Goal", "entityId", goalId,
 							"text", "a note added over MCP"));
 

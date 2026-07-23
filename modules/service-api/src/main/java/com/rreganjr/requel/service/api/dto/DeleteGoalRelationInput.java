@@ -20,9 +20,12 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public record DeleteGoalRelationInput(
-        String projectName,
-        Long goalRelationId,
+        @NotBlank String projectName,
+        @NotNull Long goalRelationId,
         Integer version
 ) {
 }

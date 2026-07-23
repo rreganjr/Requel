@@ -20,4 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
-public record DeleteUseCaseInput(String projectName, Long useCaseId, int version) {}
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public record DeleteUseCaseInput(@NotBlank String projectName, @NotNull Long useCaseId, int version) {}

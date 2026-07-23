@@ -46,7 +46,8 @@ class McpToolNamingTest {
 	void allAdvertisedToolNamesMatchTheMcpPattern() {
 		// Write-enabled so the write tools are advertised and checked too.
 		McpWriteService writes = new McpWriteService(
-				request -> new GatewayResult(request.commandType(), null), objectMapper, true);
+				request -> new GatewayResult(request.commandType(), null),
+				McpTestCatalog.sample(), objectMapper, true);
 		McpReadService service = new McpReadService(new StubProjectQueryGateway(), writes,
 				McpRateLimiter.NOOP, objectMapper);
 
@@ -60,6 +61,6 @@ class McpToolNamingTest {
 						.matches(MCP_TOOL_NAME));
 		// Sanity: both a read and a write tool are present.
 		assertThat(tools).extracting(McpToolDescriptor::name)
-				.contains("listProjects", "createGoal", "runCommand");
+				.contains("listProjects", "EditGoal", "runCommand");
 	}
 }

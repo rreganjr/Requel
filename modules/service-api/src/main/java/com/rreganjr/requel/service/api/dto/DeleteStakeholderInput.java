@@ -20,6 +20,9 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 /**
  * Input DTO for deleting a stakeholder (either type).
  *
@@ -28,8 +31,8 @@ package com.rreganjr.requel.service.api.dto;
  * @param version        optimistic lock version
  */
 public record DeleteStakeholderInput(
-        String projectName,
-        Long stakeholderId,
+        @NotBlank String projectName,
+        @NotNull Long stakeholderId,
         Integer version
 ) {
 }
