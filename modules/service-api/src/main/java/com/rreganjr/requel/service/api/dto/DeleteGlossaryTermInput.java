@@ -20,11 +20,14 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 /**
  * Input DTO for deleting a glossary term.
  */
 public record DeleteGlossaryTermInput(
-        String projectName,
-        Long termId
+        @NotBlank String projectName,
+        @NotNull Long termId
 ) {
 }

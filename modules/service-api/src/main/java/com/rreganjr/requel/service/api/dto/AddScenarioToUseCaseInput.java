@@ -20,8 +20,11 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public record AddScenarioToUseCaseInput(
-        String projectName,
-        Long useCaseId,
-        Long scenarioId
+        @NotBlank String projectName,
+        @NotNull Long useCaseId,
+        @NotNull Long scenarioId
 ) {}

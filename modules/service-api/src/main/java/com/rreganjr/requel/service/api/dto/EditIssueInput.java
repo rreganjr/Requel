@@ -20,15 +20,18 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 /**
  * Input DTO for EditIssue command. issueId null = create new issue on entity.
  */
 public record EditIssueInput(
         String projectName,
-        String entityType,
-        Long entityId,
+        @NotBlank String entityType,
+        @NotNull Long entityId,
         Long issueId,
-        String text,
+        @NotBlank String text,
         Boolean mustBeResolved
 ) {
 }

@@ -20,13 +20,16 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 /**
  * Input DTO for EditPosition command. positionId null = create new position on issue.
  */
 public record EditPositionInput(
         String projectName,
-        Long issueId,
+        @NotNull Long issueId,
         Long positionId,
-        String text
+        @NotBlank String text
 ) {
 }

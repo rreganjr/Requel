@@ -35,4 +35,22 @@ public interface GatewayCommandCatalog {
 
     /** Look up one descriptor by command type. */
     Optional<CommandDescriptor> find(String commandType);
+
+    /**
+     * An empty catalog exposing no commands. Useful for read-only deployments and tests where a
+     * catalog is required but no write surface should be advertised.
+     */
+    static GatewayCommandCatalog empty() {
+        return new GatewayCommandCatalog() {
+            @Override
+            public List<CommandDescriptor> descriptors() {
+                return List.of();
+            }
+
+            @Override
+            public Optional<CommandDescriptor> find(String commandType) {
+                return Optional.empty();
+            }
+        };
+    }
 }

@@ -20,4 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
-public record CopyUseCaseInput(String projectName, Long useCaseId) {}
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public record CopyUseCaseInput(@NotBlank String projectName, @NotNull Long useCaseId) {}

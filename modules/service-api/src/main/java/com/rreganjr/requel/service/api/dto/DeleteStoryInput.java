@@ -20,9 +20,12 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public record DeleteStoryInput(
-        String projectName,
-        Long storyId,
+        @NotBlank String projectName,
+        @NotNull Long storyId,
         Integer version
 ) {
 }

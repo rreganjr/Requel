@@ -20,4 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
-public record CopyScenarioInput(String projectName, Long scenarioId) {}
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public record CopyScenarioInput(@NotBlank String projectName, @NotNull Long scenarioId) {}

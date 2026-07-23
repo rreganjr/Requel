@@ -20,9 +20,11 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 /**
  * Input DTO for EditReportGenerator command.
  * reportId is null when creating a new report generator.
  */
-public record EditReportGeneratorInput(String projectName, Long reportId, String name, String text) {
+public record EditReportGeneratorInput(@NotBlank String projectName, Long reportId, @NotBlank String name, String text) {
 }

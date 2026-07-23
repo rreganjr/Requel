@@ -165,11 +165,14 @@ Two complementary styles, both routed through `CommandGateway`:
 1. **Generic command tool** — `requel.runCommand(commandType, input)`. Dispatches any
    allowlisted command type; near-zero marginal cost to cover the full set; ideal for
    CLI/scripting. Guarded by the policy below.
-2. **Typed convenience tools** — curated schemas for common authoring: `requel.editGoal`,
-   `requel.editStory`, `requel.editActor`, `requel.editUseCase`, `requel.editScenario`,
-   `requel.editGlossaryTerm`, `requel.editNonUserStakeholder`,
-   `requel.addEntityToContainer` (wraps the polymorphic `Add*ToContainer` via
-   `childType`/`containerType`/`containerId`), `requel.editNote`.
+2. **Typed tools** — one per command in the shared `GatewayCommandCatalog` (issue #104). Each is
+   **named after its command type** (`EditGoal`, `EditStory`, `EditActor`, `EditUseCase`,
+   `EditScenario`, `EditGlossaryTerm`, `EditNonUserStakeholder`, `AddGoalToGoalContainer`,
+   `EditNote`, `EditIssue`, `Delete*`, …) and its JSON schema is derived from the command's
+   registered input DTO. Because the catalog is built from the same allowlist the policy enforces,
+   the typed tool set can't drift from what the gateway permits. (There is no separate
+   `create*`/`edit*` split — a single `Edit*` tool creates when no id is supplied and updates
+   otherwise.)
 
 Ship both: generic for coverage/scripting, typed for AI affordances. Typed tools are sugar over
 the same dispatch path, not a second write path.
@@ -204,7 +207,7 @@ Source-agnostic; Jira shown as the example.
    requirements from the body. (No Requel involvement.)
 2. **Resolve the target project** (`requel.getProject` / `requel.listProjects`).
 3. **Load existing goals** (`requel.getProjectContext`) to compare against the requirements.
-4. **For each requirement:** `requel.editGoal` (create/update), then `requel.editNote` on the
+4. **For each requirement:** `EditGoal` (create/update), then `EditNote` on the
    returned goal id with provenance: client, `sourceSystem`/`sourceRef`/`sourceUrl`, criterion
    reference.
 5. **Report** goals created vs. updated, with ids and the source ref, for review.

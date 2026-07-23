@@ -20,14 +20,17 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 /**
  * Input DTO for EditNote command. noteId null = create new note on entity.
  */
 public record EditNoteInput(
         String projectName,
-        String entityType,
-        Long entityId,
+        @NotBlank String entityType,
+        @NotNull Long entityId,
         Long noteId,
-        String text
+        @NotBlank String text
 ) {
 }

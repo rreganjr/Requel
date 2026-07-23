@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rreganjr.requel.gateway.GatewayCommandCatalog;
 
 class McpReadServiceTest {
 
@@ -43,7 +44,8 @@ class McpReadServiceTest {
 			throw new McpRateLimitExceededException("over limit for " + toolName);
 		};
 		McpReadService limited = new McpReadService(new StubProjectQueryGateway(),
-				new McpWriteService(null, objectMapper, false), blocking, objectMapper);
+				new McpWriteService(null, GatewayCommandCatalog.empty(), objectMapper, false),
+				blocking, objectMapper);
 		assertThatThrownBy(() -> limited.callTool(json("""
 				{ "name": "getProject", "arguments": { "projectName": "Sample" } }
 				""")))

@@ -20,15 +20,17 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 /**
  * Input for EditActor command.
  * actorId is null for create, non-null for update.
  * version is null for create, required for update (optimistic lock check).
  */
 public record EditActorInput(
-        String projectName,
+        @NotBlank String projectName,
         Long actorId,
-        String name,
+        @NotBlank String name,
         String description,
         Integer version
 ) {

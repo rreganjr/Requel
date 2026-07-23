@@ -59,19 +59,20 @@ class RequelMcpServerConfigTest {
 		assertThat(names).contains("listProjects", "getProject",
 				"getOpenIssues", "draftAnnotation");
 		assertThat(names).noneMatch(n -> n.equals("runCommand")
-				|| n.equals("createGoal"));
+				|| n.equals("EditGoal"));
 	}
 
 	@Test
 	void includesWriteToolsWhenEnabled() {
 		McpWriteService writes = new McpWriteService(
-				request -> new GatewayResult(request.commandType(), null), objectMapper, true);
+				request -> new GatewayResult(request.commandType(), null),
+				McpTestCatalog.sample(), objectMapper, true);
 		McpReadService withWrites = new McpReadService(new StubProjectQueryGateway(), writes,
 				McpRateLimiter.NOOP, objectMapper);
 		ToolCallbackProvider provider = config.requelToolCallbackProvider(withWrites, auditor,
 				objectMapper);
 
-		assertThat(toolNames(provider)).contains("runCommand", "createGoal");
+		assertThat(toolNames(provider)).contains("runCommand", "EditGoal");
 	}
 
 	@Test

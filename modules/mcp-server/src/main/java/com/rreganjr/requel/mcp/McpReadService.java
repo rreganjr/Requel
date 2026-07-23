@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.gateway.GatewayCommandCatalog;
 import com.rreganjr.requel.gateway.QueryGateway;
 
 @Service
@@ -55,10 +56,12 @@ public class McpReadService {
 
 	/**
 	 * Convenience constructor for read-only deployments and tests: no write tools are exposed
-	 * (a disabled {@link McpWriteService} with no command gateway) and the no-op rate limiter.
+	 * (a disabled {@link McpWriteService} with no command gateway and an empty catalog) and the
+	 * no-op rate limiter.
 	 */
 	public McpReadService(QueryGateway projectQueryGateway, ObjectMapper objectMapper) {
-		this(projectQueryGateway, new McpWriteService(null, objectMapper, false),
+		this(projectQueryGateway,
+				new McpWriteService(null, GatewayCommandCatalog.empty(), objectMapper, false),
 				McpRateLimiter.NOOP, objectMapper);
 	}
 

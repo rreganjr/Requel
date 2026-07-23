@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 /**
  * Input DTO for creating or editing a story.
  *
@@ -32,12 +34,12 @@ package com.rreganjr.requel.service.api.dto;
  * @param version          optimistic lock version (null for create)
  */
 public record EditStoryInput(
-        String projectName,
+        @NotBlank String projectName,
         Long storyId,
-        String name,
+        @NotBlank String name,
         String text,
         String storyTypeName,
-        String primaryActorName,
+        @NotBlank String primaryActorName,
         Integer version
 ) {
 }

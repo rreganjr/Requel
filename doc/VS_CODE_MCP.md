@@ -215,7 +215,7 @@ curl -N -H "Authorization: Bearer $REQUEL_TOKEN" http://localhost:8080/api/mcp/s
 ```
 
 In the client, list tools and call `listProjects` to confirm reads; if writes are enabled, try
-`createGoal` against a project you have `Goal[Edit]` on.
+`EditGoal` against a project you have `Goal[Edit]` on.
 
 ## Security notes
 

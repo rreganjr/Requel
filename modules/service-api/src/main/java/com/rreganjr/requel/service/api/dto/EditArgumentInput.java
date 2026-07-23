@@ -20,14 +20,17 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 /**
  * Input DTO for EditArgument command. argumentId null = create new argument on position.
  */
 public record EditArgumentInput(
         String projectName,
-        Long positionId,
+        @NotNull Long positionId,
         Long argumentId,
-        String text,
-        String supportLevel
+        @NotBlank String text,
+        @NotBlank String supportLevel
 ) {
 }

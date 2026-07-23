@@ -20,4 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
-public record DeleteScenarioInput(String projectName, Long scenarioId, int version) {}
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public record DeleteScenarioInput(@NotBlank String projectName, @NotNull Long scenarioId, int version) {}

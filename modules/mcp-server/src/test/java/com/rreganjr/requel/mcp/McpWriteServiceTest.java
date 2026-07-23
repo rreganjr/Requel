@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.gateway.CommandGateway;
+import com.rreganjr.requel.gateway.GatewayCommandCatalog;
 import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
 import com.rreganjr.requel.gateway.GatewayResult;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.Test;
 class McpWriteServiceTest {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
+	private final GatewayCommandCatalog catalog = McpTestCatalog.sample();
 
 	/** Records the request it receives and returns a canned result (or throws a set exception). */
 	private static final class RecordingGateway implements CommandGateway {
@@ -70,10 +72,11 @@ class McpWriteServiceTest {
 
 	@Test
 	void writeToolsAbsentAndRejectedWhenDisabled() {
-		McpWriteService disabled = new McpWriteService(new RecordingGateway(), objectMapper, false);
+		McpWriteService disabled = new McpWriteService(new RecordingGateway(), catalog,
+				objectMapper, false);
 		assertThat(disabled.toolDescriptors()).isEmpty();
-		assertThat(disabled.handles("createGoal")).isTrue();
-		assertThatThrownBy(() -> disabled.call("createGoal",
+		assertThat(disabled.handles("EditGoal")).isTrue();
+		assertThatThrownBy(() -> disabled.call("EditGoal",
 				json("{\"projectName\":\"P\",\"name\":\"G\"}")))
 				.isInstanceOf(McpInvalidParamsException.class)
 				.hasMessageContaining("disabled");
@@ -86,16 +89,16 @@ class McpWriteServiceTest {
 		@SuppressWarnings("unchecked")
 		List<McpToolDescriptor> descriptors = (List<McpToolDescriptor>) tools.get("tools");
 		assertThat(descriptors).noneMatch(d -> d.name().startsWith("runCommand")
-				|| d.name().equals("createGoal"));
+				|| d.name().equals("EditGoal"));
 	}
 
 	@Test
 	void writeToolsListedWhenEnabled() {
-		McpWriteService enabled = new McpWriteService(new RecordingGateway(), objectMapper, true);
+		McpWriteService enabled = new McpWriteService(new RecordingGateway(), catalog,
+				objectMapper, true);
 		assertThat(enabled.toolDescriptors()).extracting(McpToolDescriptor::name)
-				.contains("runCommand", "createGoal", "editGoal",
-						"addGoalToContainer", "createNote", "createIssue",
-						"createProject");
+				.contains("runCommand", "EditProject", "EditGoal",
+						"AddGoalToGoalContainer", "EditNote", "EditIssue");
 	}
 
 	// ---- delegation ----------------------------------------------------------------------------
@@ -103,7 +106,7 @@ class McpWriteServiceTest {
 	@Test
 	void runCommandForwardsTypeAndInput() {
 		RecordingGateway gw = new RecordingGateway();
-		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
+		McpWriteService svc = new McpWriteService(gw, catalog, objectMapper, true);
 		Object result = svc.call("runCommand",
 				json("{\"commandType\":\"EditGoal\",\"input\":{\"projectName\":\"P\",\"name\":\"G\"}}"));
 		assertThat(gw.last.commandType()).isEqualTo("EditGoal");
@@ -116,10 +119,10 @@ class McpWriteServiceTest {
 	@Test
 	void clientIdFromContextIsCarriedIntoGatewayRequest() {
 		RecordingGateway gw = new RecordingGateway();
-		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
+		McpWriteService svc = new McpWriteService(gw, catalog, objectMapper, true);
 		McpClientContext.setClientId("claude-desktop");
 		try {
-			svc.call("createGoal", json("{\"projectName\":\"P\",\"name\":\"G\"}"));
+			svc.call("EditGoal", json("{\"projectName\":\"P\",\"name\":\"G\"}"));
 		} finally {
 			McpClientContext.clear();
 		}
@@ -129,8 +132,8 @@ class McpWriteServiceTest {
 	@Test
 	void typedToolFixesCommandTypeAndForwardsArgs() {
 		RecordingGateway gw = new RecordingGateway();
-		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
-		svc.call("createGoal",
+		McpWriteService svc = new McpWriteService(gw, catalog, objectMapper, true);
+		svc.call("EditGoal",
 				json("{\"projectName\":\"P\",\"name\":\"G\",\"text\":\"T\"}"));
 		assertThat(gw.last.commandType()).isEqualTo("EditGoal");
 		assertThat(asMap(gw.last.input()))
@@ -143,8 +146,8 @@ class McpWriteServiceTest {
 	void voidResultBecomesOkPayload() {
 		RecordingGateway gw = new RecordingGateway();
 		gw.resultPayload = null; // e.g. AddGoalToGoalContainer returns no DTO
-		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
-		Object result = svc.call("addGoalToContainer",
+		McpWriteService svc = new McpWriteService(gw, catalog, objectMapper, true);
+		Object result = svc.call("AddGoalToGoalContainer",
 				json("{\"projectName\":\"P\",\"goalId\":1,\"goalContainerId\":2,"
 						+ "\"containerType\":\"Project\"}"));
 		assertThat(asMap(result)).containsEntry("ok", true)
@@ -157,8 +160,8 @@ class McpWriteServiceTest {
 	void notAllowedMapsToInvalidParams() {
 		RecordingGateway gw = new RecordingGateway();
 		gw.toThrow = new GatewayException(GatewayException.Kind.NOT_ALLOWED, "denied");
-		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
-		assertThatThrownBy(() -> svc.call("createGoal",
+		McpWriteService svc = new McpWriteService(gw, catalog, objectMapper, true);
+		assertThatThrownBy(() -> svc.call("EditGoal",
 				json("{\"projectName\":\"P\",\"name\":\"G\"}")))
 				.isInstanceOf(McpInvalidParamsException.class)
 				.hasMessageContaining("denied");
@@ -168,8 +171,8 @@ class McpWriteServiceTest {
 	void executionErrorMapsToIllegalState() {
 		RecordingGateway gw = new RecordingGateway();
 		gw.toThrow = new GatewayException(GatewayException.Kind.EXECUTION_ERROR, "boom");
-		McpWriteService svc = new McpWriteService(gw, objectMapper, true);
-		assertThatThrownBy(() -> svc.call("createGoal",
+		McpWriteService svc = new McpWriteService(gw, catalog, objectMapper, true);
+		assertThatThrownBy(() -> svc.call("EditGoal",
 				json("{\"projectName\":\"P\",\"name\":\"G\"}")))
 				.isInstanceOf(IllegalStateException.class)
 				.hasMessageContaining("boom");

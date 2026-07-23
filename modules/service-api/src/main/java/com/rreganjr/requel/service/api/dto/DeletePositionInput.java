@@ -20,5 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
-public record DeletePositionInput(String projectName, Long positionId) {
+import jakarta.validation.constraints.NotNull;
+
+public record DeletePositionInput(String projectName, @NotNull Long positionId) {
 }
