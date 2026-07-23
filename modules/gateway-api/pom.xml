@@ -23,5 +23,17 @@
             <artifactId>service-api</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- Provenance notes are a machine-parseable JSON block behind a marker (issue #71). A
+             plain JSON library (not Spring MVC / JPA / a provider SDK) keeps this module pure per
+             its charter. Version managed by the spring-boot-starter-parent BOM. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
