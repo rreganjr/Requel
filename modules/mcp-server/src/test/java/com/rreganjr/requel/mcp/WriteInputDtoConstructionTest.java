@@ -106,11 +106,23 @@ class WriteInputDtoConstructionTest {
 		}
 	}
 
-	/** Non-null defaults for primitives (which cannot accept null); null for reference types. */
+	/**
+	 * Non-null defaults for primitives (which cannot accept null); null for reference types. Each
+	 * primitive uses its own return statement — a mixed-type ternary would numerically promote the
+	 * results (e.g. to {@code long}) and box to the wrong wrapper, breaking reflective construction.
+	 */
 	private static Object defaultValue(Class<?> type) {
-		if (type == int.class || type == long.class || type == short.class || type == byte.class) {
-			return type == long.class ? 0L : type == short.class ? (short) 0
-					: type == byte.class ? (byte) 0 : 0;
+		if (type == int.class) {
+			return 0;
+		}
+		if (type == long.class) {
+			return 0L;
+		}
+		if (type == short.class) {
+			return (short) 0;
+		}
+		if (type == byte.class) {
+			return (byte) 0;
 		}
 		if (type == boolean.class) {
 			return false;
