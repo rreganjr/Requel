@@ -25,7 +25,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -37,6 +39,9 @@ import com.rreganjr.requel.gateway.GatewayCommandCatalog;
 import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
 import com.rreganjr.requel.gateway.GatewayResult;
+import com.rreganjr.requel.gateway.QueryGateway;
+import com.rreganjr.requel.gateway.tracker.RequirementGoalUpserter;
+import com.rreganjr.requel.gateway.tracker.UpsertGoalRequest;
 
 /**
  * MCP write tools, backed by the {@link CommandGateway}. Exposes a generic
@@ -60,18 +65,46 @@ public class McpWriteService {
 	/** Generic escape hatch: run any allowlisted command by type + input. */
 	static final String RUN_COMMAND = "runCommand";
 
+	/** Convenience tool: create/update a goal from a requirement + provenance (issue #71). */
+	static final String UPSERT_GOAL = "upsertGoalFromRequirement";
+
+	/**
+	 * Composite convenience tools — multi-command orchestrations that are NOT single catalog
+	 * commands, so the "typed write tools == catalog" lockstep checks exclude them. They are still
+	 * gated by the write flag and every underlying write still goes through the gateway's policy,
+	 * authorization, and audit.
+	 */
+	static final Set<String> COMPOSITE_TOOLS = Set.of(UPSERT_GOAL);
+
 	private final CommandGateway commandGateway;
+	private final QueryGateway queryGateway;
 	private final GatewayCommandCatalog catalog;
 	private final ObjectMapper objectMapper;
 	private final boolean writeEnabled;
 
-	public McpWriteService(CommandGateway commandGateway, GatewayCommandCatalog catalog,
-			ObjectMapper objectMapper,
+	/** Lazily built (only when the upsert tool is called), so a null command/query gateway in
+	 * read-only mode never triggers construction. */
+	private RequirementGoalUpserter upserter;
+
+	@Autowired
+	public McpWriteService(CommandGateway commandGateway, QueryGateway queryGateway,
+			GatewayCommandCatalog catalog, ObjectMapper objectMapper,
 			@Value("${requel.gateway.write.enabled:false}") boolean writeEnabled) {
 		this.commandGateway = commandGateway;
+		this.queryGateway = queryGateway;
 		this.catalog = catalog;
 		this.objectMapper = objectMapper;
 		this.writeEnabled = writeEnabled;
+	}
+
+	/**
+	 * Convenience constructor without a {@link QueryGateway} (used by read-only deployments and by
+	 * tests that never exercise the composite {@code upsertGoalFromRequirement} tool). The upsert
+	 * tool requires a query gateway and will fail fast if invoked through this path.
+	 */
+	public McpWriteService(CommandGateway commandGateway, GatewayCommandCatalog catalog,
+			ObjectMapper objectMapper, boolean writeEnabled) {
+		this(commandGateway, null, catalog, objectMapper, writeEnabled);
 	}
 
 	public boolean isWriteEnabled() {
@@ -80,7 +113,8 @@ public class McpWriteService {
 
 	/** @return true if {@code toolName} is a write tool (regardless of the opt-in flag). */
 	public boolean handles(String toolName) {
-		return RUN_COMMAND.equals(toolName) || catalog.find(toolName).isPresent();
+		return RUN_COMMAND.equals(toolName) || COMPOSITE_TOOLS.contains(toolName)
+				|| catalog.find(toolName).isPresent();
 	}
 
 	/** Write tool descriptors for {@code tools/list}; empty when the write flag is disabled. */
@@ -100,6 +134,8 @@ public class McpWriteService {
 			tools.add(new McpToolDescriptor(descriptor.commandType(), describe(descriptor),
 					schemaFor(descriptor.inputType())));
 		}
+		// Composite convenience tools (orchestrations over several commands; issue #71).
+		tools.add(upsertGoalDescriptor());
 		return tools;
 	}
 
@@ -117,6 +153,9 @@ public class McpWriteService {
 			JsonNode input = arguments == null ? null : arguments.get("input");
 			return execute(commandType, input == null || input.isNull() ? Map.of() : toMap(input));
 		}
+		if (UPSERT_GOAL.equals(toolName)) {
+			return upsertGoalFromRequirement(arguments);
+		}
 		// Typed tool: the tool name IS the catalog command type, and its argument names already
 		// match the command input DTO field names, so forward the arguments as-is.
 		if (catalog.find(toolName).isEmpty()) {
@@ -132,14 +171,54 @@ public class McpWriteService {
 			return result.result() != null ? result.result()
 					: Map.of("ok", true, "commandType", commandType);
 		} catch (GatewayException e) {
-			throw switch (e.getKind()) {
-				// Client-correctable failures map to JSON-RPC INVALID_PARAMS.
-				case NOT_ALLOWED, NOT_FOUND, INVALID_INPUT, UNAUTHORIZED ->
-						new McpInvalidParamsException(e.getMessage());
-				// Server-side execution failure maps to INTERNAL_ERROR.
-				case EXECUTION_ERROR -> new IllegalStateException(e.getMessage(), e);
-			};
+			throw mapGatewayException(e);
 		}
+	}
+
+	/**
+	 * Composite tool: create or update a goal from one requirement and (re)attach its provenance
+	 * note (issue #71). The per-client identity is taken from the request context, not the
+	 * arguments, mirroring {@link #execute}.
+	 */
+	private Object upsertGoalFromRequirement(JsonNode arguments) {
+		UpsertGoalRequest request;
+		try {
+			request = new UpsertGoalRequest(
+					requiredText(arguments, "projectName"),
+					requiredText(arguments, "criterionText"),
+					optionalText(arguments, "name"),
+					optionalText(arguments, "text"),
+					requiredText(arguments, "sourceSystem"),
+					requiredText(arguments, "sourceRef"),
+					optionalText(arguments, "sourceUrl"),
+					optionalText(arguments, "criterionRef"),
+					McpClientContext.clientId(),
+					optionalText(arguments, "criterionHash"));
+		} catch (IllegalArgumentException e) {
+			throw new McpInvalidParamsException(e.getMessage());
+		}
+		try {
+			return upserter().upsert(request);
+		} catch (GatewayException e) {
+			throw mapGatewayException(e);
+		}
+	}
+
+	private RequirementGoalUpserter upserter() {
+		if (upserter == null) {
+			upserter = new RequirementGoalUpserter(commandGateway, queryGateway);
+		}
+		return upserter;
+	}
+
+	private static RuntimeException mapGatewayException(GatewayException e) {
+		return switch (e.getKind()) {
+			// Client-correctable failures map to JSON-RPC INVALID_PARAMS.
+			case NOT_ALLOWED, NOT_FOUND, INVALID_INPUT, UNAUTHORIZED ->
+					new McpInvalidParamsException(e.getMessage());
+			// Server-side execution failure maps to INTERNAL_ERROR.
+			case EXECUTION_ERROR -> new IllegalStateException(e.getMessage(), e);
+		};
 	}
 
 	// ---- schema + description helpers ----------------------------------------------------------
@@ -159,6 +238,34 @@ public class McpWriteService {
 				"commandType", stringType(),
 				"input", Map.of("type", "object")),
 				List.of("commandType"));
+	}
+
+	private static McpToolDescriptor upsertGoalDescriptor() {
+		return new McpToolDescriptor(UPSERT_GOAL,
+				"Create or update a project goal from one requirement / acceptance criterion and"
+						+ " attach a machine-parseable provenance note linking it to the source"
+						+ " tracker item. Resolves an existing goal by provenance"
+						+ " (sourceSystem + sourceRef + criterionHash) and updates it in place on a"
+						+ " re-run; otherwise creates a new goal (disambiguating the name on a"
+						+ " collision). name, text and criterionHash are derived from criterionText"
+						+ " when omitted. Subject to the caller's Goal Edit permission.",
+				upsertGoalSchema());
+	}
+
+	private static Map<String, Object> upsertGoalSchema() {
+		Map<String, Object> properties = new LinkedHashMap<>();
+		properties.put("projectName", stringType());
+		properties.put("criterionText", stringType());
+		properties.put("sourceSystem", stringType());
+		properties.put("sourceRef", stringType());
+		properties.put("name", stringType());
+		properties.put("text", stringType());
+		properties.put("sourceUrl", stringType());
+		properties.put("criterionRef", stringType());
+		properties.put("criterionHash", stringType());
+		// client is intentionally omitted: it is taken from the MCP client context, not arguments.
+		return objectSchema(properties,
+				List.of("projectName", "criterionText", "sourceSystem", "sourceRef"));
 	}
 
 	/**
@@ -268,5 +375,10 @@ public class McpWriteService {
 			throw new McpInvalidParamsException("Missing required string field: " + fieldName);
 		}
 		return params.get(fieldName).asText();
+	}
+
+	private static String optionalText(JsonNode params, String fieldName) {
+		JsonNode value = params == null ? null : params.get(fieldName);
+		return value == null || value.isNull() || !value.isTextual() ? null : value.asText();
 	}
 }

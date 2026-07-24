@@ -69,6 +69,7 @@ public class McpToolCatalogLockstepIT extends AbstractIntegrationTestCase {
 		List<String> typedToolNames = writeService.toolDescriptors().stream()
 				.map(McpToolDescriptor::name)
 				.filter(name -> !name.equals(McpWriteService.RUN_COMMAND))
+				.filter(name -> !McpWriteService.COMPOSITE_TOOLS.contains(name))
 				.toList();
 
 		// MCP tools ⊆ catalog: every typed write tool is a catalog command...

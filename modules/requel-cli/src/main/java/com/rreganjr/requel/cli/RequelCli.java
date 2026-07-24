@@ -37,7 +37,7 @@ import picocli.CommandLine.Option;
  */
 @Command(name = "requel", mixinStandardHelpOptions = true, version = "requel-cli 2.0.0-dev",
         description = "Command-line access to a Requel server via the gateway.",
-        subcommands = {RunCommand.class, CommandsCommand.class,
+        subcommands = {RunCommand.class, UpsertGoalCommand.class, CommandsCommand.class,
                 ProjectsCommand.class, ProjectCommand.class, GlossaryCommand.class,
                 OpenIssuesCommand.class, SearchCommand.class, EntityCommand.class, ContextCommand.class,
                 LoginCommand.class, LogoutCommand.class})

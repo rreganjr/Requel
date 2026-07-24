@@ -30,6 +30,11 @@ import com.rreganjr.requel.gateway.GatewayCommandCatalog;
 import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
 import com.rreganjr.requel.gateway.GatewayResult;
+import com.rreganjr.requel.gateway.tracker.UpsertGoalResult;
+import com.rreganjr.requel.service.api.dto.EditGoalInput;
+import com.rreganjr.requel.service.api.dto.EditNoteInput;
+import com.rreganjr.requel.service.api.dto.GoalDto;
+import com.rreganjr.requel.service.api.dto.NoteDto;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -98,7 +103,80 @@ class McpWriteServiceTest {
 				objectMapper, true);
 		assertThat(enabled.toolDescriptors()).extracting(McpToolDescriptor::name)
 				.contains("runCommand", "EditProject", "EditGoal",
-						"AddGoalToGoalContainer", "EditNote", "EditIssue");
+						"AddGoalToGoalContainer", "EditNote", "EditIssue",
+						McpWriteService.UPSERT_GOAL);
+	}
+
+	// ---- composite tool: upsertGoalFromRequirement (issue #71) ---------------------------------
+
+	/** CommandGateway double returning real Goal/Note DTOs and recording the carried client id. */
+	private static final class UpsertRecordingGateway implements CommandGateway {
+		String editGoalClientId;
+		long nextGoalId = 1;
+		long nextNoteId = 1;
+
+		@Override
+		public GatewayResult execute(GatewayRequest request) {
+			return switch (request.commandType()) {
+				case "EditGoal" -> {
+					EditGoalInput i = (EditGoalInput) request.input();
+					editGoalClientId = request.clientId();
+					long id = i.goalId() != null ? i.goalId() : nextGoalId++;
+					yield new GatewayResult("EditGoal",
+							new GoalDto(id, 0, i.name(), i.text(), "t", null, null, null));
+				}
+				case "EditNote" -> {
+					EditNoteInput i = (EditNoteInput) request.input();
+					long id = i.noteId() != null ? i.noteId() : nextNoteId++;
+					yield new GatewayResult("EditNote", new NoteDto(id, 0, i.text(), "t"));
+				}
+				default -> throw new IllegalArgumentException(request.commandType());
+			};
+		}
+	}
+
+	@Test
+	void upsertRejectedWhenDisabled() {
+		McpWriteService disabled = new McpWriteService(new RecordingGateway(), catalog,
+				objectMapper, false);
+		assertThatThrownBy(() -> disabled.call(McpWriteService.UPSERT_GOAL,
+				json("{\"projectName\":\"P\",\"criterionText\":\"x\",\"sourceSystem\":\"jira\","
+						+ "\"sourceRef\":\"R\"}")))
+				.isInstanceOf(McpInvalidParamsException.class)
+				.hasMessageContaining("disabled");
+	}
+
+	@Test
+	void upsertMissingRequiredArgMapsToInvalidParams() {
+		McpWriteService svc = new McpWriteService(new UpsertRecordingGateway(),
+				new StubProjectQueryGateway(), catalog, objectMapper, true);
+		// sourceRef omitted.
+		assertThatThrownBy(() -> svc.call(McpWriteService.UPSERT_GOAL,
+				json("{\"projectName\":\"P\",\"criterionText\":\"x\",\"sourceSystem\":\"jira\"}")))
+				.isInstanceOf(McpInvalidParamsException.class)
+				.hasMessageContaining("sourceRef");
+	}
+
+	@Test
+	void upsertCreatesGoalAndCarriesClientIdFromContext() {
+		UpsertRecordingGateway gw = new UpsertRecordingGateway();
+		McpWriteService svc = new McpWriteService(gw, new StubProjectQueryGateway(), catalog,
+				objectMapper, true);
+		McpClientContext.setClientId("claude-desktop");
+		Object result;
+		try {
+			result = svc.call(McpWriteService.UPSERT_GOAL,
+					json("{\"projectName\":\"P\",\"criterionText\":\"Users can export CSV.\","
+							+ "\"sourceSystem\":\"jira\",\"sourceRef\":\"R-1\"}"));
+		} finally {
+			McpClientContext.clear();
+		}
+		assertThat(result).isInstanceOf(UpsertGoalResult.class);
+		UpsertGoalResult upsert = (UpsertGoalResult) result;
+		assertThat(upsert.created()).isTrue();
+		assertThat(upsert.goalId()).isNotNull();
+		assertThat(upsert.noteId()).isNotNull();
+		assertThat(gw.editGoalClientId).isEqualTo("claude-desktop");
 	}
 
 	// ---- delegation ----------------------------------------------------------------------------

@@ -33,6 +33,7 @@ node_modules/
 
 # Local draft files (not for version control)
 /commit.md
+/pr.md
 /ticket.md
 
 # macOS Finder metadata (appears anywhere directories get browsed)
