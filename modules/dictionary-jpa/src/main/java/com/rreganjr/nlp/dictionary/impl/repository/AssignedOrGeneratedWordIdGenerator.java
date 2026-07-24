@@ -53,14 +53,25 @@ import com.rreganjr.nlp.dictionary.Word;
  * id-bearing {@code Word} as a new (transient) row to be inserted with its assigned id, rather than
  * as a detached row to be merged/updated.
  *
- * <p>The generated (no-id) path uses {@code max(wordid) + 1} against the current transaction's
- * connection. This matches the runtime add-word use case (a user resolving a spelling issue), which
- * is effectively serialized and very low volume; it is not intended for high-concurrency id
- * allocation.
+ * <p>Generated (no-id) runtime words are allocated in a reserved high id range (at or above
+ * {@link #RUNTIME_ID_FLOOR}) that sits above the dictionary's assigned source ids (WordNet is
+ * ~150k words). This is what makes the import order-independent in <em>both</em> directions: not
+ * only do assigned ids survive the import, but a runtime word added <em>before</em> the dictionary
+ * is loaded (e.g. a spell-dictionary add on a fresh database) can no longer occupy a low id that a
+ * later import needs, which would otherwise be a primary-key collision. It uses {@code max(wordid)}
+ * against the current transaction's connection; the runtime add-word use case (a user resolving a
+ * spelling issue) is effectively serialized and very low volume, not high-concurrency allocation.
  */
 public class AssignedOrGeneratedWordIdGenerator implements BeforeExecutionGenerator {
 
 	private static final long serialVersionUID = 1L;
+
+	/**
+	 * Lowest id handed out to a runtime-generated (no-id) word. Chosen to sit well above the
+	 * dictionary's assigned source-id range (WordNet is ~150k words) so a runtime word can never
+	 * collide with a word the dictionary import will insert with its own assigned id. See #80.
+	 */
+	public static final long RUNTIME_ID_FLOOR = 1_000_000_000L;
 
 	@Override
 	public EnumSet<EventType> getEventTypes() {
@@ -90,13 +101,16 @@ public class AssignedOrGeneratedWordIdGenerator implements BeforeExecutionGenera
 	}
 
 	private Long nextWordId(SharedSessionContractImplementor session) {
-		return session.doReturningWork(connection -> {
+		long currentMax = session.doReturningWork(connection -> {
 			try (PreparedStatement ps =
 					connection.prepareStatement("select coalesce(max(wordid), 0) from word");
 					ResultSet rs = ps.executeQuery()) {
 				rs.next();
-				return rs.getLong(1) + 1L;
+				return rs.getLong(1);
 			}
 		});
+		// Allocate in the reserved high range so a runtime word never lands on an id the dictionary
+		// import will assign (which would be a PK collision if the word was added before the import).
+		return Math.max(currentMax, RUNTIME_ID_FLOOR - 1) + 1L;
 	}
 }
