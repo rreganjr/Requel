@@ -50,7 +50,10 @@ class RestGatewayCatalogTest {
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("""
                         [{"commandType":"EditGoal","inputType":"EditGoalInput","title":"Edit Goal",
-                          "description":null,"write":true,"authorizationHint":null}]
+                          "description":null,"write":true,"authorizationHint":null,
+                          "schema":{"type":"object",
+                                    "properties":{"projectName":{"type":"string"}},
+                                    "required":["projectName"],"additionalProperties":false}}]
                         """, MediaType.APPLICATION_JSON));
 
         List<CommandInfo> commands = f.catalog().descriptors();
@@ -60,6 +63,10 @@ class RestGatewayCatalogTest {
             assertThat(c.inputType()).isEqualTo("EditGoalInput");
             assertThat(c.title()).isEqualTo("Edit Goal");
             assertThat(c.write()).isTrue();
+            // The input JSON schema round-trips into a plain map the CLI can drive subcommands from.
+            assertThat(c.schema()).containsEntry("type", "object")
+                    .containsEntry("additionalProperties", false);
+            assertThat(c.schema().get("required")).isEqualTo(List.of("projectName"));
         });
         f.server().verify();
     }

@@ -61,9 +61,11 @@ Two layers, so the CLI works offline *and* stays in lockstep with the server:
      write, authorizationHint`). Served by `GatewayCommandController`, gated by the write flag.
    - **Client side (done):** `RestGatewayCatalog` in `gateway-rest-client` fetches it;
      `requel commands` prints it (text or `--output json`).
-   - **Deferred (richer form):** dynamically *registering picocli subcommands* per command (with
-     per-field flags derived from the input DTO's JSON schema). MVP uses the generic
-     `requel run <CommandType> --input` for invocation; `requel commands` for discovery.
+   - **Deferred (richer form) — done in #103:** dynamically *registering picocli subcommands* per
+     command (with per-field flags derived from the input DTO's JSON schema). MVP used the generic
+     `requel run <CommandType> --input` for invocation; `requel commands` for discovery. The typed
+     form (`requel edit-goal --project-name … --name …`) is now implemented — see
+     `doc/103-typed-subcommands-plan.md`.
    - Offline / server-unreachable: only `run` + built-ins show in `--help`; that's acceptable.
 
 (This refines the earlier "static-primary" decision: because the catalog is server-side with no

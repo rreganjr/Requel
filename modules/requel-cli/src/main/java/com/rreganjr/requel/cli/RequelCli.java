@@ -112,12 +112,16 @@ public class RequelCli implements Runnable {
     }
 
     public static void main(String[] args) {
-        int code = new CommandLine(new RequelCli())
+        RequelCli root = new RequelCli();
+        CommandLine commandLine = new CommandLine(root)
                 // Don't treat a leading '@' (e.g. --input-file @path) as a picocli argument file.
                 .setExpandAtFiles(false)
                 // Accept --output json/text as well as JSON/TEXT.
-                .setCaseInsensitiveEnumValuesAllowed(true)
-                .execute(args);
+                .setCaseInsensitiveEnumValuesAllowed(true);
+        // Runtime-discovered typed write subcommands (issue #103): best-effort, offline-tolerant —
+        // when unreachable or invoking a built-in, only the static subcommands are registered.
+        TypedCommands.registerFromServer(commandLine, root, args);
+        int code = commandLine.execute(args);
         System.exit(code);
     }
 }

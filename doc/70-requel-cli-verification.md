@@ -15,7 +15,8 @@ Build the fat jar (also gives the `requel` wrapper a jar to find):
 ```bash
 mvn -pl modules/requel-cli -am package
 alias requel='modules/requel-cli/src/main/scripts/requel'   # or: java -jar modules/requel-cli/target/requel-cli-2.0.0-dev.jar
-requel --help    # lists run, commands, login, logout
+requel --help    # lists run, commands, read subcommands (projects/project/…), login, logout
+                 # (plus typed write subcommands, e.g. edit-goal, when a server is reachable — #103)
 ```
 
 Start the server with the CLI OAuth client seeded **and** gateway writes enabled (so `commands` and a
@@ -86,10 +87,22 @@ requel --url http://localhost:8080 search "<name>" goal        # find entities b
 requel --url http://localhost:8080 run EditGoal --input '{"projectName":"<name>","name":"CLI smoke goal"}'
 #   expect: OK EditGoal: … (id=…). The goal is created/edited as your user, through the gateway
 #   (allow/deny policy + per-stakeholder authorization enforced server-side).
+
+# Typed subcommands (#103): at startup the CLI fetches the write catalog and registers a typed
+# subcommand per command, with per-field flags derived from each command's input JSON schema — so the
+# same write needs no hand-written JSON:
+requel --url http://localhost:8080 edit-goal --project-name "<name>" --name "CLI typed goal"
+#   expect: OK EditGoal: … (id=…) — identical result to the `run EditGoal` above.
+requel --url http://localhost:8080 edit-goal --help
+#   expect: a usage listing generated from the schema — --project-name (required), --name, … .
+#   Nested object/array fields take a raw-JSON string, e.g. --tags '["a","b"]'.
+#   Offline / server unreachable: typed subcommands are simply not registered (only run + built-ins
+#   show), so `requel run <Type> --input` stays the always-available fallback.
 ```
 
 **Pass:** `commands` lists the catalog and `projects` lists your projects using the stored token; the
-write succeeds and is attributed to the logged-in user.
+typed `edit-goal` subcommand appears (with schema-derived flags) and the write succeeds and is
+attributed to the logged-in user — matching the generic `run EditGoal`.
 
 ## C. Writes-disabled and denylist behavior (optional, restart-gated)
 

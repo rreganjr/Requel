@@ -66,7 +66,7 @@ class CommandsCommandTest {
     @Test
     void listsCommandsAndReturnsSuccess() {
         RestGatewayCatalog catalog = catalogReturning(List.of(
-                new CommandInfo("EditGoal", "EditGoalInput", "Edit Goal", null, true, null)));
+                new CommandInfo("EditGoal", "EditGoalInput", "Edit Goal", null, true, null, null)));
         String out = captureStdout(() ->
                 assertThat(command(OutputFormat.TEXT, catalog).call()).isEqualTo(ExitCode.SUCCESS));
         assertThat(out).contains("EditGoal").contains("Edit Goal");
@@ -83,7 +83,7 @@ class CommandsCommandTest {
     @Test
     void jsonOutputEmitsArray() {
         RestGatewayCatalog catalog = catalogReturning(List.of(
-                new CommandInfo("EditGoal", "EditGoalInput", "Edit Goal", null, true, null)));
+                new CommandInfo("EditGoal", "EditGoalInput", "Edit Goal", null, true, null, null)));
         String out = captureStdout(() ->
                 assertThat(command(OutputFormat.JSON, catalog).call()).isEqualTo(ExitCode.SUCCESS));
         assertThat(out.trim()).startsWith("[").contains("\"commandType\" : \"EditGoal\"");
