@@ -30,7 +30,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
@@ -46,7 +45,10 @@ import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.SortNatural;
+
+import com.rreganjr.nlp.dictionary.impl.repository.AssignedOrGeneratedWordIdGenerator;
 
 /**
  * Wordnet Word
@@ -79,7 +81,13 @@ public class Word implements Comparable<Word>, Serializable {
 
 	@Id
 	@Column(name = "wordid", unique = true, nullable = false)
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	// Assigned-or-generate (issue #80): a before-execution generator preserves the dictionary-
+	// assigned id on import / SQL dump (so the composite sense -> word FKs resolve regardless of
+	// insert order) and allocates a fresh id for runtime words created without one by
+	// DatabaseSpellDictionary.addWord. A post-insert IDENTITY strategy cannot preserve the assigned
+	// id on the importer's Session.save() path. See AssignedOrGeneratedWordIdGenerator.
+	@GeneratedValue(generator = "word-assigned-id")
+	@GenericGenerator(name = "word-assigned-id", type = AssignedOrGeneratedWordIdGenerator.class)
 	@XmlID
 	@XmlAttribute(name = "id")
 	@XmlJavaTypeAdapter(IdAdapter.class)
