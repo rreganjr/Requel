@@ -21,6 +21,7 @@
 package com.rreganjr.requel.gateway.rest;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.Map;
 
 /**
  * Client-side view of a gateway command descriptor, as returned by
@@ -36,6 +37,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * @param description       a longer description, or {@code null}
  * @param write             {@code true} for state-mutating commands
  * @param authorizationHint a human-readable permission hint, or {@code null}
+ * @param schema            JSON schema for the command's input DTO — an object node
+ *                          ({@code {type:object, properties, required, additionalProperties:false}})
+ *                          from which the CLI builds per-field typed subcommands (issue #103); may be
+ *                          {@code null} against an older server that predates the schema field
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record CommandInfo(
@@ -44,6 +49,7 @@ public record CommandInfo(
         String title,
         String description,
         boolean write,
-        String authorizationHint
+        String authorizationHint,
+        Map<String, Object> schema
 ) {
 }

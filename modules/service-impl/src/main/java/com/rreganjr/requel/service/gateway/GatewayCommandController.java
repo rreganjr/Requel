@@ -22,6 +22,7 @@ package com.rreganjr.requel.service.gateway;
 
 import com.rreganjr.requel.gateway.CommandDescriptor;
 import com.rreganjr.requel.gateway.CommandGateway;
+import com.rreganjr.requel.gateway.CommandInputSchema;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
 import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
@@ -109,14 +110,23 @@ public class GatewayCommandController {
     public record GatewayErrorBody(String kind, String message) {
     }
 
-    /** JSON view of a {@link CommandDescriptor} — the input type as a simple name, not a Class. */
+    /**
+     * JSON view of a {@link CommandDescriptor}: the input type as a simple name (not a Class), plus a
+     * JSON {@code schema} for that input DTO derived by {@link CommandInputSchema} — the same
+     * generator the MCP typed tools use — so the CLI can build per-field typed subcommands from it
+     * (issue #103) and stays in lockstep with MCP and the gateway policy. The schema is always an
+     * object node ({@code {type:object, properties, required, additionalProperties:false}}); commands
+     * with no input yield an empty-properties schema.
+     */
     public record DescriptorView(String commandType, String inputType, String title,
-            String description, boolean write, String authorizationHint) {
+            String description, boolean write, String authorizationHint,
+            Map<String, Object> schema) {
 
         static DescriptorView from(CommandDescriptor d) {
             return new DescriptorView(d.commandType(),
                     d.inputType() == null ? null : d.inputType().getSimpleName(),
-                    d.title(), d.description(), d.write(), d.authorizationHint());
+                    d.title(), d.description(), d.write(), d.authorizationHint(),
+                    CommandInputSchema.of(d.inputType()));
         }
     }
 }

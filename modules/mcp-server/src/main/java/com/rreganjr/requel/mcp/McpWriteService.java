@@ -20,7 +20,6 @@
  */
 package com.rreganjr.requel.mcp;
 
-import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,6 +34,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.gateway.CommandDescriptor;
 import com.rreganjr.requel.gateway.CommandGateway;
+import com.rreganjr.requel.gateway.CommandInputSchema;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
 import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
@@ -132,7 +132,7 @@ public class McpWriteService {
 		// surface is exactly the gateway's exposed write surface (issue #104).
 		for (CommandDescriptor descriptor : catalog.descriptors()) {
 			tools.add(new McpToolDescriptor(descriptor.commandType(), describe(descriptor),
-					schemaFor(descriptor.inputType())));
+					CommandInputSchema.of(descriptor.inputType())));
 		}
 		// Composite convenience tools (orchestrations over several commands; issue #71).
 		tools.add(upsertGoalDescriptor());
@@ -228,14 +228,14 @@ public class McpWriteService {
 		String base = descriptor.description() != null && !descriptor.description().isBlank()
 				? descriptor.description()
 				: descriptor.title();
-		List<String> fields = fieldNames(descriptor.inputType());
+		List<String> fields = CommandInputSchema.fieldNames(descriptor.inputType());
 		String fieldHint = fields.isEmpty() ? "" : " Input fields: " + String.join(", ", fields) + ".";
 		return base + "." + fieldHint;
 	}
 
 	private Map<String, Object> runCommandSchema() {
-		return objectSchema(Map.of(
-				"commandType", stringType(),
+		return CommandInputSchema.objectSchema(Map.of(
+				"commandType", CommandInputSchema.stringType(),
 				"input", Map.of("type", "object")),
 				List.of("commandType"));
 	}
@@ -254,115 +254,18 @@ public class McpWriteService {
 
 	private static Map<String, Object> upsertGoalSchema() {
 		Map<String, Object> properties = new LinkedHashMap<>();
-		properties.put("projectName", stringType());
-		properties.put("criterionText", stringType());
-		properties.put("sourceSystem", stringType());
-		properties.put("sourceRef", stringType());
-		properties.put("name", stringType());
-		properties.put("text", stringType());
-		properties.put("sourceUrl", stringType());
-		properties.put("criterionRef", stringType());
-		properties.put("criterionHash", stringType());
+		properties.put("projectName", CommandInputSchema.stringType());
+		properties.put("criterionText", CommandInputSchema.stringType());
+		properties.put("sourceSystem", CommandInputSchema.stringType());
+		properties.put("sourceRef", CommandInputSchema.stringType());
+		properties.put("name", CommandInputSchema.stringType());
+		properties.put("text", CommandInputSchema.stringType());
+		properties.put("sourceUrl", CommandInputSchema.stringType());
+		properties.put("criterionRef", CommandInputSchema.stringType());
+		properties.put("criterionHash", CommandInputSchema.stringType());
 		// client is intentionally omitted: it is taken from the MCP client context, not arguments.
-		return objectSchema(properties,
+		return CommandInputSchema.objectSchema(properties,
 				List.of("projectName", "criterionText", "sourceSystem", "sourceRef"));
-	}
-
-	/**
-	 * Derive a JSON schema for a command's input DTO. Input DTOs are Java records, so each record
-	 * component becomes a typed property. A component is marked <em>required</em> when it carries a
-	 * {@code jakarta.validation} {@code @NotNull}/{@code @NotBlank} annotation — those annotations
-	 * encode the fields the command's applicator dereferences unconditionally (issue #104). Unknown
-	 * fields are rejected so typos surface early. A {@code null}/{@link Void} input type yields an
-	 * empty object schema.
-	 */
-	private static Map<String, Object> schemaFor(Class<?> inputType) {
-		if (inputType == null || inputType == Void.class || !inputType.isRecord()) {
-			return objectSchema(Map.of(), List.of());
-		}
-		Map<String, Object> properties = new LinkedHashMap<>();
-		List<String> required = new ArrayList<>();
-		for (RecordComponent component : inputType.getRecordComponents()) {
-			properties.put(component.getName(), jsonType(component.getType()));
-			if (isRequired(component)) {
-				required.add(component.getName());
-			}
-		}
-		return objectSchema(properties, required);
-	}
-
-	/**
-	 * A record component is required when it (or its generated accessor) carries a
-	 * {@code jakarta.validation} {@code @NotNull} or {@code @NotBlank} annotation. Matched by fully
-	 * qualified name so this module needs no compile-time dependency on the validation API.
-	 */
-	private static boolean isRequired(RecordComponent component) {
-		return hasRequiredAnnotation(component.getAnnotations())
-				|| hasRequiredAnnotation(component.getAccessor().getAnnotations());
-	}
-
-	private static boolean hasRequiredAnnotation(java.lang.annotation.Annotation[] annotations) {
-		for (java.lang.annotation.Annotation a : annotations) {
-			String name = a.annotationType().getName();
-			if (name.equals("jakarta.validation.constraints.NotNull")
-					|| name.equals("jakarta.validation.constraints.NotBlank")) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private static List<String> fieldNames(Class<?> inputType) {
-		if (inputType == null || inputType == Void.class || !inputType.isRecord()) {
-			return List.of();
-		}
-		List<String> names = new ArrayList<>();
-		for (RecordComponent component : inputType.getRecordComponents()) {
-			names.add(component.getName());
-		}
-		return names;
-	}
-
-	/** Map a Java type to a JSON-schema type node. */
-	private static Map<String, Object> jsonType(Class<?> type) {
-		if (type == String.class || type == Character.class || type == char.class) {
-			return stringType();
-		}
-		if (type == Boolean.class || type == boolean.class) {
-			return booleanType();
-		}
-		if (type == Integer.class || type == int.class || type == Long.class || type == long.class
-				|| type == Short.class || type == short.class || type == Byte.class
-				|| type == byte.class) {
-			return integerType();
-		}
-		if (type == Double.class || type == double.class || type == Float.class
-				|| type == float.class) {
-			return Map.of("type", "number");
-		}
-		if (Iterable.class.isAssignableFrom(type) || type.isArray()) {
-			return Map.of("type", "array");
-		}
-		// Enums serialize as their name; everything else is a nested object.
-		return type.isEnum() ? stringType() : Map.of("type", "object");
-	}
-
-	private static Map<String, Object> objectSchema(Map<String, Object> properties,
-			List<String> required) {
-		return Map.of("type", "object", "properties", properties, "required", required,
-				"additionalProperties", false);
-	}
-
-	private static Map<String, Object> stringType() {
-		return Map.of("type", "string");
-	}
-
-	private static Map<String, Object> integerType() {
-		return Map.of("type", "integer");
-	}
-
-	private static Map<String, Object> booleanType() {
-		return Map.of("type", "boolean");
 	}
 
 	@SuppressWarnings("unchecked")
