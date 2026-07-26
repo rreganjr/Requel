@@ -23,12 +23,14 @@ package com.rreganjr.requel.mcp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -37,20 +39,20 @@ import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.user.User;
 
 /**
- * Step 8 (issue #43): every MCP JSON-RPC call is audited with the triggering user
- * resolved from the security context, the method, and the outcome. Authorization itself
- * is handled by the existing JWT chain (the endpoint is mounted under {@code /api/**});
- * here we drive the handler within an authenticated security context and assert the
- * audit row, plus the error-outcome path.
+ * Step 8 (issue #43): every MCP {@code tools/call} is audited with the triggering user
+ * resolved from the security context, the tool name, and the outcome. Authorization itself
+ * is handled by the existing security chain (the endpoint is mounted under {@code /api/mcp/**});
+ * here we drive the live Spring AI {@link ToolCallback} transport within an authenticated
+ * security context and assert the audit row, plus the error-outcome path.
  */
 public class McpCallAuditIT extends AbstractIntegrationTestCase {
 
-	private McpJsonRpcHandler mcpHandler;
+	private ToolCallbackProvider requelToolCallbackProvider;
 	private McpCallAuditRepository mcpCallAuditRepository;
 
 	@Autowired
-	protected void setMcpHandler(McpJsonRpcHandler mcpHandler) {
-		this.mcpHandler = mcpHandler;
+	protected void setToolCallbackProvider(ToolCallbackProvider requelToolCallbackProvider) {
+		this.requelToolCallbackProvider = requelToolCallbackProvider;
 	}
 
 	@Autowired
@@ -64,41 +66,50 @@ public class McpCallAuditIT extends AbstractIntegrationTestCase {
 	}
 
 	@Test
-	public void successfulCallIsAuditedWithTriggeringUser() {
+	public void successfulToolCallIsAuditedWithTriggeringUser() {
 		authenticateAs("project");
 		User user = getUserRepository().findUserByUsername("project");
 
-		McpJsonRpcResponse response = mcpHandler
-				.handle(new McpJsonRpcRequest("2.0", null, "tools/list", null));
+		callTool("listProjects", "{}");
 
-		assertNull(response.error(), "tools/list should succeed");
-		McpCallAudit audit = mcpCallAuditRepository.findAll().stream()
-				.filter(a -> "tools/list".equals(a.getMethod())
-						&& user.getId().equals(a.getTriggeringUserId()))
-				.reduce((first, second) -> second)
-				.orElse(null);
-		assertNotNull(audit, "an audit row should be recorded for the tools/list call");
+		McpCallAudit audit = latestAuditForTool("listProjects");
+		assertNotNull(audit, "an audit row should be recorded for the tools/call");
+		assertEquals("tools/call", audit.getMethod());
+		assertEquals(user.getId(), audit.getTriggeringUserId());
 		assertEquals("OK", audit.getStatus());
 		assertNull(audit.getErrorCode());
 		assertNotNull(audit.getCalledAt());
 	}
 
 	@Test
-	public void failedCallIsAuditedWithErrorCode() {
+	public void failedToolCallIsAuditedWithErrorOutcome() {
 		authenticateAs("project");
 
-		McpJsonRpcResponse response = mcpHandler
-				.handle(new McpJsonRpcRequest("2.0", null, "prompts/list", null));
+		// Missing the required 'projectName' argument: the tool throws, and the failure is audited.
+		assertThrows(RuntimeException.class, () -> callTool("getProject", "{}"));
 
-		assertNotNull(response.error());
-		assertEquals(-32601, response.error().code());
-		McpCallAudit audit = mcpCallAuditRepository.findAll().stream()
-				.filter(a -> "prompts/list".equals(a.getMethod()))
+		McpCallAudit audit = latestAuditForTool("getProject");
+		assertNotNull(audit, "an audit row should be recorded for the failed call");
+		assertEquals("tools/call", audit.getMethod());
+		assertEquals("ERROR", audit.getStatus());
+		assertNotNull(audit.getErrorSummary());
+	}
+
+	/** Invoke a tool by name through the live Spring AI {@link ToolCallback} transport. */
+	private String callTool(String toolName, String argumentsJson) {
+		for (ToolCallback candidate : requelToolCallbackProvider.getToolCallbacks()) {
+			if (candidate.getToolDefinition().name().equals(toolName)) {
+				return candidate.call(argumentsJson);
+			}
+		}
+		throw new AssertionError("MCP tool not found: " + toolName);
+	}
+
+	private McpCallAudit latestAuditForTool(String toolName) {
+		return mcpCallAuditRepository.findAll().stream()
+				.filter(a -> "tools/call".equals(a.getMethod()) && toolName.equals(a.getToolName()))
 				.reduce((first, second) -> second)
 				.orElse(null);
-		assertNotNull(audit, "an audit row should be recorded for the failed call");
-		assertEquals("ERROR", audit.getStatus());
-		assertEquals(Integer.valueOf(-32601), audit.getErrorCode());
 	}
 
 	private static void authenticateAs(String username) {

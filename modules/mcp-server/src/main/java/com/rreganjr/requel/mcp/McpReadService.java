@@ -38,8 +38,6 @@ import com.rreganjr.requel.gateway.QueryGateway;
 @Service
 public class McpReadService {
 
-	private static final String JSON_MIME_TYPE = "application/json";
-
 	private final QueryGateway projectQueryGateway;
 	private final McpWriteService writeService;
 	private final McpRateLimiter rateLimiter;
@@ -63,13 +61,6 @@ public class McpReadService {
 		this(projectQueryGateway,
 				new McpWriteService(null, GatewayCommandCatalog.empty(), objectMapper, false),
 				McpRateLimiter.NOOP, objectMapper);
-	}
-
-	public Map<String, Object> initialize() {
-		return Map.of(
-				"protocolVersion", "2025-03-26",
-				"capabilities", Map.of("tools", Map.of(), "resources", Map.of()),
-				"serverInfo", Map.of("name", "requel-mcp-server", "version", "2.0.0-dev"));
 	}
 
 	public Map<String, Object> listTools() {
@@ -154,58 +145,6 @@ public class McpReadService {
 		};
 		return Map.of("content", List.of(new McpTextContent("text", toJson(result))),
 				"isError", false);
-	}
-
-	public Map<String, Object> listResources() {
-		return Map.of("resources", List.of(
-				new McpResourceDescriptor("requel://projects", "Visible Requel projects",
-						"Projects visible to the current user", JSON_MIME_TYPE),
-				new McpResourceDescriptor("requel://projects/{projectName}/glossary",
-						"Project glossary", "Glossary terms defined in a project (template URI)",
-						JSON_MIME_TYPE),
-				new McpResourceDescriptor("requel://projects/{projectName}/open-issues",
-						"Project open issues",
-						"Unresolved issues across a project's entities (template URI)",
-						JSON_MIME_TYPE),
-				new McpResourceDescriptor("requel://projects/{projectName}/context",
-						"Project context bundle",
-						"Project summary, tree, glossary, and open issues (template URI)",
-						JSON_MIME_TYPE)));
-	}
-
-	public Map<String, Object> readResource(JsonNode params) {
-		String uri = requiredText(params, "uri");
-		Object result = readUri(uri);
-		return Map.of("contents", List.of(new McpResourceContent(uri, JSON_MIME_TYPE,
-				toJson(result))));
-	}
-
-	private Object readUri(String uri) {
-		if ("requel://projects".equals(uri)) {
-			return projectQueryGateway.listProjects();
-		}
-		String prefix = "requel://projects/";
-		if (!uri.startsWith(prefix)) {
-			throw new McpInvalidParamsException("Unsupported MCP resource URI: " + uri);
-		}
-		String remainder = uri.substring(prefix.length());
-		if (remainder.endsWith("/tree")) {
-			return projectQueryGateway.getProjectTree(stripSuffix(remainder, "/tree"));
-		}
-		if (remainder.endsWith("/glossary")) {
-			return projectQueryGateway.getGlossaryTerms(stripSuffix(remainder, "/glossary"));
-		}
-		if (remainder.endsWith("/open-issues")) {
-			return projectQueryGateway.getOpenIssues(stripSuffix(remainder, "/open-issues"));
-		}
-		if (remainder.endsWith("/context")) {
-			return projectQueryGateway.getProjectContext(stripSuffix(remainder, "/context"));
-		}
-		return projectQueryGateway.getProject(remainder);
-	}
-
-	private static String stripSuffix(String value, String suffix) {
-		return value.substring(0, value.length() - suffix.length());
 	}
 
 	private Map<String, Object> projectNameSchema() {

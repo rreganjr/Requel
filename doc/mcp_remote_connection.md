@@ -1,24 +1,22 @@
 # Connecting a local Claude / Codex to Requel over MCP
 
-This recipe connects a local MCP client (Claude Desktop, Codex, etc.) to a **locally-running
-Requel server** so the client can read and write project data through the Requel MCP command
-gateway (issue #69). It needs no plugin, no MCP registry entry, and no custom bridge code — it
-reuses the HTTP MCP transport the server already exposes, with the community
-[`mcp-remote`](https://www.npmjs.com/package/mcp-remote) tool bridging the client's stdio to it.
+This recipe connects a local MCP client (Codex, Claude Code, Claude Desktop, etc.) to a
+**locally-running Requel server** so the client can read and write project data through the Requel
+MCP command gateway (issue #69). It needs no plugin, no MCP registry entry, and no custom bridge
+code — Requel serves the **Streamable HTTP** MCP transport directly (issue #98).
 
 ## How it fits together
 
 ```
-Claude / Codex  --stdio-->  mcp-remote  --HTTP+SSE (JWT)-->  Requel  /api/mcp/sse
-                (spawned by the client)                       (your local server)
+Codex / Claude Code / VS Code  --Streamable HTTP (OAuth or PAT)-->  Requel  POST /api/mcp
+                                                                    (your local server)
 ```
 
-Most desktop MCP clients only speak **stdio** (they spawn a server process and talk over its
-pipes). Requel exposes MCP over **HTTP** (SSE / Streamable HTTP) under `/api/mcp`. `mcp-remote` is a
-tiny stdio-to-HTTP proxy the client launches; it forwards MCP traffic to the server and either drives
-the OAuth flow or attaches a static `Authorization` header. The server runs the calls through the
-gateway, so **per-stakeholder permissions and auditing apply exactly as they do in the UI** — the
-client acts as whichever Requel user authenticated.
+Requel serves MCP over **Streamable HTTP** at `POST /api/mcp` (issue #98). Streamable HTTP is the
+MCP spec's forward direction; the legacy HTTP+SSE transport is deprecated and no longer served.
+Every interactive client we use speaks Streamable natively, so they connect **directly** — no bridge.
+The server runs each call through the gateway, so **per-stakeholder permissions and auditing apply
+exactly as they do in the UI** — the client acts as whichever Requel user authenticated.
 
 `/api/mcp/**` is an **OAuth 2.1 protected resource** (issue #83): on a 401 it advertises the
 authorization server via RFC 9728 metadata, and a compliant client runs the discovery →
@@ -26,29 +24,31 @@ authorization-code + PKCE flow to obtain a token — no pre-shared secret. **Per
 (PATs) and the SPA login JWT are still accepted** on the same endpoints, for headless/CI use and
 quick tests. Pick the auth style in "Authentication" below.
 
-There is intentionally no Requel-built stdio bridge and no separate REST client library: the HTTP
-transport plus `mcp-remote` covers local access.
+> **Pure-stdio clients only:** a client that cannot speak remote HTTP at all (only stdio) still needs
+> the community [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) stdio→HTTP proxy pointed at
+> `http://localhost:8080/api/mcp`. `mcp-remote` defaults to Streamable HTTP, so no transport flag is
+> needed. See "Pure-stdio fallback" at the end.
 
 ## Prerequisites
 
 - A Requel server running locally (the same instance you use for the UI), e.g. on
   `http://localhost:8080`.
-- Node.js available (so the client can run `npx mcp-remote`).
 - Write tools: enabled by default (`requel.gateway.write.enabled=true`). To run the MCP server
   read-only, start Requel with `--requel.gateway.write.enabled=false`.
+- For the pure-stdio fallback only: Node.js on PATH (so the client can run `npx mcp-remote`).
 
 ## Authentication
 
 Two ways to authenticate the MCP endpoints; choose by how the client runs:
 
-- **OAuth 2.1 (preferred for interactive clients — Cursor, Claude Code, Claude Desktop/Cowork).**
+- **OAuth 2.1 (preferred for interactive clients — Codex, Claude Code, Claude Desktop/Cowork).**
   The client discovers the authorization server from the 401 and runs authorization-code + PKCE; you
   log in with your Requel credentials in the browser and approve a consent screen once. No token to
   paste or store. See "OAuth 2.1 connection" below. The full end-to-end walkthrough (and how to
   enable the AS + register a client) is in `doc/83-oauth-verification.md`.
 - **Personal access token (PAT) — preferred for headless / CI / scripts, and fine for a quick test.**
-  A durable, revocable bearer you mint once and put in the `Authorization` header. See "1. Get a
-  token (PAT)".
+  A durable, revocable bearer you mint once and put in the `Authorization` header. See "Get a token
+  (PAT)".
 
 Either way the client acts as **one Requel user**, and that user's per-stakeholder permissions govern
 what the tools can read and write. Scope the user to what the assistant should do.
@@ -60,25 +60,58 @@ backed by the Requel user store. A client connects with no pre-shared token: it 
 metadata from the 401, discovers the AS, and runs authorization-code + PKCE (you log in + consent in
 the browser).
 
-**Enabling and client registration** are covered step-by-step in `doc/83-oauth-verification.md`
-(start the server with the AS enabled, mint an initial access token from the registrar client, and
-register the client — or use `mcp-remote --static-oauth-client-info` with a pre-registered
-`client_id`). Requel uses Spring Authorization Server's OIDC Dynamic Client Registration, which is
-**gated by an initial access token** (not anonymous); registered clients are forced to loopback
-redirect URIs, PKCE, consent, and the `mcp` scope.
+**Enabling and client registration** are covered step-by-step in `doc/83-oauth-verification.md`.
+Requel uses Spring Authorization Server's OIDC Dynamic Client Registration, which is **gated by an
+initial access token** (not anonymous); registered clients are forced to loopback redirect URIs,
+PKCE, consent, and the `mcp` scope.
 
 > Because DCR is gated, a client must either accept a **pre-registered `client_id`** (register one
 > per the recipe below) or supply an initial access token — Requel does not allow anonymous
 > registration. If a client can *only* self-register anonymously and can't be configured otherwise,
-> use the PAT path below. (Claude Code accepts a pre-registered `client_id`; see the recipe.)
+> use the PAT path instead.
 
-### Claude Code (VS Code) over OAuth — confirmed recipe
+### Codex over OAuth (native Streamable) — the #98 target recipe
 
-Verified end to end (issue #83, Part D). Claude Code accepts a pre-registered `client_id` and a fixed
-callback port, so it works with Requel's gated DCR without anonymous registration.
+Codex speaks native remote MCP over OAuth, but **only over Streamable HTTP** — which Requel now
+serves. No `mcp-remote` bridge and no PAT.
 
 1. Start Requel with the AS + DCR enabled and a registrar secret:
-   `--requel.oauth.seed-dev-client=true --requel.oauth.dcr.enabled=true --requel.oauth.dcr.registrar-client-secret=<secret>`
+   `--requel.oauth.dcr.enabled=true --requel.oauth.dcr.registrar-client-secret=<secret>`
+
+2. Add the server and start the login:
+
+   ```bash
+   codex mcp add --transport http requel http://localhost:8080/api/mcp
+   codex mcp login requel
+   ```
+
+3. **Register a client for Codex's callback.** Codex's OAuth attempts anonymous DCR, which Requel's
+   gated `/connect/register` rejects, so pre-register a client whose `redirect_uris` match Codex's
+   loopback callback. Codex's `mcp_oauth_callback_url` appends a server-specific callback id, so the
+   **exact** `redirect_uri` must be read from a first login attempt (the browser URL / the server's
+   `invalid_redirect_uri` error), then registered:
+
+   ```bash
+   INIT=$(curl -s -u requel-registrar:<secret> -X POST http://localhost:8080/oauth2/token \
+     -d grant_type=client_credentials -d scope=client.create | jq -r .access_token)
+   curl -s -X POST http://localhost:8080/connect/register \
+     -H "Authorization: Bearer $INIT" -H 'Content-Type: application/json' \
+     -d '{"client_name":"codex","redirect_uris":["<EXACT redirect_uri Codex used>"],"grant_types":["authorization_code","refresh_token"]}' | jq -r .client_id
+   ```
+   Do NOT send a `scope` field — Spring AS validates it against the initial token (`client.create`
+   only) and stamps the client with scope `mcp` automatically. Configure Codex with the returned
+   `client_id` and its fixed `mcp_oauth_callback_port`, then re-run `codex mcp login requel`.
+
+> ⚠ **Runtime-verify:** the exact `redirect_uri` / callback port Codex uses and whether it accepts a
+> pre-registered `client_id` are environment-specific — confirm from a first login attempt and record
+> the values here for your setup.
+
+### Claude Code over OAuth — confirmed recipe
+
+Claude Code accepts a pre-registered `client_id` and a fixed callback port, so it works with Requel's
+gated DCR without anonymous registration.
+
+1. Start Requel with the AS + DCR enabled and a registrar secret (as above).
 
 2. Mint a single-use initial access token and register a client whose redirect URIs are Claude Code's
    loopback callback (register **both** host forms — Spring AS matches `redirect_uri` exactly):
@@ -90,29 +123,26 @@ callback port, so it works with Requel's gated DCR without anonymous registratio
      -H "Authorization: Bearer $INIT" -H 'Content-Type: application/json' \
      -d '{"client_name":"claude-code","redirect_uris":["http://127.0.0.1:8899/callback","http://localhost:8899/callback"],"grant_types":["authorization_code","refresh_token"]}' | jq -r .client_id
    ```
-   Do NOT send a `scope` field — Spring AS validates it against the initial token (`client.create`
-   only); the client is stamped with scope `mcp` automatically.
 
-3. Add the server (public/PKCE client — no secret) and authenticate:
+3. Add the server (public/PKCE client — no secret) over Streamable HTTP and authenticate:
 
    ```bash
-   claude mcp add --transport sse requel http://localhost:8080/api/mcp/sse \
+   claude mcp add --transport http requel http://localhost:8080/api/mcp \
      --callback-port 8899 --client-id <client_id> --scope user
    ```
    Then in an interactive Claude Code session run `/mcp`, select `requel`, and **Authenticate**
-   (`claude mcp login requel` also works on Claude Code ≥ v2.1.186). A browser opens for Requel login
-   + consent; on success the server shows connected and the tools appear.
+   (`claude mcp login requel` also works on recent Claude Code). A browser opens for Requel login +
+   consent; on success the server shows connected and the tools appear.
 
 If **Authenticate** fails with `invalid_redirect_uri`, Claude Code used a different callback path/host
 — read it from the browser URL and re-register the client with that exact loopback URI, then re-add
 with the new `client_id`.
 
-## 1. Get a token (PAT — headless / quick test)
+## Get a token (PAT — headless / quick test)
 
-The MCP endpoints accept a bearer credential, same as any `/api/**` call. For a PAT:
-
-**A personal access token (PAT, #73):** a durable, revocable token you mint once and
-leave configured. First log in to get a short-lived JWT, then use it to mint the PAT:
+The MCP endpoint accepts a bearer credential, same as any `/api/**` call. For a PAT — a durable,
+revocable token you mint once and leave configured — first log in to get a short-lived JWT, then use
+it to mint the PAT:
 
 ```bash
 # one-time: log in, then mint a named PAT (optionally expiresInDays)
@@ -122,12 +152,12 @@ JWT=$(curl -s -X POST http://localhost:8080/api/auth/login \
 
 curl -s -X POST http://localhost:8080/api/auth/tokens \
   -H "Authorization: Bearer $JWT" -H 'Content-Type: application/json' \
-  -d '{"name":"claude-desktop","expiresInDays":365}'
+  -d '{"name":"codex","expiresInDays":365}'
 # -> {"token":"reqpat_…","tokenInfo":{...}}   (the reqpat_ value is shown ONCE)
 ```
 
-Use the `reqpat_…` value as the bearer below. It doesn't expire on the JWT's ~8h schedule, and you
-can revoke it any time: `GET /api/auth/tokens` to list, `DELETE /api/auth/tokens/{id}` to revoke —
+Use the `reqpat_…` value as the bearer. It doesn't expire on the JWT's ~8h schedule, and you can
+revoke it any time: `GET /api/auth/tokens` to list, `DELETE /api/auth/tokens/{id}` to revoke —
 revocation takes effect on the token's next request.
 
 **Quick alternative — the login JWT** (`…/api/auth/login` → `token`): fine for a one-off test, but it
@@ -137,11 +167,66 @@ Either way the client acts as **that user** — its stakeholder permissions on e
 the tools can read and write. Use a user scoped to what the assistant should do (e.g. `Goal[Edit]`,
 `Annotation[Edit]`), not an over-privileged admin.
 
-## 2. Configure the client
+## Configure the client (PAT / static header)
 
-### Claude Desktop
+### VS Code / Copilot (native Streamable)
 
-In `claude_desktop_config.json` (Settings → Developer → Edit Config):
+`.vscode/mcp.json` (or the user-profile config) — VS Code speaks Streamable HTTP with `"type":
+"http"`:
+
+```json
+{
+  "servers": {
+    "requel": {
+      "type": "http",
+      "url": "http://localhost:8080/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${input:requel_token}",
+        "X-Requel-Client": "vscode"
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop / Cowork
+
+Add a **remote connector** in Settings → Connectors pointing at `http://localhost:8080/api/mcp`
+(Claude Desktop will not connect to remote servers configured via `claude_desktop_config.json`; use
+the Connectors UI). Authenticate with OAuth in the browser, or supply the PAT as a bearer header if
+the connector UI allows custom headers.
+
+The `X-Requel-Client` header is optional; Requel records it for per-client audit attribution
+(`GatewayRequest.clientId` / the MCP call audit). Tool names are bare — no `requel.` prefix — because
+MCP tool names must match `^[a-zA-Z0-9_-]{1,64}$`; dots are rejected by spec-compliant clients.
+
+## Verify
+
+With the server running and a token in `$REQUEL_TOKEN`:
+
+```bash
+# Unauthenticated -> 401 (the MCP endpoint is behind the OAuth2 resource-server / JWT chain)
+curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:8080/api/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+
+# Authenticated initialize -> a JSON-RPC (or SSE-framed) result with serverInfo/capabilities
+curl -s -X POST http://localhost:8080/api/mcp \
+  -H "Authorization: Bearer $REQUEL_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}'
+```
+
+The easiest end-to-end check is the **MCP Inspector**: connect it to `http://localhost:8080/api/mcp`
+over Streamable HTTP, list tools, and call `listProjects`. In a real client, list tools and call
+`listProjects` to confirm reads, then (if writes are on) `EditGoal` against a project you have
+`Goal[Edit]` on.
+
+## Pure-stdio fallback (mcp-remote)
+
+Only for a client that can't speak remote HTTP at all. `mcp-remote` bridges the client's stdio to
+Requel's Streamable endpoint; it defaults to Streamable HTTP, so no transport flag is needed:
 
 ```json
 {
@@ -150,86 +235,19 @@ In `claude_desktop_config.json` (Settings → Developer → Edit Config):
       "command": "npx",
       "args": [
         "mcp-remote",
-        "http://localhost:8080/api/mcp/sse",
-        "--transport", "sse-only",
+        "http://localhost:8080/api/mcp",
         "--header", "Authorization: Bearer ${REQUEL_TOKEN}",
-        "--header", "X-Requel-Client: claude-desktop"
+        "--header", "X-Requel-Client: stdio-bridge"
       ],
-      "env": { "REQUEL_TOKEN": "<paste the JWT from step 1>" }
+      "env": { "REQUEL_TOKEN": "<paste a PAT from 'Get a token'>" }
     }
   }
 }
 ```
 
-Restart Claude Desktop. The Requel tools (`listProjects`, `getProject`, `EditGoal`, `runCommand`,
-…) appear in the tools list. Write tools only appear when the server has writes enabled.
-
-`--transport sse-only` is important: `mcp-remote` defaults to Streamable HTTP and probes it first;
-since Requel currently serves only SSE, forcing SSE avoids a wasted Streamable-HTTP probe. This is a
-**transport** setting, not auth — it is independent of whether you authenticate via OAuth or a static
-header (the example above passes a static PAT). (Tool names are bare — no `requel.` prefix — because
-MCP tool names must match `^[a-zA-Z0-9_-]{1,64}$`; dots are rejected by spec-compliant clients.)
-
-### Codex (or any stdio MCP client)
-
-Point the client's MCP server command at the same proxy invocation:
-
-```
-npx mcp-remote http://localhost:8080/api/mcp/sse \
-  --transport sse-only \
-  --header "Authorization: Bearer $REQUEL_TOKEN" \
-  --header "X-Requel-Client: codex"
-```
-
-### Cursor (and the robust wrapper-script pattern)
-
-Some clients (Cursor observed) pre-expand `$VAR` references and mangle quoting in the `args` of
-`mcp.json` before spawning the process, which produced an empty `Authorization: Bearer ` header.
-The reliable pattern is a tiny wrapper script that the client launches; the shell reads everything
-verbatim, loads the token from a gitignored `.env`, and execs the proxy. Keep the token only in
-`.env` — never in the script or `mcp.json`.
-
-`.cursor/mcp.json` (the per-developer config; gitignored):
-
-```json
-{ "mcpServers": { "requel": { "command": "/abs/path/to/requel-mcp.sh" } } }
-```
-
-`requel-mcp.sh` (also gitignored; make it executable):
-
-```sh
-#!/bin/sh
-# Load nvm (GUI-spawned shells often lack it on PATH) and the JWT from .env, then exec the proxy.
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-set -a; . /abs/path/to/Requel/.env; set +a   # provides REQUEL_JWT
-exec npx -y mcp-remote http://localhost:8080/api/mcp/sse \
-  --transport sse-only \
-  --header "Authorization: Bearer $REQUEL_JWT" \
-  --header "X-Requel-Client: cursor"
-```
-
-The same wrapper works for Claude Code (`claude mcp add`) when inline header expansion misbehaves.
-
-The `X-Requel-Client` header is optional; Requel records it for per-client audit attribution
-(`GatewayRequest.clientId` / the MCP call audit). Per-developer `.cursor/` and `.claude/` configs
-are gitignored — only this portable recipe is committed.
-
-## 3. Verify
-
-With the server running and a token in `$REQUEL_TOKEN`, you can sanity-check the endpoint directly
-before wiring a client:
-
-```bash
-# Unauthenticated -> 401 (the MCP endpoints are behind the JWT chain)
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/api/mcp/sse
-
-# Authenticated SSE handshake -> an "event: endpoint" line with the session message URL
-curl -N -H "Authorization: Bearer $REQUEL_TOKEN" http://localhost:8080/api/mcp/sse
-```
-
-In the client, list tools and call `listProjects` to confirm reads, then (if writes are on)
-`EditGoal` against a project you have `Goal[Edit]` on.
+If a GUI-spawned client mangles `${VAR}` expansion in `args` (observed on some clients), use a tiny
+gitignored wrapper script that loads the token from a gitignored `.env` and `exec`s the same
+`npx mcp-remote … /api/mcp` command.
 
 ## Security notes
 
@@ -244,10 +262,10 @@ In the client, list tools and call `listProjects` to confirm reads, then (if wri
 ## Durable credentials (PATs, #73)
 
 The login JWT is short-lived (~8h by default, `requel.jwt.expiry-hours`), so it's a poor fit for a
-left-configured client. Personal access tokens (#73) are the durable answer: mint a named,
-revocable `reqpat_…` token for a chosen user (step 1), drop it in the `Authorization` header, and
-manage it via `GET`/`DELETE /api/auth/tokens` (revocation takes effect on the token's next request,
-and only the SHA-256 hash is stored server-side). Token *scoping* (read-only vs write-set) is a
-later enhancement; today a PAT carries its owner's full rights. Interactive OAuth 2.1 for agent
-clients that drive the discovery flow is implemented (#83) — see "OAuth 2.1 connection" above and
+left-configured client. Personal access tokens (#73) are the durable answer: mint a named, revocable
+`reqpat_…` token for a chosen user, drop it in the `Authorization` header, and manage it via
+`GET`/`DELETE /api/auth/tokens` (revocation takes effect on the token's next request, and only the
+SHA-256 hash is stored server-side). Token *scoping* (read-only vs write-set) is a later enhancement;
+today a PAT carries its owner's full rights. Interactive OAuth 2.1 for agent clients that drive the
+discovery flow is implemented (#83) — see "OAuth 2.1 connection" above and
 `doc/83-oauth-verification.md`; PATs remain the headless/CI path.
