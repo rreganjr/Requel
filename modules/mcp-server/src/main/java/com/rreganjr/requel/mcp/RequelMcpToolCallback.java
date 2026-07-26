@@ -32,11 +32,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * Adapts one Requel MCP tool (a {@link McpToolDescriptor}) to the Spring AI {@link ToolCallback}
- * SPI, so the Spring AI MCP server transport (SSE / Streamable HTTP) exposes the very same tools
- * the hand-rolled JSON-RPC server does. Execution is delegated to {@link McpReadService#callTool}
- * — which already routes reads to the {@code QueryGateway} and writes to the {@code CommandGateway}
- * (with the write opt-in flag and per-stakeholder authorization), so there is one tool
- * implementation behind both transports.
+ * SPI, so the Spring AI MCP server transport (Streamable HTTP) exposes Requel's tools. Execution is
+ * delegated to {@link McpReadService#callTool} — which already routes reads to the
+ * {@code QueryGateway} and writes to the {@code CommandGateway} (with the write opt-in flag and
+ * per-stakeholder authorization), so there is one tool implementation behind the transport.
  */
 final class RequelMcpToolCallback implements ToolCallback {
 
@@ -66,8 +65,8 @@ final class RequelMcpToolCallback implements ToolCallback {
 
 	@Override
 	public String call(String toolInput) {
-		// The JSON-RPC transport audits via McpJsonRpcHandler; the Spring AI transport doesn't go
-		// through it, so record the MCP-call audit row here (issue #69 Slice 5).
+		// The Spring AI (Streamable HTTP) transport is the only MCP transport, so the MCP-call
+		// audit row is recorded here (issue #69 Slice 5).
 		long startNanos = System.nanoTime();
 		JsonNode arguments = parseArguments(toolInput);
 		ObjectNode params = objectMapper.createObjectNode();

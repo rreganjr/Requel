@@ -27,15 +27,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import com.rreganjr.requel.user.User;
 
 /**
- * Records one {@link McpCallAudit} row per MCP JSON-RPC call: who (triggering user from
- * the security context), what (method + tool/resource name), and the outcome (OK or an
- * error code/summary) with timing. Auditing is best-effort — a failure to record must
- * never break the MCP call, so all exceptions are logged and swallowed.
+ * Records one {@link McpCallAudit} row per MCP {@code tools/call}: who (triggering user from
+ * the security context), what (the tool name), and the outcome (OK or an error code/summary)
+ * with timing. Auditing is best-effort — a failure to record must never break the MCP call, so
+ * all exceptions are logged and swallowed.
  */
 @Component
 public class McpCallAuditor {
@@ -62,30 +61,10 @@ public class McpCallAuditor {
 	}
 
 	/**
-	 * Record the outcome of an MCP call. {@code startNanos} is a {@link System#nanoTime()}
-	 * reading captured before dispatch, used to derive the call duration.
-	 */
-	public void record(McpJsonRpcRequest request, McpJsonRpcResponse response, long startNanos) {
-		try {
-			long durationMs = Math.max(0, (System.nanoTime() - startNanos) / 1_000_000L);
-			boolean ok = response == null || response.error() == null;
-			Integer errorCode = ok ? null : response.error().code();
-			String errorSummary = ok ? null : truncate(response.error().message());
-			McpCallAudit audit = new McpCallAudit(resolveTriggeringUserId(), null, null,
-					method(request), toolName(request), ok ? "OK" : "ERROR", errorCode, errorSummary,
-					durationMs, clock.instant());
-			repository.save(audit);
-		} catch (RuntimeException e) {
-			log.warn("Failed to record MCP call audit: {}", e.getMessage(), e);
-		}
-	}
-
-	/**
-	 * Transport-neutral audit of a single {@code tools/call}, used by transports that don't go
-	 * through the JSON-RPC {@link #record} path (the Spring AI MCP server). Records the triggering
-	 * user (from the security context), the tool name, and the OK/ERROR outcome with timing.
-	 * {@code assistantUserId} is left null until real per-client identities exist (#73). Best-effort
-	 * — never throws.
+	 * Transport-neutral audit of a single {@code tools/call} on the Spring AI MCP server (Streamable
+	 * HTTP) transport. Records the triggering user (from the security context), the tool name, and
+	 * the OK/ERROR outcome with timing. {@code assistantUserId} is left null until real per-client
+	 * identities exist (#73). Best-effort — never throws.
 	 *
 	 * @param startNanos a {@link System#nanoTime()} reading captured before the tool executed
 	 */
@@ -111,31 +90,6 @@ public class McpCallAuditor {
 			// still record the call, just without a user id.
 			return null;
 		}
-	}
-
-	private static String method(McpJsonRpcRequest request) {
-		if (request == null || request.method() == null) {
-			return "<malformed>";
-		}
-		return request.method();
-	}
-
-	/**
-	 * Best-effort name of the invoked tool / resource: {@code params.name} for
-	 * {@code tools/call} and {@code params.uri} for {@code resources/read}; otherwise null.
-	 */
-	private static String toolName(McpJsonRpcRequest request) {
-		if (request == null || request.params() == null) {
-			return null;
-		}
-		JsonNode params = request.params();
-		String key = "tools/call".equals(request.method()) ? "name"
-				: "resources/read".equals(request.method()) ? "uri" : null;
-		if (key == null) {
-			return null;
-		}
-		JsonNode value = params.get(key);
-		return value == null || value.isNull() ? null : value.asText();
 	}
 
 	private static String truncate(String text) {

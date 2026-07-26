@@ -69,27 +69,6 @@ class McpReadServiceTest {
 	}
 
 	@Test
-	void readsProjectTreeResource() {
-		Map<String, Object> response = service.readResource(json("""
-				{ "uri": "requel://projects/Sample/tree" }
-				"""));
-
-		JsonNode contents = objectMapper.valueToTree(response.get("contents"));
-		assertThat(contents.get(0).path("mimeType").asText()).isEqualTo("application/json");
-		assertThat(contents.get(0).path("text").asText()).contains("\"Goals\"");
-	}
-
-	@Test
-	void listsProjectsResource() {
-		Map<String, Object> response = service.readResource(json("""
-				{ "uri": "requel://projects" }
-				"""));
-
-		JsonNode contents = objectMapper.valueToTree(response.get("contents"));
-		assertThat(contents.get(0).path("text").asText()).contains("\"Sample\"");
-	}
-
-	@Test
 	void callsOpenIssuesTool() {
 		Map<String, Object> response = service.callTool(json("""
 				{ "name": "getOpenIssues", "arguments": { "projectName": "Sample" } }
@@ -169,16 +148,6 @@ class McpReadServiceTest {
 	}
 
 	@Test
-	void readsProjectContextResource() {
-		Map<String, Object> response = service.readResource(json("""
-				{ "uri": "requel://projects/Sample/context" }
-				"""));
-
-		JsonNode contents = objectMapper.valueToTree(response.get("contents"));
-		assertThat(contents.get(0).path("text").asText()).contains("\"glossary\"");
-	}
-
-	@Test
 	void draftAnnotationReturnsUnpersistedDraft() {
 		Map<String, Object> response = service.callTool(json("""
 				{
@@ -207,16 +176,6 @@ class McpReadServiceTest {
 				}
 				""")))
 				.isInstanceOf(McpInvalidParamsException.class);
-	}
-
-	@Test
-	void readsOpenIssuesResource() {
-		Map<String, Object> response = service.readResource(json("""
-				{ "uri": "requel://projects/Sample/open-issues" }
-				"""));
-
-		JsonNode contents = objectMapper.valueToTree(response.get("contents"));
-		assertThat(contents.get(0).path("text").asText()).contains("What is the SLA?");
 	}
 
 	private JsonNode json(String json) {

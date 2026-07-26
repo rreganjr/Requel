@@ -32,7 +32,7 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 
 /**
- * Verifies the Spring AI {@link ToolCallbackProvider} mirrors the JSON-RPC tool surface: read
+ * Verifies the Spring AI {@link ToolCallbackProvider} exposes Requel's tool surface: read
  * tools always present, write tools only when enabled, and a callback's {@code call} delegates to
  * the same gateway-backed {@link McpReadService} dispatch.
  */
