@@ -33,10 +33,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Registers Requel's MCP tools with the Spring AI MCP server (issue #69 Slice 4b). The Spring AI
- * MCP server boot starter auto-detects {@link ToolCallbackProvider} beans and serves them over its
- * configured transports (SSE / Streamable HTTP). We build the provider from the same
- * {@link McpReadService#listTools()} surface the hand-rolled JSON-RPC server exposes, so both
- * transports present identical tools and one implementation sits behind them.
+ * MCP server boot starter auto-detects {@link ToolCallbackProvider} beans and serves them over the
+ * Streamable HTTP transport (issue #98). We build the provider from the
+ * {@link McpReadService#listTools()} surface so one tool implementation sits behind the transport.
  * <p>
  * Write tools appear only when {@code requel.gateway.write.enabled=true} (the descriptor list from
  * {@link McpReadService#listTools()} already reflects the flag). Per-stakeholder authorization and

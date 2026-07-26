@@ -24,14 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.mcp.McpCallAuditRepository;
-import com.rreganjr.requel.mcp.McpJsonRpcHandler;
-import com.rreganjr.requel.mcp.McpJsonRpcRequest;
-import com.rreganjr.requel.mcp.McpJsonRpcResponse;
-import com.rreganjr.requel.mcp.McpTextContent;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
@@ -57,6 +52,8 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -64,8 +61,9 @@ import org.springframework.test.context.TestPropertySource;
 
 /**
  * End-to-end smoke test for the issue #69 MCP command gateway (the Slice 7 capstone). Drives the
- * MCP server the way a client does — {@code tools/call} through {@link McpJsonRpcHandler}, as an
- * authenticated stakeholder — across a representative create/associate/annotate sequence, then
+ * MCP server the way a client does — {@code tools/call} through the live Spring AI
+ * {@link ToolCallback} transport, as an authenticated stakeholder — across a representative
+ * create/associate/annotate sequence, then
  * asserts the entities exist and that BOTH audit surfaces are populated: the command-audit rows
  * (from the command chain) and the MCP-call-audit rows (from the MCP transport).
  *
@@ -77,7 +75,7 @@ import org.springframework.test.context.TestPropertySource;
 public class RequelMcpEndToEndIT extends AbstractIntegrationTestCase {
 
 	@Autowired
-	private McpJsonRpcHandler handler;
+	private ToolCallbackProvider requelToolCallbackProvider;
 
 	@Autowired
 	private ObjectMapper objectMapper;
@@ -182,21 +180,20 @@ public class RequelMcpEndToEndIT extends AbstractIntegrationTestCase {
 		assertThat(mcpCallsAfter - mcpCallsBefore).isGreaterThanOrEqualTo(5);
 	}
 
-	/** Invoke a tool through the JSON-RPC handler and return the parsed result payload. */
+	/**
+	 * Invoke a tool through the live Spring AI {@link ToolCallback} transport (the same callbacks the
+	 * Streamable HTTP server serves) and return the parsed result payload.
+	 */
 	private JsonNode callTool(String toolName, Map<String, Object> arguments) throws Exception {
-		ObjectNode params = objectMapper.createObjectNode();
-		params.put("name", toolName);
-		params.set("arguments", objectMapper.valueToTree(arguments));
-		McpJsonRpcRequest request = new McpJsonRpcRequest("2.0", objectMapper.valueToTree(1),
-				"tools/call", params);
-		McpJsonRpcResponse response = handler.handle(request);
-		assertThat(response.error())
-				.withFailMessage("tool %s failed: %s", toolName,
-						response.error() == null ? "" : response.error().message())
-				.isNull();
-		Map<?, ?> result = (Map<?, ?>) response.result();
-		List<?> content = (List<?>) result.get("content");
-		McpTextContent text = (McpTextContent) content.get(0);
-		return objectMapper.readTree(text.text());
+		ToolCallback tool = null;
+		for (ToolCallback candidate : requelToolCallbackProvider.getToolCallbacks()) {
+			if (candidate.getToolDefinition().name().equals(toolName)) {
+				tool = candidate;
+				break;
+			}
+		}
+		assertThat(tool).withFailMessage("MCP tool not found: %s", toolName).isNotNull();
+		String result = tool.call(objectMapper.writeValueAsString(arguments));
+		return objectMapper.readTree(result);
 	}
 }
