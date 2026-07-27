@@ -86,7 +86,7 @@ describe('TagSelectorComponent', () => {
   it('renders a chip labeled "category=value" for an assigned namespaced tag', async () => {
     tagServiceMock.getTagsOnEntity.mockResolvedValue([
       { id: 1, version: 1, category: 'type', value: 'business-rule', projectId: 9,
-        description: null, color: null, createdBy: 'admin' }
+        color: null, createdBy: 'admin' }
     ]);
     const { fixture } = await render(TagSelectorComponent, {
       providers: providers(),

@@ -76,7 +76,6 @@ public class TagImpl implements Tag, Serializable {
 	private String category;
 	private String value;
 	private Long projectId;
-	private String descriptionText;
 	private String color;
 	private User createdBy;
 	private Date dateCreated = new Date();
@@ -143,20 +142,6 @@ public class TagImpl implements Tag, Serializable {
 
 	public void setProjectId(Long projectId) {
 		this.projectId = projectId;
-	}
-
-	/**
-	 * Optional human description prose (the design's {@code description} column). Kept
-	 * distinct from {@link #getDescription()} (the {@link com.rreganjr.platform.domain.Describable}
-	 * label) which must never be null.
-	 */
-	@Column(name = "description", length = 1000)
-	public String getDescriptionText() {
-		return descriptionText;
-	}
-
-	public void setDescriptionText(String descriptionText) {
-		this.descriptionText = descriptionText;
 	}
 
 	@Override

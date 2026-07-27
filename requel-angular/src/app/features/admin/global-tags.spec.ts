@@ -6,7 +6,7 @@ import { TagService } from '../../core/tag.service';
 
 const MOCK_GLOBAL_TAGS = [
   { id: 1, version: 1, category: 'projectKind', value: 'product', projectId: null,
-    description: null, color: null, createdBy: 'admin' }
+    color: null, createdBy: 'admin' }
 ];
 
 const flush = () => new Promise(r => setTimeout(r, 0));

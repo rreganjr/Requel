@@ -35,8 +35,6 @@ public interface EditTagCommand extends TagCommand {
 
 	void setValue(String value);
 
-	void setDescription(String description);
-
 	void setColor(String color);
 
 	/**

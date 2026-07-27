@@ -38,7 +38,6 @@ import com.rreganjr.requel.tagging.command.DeleteTagCommand;
 import com.rreganjr.requel.tagging.command.EditTagCommand;
 import com.rreganjr.requel.tagging.command.TagCommandFactory;
 import com.rreganjr.requel.tagging.command.UnassignTagCommand;
-import com.rreganjr.requel.tagging.impl.TagImpl;
 import com.rreganjr.requel.tagging.spi.TaggableTypeRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
@@ -88,7 +87,6 @@ public class TagCommandRegistrar {
                     c.setProjectScope(resolveProjectByName(i.projectName()));
                     c.setCategory(i.category());
                     c.setValue(i.value());
-                    c.setDescription(i.description());
                     c.setColor(i.color());
                     if (i.tagId() != null) {
                         c.setTag(tagRepository.findTagById(i.tagId()));
@@ -181,14 +179,12 @@ public class TagCommandRegistrar {
         if (tag == null) {
             return null;
         }
-        String description = (tag instanceof TagImpl ti) ? ti.getDescriptionText() : null;
         return new TagDto(
                 tag.getId(),
                 tag.getVersion(),
                 tag.getCategory(),
                 tag.getValue(),
                 tag.getProjectId(),
-                description,
                 tag.getColor(),
                 tag.getCreatedBy() != null ? tag.getCreatedBy().getDisplayName() : null);
     }

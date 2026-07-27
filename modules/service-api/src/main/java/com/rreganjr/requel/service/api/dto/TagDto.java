@@ -30,7 +30,6 @@ public record TagDto(
         String category,
         String value,
         Long projectId,
-        String description,
         String color,
         String createdBy
 ) {

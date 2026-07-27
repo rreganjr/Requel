@@ -30,7 +30,6 @@ public record EditTagInput(
         String projectName,
         String category,
         String value,
-        String description,
         String color
 ) {
 }

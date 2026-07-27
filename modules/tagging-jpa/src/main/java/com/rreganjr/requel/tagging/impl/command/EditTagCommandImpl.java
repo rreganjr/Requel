@@ -48,7 +48,6 @@ public class EditTagCommandImpl extends AbstractTagCommand implements EditTagCom
 
 	private String category;
 	private String value;
-	private String description;
 	private String color;
 
 	@Autowired
@@ -65,11 +64,6 @@ public class EditTagCommandImpl extends AbstractTagCommand implements EditTagCom
 	@Override
 	public void setValue(String value) {
 		this.value = value;
-	}
-
-	@Override
-	public void setDescription(String description) {
-		this.description = description;
 	}
 
 	@Override
@@ -109,7 +103,6 @@ public class EditTagCommandImpl extends AbstractTagCommand implements EditTagCom
 				return;
 			}
 			tagImpl = new TagImpl(normalizedCategory, normalizedValue, projectId, editedBy);
-			tagImpl.setDescriptionText(description);
 			tagImpl.setColor(color);
 			tagImpl = getRepository().persist(tagImpl);
 		} else {
@@ -121,7 +114,6 @@ public class EditTagCommandImpl extends AbstractTagCommand implements EditTagCom
 			}
 			tagImpl.setCategory(normalizedCategory);
 			tagImpl.setValue(normalizedValue);
-			tagImpl.setDescriptionText(description);
 			tagImpl.setColor(color);
 			tagImpl = getRepository().merge(tagImpl);
 		}

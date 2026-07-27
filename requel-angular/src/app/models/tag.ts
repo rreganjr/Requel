@@ -26,7 +26,6 @@ export interface TagDto {
   category: string | null;
   value: string | null;
   projectId: number | null;
-  description: string | null;
   color: string | null;
   createdBy: string | null;
 }

@@ -15,7 +15,6 @@ CREATE TABLE tag (
     category      VARCHAR(255) NULL,
     `value`       VARCHAR(255) NOT NULL,
     project_id    BIGINT       NULL,
-    description   VARCHAR(1000) NULL,
     color         VARCHAR(16)  NULL,
     created_by_id BIGINT       NULL,
     date_created  DATETIME(6)  NULL,

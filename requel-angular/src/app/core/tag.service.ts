@@ -67,13 +67,12 @@ export class TagService {
 
   /** Create or update a tag. projectName null/blank => global tag. */
   editTag(projectName: string | null, category: string | null, value: string,
-          opts: { tagId?: number; description?: string | null; color?: string | null } = {}) {
+          opts: { tagId?: number; color?: string | null } = {}) {
     return this.commandService.execute<TagDto>('EditTag', {
       tagId: opts.tagId ?? null,
       projectName: projectName ?? null,
       category: category ?? null,
       value,
-      description: opts.description ?? null,
       color: opts.color ?? null,
     });
   }
