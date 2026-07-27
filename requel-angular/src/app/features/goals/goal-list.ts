@@ -18,26 +18,34 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
+import { SelectModule } from 'primeng/select';
 import { SlicePipe } from '@angular/common';
 import { GoalDto } from '../../models/goal';
+import { TagDto, tagLabel } from '../../models/tag';
 import { GoalService } from '../../core/goal.service';
+import { TagService } from '../../core/tag.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
 
 @Component({
   selector: 'app-goal-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SlicePipe],
+  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SelectModule, FormsModule, SlicePipe],
   template: `
     <app-list-page title="Goals" searchPlaceholder="Search goals..."
                    (search)="dt.filterGlobal($event, 'contains')">
       <ng-container actions>
+        <p-select [options]="tagFilterOptions()" [ngModel]="selectedTagId()"
+                  (ngModelChange)="selectedTagId.set($event)"
+                  optionLabel="label" optionValue="value" placeholder="Filter by tag"
+                  data-testid="goal-tag-filter" [showClear]="true" class="tag-filter" />
         @if (canEdit()) {
           <p-button label="New Goal" icon="pi pi-plus" (onClick)="onNewGoal()" />
         }
@@ -47,13 +55,14 @@ import { ListPageComponent } from '../../shared/list-page';
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <p-table #dt [value]="goals()" [loading]="loading()" [paginator]="true" [rows]="20"
+      <p-table #dt [value]="displayedGoals()" [loading]="loading()" [paginator]="true" [rows]="20"
                [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
                [globalFilterFields]="['name', 'text', 'createdBy']">
         <ng-template #header>
           <tr>
             <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
             <th>Text</th>
+            <th>Tags</th>
             <th pSortableColumn="createdBy">Created By <p-sortIcon field="createdBy" /></th>
           </tr>
         </ng-template>
@@ -61,11 +70,18 @@ import { ListPageComponent } from '../../shared/list-page';
           <tr [pSelectableRow]="g">
             <td>{{ g.name }}</td>
             <td class="text-preview">{{ g.text | slice:0:80 }}{{ g.text?.length > 80 ? '...' : '' }}</td>
+            <td>
+              <span class="chips" data-testid="goal-row-tags">
+                @for (t of tagsForGoal(g.id); track t.id) {
+                  <span class="tag-chip" [attr.data-tag]="label(t)">{{ label(t) }}</span>
+                }
+              </span>
+            </td>
             <td>{{ g.createdBy }}</td>
           </tr>
         </ng-template>
         <ng-template #emptymessage>
-          <tr><td colspan="3" class="text-center">No goals found.</td></tr>
+          <tr><td colspan="4" class="text-center">No goals found.</td></tr>
         </ng-template>
       </p-table>
     </app-list-page>
@@ -73,6 +89,10 @@ import { ListPageComponent } from '../../shared/list-page';
   styles: [`
     .text-center { text-align: center; }
     .text-preview { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tag-filter { min-width: 200px; }
+    .chips { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; }
+    .tag-chip { font-size: 0.7rem; font-weight: 600; padding: 0.1rem 0.45rem; border-radius: 12px;
+      background: var(--p-primary-100, #dbeafe); color: var(--p-primary-700, #1d4ed8); white-space: nowrap; }
   `]
 })
 export class GoalListComponent implements OnInit, OnDestroy {
@@ -81,6 +101,22 @@ export class GoalListComponent implements OnInit, OnDestroy {
   errorMessage = signal<string | null>(null);
   canEdit = signal(false);
 
+  /** goalId -> tags assigned to it (built from the project's tags). */
+  tagsByGoal = signal<Map<number, TagDto[]>>(new Map());
+  /** Options for the tag filter dropdown. */
+  tagFilterOptions = signal<{ label: string; value: number | null }[]>([]);
+  selectedTagId = signal<number | null>(null);
+
+  /** Goals narrowed to the selected tag filter (or all when none selected). */
+  displayedGoals = computed(() => {
+    const tagId = this.selectedTagId();
+    if (tagId == null) {
+      return this.goals();
+    }
+    const byGoal = this.tagsByGoal();
+    return this.goals().filter(g => (byGoal.get(g.id) ?? []).some(t => t.id === tagId));
+  });
+
   private projectName = '';
   private paramSub?: Subscription;
 
@@ -88,6 +124,7 @@ export class GoalListComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private goalService: GoalService,
+    private tagService: TagService,
     private permissionService: PermissionService
   ) {}
 
@@ -98,7 +135,8 @@ export class GoalListComponent implements OnInit, OnDestroy {
         this.projectName = name;
         await this.permissionService.loadForProject(name);
         this.canEdit.set(this.permissionService.canEdit('Goal'));
-        this.loadGoals();
+        await this.loadGoals();
+        await this.loadTags();
       }
     });
   }
@@ -116,6 +154,41 @@ export class GoalListComponent implements OnInit, OnDestroy {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /**
+   * Build the goalId -> tags map and the filter options from the project's tags. One request
+   * per tag definition (entities-with-tag), independent of the number of goals.
+   */
+  async loadTags(): Promise<void> {
+    try {
+      const projectTags = await this.tagService.getTagsForProject(this.projectName);
+      this.tagFilterOptions.set([
+        ...projectTags.map(t => ({ label: tagLabel(t), value: t.id as number | null })),
+      ]);
+      const map = new Map<number, TagDto[]>();
+      await Promise.all(projectTags.map(async tag => {
+        const refs = await this.tagService.getEntitiesWithTag(tag.id);
+        for (const ref of refs) {
+          if (ref.entityType === 'Goal') {
+            const list = map.get(ref.entityId) ?? [];
+            list.push(tag);
+            map.set(ref.entityId, list);
+          }
+        }
+      }));
+      this.tagsByGoal.set(map);
+    } catch {
+      // Tags are supplemental — leave the map empty on failure.
+    }
+  }
+
+  tagsForGoal(goalId: number): TagDto[] {
+    return this.tagsByGoal().get(goalId) ?? [];
+  }
+
+  label(tag: TagDto): string {
+    return tagLabel(tag);
   }
 
   onRowSelect(event: { data?: GoalDto | GoalDto[] }): void {

@@ -53,6 +53,7 @@ import jakarta.validation.constraints.NotEmpty;
 
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
+import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.project.GoalRelation;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.platform.identity.User;
@@ -65,7 +66,7 @@ import com.rreganjr.platform.identity.User;
 		"projectordomain_id", "name" }) })
 @XmlRootElement(name = "goal", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "goal", namespace = "http://www.rreganjr.com/requel")
-public class GoalImpl extends AbstractTextEntity implements Goal {
+public class GoalImpl extends AbstractTextEntity implements Goal, Taggable {
 	static final long serialVersionUID = 0L;
 
 	private Set<GoalRelation> relationsFromThisGoal = new TreeSet<GoalRelation>();

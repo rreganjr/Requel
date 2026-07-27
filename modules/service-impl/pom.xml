@@ -67,6 +67,16 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>tagging-domain</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>tagging-jpa</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
