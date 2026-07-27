@@ -36,11 +36,12 @@ import { ProjectService } from '../../core/project.service';
 import { UserService } from '../../core/user.service';
 import { CommandService } from '../../core/command.service';
 import { PermissionService } from '../../core/permission.service';
+import { TagSelectorComponent } from '../../shared/tag-selector';
 
 @Component({
   selector: 'app-project-editor',
   standalone: true,
-  imports: [FormsModule, InputText, TextareaModule, ButtonModule, SelectModule, MessageModule, ConfirmDialogModule],
+  imports: [FormsModule, InputText, TextareaModule, ButtonModule, SelectModule, MessageModule, ConfirmDialogModule, TagSelectorComponent],
   providers: [ConfirmationService],
   template: `
     <div class="project-editor" data-testid="project-editor">
@@ -90,6 +91,14 @@ import { PermissionService } from '../../core/permission.service';
                     (onClick)="onCancel()" [outlined]="true" />
         </div>
       </form>
+
+      @if (!isNew()) {
+        <app-tag-selector
+          [projectName]="originalName()"
+          entityType="Project"
+          [entityId]="tagEntityId()"
+          [canEdit]="canEdit()" />
+      }
     </div>
 
     <p-confirmDialog />
@@ -111,6 +120,8 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   @ViewChild('projectForm') projectForm!: NgForm;
 
   readonly isNew = signal(true);
+  readonly canEdit = signal(false);
+  readonly tagEntityId = signal<number | null>(null);
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -198,6 +209,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
           this.permissionService.loadForProject(nameParam)
         ]);
         this.populateForm(project);
+        this.canEdit.set(this.permissionService.canEdit('Project'));
       } else {
         this.projectId = null;
         this.projectVersion = null;
@@ -301,6 +313,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
 
   private populateForm(project: ProjectDto): void {
     this.projectId = project.id;
+    this.tagEntityId.set(project.id);
     this.projectVersion = project.version;
     this.originalName.set(project.name);
     this.name = project.name;

@@ -2,12 +2,13 @@ import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, ActivatedRoute, convertToParamMap } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
-import { ConfirmationService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { ProjectEditorComponent } from './project-editor';
 import { ProjectService } from '../../core/project.service';
 import { UserService } from '../../core/user.service';
 import { CommandService } from '../../core/command.service';
 import { PermissionService } from '../../core/permission.service';
+import { TagService } from '../../core/tag.service';
 
 const MOCK_PROJECT = {
   id: 42, version: 1, name: 'Existing Project', description: 'Desc',
@@ -27,7 +28,7 @@ describe('ProjectEditorComponent', () => {
   };
   let userServiceMock: { listOrganizations: ReturnType<typeof vi.fn> };
   let commandServiceMock: { execute: ReturnType<typeof vi.fn> };
-  let permissionServiceMock: { loadForProject: ReturnType<typeof vi.fn> };
+  let permissionServiceMock: { loadForProject: ReturnType<typeof vi.fn>; canEdit: ReturnType<typeof vi.fn> };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fixture: any;
   let comp: ProjectEditorComponent;
@@ -44,7 +45,10 @@ describe('ProjectEditorComponent', () => {
     commandServiceMock = {
       execute: vi.fn().mockResolvedValue({ success: true, entity: MOCK_PROJECT })
     };
-    permissionServiceMock = { loadForProject: vi.fn().mockResolvedValue(undefined) };
+    permissionServiceMock = {
+      loadForProject: vi.fn().mockResolvedValue(undefined),
+      canEdit: vi.fn().mockReturnValue(true)
+    };
 
     TestBed.configureTestingModule({
       imports: [ProjectEditorComponent],
@@ -55,7 +59,13 @@ describe('ProjectEditorComponent', () => {
         { provide: ProjectService, useValue: projectServiceMock },
         { provide: UserService, useValue: userServiceMock },
         { provide: CommandService, useValue: commandServiceMock },
-        { provide: PermissionService, useValue: permissionServiceMock }
+        { provide: PermissionService, useValue: permissionServiceMock },
+        { provide: TagService, useValue: {
+            getTagsOnEntity: vi.fn().mockResolvedValue([]),
+            getTagsForProject: vi.fn().mockResolvedValue([]),
+            getCategories: vi.fn().mockResolvedValue([])
+          } },
+        { provide: MessageService, useValue: { add: vi.fn() } }
       ]
     });
     fixture = TestBed.createComponent(ProjectEditorComponent);

@@ -28,8 +28,14 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.rreganjr.requel.project.impl.ActorImpl;
 import com.rreganjr.requel.project.impl.GoalImpl;
+import com.rreganjr.requel.project.impl.NonUserStakeholderImpl;
 import com.rreganjr.requel.project.impl.ProjectImpl;
+import com.rreganjr.requel.project.impl.ScenarioImpl;
+import com.rreganjr.requel.project.impl.StoryImpl;
+import com.rreganjr.requel.project.impl.UseCaseImpl;
+import com.rreganjr.requel.project.impl.UserStakeholderImpl;
 import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.tagging.spi.TaggableTypeRegistry;
 
@@ -38,9 +44,8 @@ import com.rreganjr.requel.tagging.spi.TaggableTypeRegistry;
  * exposes the discriminator map both to Hibernate's metadata contributor (static, for
  * boot) and to the runtime {@link TaggableTypeRegistry} (for controllers).
  *
- * <p>Phase 1 registers {@code Goal} and {@code Project}; later phases extend this to
- * {@code Actor}, {@code Story}, {@code Scenario}, {@code Stakeholder}, and
- * {@code UseCase}. Mirrors {@link ProjectAnnotatableRegistryConfiguration}.</p>
+ * <p>Registers Goal, Project, Actor, Story, Scenario, UseCase, and the two Stakeholder
+ * impls. Mirrors {@link ProjectAnnotatableRegistryConfiguration}.</p>
  */
 @Configuration
 public class TaggableRegistryConfiguration {
@@ -51,6 +56,12 @@ public class TaggableRegistryConfiguration {
 		final Map<String, Class<? extends Taggable>> mappings = new LinkedHashMap<>();
 		mappings.put("Goal", GoalImpl.class);
 		mappings.put("Project", ProjectImpl.class);
+		mappings.put("Actor", ActorImpl.class);
+		mappings.put("Story", StoryImpl.class);
+		mappings.put("Scenario", ScenarioImpl.class);
+		mappings.put("UseCase", UseCaseImpl.class);
+		mappings.put("NonUserStakeholder", NonUserStakeholderImpl.class);
+		mappings.put("UserStakeholder", UserStakeholderImpl.class);
 		PROJECT_TAGGABLE_TYPES = Collections.unmodifiableMap(mappings);
 		TaggableMetadataContributor.registerTaggableTypes(PROJECT_TAGGABLE_TYPES);
 	}

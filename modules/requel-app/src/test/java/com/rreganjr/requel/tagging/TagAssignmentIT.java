@@ -32,6 +32,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.impl.ActorImpl;
 import com.rreganjr.requel.project.impl.GoalImpl;
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.requel.tagging.impl.TagImpl;
@@ -109,5 +110,41 @@ public class TagAssignmentIT {
 				"GoalImpl should resolve to the 'Goal' discriminator");
 		assertEquals("Project", taggableTypeRegistry.resolveDiscriminator(ProjectImpl.class).orElse(null),
 				"ProjectImpl should resolve to the 'Project' discriminator");
+
+		// Phase 4: the remaining taggable entity types are registered too.
+		for (String discriminator : new String[] { "Actor", "Story", "Scenario", "UseCase",
+				"NonUserStakeholder", "UserStakeholder" }) {
+			assertTrue(taggableTypeRegistry.resolveEntityType(discriminator).isPresent(),
+					"'" + discriminator + "' should be a registered taggable type");
+		}
+	}
+
+	@Test
+	@Transactional
+	public void assignsTagToActorAndReloadsViaAnyMapping() throws Exception {
+		User admin = userRepository.findUserByUsername("admin");
+		Long adminId = ((UserImpl) Hibernate.unproxy(admin)).getId();
+		User adminRef = entityManager.find(UserImpl.class, adminId);
+
+		Project project = new ProjectImpl("TagActor-" + UUID.randomUUID(), adminRef,
+				new OrganizationImpl("TagActorOrg-" + UUID.randomUUID()));
+		ActorImpl actor = new ActorImpl(project, adminRef, "Actor-" + UUID.randomUUID(),
+				"tag mapping probe");
+		project.getActors().add(actor);
+
+		entityManager.persist(project);
+		entityManager.persist(actor);
+		entityManager.flush();
+
+		TagImpl tag = new TagImpl("domain", "billing", ((ProjectImpl) project).getId(), adminRef);
+		tag.getTaggables().add(actor);
+		entityManager.persist(tag);
+		entityManager.flush();
+		entityManager.clear();
+
+		TagImpl reloaded = entityManager.find(TagImpl.class, tag.getId());
+		assertEquals(1, reloaded.getTaggables().size(), "tag should reload its actor assignment");
+		assertTrue(reloaded.getTaggables().iterator().next() instanceof ActorImpl,
+				"actor taggable should reload through @ManyToAny as ActorImpl");
 	}
 }
