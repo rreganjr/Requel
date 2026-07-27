@@ -41,7 +41,7 @@ class ExportProjectCommandImplTest {
 
 		ByteArrayOutputStream output = new ByteArrayOutputStream();
 		ExportProjectCommandImpl command = new ExportProjectCommandImpl(null, null, null,
-				null, null, null, new JaxbAdapterConfigurer());
+				null, null, null, new JaxbAdapterConfigurer(), proj -> java.util.List.of());
 		command.setProject(project);
 		command.setOutputStream(output);
 

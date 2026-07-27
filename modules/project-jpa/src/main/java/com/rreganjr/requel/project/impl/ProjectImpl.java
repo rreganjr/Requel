@@ -72,6 +72,7 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project, Tag
 	private Organization organization;
 	private String status;
 	private Set<Annotation> annotations = new TreeSet<Annotation>();
+	private Set<TagAssignmentXml> exportTagAssignments = new HashSet<TagAssignmentXml>();
 
 	/**
 	 * @param name
@@ -152,6 +153,23 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project, Tag
 			}
 		}
 		return positions;
+	}
+
+	/**
+	 * Export/import carrier for tag assignments (issue #112, Phase 5). Not persistent — populated
+	 * for export by the service layer from the tag repository, and read on import by the tag StAX
+	 * importer. Holding only {@link TagAssignmentXml} (strings + an IDREF) keeps the marshal graph
+	 * free of any tag class.
+	 */
+	@Transient
+	@XmlElementWrapper(name = "tags", namespace = "http://www.rreganjr.com/requel", required = false)
+	@XmlElement(name = "tagAssignment", namespace = "http://www.rreganjr.com/requel")
+	public Set<TagAssignmentXml> getExportTagAssignments() {
+		return exportTagAssignments;
+	}
+
+	public void setExportTagAssignments(Set<TagAssignmentXml> exportTagAssignments) {
+		this.exportTagAssignments = exportTagAssignments;
 	}
 
 	@XmlElementWrapper(name = "annotations", namespace = "http://www.rreganjr.com/requel", required = false)

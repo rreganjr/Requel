@@ -144,6 +144,15 @@ class ProjectXmlStreamingRoundTripIT {
 	@Autowired
 	private UserCommandFactory userCommandFactory;
 
+	@Autowired
+	private com.rreganjr.requel.tagging.command.TagCommandFactory tagCommandFactory;
+
+	@Autowired
+	private com.rreganjr.requel.tagging.TagRepository tagRepository;
+
+	@jakarta.persistence.PersistenceContext
+	private jakarta.persistence.EntityManager entityManager;
+
 	@Test
 	@Transactional
 	void importExportRoundTripKeepsProjectRoundTrippable() throws Exception {
@@ -188,6 +197,63 @@ class ProjectXmlStreamingRoundTripIT {
 		ProjectSnapshot reimportedSnapshot = snapshotProject(reimportedProject);
 		System.out.println("Re-imported project annotations: " + reimportedSnapshot.annotationCount());
 		assertSnapshotsEquivalent(originalSnapshot, reimportedSnapshot);
+	}
+
+	@Test
+	@Transactional
+	void tagsRoundTripByName() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().stream().findFirst()
+				.orElseThrow(() -> new AssertionError("sample project has no goal"));
+
+		// A namespaced project-scoped tag and a global tag, both on the goal.
+		assignImportedTagForTest(projectUser, originalProject, goal, "type", "business-rule");
+		assignImportedTagForTest(projectUser, null, goal, "scope", "shared");
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML tag tokens")
+				.contains("<tags>")
+				.contains("type:business-rule")
+				.contains("scope:shared");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " TagReimport " + Instant.now().toEpochMilli();
+		Project reimported = importProject(exportedBytes, projectUser, reName);
+		entityManager.flush();
+		Goal reGoal = reimported.getGoals().stream().findFirst()
+				.orElseThrow(() -> new AssertionError("reimported project has no goal"));
+
+		Set<String> tokens = tagRepository.findTagsOnEntity("Goal", reGoal.getId()).stream()
+				.map(t -> new com.rreganjr.requel.tagging.TagToken(
+						t.getCategory(), t.getValue(), t.getColor()).toToken())
+				.collect(Collectors.toSet());
+		assertThat(tokens).as("tags on the reimported goal")
+				.contains("type:business-rule", "scope:shared");
+
+		// The global tag was resolved by key on import, not duplicated.
+		assertThat(tagRepository.findTag(null, "scope", "shared"))
+				.as("global tag resolved by key").isNotNull();
+	}
+
+	private void assignImportedTagForTest(User user, Project projectScope, Goal goal,
+			String category, String value) throws Exception {
+		com.rreganjr.requel.tagging.command.EditTagCommand edit = tagCommandFactory.newEditTagCommand();
+		edit.setEditedBy(user);
+		edit.setProjectScope(projectScope);
+		edit.setCategory(category);
+		edit.setValue(value);
+		edit.execute();
+
+		com.rreganjr.requel.tagging.command.AssignTagCommand assign = tagCommandFactory.newAssignTagCommand();
+		assign.setEditedBy(user);
+		assign.setProjectScope(projectScope);
+		assign.setTag(edit.getTag());
+		assign.setTaggable((com.rreganjr.requel.tagging.Taggable) goal);
+		assign.execute();
 	}
 
 	@Test
