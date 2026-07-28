@@ -92,6 +92,20 @@ public class EditTagCommandImpl extends AbstractTagCommand implements EditTagCom
 
 		Project project = getProject();
 		Long projectId = (project != null) ? project.getId() : null;
+
+		// Typed category (Phase 6): if the category defines a controlled value list, the value must
+		// be on it. An empty/absent list means any value is allowed.
+		if (normalizedCategory != null) {
+			com.rreganjr.requel.tagging.TagCategory tagCategory =
+					getTagRepository().findCategory(projectId, normalizedCategory);
+			if ((tagCategory != null) && !tagCategory.getValues().isEmpty()
+					&& !tagCategory.getValues().contains(normalizedValue)) {
+				throw EntityValidationException.validationFailed(Tag.class, "value",
+						"Value '" + normalizedValue + "' is not allowed for category '"
+								+ normalizedCategory + "'.");
+			}
+		}
+
 		User editedBy = getRepository().get(getEditedBy());
 
 		TagImpl tagImpl = (TagImpl) getTag();

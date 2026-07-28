@@ -136,4 +136,47 @@ public class JpaTagRepository extends AbstractJpaRepository implements TagReposi
 		}
 		return new ArrayList<>(query.getResultList());
 	}
+
+	@Override
+	public com.rreganjr.requel.tagging.TagCategory findCategory(Long projectId, String name) {
+		if (name == null) {
+			return null;
+		}
+		if (projectId != null) {
+			TagCategoryImpl scoped = findCategoryInScope(projectId, name);
+			if (scoped != null) {
+				return scoped;
+			}
+		}
+		return findCategoryInScope(null, name);
+	}
+
+	private TagCategoryImpl findCategoryInScope(Long projectId, String name) {
+		String jpql = "select c from TagCategoryImpl c where c.name = :name and "
+				+ (projectId == null ? "c.projectId is null" : "c.projectId = :projectId");
+		TypedQuery<TagCategoryImpl> query = getEntityManager().createQuery(jpql, TagCategoryImpl.class);
+		query.setParameter("name", name);
+		if (projectId != null) {
+			query.setParameter("projectId", projectId);
+		}
+		List<TagCategoryImpl> results = query.getResultList();
+		return results.isEmpty() ? null : results.get(0);
+	}
+
+	@Override
+	public List<com.rreganjr.requel.tagging.TagCategory> findCategoriesForProject(Long projectId) {
+		TypedQuery<TagCategoryImpl> query;
+		if (projectId == null) {
+			query = getEntityManager().createQuery(
+					"select c from TagCategoryImpl c where c.projectId is null order by c.name",
+					TagCategoryImpl.class);
+		} else {
+			query = getEntityManager().createQuery(
+					"select c from TagCategoryImpl c where c.projectId = :projectId or c.projectId is null "
+							+ "order by c.name",
+					TagCategoryImpl.class);
+			query.setParameter("projectId", projectId);
+		}
+		return new ArrayList<>(query.getResultList());
+	}
 }

@@ -76,4 +76,20 @@ public interface TagRepository extends Repository {
 	 * @return the distinct non-null categories in scope, for autocomplete
 	 */
 	List<String> findDistinctCategories(Long projectId);
+
+	/**
+	 * Resolve the governing {@link TagCategory} for a category name in a scope: the project-scoped
+	 * category if one exists, else the global one, else {@code null} (no rules).
+	 *
+	 * @param projectId the tag's project id, or {@code null} for global
+	 * @param name the category name
+	 * @return the governing category, or {@code null} if none is defined
+	 */
+	TagCategory findCategory(Long projectId, String name);
+
+	/**
+	 * @param projectId the project id, or {@code null} for global-only
+	 * @return the categories in scope (project-scoped + global), ordered by name
+	 */
+	List<TagCategory> findCategoriesForProject(Long projectId);
 }
