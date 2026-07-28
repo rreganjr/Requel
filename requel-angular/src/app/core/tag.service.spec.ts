@@ -93,4 +93,35 @@ describe('TagService', () => {
     req.flush({ success: true, entityType: 'DeleteTag', entity: null, error: null, violations: null });
     await promise;
   });
+
+  it('getTypedCategories() sends GET /api/tags/categories/typed', async () => {
+    const promise = service.getTypedCategories('My Project');
+    const req = httpMock.expectOne(r =>
+      r.url === '/api/tags/categories/typed' && r.params.get('projectName') === 'My Project');
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
+    expect(await promise).toEqual([]);
+  });
+
+  it('editTagCategory() dispatches EditTagCategory with normalized payload', async () => {
+    const promise = service.editTagCategory({
+      projectName: null, name: 'type', exclusive: true,
+      allowedEntityTypes: ['Goal'], values: ['business-rule']
+    });
+    const req = httpMock.expectOne('/api/commands/EditTagCategory');
+    expect(req.request.body).toMatchObject({
+      categoryId: null, projectName: null, name: 'type', exclusive: true,
+      allowedEntityTypes: ['Goal'], values: ['business-rule']
+    });
+    req.flush({ success: true, entityType: 'EditTagCategory', entity: { id: 1 }, error: null, violations: null });
+    expect((await promise).success).toBe(true);
+  });
+
+  it('deleteTagCategory() dispatches DeleteTagCategory', async () => {
+    const promise = service.deleteTagCategory(7);
+    const req = httpMock.expectOne('/api/commands/DeleteTagCategory');
+    expect(req.request.body).toMatchObject({ categoryId: 7 });
+    req.flush({ success: true, entityType: 'DeleteTagCategory', entity: null, error: null, violations: null });
+    await promise;
+  });
 });

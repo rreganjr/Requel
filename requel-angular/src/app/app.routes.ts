@@ -39,6 +39,7 @@ export const routes: Routes = [
       { path: 'users', canActivate: [adminGuard], loadComponent: () => import('./features/users/user-list').then(m => m.UserListComponent) },
       { path: 'users/:username', canActivate: [adminGuard], loadComponent: () => import('./features/users/user-editor').then(m => m.UserEditorComponent), canDeactivate: [dirtyCheckGuard] },
       { path: 'global-tags', canActivate: [adminGuard], loadComponent: () => import('./features/admin/global-tags').then(m => m.GlobalTagsComponent) },
+      { path: 'tag-categories', canActivate: [adminGuard], loadComponent: () => import('./features/admin/tag-categories').then(m => m.TagCategoriesComponent) },
       { path: 'projects', loadComponent: () => import('./features/projects/project-list').then(m => m.ProjectListComponent) },
       { path: 'projects/:name/stakeholders', loadComponent: () => import('./features/stakeholders/stakeholder-list').then(m => m.StakeholderListComponent) },
       { path: 'projects/:name/stakeholders/:stakeholderId', loadComponent: () => import('./features/stakeholders/stakeholder-editor').then(m => m.StakeholderEditorComponent), canDeactivate: [dirtyCheckGuard] },

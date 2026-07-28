@@ -59,7 +59,8 @@ describe('GoalEditorComponent', () => {
         { provide: TagService, useValue: {
             getTagsOnEntity: vi.fn().mockResolvedValue([]),
             getTagsForProject: vi.fn().mockResolvedValue([]),
-            getCategories: vi.fn().mockResolvedValue([])
+            getCategories: vi.fn().mockResolvedValue([]),
+            getTypedCategories: vi.fn().mockResolvedValue([])
           } },
         { provide: CommandService, useValue: commandServiceMock },
         { provide: ProjectService, useValue: projectServiceMock },

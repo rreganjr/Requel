@@ -63,7 +63,8 @@ describe('ProjectEditorComponent', () => {
         { provide: TagService, useValue: {
             getTagsOnEntity: vi.fn().mockResolvedValue([]),
             getTagsForProject: vi.fn().mockResolvedValue([]),
-            getCategories: vi.fn().mockResolvedValue([])
+            getCategories: vi.fn().mockResolvedValue([]),
+            getTypedCategories: vi.fn().mockResolvedValue([])
           } },
         { provide: MessageService, useValue: { add: vi.fn() } }
       ]

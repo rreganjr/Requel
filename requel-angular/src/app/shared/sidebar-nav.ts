@@ -89,6 +89,9 @@ function persistExpandedProjectNames(names: Set<string>): void {
               <a routerLink="/global-tags" class="sidebar-link" aria-label="Manage global tags">
                 <i class="pi pi-tags"></i> Global Tags
               </a>
+              <a routerLink="/tag-categories" class="sidebar-link" aria-label="Manage tag categories">
+                <i class="pi pi-sitemap"></i> Tag Categories
+              </a>
             </div>
           </p-accordion-content>
         </p-accordion-panel>

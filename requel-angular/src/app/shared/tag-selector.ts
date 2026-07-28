@@ -23,7 +23,7 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { MessageService } from 'primeng/api';
-import { TagDto, tagLabel } from '../models/tag';
+import { TagCategoryDto, TagDto, tagLabel } from '../models/tag';
 import { TagService } from '../core/tag.service';
 
 /**
@@ -43,6 +43,9 @@ import { TagService } from '../core/tag.service';
         <div class="chips" data-testid="tag-chips">
           @for (t of assigned(); track t.id) {
             <span class="tag-chip" data-testid="tag-chip" [attr.data-tag]="label(t)">
+              @if (chipColor(t)) {
+                <span class="tag-dot" [style.background]="chipColor(t)"></span>
+              }
               <span class="tag-chip-label">{{ label(t) }}</span>
               @if (canEdit) {
                 <button type="button" class="chip-x" data-testid="tag-remove"
@@ -87,6 +90,7 @@ import { TagService } from '../core/tag.service';
     .tag-chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem;
       font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 12px;
       background: var(--p-primary-100, #dbeafe); color: var(--p-primary-700, #1d4ed8); }
+    .tag-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
     .chip-x { border: none; background: transparent; cursor: pointer; font-size: 0.9rem;
       line-height: 1; color: inherit; padding: 0; }
     .add-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
@@ -106,6 +110,7 @@ export class TagSelectorComponent implements OnChanges {
   available = this._available.asReadonly();
   private _categories = signal<string[]>([]);
   categories = this._categories.asReadonly();
+  private _typedCategories = signal<TagCategoryDto[]>([]);
 
   newCategory = '';
   newValue = '';
@@ -122,9 +127,16 @@ export class TagSelectorComponent implements OnChanges {
     return tagLabel(tag);
   }
 
-  /** Distinct values from the project's tags, narrowed to the typed category. */
+  /**
+   * Suggested values for the typed category: its controlled value list when one is defined,
+   * otherwise the distinct values already used under that category name.
+   */
   valuesForCategory(): string[] {
     const cat = this.newCategory.trim();
+    const typed = this.categoryFor(cat);
+    if (typed && typed.values.length > 0) {
+      return typed.values;
+    }
     const values = this._available()
       .filter(t => (cat ? t.category === cat : true))
       .map(t => t.value)
@@ -132,17 +144,30 @@ export class TagSelectorComponent implements OnChanges {
     return Array.from(new Set(values));
   }
 
+  /** The typed category rules for a category name, or null. */
+  private categoryFor(name: string | null): TagCategoryDto | null {
+    if (!name) return null;
+    return this._typedCategories().find(c => c.name === name) ?? null;
+  }
+
+  /** Chip colour: the tag's own colour, else its category's fallback colour, else null. */
+  chipColor(tag: TagDto): string | null {
+    return tag.color ?? this.categoryFor(tag.category)?.color ?? null;
+  }
+
   private async load(): Promise<void> {
     if (this.entityId == null) return;
     try {
-      const [assigned, available, categories] = await Promise.all([
+      const [assigned, available, categories, typedCategories] = await Promise.all([
         this.tagService.getTagsOnEntity(this.entityType, this.entityId),
         this.tagService.getTagsForProject(this.projectName),
         this.tagService.getCategories(this.projectName),
+        this.tagService.getTypedCategories(this.projectName),
       ]);
       this._assigned.set(assigned);
       this._available.set(available);
       this._categories.set(categories);
+      this._typedCategories.set(typedCategories);
     } catch {
       // Tags are supplemental — ignore load failures silently.
     }

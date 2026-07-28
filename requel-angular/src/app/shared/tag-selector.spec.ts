@@ -9,6 +9,7 @@ describe('TagSelectorComponent', () => {
     getTagsOnEntity: ReturnType<typeof vi.fn>;
     getTagsForProject: ReturnType<typeof vi.fn>;
     getCategories: ReturnType<typeof vi.fn>;
+    getTypedCategories: ReturnType<typeof vi.fn>;
     editTag: ReturnType<typeof vi.fn>;
     assignTag: ReturnType<typeof vi.fn>;
     unassignTag: ReturnType<typeof vi.fn>;
@@ -20,6 +21,7 @@ describe('TagSelectorComponent', () => {
       getTagsOnEntity: vi.fn().mockResolvedValue([]),
       getTagsForProject: vi.fn().mockResolvedValue([]),
       getCategories: vi.fn().mockResolvedValue([]),
+      getTypedCategories: vi.fn().mockResolvedValue([]),
       editTag: vi.fn().mockResolvedValue({ success: true, entity: { id: 5 } }),
       assignTag: vi.fn().mockResolvedValue({ success: true }),
       unassignTag: vi.fn().mockResolvedValue({ success: true }),
@@ -111,5 +113,22 @@ describe('TagSelectorComponent', () => {
     expect(tagServiceMock.assignTag).toHaveBeenCalledWith(5, 'Goal', 1);
     expect(comp.newValue).toBe('');
     expect(comp.newCategory).toBe('');
+  });
+
+  it('chipColor falls back to the category colour when the tag has none', async () => {
+    tagServiceMock.getTypedCategories.mockResolvedValue([
+      { id: 9, version: 1, projectId: 9, name: 'type', exclusive: false, color: '#abcdef',
+        allowedEntityTypes: [], values: [] }
+    ]);
+    const { fixture } = await render(TagSelectorComponent, {
+      providers: providers(),
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1, canEdit: true }
+    });
+    await fixture.whenStable();
+    const comp = fixture.componentInstance as TagSelectorComponent;
+    const color = comp.chipColor({
+      id: 1, version: 1, category: 'type', value: 'x', projectId: 9, color: null, createdBy: null
+    });
+    expect(color).toBe('#abcdef');
   });
 });

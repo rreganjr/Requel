@@ -21,7 +21,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { TagDto, TagEntityRef } from '../models/tag';
+import { TagCategoryDto, TagDto, TagEntityRef } from '../models/tag';
 import { CommandService } from './command.service';
 
 /**
@@ -87,5 +87,42 @@ export class TagService {
 
   deleteTag(tagId: number) {
     return this.commandService.execute('DeleteTag', { tagId });
+  }
+
+  // --- Typed categories (Phase 6) ---
+
+  /** Typed categories in scope (project + global) with their rules. */
+  getTypedCategories(projectName?: string | null): Promise<TagCategoryDto[]> {
+    let params = new HttpParams();
+    if (projectName) {
+      params = params.set('projectName', projectName);
+    }
+    return firstValueFrom(
+      this.http.get<TagCategoryDto[]>(`${this.base}/categories/typed`, { params }));
+  }
+
+  /** Create or update a typed category. projectName null/blank => global. */
+  editTagCategory(input: {
+    categoryId?: number;
+    projectName: string | null;
+    name: string;
+    exclusive: boolean;
+    color?: string | null;
+    allowedEntityTypes?: string[];
+    values?: string[];
+  }) {
+    return this.commandService.execute<TagCategoryDto>('EditTagCategory', {
+      categoryId: input.categoryId ?? null,
+      projectName: input.projectName ?? null,
+      name: input.name,
+      exclusive: input.exclusive,
+      color: input.color ?? null,
+      allowedEntityTypes: input.allowedEntityTypes ?? [],
+      values: input.values ?? [],
+    });
+  }
+
+  deleteTagCategory(categoryId: number) {
+    return this.commandService.execute('DeleteTagCategory', { categoryId });
   }
 }

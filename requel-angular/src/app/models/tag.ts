@@ -36,6 +36,18 @@ export interface TagEntityRef {
   entityId: number;
 }
 
+/** A typed category's rules (Phase 6). Empty allowedEntityTypes/values mean no restriction. */
+export interface TagCategoryDto {
+  id: number;
+  version: number;
+  projectId: number | null;
+  name: string;
+  exclusive: boolean;
+  color: string | null;
+  allowedEntityTypes: string[];
+  values: string[];
+}
+
 /** Human display label for a tag: "category=value" when namespaced, else just "value". */
 export function tagLabel(tag: Pick<TagDto, 'category' | 'value'>): string {
   return tag.category ? `${tag.category}=${tag.value}` : (tag.value ?? '');
