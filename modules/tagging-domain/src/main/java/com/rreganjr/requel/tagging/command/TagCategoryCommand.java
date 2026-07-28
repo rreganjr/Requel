@@ -20,25 +20,21 @@
  */
 package com.rreganjr.requel.tagging.command;
 
-import com.rreganjr.command.CommandFactory;
+import com.rreganjr.platform.command.EditCommand;
+import com.rreganjr.requel.tagging.TagCategory;
 
 /**
- * Factory for tag mutation commands. Registered with the composite CQRS command factory
- * via {@code TagCommandRegistrar}.
+ * Common contract for tag-category mutation commands. The project scope is passed as an opaque
+ * {@code Object} (resolved by the API layer) so this domain module stays project-free, mirroring
+ * {@link TagCommand}. A {@code null} scope denotes a global category.
  *
  * @author ron
  */
-public interface TagCommandFactory extends CommandFactory {
+public interface TagCategoryCommand extends EditCommand {
 
-	EditTagCommand newEditTagCommand();
+	/** Owning project as an opaque scope; {@code null} = global. */
+	void setProjectScope(Object project);
 
-	DeleteTagCommand newDeleteTagCommand();
-
-	AssignTagCommand newAssignTagCommand();
-
-	UnassignTagCommand newUnassignTagCommand();
-
-	EditTagCategoryCommand newEditTagCategoryCommand();
-
-	DeleteTagCategoryCommand newDeleteTagCategoryCommand();
+	/** @return the managed category after {@code execute()}. */
+	TagCategory getTagCategory();
 }

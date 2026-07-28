@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.service.api.dto.TagCategoryDto;
 import com.rreganjr.requel.service.api.dto.TagDto;
 import com.rreganjr.requel.service.command.TagCommandRegistrar;
 import com.rreganjr.requel.tagging.Tag;
@@ -94,6 +95,20 @@ public class TagQueryController {
     public ResponseEntity<List<String>> getCategories(
             @RequestParam(required = false) String projectName) {
         return ResponseEntity.ok(tagRepository.findDistinctCategories(resolveProjectId(projectName)));
+    }
+
+    /**
+     * GET /api/tag-categories?projectName={name} — the typed categories in scope (project + global),
+     * with their rules, for admin management and client-side enforcement.
+     */
+    @GetMapping("/categories/typed")
+    public ResponseEntity<List<TagCategoryDto>> getTypedCategories(
+            @RequestParam(required = false) String projectName) {
+        List<TagCategoryDto> categories =
+                tagRepository.findCategoriesForProject(resolveProjectId(projectName)).stream()
+                        .map(TagCommandRegistrar::toTagCategoryDto)
+                        .toList();
+        return ResponseEntity.ok(categories);
     }
 
     private Long resolveProjectId(String projectName) {

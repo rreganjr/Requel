@@ -179,4 +179,12 @@ public class JpaTagRepository extends AbstractJpaRepository implements TagReposi
 		}
 		return new ArrayList<>(query.getResultList());
 	}
+
+	@Override
+	public com.rreganjr.requel.tagging.TagCategory findCategoryById(Long id) {
+		if (id == null) {
+			return null;
+		}
+		return getEntityManager().find(TagCategoryImpl.class, id);
+	}
 }

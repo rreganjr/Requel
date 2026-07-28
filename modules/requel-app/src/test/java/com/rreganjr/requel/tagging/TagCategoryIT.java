@@ -21,9 +21,12 @@
 package com.rreganjr.requel.tagging;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -37,7 +40,10 @@ import org.springframework.test.context.ActiveProfiles;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.impl.GoalImpl;
 import com.rreganjr.requel.project.impl.ProjectImpl;
+import com.rreganjr.requel.tagging.TagCategory;
 import com.rreganjr.requel.tagging.command.AssignTagCommand;
+import com.rreganjr.requel.tagging.command.DeleteTagCategoryCommand;
+import com.rreganjr.requel.tagging.command.EditTagCategoryCommand;
 import com.rreganjr.requel.tagging.command.EditTagCommand;
 import com.rreganjr.requel.tagging.command.TagCommandFactory;
 import com.rreganjr.requel.tagging.impl.TagCategoryImpl;
@@ -175,6 +181,56 @@ public class TagCategoryIT {
 		assertTrue(tagRepository.findTagsOnEntity("Project", ((ProjectImpl) project).getId()).stream()
 						.anyMatch(t -> "projectkind".equals(t.getCategory())),
 				"projectkind should attach to the Project");
+	}
+
+	@Test
+	@Transactional
+	public void editCategoryCommandNormalizesNameAndValuesAndPersistsRules() throws Exception {
+		User admin = admin();
+		Project project = newProject(admin);
+
+		EditTagCategoryCommand edit = tagCommandFactory.newEditTagCategoryCommand();
+		edit.setEditedBy(admin);
+		edit.setProjectScope(project);
+		edit.setName("Project Kind");
+		edit.setExclusive(true);
+		edit.setColor("#1d4ed8");
+		edit.setAllowedEntityTypes(new HashSet<>(Set.of("Project")));
+		edit.setValues(new HashSet<>(Set.of("Product", "Feature")));
+		edit.execute();
+
+		TagCategory category = edit.getTagCategory();
+		assertNotNull(category.getId(), "created category should have an id");
+		assertEquals("project-kind", category.getName(), "category name is normalized to a slug");
+		assertTrue(category.isExclusive());
+		assertEquals(Set.of("Project"), category.getAllowedEntityTypes(),
+				"allowed entity types are kept as discriminators");
+		assertEquals(Set.of("product", "feature"), new HashSet<>(category.getValues()),
+				"controlled values are normalized to slugs");
+	}
+
+	@Test
+	@Transactional
+	public void deleteCategoryCommandRemovesTheCategory() throws Exception {
+		User admin = admin();
+		Project project = newProject(admin);
+
+		EditTagCategoryCommand edit = tagCommandFactory.newEditTagCategoryCommand();
+		edit.setEditedBy(admin);
+		edit.setProjectScope(project);
+		edit.setName("type");
+		edit.execute();
+		Long categoryId = edit.getTagCategory().getId();
+
+		DeleteTagCategoryCommand delete = tagCommandFactory.newDeleteTagCategoryCommand();
+		delete.setEditedBy(admin);
+		delete.setProjectScope(project);
+		delete.setCategoryId(categoryId);
+		delete.execute();
+		entityManager.flush();
+		entityManager.clear();
+
+		assertNull(tagRepository.findCategoryById(categoryId), "deleted category should be gone");
 	}
 
 	@Test

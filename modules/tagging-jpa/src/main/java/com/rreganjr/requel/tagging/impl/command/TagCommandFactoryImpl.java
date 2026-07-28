@@ -27,7 +27,9 @@ import org.springframework.stereotype.Controller;
 import com.rreganjr.command.AbstractCommandFactory;
 import com.rreganjr.command.CommandFactoryStrategy;
 import com.rreganjr.requel.tagging.command.AssignTagCommand;
+import com.rreganjr.requel.tagging.command.DeleteTagCategoryCommand;
 import com.rreganjr.requel.tagging.command.DeleteTagCommand;
+import com.rreganjr.requel.tagging.command.EditTagCategoryCommand;
 import com.rreganjr.requel.tagging.command.EditTagCommand;
 import com.rreganjr.requel.tagging.command.TagCommandFactory;
 import com.rreganjr.requel.tagging.command.UnassignTagCommand;
@@ -62,5 +64,15 @@ public class TagCommandFactoryImpl extends AbstractCommandFactory implements Tag
 	@Override
 	public UnassignTagCommand newUnassignTagCommand() {
 		return (UnassignTagCommand) getCreationStrategy().newInstance(UnassignTagCommandImpl.class);
+	}
+
+	@Override
+	public EditTagCategoryCommand newEditTagCategoryCommand() {
+		return (EditTagCategoryCommand) getCreationStrategy().newInstance(EditTagCategoryCommandImpl.class);
+	}
+
+	@Override
+	public DeleteTagCategoryCommand newDeleteTagCategoryCommand() {
+		return (DeleteTagCategoryCommand) getCreationStrategy().newInstance(DeleteTagCategoryCommandImpl.class);
 	}
 }

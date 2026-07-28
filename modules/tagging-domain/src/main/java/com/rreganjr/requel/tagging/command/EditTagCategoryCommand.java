@@ -20,25 +20,26 @@
  */
 package com.rreganjr.requel.tagging.command;
 
-import com.rreganjr.command.CommandFactory;
+import java.util.Set;
 
 /**
- * Factory for tag mutation commands. Registered with the composite CQRS command factory
- * via {@code TagCommandRegistrar}.
+ * Create or update a {@link com.rreganjr.requel.tagging.TagCategory}. When {@code categoryId} is
+ * null the command creates (or reuses by normalized {@code (scope, name)}) a category; otherwise it
+ * updates that category. The name is normalized to a slug on write.
  *
  * @author ron
  */
-public interface TagCommandFactory extends CommandFactory {
+public interface EditTagCategoryCommand extends TagCategoryCommand {
 
-	EditTagCommand newEditTagCommand();
+	void setCategoryId(Long categoryId);
 
-	DeleteTagCommand newDeleteTagCommand();
+	void setName(String name);
 
-	AssignTagCommand newAssignTagCommand();
+	void setExclusive(boolean exclusive);
 
-	UnassignTagCommand newUnassignTagCommand();
+	void setColor(String color);
 
-	EditTagCategoryCommand newEditTagCategoryCommand();
+	void setAllowedEntityTypes(Set<String> allowedEntityTypes);
 
-	DeleteTagCategoryCommand newDeleteTagCategoryCommand();
+	void setValues(Set<String> values);
 }

@@ -26,21 +26,30 @@ import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.api.dto.AssignTagInput;
+import com.rreganjr.requel.service.api.dto.DeleteTagCategoryInput;
 import com.rreganjr.requel.service.api.dto.DeleteTagInput;
+import com.rreganjr.requel.service.api.dto.EditTagCategoryInput;
 import com.rreganjr.requel.service.api.dto.EditTagInput;
+import com.rreganjr.requel.service.api.dto.TagCategoryDto;
 import com.rreganjr.requel.service.api.dto.TagDto;
 import com.rreganjr.requel.service.api.dto.UnassignTagInput;
 import com.rreganjr.requel.tagging.Tag;
+import com.rreganjr.requel.tagging.TagCategory;
 import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.tagging.TagRepository;
 import com.rreganjr.requel.tagging.command.AssignTagCommand;
+import com.rreganjr.requel.tagging.command.DeleteTagCategoryCommand;
 import com.rreganjr.requel.tagging.command.DeleteTagCommand;
+import com.rreganjr.requel.tagging.command.EditTagCategoryCommand;
 import com.rreganjr.requel.tagging.command.EditTagCommand;
 import com.rreganjr.requel.tagging.command.TagCommandFactory;
 import com.rreganjr.requel.tagging.command.UnassignTagCommand;
 import com.rreganjr.requel.tagging.spi.TaggableTypeRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -137,7 +146,34 @@ public class TagCommandRegistrar {
                     c.setProjectScope(projectScopeOf(taggable));
                 });
 
-        log.info("Registered {} tag command types", 4);
+        registry.register("EditTagCategory", EditTagCategoryInput.class,
+                factory::newEditTagCategoryCommand,
+                (cmd, input) -> {
+                    EditTagCategoryCommand c = (EditTagCategoryCommand) cmd;
+                    EditTagCategoryInput i = (EditTagCategoryInput) input;
+                    c.setProjectScope(resolveProjectByName(i.projectName()));
+                    c.setCategoryId(i.categoryId());
+                    c.setName(i.name());
+                    c.setExclusive(i.exclusive());
+                    c.setColor(i.color());
+                    c.setAllowedEntityTypes(new HashSet<>(
+                            i.allowedEntityTypes() != null ? i.allowedEntityTypes() : List.of()));
+                    c.setValues(new HashSet<>(i.values() != null ? i.values() : List.of()));
+                },
+                null,
+                cmd -> toTagCategoryDto(((EditTagCategoryCommand) cmd).getTagCategory()));
+
+        registry.register("DeleteTagCategory", DeleteTagCategoryInput.class,
+                factory::newDeleteTagCategoryCommand,
+                (cmd, input) -> {
+                    DeleteTagCategoryCommand c = (DeleteTagCategoryCommand) cmd;
+                    DeleteTagCategoryInput i = (DeleteTagCategoryInput) input;
+                    TagCategory category = tagRepository.findCategoryById(i.categoryId());
+                    c.setCategoryId(i.categoryId());
+                    c.setProjectScope(resolveProject(category != null ? category.getProjectId() : null));
+                });
+
+        log.info("Registered {} tag command types", 6);
     }
 
     private Object resolveProject(Long projectId) {
@@ -187,5 +223,20 @@ public class TagCommandRegistrar {
                 tag.getProjectId(),
                 tag.getColor(),
                 tag.getCreatedBy() != null ? tag.getCreatedBy().getDisplayName() : null);
+    }
+
+    public static TagCategoryDto toTagCategoryDto(TagCategory category) {
+        if (category == null) {
+            return null;
+        }
+        return new TagCategoryDto(
+                category.getId(),
+                category.getVersion(),
+                category.getProjectId(),
+                category.getName(),
+                category.isExclusive(),
+                category.getColor(),
+                new ArrayList<>(category.getAllowedEntityTypes()),
+                new ArrayList<>(category.getValues()));
     }
 }

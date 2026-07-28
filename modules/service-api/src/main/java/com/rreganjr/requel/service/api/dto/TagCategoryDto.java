@@ -18,27 +18,21 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.tagging.command;
+package com.rreganjr.requel.service.api.dto;
 
-import com.rreganjr.command.CommandFactory;
+import java.util.List;
 
 /**
- * Factory for tag mutation commands. Registered with the composite CQRS command factory
- * via {@code TagCommandRegistrar}.
- *
- * @author ron
+ * Read DTO for a typed tag category. {@code allowedEntityTypes}/{@code values} empty = no restriction.
  */
-public interface TagCommandFactory extends CommandFactory {
-
-	EditTagCommand newEditTagCommand();
-
-	DeleteTagCommand newDeleteTagCommand();
-
-	AssignTagCommand newAssignTagCommand();
-
-	UnassignTagCommand newUnassignTagCommand();
-
-	EditTagCategoryCommand newEditTagCategoryCommand();
-
-	DeleteTagCategoryCommand newDeleteTagCategoryCommand();
+public record TagCategoryDto(
+        Long id,
+        int version,
+        Long projectId,
+        String name,
+        boolean exclusive,
+        String color,
+        List<String> allowedEntityTypes,
+        List<String> values
+) {
 }

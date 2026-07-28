@@ -20,25 +20,13 @@
  */
 package com.rreganjr.requel.tagging.command;
 
-import com.rreganjr.command.CommandFactory;
-
 /**
- * Factory for tag mutation commands. Registered with the composite CQRS command factory
- * via {@code TagCommandRegistrar}.
+ * Delete a {@link com.rreganjr.requel.tagging.TagCategory}. Existing tags keep their category
+ * string; they simply lose the rules the category used to impose.
  *
  * @author ron
  */
-public interface TagCommandFactory extends CommandFactory {
+public interface DeleteTagCategoryCommand extends TagCategoryCommand {
 
-	EditTagCommand newEditTagCommand();
-
-	DeleteTagCommand newDeleteTagCommand();
-
-	AssignTagCommand newAssignTagCommand();
-
-	UnassignTagCommand newUnassignTagCommand();
-
-	EditTagCategoryCommand newEditTagCategoryCommand();
-
-	DeleteTagCategoryCommand newDeleteTagCategoryCommand();
+	void setCategoryId(Long categoryId);
 }

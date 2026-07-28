@@ -92,4 +92,10 @@ public interface TagRepository extends Repository {
 	 * @return the categories in scope (project-scoped + global), ordered by name
 	 */
 	List<TagCategory> findCategoriesForProject(Long projectId);
+
+	/**
+	 * @param id the category id
+	 * @return the category, or {@code null} if none exists with that id
+	 */
+	TagCategory findCategoryById(Long id);
 }
