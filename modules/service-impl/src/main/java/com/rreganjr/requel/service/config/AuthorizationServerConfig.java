@@ -31,6 +31,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.env.Environment;
+import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -65,8 +68,14 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.GeneralSecurityException;
+import java.security.Key;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.KeyStore;
+import java.security.cert.Certificate;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.net.URI;
@@ -247,23 +256,86 @@ public class AuthorizationServerConfig {
     /**
      * RSA signing key for issued JWTs.
      *
-     * <p><b>Slice 1 caveat:</b> this key is generated at startup, so it changes on every restart and
-     * previously-issued tokens stop validating after a restart. Fine for dev; the hardening
-     * follow-up (see plan "Out of scope / follow-ups") loads a persistent key from a configured
-     * keystore so tokens survive restarts.
+     * <p>When {@code requel.oauth.jwk.keystore.location} is set, the key pair is loaded from that
+     * keystore and the JWK {@code kid} is the (stable) key alias, so tokens issued before a restart
+     * keep validating afterwards and JWKS consumers can cache the key (issue #105). When the location
+     * is blank, the previous behavior is kept: a fresh key is generated at startup (ephemeral,
+     * dev/test/CI default) with a one-time warning. See {@code doc/105-keystore-credentials.md}.
+     *
+     * @see #buildSigningKey(String, String, String, String, String, ResourceLoader)
      */
     @Bean
     public JWKSource<SecurityContext> jwkSource() {
-        KeyPair keyPair = generateRsaKey();
-        RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
-        RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
-        RSAKey rsaKey = new RSAKey.Builder(publicKey)
-                .privateKey(privateKey)
-                .keyID(UUID.randomUUID().toString())
-                .build();
-        log.warn("OAuth AS signing key generated at startup (ephemeral). Tokens will not survive a "
-                + "restart; configure a persistent keystore before production (issue #83 hardening).");
+        RSAKey rsaKey = buildSigningKey(
+                environment.getProperty("requel.oauth.jwk.keystore.location", ""),
+                environment.getProperty("requel.oauth.jwk.keystore.type", "PKCS12"),
+                environment.getProperty("requel.oauth.jwk.keystore.password", ""),
+                environment.getProperty("requel.oauth.jwk.key-alias", ""),
+                environment.getProperty("requel.oauth.jwk.key-password", ""),
+                new DefaultResourceLoader());
         return new ImmutableJWKSet<>(new JWKSet(rsaKey));
+    }
+
+    /**
+     * Builds the RSA signing {@link RSAKey}. If {@code location} is blank, generates an ephemeral key
+     * (random {@code kid}) and logs the not-production warning. Otherwise loads the key pair from the
+     * keystore at {@code location} (a Spring {@code file:}/{@code classpath:} resource) and uses the
+     * key alias as a stable {@code kid}. The key password falls back to the store password when unset
+     * (common for PKCS12). Package-visible and parameterized so both paths can be unit-tested without
+     * booting the authorization server.
+     *
+     * @throws IllegalStateException if a location is set but the alias is missing, the keystore cannot
+     *         be read, or the aliased entry is not an RSA private key with a certificate.
+     */
+    static RSAKey buildSigningKey(String location, String storeType, String storePassword,
+            String keyAlias, String keyPassword, ResourceLoader resourceLoader) {
+        if (location == null || location.isBlank()) {
+            KeyPair keyPair = generateRsaKey();
+            RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
+            RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
+            log.warn("OAuth AS signing key generated at startup (ephemeral). Tokens will not survive a "
+                    + "restart; set requel.oauth.jwk.keystore.location to a persistent keystore before "
+                    + "production (issue #105).");
+            return new RSAKey.Builder(publicKey)
+                    .privateKey(privateKey)
+                    .keyID(UUID.randomUUID().toString())
+                    .build();
+        }
+        if (keyAlias == null || keyAlias.isBlank()) {
+            throw new IllegalStateException("requel.oauth.jwk.key-alias is required when "
+                    + "requel.oauth.jwk.keystore.location is set");
+        }
+        String type = (storeType == null || storeType.isBlank()) ? "PKCS12" : storeType;
+        char[] storePw = storePassword == null ? new char[0] : storePassword.toCharArray();
+        // The key password defaults to the store password when unset (PKCS12 typically shares them).
+        char[] keyPw = (keyPassword == null || keyPassword.isEmpty()) ? storePw : keyPassword.toCharArray();
+        Resource resource = resourceLoader.getResource(location);
+        try (InputStream in = resource.getInputStream()) {
+            KeyStore keyStore = KeyStore.getInstance(type);
+            keyStore.load(in, storePw);
+            Key key = keyStore.getKey(keyAlias, keyPw);
+            if (!(key instanceof RSAPrivateKey privateKey)) {
+                throw new IllegalStateException("Alias '" + keyAlias + "' in keystore '" + location
+                        + "' is not an RSA private key");
+            }
+            Certificate certificate = keyStore.getCertificate(keyAlias);
+            if (certificate == null) {
+                throw new IllegalStateException("No certificate for alias '" + keyAlias
+                        + "' in keystore '" + location + "'");
+            }
+            RSAPublicKey publicKey = (RSAPublicKey) certificate.getPublicKey();
+            // Stable kid == alias, so JWKS consumers can cache the key across restarts (issue #105).
+            RSAKey rsaKey = new RSAKey.Builder(publicKey)
+                    .privateKey(privateKey)
+                    .keyID(keyAlias)
+                    .build();
+            log.info("OAuth AS signing key loaded from keystore '{}' (type {}, alias '{}'); stable "
+                    + "kid, tokens survive restarts.", location, type, keyAlias);
+            return rsaKey;
+        } catch (IOException | GeneralSecurityException e) {
+            throw new IllegalStateException("Unable to load OAuth signing key from keystore '"
+                    + location + "' (alias '" + keyAlias + "')", e);
+        }
     }
 
     private static KeyPair generateRsaKey() {
