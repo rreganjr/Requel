@@ -59,6 +59,7 @@ import org.hibernate.annotations.SortNatural;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.Story;
@@ -75,7 +76,7 @@ import com.rreganjr.requel.project.StoryType;
 		"projectordomain_id", "name" }) })
 @XmlRootElement(name = "story", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "story", namespace = "http://www.rreganjr.com/requel")
-public class StoryImpl extends AbstractTextEntity implements Story {
+public class StoryImpl extends AbstractTextEntity implements Story, Taggable {
 	static final long serialVersionUID = 0;
 
 	private Set<StoryContainer> referers = new TreeSet<StoryContainer>(StoryContainer.COMPARATOR);

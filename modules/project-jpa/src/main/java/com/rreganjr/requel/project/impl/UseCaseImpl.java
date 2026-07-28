@@ -28,6 +28,7 @@ import org.hibernate.annotations.SortNatural;
 
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.Scenario;
@@ -63,7 +64,7 @@ import jakarta.xml.bind.annotation.XmlType;
 		"projectordomain_id", "name" }) })
 @XmlRootElement(name = "usecase", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "usecase", namespace = "http://www.rreganjr.com/requel")
-public class UseCaseImpl extends AbstractTextEntity implements UseCase {
+public class UseCaseImpl extends AbstractTextEntity implements UseCase, Taggable {
 	static final long serialVersionUID = 0L;
 
 	private Actor primaryActor;

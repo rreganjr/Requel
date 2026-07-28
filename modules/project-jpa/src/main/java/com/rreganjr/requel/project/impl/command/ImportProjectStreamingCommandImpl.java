@@ -99,6 +99,9 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
     private final com.rreganjr.requel.utils.jaxb.imports.AnnotationStaxImporter annotationStaxImporter;
     private final com.rreganjr.requel.utils.jaxb.imports.GlossaryTermStaxImporter glossaryTermStaxImporter;
     private final com.rreganjr.requel.utils.jaxb.imports.ReportGeneratorStaxImporter reportGeneratorStaxImporter;
+    private final com.rreganjr.requel.utils.jaxb.imports.TagStaxImporter tagStaxImporter;
+    private final com.rreganjr.requel.tagging.spi.TaggableTypeRegistry taggableTypeRegistry;
+    private final com.rreganjr.requel.tagging.TagImportHandler tagImportHandler;
     private static final String PROJECT_NS = "http://www.rreganjr.com/requel";
     private InputStream inputStream;
     private String name;
@@ -121,7 +124,10 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
                                              com.rreganjr.requel.utils.jaxb.imports.PositionStaxImporter positionStaxImporter,
                                              com.rreganjr.requel.utils.jaxb.imports.AnnotationStaxImporter annotationStaxImporter,
                                              com.rreganjr.requel.utils.jaxb.imports.GlossaryTermStaxImporter glossaryTermStaxImporter,
-                                             com.rreganjr.requel.utils.jaxb.imports.ReportGeneratorStaxImporter reportGeneratorStaxImporter) {
+                                             com.rreganjr.requel.utils.jaxb.imports.ReportGeneratorStaxImporter reportGeneratorStaxImporter,
+                                             com.rreganjr.requel.utils.jaxb.imports.TagStaxImporter tagStaxImporter,
+                                             com.rreganjr.requel.tagging.spi.TaggableTypeRegistry taggableTypeRegistry,
+                                             com.rreganjr.requel.tagging.TagImportHandler tagImportHandler) {
         super(assistantManager, userRepository, projectRepository, projectCommandFactory,
                 annotationCommandFactory, commandHandler);
         this.actorStaxImporter = actorStaxImporter;
@@ -134,6 +140,9 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         this.annotationStaxImporter = annotationStaxImporter;
         this.glossaryTermStaxImporter = glossaryTermStaxImporter;
         this.reportGeneratorStaxImporter = reportGeneratorStaxImporter;
+        this.tagStaxImporter = tagStaxImporter;
+        this.taggableTypeRegistry = taggableTypeRegistry;
+        this.tagImportHandler = tagImportHandler;
     }
 
     @Override
@@ -309,6 +318,18 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         }
 
         setProject(getProjectRepository().persist(targetProject));
+
+        // Import tag assignments (issue #112, Phase 5) AFTER the project and its entities are
+        // persisted, so the tag @ManyToAny never references a transient entity. Entities are resolved
+        // here (this command owns the unit of work) and applied through the TagImportHandler SPI, so
+        // the command never references a tag JPA type — tagging stays a strict leaf.
+        var tagAssignments = tagStaxImporter.readTagAssignments(new ByteArrayInputStream(xmlBytes));
+        for (com.rreganjr.requel.utils.jaxb.imports.TagAssignmentImportXml ta : tagAssignments) {
+            com.rreganjr.requel.tagging.Taggable taggable = resolveTaggable(ta, targetProject, unitOfWork);
+            if (taggable != null) {
+                tagImportHandler.assignImportedTag(taggable, ta.getToken(), createdBy);
+            }
+        }
     }
 
     private void addBuiltinReportGenerator(Project project, User user) {
@@ -352,6 +373,21 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         } catch (NoSuchProjectException e) {
             return false;
         }
+    }
+
+    private com.rreganjr.requel.tagging.Taggable resolveTaggable(
+            com.rreganjr.requel.utils.jaxb.imports.TagAssignmentImportXml assignment,
+            Project targetProject, ImportUnitOfWork unitOfWork) {
+        if ("Project".equals(assignment.getEntityType())) {
+            return (targetProject instanceof com.rreganjr.requel.tagging.Taggable projectTaggable)
+                    ? projectTaggable : null;
+        }
+        Class<? extends com.rreganjr.requel.tagging.Taggable> entityClass =
+                taggableTypeRegistry.resolveEntityType(assignment.getEntityType()).orElse(null);
+        if ((entityClass == null) || (assignment.getEntityRef() == null)) {
+            return null;
+        }
+        return unitOfWork.resolve(entityClass, assignment.getEntityRef()).orElse(null);
     }
 
     private String createdByExternalId(User createdBy) {

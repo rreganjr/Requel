@@ -36,6 +36,7 @@ import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
 
 import com.rreganjr.requel.project.ProjectOrDomain;
+import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.ScenarioType;
 import com.rreganjr.requel.project.Step;
@@ -51,7 +52,7 @@ import org.hibernate.annotations.ListIndexBase;
 @DiscriminatorValue(value = "com.rreganjr.requel.project.Scenario")
 @XmlRootElement(name = "scenario", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "scenario", namespace = "http://www.rreganjr.com/requel")
-public class ScenarioImpl extends StepImpl implements Scenario {
+public class ScenarioImpl extends StepImpl implements Scenario, Taggable {
 	static final long serialVersionUID = 0L;
 
 	private List<Step> steps = new ArrayList<>();

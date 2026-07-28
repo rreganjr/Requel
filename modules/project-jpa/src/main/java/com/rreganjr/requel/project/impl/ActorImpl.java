@@ -54,6 +54,7 @@ import jakarta.validation.constraints.NotEmpty;
 import org.xml.sax.SAXException;
 
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.project.ActorContainer;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectOrDomain;
@@ -67,7 +68,7 @@ import com.rreganjr.requel.user.UserRepository;
 		"projectordomain_id", "name" }) })
 @XmlRootElement(name = "actor", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "actor", namespace = "http://www.rreganjr.com/requel")
-public class ActorImpl extends AbstractTextEntity implements Actor {
+public class ActorImpl extends AbstractTextEntity implements Actor, Taggable {
 	static final long serialVersionUID = 0L;
 
 	private Set<ActorContainer> referers = new TreeSet<ActorContainer>(ActorContainer.COMPARATOR);

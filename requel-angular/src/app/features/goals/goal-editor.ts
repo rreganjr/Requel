@@ -40,13 +40,14 @@ import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { TagSelectorComponent } from '../../shared/tag-selector';
 
 @Component({
   selector: 'app-goal-editor',
   standalone: true,
   imports: [FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
-            AnnotationsSectionComponent],
+            AnnotationsSectionComponent, TagSelectorComponent],
   providers: [ConfirmationService],
   template: `
     <div class="goal-editor" data-testid="goal-editor">
@@ -187,6 +188,14 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             </div>
           </div>
         </div>
+      }
+
+      @if (!isNew()) {
+        <app-tag-selector
+          [projectName]="projectName"
+          entityType="Goal"
+          [entityId]="goalId"
+          [canEdit]="canEdit()" />
       }
 
       <app-annotations-section

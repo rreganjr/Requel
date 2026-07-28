@@ -50,6 +50,7 @@ import com.rreganjr.requel.annotation.impl.AbstractAnnotation;
 import com.rreganjr.requel.annotation.impl.PositionImpl;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.UserStakeholder;
@@ -65,12 +66,13 @@ import com.rreganjr.requel.user.JAXBOrganizedEntityPatcher;
 @DiscriminatorValue(value = "com.rreganjr.requel.project.impl.ProjectImpl")
 @XmlRootElement(name = "project", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "project", namespace = "http://www.rreganjr.com/requel")
-public class ProjectImpl extends AbstractProjectOrDomain implements Project {
+public class ProjectImpl extends AbstractProjectOrDomain implements Project, Taggable {
 	static final long serialVersionUID = 0L;
 
 	private Organization organization;
 	private String status;
 	private Set<Annotation> annotations = new TreeSet<Annotation>();
+	private Set<TagAssignmentXml> exportTagAssignments = new HashSet<TagAssignmentXml>();
 
 	/**
 	 * @param name
@@ -151,6 +153,23 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project {
 			}
 		}
 		return positions;
+	}
+
+	/**
+	 * Export/import carrier for tag assignments (issue #112, Phase 5). Not persistent — populated
+	 * for export by the service layer from the tag repository, and read on import by the tag StAX
+	 * importer. Holding only {@link TagAssignmentXml} (strings + an IDREF) keeps the marshal graph
+	 * free of any tag class.
+	 */
+	@Transient
+	@XmlElementWrapper(name = "tags", namespace = "http://www.rreganjr.com/requel", required = false)
+	@XmlElement(name = "tagAssignment", namespace = "http://www.rreganjr.com/requel")
+	public Set<TagAssignmentXml> getExportTagAssignments() {
+		return exportTagAssignments;
+	}
+
+	public void setExportTagAssignments(Set<TagAssignmentXml> exportTagAssignments) {
+		this.exportTagAssignments = exportTagAssignments;
 	}
 
 	@XmlElementWrapper(name = "annotations", namespace = "http://www.rreganjr.com/requel", required = false)

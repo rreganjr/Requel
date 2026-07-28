@@ -4,6 +4,7 @@ import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angul
 import { BehaviorSubject } from 'rxjs';
 import { GoalListComponent } from './goal-list';
 import { GoalService } from '../../core/goal.service';
+import { TagService } from '../../core/tag.service';
 import { PermissionService } from '../../core/permission.service';
 
 const MOCK_GOALS = [
@@ -18,6 +19,7 @@ const flush = () => new Promise(r => setTimeout(r, 0));
 describe('GoalListComponent', () => {
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
   let goalServiceMock: { listGoals: ReturnType<typeof vi.fn> };
+  let tagServiceMock: { getTagsForProject: ReturnType<typeof vi.fn>; getEntitiesWithTag: ReturnType<typeof vi.fn> };
   let permissionServiceMock: { loadForProject: ReturnType<typeof vi.fn>; canEdit: ReturnType<typeof vi.fn> };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fixture: any;
@@ -28,6 +30,10 @@ describe('GoalListComponent', () => {
     paramMap$ = new BehaviorSubject(convertToParamMap({ name: 'proj1' }));
 
     goalServiceMock = { listGoals: vi.fn().mockResolvedValue(MOCK_GOALS) };
+    tagServiceMock = {
+      getTagsForProject: vi.fn().mockResolvedValue([]),
+      getEntitiesWithTag: vi.fn().mockResolvedValue([])
+    };
     permissionServiceMock = {
       loadForProject: vi.fn().mockResolvedValue(undefined),
       canEdit: vi.fn().mockReturnValue(true)
@@ -40,6 +46,7 @@ describe('GoalListComponent', () => {
         provideRouter([]),
         { provide: ActivatedRoute, useValue: { paramMap: paramMap$.asObservable() } },
         { provide: GoalService, useValue: goalServiceMock },
+        { provide: TagService, useValue: tagServiceMock },
         { provide: PermissionService, useValue: permissionServiceMock }
       ]
     });

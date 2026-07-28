@@ -254,6 +254,8 @@
         <module>modules/dictionary-jpa</module>
         <module>modules/annotation-domain</module>
         <module>modules/annotation-jpa</module>
+        <module>modules/tagging-domain</module>
+        <module>modules/tagging-jpa</module>
         <module>modules/project-domain</module>
         <module>modules/project-jpa</module>
         <module>modules/nlp-jpa</module>

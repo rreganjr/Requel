@@ -612,12 +612,26 @@
                 </xs:sequence>
               </xs:complexType>
             </xs:element>
+            <xs:element name="tags" form="qualified" minOccurs="0" maxOccurs="1">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="tagAssignment" type="tns:tagAssignment" form="qualified"
+                              minOccurs="0" maxOccurs="unbounded"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
           </xs:choice>
           <xs:element ref="tns:organization"/>
           <xs:element name="status" type="xs:string" form="qualified" minOccurs="0"/>
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
+  </xs:complexType>
+
+  <xs:complexType name="tagAssignment">
+    <xs:attribute name="entityType" type="xs:string"/>
+    <xs:attribute name="entityRef" type="xs:IDREF"/>
+    <xs:attribute name="token" type="xs:string"/>
   </xs:complexType>
 
   <xs:complexType name="systemAdminUserRole">

@@ -5,6 +5,7 @@ import { BehaviorSubject, EMPTY } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { GoalEditorComponent } from './goal-editor';
 import { GoalService } from '../../core/goal.service';
+import { TagService } from '../../core/tag.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
@@ -55,6 +56,12 @@ describe('GoalEditorComponent', () => {
         provideRouter([]),
         { provide: ActivatedRoute, useValue: { paramMap: paramMap$.asObservable() } },
         { provide: GoalService, useValue: goalServiceMock },
+        { provide: TagService, useValue: {
+            getTagsOnEntity: vi.fn().mockResolvedValue([]),
+            getTagsForProject: vi.fn().mockResolvedValue([]),
+            getCategories: vi.fn().mockResolvedValue([]),
+            getTypedCategories: vi.fn().mockResolvedValue([])
+          } },
         { provide: CommandService, useValue: commandServiceMock },
         { provide: ProjectService, useValue: projectServiceMock },
         { provide: PermissionService, useValue: permissionServiceMock },

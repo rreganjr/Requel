@@ -46,6 +46,7 @@ import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import org.xml.sax.SAXException;
 
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectTeam;
@@ -69,7 +70,7 @@ import com.rreganjr.requel.user.impl.UserImpl;
 @DiscriminatorValue(value = "com.rreganjr.requel.project.UserStakeholder")
 @XmlRootElement(name = "user-stakeholder", namespace = "http://www.rreganjr.com/requel")
 @XmlType(name = "user-stakeholder", namespace = "http://www.rreganjr.com/requel")
-public class UserStakeholderImpl extends AbstractStakeholder implements UserStakeholder {
+public class UserStakeholderImpl extends AbstractStakeholder implements UserStakeholder, Taggable {
 	static final long serialVersionUID = 0L;
 
 	private Set<StakeholderPermission> stakeholderPermission = new HashSet<StakeholderPermission>();

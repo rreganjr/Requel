@@ -49,6 +49,7 @@ import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.AddActorPosition;
 import com.rreganjr.requel.project.impl.AddGlossaryTermPosition;
 import com.rreganjr.requel.project.impl.ProjectImpl;
+import com.rreganjr.requel.project.impl.TagAssignmentXml;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.requel.user.UserRepository;
@@ -73,6 +74,7 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 		List<Class<?>> classes = new ArrayList<Class<?>>();
 		classes.add(ProjectImpl.class); // project entites are found by
 		// reachability
+		classes.add(TagAssignmentXml.class);
 		classes.add(AbstractAnnotation.class);
 		classes.add(NoteImpl.class);
 		classes.add(IssueImpl.class);
@@ -93,6 +95,7 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 	private Project project;
 	private OutputStream outputStream;
     private final JaxbAdapterConfigurer jaxbAdapterConfigurer;
+    private final com.rreganjr.requel.tagging.TagExportProvider tagExportProvider;
 
 	/**
 	 * @param assistantManager
@@ -107,10 +110,12 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 		UserRepository userRepository, ProjectRepository projectRepository,
 		ProjectCommandFactory projectCommandFactory,
 		AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler,
-		JaxbAdapterConfigurer jaxbAdapterConfigurer) {
+		JaxbAdapterConfigurer jaxbAdapterConfigurer,
+		com.rreganjr.requel.tagging.TagExportProvider tagExportProvider) {
 		super(assistantManager, userRepository, projectRepository, projectCommandFactory,
 			annotationCommandFactory, commandHandler);
         this.jaxbAdapterConfigurer = jaxbAdapterConfigurer;
+        this.tagExportProvider = tagExportProvider;
 	}
 
 	/**
@@ -136,6 +141,19 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 	@Override
 	public void execute() {
 		try {
+			// Enrich the project's transient <tags> block from the tagging SPI (issue #112,
+			// Phase 5). Uses only strings + an IDREF, so this command never references a tag JPA
+			// type — tagging stays a strict leaf.
+			if (project instanceof ProjectImpl projectImpl) {
+				java.util.Set<TagAssignmentXml> tagXmls = new java.util.HashSet<>();
+				for (com.rreganjr.requel.tagging.TagExportAssignment assignment
+						: tagExportProvider.exportAssignmentsFor(projectImpl)) {
+					tagXmls.add(new TagAssignmentXml(
+							assignment.entityType(), assignment.entity(), assignment.token()));
+				}
+				projectImpl.setExportTagAssignments(tagXmls);
+			}
+
 			JAXBContext context = JAXBContext.newInstance(CLASSES_FOR_JAXB);
 			Marshaller marshaller = context.createMarshaller();
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
