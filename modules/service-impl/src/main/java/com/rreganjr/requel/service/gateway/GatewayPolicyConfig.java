@@ -75,7 +75,11 @@ public class GatewayPolicyConfig {
             "EditReportGenerator", "DeleteReportGenerator",
             // Annotations / IBIS
             "EditNote", "DeleteNote", "EditIssue", "DeleteIssue",
-            "EditPosition", "DeletePosition", "EditArgument", "DeleteArgument");
+            "EditPosition", "DeletePosition", "EditArgument", "DeleteArgument",
+            // Tagging / categorization (tags reuse the Annotation stakeholder permission:
+            // Edit to create/assign, Delete to delete; global/system tags require admin)
+            "EditTag", "DeleteTag", "AssignTag", "UnassignTag",
+            "EditTagCategory", "DeleteTagCategory");
 
     /**
      * Commands that must never be exposed, even if mistakenly added to the allowlist. Covers
