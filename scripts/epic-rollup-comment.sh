@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#
+# epic-rollup-comment.sh
+# Reads the epic's sub-issues from GitHub, groups the UI/UX findings (1.1–5.6)
+# under the review's five roadmap phases, and posts a task-list checklist comment
+# so the epic doubles as a phase rollup view.
+#
+# Portable to macOS's stock bash 3.2 (no associative arrays / mapfile).
+#
+# Requirements: gh CLI v2.94.0+ (sub-issue JSON), authenticated.
+#
+# Usage:
+#   bash scripts/epic-rollup-comment.sh             # post the comment on #124
+#   EPIC=124 bash scripts/epic-rollup-comment.sh    # override epic number
+#   DRY_RUN=1 bash scripts/epic-rollup-comment.sh   # print the comment, post nothing
+#
+set -euo pipefail
+
+REPO="rreganjr/Requel"
+EPIC="${EPIC:-124}"
+DRY_RUN="${DRY_RUN:-0}"
+
+# Finding -> phase mapping (from doc/UI_UX_REVIEW.md "Proposed Phased Roadmap").
+phase_of() {
+  case "$1" in
+    4.1|4.2|4.3|4.5|4.7) echo 1 ;;   # quick wins & a11y blockers
+    1.1|1.2|1.3|5.5)     echo 2 ;;   # design-system foundation
+    3.1|3.2|3.3|4.4|5.2) echo 3 ;;   # forms & validation
+    2.1|2.2|2.3|2.4|4.6) echo 4 ;;   # IA & workflow polish
+    5.1|5.3|5.4|5.6)     echo 5 ;;   # deeper architecture refactors
+    *)                   echo 0 ;;   # unmapped (should not happen)
+  esac
+}
+
+phase_name() {
+  case "$1" in
+    1) echo "Phase 1 — Quick wins & accessibility blockers" ;;
+    2) echo "Phase 2 — Design-system foundation" ;;
+    3) echo "Phase 3 — Forms & validation remediation" ;;
+    4) echo "Phase 4 — Information architecture & workflow polish" ;;
+    5) echo "Phase 5 — Deeper Angular architecture refactors" ;;
+    0) echo "Unmapped" ;;
+  esac
+}
+
+TAB="$(printf '\t')"
+
+# Pull sub-issues as "number<TAB>title" lines.
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+gh issue view "$EPIC" --repo "$REPO" --json subIssues \
+  --jq '.subIssues.nodes[] | "\(.number)\t\(.title)"' > "$tmp"
+
+if [ ! -s "$tmp" ]; then
+  echo "No sub-issues found on #$EPIC — nothing to roll up." >&2
+  exit 1
+fi
+
+body="## Remediation rollup by phase
+
+Grouped from \`doc/UI_UX_REVIEW.md\` findings 1.1–5.6. Check off each child as its PR squash-merges to \`release/2.0\`.
+"
+
+for p in 1 2 3 4 5 0; do
+  section=""
+  while IFS="$TAB" read -r num title; do
+    [ -n "$num" ] || continue
+    id="${title%% *}"                 # leading "N.N" token
+    if [ "$(phase_of "$id")" = "$p" ]; then
+      section="$section- [ ] #$num $title
+"
+    fi
+  done < "$tmp"
+  if [ -n "$section" ]; then
+    body="$body
+### $(phase_name "$p")
+$section"
+  fi
+done
+
+if [ "$DRY_RUN" = "1" ]; then
+  printf '%s\n' "$body"
+else
+  gh issue comment "$EPIC" --repo "$REPO" --body "$body"
+  echo "Rollup comment posted to #$EPIC."
+fi
