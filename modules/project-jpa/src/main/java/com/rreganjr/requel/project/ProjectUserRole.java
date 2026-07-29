@@ -58,12 +58,16 @@ public class ProjectUserRole extends AbstractUserRole {
 	@Transient
 	public static final UserRolePermission inviteUsers = new JpaUserRolePermission(
 			ProjectUserRole.class, "inviteUsers");
+	@Transient
+	public static final UserRolePermission manageApiTokens = new JpaUserRolePermission(
+			ProjectUserRole.class, "manageApiTokens");
 
 	static {
 		AbstractUserRole.userRoleTypes.add(ProjectUserRole.class);
 		AbstractUserRole.userRoleTypePermissions.put(ProjectUserRole.class,
 				new HashSet<UserRolePermission>());
 		AbstractUserRole.userRoleTypePermissions.get(ProjectUserRole.class).add(createProjects);
+		AbstractUserRole.userRoleTypePermissions.get(ProjectUserRole.class).add(manageApiTokens);
 		// AbstractUserRole.userRoleTypePermissions.get(ProjectUserRole.class).add(inviteUsers);
 	}
 
@@ -128,6 +132,15 @@ public class ProjectUserRole extends AbstractUserRole {
 	 */
 	public boolean canInviteUsers() {
 		return hasUserRolePermission(inviteUsers);
+	}
+
+	/**
+	 * @return true if this user is authorized to manage (create, list, revoke,
+	 *         and delete) their own personal access tokens. Granted per-user
+	 *         (issue #85); holding the role alone does not confer it.
+	 */
+	public boolean canManageApiTokens() {
+		return hasUserRolePermission(manageApiTokens);
 	}
 
 	@Override

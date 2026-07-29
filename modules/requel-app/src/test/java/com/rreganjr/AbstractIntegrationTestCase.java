@@ -225,6 +225,15 @@ public abstract class AbstractIntegrationTestCase {
         testRoleGrantHelper.grantProjectRoleIfMissing(username);
     }
 
+    /**
+     * Grant the per-user {@code manageApiTokens} permission (issue #85) on the user's
+     * ProjectUserRole. Not granted by default (opt-in), so tests that exercise token management
+     * must call this explicitly for the users that should be able to manage tokens.
+     */
+    protected void grantManageApiTokens(String username) {
+        testRoleGrantHelper.grantManageApiTokensIfMissing(username);
+    }
+
 	@Autowired
 	protected void setNlpProcessorFactory(NLPProcessorFactory nlpProcessorFactory) {
 		this.nlpProcessorFactory = nlpProcessorFactory;

@@ -21,8 +21,8 @@
 package com.rreganjr.requel.service.auth;
 
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
+import com.rreganjr.requel.user.User;
 import java.time.Instant;
-import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -44,12 +44,41 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth/tokens")
 public class ApiTokenController {
 
+	/**
+	 * The per-user UserRolePermission (on ProjectUserRole) that authorizes token management (#85).
+	 * Referenced by name to avoid a service->project-jpa dependency; matches
+	 * {@code ProjectUserRole.manageApiTokens}.
+	 */
+	private static final String MANAGE_API_TOKENS = "manageApiTokens";
+
 	private final ApiTokenService tokenService;
 	private final CurrentUserResolver currentUserResolver;
+	private final UserDtoMapper userDtoMapper;
 
-	public ApiTokenController(ApiTokenService tokenService, CurrentUserResolver currentUserResolver) {
+	public ApiTokenController(ApiTokenService tokenService, CurrentUserResolver currentUserResolver,
+			UserDtoMapper userDtoMapper) {
 		this.tokenService = tokenService;
 		this.currentUserResolver = currentUserResolver;
+		this.userDtoMapper = userDtoMapper;
+	}
+
+	/**
+	 * Resolve the current caller, requiring the {@code manageApiTokens} permission. Works for both
+	 * JWT and PAT callers (both load the user live). Returns the {@link User} when permitted, or a
+	 * 403 {@link ResponseEntity} otherwise — callers must return the entity as-is when present.
+	 */
+	private ManageAuth requireManageApiTokens() {
+		User user = currentUserResolver.resolve();
+		if (!userDtoMapper.getPermissionStrings(user).contains(MANAGE_API_TOKENS)) {
+			return new ManageAuth(null, ResponseEntity.status(HttpStatus.FORBIDDEN)
+					.body(ErrorResponse.of("FORBIDDEN",
+							"You do not have permission to manage API tokens")));
+		}
+		return new ManageAuth(user, null);
+	}
+
+	/** Either a permitted {@code user} or a {@code forbidden} 403 response (never both null). */
+	private record ManageAuth(User user, ResponseEntity<?> forbidden) {
 	}
 
 	/** Create request: a display name and optional expiry in days (null/0 = never expires). */
@@ -67,11 +96,15 @@ public class ApiTokenController {
 
 	@PostMapping
 	public ResponseEntity<?> create(@RequestBody(required = false) CreateApiTokenRequest request) {
+		ManageAuth auth = requireManageApiTokens();
+		if (auth.forbidden() != null) {
+			return auth.forbidden();
+		}
 		if (request == null || request.name() == null || request.name().isBlank()) {
 			return ResponseEntity.badRequest()
 					.body(ErrorResponse.of("BAD_REQUEST", "Token name is required"));
 		}
-		Long ownerId = currentUserResolver.resolve().getId();
+		Long ownerId = auth.user().getId();
 		ApiTokenService.IssuedToken issued = tokenService.create(ownerId, request.name().trim(),
 				request.expiresInDays());
 		return ResponseEntity.status(HttpStatus.CREATED)
@@ -79,14 +112,22 @@ public class ApiTokenController {
 	}
 
 	@GetMapping
-	public List<ApiTokenDto> list() {
-		Long ownerId = currentUserResolver.resolve().getId();
-		return tokenService.list(ownerId).stream().map(this::toDto).toList();
+	public ResponseEntity<?> list() {
+		ManageAuth auth = requireManageApiTokens();
+		if (auth.forbidden() != null) {
+			return auth.forbidden();
+		}
+		Long ownerId = auth.user().getId();
+		return ResponseEntity.ok(tokenService.list(ownerId).stream().map(this::toDto).toList());
 	}
 
 	@DeleteMapping("/{id}")
 	public ResponseEntity<?> revoke(@PathVariable("id") Long id) {
-		Long ownerId = currentUserResolver.resolve().getId();
+		ManageAuth auth = requireManageApiTokens();
+		if (auth.forbidden() != null) {
+			return auth.forbidden();
+		}
+		Long ownerId = auth.user().getId();
 		if (tokenService.revoke(ownerId, id)) {
 			return ResponseEntity.noContent().build();
 		}
@@ -101,7 +142,11 @@ public class ApiTokenController {
 	 */
 	@DeleteMapping("/{id}/permanent")
 	public ResponseEntity<?> delete(@PathVariable("id") Long id) {
-		Long ownerId = currentUserResolver.resolve().getId();
+		ManageAuth auth = requireManageApiTokens();
+		if (auth.forbidden() != null) {
+			return auth.forbidden();
+		}
+		Long ownerId = auth.user().getId();
 		switch (tokenService.delete(ownerId, id)) {
 			case DELETED:
 				return ResponseEntity.noContent().build();

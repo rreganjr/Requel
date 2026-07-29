@@ -80,6 +80,29 @@ So `ManageApiTokens` is a rollout, not a one-liner:
 date" stale-state errors across test contexts). Adding a permission must be done carefully and
 re-tested across the full suite.
 
+### Implemented (#85) — decisions
+
+The fast-follow was implemented in #85 with these decisions (supersede the open questions above):
+
+- **Opt-in, admin-granted.** `manageApiTokens` is declared on `ProjectUserRole` only and is **not**
+  auto-granted — neither to existing users nor on new-user creation. An admin grants it per user.
+- **No backfill.** Step 2's one-time grant to existing `ProjectUserRole` instances was dropped;
+  existing project users have no PAT access until an admin grants it (the seeded `project`/`admin`
+  users included). `UserRolePermissionsInitializer` still persists/caches the new *available*
+  permission so it can be granted.
+- **Admin toggle is already generic.** The user create/edit UI (`UserEditorComponent`) renders
+  per-role permission checkboxes from `GET /api/users/roles` (`availablePermissions`) and submits
+  `userRolePermissionNames`; `EditUserCommandImpl.updateRoles()` grants/revokes them. So declaring
+  the permission surfaces the toggle automatically — no bespoke UI.
+- **`UserDto.permissions` already existed** (added since this plan was written), so step 4 reduced
+  to the Angular gate: `SettingsComponent.canManageTokens()` now checks
+  `permissions.includes('manageApiTokens')` instead of the role.
+- **Enforcement** lives in `ApiTokenController` (`getPermissionStrings(user).contains(...)` → 403);
+  the `.hasRole("ProjectUserRole")` matcher on `/api/auth/tokens` in `ApiSecurityConfig` was relaxed
+  to `.authenticated()`.
+- **Admins** get PAT access only when they also hold `ProjectUserRole` and are granted the
+  permission — there is no `manageApiTokens` on `SystemAdminUserRole`.
+
 ## Angular pieces
 
 - `models/api-token.ts` — `ApiTokenDto`, `CreateApiTokenRequest`, `CreateApiTokenResponse`.
