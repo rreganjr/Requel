@@ -34,6 +34,8 @@ import com.rreganjr.platform.command.AuthorizableCommand;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.command.AuthorizationRequirement;
 import com.rreganjr.platform.command.AuthorizationRequirement.RequiresSystemRole;
+import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.requel.user.impl.AbstractUserRole;
 import com.rreganjr.requel.user.Organization;
@@ -67,6 +69,7 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 	private boolean userRolesProvided = false;
 	private Map<String, Set<String>> userRolePermissionNames = new HashMap<String, Set<String>>();
 	private User editedBy;
+	private Integer expectedVersion;
 
 	/**
 	 * @param userRepository
@@ -93,6 +96,13 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 			// Non-admins can only edit their own account
 			if (!isAdmin && !userImpl.getUsername().equals(getEditedBy().getUsername())) {
 				throw new AuthorizationException("You can only edit your own account.");
+			}
+			// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+			userImpl = getUserRepository().get(userImpl);
+			if (getExpectedVersion() != null
+					&& getExpectedVersion().intValue() != userImpl.getVersion()) {
+				throw EntityLockException.staleEntity(User.class, userImpl,
+						EntityExceptionActionType.Updating);
 			}
 			userImpl = updateUser(userImpl, isAdmin);
 		}
@@ -291,6 +301,15 @@ public class EditUserCommandImpl extends AbstractUserCommand implements EditUser
 
 	public User getEditedBy() {
 		return editedBy;
+	}
+
+	@Override
+	public void setExpectedVersion(Integer expectedVersion) {
+		this.expectedVersion = expectedVersion;
+	}
+
+	protected Integer getExpectedVersion() {
+		return expectedVersion;
 	}
 
 	@Override

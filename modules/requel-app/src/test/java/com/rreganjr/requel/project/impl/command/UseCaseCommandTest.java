@@ -22,6 +22,7 @@ package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.exception.EntityException;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Project;
@@ -156,6 +157,74 @@ public class UseCaseCommandTest extends AbstractIntegrationTestCase {
 		assertEquals("Create or edit a user account", updated.getName(), "name should be unchanged");
 		assertEquals("An administrator creates and manages user accounts, roles, and permissions.",
 				updated.getText(), "text should have been updated");
+	}
+
+	@Test
+	public void editUseCaseWithMatchingVersionSucceeds() throws Exception {
+		Project project = createProject("UseCase-version-ok");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Actor actor = createActor(project, "Administrator");
+
+		EditUseCaseCommand createCmd = getProjectCommandFactory().newEditUseCaseCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setProjectOrDomain(project);
+		createCmd.setName("Versioned use case");
+		createCmd.setText("Initial text.");
+		createCmd.setPrimaryActorName(actor.getName());
+		createCmd = getCommandHandler().execute(createCmd);
+		UseCase original = createCmd.getUseCase();
+
+		EditUseCaseCommand editCmd = getProjectCommandFactory().newEditUseCaseCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setUseCase(original);
+		editCmd.setName("Versioned use case");
+		editCmd.setText("Updated with the current version.");
+		editCmd.setPrimaryActorName(actor.getName());
+		editCmd.setExpectedVersion(original.getVersion());
+		editCmd = getCommandHandler().execute(editCmd);
+
+		assertEquals("Updated with the current version.", editCmd.getUseCase().getText(),
+				"matching-version update should be applied");
+	}
+
+	@Test
+	public void editUseCaseWithStaleVersionIsRejected() throws Exception {
+		Project project = createProject("UseCase-version-stale");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Actor actor = createActor(project, "Administrator");
+
+		EditUseCaseCommand createCmd = getProjectCommandFactory().newEditUseCaseCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setProjectOrDomain(project);
+		createCmd.setName("Contested use case");
+		createCmd.setText("Initial text.");
+		createCmd.setPrimaryActorName(actor.getName());
+		createCmd = getCommandHandler().execute(createCmd);
+		UseCase original = createCmd.getUseCase();
+		int staleVersion = original.getVersion();
+
+		EditUseCaseCommand firstEdit = getProjectCommandFactory().newEditUseCaseCommand();
+		firstEdit.setEditedBy(admin);
+		firstEdit.setProjectOrDomain(project);
+		firstEdit.setUseCase(original);
+		firstEdit.setName("Contested use case");
+		firstEdit.setText("First writer's change.");
+		firstEdit.setPrimaryActorName(actor.getName());
+		firstEdit.setExpectedVersion(staleVersion);
+		getCommandHandler().execute(firstEdit);
+
+		assertThrows(EntityLockException.class, () -> {
+			EditUseCaseCommand staleEdit = getProjectCommandFactory().newEditUseCaseCommand();
+			staleEdit.setEditedBy(admin);
+			staleEdit.setProjectOrDomain(project);
+			staleEdit.setUseCase(original);
+			staleEdit.setName("Contested use case");
+			staleEdit.setText("Second writer's stale change.");
+			staleEdit.setPrimaryActorName(actor.getName());
+			staleEdit.setExpectedVersion(staleVersion);
+			getCommandHandler().execute(staleEdit);
+		}, "an update carrying a stale version should be rejected");
 	}
 
 	@Test

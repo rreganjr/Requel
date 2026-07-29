@@ -740,12 +740,23 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
     }
 
     private String editUserStakeholderJson(String username) throws Exception {
-        // version=0 signals an edit (not create) so tests are idempotent across ordering
+        // A non-null version signals an edit (not create). Send the stakeholder's current
+        // persisted version so the optimistic-lock check passes (issue #108); fall back to 0
+        // when no stakeholder exists yet (create path, where the version is ignored).
+        Integer version = 0;
+        try {
+            Project project = getProjectRepository().findProjectByName(testProjectName);
+            User user = getUserRepository().findUserByUsername(username);
+            version = getProjectRepository()
+                    .findStakeholderByProjectOrDomainAndUser(project, user).getVersion();
+        } catch (Exception noExistingStakeholder) {
+            // no existing stakeholder for this user on the project — treat as a create
+        }
         return objectMapper.writeValueAsString(Map.of(
                 "projectName", testProjectName,
                 "username", username,
                 "permissionKeys", java.util.List.of(),
-                "version", 0));
+                "version", version));
     }
 
     private String editProjectJson() throws Exception {
@@ -756,11 +767,12 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
     }
 
     private String editUserJson(String username) throws Exception {
-        // Edit the named user — sets minimal fields to satisfy validation.
-        // version=0 works for an existing user loaded by username.
+        // Edit the named user — sets minimal fields to satisfy validation. Send the user's
+        // current persisted version so the optimistic-lock check passes (issue #108).
+        int version = getUserRepository().findUserByUsername(username).getVersion();
         return objectMapper.writeValueAsString(Map.of(
                 "username", username,
-                "version", 0,
+                "version", version,
                 "name", username,
                 "emailAddress", username + "@example.com",
                 "phoneNumber", "",

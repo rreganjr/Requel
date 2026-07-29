@@ -22,6 +22,7 @@ package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.exception.EntityException;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Project;
@@ -162,6 +163,69 @@ public class StoryCommandTest extends AbstractIntegrationTestCase {
 		assertEquals("Rich creates a project", updated.getName(), "name should be unchanged");
 		assertEquals("Rich logs in, chooses 'New Project', and enters a name and customer.",
 				updated.getText(), "text should have been updated");
+	}
+
+	@Test
+	public void editStoryWithMatchingVersionSucceeds() throws Exception {
+		Project project = createProject("Story-version-ok");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditStoryCommand createCmd = getProjectCommandFactory().newEditStoryCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setStoryContainer(project);
+		createCmd.setName("Versioned story");
+		createCmd.setText("Initial text.");
+		createCmd.setStoryTypeName(StoryType.Success.name());
+		createCmd = getCommandHandler().execute(createCmd);
+		Story original = createCmd.getStory();
+
+		EditStoryCommand editCmd = getProjectCommandFactory().newEditStoryCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setStory(original);
+		editCmd.setName("Versioned story");
+		editCmd.setText("Updated with the current version.");
+		editCmd.setStoryTypeName(StoryType.Success.name());
+		editCmd.setExpectedVersion(original.getVersion());
+		editCmd = getCommandHandler().execute(editCmd);
+
+		assertEquals("Updated with the current version.", editCmd.getStory().getText(),
+				"matching-version update should be applied");
+	}
+
+	@Test
+	public void editStoryWithStaleVersionIsRejected() throws Exception {
+		Project project = createProject("Story-version-stale");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditStoryCommand createCmd = getProjectCommandFactory().newEditStoryCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setStoryContainer(project);
+		createCmd.setName("Contested story");
+		createCmd.setText("Initial text.");
+		createCmd.setStoryTypeName(StoryType.Success.name());
+		createCmd = getCommandHandler().execute(createCmd);
+		Story original = createCmd.getStory();
+		int staleVersion = original.getVersion();
+
+		EditStoryCommand firstEdit = getProjectCommandFactory().newEditStoryCommand();
+		firstEdit.setEditedBy(admin);
+		firstEdit.setStory(original);
+		firstEdit.setName("Contested story");
+		firstEdit.setText("First writer's change.");
+		firstEdit.setStoryTypeName(StoryType.Success.name());
+		firstEdit.setExpectedVersion(staleVersion);
+		getCommandHandler().execute(firstEdit);
+
+		assertThrows(EntityLockException.class, () -> {
+			EditStoryCommand staleEdit = getProjectCommandFactory().newEditStoryCommand();
+			staleEdit.setEditedBy(admin);
+			staleEdit.setStory(original);
+			staleEdit.setName("Contested story");
+			staleEdit.setText("Second writer's stale change.");
+			staleEdit.setStoryTypeName(StoryType.Success.name());
+			staleEdit.setExpectedVersion(staleVersion);
+			getCommandHandler().execute(staleEdit);
+		}, "an update carrying a stale version should be rejected");
 	}
 
 	@Test

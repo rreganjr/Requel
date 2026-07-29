@@ -138,6 +138,9 @@ public class EditGoalCommandImpl extends AbstractEditProjectOrDomainEntityComman
 			goalImpl = getProjectRepository().persist(
 					new GoalImpl(projectOrDomain, editedBy, getName(), getText()));
 		} else {
+			// Enforce the caller-supplied optimistic-lock version (issue #108); reloads the
+			// goal and fails cleanly if it changed since the caller loaded it.
+			goalImpl = checkExpectedVersion(goalImpl);
 			goalImpl.setName(getName());
 			goalImpl.setText(getText());
 		}

@@ -44,7 +44,7 @@ public interface EditGoalCommand extends EditTextEntityCommand {
 
 	/**
 	 * Set the container this goal is being added to.
-	 * 
+	 *
 	 * @param goalContainer
 	 */
 	public void setGoalContainer(GoalContainer goalContainer);

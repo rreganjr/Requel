@@ -169,6 +169,9 @@ public class EditActorCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		} catch (NoSuchEntityException e) {
 		}
 
+		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+		actorImpl = checkExpectedVersion(actorImpl);
+
 		if (actorImpl == null) {
 			actorImpl = getProjectRepository().persist(
 					new ActorImpl(projectOrDomain, editedBy, getName(), ""));

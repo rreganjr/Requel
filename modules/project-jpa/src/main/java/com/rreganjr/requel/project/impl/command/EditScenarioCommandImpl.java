@@ -118,6 +118,9 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 		} catch (NoSuchEntityException e) {
 		}
 
+		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+		scenarioImpl = checkExpectedVersion(scenarioImpl);
+
 		if (scenarioImpl == null) {
 			scenarioImpl = getProjectRepository().persist(
 					new ScenarioImpl(projectOrDomain, editedBy, getName(), getText(),
