@@ -21,8 +21,11 @@
 package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.ProjectOrDomain;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.command.EditProjectOrDomainEntityCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -38,6 +41,7 @@ public abstract class AbstractEditProjectOrDomainEntityCommand extends AbstractE
 	private ProjectOrDomain projectOrDomain;
 	private boolean analysisEnabled = true;
 	private String name;
+	private Integer expectedVersion;
 
 	/**
 	 * @param assistantManager
@@ -84,5 +88,40 @@ public abstract class AbstractEditProjectOrDomainEntityCommand extends AbstractE
 
 	protected String getName() {
 		return name;
+	}
+
+	@Override
+	public void setExpectedVersion(Integer expectedVersion) {
+		this.expectedVersion = expectedVersion;
+	}
+
+	protected Integer getExpectedVersion() {
+		return expectedVersion;
+	}
+
+	/**
+	 * Reload {@code entity} to obtain its authoritative persisted version and enforce
+	 * the caller-supplied optimistic-lock version (issue #108). When the caller's
+	 * {@link #getExpectedVersion() expected version} is non-null and does not match the
+	 * persisted version, the entity changed since the caller loaded it, so this fails
+	 * with an {@link EntityLockException} instead of silently overwriting the concurrent
+	 * edit. A {@code null} expected version, or a {@code null} entity (a create), skips
+	 * the check.
+	 *
+	 * @param entity the entity being updated (typically just resolved by the registrar)
+	 * @return the reloaded, persistence-attached instance for the caller to mutate
+	 * @throws EntityLockException if the expected version does not match the persisted one
+	 */
+	protected <T extends ProjectOrDomainEntity> T checkExpectedVersion(T entity) {
+		if (entity == null) {
+			return entity;
+		}
+		T current = getProjectRepository().get(entity);
+		if (getExpectedVersion() != null && current != null
+				&& getExpectedVersion().intValue() != current.getVersion()) {
+			throw EntityLockException.staleEntity(current.getClass(), current,
+					EntityExceptionActionType.Updating);
+		}
+		return current;
 	}
 }

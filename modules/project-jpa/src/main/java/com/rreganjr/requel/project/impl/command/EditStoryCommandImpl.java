@@ -164,6 +164,9 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		} catch (NoSuchEntityException e) {
 		}
 
+		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+		storyImpl = checkExpectedVersion(storyImpl);
+
 		// Resolve the primary actor before any persistence calls
 		Actor resolvedPrimaryActor = null;
 		if (getPrimaryActorName() != null && !getPrimaryActorName().trim().isEmpty()) {

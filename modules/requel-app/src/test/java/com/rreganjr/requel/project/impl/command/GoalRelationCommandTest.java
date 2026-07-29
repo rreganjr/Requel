@@ -21,6 +21,7 @@
 package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.AbstractIntegrationTestCase;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalRelation;
 import com.rreganjr.requel.project.GoalRelationType;
@@ -150,6 +151,76 @@ public class GoalRelationCommandTest extends AbstractIntegrationTestCase {
 		GoalRelation updated = editCmd.getGoalRelation();
 		assertEquals(GoalRelationType.Conflicts, updated.getRelationType(),
 				"relation type should have been changed to Conflicts");
+	}
+
+	@Test
+	public void editGoalRelationWithMatchingVersionSucceeds() throws Exception {
+		Project project = createProject("GoalRelation-version-ok");
+		User admin = getUserRepository().findUserByUsername("admin");
+		createGoal(project, "Version from goal");
+		createGoal(project, "Version to goal");
+
+		EditGoalRelationCommand createCmd = getProjectCommandFactory().newEditGoalRelationCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setProjectOrDomain(project);
+		createCmd.setFromGoal("Version from goal");
+		createCmd.setToGoal("Version to goal");
+		createCmd.setRelationType(GoalRelationType.Supports.name());
+		createCmd = getCommandHandler().execute(createCmd);
+		GoalRelation original = createCmd.getGoalRelation();
+
+		EditGoalRelationCommand editCmd = getProjectCommandFactory().newEditGoalRelationCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setGoalRelation(original);
+		editCmd.setFromGoal("Version from goal");
+		editCmd.setToGoal("Version to goal");
+		editCmd.setRelationType(GoalRelationType.Conflicts.name());
+		editCmd.setExpectedVersion(original.getVersion());
+		editCmd = getCommandHandler().execute(editCmd);
+
+		assertEquals(GoalRelationType.Conflicts, editCmd.getGoalRelation().getRelationType(),
+				"matching-version update should be applied");
+	}
+
+	@Test
+	public void editGoalRelationWithStaleVersionIsRejected() throws Exception {
+		Project project = createProject("GoalRelation-version-stale");
+		User admin = getUserRepository().findUserByUsername("admin");
+		createGoal(project, "Contested from goal");
+		createGoal(project, "Contested to goal");
+
+		EditGoalRelationCommand createCmd = getProjectCommandFactory().newEditGoalRelationCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setProjectOrDomain(project);
+		createCmd.setFromGoal("Contested from goal");
+		createCmd.setToGoal("Contested to goal");
+		createCmd.setRelationType(GoalRelationType.Supports.name());
+		createCmd = getCommandHandler().execute(createCmd);
+		GoalRelation original = createCmd.getGoalRelation();
+		int staleVersion = original.getVersion();
+
+		EditGoalRelationCommand firstEdit = getProjectCommandFactory().newEditGoalRelationCommand();
+		firstEdit.setEditedBy(admin);
+		firstEdit.setProjectOrDomain(project);
+		firstEdit.setGoalRelation(original);
+		firstEdit.setFromGoal("Contested from goal");
+		firstEdit.setToGoal("Contested to goal");
+		firstEdit.setRelationType(GoalRelationType.Conflicts.name());
+		firstEdit.setExpectedVersion(staleVersion);
+		getCommandHandler().execute(firstEdit);
+
+		assertThrows(EntityLockException.class, () -> {
+			EditGoalRelationCommand staleEdit = getProjectCommandFactory().newEditGoalRelationCommand();
+			staleEdit.setEditedBy(admin);
+			staleEdit.setProjectOrDomain(project);
+			staleEdit.setGoalRelation(original);
+			staleEdit.setFromGoal("Contested from goal");
+			staleEdit.setToGoal("Contested to goal");
+			staleEdit.setRelationType(GoalRelationType.Supports.name());
+			staleEdit.setExpectedVersion(staleVersion);
+			getCommandHandler().execute(staleEdit);
+		}, "an update carrying a stale version should be rejected");
 	}
 
 	@Test

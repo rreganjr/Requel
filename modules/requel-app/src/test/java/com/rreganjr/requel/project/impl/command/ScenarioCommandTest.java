@@ -22,6 +22,7 @@ package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.exception.EntityException;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.Scenario;
@@ -150,6 +151,72 @@ public class ScenarioCommandTest extends AbstractIntegrationTestCase {
 		assertEquals("Create project scenario", updated.getName(), "name should be unchanged");
 		assertEquals("The user enters a name, customer, and optional description, then submits.",
 				updated.getText(), "text should have been updated");
+	}
+
+	@Test
+	public void editScenarioWithMatchingVersionSucceeds() throws Exception {
+		Project project = createProject("Scenario-version-ok");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditScenarioCommand createCmd = getProjectCommandFactory().newEditScenarioCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setProjectOrDomain(project);
+		createCmd.setName("Versioned scenario");
+		createCmd.setText("Initial text.");
+		createCmd.setScenarioTypeName(ScenarioType.Primary.name());
+		createCmd = getCommandHandler().execute(createCmd);
+		Scenario original = createCmd.getScenario();
+
+		EditScenarioCommand editCmd = getProjectCommandFactory().newEditScenarioCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setScenario(original);
+		editCmd.setName("Versioned scenario");
+		editCmd.setText("Updated with the current version.");
+		editCmd.setScenarioTypeName(ScenarioType.Primary.name());
+		editCmd.setExpectedVersion(original.getVersion());
+		editCmd = getCommandHandler().execute(editCmd);
+
+		assertEquals("Updated with the current version.", editCmd.getScenario().getText(),
+				"matching-version update should be applied");
+	}
+
+	@Test
+	public void editScenarioWithStaleVersionIsRejected() throws Exception {
+		Project project = createProject("Scenario-version-stale");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditScenarioCommand createCmd = getProjectCommandFactory().newEditScenarioCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setProjectOrDomain(project);
+		createCmd.setName("Contested scenario");
+		createCmd.setText("Initial text.");
+		createCmd.setScenarioTypeName(ScenarioType.Primary.name());
+		createCmd = getCommandHandler().execute(createCmd);
+		Scenario original = createCmd.getScenario();
+		int staleVersion = original.getVersion();
+
+		EditScenarioCommand firstEdit = getProjectCommandFactory().newEditScenarioCommand();
+		firstEdit.setEditedBy(admin);
+		firstEdit.setProjectOrDomain(project);
+		firstEdit.setScenario(original);
+		firstEdit.setName("Contested scenario");
+		firstEdit.setText("First writer's change.");
+		firstEdit.setScenarioTypeName(ScenarioType.Primary.name());
+		firstEdit.setExpectedVersion(staleVersion);
+		getCommandHandler().execute(firstEdit);
+
+		assertThrows(EntityLockException.class, () -> {
+			EditScenarioCommand staleEdit = getProjectCommandFactory().newEditScenarioCommand();
+			staleEdit.setEditedBy(admin);
+			staleEdit.setProjectOrDomain(project);
+			staleEdit.setScenario(original);
+			staleEdit.setName("Contested scenario");
+			staleEdit.setText("Second writer's stale change.");
+			staleEdit.setScenarioTypeName(ScenarioType.Primary.name());
+			staleEdit.setExpectedVersion(staleVersion);
+			getCommandHandler().execute(staleEdit);
+		}, "an update carrying a stale version should be rejected");
 	}
 
 	@Test

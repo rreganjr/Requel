@@ -72,6 +72,8 @@ public class UserCommandRegistrar {
                             // New user — leave user null, command will create
                         }
                     }
+                    // Caller's version drives the optimistic-lock check on update (issue #108).
+                    c.setExpectedVersion(i.version());
 
                     c.setUsername(i.username());
                     if (i.password() != null) {

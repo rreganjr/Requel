@@ -25,6 +25,7 @@ import java.util.Set;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.exception.EntityException;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.Stakeholder;
@@ -118,6 +119,55 @@ public class EditProjectCommandImplTest extends AbstractIntegrationTestCase {
 		assertEquals(updated.getId(),
 				getProjectRepository().findProjectByName(updated.getName()).getId(),
 				"updated project should be reloadable by its new name");
+	}
+
+	@Test
+	public void editProjectWithMatchingVersionSucceeds() throws Exception {
+		Project original = createProject("Version OK Project");
+		User admin = ensureProjectCapableAdmin();
+		String name = original.getName();
+		String org = original.getOrganization().getName();
+
+		EditProjectCommand command = getProjectCommandFactory().newEditProjectCommand();
+		command.setEditedBy(admin);
+		command.setProject(original);
+		command.setName(name);
+		command.setText("Updated with the current version");
+		command.setOrganizationName(org);
+		command.setExpectedVersion(original.getVersion());
+		command = getCommandHandler().execute(command);
+
+		assertEquals("Updated with the current version", command.getProject().getText(),
+				"matching-version update should be applied");
+	}
+
+	@Test
+	public void editProjectWithStaleVersionIsRejected() throws Exception {
+		Project original = createProject("Version Stale Project");
+		User admin = ensureProjectCapableAdmin();
+		String name = original.getName();
+		String org = original.getOrganization().getName();
+		int staleVersion = original.getVersion();
+
+		EditProjectCommand firstEdit = getProjectCommandFactory().newEditProjectCommand();
+		firstEdit.setEditedBy(admin);
+		firstEdit.setProject(original);
+		firstEdit.setName(name);
+		firstEdit.setText("First writer's change");
+		firstEdit.setOrganizationName(org);
+		firstEdit.setExpectedVersion(staleVersion);
+		getCommandHandler().execute(firstEdit);
+
+		assertThrows(EntityLockException.class, () -> {
+			EditProjectCommand staleEdit = getProjectCommandFactory().newEditProjectCommand();
+			staleEdit.setEditedBy(admin);
+			staleEdit.setProject(original);
+			staleEdit.setName(name);
+			staleEdit.setText("Second writer's stale change");
+			staleEdit.setOrganizationName(org);
+			staleEdit.setExpectedVersion(staleVersion);
+			getCommandHandler().execute(staleEdit);
+		}, "an update carrying a stale version should be rejected");
 	}
 
 	@Test

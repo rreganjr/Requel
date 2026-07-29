@@ -118,6 +118,8 @@ public class EditNonUserStakeholderCommandImpl extends AbstractEditProjectOrDoma
 		} catch (NoSuchEntityException e) {
 		}
 
+		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+		stakeholderImpl = checkExpectedVersion(stakeholderImpl);
 
 		if (stakeholderImpl == null) {
 			stakeholderImpl = getProjectRepository().persist(

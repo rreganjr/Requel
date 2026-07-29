@@ -22,6 +22,7 @@ package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.exception.EntityException;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Project;
@@ -106,6 +107,64 @@ public class ActorCommandTest extends AbstractIntegrationTestCase {
 		assertEquals("Project User", updated.getName(), "name should be unchanged");
 		assertEquals("Creates requirements and participates in project discussions.",
 				updated.getText(), "text should have been updated");
+	}
+
+	@Test
+	public void editActorWithMatchingVersionSucceeds() throws Exception {
+		Project project = createProject("Actor-version-ok");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditActorCommand createCmd = getProjectCommandFactory().newEditActorCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setActorContainer(project);
+		createCmd.setName("Versioned actor");
+		createCmd.setText("Initial text.");
+		createCmd = getCommandHandler().execute(createCmd);
+		Actor original = createCmd.getActor();
+
+		EditActorCommand editCmd = getProjectCommandFactory().newEditActorCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setActor(original);
+		editCmd.setName("Versioned actor");
+		editCmd.setText("Updated with the current version.");
+		editCmd.setExpectedVersion(original.getVersion());
+		editCmd = getCommandHandler().execute(editCmd);
+
+		assertEquals("Updated with the current version.", editCmd.getActor().getText(),
+				"matching-version update should be applied");
+	}
+
+	@Test
+	public void editActorWithStaleVersionIsRejected() throws Exception {
+		Project project = createProject("Actor-version-stale");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditActorCommand createCmd = getProjectCommandFactory().newEditActorCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setActorContainer(project);
+		createCmd.setName("Contested actor");
+		createCmd.setText("Initial text.");
+		createCmd = getCommandHandler().execute(createCmd);
+		Actor original = createCmd.getActor();
+		int staleVersion = original.getVersion();
+
+		EditActorCommand firstEdit = getProjectCommandFactory().newEditActorCommand();
+		firstEdit.setEditedBy(admin);
+		firstEdit.setActor(original);
+		firstEdit.setName("Contested actor");
+		firstEdit.setText("First writer's change.");
+		firstEdit.setExpectedVersion(staleVersion);
+		getCommandHandler().execute(firstEdit);
+
+		assertThrows(EntityLockException.class, () -> {
+			EditActorCommand staleEdit = getProjectCommandFactory().newEditActorCommand();
+			staleEdit.setEditedBy(admin);
+			staleEdit.setActor(original);
+			staleEdit.setName("Contested actor");
+			staleEdit.setText("Second writer's stale change.");
+			staleEdit.setExpectedVersion(staleVersion);
+			getCommandHandler().execute(staleEdit);
+		}, "an update carrying a stale version should be rejected");
 	}
 
 	@Test

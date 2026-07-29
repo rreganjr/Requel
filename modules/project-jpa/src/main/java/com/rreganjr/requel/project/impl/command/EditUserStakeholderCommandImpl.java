@@ -138,6 +138,9 @@ public class EditUserStakeholderCommandImpl extends AbstractEditProjectOrDomainE
 		} catch (NoSuchEntityException e) {
 		}
 
+		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+		stakeholderImpl = checkExpectedVersion(stakeholderImpl);
+
 		ProjectTeam oldTeam = null;
 		ProjectTeam newTeam = null;
 		if (stakeholderImpl != null) {

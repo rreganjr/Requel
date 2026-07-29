@@ -342,6 +342,7 @@ class AuditingCommandHandlerTest {
         @Override public void addUserRoleName(String s) {}
         @Override public void setUserRolePermissionNames(java.util.Map<String, java.util.Set<String>> m) {}
         @Override public void addUserRolePermissionName(String role, String perm) {}
+        @Override public void setExpectedVersion(Integer expectedVersion) {}
     }
 
     // -------------------------------------------------------------------------
