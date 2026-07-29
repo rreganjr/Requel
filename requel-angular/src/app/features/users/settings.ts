@@ -107,11 +107,11 @@ export class SettingsComponent implements OnInit {
   ) {}
 
   /**
-   * PATs act against project data, so only project users see the section. A pure system admin has
-   * no use for one; an admin who also holds ProjectUserRole still qualifies through that role.
+   * The PAT section is gated on the per-user manageApiTokens permission (#85), not the role.
+   * An admin who is granted the permission (via their ProjectUserRole) qualifies too.
    */
   canManageTokens(): boolean {
-    return this.authService.user()?.roles?.includes('ProjectUserRole') ?? false;
+    return this.authService.user()?.permissions?.includes('manageApiTokens') ?? false;
   }
 
   async ngOnInit(): Promise<void> {

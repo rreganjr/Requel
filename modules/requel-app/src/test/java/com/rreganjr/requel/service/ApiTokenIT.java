@@ -60,16 +60,29 @@ public class ApiTokenIT extends AbstractIntegrationTestCase {
 	private String adminJwt;
 	private String otherUsername;
 	private String otherJwt;
+	private String noPermUsername;
+	private String noPermJwt;
 
 	@BeforeAll
 	void setUp() throws Exception {
 		initializeBaselineData();
-		adminJwt = login("admin", "admin");
 
 		long ts = System.currentTimeMillis();
 		otherUsername = "tok-other-" + ts;
 		createUser(otherUsername, "secret");
+		// A project user with NO manageApiTokens permission (opt-in default, #85).
+		noPermUsername = "tok-noperm-" + ts;
+		createUser(noPermUsername, "secret");
+
+		// manageApiTokens is per-user and not granted by default (#85). Grant it to the users that
+		// manage tokens in these tests (admin + otherUser); noPermUser is deliberately left without.
+		grantManageApiTokens("admin");
+		grantManageApiTokens(otherUsername);
+
+		// Log in AFTER granting so the JWTs carry the up-to-date permission claims.
+		adminJwt = login("admin", "admin");
 		otherJwt = login(otherUsername, "secret");
+		noPermJwt = login(noPermUsername, "secret");
 	}
 
 	@Test
@@ -188,6 +201,33 @@ public class ApiTokenIT extends AbstractIntegrationTestCase {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"name\":\"  \"}"))
 				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void projectUserWithoutManagePermissionCannotCreate() throws Exception {
+		// noPermUser holds ProjectUserRole but was not granted manageApiTokens (#85): 403, not 201.
+		mockMvc.perform(post("/api/auth/tokens")
+						.header("Authorization", "Bearer " + noPermJwt)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(Map.of("name", "nope"))))
+				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void projectUserWithoutManagePermissionCannotList() throws Exception {
+		mockMvc.perform(get("/api/auth/tokens").header("Authorization", "Bearer " + noPermJwt))
+				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void projectUserWithManagePermissionCanListAndCreate() throws Exception {
+		// otherUser holds ProjectUserRole and WAS granted manageApiTokens: management succeeds.
+		mockMvc.perform(get("/api/auth/tokens").header("Authorization", "Bearer " + otherJwt))
+				.andExpect(status().isOk());
+		String[] minted = mintToken(otherJwt, "other-ok");
+		mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + minted[0]))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.username").value(otherUsername));
 	}
 
 	// ---- helpers ------------------------------------------------------------------------------

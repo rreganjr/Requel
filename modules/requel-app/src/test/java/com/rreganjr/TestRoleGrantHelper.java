@@ -21,6 +21,8 @@
 package com.rreganjr;
 
 import com.rreganjr.requel.project.ProjectUserRole;
+import com.rreganjr.requel.user.impl.AbstractUserRole;
+import com.rreganjr.requel.user.impl.JpaUserRolePermission;
 import com.rreganjr.requel.user.impl.UserImpl;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -60,5 +62,36 @@ public class TestRoleGrantHelper {
         if (!hasRole) {
             user.grantRole(ProjectUserRole.class);
         }
+    }
+
+    /**
+     * Grants the {@code manageApiTokens} permission (issue #85) on the user's
+     * {@link ProjectUserRole} instance, if not already present. The user must already hold
+     * ProjectUserRole. Grants the persisted permission row (looked up by name + role type) so no
+     * duplicate permission is inserted — mirrors how an admin would grant it via the user editor.
+     */
+    @Transactional
+    public void grantManageApiTokensIfMissing(String username) {
+        List<UserImpl> results = entityManager
+                .createQuery("SELECT u FROM UserImpl u WHERE u.username = :username", UserImpl.class)
+                .setParameter("username", username)
+                .getResultList();
+        if (results.isEmpty()) return;
+        UserImpl user = results.get(0);
+        AbstractUserRole projectRole = user.getUserRoles().stream()
+                .filter(r -> r instanceof ProjectUserRole)
+                .map(r -> (AbstractUserRole) r)
+                .findFirst()
+                .orElse(null);
+        if (projectRole == null) return;
+        if (projectRole.hasUserRolePermission(ProjectUserRole.manageApiTokens)) return;
+        JpaUserRolePermission managed = entityManager
+                .createQuery("SELECT p FROM UserRolePermission p "
+                        + "WHERE p.name = :name AND p.userRoleType = :type",
+                        JpaUserRolePermission.class)
+                .setParameter("name", ProjectUserRole.manageApiTokens.getName())
+                .setParameter("type", ProjectUserRole.class.getName())
+                .getSingleResult();
+        projectRole.grantUserRolePermission(managed);
     }
 }
