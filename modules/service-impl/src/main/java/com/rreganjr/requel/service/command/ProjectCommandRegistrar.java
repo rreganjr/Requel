@@ -169,6 +169,8 @@ public class ProjectCommandRegistrar {
                             // New project — leave project null, command will create
                         }
                     }
+                    // Caller's version drives the optimistic-lock check on update (issue #108).
+                    c.setExpectedVersion(i.version());
 
                     if (i.name() != null) c.setName(i.name());
                     if (i.description() != null) c.setText(i.description());
@@ -208,10 +210,13 @@ public class ProjectCommandRegistrar {
                     c.setUsername(i.username());
                     if (i.teamName() != null) c.setTeamName(i.teamName());
                     if (i.permissionKeys() != null) c.setStakeholderPermissions(new HashSet<>(i.permissionKeys()));
-                    // For edit: find existing stakeholder by project + username
+                    // For edit (caller supplies a version): resolve the existing stakeholder by its
+                    // natural key (project + username) and apply the optimistic-lock check (issue
+                    // #108). Without a version this is treated as a create (unchanged behavior).
                     if (i.version() != null) {
                         UserStakeholder existing = findUserStakeholderByUsername(project, i.username());
                         if (existing != null) c.setStakeholder(existing);
+                        c.setExpectedVersion(i.version());
                     }
                 },
                 null, // no file
@@ -231,6 +236,7 @@ public class ProjectCommandRegistrar {
                     if (i.stakeholderId() != null) {
                         NonUserStakeholder existing = (NonUserStakeholder) findStakeholderById(project, i.stakeholderId());
                         c.setStakeholder(existing);
+                        c.setExpectedVersion(i.version());
                     }
                 },
                 null, // no file
@@ -256,6 +262,8 @@ public class ProjectCommandRegistrar {
                     Project project = projectRepository.findProjectByName(i.projectName());
                     if (i.goalId() != null) {
                         c.setGoal(findGoalById(project, i.goalId()));
+                        // Wire the caller-supplied optimistic-lock version (issue #108).
+                        c.setExpectedVersion(i.version());
                     } else {
                         c.setGoalContainer(project);
                     }
@@ -275,10 +283,13 @@ public class ProjectCommandRegistrar {
                     c.setFromGoal(i.fromGoalName());
                     c.setToGoal(i.toGoalName());
                     c.setRelationType(i.relationType());
+                    // For edit (caller supplies a version): resolve the existing relation by its
+                    // natural key (from/to goal) and apply the optimistic-lock check (issue #108).
+                    // Without a version this is treated as a create (unchanged behavior).
                     if (i.version() != null) {
-                        // Find existing relation for edit
                         GoalRelation existing = findGoalRelationById(project, i.fromGoalName(), i.toGoalName());
                         if (existing != null) c.setGoalRelation(existing);
+                        c.setExpectedVersion(i.version());
                     }
                 });
 
@@ -343,6 +354,7 @@ public class ProjectCommandRegistrar {
                     Project project = projectRepository.findProjectByName(i.projectName());
                     if (i.storyId() != null) {
                         c.setStory(findStoryById(project, i.storyId()));
+                        c.setExpectedVersion(i.version());
                     } else {
                         c.setStoryContainer(project);
                     }
@@ -404,6 +416,7 @@ public class ProjectCommandRegistrar {
                     Project project = projectRepository.findProjectByName(i.projectName());
                     if (i.actorId() != null) {
                         c.setActor(findActorById(project, i.actorId()));
+                        c.setExpectedVersion(i.version());
                     } else {
                         c.setActorContainer(project);
                     }
@@ -464,6 +477,7 @@ public class ProjectCommandRegistrar {
                     c.setProjectOrDomain(project);
                     if (i.useCaseId() != null) {
                         c.setUseCase(findUseCaseById(project, i.useCaseId()));
+                        c.setExpectedVersion(i.version());
                     }
                     c.setName(i.name());
                     if (i.text() != null) c.setText(i.text());
@@ -518,6 +532,7 @@ public class ProjectCommandRegistrar {
                     c.setProjectOrDomain(project);
                     if (i.scenarioId() != null) {
                         c.setScenario(findScenarioById(project, i.scenarioId()));
+                        c.setExpectedVersion(i.version());
                     }
                     if (i.name() != null) c.setName(i.name());
                     if (i.text() != null) c.setText(i.text());

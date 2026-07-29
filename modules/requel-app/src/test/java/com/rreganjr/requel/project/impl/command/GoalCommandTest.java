@@ -22,6 +22,7 @@ package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.exception.EntityException;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
@@ -128,6 +129,82 @@ public class GoalCommandTest extends AbstractIntegrationTestCase {
 			dup.setText("Duplicate definition.");
 			getCommandHandler().execute(dup);
 		}, "duplicate goal name on the same project should be rejected");
+	}
+
+	@Test
+	public void editGoalWithMatchingVersionSucceeds() throws Exception {
+		Project project = createProject("Goal-version-ok");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditGoalCommand createCmd = getProjectCommandFactory().newEditGoalCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setGoalContainer(project);
+		createCmd.setName("Versioned goal");
+		createCmd.setText("Initial text.");
+		createCmd = getCommandHandler().execute(createCmd);
+		Goal original = createCmd.getGoal();
+
+		EditGoalCommand editCmd = getProjectCommandFactory().newEditGoalCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setGoal(original);
+		editCmd.setName("Versioned goal");
+		editCmd.setText("Updated with the current version.");
+		editCmd.setExpectedVersion(original.getVersion());
+		editCmd = getCommandHandler().execute(editCmd);
+
+		assertEquals("Updated with the current version.", editCmd.getGoal().getText(),
+				"matching-version update should be applied");
+	}
+
+	@Test
+	public void editGoalWithStaleVersionIsRejected() throws Exception {
+		Project project = createProject("Goal-version-stale");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditGoalCommand createCmd = getProjectCommandFactory().newEditGoalCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setGoalContainer(project);
+		createCmd.setName("Contested goal");
+		createCmd.setText("Initial text.");
+		createCmd = getCommandHandler().execute(createCmd);
+		Goal original = createCmd.getGoal();
+		int staleVersion = original.getVersion();
+
+		// First writer wins — this bumps the persisted version past staleVersion.
+		EditGoalCommand firstEdit = getProjectCommandFactory().newEditGoalCommand();
+		firstEdit.setEditedBy(admin);
+		firstEdit.setGoal(original);
+		firstEdit.setName("Contested goal");
+		firstEdit.setText("First writer's change.");
+		firstEdit.setExpectedVersion(staleVersion);
+		getCommandHandler().execute(firstEdit);
+
+		// Second writer submits the now-stale version and must be rejected.
+		assertThrows(EntityLockException.class, () -> {
+			EditGoalCommand staleEdit = getProjectCommandFactory().newEditGoalCommand();
+			staleEdit.setEditedBy(admin);
+			staleEdit.setGoal(original);
+			staleEdit.setName("Contested goal");
+			staleEdit.setText("Second writer's stale change.");
+			staleEdit.setExpectedVersion(staleVersion);
+			getCommandHandler().execute(staleEdit);
+		}, "an update carrying a stale version should be rejected");
+	}
+
+	@Test
+	public void createGoalIgnoresExpectedVersion() throws Exception {
+		Project project = createProject("Goal-version-create");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditGoalCommand cmd = getProjectCommandFactory().newEditGoalCommand();
+		cmd.setEditedBy(admin);
+		cmd.setGoalContainer(project);
+		cmd.setName("Create ignores version");
+		cmd.setText("A create carries no goal id, so the version is not checked.");
+		cmd.setExpectedVersion(99);
+		cmd = getCommandHandler().execute(cmd);
+
+		assertNotNull(cmd.getGoal(), "create should succeed regardless of expectedVersion");
 	}
 
 	// -------------------------------------------------------------------------

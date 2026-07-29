@@ -64,4 +64,17 @@ public interface EditProjectCommand extends AnalyzableEditCommand, ProjectScoped
 	 * @return
 	 */
 	public Project getProject();
+
+	/**
+	 * Set the caller-supplied optimistic-lock version expected for the project being
+	 * edited. When non-null on an update, the command compares it against the
+	 * project's currently persisted version and fails with an
+	 * {@link com.rreganjr.platform.exception.EntityLockException} if it has changed
+	 * since the caller loaded it. A {@code null} value (or a create) skips the check.
+	 * See issue #108.
+	 *
+	 * @param expectedVersion the version the caller believes is current, or
+	 *        {@code null} to skip the optimistic-lock check
+	 */
+	public void setExpectedVersion(Integer expectedVersion);
 }

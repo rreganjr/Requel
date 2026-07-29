@@ -143,6 +143,9 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 			}
 		}
 
+		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+		usecaseImpl = checkExpectedVersion(usecaseImpl);
+
 		Actor primaryActor = null;
 		if (getPrimaryActorName() != null && !getPrimaryActorName().trim().isEmpty()) {
 			try {

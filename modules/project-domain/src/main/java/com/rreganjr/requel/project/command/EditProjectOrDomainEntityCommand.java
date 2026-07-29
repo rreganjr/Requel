@@ -50,4 +50,18 @@ public interface EditProjectOrDomainEntityCommand extends AnalyzableEditCommand 
 	 * @param name
 	 */
 	public void setName(String name);
+
+	/**
+	 * Set the caller-supplied optimistic-lock version expected for the entity being
+	 * edited. When non-null on an update, the command compares it against the
+	 * entity's currently persisted version and fails with an
+	 * {@link com.rreganjr.platform.exception.EntityLockException} if the entity has
+	 * changed since the caller loaded it, rather than silently overwriting the
+	 * concurrent edit. A {@code null} value (or a create, where no entity is
+	 * resolved) skips the check. See issue #108.
+	 *
+	 * @param expectedVersion the version the caller believes is current, or
+	 *        {@code null} to skip the optimistic-lock check
+	 */
+	public void setExpectedVersion(Integer expectedVersion);
 }

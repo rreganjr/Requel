@@ -33,6 +33,7 @@ import com.rreganjr.platform.command.AuthorizationRequirement;
 import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Project;
@@ -68,6 +69,7 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 	private String organizationName;
 	private Project project;
 	private boolean analysisEnabled = true;
+	private Integer expectedVersion;
 
 	/**
 	 * @param assistantManager
@@ -127,6 +129,15 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 	}
 
 	@Override
+	public void setExpectedVersion(Integer expectedVersion) {
+		this.expectedVersion = expectedVersion;
+	}
+
+	protected Integer getExpectedVersion() {
+		return expectedVersion;
+	}
+
+	@Override
 	public void execute() {
 		Organization organization = resolveOrganization();
 		User user = getUserRepository().get(getEditedBy());
@@ -148,6 +159,13 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 		if (projectImpl == null) {
 			projectImpl = createProject(organization, user);
 		} else {
+			// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+			projectImpl = getRepository().get(projectImpl);
+			if (getExpectedVersion() != null
+					&& getExpectedVersion().intValue() != projectImpl.getVersion()) {
+				throw EntityLockException.staleEntity(Project.class, projectImpl,
+						EntityExceptionActionType.Updating);
+			}
 			projectImpl.setName(getName());
 			projectImpl.setOrganization(organization);
 		}

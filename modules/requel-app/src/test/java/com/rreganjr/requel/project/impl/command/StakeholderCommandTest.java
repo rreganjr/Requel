@@ -24,6 +24,7 @@ import java.util.Collections;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.exception.EntityException;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.project.NonUserStakeholder;
 import com.rreganjr.requel.project.Project;
@@ -198,6 +199,105 @@ public class StakeholderCommandTest extends AbstractIntegrationTestCase {
 		NonUserStakeholder updated = editCmd.getStakeholder();
 		assertEquals("Updated ISO description", updated.getText(), "description should have been updated");
 		assertEquals("ISO", updated.getName(), "name should be unchanged");
+	}
+
+	@Test
+	public void editNonUserStakeholderWithMatchingVersionSucceeds() throws Exception {
+		Project project = createProject("NonUserStakeholder-version-ok");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditNonUserStakeholderCommand createCmd = getProjectCommandFactory().newEditNonUserStakeholderCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setProjectOrDomain(project);
+		createCmd.setName("Versioned authority");
+		createCmd.setText("Initial description.");
+		createCmd = getCommandHandler().execute(createCmd);
+		NonUserStakeholder original = createCmd.getStakeholder();
+
+		EditNonUserStakeholderCommand editCmd = getProjectCommandFactory().newEditNonUserStakeholderCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setStakeholder(original);
+		editCmd.setName("Versioned authority");
+		editCmd.setText("Updated with the current version.");
+		editCmd.setExpectedVersion(original.getVersion());
+		editCmd = getCommandHandler().execute(editCmd);
+
+		assertEquals("Updated with the current version.", editCmd.getStakeholder().getText(),
+				"matching-version update should be applied");
+	}
+
+	@Test
+	public void editNonUserStakeholderWithStaleVersionIsRejected() throws Exception {
+		Project project = createProject("NonUserStakeholder-version-stale");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditNonUserStakeholderCommand createCmd = getProjectCommandFactory().newEditNonUserStakeholderCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setProjectOrDomain(project);
+		createCmd.setName("Contested authority");
+		createCmd.setText("Initial description.");
+		createCmd = getCommandHandler().execute(createCmd);
+		NonUserStakeholder original = createCmd.getStakeholder();
+		int staleVersion = original.getVersion();
+
+		EditNonUserStakeholderCommand firstEdit = getProjectCommandFactory().newEditNonUserStakeholderCommand();
+		firstEdit.setEditedBy(admin);
+		firstEdit.setProjectOrDomain(project);
+		firstEdit.setStakeholder(original);
+		firstEdit.setName("Contested authority");
+		firstEdit.setText("First writer's change.");
+		firstEdit.setExpectedVersion(staleVersion);
+		getCommandHandler().execute(firstEdit);
+
+		assertThrows(EntityLockException.class, () -> {
+			EditNonUserStakeholderCommand staleEdit = getProjectCommandFactory().newEditNonUserStakeholderCommand();
+			staleEdit.setEditedBy(admin);
+			staleEdit.setProjectOrDomain(project);
+			staleEdit.setStakeholder(original);
+			staleEdit.setName("Contested authority");
+			staleEdit.setText("Second writer's stale change.");
+			staleEdit.setExpectedVersion(staleVersion);
+			getCommandHandler().execute(staleEdit);
+		}, "an update carrying a stale version should be rejected");
+	}
+
+	@Test
+	public void editUserStakeholderWithStaleVersionIsRejected() throws Exception {
+		Project project = createProject("UserStakeholder-version-stale");
+		User admin = getUserRepository().findUserByUsername("admin");
+		User projectUser = getUserRepository().findUserByUsername("project");
+
+		EditUserStakeholderCommand createCmd = getProjectCommandFactory().newEditUserStakeholderCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setProjectOrDomain(project);
+		createCmd.setUsername(projectUser.getUsername());
+		createCmd.setStakeholderPermissions(Collections.emptySet());
+		createCmd = getCommandHandler().execute(createCmd);
+		UserStakeholder original = createCmd.getStakeholder();
+		int staleVersion = original.getVersion();
+
+		EditUserStakeholderCommand firstEdit = getProjectCommandFactory().newEditUserStakeholderCommand();
+		firstEdit.setEditedBy(admin);
+		firstEdit.setProjectOrDomain(project);
+		firstEdit.setStakeholder(original);
+		firstEdit.setUsername(projectUser.getUsername());
+		firstEdit.setStakeholderPermissions(Collections.emptySet());
+		firstEdit.setTeamName("Dev");
+		firstEdit.setExpectedVersion(staleVersion);
+		getCommandHandler().execute(firstEdit);
+
+		assertThrows(EntityLockException.class, () -> {
+			EditUserStakeholderCommand staleEdit = getProjectCommandFactory().newEditUserStakeholderCommand();
+			staleEdit.setEditedBy(admin);
+			staleEdit.setProjectOrDomain(project);
+			staleEdit.setStakeholder(original);
+			staleEdit.setUsername(projectUser.getUsername());
+			staleEdit.setStakeholderPermissions(Collections.emptySet());
+			staleEdit.setTeamName("QA");
+			staleEdit.setExpectedVersion(staleVersion);
+			getCommandHandler().execute(staleEdit);
+		}, "an update carrying a stale version should be rejected");
 	}
 
 	@Test

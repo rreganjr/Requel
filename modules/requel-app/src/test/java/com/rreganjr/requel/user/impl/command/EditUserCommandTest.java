@@ -22,6 +22,7 @@ package com.rreganjr.requel.user.impl.command;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.command.AuthorizationException;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.command.EditUserCommand;
@@ -145,6 +146,59 @@ public class EditUserCommandTest extends AbstractIntegrationTestCase {
         assertEquals("Updated Name", updated.getName(), "name should be updated");
         assertEquals("updated-" + ts + "@example.com", updated.getEmailAddress(),
                 "email should be updated");
+    }
+
+    @Test
+    public void editUserWithMatchingVersionSucceeds() throws Exception {
+        long ts = System.currentTimeMillis();
+        User admin = getUserRepository().findUserByUsername("admin");
+        User user = createUser("version-ok-" + ts, "pass123!", "Original Name");
+
+        EditUserCommand cmd = getUserCommandFactory().newEditUserCommand();
+        cmd.setEditedBy(admin);
+        cmd.setUser(user);
+        cmd.setUsername(user.getUsername());
+        cmd.setName("Updated With Current Version");
+        cmd.setEmailAddress(user.getEmailAddress());
+        cmd.setPhoneNumber("");
+        cmd.setOrganizationName("TestOrg");
+        cmd.setExpectedVersion(user.getVersion());
+        cmd = getCommandHandler().execute(cmd);
+
+        assertEquals("Updated With Current Version", cmd.getUser().getName(),
+                "matching-version update should be applied");
+    }
+
+    @Test
+    public void editUserWithStaleVersionIsRejected() throws Exception {
+        long ts = System.currentTimeMillis();
+        User admin = getUserRepository().findUserByUsername("admin");
+        User user = createUser("version-stale-" + ts, "pass123!", "Original Name");
+        int staleVersion = user.getVersion();
+
+        EditUserCommand firstEdit = getUserCommandFactory().newEditUserCommand();
+        firstEdit.setEditedBy(admin);
+        firstEdit.setUser(user);
+        firstEdit.setUsername(user.getUsername());
+        firstEdit.setName("First Writer Change");
+        firstEdit.setEmailAddress(user.getEmailAddress());
+        firstEdit.setPhoneNumber("");
+        firstEdit.setOrganizationName("TestOrg");
+        firstEdit.setExpectedVersion(staleVersion);
+        getCommandHandler().execute(firstEdit);
+
+        assertThrows(EntityLockException.class, () -> {
+            EditUserCommand staleEdit = getUserCommandFactory().newEditUserCommand();
+            staleEdit.setEditedBy(admin);
+            staleEdit.setUser(user);
+            staleEdit.setUsername(user.getUsername());
+            staleEdit.setName("Second Writer Stale Change");
+            staleEdit.setEmailAddress(user.getEmailAddress());
+            staleEdit.setPhoneNumber("");
+            staleEdit.setOrganizationName("TestOrg");
+            staleEdit.setExpectedVersion(staleVersion);
+            getCommandHandler().execute(staleEdit);
+        }, "an update carrying a stale version should be rejected");
     }
 
     // -------------------------------------------------------------------------

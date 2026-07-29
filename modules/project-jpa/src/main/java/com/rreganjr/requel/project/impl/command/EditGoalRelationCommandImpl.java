@@ -40,6 +40,8 @@ import com.rreganjr.platform.command.AuthorizationRequirement;
 import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.project.command.EditGoalRelationCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.requel.project.exception.GoalSelfRelationException;
 import com.rreganjr.requel.project.impl.GoalRelationImpl;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -66,6 +68,7 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 	private String relationTypeName;
 	private User editedBy;
 	private boolean analysisEnabled = true;
+	private Integer expectedVersion;
 
 	/**
 	 * @param assistantManager
@@ -155,6 +158,15 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 		return editedBy;
 	}
 
+	@Override
+	public void setExpectedVersion(Integer expectedVersion) {
+		this.expectedVersion = expectedVersion;
+	}
+
+	protected Integer getExpectedVersion() {
+		return expectedVersion;
+	}
+
 	/**
 	 * @see com.rreganjr.command.Command#execute()
 	 */
@@ -184,6 +196,12 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 					new GoalRelationImpl(fromGoal, toGoal, goalRelationType, editedBy));
 		} else {
 			goalRelationImpl = (GoalRelationImpl) getRepository().get(goalRelationImpl);
+			// Enforce the caller-supplied optimistic-lock version on update (issue #108).
+			if (getExpectedVersion() != null
+					&& getExpectedVersion().intValue() != goalRelationImpl.getVersion()) {
+				throw EntityLockException.staleEntity(GoalRelation.class, goalRelationImpl,
+						EntityExceptionActionType.Updating);
+			}
 			goalRelationImpl.setFromGoal(fromGoal);
 			goalRelationImpl.setToGoal(toGoal);
 			goalRelationImpl.setRelationType(goalRelationType);
