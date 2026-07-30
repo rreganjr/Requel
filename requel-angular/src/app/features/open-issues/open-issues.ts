@@ -19,7 +19,7 @@
  *
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
@@ -55,7 +55,7 @@ const ENTITY_ROUTES: Record<string, string> = {
 @Component({
   selector: 'app-open-issues',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, BadgeModule, MessageModule],
+  imports: [ListPageComponent, RouterLink, TableModule, ButtonModule, BadgeModule, MessageModule],
   template: `
     <app-list-page title="Open Issues" searchPlaceholder="Search issues..."
                    (search)="dt.filterGlobal($event, 'contains')">
@@ -88,7 +88,11 @@ const ENTITY_ROUTES: Record<string, string> = {
           <tr>
             <td>{{ issue.entityType }}</td>
             <td>
-              <a class="entity-link" data-testid="open-issue-entity-link" (click)="navigateTo(issue)">{{ issue.entityName }}</a>
+              @if (routeFor(issue); as route) {
+                <a class="entity-link" data-testid="open-issue-entity-link" [routerLink]="route">{{ issue.entityName }}</a>
+              } @else {
+                <span data-testid="open-issue-entity-name">{{ issue.entityName }}</span>
+              }
             </td>
             <td>{{ issue.issueText }}</td>
             <td>
@@ -158,10 +162,9 @@ export class OpenIssuesComponent implements OnInit, OnDestroy {
     }
   }
 
-  navigateTo(issue: OpenIssueDto): void {
+  /** Router link array for the issue's entity, or null when the type has no route. */
+  routeFor(issue: OpenIssueDto): (string | number)[] | null {
     const segment = ENTITY_ROUTES[issue.entityType];
-    if (segment) {
-      this.router.navigate(['/projects', this.projectName, segment, issue.entityId]);
-    }
+    return segment ? ['/projects', this.projectName, segment, issue.entityId] : null;
   }
 }

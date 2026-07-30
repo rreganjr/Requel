@@ -49,7 +49,7 @@ import { TagService } from '../core/tag.service';
               <span class="tag-chip-label">{{ label(t) }}</span>
               @if (canEdit) {
                 <button type="button" class="chip-x" data-testid="tag-remove"
-                        aria-label="Remove tag" (click)="removeTag(t)">×</button>
+                        [attr.aria-label]="'Remove tag ' + label(t)" (click)="removeTag(t)"><span aria-hidden="true">×</span></button>
               }
             </span>
           }

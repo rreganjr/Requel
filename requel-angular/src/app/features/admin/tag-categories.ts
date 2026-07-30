@@ -80,7 +80,8 @@ import { TagService } from '../../core/tag.service';
             <td>{{ c.color ?? '—' }}</td>
             <td>
               <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                        data-testid="tag-category-delete" (onClick)="deleteCategory(c)" />
+                        data-testid="tag-category-delete" [ariaLabel]="'Delete category ' + c.name"
+                        (onClick)="deleteCategory(c)" />
             </td>
           </tr>
         </ng-template>

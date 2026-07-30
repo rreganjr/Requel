@@ -7,3 +7,13 @@ html, body {
   background: var(--p-surface-ground);
   color: var(--p-text-color);
 }
+
+// Visible keyboard focus indicator for all interactive elements (WCAG 2.4.7).
+// Uses :focus-visible so the ring shows on keyboard focus only, not on mouse click.
+// Matches the PrimeNG Aura focus-ring tokens (outline-based) with literal fallbacks
+// mirroring the Aura primitive, so custom controls look identical to native components.
+:focus-visible {
+  outline: var(--p-focus-ring-width, 1px) var(--p-focus-ring-style, solid)
+           var(--p-focus-ring-color, var(--p-primary-color));
+  outline-offset: var(--p-focus-ring-offset, 2px);
+}

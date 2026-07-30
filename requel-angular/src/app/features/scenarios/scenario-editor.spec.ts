@@ -90,6 +90,20 @@ describe('ScenarioEditorComponent', () => {
     expect(comp.stepNodes()[0].name).toBe('User opens login page');
   });
 
+  it('renders the add-step controls as real buttons that add a step', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    const top = fixture.nativeElement.querySelector('[data-testid="scenario-add-step-top"]');
+    const bottom = fixture.nativeElement.querySelector('[data-testid="scenario-add-step-bottom"]');
+    expect(top.tagName).toBe('BUTTON');
+    expect(bottom.tagName).toBe('BUTTON');
+    const before = comp.stepNodes().length;
+    bottom.click();
+    expect(comp.stepNodes().length).toBe(before + 1);
+  });
+
   it('addStep() appends a new step node and sets stepsSaveNeeded', () => {
     fixture.detectChanges();
     expect(comp.stepNodes().length).toBe(0);

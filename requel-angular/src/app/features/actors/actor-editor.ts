@@ -20,7 +20,7 @@
  */
 import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormsModule } from '@angular/forms';
@@ -44,7 +44,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 @Component({
   selector: 'app-actor-editor',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, TableModule,
+  imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, TableModule,
             MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent],
   providers: [ConfirmationService],
@@ -115,12 +115,12 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               <tr data-testid="actor-goal-row">
                 <td>
                   <a class="entity-link" data-testid="actor-goal-link"
-                     (click)="onGoalClick(g.id)">{{ g.name }}</a>
+                     [routerLink]="['/projects', projectName, 'goals', g.id]">{{ g.name }}</a>
                 </td>
                 @if (canEdit()) {
                   <td>
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
-                              data-testid="actor-remove-goal"
+                              data-testid="actor-remove-goal" [ariaLabel]="'Remove goal ' + g.name"
                               [rounded]="true" (onClick)="onRemoveGoal(g)" />
                   </td>
                 }
@@ -155,7 +155,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
                 <tr data-testid="actor-refby-usecase-row">
                   <td>
                     <a class="entity-link" data-testid="actor-refby-usecase-link"
-                       (click)="navigate('use-cases', ref.id)">{{ ref.name }}</a>
+                       [routerLink]="['/projects', projectName, 'use-cases', ref.id]">{{ ref.name }}</a>
                   </td>
                 </tr>
               </ng-template>
@@ -168,7 +168,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
                 <tr data-testid="actor-refby-story-row">
                   <td>
                     <a class="entity-link" data-testid="actor-refby-story-link"
-                       (click)="navigate('stories', ref.id)">{{ ref.name }}</a>
+                       [routerLink]="['/projects', projectName, 'stories', ref.id]">{{ ref.name }}</a>
                   </td>
                 </tr>
               </ng-template>
@@ -420,14 +420,6 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     } catch {
       this.errorMessage.set('Failed to remove goal.');
     }
-  }
-
-  onGoalClick(goalId: number): void {
-    this.router.navigate(['/projects', this.projectName, 'goals', goalId]);
-  }
-
-  navigate(type: string, id: number): void {
-    this.router.navigate(['/projects', this.projectName, type, id]);
   }
 
   onBack(): void {

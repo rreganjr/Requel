@@ -20,7 +20,7 @@
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormsModule } from '@angular/forms';
@@ -46,7 +46,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 @Component({
   selector: 'app-story-editor',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent],
   providers: [ConfirmationService],
@@ -135,10 +135,10 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               </ng-template>
               <ng-template #body let-g>
                 <tr data-testid="story-goal-row">
-                  <td><a class="entity-link" data-testid="story-goal-link" (click)="navigateToGoal(g.id)">{{ g.name }}</a></td>
+                  <td><a class="entity-link" data-testid="story-goal-link" [routerLink]="['/projects', projectName, 'goals', g.id]">{{ g.name }}</a></td>
                   @if (canEdit()) {
                     <td><p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                                  data-testid="story-remove-goal"
+                                  data-testid="story-remove-goal" [ariaLabel]="'Remove goal ' + g.name"
                                   (onClick)="onRemoveGoal(g)" /></td>
                   }
                 </tr>
@@ -169,10 +169,10 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               </ng-template>
               <ng-template #body let-a>
                 <tr data-testid="story-additional-actor-row">
-                  <td><a class="entity-link" data-testid="story-additional-actor-link" (click)="navigateToActor(a.id)">{{ a.name }}</a></td>
+                  <td><a class="entity-link" data-testid="story-additional-actor-link" [routerLink]="['/projects', projectName, 'actors', a.id]">{{ a.name }}</a></td>
                   @if (canEdit()) {
                     <td><p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                                  data-testid="story-remove-additional-actor"
+                                  data-testid="story-remove-additional-actor" [ariaLabel]="'Remove actor ' + a.name"
                                   (onClick)="onRemoveActor(a)" /></td>
                   }
                 </tr>
@@ -528,14 +528,6 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     } catch {
       this.errorMessage.set('Failed to remove actor.');
     }
-  }
-
-  navigateToGoal(goalId: number): void {
-    this.router.navigate(['/projects', this.projectName, 'goals', goalId]);
-  }
-
-  navigateToActor(actorId: number): void {
-    this.router.navigate(['/projects', this.projectName, 'actors', actorId]);
   }
 
   onBack(): void {

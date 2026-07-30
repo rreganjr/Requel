@@ -20,7 +20,7 @@
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -63,7 +63,7 @@ interface StepNodeData {
 @Component({
   selector: 'app-scenario-editor',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             MessageModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent],
   providers: [ConfirmationService],
@@ -132,9 +132,9 @@ interface StepNodeData {
                (cdkDropListDropped)="onDrop($event)"
                class="step-list">
             @if (canEdit()) {
-              <div class="add-step-row" data-testid="scenario-add-step-top" (click)="addStepAt(0)">
-                <i class="pi pi-plus"></i> Add step
-              </div>
+              <button type="button" class="add-step-row" data-testid="scenario-add-step-top" (click)="addStepAt(0)">
+                <i class="pi pi-plus" aria-hidden="true"></i> Add step
+              </button>
             }
             @for (step of stepNodes(); track step; let stepIndex = $index) {
               <div cdkDrag class="step-row" data-testid="scenario-step-row"
@@ -149,11 +149,11 @@ interface StepNodeData {
                     <i class="pi pi-sitemap step-icon"></i>
                     <a class="entity-link step-name"
                        data-testid="scenario-step-link"
-                       (click)="navigateToScenario(step.stepId!)">{{ step.name }}</a>
+                       [routerLink]="['/projects', projectName, 'scenarios', step.stepId!]">{{ step.name }}</a>
                     <span class="step-type-badge">{{ step.scenarioType }}</span>
                     @if (canEdit()) {
                       <p-button icon="pi pi-times" severity="danger" [text]="true"
-                                data-testid="scenario-step-remove"
+                                data-testid="scenario-step-remove" [ariaLabel]="'Remove ' + step.name + ' from scenario'"
                                 size="small" pTooltip="Remove from scenario"
                                 (onClick)="removeStep(step)" />
                     }
@@ -167,15 +167,15 @@ interface StepNodeData {
                            (blur)="onStepNameChange()" />
                     @if (canEdit()) {
                       <p-button icon="pi pi-pencil" [text]="true" size="small"
-                                data-testid="scenario-step-edit"
+                                data-testid="scenario-step-edit" ariaLabel="Edit step details"
                                 pTooltip="Edit details" tooltipPosition="top"
                                 (onClick)="openStepEdit(step)" />
                       <p-button icon="pi pi-plus" severity="secondary" [text]="true"
-                                data-testid="scenario-step-add-below"
+                                data-testid="scenario-step-add-below" ariaLabel="Add step below"
                                 size="small" pTooltip="Add step below" tooltipPosition="top"
                                 (onClick)="addStepBelow(step)" />
                       <p-button icon="pi pi-times" severity="danger" [text]="true"
-                                data-testid="scenario-step-remove"
+                                data-testid="scenario-step-remove" ariaLabel="Remove step"
                                 size="small" pTooltip="Remove step" tooltipPosition="top"
                                 (onClick)="removeStep(step)" />
                     }
@@ -185,9 +185,9 @@ interface StepNodeData {
                 </div>
               }
             @if (canEdit()) {
-              <div class="add-step-row" data-testid="scenario-add-step-bottom" (click)="addStep()">
-                <i class="pi pi-plus"></i> Add step
-              </div>
+              <button type="button" class="add-step-row" data-testid="scenario-add-step-bottom" (click)="addStep()">
+                <i class="pi pi-plus" aria-hidden="true"></i> Add step
+              </button>
             }
           </div>
 
@@ -273,6 +273,7 @@ interface StepNodeData {
 
     .add-step-row {
       display: flex; align-items: center; justify-content: center; gap: 0.35rem;
+      width: 100%; border: none; background: transparent; font-family: inherit;
       padding: 0.3rem; cursor: pointer;
       font-size: 0.8rem; color: var(--p-text-secondary-color);
       border-bottom: 1px dashed var(--p-surface-200);
@@ -546,10 +547,6 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     }]);
     this.stepsSaveNeeded.set(true);
     this.hasChanges.set(true);
-  }
-
-  navigateToScenario(scenarioId: number): void {
-    this.router.navigate(['/projects', this.projectName, 'scenarios', scenarioId]);
   }
 
   private buildStepInputs(): EditStepInput[] {

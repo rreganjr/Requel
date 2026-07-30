@@ -93,7 +93,7 @@ import { AnnotationService } from '../core/annotation.service';
               <span class="annotation-creator">{{ note.createdBy }}</span>
               @if (canEdit) {
                 <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                          data-testid="annotation-delete-note"
+                          data-testid="annotation-delete-note" ariaLabel="Delete note"
                           (onClick)="deleteNote(note)" />
               }
             </div>
@@ -116,7 +116,7 @@ import { AnnotationService } from '../core/annotation.service';
               <span class="annotation-creator">{{ issue.createdBy }}</span>
               @if (canEdit) {
                 <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                          data-testid="annotation-delete-issue"
+                          data-testid="annotation-delete-issue" ariaLabel="Delete issue"
                           (onClick)="deleteIssue(issue)" />
               }
             </div>
@@ -145,7 +145,7 @@ import { AnnotationService } from '../core/annotation.service';
                   }
                   @if (canEdit) {
                     <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                              data-testid="annotation-delete-position"
+                              data-testid="annotation-delete-position" ariaLabel="Delete position"
                               (onClick)="deletePosition(pos)" />
                   }
                 </div>
@@ -161,7 +161,7 @@ import { AnnotationService } from '../core/annotation.service';
                       <span class="annotation-creator">{{ arg.createdBy }}</span>
                       @if (canEdit) {
                         <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                                  data-testid="annotation-delete-argument"
+                                  data-testid="annotation-delete-argument" ariaLabel="Delete argument"
                                   (onClick)="deleteArgument(pos, arg)" />
                       }
                     </div>
