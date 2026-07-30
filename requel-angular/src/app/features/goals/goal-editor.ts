@@ -20,7 +20,7 @@
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormsModule } from '@angular/forms';
@@ -46,7 +46,7 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
 @Component({
   selector: 'app-goal-editor',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, TagSelectorComponent],
   providers: [ConfirmationService],
@@ -109,11 +109,11 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
               </ng-template>
               <ng-template #body let-r>
                 <tr data-testid="goal-relation-row">
-                  <td><a class="entity-link" (click)="navigateToGoal(r.goalId)">{{ r.goalName }}</a></td>
+                  <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', r.goalId]">{{ r.goalName }}</a></td>
                   <td>{{ r.relationType }}</td>
                   @if (canEdit()) {
                     <td><p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                                  data-testid="goal-remove-relation"
+                                  data-testid="goal-remove-relation" [ariaLabel]="'Remove relation to ' + r.goalName"
                                   (onClick)="onDeleteRelation(r)" /></td>
                   }
                 </tr>
@@ -135,7 +135,7 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
               </ng-template>
               <ng-template #body let-r>
                 <tr>
-                  <td><a class="entity-link" (click)="navigateToGoal(r.goalId)">{{ r.goalName }}</a></td>
+                  <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', r.goalId]">{{ r.goalName }}</a></td>
                   <td>{{ r.relationType }}</td>
                 </tr>
               </ng-template>
@@ -456,10 +456,6 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     } else {
       this.errorMessage.set(result.error ?? 'Failed to delete relation.');
     }
-  }
-
-  navigateToGoal(goalId: number): void {
-    this.router.navigate(['/projects', this.projectName, 'goals', goalId]);
   }
 
   onBack(): void {

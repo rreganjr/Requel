@@ -72,7 +72,8 @@ import { TagService } from '../../core/tag.service';
             <td>{{ t.createdBy }}</td>
             <td>
               <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                        data-testid="global-tag-delete" (onClick)="deleteTag(t)" />
+                        data-testid="global-tag-delete" [ariaLabel]="'Delete tag ' + t.value"
+                        (onClick)="deleteTag(t)" />
             </td>
           </tr>
         </ng-template>

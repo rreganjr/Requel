@@ -73,12 +73,28 @@ describe('OpenIssuesComponent', () => {
     expect(comp.mustResolveCount()).toBe(1);
   });
 
-  it('navigateTo routes to correct entity path for known type', async () => {
+  it('routeFor returns the entity route for a known type', async () => {
     fixture.detectChanges();
     httpTesting.expectOne(r => r.url.includes('open-issues')).flush([]);
     await flush();
-    comp.navigateTo(MOCK_ISSUES[0]);
-    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'goals', 10]);
+    expect(comp.routeFor(MOCK_ISSUES[0])).toEqual(['/projects', 'proj1', 'goals', 10]);
+  });
+
+  it('routeFor returns null for an unmapped entity type', async () => {
+    fixture.detectChanges();
+    httpTesting.expectOne(r => r.url.includes('open-issues')).flush([]);
+    await flush();
+    expect(comp.routeFor({ ...MOCK_ISSUES[0], entityType: 'Unknown' })).toBeNull();
+  });
+
+  it('renders a routerLink anchor for mapped issues', async () => {
+    fixture.detectChanges();
+    httpTesting.expectOne(r => r.url.includes('open-issues')).flush(MOCK_ISSUES);
+    await flush();
+    fixture.detectChanges();
+    const a = fixture.nativeElement.querySelector('[data-testid="open-issue-entity-link"]');
+    expect(a.tagName).toBe('A');
+    expect(a.getAttribute('href')).toBe('/projects/proj1/goals/10');
   });
 
   it('errorMessage set when HTTP request fails', async () => {

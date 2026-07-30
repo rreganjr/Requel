@@ -20,7 +20,7 @@
  */
 import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -53,7 +53,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 @Component({
   selector: 'app-use-case-editor',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
+  imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
             ConfirmDialogModule, TableModule, TooltipModule, SelectModule,
             EntitySelectorDialogComponent, AnnotationsSectionComponent],
   providers: [ConfirmationService],
@@ -134,7 +134,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <div class="primary-scenario-card" data-testid="use-case-primary-scenario-card">
               <div class="primary-scenario-name" data-testid="use-case-primary-scenario-name">
                 <a class="entity-link" data-testid="use-case-primary-scenario-link"
-                   (click)="navigateTo('scenarios', useCase()!.scenarioId!)">
+                   [routerLink]="['/projects', projectName, 'scenarios', useCase()!.scenarioId!]">
                   {{ useCase()!.scenarioName ?? 'Primary Scenario' }}
                 </a>
                 <span class="step-count">({{ useCase()!.scenarioStepCount ?? 0 }} steps)</span>
@@ -182,12 +182,12 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <ng-template pTemplate="body" let-s>
               <tr data-testid="use-case-scenario-row">
                 <td><a class="entity-link" data-testid="use-case-scenario-link"
-                       (click)="navigateTo('scenarios', s.id)">{{ s.name }}</a></td>
+                       [routerLink]="['/projects', projectName, 'scenarios', s.id]">{{ s.name }}</a></td>
                 <td>{{ s.scenarioType }}</td>
                 <td>
                   @if (canEdit()) {
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
-                              data-testid="use-case-remove-scenario"
+                              data-testid="use-case-remove-scenario" [ariaLabel]="'Remove scenario ' + s.name"
                               size="small" pTooltip="Remove scenario"
                               (onClick)="removeScenario(s)" />
                   }
@@ -242,12 +242,12 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               <tr data-testid="use-case-goal-row">
                 <td>
                   <a class="entity-link" data-testid="use-case-goal-link"
-                     (click)="navigateTo('goals', goal.id)">{{ goal.name }}</a>
+                     [routerLink]="['/projects', projectName, 'goals', goal.id]">{{ goal.name }}</a>
                 </td>
                 <td>
                   @if (canEdit()) {
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
-                              data-testid="use-case-remove-goal"
+                              data-testid="use-case-remove-goal" [ariaLabel]="'Remove goal ' + goal.name"
                               size="small" pTooltip="Remove goal"
                               (onClick)="removeGoal(goal)" />
                   }
@@ -280,13 +280,13 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               <tr data-testid="use-case-story-row">
                 <td>
                   <a class="entity-link" data-testid="use-case-story-link"
-                     (click)="navigateTo('stories', story.id)">{{ story.name }}</a>
+                     [routerLink]="['/projects', projectName, 'stories', story.id]">{{ story.name }}</a>
                 </td>
                 <td>{{ story.storyType }}</td>
                 <td>
                   @if (canEdit()) {
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
-                              data-testid="use-case-remove-story"
+                              data-testid="use-case-remove-story" [ariaLabel]="'Remove story ' + story.name"
                               size="small" pTooltip="Remove story"
                               (onClick)="removeStory(story)" />
                   }
@@ -319,12 +319,12 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               <tr data-testid="use-case-actor-row">
                 <td>
                   <a class="entity-link" data-testid="use-case-actor-link"
-                     (click)="navigateTo('actors', actor.id)">{{ actor.name }}</a>
+                     [routerLink]="['/projects', projectName, 'actors', actor.id]">{{ actor.name }}</a>
                 </td>
                 <td>
                   @if (canEdit()) {
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
-                              data-testid="use-case-remove-actor"
+                              data-testid="use-case-remove-actor" [ariaLabel]="'Remove actor ' + actor.name"
                               size="small" pTooltip="Remove actor"
                               (onClick)="removeActor(actor)" />
                   }

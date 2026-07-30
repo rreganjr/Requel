@@ -291,18 +291,25 @@ describe('ActorEditorComponent', () => {
     expect(comp.errorMessage()).toBe('Not allowed');
   });
 
-  it('onGoalClick navigates to the goal editor', () => {
-    comp.projectName = 'proj1';
-    comp.onGoalClick(42);
-    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'goals', 42]);
+  it('renders the goal link as a routerLink anchor', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    const a = fixture.nativeElement.querySelector('[data-testid="actor-goal-link"]');
+    expect(a.tagName).toBe('A');
+    expect(a.getAttribute('href')).toBe('/projects/proj1/goals/1');
   });
 
-  it('navigate(type, id) navigates to that entity editor', () => {
-    comp.projectName = 'proj1';
-    comp.navigate('use-cases', 30);
-    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'use-cases', 30]);
-    comp.navigate('stories', 40);
-    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'stories', 40]);
+  it('renders referenced-by links as routerLink anchors', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    const uc = fixture.nativeElement.querySelector('[data-testid="actor-refby-usecase-link"]');
+    const st = fixture.nativeElement.querySelector('[data-testid="actor-refby-story-link"]');
+    expect(uc.getAttribute('href')).toBe('/projects/proj1/use-cases/30');
+    expect(st.getAttribute('href')).toBe('/projects/proj1/stories/40');
   });
 
   it('onBack navigates back to actor list', () => {

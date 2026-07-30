@@ -99,6 +99,21 @@ describe('TagSelectorComponent', () => {
     expect(screen.getByText('type=business-rule')).toBeInTheDocument();
   });
 
+  it('exposes a contextful accessible name on the tag remove button', async () => {
+    tagServiceMock.getTagsOnEntity.mockResolvedValue([
+      { id: 1, version: 1, category: 'type', value: 'business-rule', projectId: 9,
+        color: null, createdBy: 'admin' }
+    ]);
+    const { fixture } = await render(TagSelectorComponent, {
+      providers: providers(),
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1, canEdit: true }
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const btn = screen.getByRole('button', { name: 'Remove tag type=business-rule' });
+    expect(btn.tagName).toBe('BUTTON');
+  });
+
   it('addTag() creates then assigns a tag and clears the inputs', async () => {
     const { fixture } = await render(TagSelectorComponent, {
       providers: providers(),
