@@ -19,6 +19,7 @@
  *
  */
 import { Component, OnInit, OnDestroy, signal, computed, ViewChild } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule, NgForm } from '@angular/forms';
 import { InputText } from 'primeng/inputtext';
@@ -41,12 +42,12 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
 @Component({
   selector: 'app-project-editor',
   standalone: true,
-  imports: [FormsModule, InputText, TextareaModule, ButtonModule, SelectModule, MessageModule, ConfirmDialogModule, TagSelectorComponent],
+  imports: [PageHeaderComponent, FormsModule, InputText, TextareaModule, ButtonModule, SelectModule, MessageModule, ConfirmDialogModule, TagSelectorComponent],
   providers: [ConfirmationService],
   template: `
     <div class="project-editor" data-testid="project-editor">
       <div class="page-header">
-        <h2>{{ isNew() ? 'New Project' : 'Project: ' + originalName() }}</h2>
+        <app-page-header [title]="isNew() ? 'New Project' : 'Project: ' + originalName()" />
         <div class="page-actions">
           @if (!isNew()) {
             <p-button icon="pi pi-download" label="Export" [outlined]="true"
@@ -106,7 +107,6 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
   styles: [`
     .project-editor { max-width: 800px; }
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-header h2 { margin: 0; }
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
     .field { display: flex; flex-direction: column; gap: 0.5rem; }
     .field label { font-weight: 500; }

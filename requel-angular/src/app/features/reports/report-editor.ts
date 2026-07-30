@@ -19,6 +19,7 @@
  *
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -37,13 +38,13 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 @Component({
   selector: 'app-report-editor',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
+  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
             ConfirmDialogModule, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
     <div class="report-editor" data-testid="report-editor">
       <div class="page-header">
-        <h2>{{ isNew() ? 'New Document' : reportName() }}</h2>
+        <app-page-header [title]="isNew() ? 'New Document' : reportName()" />
         <div class="page-actions">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="report-back"
                     [outlined]="true" (onClick)="onBack()" />

@@ -19,6 +19,7 @@
  *
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -40,13 +41,13 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 @Component({
   selector: 'app-term-editor',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, ConfirmDialogModule, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
     <div class="term-editor" data-testid="term-editor">
       <div class="page-header">
-        <h2>{{ isNew() ? 'New Glossary Term' : termName() }}</h2>
+        <app-page-header [title]="isNew() ? 'New Glossary Term' : termName()" />
         <div class="page-actions">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="term-back"
                     [outlined]="true" (onClick)="onBack()" />

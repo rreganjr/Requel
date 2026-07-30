@@ -19,6 +19,7 @@
  *
  */
 import { Component, OnInit, signal } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
@@ -36,10 +37,10 @@ import { TagService } from '../../core/tag.service';
 @Component({
   selector: 'app-global-tags',
   standalone: true,
-  imports: [FormsModule, TableModule, ButtonModule, InputText, MessageModule],
+  imports: [PageHeaderComponent, FormsModule, TableModule, ButtonModule, InputText, MessageModule],
   template: `
     <div class="global-tags" data-testid="global-tags">
-      <div class="page-header"><h2>Global Tags</h2></div>
+      <div class="page-header"><app-page-header title="Global Tags" /></div>
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
@@ -84,7 +85,6 @@ import { TagService } from '../../core/tag.service';
   styles: [`
     .global-tags { max-width: 800px; }
     .page-header { margin-bottom: 1rem; }
-    .page-header h2 { margin: 0; }
     .add-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
     .cat-input, .val-input { max-width: 220px; }
     .text-center { text-align: center; }

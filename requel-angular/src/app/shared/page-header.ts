@@ -18,28 +18,30 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed } from '@angular/core';
-import { AuthService } from '../../core/auth.service';
-import { PageHeaderComponent } from '../../shared/page-header';
+import { Component, Input } from '@angular/core';
 
 /**
- * Placeholder dashboard shown after login. Will be replaced with
- * the project list / workspace view in Phase 1.
+ * Shared page title. Renders the single <h1> for a route so every page has a
+ * consistent, unique top-level heading (WCAG 2.4.6, 1.3.1 - see issue #135).
+ *
+ * The host uses `display: contents` so the <h1> participates directly in the
+ * parent layout (e.g. an existing `.page-header` flex row), preserving the
+ * previous <h2>-based markup and spacing. The h1 is pinned to the former h2
+ * size so converting the tag does not change the visual size.
  */
 @Component({
-  selector: 'app-dashboard',
+  selector: 'app-page-header',
   standalone: true,
-  imports: [PageHeaderComponent],
-  template: `
-    <app-page-header [title]="'Welcome, ' + displayName()" />
-    <p>Select a project from the sidebar to begin working on requirements.</p>
-  `
+  template: `<h1 class="page-title">{{ title }}</h1>`,
+  styles: [`
+    :host { display: contents; }
+    .page-title {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+  `]
 })
-export class DashboardComponent {
-  readonly displayName = computed(() => {
-    const user = this.authService.user();
-    return user?.name ?? user?.username ?? 'User';
-  });
-
-  constructor(private authService: AuthService) {}
+export class PageHeaderComponent {
+  @Input() title = '';
 }
