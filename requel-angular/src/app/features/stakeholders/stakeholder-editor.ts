@@ -19,6 +19,7 @@
  *
  */
 import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -50,14 +51,14 @@ interface PermissionGroup {
 @Component({
   selector: 'app-stakeholder-editor',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             CheckboxModule, MessageModule, ConfirmDialogModule, TableModule,
             EntitySelectorDialogComponent],
   providers: [ConfirmationService],
   template: `
     <div class="stakeholder-editor">
       <div class="page-header">
-        <h2>{{ isNew() ? (isUserType() ? 'Add User Stakeholder' : 'Add Non-User Stakeholder') : stakeholderName() }}</h2>
+        <app-page-header [title]="isNew() ? (isUserType() ? 'Add User Stakeholder' : 'Add Non-User Stakeholder') : stakeholderName()" />
         <div class="page-actions">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
                     [outlined]="true" (onClick)="onBack()" />

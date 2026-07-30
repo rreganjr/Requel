@@ -25,6 +25,15 @@ describe('LoginComponent', () => {
     comp = fixture.componentInstance;
   });
 
+  it('renders exactly one <h1> page title and no <h2> (issue #135)', () => {
+    const fixture = TestBed.createComponent(LoginComponent);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelectorAll('h1').length).toBe(1);
+    expect(el.querySelectorAll('h2').length).toBe(0);
+    expect(el.querySelector('h1')?.textContent?.trim()).toBe('Requel');
+  });
+
   it('onLogin() calls authService.login with the entered credentials', async () => {
     comp.username.set('admin');
     comp.password.set('secret');

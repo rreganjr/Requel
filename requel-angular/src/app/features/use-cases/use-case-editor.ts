@@ -19,6 +19,7 @@
  *
  */
 import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { Subscription } from 'rxjs';
@@ -52,14 +53,14 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 @Component({
   selector: 'app-use-case-editor',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
+  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
             ConfirmDialogModule, TableModule, TooltipModule, SelectModule,
             EntitySelectorDialogComponent, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
     <div class="use-case-editor" data-testid="use-case-editor">
       <div class="page-header">
-        <h2>{{ isNew() ? 'New Use Case' : useCaseName() }}</h2>
+        <app-page-header [title]="isNew() ? 'New Use Case' : useCaseName()" />
         <div class="page-actions">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
                     [outlined]="true" (onClick)="onBack()" />

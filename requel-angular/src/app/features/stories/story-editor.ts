@@ -19,6 +19,7 @@
  *
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -45,14 +46,14 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 @Component({
   selector: 'app-story-editor',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
     <div class="story-editor" data-testid="story-editor">
       <div class="page-header">
-        <h2>{{ isNew() ? 'New Story' : storyName() }}</h2>
+        <app-page-header [title]="isNew() ? 'New Story' : storyName()" />
         <div class="page-actions">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
                     data-testid="story-back"

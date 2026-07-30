@@ -19,6 +19,7 @@
  *
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { Subscription } from 'rxjs';
@@ -62,14 +63,14 @@ interface StepNodeData {
 @Component({
   selector: 'app-scenario-editor',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             MessageModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
     <div class="scenario-editor" data-testid="scenario-editor">
       <div class="page-header">
-        <h2>{{ isNew() ? 'New Scenario' : scenarioName() }}</h2>
+        <app-page-header [title]="isNew() ? 'New Scenario' : scenarioName()" />
         <div class="page-actions">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="scenario-back"
                     [outlined]="true" (onClick)="onBack()" />

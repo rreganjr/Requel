@@ -19,6 +19,7 @@
  *
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -45,14 +46,14 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
 @Component({
   selector: 'app-goal-editor',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, TagSelectorComponent],
   providers: [ConfirmationService],
   template: `
     <div class="goal-editor" data-testid="goal-editor">
       <div class="page-header">
-        <h2>{{ isNew() ? 'New Goal' : goalName() }}</h2>
+        <app-page-header [title]="isNew() ? 'New Goal' : goalName()" />
         <div class="page-actions">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="goal-back"
                     [outlined]="true" (onClick)="onBack()" />

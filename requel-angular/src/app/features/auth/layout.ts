@@ -39,6 +39,7 @@ import { MenuItem, MessageService } from 'primeng/api';
   providers: [MessageService],
   template: `
     <p-toast />
+    <a class="skip-link" href="#main-content">Skip to content</a>
     <div class="layout">
       <header class="app-header">
         <a routerLink="/" class="header-brand" data-testid="header-brand">
@@ -57,13 +58,29 @@ import { MenuItem, MessageService } from 'primeng/api';
         <aside class="sidebar">
           <app-sidebar-nav />
         </aside>
-        <main class="main-content">
+        <main id="main-content" class="main-content" tabindex="-1">
           <router-outlet />
         </main>
       </div>
     </div>
   `,
   styles: [`
+    .skip-link {
+      position: absolute;
+      left: 0.5rem;
+      top: -3rem;
+      z-index: 1100;
+      padding: 0.5rem 1rem;
+      background: #1a1a7e;
+      color: #ffffff;
+      border-radius: 0 0 4px 4px;
+      text-decoration: none;
+      transition: top 0.15s ease-in-out;
+    }
+    .skip-link:focus {
+      top: 0;
+    }
+
     .layout {
       display: flex;
       flex-direction: column;

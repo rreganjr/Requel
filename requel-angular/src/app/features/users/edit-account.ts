@@ -19,6 +19,7 @@
  *
  */
 import { Component, OnInit, signal, computed, ViewChild } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { FormsModule, NgForm } from '@angular/forms';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { InputText } from 'primeng/inputtext';
@@ -38,10 +39,10 @@ import { UserService } from '../../core/user.service';
 @Component({
   selector: 'app-edit-account',
   standalone: true,
-  imports: [FormsModule, InputText, Password, SelectModule, ButtonModule, MessageModule],
+  imports: [PageHeaderComponent, FormsModule, InputText, Password, SelectModule, ButtonModule, MessageModule],
   template: `
     <div class="edit-account" data-testid="account-editor">
-      <h2>Edit Account</h2>
+      <app-page-header title="Edit Account" />
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />

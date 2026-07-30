@@ -19,6 +19,7 @@
  *
  */
 import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -43,14 +44,14 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 @Component({
   selector: 'app-actor-editor',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, TableModule,
+  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, TableModule,
             MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
     <div class="actor-editor" data-testid="actor-editor">
       <div class="page-header">
-        <h2>{{ isNew() ? 'New Actor' : actorName() }}</h2>
+        <app-page-header [title]="isNew() ? 'New Actor' : actorName()" />
         <div class="page-actions">
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="actor-back"
                     [outlined]="true" (onClick)="onBack()" />

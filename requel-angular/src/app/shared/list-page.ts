@@ -20,15 +20,16 @@
  */
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { InputText } from 'primeng/inputtext';
+import { PageHeaderComponent } from './page-header';
 
 @Component({
   selector: 'app-list-page',
   standalone: true,
-  imports: [InputText],
+  imports: [PageHeaderComponent, InputText],
   template: `
     <div class="list-page-wrap">
       <div class="page-header">
-        <h2>{{ title }}</h2>
+        <app-page-header [title]="title" />
         <div class="page-actions">
           <ng-content select="[actions]" />
         </div>
@@ -48,7 +49,6 @@ import { InputText } from 'primeng/inputtext';
   `,
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-header h2 { margin: 0; }
     .page-actions { display: flex; gap: 0.5rem; }
     .search-bar { margin-bottom: 1rem; }
   `]

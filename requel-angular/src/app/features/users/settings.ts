@@ -19,6 +19,7 @@
  *
  */
 import { ChangeDetectorRef, Component, OnInit, signal } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -32,12 +33,12 @@ import { ApiTokensComponent } from './api-tokens';
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputNumberModule, SelectModule, MessageModule,
+  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputNumberModule, SelectModule, MessageModule,
     ApiTokensComponent],
   template: `
     <div class="settings" data-testid="settings-page">
       <div class="page-header">
-        <h2>Settings</h2>
+        <app-page-header title="Settings" />
       </div>
 
       @if (successMessage()) {
@@ -82,7 +83,6 @@ import { ApiTokensComponent } from './api-tokens';
   styles: [`
     .settings { max-width: 600px; }
     .page-header { margin-bottom: 1.5rem; }
-    .page-header h2 { margin: 0; }
     .settings-form { display: flex; flex-direction: column; gap: 1.5rem; }
     .field { display: flex; flex-direction: column; gap: 0.25rem; }
     .field label { font-weight: 600; }

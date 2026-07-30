@@ -19,6 +19,7 @@
  *
  */
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, signal, computed, ViewChild } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -37,10 +38,10 @@ import { CommandService } from '../../core/command.service';
 @Component({
   selector: 'app-user-editor',
   standalone: true,
-  imports: [FormsModule, InputText, Password, ButtonModule, CheckboxModule, SelectModule, MessageModule],
+  imports: [PageHeaderComponent, FormsModule, InputText, Password, ButtonModule, CheckboxModule, SelectModule, MessageModule],
   template: `
     <div class="user-editor" data-testid="user-editor">
-      <h2>{{ isNew() ? 'New User' : 'Edit User: ' + username }}</h2>
+      <app-page-header [title]="isNew() ? 'New User' : 'Edit User: ' + username" />
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />

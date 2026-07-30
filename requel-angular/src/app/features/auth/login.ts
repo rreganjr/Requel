@@ -34,7 +34,7 @@ import { AuthService } from '../../core/auth.service';
   template: `
     <div class="login-container">
       <div class="login-card">
-        <h2>Requel</h2>
+        <h1>Requel</h1>
         <p class="subtitle">Requirements Elicitation System</p>
 
         @if (errorMessage()) {
@@ -77,7 +77,7 @@ import { AuthService } from '../../core/auth.service';
       width: 100%;
       max-width: 400px;
     }
-    h2 { margin: 0 0 0.25rem; text-align: center; }
+    h1 { margin: 0 0 0.25rem; text-align: center; font-size: 1.5rem; }
     .subtitle { text-align: center; color: var(--p-text-muted-color); margin: 0 0 1.5rem; }
     .field { margin-bottom: 1rem; }
     .field label { display: block; margin-bottom: 0.5rem; font-weight: 500; }

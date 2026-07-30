@@ -19,6 +19,7 @@
  *
  */
 import { Component, OnInit, signal } from '@angular/core';
+import { PageHeaderComponent } from '../../shared/page-header';
 import { FormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
@@ -37,10 +38,10 @@ import { TagService } from '../../core/tag.service';
 @Component({
   selector: 'app-tag-categories',
   standalone: true,
-  imports: [FormsModule, TableModule, ButtonModule, InputText, CheckboxModule, MessageModule],
+  imports: [PageHeaderComponent, FormsModule, TableModule, ButtonModule, InputText, CheckboxModule, MessageModule],
   template: `
     <div class="tag-categories" data-testid="tag-categories">
-      <div class="page-header"><h2>Global Tag Categories</h2></div>
+      <div class="page-header"><app-page-header title="Global Tag Categories" /></div>
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
@@ -92,7 +93,6 @@ import { TagService } from '../../core/tag.service';
   styles: [`
     .tag-categories { max-width: 960px; }
     .page-header { margin-bottom: 1rem; }
-    .page-header h2 { margin: 0; }
     .add-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
     .excl { display: inline-flex; align-items: center; gap: 0.35rem; }
     .name-input, .color-input { max-width: 160px; }
