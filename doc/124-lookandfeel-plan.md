@@ -34,9 +34,38 @@ wizard).
 | Base font size | `14px` | denser than PrimeNG default 16px |
 | Primary color | `#3b82f6` (blue-500) | hover/active `#2563eb` (blue-600) |
 | Content border radius | `6px` | applied to inputs, buttons, chips, cards |
-| Surface palette | cool, blue-tinted — a slate-blue base (`#1e3a8a`) mixed toward white | surface-0 = white, ramps to slate-blue |
-| Text color | slate-blue (`~#61759d`), muted lighter | not pure gray |
+| Surface palette | cool, blue-tinted neutral — 12 locked stops (see §1.1.1) | surface-0 = white cards, canvas at surface-50/100 |
+| Text color | slate-blue (`~#61759d`), muted lighter | not pure gray; ≈ surface-500 |
 | Content background | white cards on a light blue-gray canvas | |
+
+#### 1.1.1 Surface ramp (locked)
+
+The surface ramp is specified as explicit values, not a "mix toward white" rule — a
+mix is not reproducible (ratios, color space, and step curve all change the output) and
+`definePreset` requires concrete stops anyway. `#1e3a8a` stays the primary/accent hue;
+it is **not** the surface neutral (undiluted it reads vivid blue, not "blue-tinted
+neutral"). We adopt Tailwind **Slate** — a validated, accessible cool blue-gray ramp
+that is also one of Aura's built-in surface options — as the locked palette:
+
+| Stop | Hex | Role |
+|---|---|---|
+| surface-0 | `#ffffff` | white cards |
+| surface-50 | `#f8fafc` | light blue-gray canvas |
+| surface-100 | `#f1f5f9` | canvas / subtle fills |
+| surface-200 | `#e2e8f0` | card hairline borders, dividers |
+| surface-300 | `#cbd5e1` | disabled borders |
+| surface-400 | `#94a3b8` | placeholder / icon muted |
+| surface-500 | `#64748b` | muted text (≈ target `#61759d`) |
+| surface-600 | `#475569` | secondary text |
+| surface-700 | `#334155` | body text |
+| surface-800 | `#1e293b` | headings |
+| surface-900 | `#0f172a` | strong text |
+| surface-950 | `#020617` | dark-mode base (reserved) |
+
+Generation method: Tailwind Slate, adopted verbatim. If a bluer ramp is wanted later,
+regenerate deterministically (PrimeNG `palette('#1e3a8a')` or an OKLCH lightness sweep),
+paste the 12 resulting literals here, and record the generator + input hex — never leave
+it as a runtime mix.
 
 ### 1.2 Layout & component patterns
 
@@ -86,10 +115,11 @@ issue's current priority label. The exact `gh issue edit` commands are in §6.
 
 **#125 (1.1):**
 > Target look-and-feel. `src/app/theme/requel-preset.ts` `definePreset` sets: primary
-> `#3b82f6` (hover `#2563eb`); surface ramp from a cool blue base (`#1e3a8a` mixed
-> toward white) with white cards on a light blue-gray canvas; content border-radius
-> `6px`; base font Figtree at 14px. No component may hard-code these — all read from
-> tokens. Light mode first; leave hooks for a later dark mode.
+> `#3b82f6` (hover `#2563eb`); the locked 12-stop surface ramp (Tailwind Slate, see
+> plan §1.1.1) with white cards (surface-0) on a light blue-gray canvas
+> (surface-50/100); content border-radius `6px`; base font Figtree at 14px. `#1e3a8a`
+> is the accent hue, not the surface neutral. No component may hard-code these — all
+> read from tokens. Light mode first; leave hooks for a later dark mode.
 
 **#126 (1.2):**
 > Replace hard-coded chip/badge/header colors with the preset's semantic tokens and a
