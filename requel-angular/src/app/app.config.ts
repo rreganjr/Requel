@@ -23,7 +23,7 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { providePrimeNG } from 'primeng/config';
-import Aura from '@primeuix/themes/aura';
+import { RequelPreset } from './theme/requel-preset';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth.interceptor';
 
@@ -33,6 +33,13 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor])),
     provideAnimationsAsync(),
-    providePrimeNG({ theme: { preset: Aura } })
+    providePrimeNG({
+      theme: {
+        preset: RequelPreset,
+        // Dark-mode hook only: the Requel dark token set is deferred to #159 (N6).
+        // Toggling `.rq-dark` on a root element activates dark mode when authored.
+        options: { darkModeSelector: '.rq-dark' }
+      }
+    })
   ]
 };

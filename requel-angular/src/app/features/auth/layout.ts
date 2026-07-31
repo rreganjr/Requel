@@ -71,9 +71,9 @@ import { MenuItem, MessageService } from 'primeng/api';
       top: -3rem;
       z-index: 1100;
       padding: 0.5rem 1rem;
-      background: #1a1a7e;
-      color: #ffffff;
-      border-radius: 0 0 4px 4px;
+      background: var(--rq-header-bg);
+      color: var(--rq-header-fg);
+      border-radius: 0 0 var(--rq-radius-sm) var(--rq-radius-sm);
       text-decoration: none;
       transition: top 0.15s ease-in-out;
     }
@@ -93,8 +93,8 @@ import { MenuItem, MessageService } from 'primeng/api';
       justify-content: space-between;
       height: 48px;
       padding: 0 1rem;
-      background: #1a1a7e;
-      color: #ffffff;
+      background: var(--rq-header-bg);
+      color: var(--rq-header-fg);
       flex-shrink: 0;
     }
 
@@ -103,7 +103,7 @@ import { MenuItem, MessageService } from 'primeng/api';
       align-items: center;
       gap: 0.5rem;
       text-decoration: none;
-      color: #ffffff;
+      color: var(--rq-header-fg);
     }
 
     .header-logo {
@@ -122,7 +122,7 @@ import { MenuItem, MessageService } from 'primeng/api';
     }
 
     :host ::ng-deep .account-trigger .p-button {
-      color: #ffffff;
+      color: var(--rq-header-fg);
     }
 
     .layout-body {
