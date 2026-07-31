@@ -1,9 +1,60 @@
 @use "primeicons/primeicons.css";
+// Figtree is bundled/self-hosted via @fontsource-variable/figtree (wired into
+// angular.json "styles"), so there is no runtime font-CDN request.
+
+// App-level design tokens (the non-PrimeNG source of truth). PrimeNG token
+// overrides live in src/app/theme/requel-preset.ts; these `--rq-*` variables
+// cover spacing, radius, type scale, layout widths, focus, and app chrome.
+// Components must read from these tokens, not from hard-coded literals.
+// See src/app/theme/README.md.
+:root {
+  // Base font: Figtree at 14px (denser than PrimeNG's 16px default).
+  --rq-font-family: 'Figtree Variable', 'Figtree', system-ui, -apple-system,
+    'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --rq-font-size-base: 14px;
+
+  // Spacing scale.
+  --rq-space-1: 0.25rem;
+  --rq-space-2: 0.5rem;
+  --rq-space-3: 0.75rem;
+  --rq-space-4: 1rem;
+  --rq-space-6: 1.5rem;
+  --rq-space-8: 2rem;
+
+  // Radius scale (content radius = md = 6px, matching the preset).
+  --rq-radius-sm: 4px;
+  --rq-radius-md: 6px;
+  --rq-radius-lg: 8px;
+
+  // Type scale.
+  --rq-font-size-xs: 0.75rem;
+  --rq-font-size-sm: 0.875rem;
+  --rq-font-size-md: 1rem;
+  --rq-font-size-lg: 1.125rem;
+  --rq-font-size-xl: 1.5rem;
+
+  // Layout widths.
+  --rq-page-max: 76rem;
+  --rq-editor-max: 48rem;
+
+  // Focus ring (mirrors the preset's PrimeNG focus tokens for custom controls).
+  --rq-focus-ring-width: var(--p-focus-ring-width, 2px);
+  --rq-focus-ring-color: var(--p-focus-ring-color, var(--p-primary-color));
+  --rq-focus-ring-offset: var(--p-focus-ring-offset, 2px);
+
+  // App chrome — header brand bar reads from the primary ramp.
+  --rq-header-bg: var(--p-primary-900);
+  --rq-header-fg: var(--p-surface-0);
+
+  // Make PrimeNG components inherit Figtree (font-family is not set by Aura).
+  --p-font-family: var(--rq-font-family);
+}
 
 html, body {
   margin: 0;
   padding: 0;
-  font-family: var(--p-font-family);
+  font-family: var(--rq-font-family);
+  font-size: var(--rq-font-size-base);
   background: var(--p-surface-ground);
   color: var(--p-text-color);
 }
@@ -16,4 +67,10 @@ html, body {
   outline: var(--p-focus-ring-width, 1px) var(--p-focus-ring-style, solid)
            var(--p-focus-ring-color, var(--p-primary-color));
   outline-offset: var(--p-focus-ring-offset, 2px);
+}
+
+// Centered page container capped at the standard content width.
+.rq-page {
+  max-width: var(--rq-page-max);
+  margin: 0 auto;
 }
