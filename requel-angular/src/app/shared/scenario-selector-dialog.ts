@@ -48,8 +48,8 @@ const SCENARIO_TYPE_OPTIONS = [
   standalone: true,
   imports: [FormsModule, DialogModule, TableModule, ButtonModule, InputText, SelectModule],
   template: `
-    <p-dialog header="Add Sub-scenario" [(visible)]="visible" [modal]="true"
-              appendTo="body" [style]="{ width: '560px' }" (onHide)="onHide()"
+    <p-dialog header="Add Sub-scenario" [(visible)]="visible" [modal]="true" [focusOnShow]="true"
+              closeAriaLabel="Close" appendTo="body" [style]="{ width: '560px' }" (onHide)="onHide()"
               styleClass="scenario-selector-dialog">
 
       <!-- Inline new-scenario creation form -->

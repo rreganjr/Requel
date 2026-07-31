@@ -10,9 +10,10 @@
 # Requirements: gh CLI v2.94.0+ (sub-issue JSON), authenticated.
 #
 # Usage:
-#   bash scripts/epic-rollup-comment.sh             # post the comment on #124
-#   EPIC=124 bash scripts/epic-rollup-comment.sh    # override epic number
-#   DRY_RUN=1 bash scripts/epic-rollup-comment.sh   # print the comment, post nothing
+#   bash scripts/epic-rollup-comment.sh                       # post a new comment on #124
+#   COMMENT_ID=5113771759 bash scripts/epic-rollup-comment.sh # edit the EXISTING rollup comment in place
+#   EPIC=124 bash scripts/epic-rollup-comment.sh              # override epic number
+#   DRY_RUN=1 bash scripts/epic-rollup-comment.sh             # print the comment, do nothing
 #
 set -euo pipefail
 
@@ -23,12 +24,12 @@ DRY_RUN="${DRY_RUN:-0}"
 # Finding -> phase mapping (from doc/UI_UX_REVIEW.md "Proposed Phased Roadmap").
 phase_of() {
   case "$1" in
-    4.1|4.2|4.3|4.5|4.7) echo 1 ;;   # quick wins & a11y blockers
-    1.1|1.2|1.3|5.5)     echo 2 ;;   # design-system foundation
-    3.1|3.2|3.3|4.4|5.2) echo 3 ;;   # forms & validation
-    2.1|2.2|2.3|2.4|4.6) echo 4 ;;   # IA & workflow polish
-    5.1|5.3|5.4|5.6)     echo 5 ;;   # deeper architecture refactors
-    *)                   echo 0 ;;   # unmapped (should not happen)
+    4.1|4.2|4.3|4.5|4.7)        echo 1 ;;   # quick wins & a11y blockers
+    1.1|1.2|1.3|5.5|N2|N3|N6)   echo 2 ;;   # design-system foundation (+ look-and-feel N2/N3/N6)
+    3.1|3.2|3.3|4.4|5.2|N5)     echo 3 ;;   # forms & validation (+ look-and-feel N5)
+    2.1|2.2|2.3|2.4|4.6|N1|N4)  echo 4 ;;   # IA & workflow polish (+ look-and-feel N1/N4)
+    5.1|5.3|5.4|5.6)            echo 5 ;;   # deeper architecture refactors
+    *)                          echo 0 ;;   # unmapped (should not happen)
   esac
 }
 
@@ -45,11 +46,11 @@ phase_name() {
 
 TAB="$(printf '\t')"
 
-# Pull sub-issues as "number<TAB>title" lines.
+# Pull sub-issues as "number<TAB>title<TAB>state" lines.
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
 gh issue view "$EPIC" --repo "$REPO" --json subIssues \
-  --jq '.subIssues.nodes[] | "\(.number)\t\(.title)"' > "$tmp"
+  --jq '.subIssues.nodes[] | "\(.number)\t\(.title)\t\(.state)"' > "$tmp"
 
 if [ ! -s "$tmp" ]; then
   echo "No sub-issues found on #$EPIC — nothing to roll up." >&2
@@ -58,16 +59,18 @@ fi
 
 body="## Remediation rollup by phase
 
-Grouped from \`doc/UI_UX_REVIEW.md\` findings 1.1–5.6. Check off each child as its PR squash-merges to \`release/2.0\`.
+Grouped from \`doc/UI_UX_REVIEW.md\` findings 1.1–5.6 plus the look-and-feel items (N1–N6, see \`doc/124-lookandfeel-plan.md\`). Closed sub-issues are auto-checked; the rest are checked as each PR squash-merges to \`release/2.0\`.
 "
 
 for p in 1 2 3 4 5 0; do
   section=""
-  while IFS="$TAB" read -r num title; do
+  while IFS="$TAB" read -r num title state; do
     [ -n "$num" ] || continue
-    id="${title%% *}"                 # leading "N.N" token
+    id="${title%% *}"                 # leading "N.N" / "NN" token
     if [ "$(phase_of "$id")" = "$p" ]; then
-      section="$section- [ ] #$num $title
+      box="[ ]"
+      [ "$state" = "CLOSED" ] && box="[x]"
+      section="$section- $box #$num $title
 "
     fi
   done < "$tmp"
@@ -80,6 +83,9 @@ done
 
 if [ "$DRY_RUN" = "1" ]; then
   printf '%s\n' "$body"
+elif [ -n "${COMMENT_ID:-}" ]; then
+  gh api -X PATCH "/repos/$REPO/issues/comments/$COMMENT_ID" -f body="$body" >/dev/null
+  echo "Rollup comment #$COMMENT_ID updated in place on #$EPIC."
 else
   gh issue comment "$EPIC" --repo "$REPO" --body "$body"
   echo "Rollup comment posted to #$EPIC."

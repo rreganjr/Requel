@@ -102,15 +102,19 @@ export class GoalEditorPage {
     await dialog.waitFor({ state: 'visible' });
     await dialog.getByTestId('entity-selector-search').fill(toGoalName);
     await dialog.getByTestId('entity-selector-row').filter({ hasText: toGoalName }).first().click();
-    // Custom relation-type dialog appears after goal is selected
-    await this.page.getByTestId('goal-relation-type-dialog').waitFor({ state: 'visible' });
+    // Relation-type dialog appears after the goal is selected. Like the selector above,
+    // it is now a p-dialog with appendTo="body", so the dialog DOM is teleported to the
+    // document root and the goal-relation-type-dialog testid sits on an empty, never-visible
+    // host element. Match the real dialog by role+name (header is `Relation to "<goal>"`).
+    const relationDialog = this.page.getByRole('dialog', { name: `Relation to "${toGoalName}"` });
+    await relationDialog.waitFor({ state: 'visible' });
     if (relationType !== 'Supports') {
-      await this.page.getByTestId('goal-relation-type-select').click();
+      await relationDialog.getByTestId('goal-relation-type-select').click();
       await this.page.getByRole('option', { name: relationType }).click();
     }
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/EditGoalRelation')),
-      this.page.getByTestId('goal-relation-add').click(),
+      relationDialog.getByTestId('goal-relation-add').click(),
     ]);
     if (!response.ok()) {
       throw new Error(`EditGoalRelation failed: ${response.status()} ${await response.text()}`);
