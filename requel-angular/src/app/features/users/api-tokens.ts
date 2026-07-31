@@ -89,7 +89,8 @@ import { ApiTokenDto } from '../../models/api-token';
       }
 
       <p-dialog header="New personal access token" [(visible)]="createDialogVisible"
-                [modal]="true" [style]="{ width: '32rem' }" (onHide)="onDialogHide()">
+                [modal]="true" [focusOnShow]="true" closeAriaLabel="Close"
+                [style]="{ width: '32rem' }" (onHide)="onDialogHide()">
         @if (createdToken() === null) {
           <div class="field">
             <label for="patName">Name</label>

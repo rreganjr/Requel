@@ -30,6 +30,7 @@ import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
+import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TooltipModule } from 'primeng/tooltip';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -64,7 +65,7 @@ interface StepNodeData {
   selector: 'app-scenario-editor',
   standalone: true,
   imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
-            MessageModule, ConfirmDialogModule, TooltipModule, DragDropModule,
+            MessageModule, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
@@ -199,31 +200,29 @@ interface StepNodeData {
         </div>
       }
 
-      <!-- Step detail edit popup -->
-      @if (editingStep()) {
-        <div class="edit-popup-overlay" data-testid="scenario-step-edit-overlay" (click)="closeStepEdit()">
-          <div class="edit-popup-content" data-testid="scenario-step-edit-dialog" (click)="$event.stopPropagation()">
-            <h4>Step Details</h4>
-            <div class="edit-popup-grid">
-              <label>Name</label>
-              <input pInputText [(ngModel)]="editingName" data-testid="scenario-step-edit-name"
-                     placeholder="Step description..." />
-              <label>Type</label>
-              <p-select [(ngModel)]="editingType" data-testid="scenario-step-edit-type" [options]="typeOptions"
-                        optionLabel="label" optionValue="value" />
-              <label>Notes</label>
-              <textarea pTextarea [(ngModel)]="editingText" data-testid="scenario-step-edit-text" rows="4"
-                        placeholder="Additional details or notes..."></textarea>
-            </div>
-            <div class="edit-popup-actions">
-              <p-button label="Apply" icon="pi pi-check" size="small" data-testid="scenario-step-edit-apply"
-                        (onClick)="applyStepEdit()" />
-              <p-button label="Cancel" severity="secondary" [outlined]="true" size="small"
-                        (onClick)="closeStepEdit()" />
-            </div>
-          </div>
+      <!-- Step detail edit dialog -->
+      <p-dialog [visible]="editingStep() !== null" (visibleChange)="onStepDialogVisibleChange($event)"
+                [modal]="true" [focusOnShow]="true" [dismissableMask]="true" closeAriaLabel="Close"
+                [style]="{ width: '32rem' }" appendTo="body" header="Step Details"
+                data-testid="scenario-step-edit-dialog">
+        <div class="dialog-grid">
+          <label for="stepEditName">Name</label>
+          <input id="stepEditName" pInputText [(ngModel)]="editingName" data-testid="scenario-step-edit-name"
+                 placeholder="Step description..." />
+          <label for="stepEditType">Type</label>
+          <p-select inputId="stepEditType" [(ngModel)]="editingType" data-testid="scenario-step-edit-type"
+                    [options]="typeOptions" optionLabel="label" optionValue="value" appendTo="body" />
+          <label for="stepEditText">Notes</label>
+          <textarea id="stepEditText" pTextarea [(ngModel)]="editingText" data-testid="scenario-step-edit-text" rows="4"
+                    placeholder="Additional details or notes..."></textarea>
         </div>
-      }
+        <div class="dialog-actions">
+          <p-button label="Apply" icon="pi pi-check" size="small" data-testid="scenario-step-edit-apply"
+                    (onClick)="applyStepEdit()" />
+          <p-button label="Cancel" severity="secondary" [outlined]="true" size="small"
+                    (onClick)="closeStepEdit()" />
+        </div>
+      </p-dialog>
 
       <app-scenario-selector-dialog
         [visible]="showScenarioSelector"
@@ -297,19 +296,9 @@ interface StepNodeData {
       white-space: nowrap; flex-shrink: 0;
     }
 
-    /* Step edit popup */
-    .edit-popup-overlay {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      z-index: 1000; display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.3);
-    }
-    .edit-popup-content {
-      background: var(--p-surface-0); padding: 1.5rem; border-radius: 8px;
-      min-width: 380px; max-width: 500px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .edit-popup-content h4 { margin: 0 0 1rem; }
-    .edit-popup-grid { display: grid; grid-template-columns: 80px 1fr; gap: 0.5rem; align-items: start; }
-    .edit-popup-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    /* Step edit dialog */
+    .dialog-grid { display: grid; grid-template-columns: 80px 1fr; gap: 0.5rem; align-items: start; }
+    .dialog-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
   `]
 })
 export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
@@ -536,6 +525,18 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
 
   closeStepEdit(): void {
     this.editingStep.set(null);
+  }
+
+  /**
+   * Bridges PrimeNG's user-initiated closes (Escape, mask click, close icon) back to our
+   * single source of truth. PrimeNG emits visibleChange(false) on those paths; clearing
+   * editingStep drives [visible] false and lets the dialog restore focus to the opener.
+   * (Apply/Cancel already clear editingStep directly.)
+   */
+  onStepDialogVisibleChange(visible: boolean): void {
+    if (!visible && this.editingStep() !== null) {
+      this.closeStepEdit();
+    }
   }
 
   onSubScenarioSelected(ref: ScenarioRef): void {

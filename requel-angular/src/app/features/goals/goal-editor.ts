@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, ElementRef, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -30,6 +30,7 @@ import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { MessageModule } from 'primeng/message';
+import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { GoalDto, GoalRelationDto } from '../../models/goal';
@@ -47,7 +48,7 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
   selector: 'app-goal-editor',
   standalone: true,
   imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
-            TableModule, MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
+            TableModule, MessageModule, DialogModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, TagSelectorComponent],
   providers: [ConfirmationService],
   template: `
@@ -93,7 +94,7 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
           <div class="section-header">
             <h3>This Goal's Relations</h3>
             @if (canEdit()) {
-              <p-button label="Add Relation" icon="pi pi-plus" size="small" data-testid="goal-add-relation"
+              <p-button #addRelationBtn label="Add Relation" icon="pi pi-plus" size="small" data-testid="goal-add-relation"
                         (onClick)="showRelationSelector = true" />
             }
           </div>
@@ -175,21 +176,20 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
         (closed)="showRelationSelector = false" />
 
       <!-- Relation Type Dialog -->
-      @if (pendingRelationGoal()) {
-        <div class="relation-type-dialog" data-testid="goal-relation-type-dialog">
-          <div class="dialog-overlay" (click)="pendingRelationGoal.set(null)"></div>
-          <div class="dialog-content">
-            <h4>Relation to "{{ pendingRelationGoal()!.name }}"</h4>
-            <p-select [(ngModel)]="newRelationType" data-testid="goal-relation-type-select" [options]="relationTypeOptions"
-                      placeholder="Select relation type" />
-            <div class="dialog-actions">
-              <p-button label="Add" icon="pi pi-check" data-testid="goal-relation-add" (onClick)="onConfirmRelation()" />
-              <p-button label="Cancel" severity="secondary" [outlined]="true"
-                        (onClick)="pendingRelationGoal.set(null)" />
-            </div>
+      <p-dialog [visible]="relationDialogVisible()" (visibleChange)="relationDialogVisible.set($event)"
+                (onHide)="onRelationDialogHide()" [modal]="true" [focusOnShow]="true" [dismissableMask]="true"
+                closeAriaLabel="Close" [style]="{ width: '25rem' }" appendTo="body" [header]="relationDialogHeader()"
+                data-testid="goal-relation-type-dialog">
+        <div class="dialog-body">
+          <p-select [(ngModel)]="newRelationType" data-testid="goal-relation-type-select" [options]="relationTypeOptions"
+                    placeholder="Select relation type" appendTo="body" />
+          <div class="dialog-actions">
+            <p-button label="Add" icon="pi pi-check" data-testid="goal-relation-add" (onClick)="onConfirmRelation()" />
+            <p-button label="Cancel" severity="secondary" [outlined]="true"
+                      (onClick)="relationDialogVisible.set(false)" />
           </div>
         </div>
-      }
+      </p-dialog>
 
       @if (!isNew()) {
         <app-tag-selector
@@ -219,11 +219,8 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
     h4 { margin: 1rem 0 0.5rem; }
     .empty-text { color: var(--p-text-secondary-color); font-style: italic; }
     .entity-link { cursor: pointer; color: var(--p-primary-color); text-decoration: underline; }
-    .relation-type-dialog { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
-    .dialog-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); }
-    .dialog-content { position: relative; background: var(--p-surface-0); padding: 1.5rem; border-radius: 8px; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-    .dialog-content h4 { margin: 0 0 1rem; }
-    .dialog-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    .dialog-body { display: flex; flex-direction: column; }
+    .dialog-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
   `]
 })
 export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
@@ -235,6 +232,13 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   canEdit = signal(false);
   canDelete = signal(false);
   pendingRelationGoal = signal<EntityReferenceDto | null>(null);
+  relationDialogVisible = signal(false);
+  relationDialogHeader = computed(() => {
+    const ref = this.pendingRelationGoal();
+    return ref ? `Relation to "${ref.name}"` : '';
+  });
+
+  @ViewChild('addRelationBtn', { read: ElementRef }) addRelationBtn?: ElementRef<HTMLElement>;
 
   name = '';
   text = '';
@@ -423,12 +427,24 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   onRelationGoalSelected(ref: EntityReferenceDto): void {
     this.pendingRelationGoal.set(ref);
     this.newRelationType = 'Supports';
+    this.relationDialogVisible.set(true);
+  }
+
+  /**
+   * Called after the relation-type dialog closes by any path (Add, Cancel, Escape, mask).
+   * Clears the pending goal and restores focus to the "Add Relation" opener — the dialog is
+   * opened programmatically after the entity selector closes, so PrimeNG's default
+   * restore-to-last-focused-element has no stable target here.
+   */
+  onRelationDialogHide(): void {
+    this.pendingRelationGoal.set(null);
+    this.addRelationBtn?.nativeElement.querySelector('button')?.focus();
   }
 
   async onConfirmRelation(): Promise<void> {
     const ref = this.pendingRelationGoal();
     if (!ref) return;
-    this.pendingRelationGoal.set(null);
+    this.relationDialogVisible.set(false);
 
     const result = await this.commandService.execute('EditGoalRelation', {
       projectName: this.projectName,

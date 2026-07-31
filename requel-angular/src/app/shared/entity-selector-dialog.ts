@@ -51,7 +51,8 @@ import { ScenarioService } from '../core/scenario.service';
   imports: [FormsModule, DialogModule, TableModule, ButtonModule, InputText, SelectModule],
   template: `
     <p-dialog [header]="'Select ' + entityType" [(visible)]="visible" data-testid="entity-selector-dialog"
-              [modal]="true" appendTo="body" [style]="{ width: '500px' }" (onHide)="closed.emit()">
+              [modal]="true" [focusOnShow]="true" closeAriaLabel="Close" appendTo="body"
+              [style]="{ width: '500px' }" (onHide)="closed.emit()">
       <div class="search-bar">
         <span class="p-input-icon-left">
           <i class="pi pi-search"></i>
