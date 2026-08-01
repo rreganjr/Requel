@@ -35,7 +35,7 @@ import { ListPageComponent } from '../../shared/list-page';
   standalone: true,
   imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SlicePipe],
   template: `
-    <app-list-page title="Stories" searchPlaceholder="Search stories..."
+    <app-list-page title="Stories" [eyebrow]="projectContext()" searchPlaceholder="Search stories..."
                    (search)="dt.filterGlobal($event, 'contains')">
       <ng-container actions>
         @if (canEdit()) {
@@ -81,6 +81,8 @@ export class StoryListComponent implements OnInit, OnDestroy {
   loading = signal(true);
   errorMessage = signal<string | null>(null);
   canEdit = signal(false);
+  /** Project-name context shown as the page eyebrow (issue #127). */
+  projectContext = signal('');
 
   private projectName = '';
   private paramSub?: Subscription;
@@ -97,6 +99,7 @@ export class StoryListComponent implements OnInit, OnDestroy {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {
         this.projectName = name;
+        this.projectContext.set(name);
         await this.permissionService.loadForProject(name);
         this.canEdit.set(this.permissionService.canEdit('Story'));
         this.loadStories();

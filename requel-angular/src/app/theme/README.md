@@ -50,7 +50,16 @@ Defined in `src/styles.scss`:
 - **Spacing:** `--rq-space-1|2|3|4|6|8` (0.25rem → 2rem).
 - **Radius:** `--rq-radius-sm` (4px), `--rq-radius-md` (6px, content radius),
   `--rq-radius-lg` (8px).
-- **Type scale:** `--rq-font-size-xs|sm|md|lg|xl`.
+- **Type scale (raw steps):** `--rq-font-size-xs|sm|md|lg|xl`.
+- **Font weights:** `--rq-font-weight-normal|medium|semibold|bold`.
+- **Semantic type scale (#127):** role tokens that bundle size + weight +
+  line-height — `--rq-text-{page-title,section-title,body,label,helper,caption}-{size,weight,line}`
+  — plus `--rq-text-heading-color` (slate-800) and `--rq-text-muted-color`
+  (slate-500). Apply them with the role classes `.rq-page-title`,
+  `.rq-section-title`, `.rq-eyebrow`, `.rq-label`, `.rq-helper`, `.rq-caption`
+  (defined in `styles.scss`), or read the tokens directly. `.rq-page-title` is
+  reserved for the single `<h1>` rendered by `app-page-header`. Route pages and
+  shared primitives must use these instead of per-view font-size/weight literals.
 - **Layout widths:** `--rq-page-max` (76rem), `--rq-editor-max` (48rem).
   Helper class `.rq-page` centers content at `--rq-page-max`.
 - **Focus ring:** `--rq-focus-ring-width|color|offset` (mirror the PrimeNG focus

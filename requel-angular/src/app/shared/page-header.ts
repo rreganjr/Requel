@@ -21,27 +21,48 @@
 import { Component, Input } from '@angular/core';
 
 /**
- * Shared page title. Renders the single <h1> for a route so every page has a
- * consistent, unique top-level heading (WCAG 2.4.6, 1.3.1 - see issue #135).
+ * Shared page-title primitive. Renders the single <h1> for a route so every page
+ * has a consistent, unique top-level heading (WCAG 2.4.6, 1.3.1 - see issue #135),
+ * plus optional context around it (issue #127):
  *
- * The host uses `display: contents` so the <h1> participates directly in the
- * parent layout (e.g. an existing `.page-header` flex row), preserving the
- * previous <h2>-based markup and spacing. The h1 is pinned to the former h2
- * size so converting the tag does not change the visual size.
+ * - `eyebrow` — a short context line above the title (e.g. project name, or
+ *   "Project · Artifact type"). Rendered muted/uppercase via the caption role.
+ * - `[metadata]` slot — projected content below the title for status tags,
+ *   counts, permissions, or unsaved-state indicators.
+ *
+ * Typography comes entirely from the semantic type-scale tokens/role classes in
+ * `styles.scss`; the component holds no font literals. The single `<h1>` is
+ * preserved regardless of whether eyebrow/metadata are present.
+ *
+ * Downstream context chrome (breadcrumbs, top bar, project workspace route) is
+ * intentionally out of scope here and lives in #128 (context/IA) and #154 (app
+ * shell), which compose this primitive.
  */
 @Component({
   selector: 'app-page-header',
   standalone: true,
-  template: `<h1 class="page-title">{{ title }}</h1>`,
+  template: `
+    <div class="page-header-block">
+      @if (eyebrow) {
+        <p class="rq-eyebrow page-eyebrow" data-testid="page-eyebrow">{{ eyebrow }}</p>
+      }
+      <h1 class="rq-page-title page-title">{{ title }}</h1>
+      <div class="page-meta"><ng-content select="[metadata]" /></div>
+    </div>
+  `,
   styles: [`
-    :host { display: contents; }
-    .page-title {
-      margin: 0;
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
+    :host { display: block; }
+    .page-header-block { display: flex; flex-direction: column; }
+    /* Margins (not a column gap) so a title-only header adds no stray spacing. */
+    .page-eyebrow { margin: 0 0 var(--rq-space-1); }
+    .page-title { margin: 0; }
+    .page-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--rq-space-2); }
+    .page-meta:not(:empty) { margin-top: var(--rq-space-2); }
   `]
 })
 export class PageHeaderComponent {
+  /** The route's top-level heading text (the single <h1>). */
   @Input() title = '';
+  /** Optional context line above the title (project name / artifact type). */
+  @Input() eyebrow = '';
 }

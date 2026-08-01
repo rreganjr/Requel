@@ -39,7 +39,7 @@ import { ListPageComponent } from '../../shared/list-page';
   standalone: true,
   imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SelectModule, FormsModule, SlicePipe],
   template: `
-    <app-list-page title="Goals" searchPlaceholder="Search goals..."
+    <app-list-page title="Goals" [eyebrow]="projectContext()" searchPlaceholder="Search goals..."
                    (search)="dt.filterGlobal($event, 'contains')">
       <ng-container actions>
         <p-select [options]="tagFilterOptions()" [ngModel]="selectedTagId()"
@@ -90,7 +90,8 @@ import { ListPageComponent } from '../../shared/list-page';
     .text-preview { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tag-filter { min-width: 200px; }
     .chips { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; }
-    .tag-chip { font-size: 0.7rem; font-weight: 600; padding: 0.1rem 0.45rem; border-radius: 12px;
+    .tag-chip { font-size: var(--rq-text-caption-size); font-weight: var(--rq-font-weight-semibold);
+      padding: 0.1rem 0.45rem; border-radius: 12px;
       background: var(--p-primary-100, #dbeafe); color: var(--p-primary-700, #1d4ed8); white-space: nowrap; }
   `]
 })
@@ -99,6 +100,8 @@ export class GoalListComponent implements OnInit, OnDestroy {
   loading = signal(true);
   errorMessage = signal<string | null>(null);
   canEdit = signal(false);
+  /** Project-name context shown as the page eyebrow (issue #127). */
+  projectContext = signal('');
 
   /** goalId -> tags assigned to it (built from the project's tags). */
   tagsByGoal = signal<Map<number, TagDto[]>>(new Map());
@@ -132,6 +135,7 @@ export class GoalListComponent implements OnInit, OnDestroy {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {
         this.projectName = name;
+        this.projectContext.set(name);
         await this.permissionService.loadForProject(name);
         this.canEdit.set(this.permissionService.canEdit('Goal'));
         await this.loadGoals();

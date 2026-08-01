@@ -26,12 +26,50 @@
   --rq-radius-md: 6px;
   --rq-radius-lg: 8px;
 
-  // Type scale.
+  // Type scale (raw size steps; 1rem = 14px given the 14px base).
   --rq-font-size-xs: 0.75rem;
   --rq-font-size-sm: 0.875rem;
   --rq-font-size-md: 1rem;
   --rq-font-size-lg: 1.125rem;
   --rq-font-size-xl: 1.5rem;
+
+  // Font weights.
+  --rq-font-weight-normal: 400;
+  --rq-font-weight-medium: 500;
+  --rq-font-weight-semibold: 600;
+  --rq-font-weight-bold: 700;
+
+  // Semantic type scale (issue #127). Each role bundles size + weight +
+  // line-height; the two color tokens below cover where a role differs from
+  // body text. Titles are bold slate (surface-800); helper/caption are muted
+  // (surface-500). Components apply these via the `.rq-*` role classes below or
+  // by reading the tokens directly — never with per-view font literals.
+  --rq-text-heading-color: var(--p-surface-800);
+  --rq-text-muted-color: var(--p-text-muted-color, var(--p-surface-500));
+
+  --rq-text-page-title-size: var(--rq-font-size-xl);        // 1.5rem / 21px
+  --rq-text-page-title-weight: var(--rq-font-weight-bold);
+  --rq-text-page-title-line: 1.2;
+
+  --rq-text-section-title-size: var(--rq-font-size-lg);     // 1.125rem
+  --rq-text-section-title-weight: var(--rq-font-weight-semibold);
+  --rq-text-section-title-line: 1.3;
+
+  --rq-text-body-size: var(--rq-font-size-md);              // 1rem / 14px
+  --rq-text-body-weight: var(--rq-font-weight-normal);
+  --rq-text-body-line: 1.5;
+
+  --rq-text-label-size: var(--rq-font-size-sm);             // 0.875rem
+  --rq-text-label-weight: var(--rq-font-weight-semibold);
+  --rq-text-label-line: 1.4;
+
+  --rq-text-helper-size: var(--rq-font-size-sm);            // 0.875rem
+  --rq-text-helper-weight: var(--rq-font-weight-normal);
+  --rq-text-helper-line: 1.4;
+
+  --rq-text-caption-size: var(--rq-font-size-xs);           // 0.75rem
+  --rq-text-caption-weight: var(--rq-font-weight-medium);
+  --rq-text-caption-line: 1.3;
 
   // Layout widths.
   --rq-page-max: 76rem;
@@ -73,6 +111,51 @@ html, body {
 .rq-page {
   max-width: var(--rq-page-max);
   margin: 0 auto;
+}
+
+// -------------------------------------------------------------------------
+// Semantic type-scale role classes (issue #127)
+//
+// The reusable way to apply the type scale. Shared primitives (page-header,
+// list-page) and route pages use these instead of hard-coding font-size /
+// weight / line-height. `.rq-page-title` is reserved for the single <h1>.
+// -------------------------------------------------------------------------
+.rq-page-title {
+  font-size: var(--rq-text-page-title-size);
+  font-weight: var(--rq-text-page-title-weight);
+  line-height: var(--rq-text-page-title-line);
+  color: var(--rq-text-heading-color);
+}
+.rq-section-title {
+  font-size: var(--rq-text-section-title-size);
+  font-weight: var(--rq-text-section-title-weight);
+  line-height: var(--rq-text-section-title-line);
+  color: var(--rq-text-heading-color);
+}
+.rq-eyebrow {
+  font-size: var(--rq-text-caption-size);
+  font-weight: var(--rq-text-caption-weight);
+  line-height: var(--rq-text-caption-line);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--rq-text-muted-color);
+}
+.rq-label {
+  font-size: var(--rq-text-label-size);
+  font-weight: var(--rq-text-label-weight);
+  line-height: var(--rq-text-label-line);
+}
+.rq-helper {
+  font-size: var(--rq-text-helper-size);
+  font-weight: var(--rq-text-helper-weight);
+  line-height: var(--rq-text-helper-line);
+  color: var(--rq-text-muted-color);
+}
+.rq-caption {
+  font-size: var(--rq-text-caption-size);
+  font-weight: var(--rq-text-caption-weight);
+  line-height: var(--rq-text-caption-line);
+  color: var(--rq-text-muted-color);
 }
 
 // -------------------------------------------------------------------------
