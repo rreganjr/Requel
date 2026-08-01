@@ -76,7 +76,6 @@ import { ListPageComponent } from '../../shared/list-page';
     </app-list-page>
   `,
   styles: [`
-    .text-center { text-align: center; }
     .action-cell { display: flex; gap: 0.25rem; }
   `]
 })

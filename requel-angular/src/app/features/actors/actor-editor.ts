@@ -108,7 +108,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <ng-template #header>
               <tr>
                 <th>Name</th>
-                @if (canEdit()) { <th style="width: 4rem"></th> }
+                @if (canEdit()) { <th class="col-actions"></th> }
               </tr>
             </ng-template>
             <ng-template #body let-g>

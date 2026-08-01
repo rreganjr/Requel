@@ -87,7 +87,6 @@ import { ListPageComponent } from '../../shared/list-page';
     </app-list-page>
   `,
   styles: [`
-    .text-center { text-align: center; }
     .text-preview { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tag-filter { min-width: 200px; }
     .chips { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; }

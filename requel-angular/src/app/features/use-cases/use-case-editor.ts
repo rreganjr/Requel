@@ -146,7 +146,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               @if (primaryScenario()?.steps?.length) {
                 <p-table [value]="primaryScenario()!.steps!" styleClass="p-datatable-sm" [rowHover]="false">
                   <ng-template pTemplate="header">
-                    <tr><th style="width:2.5rem">#</th><th>Step</th><th style="width:8rem">Type</th></tr>
+                    <tr><th class="col-num">#</th><th>Step</th><th class="col-kind">Type</th></tr>
                   </ng-template>
                   <ng-template pTemplate="body" let-step let-i="rowIndex">
                     <tr>
@@ -177,7 +177,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
           <p-table [value]="additionalScenarios()" styleClass="p-datatable-sm"
                    data-testid="use-case-scenarios-table" [rowHover]="true">
             <ng-template pTemplate="header">
-              <tr><th>Name</th><th>Type</th><th style="width:4rem"></th></tr>
+              <tr><th>Name</th><th>Type</th><th class="col-actions"></th></tr>
             </ng-template>
             <ng-template pTemplate="body" let-s>
               <tr data-testid="use-case-scenario-row">
@@ -195,7 +195,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               </tr>
             </ng-template>
             <ng-template pTemplate="emptymessage">
-              <tr><td colspan="3" style="text-align:center">No additional scenarios.</td></tr>
+              <tr><td colspan="3" class="text-center">No additional scenarios.</td></tr>
             </ng-template>
           </p-table>
         </div>
@@ -236,7 +236,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
           <p-table [value]="goals()" styleClass="p-datatable-sm"
                    data-testid="use-case-goals-table" [rowHover]="canEdit()">
             <ng-template pTemplate="header">
-              <tr><th>Name</th><th style="width:4rem"></th></tr>
+              <tr><th>Name</th><th class="col-actions"></th></tr>
             </ng-template>
             <ng-template pTemplate="body" let-goal>
               <tr data-testid="use-case-goal-row">
@@ -255,7 +255,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               </tr>
             </ng-template>
             <ng-template pTemplate="emptymessage">
-              <tr><td colspan="2" style="text-align:center">No goals.</td></tr>
+              <tr><td colspan="2" class="text-center">No goals.</td></tr>
             </ng-template>
           </p-table>
         </div>
@@ -274,7 +274,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
           <p-table [value]="stories()" styleClass="p-datatable-sm"
                    data-testid="use-case-stories-table" [rowHover]="canEdit()">
             <ng-template pTemplate="header">
-              <tr><th>Name</th><th>Type</th><th style="width:4rem"></th></tr>
+              <tr><th>Name</th><th>Type</th><th class="col-actions"></th></tr>
             </ng-template>
             <ng-template pTemplate="body" let-story>
               <tr data-testid="use-case-story-row">
@@ -294,7 +294,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               </tr>
             </ng-template>
             <ng-template pTemplate="emptymessage">
-              <tr><td colspan="3" style="text-align:center">No stories.</td></tr>
+              <tr><td colspan="3" class="text-center">No stories.</td></tr>
             </ng-template>
           </p-table>
         </div>
@@ -313,7 +313,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
           <p-table [value]="actors()" styleClass="p-datatable-sm"
                    data-testid="use-case-actors-table" [rowHover]="canEdit()">
             <ng-template pTemplate="header">
-              <tr><th>Name</th><th style="width:4rem"></th></tr>
+              <tr><th>Name</th><th class="col-actions"></th></tr>
             </ng-template>
             <ng-template pTemplate="body" let-actor>
               <tr data-testid="use-case-actor-row">
@@ -332,7 +332,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
               </tr>
             </ng-template>
             <ng-template pTemplate="emptymessage">
-              <tr><td colspan="2" style="text-align:center">No additional actors.</td></tr>
+              <tr><td colspan="2" class="text-center">No additional actors.</td></tr>
             </ng-template>
           </p-table>
         </div>

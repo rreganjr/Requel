@@ -61,14 +61,9 @@ export class ProjectsPage extends BaseListPage {
     await expect(this.page.getByTestId('project-list-error')).toContainText(message);
   }
 
-  async expectImportWarning(message: string): Promise<void> {
-    await expect(this.page.getByTestId('project-list-warning')).toContainText(message);
-  }
-
   async expectNoImportMessages(): Promise<void> {
     await expect(this.page.getByTestId('project-list-success')).toHaveCount(0);
     await expect(this.page.getByTestId('project-list-error')).toHaveCount(0);
-    await expect(this.page.getByTestId('project-list-warning')).toHaveCount(0);
   }
 
   async expectNoProjectsMessage(): Promise<void> {

@@ -105,7 +105,7 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
                 <tr>
                   <th>Goal</th>
                   <th>Type</th>
-                  @if (canEdit()) { <th style="width: 60px"></th> }
+                  @if (canEdit()) { <th class="col-actions"></th> }
                 </tr>
               </ng-template>
               <ng-template #body let-r>
