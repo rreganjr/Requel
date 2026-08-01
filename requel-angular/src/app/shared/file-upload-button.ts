@@ -47,7 +47,7 @@ type ButtonSize = 'small' | 'large';
               [loading]="loading"
               [ariaLabel]="ariaLabel || label"
               [attr.data-testid]="buttonTestid"
-              (onClick)="fileInput.nativeElement.click()" />
+              (onClick)="fileInput.click()" />
     <input #fileInput
            type="file"
            class="file-input-hidden"
