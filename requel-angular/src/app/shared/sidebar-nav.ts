@@ -30,6 +30,7 @@ import { AuthService } from '../core/auth.service';
 import { EventStreamService } from '../core/event-stream.service';
 import { ProjectService } from '../core/project.service';
 import { ProjectDto, ProjectTreeNode } from '../models/project';
+import { FileUploadButtonComponent } from './file-upload-button';
 
 /**
  * localStorage key for the names of projects the user has expanded in the
@@ -69,7 +70,7 @@ function persistExpandedProjectNames(names: Set<string>): void {
 @Component({
   selector: 'app-sidebar-nav',
   standalone: true,
-  imports: [AccordionModule, ButtonModule, TreeModule, BadgeModule, RouterLink],
+  imports: [AccordionModule, ButtonModule, TreeModule, BadgeModule, RouterLink, FileUploadButtonComponent],
   template: `
     <p-accordion [multiple]="true" [value]="activePanels()">
 
@@ -107,12 +108,11 @@ function persistExpandedProjectNames(names: Set<string>): void {
               @if (canCreateProjects()) {
                 <p-button label="New" ariaLabel="New project" icon="pi pi-plus" size="small"
                           [text]="true" (onClick)="onNewProject()" />
-                <p-button label="Import" ariaLabel="Import project" icon="pi pi-upload" size="small"
-                          [text]="true" data-testid="sidebar-import-button"
-                          (onClick)="importInput.click()" />
-                <input #importInput type="file" accept=".xml"
-                       data-testid="sidebar-import-input"
-                       (change)="onImportFile($event)" style="display:none" />
+                <app-file-upload-button label="Import" ariaLabel="Import project" size="small"
+                                        [text]="true" accept=".xml"
+                                        buttonTestid="sidebar-import-button"
+                                        inputTestid="sidebar-import-input"
+                                        (fileSelected)="onImportFile($event)" />
               }
               <a routerLink="/projects" class="sidebar-link" aria-label="List projects">
                 <i class="pi pi-list"></i> List
@@ -175,15 +175,7 @@ function persistExpandedProjectNames(names: Set<string>): void {
       color: var(--p-text-secondary-color);
     }
 
-    :host ::ng-deep .sidebar-tree .p-tree-node-label {
-      font-size: 13px;
-    }
-
-    :host ::ng-deep .sidebar-tree .p-tree {
-      border: none;
-      padding: 0;
-      background: transparent;
-    }
+    /* .sidebar-tree PrimeNG p-tree overrides live in global styles.scss (#126). */
   `]
 })
 export class SidebarNavComponent implements OnInit, OnDestroy {
@@ -282,17 +274,12 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
     this.router.navigate(['/projects', 'new']);
   }
 
-  async onImportFile(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
+  async onImportFile(file: File): Promise<void> {
     try {
       await this.projectService.importProject(file);
       await this.loadProjects();
     } catch {
       // Import errors handled by project-list if open; sidebar silently refreshes
-    } finally {
-      input.value = '';
     }
   }
 

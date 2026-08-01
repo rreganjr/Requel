@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, signal, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
@@ -27,22 +27,22 @@ import { ProjectDto } from '../../models/project';
 import { ProjectService } from '../../core/project.service';
 import { AuthService } from '../../core/auth.service';
 import { ListPageComponent } from '../../shared/list-page';
+import { FileUploadButtonComponent } from '../../shared/file-upload-button';
 
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule],
+  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, FileUploadButtonComponent],
   template: `
     <app-list-page title="Projects" searchPlaceholder="Search projects..."
                    (search)="dt.filterGlobal($event, 'contains')">
       <ng-container actions>
         @if (canCreateProjects()) {
           <p-button label="New Project" icon="pi pi-plus" data-testid="project-list-new-project" (onClick)="onNewProject()" />
-          <p-button label="Import" icon="pi pi-upload" severity="secondary"
-                    [outlined]="true" [loading]="importing()" data-testid="project-list-import-button" (onClick)="fileInput.click()" />
-          <input #fileInput type="file" accept=".xml" (change)="onImportFile($event)"
-                 data-testid="project-list-import-input"
-                 style="display: none" />
+          <app-file-upload-button label="Import" [outlined]="true" [loading]="importing()"
+                                  accept=".xml" buttonTestid="project-list-import-button"
+                                  inputTestid="project-list-import-input"
+                                  (fileSelected)="onImportFile($event)" />
         }
       </ng-container>
 
@@ -102,7 +102,6 @@ export class ProjectListComponent implements OnInit {
 
   readonly canCreateProjects = signal(false);
 
-  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   constructor(
     private projectService: ProjectService,
@@ -130,16 +129,7 @@ export class ProjectListComponent implements OnInit {
     }
   }
 
-  async onImportFile(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) {
-      this.errorMessage.set(null);
-      this.successMessage.set(null);
-      this.warningMessage.set('Select a project XML file to import.');
-      return;
-    }
-
+  async onImportFile(file: File): Promise<void> {
     this.importing.set(true);
     this.errorMessage.set(null);
     this.warningMessage.set(null);
@@ -157,7 +147,6 @@ export class ProjectListComponent implements OnInit {
       this.errorMessage.set(err instanceof Error ? err.message : 'Import failed.');
     } finally {
       this.importing.set(false);
-      input.value = '';
     }
   }
 

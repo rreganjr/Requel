@@ -211,10 +211,7 @@ describe('SidebarNavComponent', () => {
   it('onImportFile calls importProject with the file and reloads', async () => {
     setup(makeUser(['ProjectUserRole']));
     const file = new File(['<project/>'], 'project.xml', { type: 'text/xml' });
-    const inputEl = document.createElement('input');
-    Object.defineProperty(inputEl, 'files', { value: [file] });
-    const event = { target: inputEl } as unknown as Event;
-    await comp.onImportFile(event);
+    await comp.onImportFile(file);
     expect(projectServiceMock.importProject).toHaveBeenCalledWith(file);
     expect(projectServiceMock.listProjects).toHaveBeenCalled();
   });

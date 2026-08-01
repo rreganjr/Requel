@@ -84,7 +84,7 @@ const SCENARIO_TYPE_OPTIONS = [
         <input pInputText [(ngModel)]="searchText" placeholder="Search..."
                aria-label="Search scenarios"
                data-testid="scenario-selector-search"
-               (input)="dt.filterGlobal(searchText, 'contains')" style="width:100%" />
+               (input)="dt.filterGlobal(searchText, 'contains')" class="w-full" />
         @if (!showCreateForm) {
           <p-button label="New Scenario" icon="pi pi-plus" size="small" severity="secondary"
                     [outlined]="true" data-testid="scenario-selector-new-button"
@@ -122,7 +122,6 @@ const SCENARIO_TYPE_OPTIONS = [
     .create-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
     .create-error { color: var(--p-red-500); font-size: 0.85rem; margin-top: 0.5rem; }
     hr { margin: 0.75rem 0; border: none; border-top: 1px solid var(--p-surface-200); }
-    .text-center { text-align: center; }
   `]
 })
 export class ScenarioSelectorDialogComponent implements OnChanges {

@@ -62,7 +62,7 @@ import { TagService } from '../../core/tag.service';
             <th>Category</th>
             <th>Value</th>
             <th>Created By</th>
-            <th style="width: 60px"></th>
+            <th class="col-actions"></th>
           </tr>
         </ng-template>
         <ng-template #body let-t>
@@ -88,7 +88,6 @@ import { TagService } from '../../core/tag.service';
     .page-header { margin-bottom: 1rem; }
     .add-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
     .cat-input, .val-input { max-width: 220px; }
-    .text-center { text-align: center; }
   `]
 })
 export class GlobalTagsComponent implements OnInit {

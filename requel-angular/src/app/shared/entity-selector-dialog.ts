@@ -96,8 +96,7 @@ import { ScenarioService } from '../core/scenario.service';
   styles: [`
     .search-bar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
     .search-bar span { flex: 1; }
-    :host ::ng-deep .type-filter-select { min-width: 130px; }
-    .text-center { text-align: center; }
+    /* .type-filter-select min-width and .text-center live in global styles.scss (#126). */
   `]
 })
 export class EntitySelectorDialogComponent implements OnChanges {

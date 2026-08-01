@@ -77,10 +77,7 @@ import { ListPageComponent } from '../../shared/list-page';
         </ng-template>
       </p-table>
     </app-list-page>
-  `,
-  styles: [`
-    .text-center { text-align: center; }
-  `]
+  `
 })
 export class StakeholderListComponent implements OnInit, OnDestroy {
   stakeholders = signal<StakeholderDto[]>([]);

@@ -74,3 +74,54 @@ html, body {
   max-width: var(--rq-page-max);
   margin: 0 auto;
 }
+
+// -------------------------------------------------------------------------
+// PrimeNG component customizations (issue #126)
+//
+// These rules were previously component-local `:host ::ng-deep` blocks, which
+// pierce view encapsulation and are brittle across PrimeNG upgrades. Each
+// component still tags its PrimeNG element with a `styleClass`/`class` hook
+// (`account-trigger`, `sidebar-tree`, `type-filter-select`); the styling now
+// lives here as ordinary global rules so no encapsulation-piercing is needed.
+// -------------------------------------------------------------------------
+
+// Account menu trigger in the header brand bar inherits the header foreground.
+.account-trigger .p-button {
+  color: var(--rq-header-fg);
+}
+
+// Sidebar project tree: denser label text and a chrome-free container so the
+// tree blends into the sidebar rather than rendering PrimeNG's default panel.
+.sidebar-tree .p-tree-node-label {
+  font-size: var(--rq-font-size-xs);
+}
+
+.sidebar-tree .p-tree {
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+// Entity-selector dialog type filter keeps a stable minimum width.
+.type-filter-select {
+  min-width: 130px;
+}
+
+// -------------------------------------------------------------------------
+// Shared table / layout utilities (issue #126)
+//
+// Replace ad-hoc inline `style="width:..."` / `style="text-align:center"`
+// attributes scattered across list and editor templates. Column-width
+// utilities are intentionally shared so the same kind of column is the same
+// width in every table.
+// -------------------------------------------------------------------------
+
+// Trailing row-action column (edit/remove icon buttons).
+.col-actions { width: 4rem; }
+// Narrow index / ordinal column (e.g. step "#").
+.col-num { width: 2.5rem; }
+// Short categorical column (e.g. step "Type").
+.col-kind { width: 8rem; }
+
+.text-center { text-align: center; }
+.w-full { width: 100%; }

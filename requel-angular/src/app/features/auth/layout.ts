@@ -121,9 +121,7 @@ import { MenuItem, MessageService } from 'primeng/api';
       align-items: center;
     }
 
-    :host ::ng-deep .account-trigger .p-button {
-      color: var(--rq-header-fg);
-    }
+    /* .account-trigger .p-button color lives in global styles.scss (#126). */
 
     .layout-body {
       display: flex;

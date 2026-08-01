@@ -34,12 +34,13 @@ import { ReportGeneratorDto } from '../../models/report';
 import { ReportService } from '../../core/report.service';
 import { PermissionService } from '../../core/permission.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { FileUploadButtonComponent } from '../../shared/file-upload-button';
 
 @Component({
   selector: 'app-report-editor',
   standalone: true,
   imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
-            ConfirmDialogModule, AnnotationsSectionComponent],
+            ConfirmDialogModule, AnnotationsSectionComponent, FileUploadButtonComponent],
   providers: [ConfirmationService],
   template: `
     <div class="report-editor" data-testid="report-editor">
@@ -72,10 +73,8 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
           <textarea id="text" pTextarea [(ngModel)]="text" rows="20"
                     placeholder="Paste XSLT stylesheet here..." class="xslt-textarea"></textarea>
           <div class="upload-row">
-            <p-button label="Upload XSLT" icon="pi pi-upload" severity="secondary"
-                      [outlined]="true" size="small" (onClick)="xsltInput.click()" />
-            <input #xsltInput type="file" accept=".xsl,.xslt,.xml"
-                   (change)="onFileUpload($event)" style="display:none" />
+            <app-file-upload-button label="Upload XSLT" [outlined]="true" size="small"
+                                    accept=".xsl,.xslt,.xml" (fileSelected)="onFileUpload($event)" />
             <span class="upload-hint">Upload a .xsl/.xslt file to replace the template text.</span>
           </div>
         </div>
@@ -252,10 +251,7 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
     }
   }
 
-  onFileUpload(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
+  onFileUpload(file: File): void {
     const reader = new FileReader();
     reader.onload = () => {
       this.text = reader.result as string;
@@ -264,7 +260,6 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
       }
     };
     reader.readAsText(file);
-    input.value = '';
   }
 
   onBack(): void {

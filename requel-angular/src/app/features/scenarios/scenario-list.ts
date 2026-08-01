@@ -63,7 +63,7 @@ import { ListPageComponent } from '../../shared/list-page';
           </tr>
         </ng-template>
         <ng-template #emptymessage>
-          <tr><td colspan="3" style="text-align:center;font-style:italic">No scenarios yet.</td></tr>
+          <tr><td colspan="3" class="text-center">No scenarios yet.</td></tr>
         </ng-template>
       </p-table>
     </app-list-page>

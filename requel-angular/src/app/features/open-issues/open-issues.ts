@@ -111,7 +111,6 @@ const ENTITY_ROUTES: Record<string, string> = {
     </app-list-page>
   `,
   styles: [`
-    .text-center { text-align: center; }
     .entity-link { color: var(--p-primary-color); cursor: pointer; text-decoration: underline; }
     .entity-link:hover { opacity: 0.8; }
     .must-resolve { color: var(--p-red-500); font-weight: 600; }

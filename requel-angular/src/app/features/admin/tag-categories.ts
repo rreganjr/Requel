@@ -68,7 +68,7 @@ import { TagService } from '../../core/tag.service';
         <ng-template #header>
           <tr>
             <th>Name</th><th>Exclusive</th><th>Allowed Types</th><th>Values</th><th>Color</th>
-            <th style="width: 60px"></th>
+            <th class="col-actions"></th>
           </tr>
         </ng-template>
         <ng-template #body let-c>
@@ -98,7 +98,6 @@ import { TagService } from '../../core/tag.service';
     .excl { display: inline-flex; align-items: center; gap: 0.35rem; }
     .name-input, .color-input { max-width: 160px; }
     .wide-input { max-width: 220px; }
-    .text-center { text-align: center; }
   `]
 })
 export class TagCategoriesComponent implements OnInit {
