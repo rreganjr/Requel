@@ -29,14 +29,14 @@ import { PageHeaderComponent } from './page-header';
   template: `
     <div class="list-page-wrap">
       <div class="page-header">
-        <app-page-header [title]="title" />
+        <app-page-header [title]="title" [eyebrow]="eyebrow" />
         <div class="page-actions">
           <ng-content select="[actions]" />
         </div>
       </div>
       @if (showSearch) {
-        <div class="search-bar">
-          <span class="p-input-icon-left">
+        <div class="list-toolbar">
+          <span class="p-input-icon-left search-field">
             <i class="pi pi-search"></i>
             <input pInputText [value]="searchText" [placeholder]="searchPlaceholder"
                    aria-label="Search"
@@ -47,14 +47,26 @@ import { PageHeaderComponent } from './page-header';
       <ng-content />
     </div>
   `,
+  // Compact, consistent list-page toolbar (issue #127): the title/actions row
+  // and the search toolbar share the same token-driven spacing so density and
+  // action placement match across migrated list pages (Goals, Stories, …).
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-actions { display: flex; gap: 0.5rem; }
-    .search-bar { margin-bottom: 1rem; }
+    .page-header {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: var(--rq-space-4); margin-bottom: var(--rq-space-4);
+    }
+    .page-actions { display: flex; align-items: center; gap: var(--rq-space-2); }
+    .list-toolbar {
+      display: flex; align-items: center; gap: var(--rq-space-2);
+      margin-bottom: var(--rq-space-4);
+    }
+    .search-field { display: inline-flex; align-items: center; }
   `]
 })
 export class ListPageComponent {
   @Input() title = '';
+  /** Optional context line (project name / artifact type) shown above the title. */
+  @Input() eyebrow = '';
   @Input() showSearch = true;
   @Input() searchText = '';
   @Input() searchPlaceholder = 'Search...';
