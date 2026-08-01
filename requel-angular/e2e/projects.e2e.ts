@@ -291,7 +291,7 @@ test.describe('Project management', () => {
     await page.close();
   });
 
-  test('import change with no selected file shows warning and does not call import', async ({ adminContext }) => {
+  test('import change with no selected file is a no-op and does not call import', async ({ adminContext }) => {
     const page = await adminContext.newPage();
     const projectsPage = new ProjectsPage(page);
     let importCalled = false;
@@ -316,7 +316,8 @@ test.describe('Project management', () => {
     await projectsPage.goto();
     await projectsPage.clearImportSelection();
     await expect.poll(() => importCalled).toBe(false);
-    await projectsPage.expectImportWarning('Select a project XML file to import.');
+    // Picking no file is a silent no-op: no import call, no error/warning banner.
+    await expect(page.getByTestId('project-list-error')).toHaveCount(0);
 
     await page.close();
   });
