@@ -44,13 +44,17 @@ Every change is tied to a GitHub issue and lands via a ticket branch and a PR �
    `77-spring-ai-provider-port` convention). Do all edits on that branch.
 3. **Implement, then verify (manual gate — must pass before committing):**
    - Backend: `mvn clean verify` is green.
-   - Frontend (when `requel-angular/` changed): `cd requel-angular && ng test --watch=false` is green.
+   - Frontend (when `requel-angular/` changed): `cd requel-angular && npm test -- --watch=false` is green.
+     (`npm test` runs `ng test`; the `--` forwards `--watch=false`. Always give the npm form,
+     not a bare `ng` command.)
 
    Do not commit until the relevant suite passes.
 4. **Commit message** — write it to `commit.md` in the format above. Include a closing keyword
    (`Closes #<n>` / `Fixes #<n>`) so merging the PR closes the issue; reference related issues by URL.
 5. **Commit + push** — only when told; commit on the ticket branch and push it.
-6. **PR** — open with `gh pr create --base release/2.0` (when told), using the `commit.md` content as the body. PRs are squash-merged.
+6. **PR** — open with `gh pr create --base release/2.0` (when told), always passing a `--title`
+   (`<issue#>: <concise summary>`) and using the `commit.md` content as the body via
+   `--body-file`. PRs are squash-merged.
 
 **Auto-close caveat:** the repo's default branch is `master`, but PRs target `release/2.0`. GitHub auto-closes an issue from `Closes #<n>` only when the PR merges into the **default** branch, so merging into `release/2.0` does **not** close the issue. Always close it explicitly after merge:
 `gh issue close <n> --comment "Merged to release/2.0 via #<pr>."`
@@ -63,14 +67,15 @@ environment, not Claude's sandbox):
 # 2. Branch from release/2.0 at the start of work:
 git switch -c <issue#>-<slug> release/2.0
 # 3. Verify before committing (must pass):
-mvn clean verify                              # backend
-cd requel-angular && ng test --watch=false    # frontend, only if requel-angular/ changed
+mvn clean verify                                 # backend
+cd requel-angular && npm test -- --watch=false   # frontend, only if requel-angular/ changed
 # 4. Write commit.md with a "Closes #<n>" line. commit.md is gitignored (/commit.md) — it is the
 #    message source for the commit/PR body, NOT a committed file, so do not `git add` it.
 # 5. Commit + push (stage only the changed source files):
 git add <changed files> && git commit -F commit.md && git push -u origin <issue#>-<slug>
-# 6. PR:
-gh pr create --repo rreganjr/Requel --base release/2.0 --head <issue#>-<slug> --body-file commit.md
+# 6. PR (always pass --title):
+gh pr create --repo rreganjr/Requel --base release/2.0 --head <issue#>-<slug> \
+  --title "<issue#>: <concise summary>" --body-file commit.md
 # after squash-merge (release/2.0 is not default, so close manually):
 gh issue close <n> --repo rreganjr/Requel --comment "Merged to release/2.0 via #<pr>."
 ```
