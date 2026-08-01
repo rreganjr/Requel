@@ -270,9 +270,11 @@ interface StepNodeData {
       border-radius: 4px; flex: 1;
     }
 
+    /* Standalone action row: 36px comfortable target (issue #141, WCAG 2.5.8). */
     .add-step-row {
       display: flex; align-items: center; justify-content: center; gap: 0.35rem;
-      width: 100%; border: none; background: transparent; font-family: inherit;
+      width: 100%; min-height: var(--rq-target-comfortable);
+      border: none; background: transparent; font-family: inherit;
       padding: 0.3rem; cursor: pointer;
       font-size: 0.8rem; color: var(--p-text-secondary-color);
       border-bottom: 1px dashed var(--p-surface-200);

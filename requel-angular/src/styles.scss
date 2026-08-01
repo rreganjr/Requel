@@ -84,6 +84,16 @@
   --rq-header-bg: var(--p-primary-900);
   --rq-header-fg: var(--p-surface-0);
 
+  // Minimum hit-area sizes for custom (non-PrimeNG) interactive controls
+  // (issue #141, WCAG 2.2 SC 2.5.8 Target Size). `min` is the hard 24px floor
+  // for controls packed inline among siblings (e.g. a chip's remove button);
+  // `comfortable` (36px) is for standalone actions that sit alone in a row or
+  // toolbar (e.g. an add-row button). Apply these as min-box + centering so the
+  // visible glyph stays small and the dense 14px design is preserved — the hit
+  // area grows, not the type. PrimeNG controls carry their own target sizing.
+  --rq-target-min: 24px;
+  --rq-target-comfortable: 36px;
+
   // Make PrimeNG components inherit Figtree (font-family is not set by Aura).
   --p-font-family: var(--rq-font-family);
 }
@@ -208,3 +218,23 @@ html, body {
 
 .text-center { text-align: center; }
 .w-full { width: 100%; }
+
+// -------------------------------------------------------------------------
+// Reduced motion (issue #141, WCAG 2.2 SC 2.3.3 Animation from Interactions)
+//
+// Users who set the OS "reduce motion" preference get animations and
+// transitions neutralized app-wide. A global near-instant reset is the
+// standard approach: it covers app CSS, PrimeNG, and CDK drag/drop without
+// per-component opt-in. Drag/drop still functions — only the animated settle
+// is shortened, not the drag itself.
+// -------------------------------------------------------------------------
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

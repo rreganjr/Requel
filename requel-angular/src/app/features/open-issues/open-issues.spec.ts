@@ -5,6 +5,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { BehaviorSubject } from 'rxjs';
 import { OpenIssuesComponent } from './open-issues';
+import { expectNoAxeViolations } from '../../shared/testing/a11y';
 
 const MOCK_ISSUES = [
   { issueId: 1, issueText: 'Missing details', mustBeResolved: true,
@@ -95,6 +96,28 @@ describe('OpenIssuesComponent', () => {
     const a = fixture.nativeElement.querySelector('[data-testid="open-issue-entity-link"]');
     expect(a.tagName).toBe('A');
     expect(a.getAttribute('href')).toBe('/projects/proj1/goals/10');
+  });
+
+  // Issue #141 (WCAG 1.4.1 Use of Color): the "Required" column must convey
+  // required vs optional with text, not color alone. Required renders "Yes",
+  // optional renders "No" (previously a bare em-dash, which is not a label).
+  it('renders text labels (not color alone) for the Required column', async () => {
+    fixture.detectChanges();
+    httpTesting.expectOne(r => r.url.includes('open-issues')).flush(MOCK_ISSUES);
+    await flush();
+    fixture.detectChanges();
+    const required = fixture.nativeElement.querySelector('[data-testid="open-issue-required"]');
+    const optional = fixture.nativeElement.querySelector('[data-testid="open-issue-optional"]');
+    expect(required.textContent.trim()).toBe('Yes');
+    expect(optional.textContent.trim()).toBe('No');
+  });
+
+  it('has no axe-core violations for the issues table', async () => {
+    fixture.detectChanges();
+    httpTesting.expectOne(r => r.url.includes('open-issues')).flush(MOCK_ISSUES);
+    await flush();
+    fixture.detectChanges();
+    await expectNoAxeViolations(fixture.nativeElement);
   });
 
   it('errorMessage set when HTTP request fails', async () => {

@@ -132,7 +132,14 @@ export const RequelPreset = definePreset(Aura, {
           color: '{slate.700}',
           hoverColor: '{slate.800}',
           mutedColor: '{slate.500}',
-          hoverMutedColor: '{slate.600}'
+          hoverMutedColor: '{slate.600}',
+          // Secondary text (issue #141). Components reference
+          // `--p-text-secondary-color` for de-emphasized text (empty-state hints,
+          // creator names, neutral/position badges). It was never a defined Aura
+          // token, so it silently inherited `--p-text-color`. Define it explicitly
+          // at slate-600: muted vs body slate-700 yet AA-safe on every surface it
+          // is used over (>=6.1:1 up to surface-200; slate-500 would fail there).
+          secondaryColor: '{slate.600}'
         },
         content: {
           background: '{slate.0}',

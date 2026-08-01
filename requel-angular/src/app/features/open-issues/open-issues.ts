@@ -99,7 +99,7 @@ const ENTITY_ROUTES: Record<string, string> = {
               @if (issue.mustBeResolved) {
                 <span class="must-resolve" data-testid="open-issue-required">Yes</span>
               } @else {
-                <span class="optional" data-testid="open-issue-optional">—</span>
+                <span class="optional" data-testid="open-issue-optional">No</span>
               }
             </td>
           </tr>
@@ -113,7 +113,9 @@ const ENTITY_ROUTES: Record<string, string> = {
   styles: [`
     .entity-link { color: var(--p-primary-color); cursor: pointer; text-decoration: underline; }
     .entity-link:hover { opacity: 0.8; }
-    .must-resolve { color: var(--p-red-500); font-weight: 600; }
+    /* red-700 (not red-500) so the small bold text clears WCAG AA 4.5:1 on the
+       white table cell (issue #141: red-500 on white is only 3.76:1). */
+    .must-resolve { color: var(--p-red-700); font-weight: 600; }
     .optional { color: var(--p-text-secondary-color); }
   `]
 })
