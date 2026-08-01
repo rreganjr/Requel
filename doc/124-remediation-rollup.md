@@ -20,7 +20,7 @@ Grouped from `doc/UI_UX_REVIEW.md` findings 1.1–5.6 plus the look-and-feel ite
 
 - [ ] #125 — 1.1 App uses stock Aura with no Requel brand layer
 - [ ] #126 — 1.2 Component-local CSS fights PrimeNG and fragments visual consistency
-- [ ] #127 — 1.3 Typography and hierarchy are too flat
+- [x] #127 — 1.3 Typography and hierarchy are too flat
 - [ ] #146 — 5.5 Shared components exist but are too thin for the app's repeated patterns
 - [ ] #155 — N2 Tag & Chip severity system as shared primitives
 - [ ] #156 — N3 Card / content-surface primitive (app-card)
