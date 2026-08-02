@@ -37,11 +37,12 @@ import { TermService } from '../../core/term.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { AppCardComponent } from '../../shared/app-card';
 
 @Component({
   selector: 'app-term-editor',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, AppCardComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, ConfirmDialogModule, AnnotationsSectionComponent],
   providers: [ConfirmationService],
   template: `
@@ -62,25 +63,27 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
         <p-message severity="error" [text]="errorMessage()!" data-testid="term-error" />
       }
 
-      <div class="form-grid">
-        <label for="name">Term</label>
-        <input id="name" pInputText [(ngModel)]="name" placeholder="Term name" />
+      <app-card>
+        <div class="form-grid">
+          <label for="name">Term</label>
+          <input id="name" pInputText [(ngModel)]="name" placeholder="Term name" />
 
-        <label for="text">Definition</label>
-        <textarea id="text" pTextarea [(ngModel)]="text" rows="5"
-                  placeholder="Definition of this term"></textarea>
+          <label for="text">Definition</label>
+          <textarea id="text" pTextarea [(ngModel)]="text" rows="5"
+                    placeholder="Definition of this term"></textarea>
 
-        <label for="canonical">Canonical Term</label>
-        <p-select id="canonical" [options]="canonicalOptions()" [(ngModel)]="canonicalTermId"
-                  optionLabel="label" optionValue="value"
-                  data-testid="term-canonical-select"
-                  placeholder="None (this is a canonical term)" [showClear]="true" />
-      </div>
+          <label for="canonical">Canonical Term</label>
+          <p-select id="canonical" [options]="canonicalOptions()" [(ngModel)]="canonicalTermId"
+                    optionLabel="label" optionValue="value"
+                    data-testid="term-canonical-select"
+                    placeholder="None (this is a canonical term)" [showClear]="true" />
+        </div>
 
-      <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" data-testid="term-save" (onClick)="onSave()" [loading]="saving()"
-                  [disabled]="!isNew() && !isDirty()" />
-      </div>
+        <div class="form-actions">
+          <p-button label="Save" icon="pi pi-check" data-testid="term-save" (onClick)="onSave()" [loading]="saving()"
+                    [disabled]="!isNew() && !isDirty()" />
+        </div>
+      </app-card>
 
       <!-- Alternate Terms (terms that point to this as their canonical) -->
       @if (!isNew() && term()?.alternateTerms?.length) {

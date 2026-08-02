@@ -20,6 +20,7 @@
  */
 import { Component, OnInit, OnDestroy, signal, computed, ViewChild } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
+import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule, NgForm } from '@angular/forms';
 import { InputText } from 'primeng/inputtext';
@@ -42,7 +43,7 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
 @Component({
   selector: 'app-project-editor',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, InputText, TextareaModule, ButtonModule, SelectModule, MessageModule, ConfirmDialogModule, TagSelectorComponent],
+  imports: [PageHeaderComponent, AppCardComponent, FormsModule, InputText, TextareaModule, ButtonModule, SelectModule, MessageModule, ConfirmDialogModule, TagSelectorComponent],
   providers: [ConfirmationService],
   template: `
     <div class="project-editor" data-testid="project-editor">
@@ -64,34 +65,36 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
         <p-message severity="success" [text]="successMessage()!" />
       }
 
-      <form #projectForm="ngForm" (ngSubmit)="onSave()">
-        <div class="form-grid">
-          <div class="field">
-            <label for="name">Project Name</label>
-            <input pInputText id="name" [(ngModel)]="name" name="name" required />
+      <app-card>
+        <form #projectForm="ngForm" (ngSubmit)="onSave()">
+          <div class="form-grid">
+            <div class="field">
+              <label for="name">Project Name</label>
+              <input pInputText id="name" [(ngModel)]="name" name="name" required />
+            </div>
+
+            <div class="field">
+              <label for="org">Organization</label>
+              <p-select id="org" [(ngModel)]="selectedOrg" name="org"
+                        [options]="orgOptions()" optionLabel="label" optionValue="value"
+                        [editable]="true" placeholder="Select or type organization" />
+            </div>
+
+            <div class="field full-width">
+              <label for="description">Description</label>
+              <textarea pTextarea id="description" [(ngModel)]="description" name="description"
+                        [rows]="5" [autoResize]="true"></textarea>
+            </div>
           </div>
 
-          <div class="field">
-            <label for="org">Organization</label>
-            <p-select id="org" [(ngModel)]="selectedOrg" name="org"
-                      [options]="orgOptions()" optionLabel="label" optionValue="value"
-                      [editable]="true" placeholder="Select or type organization" />
+          <div class="actions">
+            <p-button type="submit" label="Save" icon="pi pi-check" data-testid="project-save"
+                      [loading]="saving()" [disabled]="!projectForm.dirty" />
+            <p-button label="Cancel" icon="pi pi-times" severity="secondary" data-testid="project-cancel"
+                      (onClick)="onCancel()" [outlined]="true" />
           </div>
-
-          <div class="field full-width">
-            <label for="description">Description</label>
-            <textarea pTextarea id="description" [(ngModel)]="description" name="description"
-                      [rows]="5" [autoResize]="true"></textarea>
-          </div>
-        </div>
-
-        <div class="actions">
-          <p-button type="submit" label="Save" icon="pi pi-check" data-testid="project-save"
-                    [loading]="saving()" [disabled]="!projectForm.dirty" />
-          <p-button label="Cancel" icon="pi pi-times" severity="secondary" data-testid="project-cancel"
-                    (onClick)="onCancel()" [outlined]="true" />
-        </div>
-      </form>
+        </form>
+      </app-card>
 
       @if (!isNew()) {
         <app-tag-selector

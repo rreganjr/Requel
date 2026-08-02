@@ -20,6 +20,7 @@
  */
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, signal, computed, ViewChild } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
+import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -38,7 +39,7 @@ import { CommandService } from '../../core/command.service';
 @Component({
   selector: 'app-user-editor',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, InputText, Password, ButtonModule, CheckboxModule, SelectModule, MessageModule],
+  imports: [PageHeaderComponent, AppCardComponent, FormsModule, InputText, Password, ButtonModule, CheckboxModule, SelectModule, MessageModule],
   template: `
     <div class="user-editor" data-testid="user-editor">
       <app-page-header [title]="isNew() ? 'New User' : 'Edit User: ' + username" />
@@ -50,83 +51,85 @@ import { CommandService } from '../../core/command.service';
         <p-message severity="success" [text]="successMessage()!" />
       }
 
-      <form #userForm="ngForm" (ngSubmit)="onSave()">
-        <div class="form-grid">
-          <div class="field">
-            <label for="username">Username</label>
-            <input pInputText id="username" [(ngModel)]="username" name="username"
-                   [disabled]="!isNew()" />
-          </div>
-
-          <div class="field">
-            <label for="name">Name</label>
-            <input pInputText id="name" [(ngModel)]="name" name="name" />
-          </div>
-
-          <div class="field">
-            <label for="email">Email</label>
-            <input pInputText id="email" [(ngModel)]="emailAddress" name="email" type="email" />
-          </div>
-
-          <div class="field">
-            <label for="phone">Phone</label>
-            <input pInputText id="phone" [(ngModel)]="phoneNumber" name="phone" />
-          </div>
-
-          <div class="field">
-            <label for="org">Organization</label>
-            <p-select id="org" inputId="userOrgInput" data-testid="user-organization"
-                      [(ngModel)]="organizationName" name="org"
-                      [options]="orgOptions()" [editable]="true"
-                      appendTo="body"
-                      placeholder="Select or type organization" />
-          </div>
-
-          <div class="field">
-            <label for="password">Password</label>
-            <p-password id="password" [(ngModel)]="password" name="password"
-                        [feedback]="false" [toggleMask]="true" />
-          </div>
-
-          <div class="field">
-            <label for="repassword">Confirm Password</label>
-            <p-password id="repassword" [(ngModel)]="repassword" name="repassword"
-                        [feedback]="false" [toggleMask]="true" />
-          </div>
-        </div>
-
-        <div class="roles-section" data-testid="user-roles-section">
-          <h3>Roles &amp; Permissions</h3>
-          @for (role of availableRoles(); track role.roleName) {
-            <div class="role-group" data-testid="user-role-group" [attr.data-role-name]="role.roleName">
-              <label class="checkbox-label" data-testid="user-role-label">
-                <p-checkbox [(ngModel)]="selectedRoleNames" [name]="'role_' + role.roleName"
-                            [value]="role.roleName" />
-                {{ role.displayName }}
-              </label>
-              @if (isRoleSelected(role.roleName)) {
-                <div class="permissions">
-                  @for (perm of role.availablePermissions; track perm.name) {
-                    <label class="checkbox-label">
-                      <p-checkbox [(ngModel)]="selectedPermissions[role.roleName]"
-                                  [name]="'perm_' + role.roleName + '_' + perm.name"
-                                  [value]="perm.name" />
-                      {{ perm.name }}
-                    </label>
-                  }
-                </div>
-              }
+      <app-card>
+        <form #userForm="ngForm" (ngSubmit)="onSave()">
+          <div class="form-grid">
+            <div class="field">
+              <label for="username">Username</label>
+              <input pInputText id="username" [(ngModel)]="username" name="username"
+                     [disabled]="!isNew()" />
             </div>
-          }
-        </div>
 
-        <div class="actions">
-          <p-button type="submit" label="Save" icon="pi pi-check" data-testid="user-save"
-                    [loading]="saving()" [disabled]="!userForm.dirty" />
-          <p-button label="Cancel" icon="pi pi-times" severity="secondary"
-                    (onClick)="onCancel()" [outlined]="true" />
-        </div>
-      </form>
+            <div class="field">
+              <label for="name">Name</label>
+              <input pInputText id="name" [(ngModel)]="name" name="name" />
+            </div>
+
+            <div class="field">
+              <label for="email">Email</label>
+              <input pInputText id="email" [(ngModel)]="emailAddress" name="email" type="email" />
+            </div>
+
+            <div class="field">
+              <label for="phone">Phone</label>
+              <input pInputText id="phone" [(ngModel)]="phoneNumber" name="phone" />
+            </div>
+
+            <div class="field">
+              <label for="org">Organization</label>
+              <p-select id="org" inputId="userOrgInput" data-testid="user-organization"
+                        [(ngModel)]="organizationName" name="org"
+                        [options]="orgOptions()" [editable]="true"
+                        appendTo="body"
+                        placeholder="Select or type organization" />
+            </div>
+
+            <div class="field">
+              <label for="password">Password</label>
+              <p-password id="password" [(ngModel)]="password" name="password"
+                          [feedback]="false" [toggleMask]="true" />
+            </div>
+
+            <div class="field">
+              <label for="repassword">Confirm Password</label>
+              <p-password id="repassword" [(ngModel)]="repassword" name="repassword"
+                          [feedback]="false" [toggleMask]="true" />
+            </div>
+          </div>
+
+          <div class="roles-section" data-testid="user-roles-section">
+            <h3>Roles &amp; Permissions</h3>
+            @for (role of availableRoles(); track role.roleName) {
+              <div class="role-group" data-testid="user-role-group" [attr.data-role-name]="role.roleName">
+                <label class="checkbox-label" data-testid="user-role-label">
+                  <p-checkbox [(ngModel)]="selectedRoleNames" [name]="'role_' + role.roleName"
+                              [value]="role.roleName" />
+                  {{ role.displayName }}
+                </label>
+                @if (isRoleSelected(role.roleName)) {
+                  <div class="permissions">
+                    @for (perm of role.availablePermissions; track perm.name) {
+                      <label class="checkbox-label">
+                        <p-checkbox [(ngModel)]="selectedPermissions[role.roleName]"
+                                    [name]="'perm_' + role.roleName + '_' + perm.name"
+                                    [value]="perm.name" />
+                        {{ perm.name }}
+                      </label>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="actions">
+            <p-button type="submit" label="Save" icon="pi pi-check" data-testid="user-save"
+                      [loading]="saving()" [disabled]="!userForm.dirty" />
+            <p-button label="Cancel" icon="pi pi-times" severity="secondary"
+                      (onClick)="onCancel()" [outlined]="true" />
+          </div>
+        </form>
+      </app-card>
     </div>
   `,
   styles: [`

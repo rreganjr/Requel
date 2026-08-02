@@ -20,6 +20,7 @@
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
+import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -39,7 +40,7 @@ import { FileUploadButtonComponent } from '../../shared/file-upload-button';
 @Component({
   selector: 'app-report-editor',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
+  imports: [PageHeaderComponent, AppCardComponent, FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
             ConfirmDialogModule, AnnotationsSectionComponent, FileUploadButtonComponent],
   providers: [ConfirmationService],
   template: `
@@ -64,26 +65,28 @@ import { FileUploadButtonComponent } from '../../shared/file-upload-button';
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <div class="form-grid">
-        <label for="name">Name</label>
-        <input id="name" pInputText [(ngModel)]="name" placeholder="Template name" />
+      <app-card>
+        <div class="form-grid">
+          <label for="name">Name</label>
+          <input id="name" pInputText [(ngModel)]="name" placeholder="Template name" />
 
-        <label for="text">XSLT Template</label>
-        <div class="xslt-field">
-          <textarea id="text" pTextarea [(ngModel)]="text" rows="20"
-                    placeholder="Paste XSLT stylesheet here..." class="xslt-textarea"></textarea>
-          <div class="upload-row">
-            <app-file-upload-button label="Upload XSLT" [outlined]="true" size="small"
-                                    accept=".xsl,.xslt,.xml" (fileSelected)="onFileUpload($event)" />
-            <span class="upload-hint">Upload a .xsl/.xslt file to replace the template text.</span>
+          <label for="text">XSLT Template</label>
+          <div class="xslt-field">
+            <textarea id="text" pTextarea [(ngModel)]="text" rows="20"
+                      placeholder="Paste XSLT stylesheet here..." class="xslt-textarea"></textarea>
+            <div class="upload-row">
+              <app-file-upload-button label="Upload XSLT" [outlined]="true" size="small"
+                                      accept=".xsl,.xslt,.xml" (fileSelected)="onFileUpload($event)" />
+              <span class="upload-hint">Upload a .xsl/.xslt file to replace the template text.</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" data-testid="report-save" (onClick)="onSave()" [loading]="saving()"
-                  [disabled]="!isNew() && !isDirty()" />
-      </div>
+        <div class="form-actions">
+          <p-button label="Save" icon="pi pi-check" data-testid="report-save" (onClick)="onSave()" [loading]="saving()"
+                    [disabled]="!isNew() && !isDirty()" />
+        </div>
+      </app-card>
 
       @if (!isNew()) {
         <app-annotations-section

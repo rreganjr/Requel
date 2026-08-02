@@ -20,6 +20,7 @@
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
+import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
 import { Subscription } from 'rxjs';
@@ -64,7 +65,7 @@ interface StepNodeData {
 @Component({
   selector: 'app-scenario-editor',
   standalone: true,
-  imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, AppCardComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             MessageModule, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent],
   providers: [ConfirmationService],
@@ -92,27 +93,29 @@ interface StepNodeData {
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <div class="form-grid">
-        <label for="name">Name</label>
-        <input id="name" pInputText [(ngModel)]="name" placeholder="Scenario name"
-               (ngModelChange)="trackChanges()" />
+      <app-card>
+        <div class="form-grid">
+          <label for="name">Name</label>
+          <input id="name" pInputText [(ngModel)]="name" placeholder="Scenario name"
+                 (ngModelChange)="trackChanges()" />
 
-        <label for="type">Type</label>
-        <p-select id="type" inputId="scenarioTypeInput" data-testid="scenario-type" [(ngModel)]="scenarioType" [options]="typeOptions"
-                  optionLabel="label" optionValue="value"
-                  (ngModelChange)="trackChanges()" />
+          <label for="type">Type</label>
+          <p-select id="type" inputId="scenarioTypeInput" data-testid="scenario-type" [(ngModel)]="scenarioType" [options]="typeOptions"
+                    optionLabel="label" optionValue="value"
+                    (ngModelChange)="trackChanges()" />
 
-        <label for="text">Description</label>
-        <textarea id="text" pTextarea [(ngModel)]="text" rows="4"
-                  placeholder="Scenario description"
-                  (ngModelChange)="trackChanges()"></textarea>
-      </div>
+          <label for="text">Description</label>
+          <textarea id="text" pTextarea [(ngModel)]="text" rows="4"
+                    placeholder="Scenario description"
+                    (ngModelChange)="trackChanges()"></textarea>
+        </div>
 
-      <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" data-testid="scenario-save"
-                  (onClick)="onSave()" [loading]="saving()"
-                  [disabled]="!isNew() && !hasChanges()" />
-      </div>
+        <div class="form-actions">
+          <p-button label="Save" icon="pi pi-check" data-testid="scenario-save"
+                    (onClick)="onSave()" [loading]="saving()"
+                    [disabled]="!isNew() && !hasChanges()" />
+        </div>
+      </app-card>
 
       <!-- Steps section -->
       @if (!isNew()) {

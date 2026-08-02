@@ -20,6 +20,7 @@
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
+import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -46,7 +47,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 @Component({
   selector: 'app-story-editor',
   standalone: true,
-  imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, AppCardComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent],
   providers: [ConfirmationService],
@@ -77,41 +78,43 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <div class="form-grid">
-        <label for="name">Name</label>
-        <input id="name" pInputText [(ngModel)]="name" placeholder="Story name"
-               (ngModelChange)="trackChanges()" />
+      <app-card>
+        <div class="form-grid">
+          <label for="name">Name</label>
+          <input id="name" pInputText [(ngModel)]="name" placeholder="Story name"
+                 (ngModelChange)="trackChanges()" />
 
-        <label for="type">Type</label>
-        <p-select id="type" inputId="storyTypeInput" data-testid="story-type"
-                  [(ngModel)]="storyType" [options]="storyTypeOptions"
-                  optionLabel="label" optionValue="value"
-                  (ngModelChange)="trackChanges()" />
+          <label for="type">Type</label>
+          <p-select id="type" inputId="storyTypeInput" data-testid="story-type"
+                    [(ngModel)]="storyType" [options]="storyTypeOptions"
+                    optionLabel="label" optionValue="value"
+                    (ngModelChange)="trackChanges()" />
 
-        <label for="primaryActor">Primary Actor</label>
-        <p-select id="primaryActor" inputId="storyPrimaryActorInput"
-                  data-testid="story-primary-actor"
-                  [(ngModel)]="primaryActorName"
-                  [options]="actorOptions()"
-                  optionLabel="label"
-                  optionValue="value"
-                  [showClear]="true"
-                  [pt]="{ clearIcon: { 'data-testid': 'story-primary-actor-clear' } }"
-                  placeholder="Select primary actor"
-                  (ngModelChange)="trackChanges()"
-                  styleClass="w-full" />
+          <label for="primaryActor">Primary Actor</label>
+          <p-select id="primaryActor" inputId="storyPrimaryActorInput"
+                    data-testid="story-primary-actor"
+                    [(ngModel)]="primaryActorName"
+                    [options]="actorOptions()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [showClear]="true"
+                    [pt]="{ clearIcon: { 'data-testid': 'story-primary-actor-clear' } }"
+                    placeholder="Select primary actor"
+                    (ngModelChange)="trackChanges()"
+                    styleClass="w-full" />
 
-        <label for="text">Text</label>
-        <textarea id="text" pTextarea [(ngModel)]="text" rows="8"
-                  placeholder="Story text"
-                  (ngModelChange)="trackChanges()"></textarea>
-      </div>
+          <label for="text">Text</label>
+          <textarea id="text" pTextarea [(ngModel)]="text" rows="8"
+                    placeholder="Story text"
+                    (ngModelChange)="trackChanges()"></textarea>
+        </div>
 
-      <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" data-testid="story-save"
-                  (onClick)="onSave()" [loading]="saving()"
-                  [disabled]="!isNew() && !hasChanges()" />
-      </div>
+        <div class="form-actions">
+          <p-button label="Save" icon="pi pi-check" data-testid="story-save"
+                    (onClick)="onSave()" [loading]="saving()"
+                    [disabled]="!isNew() && !hasChanges()" />
+        </div>
+      </app-card>
 
       <!-- Goals sub-table -->
       @if (!isNew() && story()) {

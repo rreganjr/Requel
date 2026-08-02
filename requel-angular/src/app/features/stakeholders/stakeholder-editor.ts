@@ -20,6 +20,7 @@
  */
 import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
+import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -51,7 +52,7 @@ interface PermissionGroup {
 @Component({
   selector: 'app-stakeholder-editor',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, AppCardComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             CheckboxModule, MessageModule, ConfirmDialogModule, TableModule,
             EntitySelectorDialogComponent],
   providers: [ConfirmationService],
@@ -73,66 +74,68 @@ interface PermissionGroup {
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <div class="form-grid">
-        @if (isUserType()) {
-          <label for="username">User</label>
-          <p-select id="username" [(ngModel)]="username" [options]="userOptions()"
-                    optionLabel="label" optionValue="value"
-                    placeholder="Select a user" [filter]="true"
-                    [disabled]="!isNew()" />
+      <app-card>
+        <div class="form-grid">
+          @if (isUserType()) {
+            <label for="username">User</label>
+            <p-select id="username" [(ngModel)]="username" [options]="userOptions()"
+                      optionLabel="label" optionValue="value"
+                      placeholder="Select a user" [filter]="true"
+                      [disabled]="!isNew()" />
 
-          @if (loadedUserDetails(); as ud) {
-            <label>Email</label>
-            <span class="readonly-field">{{ ud.emailAddress || '—' }}</span>
+            @if (loadedUserDetails(); as ud) {
+              <label>Email</label>
+              <span class="readonly-field">{{ ud.emailAddress || '—' }}</span>
 
-            <label>Phone</label>
-            <span class="readonly-field">{{ ud.phoneNumber || '—' }}</span>
+              <label>Phone</label>
+              <span class="readonly-field">{{ ud.phoneNumber || '—' }}</span>
+            }
+
+            <label for="team">Team</label>
+            <input id="team" pInputText [(ngModel)]="teamName" placeholder="Team name"
+                   (ngModelChange)="trackChanges()" />
           }
 
-          <label for="team">Team</label>
-          <input id="team" pInputText [(ngModel)]="teamName" placeholder="Team name"
-                 (ngModelChange)="trackChanges()" />
-        }
-
-        @if (isUserType() && permissionGroups().length > 0) {
-          <div class="permissions-section">
-            <h3>Permissions</h3>
-            <div class="permission-grid">
-              <div class="permission-header"></div>
-              <div class="permission-header">Edit</div>
-              <div class="permission-header">Delete</div>
-              <div class="permission-header">Grant</div>
-              @for (group of permissionGroups(); track group.entityType) {
-                <div class="permission-entity">{{ group.entityType }}</div>
-                @for (type of ['Edit', 'Delete', 'Grant']; track type) {
-                  <div class="permission-check">
-                    @if (getPermission(group, type); as perm) {
-                      <p-checkbox [(ngModel)]="perm.checked" [binary]="true"
-                                  [name]="perm.key" (onChange)="trackChanges()" />
-                    }
-                  </div>
+          @if (isUserType() && permissionGroups().length > 0) {
+            <div class="permissions-section">
+              <h3>Permissions</h3>
+              <div class="permission-grid">
+                <div class="permission-header"></div>
+                <div class="permission-header">Edit</div>
+                <div class="permission-header">Delete</div>
+                <div class="permission-header">Grant</div>
+                @for (group of permissionGroups(); track group.entityType) {
+                  <div class="permission-entity">{{ group.entityType }}</div>
+                  @for (type of ['Edit', 'Delete', 'Grant']; track type) {
+                    <div class="permission-check">
+                      @if (getPermission(group, type); as perm) {
+                        <p-checkbox [(ngModel)]="perm.checked" [binary]="true"
+                                    [name]="perm.key" (onChange)="trackChanges()" />
+                      }
+                    </div>
+                  }
                 }
-              }
+              </div>
             </div>
-          </div>
-        }
+          }
 
-        @if (!isUserType()) {
-          <label for="name">Name</label>
-          <input id="name" pInputText [(ngModel)]="stakeholderName" placeholder="Stakeholder name"
-                 (ngModelChange)="trackChanges()" />
+          @if (!isUserType()) {
+            <label for="name">Name</label>
+            <input id="name" pInputText [(ngModel)]="stakeholderName" placeholder="Stakeholder name"
+                   (ngModelChange)="trackChanges()" />
 
-          <label for="text">Description</label>
-          <textarea id="text" pTextarea [(ngModel)]="text" rows="4"
-                    placeholder="Description of this stakeholder"
-                    (ngModelChange)="trackChanges()"></textarea>
-        }
-      </div>
+            <label for="text">Description</label>
+            <textarea id="text" pTextarea [(ngModel)]="text" rows="4"
+                      placeholder="Description of this stakeholder"
+                      (ngModelChange)="trackChanges()"></textarea>
+          }
+        </div>
 
-      <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()"
-                  [disabled]="!isNew() && !hasChanges()" />
-      </div>
+        <div class="form-actions">
+          <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()"
+                    [disabled]="!isNew() && !hasChanges()" />
+        </div>
+      </app-card>
 
       @if (!isNew()) {
         <div class="section">

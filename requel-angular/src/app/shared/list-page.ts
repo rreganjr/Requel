@@ -21,11 +21,12 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { InputText } from 'primeng/inputtext';
 import { PageHeaderComponent } from './page-header';
+import { AppCardComponent } from './app-card';
 
 @Component({
   selector: 'app-list-page',
   standalone: true,
-  imports: [PageHeaderComponent, InputText],
+  imports: [PageHeaderComponent, InputText, AppCardComponent],
   template: `
     <div class="list-page-wrap">
       <div class="page-header">
@@ -44,7 +45,7 @@ import { PageHeaderComponent } from './page-header';
           </span>
         </div>
       }
-      <ng-content />
+      <app-card><ng-content /></app-card>
     </div>
   `,
   // Compact, consistent list-page toolbar (issue #127): the title/actions row

@@ -20,6 +20,7 @@
  */
 import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
+import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location } from '@angular/common';
 import { Subscription } from 'rxjs';
@@ -53,7 +54,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 @Component({
   selector: 'app-use-case-editor',
   standalone: true,
-  imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
+  imports: [PageHeaderComponent, AppCardComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
             ConfirmDialogModule, TableModule, TooltipModule, SelectModule,
             EntitySelectorDialogComponent, AnnotationsSectionComponent],
   providers: [ConfirmationService],
@@ -81,35 +82,37 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <div class="form-grid">
-        <label for="name">Name</label>
-        <input id="name" pInputText [(ngModel)]="name" placeholder="Use case name"
-               (ngModelChange)="trackChanges()" />
+      <app-card>
+        <div class="form-grid">
+          <label for="name">Name</label>
+          <input id="name" pInputText [(ngModel)]="name" placeholder="Use case name"
+                 (ngModelChange)="trackChanges()" />
 
-        <label for="primaryActor">Primary Actor</label>
-        <p-select id="primaryActor" inputId="useCasePrimaryActorInput"
-                  data-testid="use-case-primary-actor"
-                  [(ngModel)]="primaryActorName"
-                  [options]="actorOptions()"
-                  optionLabel="label"
-                  optionValue="value"
-                  [showClear]="true"
-                  [pt]="{ clearIcon: { 'data-testid': 'use-case-primary-actor-clear' } }"
-                  placeholder="Select primary actor"
-                  (ngModelChange)="trackChanges()"
-                  styleClass="w-full" />
+          <label for="primaryActor">Primary Actor</label>
+          <p-select id="primaryActor" inputId="useCasePrimaryActorInput"
+                    data-testid="use-case-primary-actor"
+                    [(ngModel)]="primaryActorName"
+                    [options]="actorOptions()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [showClear]="true"
+                    [pt]="{ clearIcon: { 'data-testid': 'use-case-primary-actor-clear' } }"
+                    placeholder="Select primary actor"
+                    (ngModelChange)="trackChanges()"
+                    styleClass="w-full" />
 
-        <label for="text">Description</label>
-        <textarea id="text" pTextarea [(ngModel)]="text" rows="4"
-                  placeholder="Use case description"
-                  (ngModelChange)="trackChanges()"></textarea>
-      </div>
+          <label for="text">Description</label>
+          <textarea id="text" pTextarea [(ngModel)]="text" rows="4"
+                    placeholder="Use case description"
+                    (ngModelChange)="trackChanges()"></textarea>
+        </div>
 
-      <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" data-testid="use-case-save"
-                  (onClick)="onSave()" [loading]="saving()"
-                  [disabled]="!isNew() && !hasChanges()" />
-      </div>
+        <div class="form-actions">
+          <p-button label="Save" icon="pi pi-check" data-testid="use-case-save"
+                    (onClick)="onSave()" [loading]="saving()"
+                    [disabled]="!isNew() && !hasChanges()" />
+        </div>
+      </app-card>
 
       <!-- Primary Scenario section -->
       @if (!isNew()) {

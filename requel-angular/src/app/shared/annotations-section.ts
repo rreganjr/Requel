@@ -28,14 +28,16 @@ import { SelectModule } from 'primeng/select';
 import { MessageService } from 'primeng/api';
 import { AnnotationsDto, IssueDto, NoteDto, PositionDto, SUPPORT_LEVEL_OPTIONS } from '../models/annotation';
 import { AnnotationService } from '../core/annotation.service';
+import { AppCardComponent } from './app-card';
 
 @Component({
   selector: 'app-annotations-section',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule],
+  imports: [FormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule, AppCardComponent],
   template: `
     @if (entityId != null) {
       <div class="annotations-section" data-testid="annotations-section">
+        <app-card>
         <div class="section-header">
           <h3>Annotations</h3>
           @if (canEdit) {
@@ -213,6 +215,7 @@ import { AnnotationService } from '../core/annotation.service';
         @if (annotations().notes.length === 0 && annotations().issues.length === 0 && !showNoteForm() && !showIssueForm()) {
           <p class="empty-text">No annotations.</p>
         }
+        </app-card>
       </div>
     }
   `,
