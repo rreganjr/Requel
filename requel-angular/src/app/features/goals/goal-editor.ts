@@ -43,13 +43,14 @@ import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { TagSelectorComponent } from '../../shared/tag-selector';
+import { AppCardComponent } from '../../shared/app-card';
 
 @Component({
   selector: 'app-goal-editor',
   standalone: true,
   imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, DialogModule, ConfirmDialogModule, EntitySelectorDialogComponent,
-            AnnotationsSectionComponent, TagSelectorComponent],
+            AnnotationsSectionComponent, TagSelectorComponent, AppCardComponent],
   providers: [ConfirmationService],
   template: `
     <div class="goal-editor" data-testid="goal-editor">
@@ -75,18 +76,20 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <div class="form-grid">
-        <label for="name">Name</label>
-        <input id="name" pInputText [(ngModel)]="name" placeholder="Goal name" />
+      <app-card>
+        <div class="form-grid">
+          <label for="name">Name</label>
+          <input id="name" pInputText [(ngModel)]="name" placeholder="Goal name" />
 
-        <label for="text">Description</label>
-        <textarea id="text" pTextarea [(ngModel)]="text" rows="6"
-                  placeholder="Goal description"></textarea>
-      </div>
+          <label for="text">Description</label>
+          <textarea id="text" pTextarea [(ngModel)]="text" rows="6"
+                    placeholder="Goal description"></textarea>
+        </div>
 
-      <div class="form-actions">
-        <p-button label="Save" icon="pi pi-check" data-testid="goal-save" (onClick)="onSave()" [loading]="saving()" />
-      </div>
+        <div class="form-actions">
+          <p-button label="Save" icon="pi pi-check" data-testid="goal-save" (onClick)="onSave()" [loading]="saving()" />
+        </div>
+      </app-card>
 
       <!-- Relations: outgoing (this goal supports/conflicts with...) -->
       @if (!isNew() && goal()) {

@@ -20,6 +20,7 @@
  */
 import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
+import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -44,7 +45,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 @Component({
   selector: 'app-actor-editor',
   standalone: true,
-  imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, TableModule,
+  imports: [PageHeaderComponent, AppCardComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, TableModule,
             MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent],
   providers: [ConfirmationService],
@@ -72,27 +73,29 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
         <p-message severity="error" [text]="errorMessage()!" data-testid="actor-error" />
       }
 
-      <div class="form-grid">
-        <label for="name">Name</label>
-        <input id="name" pInputText [(ngModel)]="name"
-               placeholder="Actor name" [disabled]="!canEdit()"
-               (ngModelChange)="trackChanges()" />
+      <app-card>
+        <div class="form-grid">
+          <label for="name">Name</label>
+          <input id="name" pInputText [(ngModel)]="name"
+                 placeholder="Actor name" [disabled]="!canEdit()"
+                 (ngModelChange)="trackChanges()" />
 
-        <label for="text">Description</label>
-        <textarea id="text" pTextarea [(ngModel)]="text"
-                  placeholder="Actor description" [rows]="4"
-                  [disabled]="!canEdit()"
-                  (ngModelChange)="trackChanges()"></textarea>
-      </div>
-
-      @if (canEdit()) {
-        <div class="form-actions">
-          <p-button label="{{ isNew() ? 'Create' : 'Save' }}" icon="pi pi-check"
-                    [attr.data-testid]="isNew() ? 'actor-create' : 'actor-save'"
-                    [disabled]="!isNew() && !hasChanges()"
-                    (onClick)="onSave()" />
+          <label for="text">Description</label>
+          <textarea id="text" pTextarea [(ngModel)]="text"
+                    placeholder="Actor description" [rows]="4"
+                    [disabled]="!canEdit()"
+                    (ngModelChange)="trackChanges()"></textarea>
         </div>
-      }
+
+        @if (canEdit()) {
+          <div class="form-actions">
+            <p-button label="{{ isNew() ? 'Create' : 'Save' }}" icon="pi pi-check"
+                      [attr.data-testid]="isNew() ? 'actor-create' : 'actor-save'"
+                      [disabled]="!isNew() && !hasChanges()"
+                      (onClick)="onSave()" />
+          </div>
+        }
+      </app-card>
 
       @if (!isNew()) {
         <div class="goals-section">

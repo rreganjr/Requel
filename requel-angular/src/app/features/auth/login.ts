@@ -26,14 +26,15 @@ import { Password } from 'primeng/password';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { AuthService } from '../../core/auth.service';
+import { AppCardComponent } from '../../shared/app-card';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [FormsModule, InputText, Password, ButtonModule, MessageModule],
+  imports: [FormsModule, InputText, Password, ButtonModule, MessageModule, AppCardComponent],
   template: `
     <div class="login-container">
-      <div class="login-card">
+      <app-card class="login-card">
         <h1>Requel</h1>
         <p class="subtitle">Requirements Elicitation System</p>
 
@@ -58,7 +59,7 @@ import { AuthService } from '../../core/auth.service';
           <p-button type="submit" label="Login" [loading]="loading()"
                     [disabled]="!username() || !password()" styleClass="w-full" />
         </form>
-      </div>
+      </app-card>
     </div>
   `,
   styles: [`
@@ -69,11 +70,10 @@ import { AuthService } from '../../core/auth.service';
       min-height: 100vh;
       background: var(--p-surface-ground);
     }
+    /* The surface (bg, padding, border, radius, shadow) comes from app-card
+       (issue #156); only the login-specific width constraint stays here. */
     .login-card {
-      background: var(--p-surface-card);
-      padding: 2rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      display: block;
       width: 100%;
       max-width: 400px;
     }

@@ -84,6 +84,20 @@
   --rq-header-bg: var(--p-primary-900);
   --rq-header-fg: var(--p-surface-0);
 
+  // Card / content surface (issue #156). The single source of truth for the
+  // white rounded card used by list and editor shells. Values alias the shared
+  // scale so the card has no independent magic numbers: bg/border read the
+  // Slate surface ramp from the #125 preset (so light/future-dark theming flows
+  // through), radius = md (6px), padding = space-4 (1rem). The soft shadow is
+  // the one card-specific literal — there is no shadow scale yet; if one is
+  // added later, re-alias --rq-card-shadow to it.
+  --rq-card-bg: var(--p-surface-0);
+  --rq-card-border: var(--p-surface-200);
+  --rq-card-radius: var(--rq-radius-md);
+  --rq-card-pad: var(--rq-space-4);
+  --rq-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.06),
+    0 1px 3px rgba(15, 23, 42, 0.04);
+
   // Minimum hit-area sizes for custom (non-PrimeNG) interactive controls
   // (issue #141, WCAG 2.2 SC 2.5.8 Target Size). `min` is the hard 24px floor
   // for controls packed inline among siblings (e.g. a chip's remove button);
