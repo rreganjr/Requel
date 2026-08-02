@@ -91,7 +91,11 @@ import { TagService } from '../core/tag.service';
       font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 12px;
       background: var(--p-primary-100, #dbeafe); color: var(--p-primary-700, #1d4ed8); }
     .tag-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .chip-x { border: none; background: transparent; cursor: pointer; font-size: 0.9rem;
+    /* Packed inline control: 24px hit-area floor (issue #141, WCAG 2.5.8) via a
+       centered min-box; the glyph stays small so the chip keeps its dense look. */
+    .chip-x { display: inline-flex; align-items: center; justify-content: center;
+      min-width: var(--rq-target-min); min-height: var(--rq-target-min);
+      border: none; background: transparent; cursor: pointer; font-size: 0.9rem;
       line-height: 1; color: inherit; padding: 0; }
     .add-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
     .cat-input, .val-input { max-width: 200px; }
