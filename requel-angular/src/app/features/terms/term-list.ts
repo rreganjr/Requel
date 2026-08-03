@@ -18,10 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SlicePipe } from '@angular/common';
@@ -29,51 +28,42 @@ import { GlossaryTermDto } from '../../models/term';
 import { TermService } from '../../core/term.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
+import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
   selector: 'app-term-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SlicePipe],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, SlicePipe],
   template: `
-    <app-list-page title="Terms" searchPlaceholder="Search terms..."
-                   (search)="dt.filterGlobal($event, 'contains')">
-      <ng-container actions>
-        @if (canEdit()) {
-          <p-button label="New Term" icon="pi pi-plus" (onClick)="onNewTerm()" />
-        }
-      </ng-container>
-
+    <app-list-page title="Terms" [showSearch]="false">
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <p-table #dt [value]="terms()" [loading]="loading()" [paginator]="true" [rows]="20"
-               [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
-               [globalFilterFields]="['name', 'text', 'canonicalTermName', 'createdBy']">
-        <ng-template #header>
-          <tr>
-            <th pSortableColumn="name">Term <p-sortIcon field="name" /></th>
-            <th>Definition</th>
-            <th pSortableColumn="canonicalTermName">Canonical Term <p-sortIcon field="canonicalTermName" /></th>
-            <th pSortableColumn="createdBy">Created By <p-sortIcon field="createdBy" /></th>
-          </tr>
-        </ng-template>
-        <ng-template #body let-t>
-          <tr [pSelectableRow]="t">
-            <td>{{ t.name }}</td>
-            <td class="text-preview">{{ t.text | slice:0:80 }}{{ (t.text?.length ?? 0) > 80 ? '...' : '' }}</td>
-            <td>{{ t.canonicalTermName ?? '—' }}</td>
-            <td>{{ t.createdBy }}</td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr><td colspan="4" class="text-center">No glossary terms found.</td></tr>
-        </ng-template>
-      </p-table>
+      <app-data-table [value]="terms()" [columns]="columns" [loading]="loading()"
+                      [rowActions]="rowActions" searchPlaceholder="Search terms..."
+                      [globalFilterFields]="['name', 'text', 'canonicalTermName', 'createdBy']"
+                      testid="term-list" (rowClick)="onRowSelect({ data: $event })"
+                      emptyTitle="No glossary terms yet"
+                      emptyMessage="Define the shared vocabulary this project relies on."
+                      emptyIcon="pi-book" emptyActionLabel="New Term"
+                      [showEmptyAction]="canEdit()" (emptyAction)="onNewTerm()">
+        <div toolbarActions>
+          @if (canEdit()) {
+            <p-button label="New Term" icon="pi pi-plus" (onClick)="onNewTerm()" />
+          }
+        </div>
+      </app-data-table>
     </app-list-page>
+
+    <ng-template #textCell let-t>
+      <span class="text-preview">{{ t.text | slice:0:80 }}{{ (t.text?.length ?? 0) > 80 ? '...' : '' }}</span>
+    </ng-template>
+    <ng-template #canonicalCell let-t>{{ t.canonicalTermName ?? '—' }}</ng-template>
   `,
   styles: [`
-    .text-preview { max-width: 350px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .text-preview { display: inline-block; max-width: 350px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
   `]
 })
 export class TermListComponent implements OnInit, OnDestroy {
@@ -81,6 +71,13 @@ export class TermListComponent implements OnInit, OnDestroy {
   loading = signal(true);
   errorMessage = signal<string | null>(null);
   canEdit = signal(false);
+
+  @ViewChild('textCell', { static: true }) textCell!: TemplateRef<{ $implicit: GlossaryTermDto }>;
+  @ViewChild('canonicalCell', { static: true }) canonicalCell!: TemplateRef<{ $implicit: GlossaryTermDto }>;
+  columns: DataTableColumn<GlossaryTermDto>[] = [];
+  rowActions: RowAction<GlossaryTermDto>[] = [
+    { label: 'Open', icon: 'pi pi-eye', command: t => this.onRowSelect({ data: t }) }
+  ];
 
   private projectName = '';
   private paramSub?: Subscription;
@@ -93,6 +90,12 @@ export class TermListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.columns = [
+      { field: 'name', header: 'Term', sortable: true },
+      { field: 'text', header: 'Definition', cellTemplate: this.textCell },
+      { field: 'canonicalTermName', header: 'Canonical Term', sortable: true, cellTemplate: this.canonicalCell },
+      { field: 'createdBy', header: 'Created By', sortable: true }
+    ];
     this.paramSub = this.route.paramMap.subscribe(async params => {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {

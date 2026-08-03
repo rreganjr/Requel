@@ -18,11 +18,10 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, TemplateRef, ViewChild, computed, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SelectModule } from 'primeng/select';
@@ -35,74 +34,61 @@ import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
 import { AppChipComponent } from '../../shared/app-chip';
 import { EmptyStateComponent } from '../../shared/empty-state';
+import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
   selector: 'app-goal-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SelectModule, FormsModule, SlicePipe, AppChipComponent, EmptyStateComponent],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, SelectModule, FormsModule, SlicePipe, AppChipComponent, EmptyStateComponent],
   template: `
-    <app-list-page title="Goals" [eyebrow]="projectContext()" searchPlaceholder="Search goals..."
-                   (search)="dt.filterGlobal($event, 'contains')">
-      <ng-container actions>
-        <p-select [options]="tagFilterOptions()" [ngModel]="selectedTagId()"
-                  (ngModelChange)="selectedTagId.set($event)"
-                  optionLabel="label" optionValue="value" placeholder="Filter by tag"
-                  data-testid="goal-tag-filter" [showClear]="true" class="tag-filter" />
-        @if (canEdit()) {
-          <p-button label="New Goal" icon="pi pi-plus" (onClick)="onNewGoal()" />
-        }
-      </ng-container>
-
+    <app-list-page title="Goals" [eyebrow]="projectContext()" [showSearch]="false">
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <p-table #dt [value]="displayedGoals()" [loading]="loading()" [paginator]="true" [rows]="20"
-               [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
-               [globalFilterFields]="['name', 'text', 'createdBy']">
-        <ng-template #header>
-          <tr>
-            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
-            <th>Text</th>
-            <th>Tags</th>
-            <th pSortableColumn="createdBy">Created By <p-sortIcon field="createdBy" /></th>
-          </tr>
+      <app-data-table [value]="displayedGoals()" [columns]="columns" [loading]="loading()"
+                      [rowActions]="rowActions" searchPlaceholder="Search goals..."
+                      [globalFilterFields]="['name', 'text', 'createdBy']" testid="goal-list"
+                      (rowClick)="openGoal($event)">
+        <div toolbarActions class="goal-toolbar-actions">
+          <p-select [options]="tagFilterOptions()" [ngModel]="selectedTagId()"
+                    (ngModelChange)="selectedTagId.set($event)"
+                    optionLabel="label" optionValue="value" placeholder="Filter by tag"
+                    data-testid="goal-tag-filter" [showClear]="true" class="tag-filter" />
+          @if (canEdit()) {
+            <p-button label="New Goal" icon="pi pi-plus" (onClick)="onNewGoal()" />
+          }
+        </div>
+        <ng-template #empty>
+          @if (selectedTagId() != null) {
+            <app-empty-state title="No goals match this tag"
+                             message="Try clearing the tag filter to see all goals."
+                             icon="pi-filter-slash" testid="goal-list-empty" />
+          } @else {
+            <app-empty-state title="No goals yet"
+                             message="Capture the objectives this project needs to meet."
+                             icon="pi-flag" actionLabel="New Goal" [showAction]="canEdit()"
+                             testid="goal-list-empty" (action)="onNewGoal()" />
+          }
         </ng-template>
-        <ng-template #body let-g>
-          <tr [pSelectableRow]="g">
-            <td>{{ g.name }}</td>
-            <td class="text-preview">{{ g.text | slice:0:80 }}{{ g.text?.length > 80 ? '...' : '' }}</td>
-            <td>
-              <span class="chips" data-testid="goal-row-tags">
-                @for (t of tagsForGoal(g.id); track t.id) {
-                  <app-chip [label]="label(t)" [tone]="'primary'" [attr.data-tag]="label(t)" />
-                }
-              </span>
-            </td>
-            <td>{{ g.createdBy }}</td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr>
-            <td colspan="4">
-              @if (selectedTagId() != null) {
-                <app-empty-state title="No goals match this tag"
-                                 message="Try clearing the tag filter to see all goals."
-                                 icon="pi-filter-slash" testid="goal-list-empty" />
-              } @else {
-                <app-empty-state title="No goals yet"
-                                 message="Capture the objectives this project needs to meet."
-                                 icon="pi-flag" actionLabel="New Goal" [showAction]="canEdit()"
-                                 testid="goal-list-empty" (action)="onNewGoal()" />
-              }
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
+      </app-data-table>
     </app-list-page>
+
+    <ng-template #textCell let-g>
+      <span class="text-preview">{{ g.text | slice:0:80 }}{{ g.text?.length > 80 ? '...' : '' }}</span>
+    </ng-template>
+    <ng-template #tagsCell let-g>
+      <span class="chips" data-testid="goal-row-tags">
+        @for (t of tagsForGoal(g.id); track t.id) {
+          <app-chip [label]="label(t)" [tone]="'primary'" [attr.data-tag]="label(t)" />
+        }
+      </span>
+    </ng-template>
   `,
   styles: [`
-    .text-preview { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .goal-toolbar-actions { display: flex; align-items: center; gap: var(--rq-space-2); }
+    .text-preview { display: inline-block; max-width: 400px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
     .tag-filter { min-width: 200px; }
     .chips { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; }
   `]
@@ -131,6 +117,22 @@ export class GoalListComponent implements OnInit, OnDestroy {
     return this.goals().filter(g => (byGoal.get(g.id) ?? []).some(t => t.id === tagId));
   });
 
+  /** Custom cell renderers (static — declared at the top level of the view). */
+  @ViewChild('textCell', { static: true }) textCell!: TemplateRef<{ $implicit: GoalDto }>;
+  @ViewChild('tagsCell', { static: true }) tagsCell!: TemplateRef<{ $implicit: GoalDto }>;
+
+  /** Data-table column config, wired to the cell templates in ngOnInit. */
+  columns: DataTableColumn<GoalDto>[] = [];
+
+  /**
+   * Row `⋯` menu. Goals expose only Open from the list (edit/delete live in the
+   * editor), so we replace the default menu with a single Open action; whole-row
+   * click opens too.
+   */
+  rowActions: RowAction<GoalDto>[] = [
+    { label: 'Open', icon: 'pi pi-eye', command: g => this.openGoal(g) }
+  ];
+
   private projectName = '';
   private paramSub?: Subscription;
 
@@ -143,6 +145,12 @@ export class GoalListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.columns = [
+      { field: 'name', header: 'Name', sortable: true },
+      { field: 'text', header: 'Text', cellTemplate: this.textCell, class: 'text-col' },
+      { field: 'tags', header: 'Tags', cellTemplate: this.tagsCell },
+      { field: 'createdBy', header: 'Created By', sortable: true }
+    ];
     this.paramSub = this.route.paramMap.subscribe(async params => {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {
@@ -206,9 +214,7 @@ export class GoalListComponent implements OnInit, OnDestroy {
     return tagLabel(tag);
   }
 
-  onRowSelect(event: { data?: GoalDto | GoalDto[] }): void {
-    const g = Array.isArray(event.data) ? event.data[0] : event.data;
-    if (!g) return;
+  openGoal(g: GoalDto): void {
     this.router.navigate(['/projects', this.projectName, 'goals', g.id]);
   }
 

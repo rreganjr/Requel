@@ -18,16 +18,16 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { FormsModule } from '@angular/forms';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { MessageService } from 'primeng/api';
 import { TagDto } from '../../models/tag';
 import { TagService } from '../../core/tag.service';
+import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
 
 /**
  * Admin surface for the global (system) tag set: tags with no owning project, shared across
@@ -37,7 +37,7 @@ import { TagService } from '../../core/tag.service';
 @Component({
   selector: 'app-global-tags',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, TableModule, ButtonModule, InputText, MessageModule],
+  imports: [PageHeaderComponent, FormsModule, AppDataTableComponent, ButtonModule, InputText, MessageModule],
   template: `
     <div class="global-tags" data-testid="global-tags">
       <div class="page-header"><app-page-header title="Global Tags" /></div>
@@ -56,32 +56,18 @@ import { TagService } from '../../core/tag.service';
                   (onClick)="addTag()" />
       </div>
 
-      <p-table [value]="tags()" [loading]="loading()" [paginator]="true" [rows]="20" [rowHover]="true">
-        <ng-template #header>
-          <tr>
-            <th>Category</th>
-            <th>Value</th>
-            <th>Created By</th>
-            <th class="col-actions"></th>
-          </tr>
+      <app-data-table [value]="tags()" [columns]="columns" [loading]="loading()"
+                      [showToolbar]="false" [rowClickable]="false" testid="global-tag"
+                      emptyTitle="No global tags" emptyIcon="pi-tag">
+        <ng-template #rowActions let-t>
+          <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
+                    data-testid="global-tag-delete" [ariaLabel]="'Delete tag ' + t.value"
+                    (onClick)="deleteTag(t)" />
         </ng-template>
-        <ng-template #body let-t>
-          <tr data-testid="global-tag-row">
-            <td>{{ t.category ?? '—' }}</td>
-            <td>{{ t.value }}</td>
-            <td>{{ t.createdBy }}</td>
-            <td>
-              <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                        data-testid="global-tag-delete" [ariaLabel]="'Delete tag ' + t.value"
-                        (onClick)="deleteTag(t)" />
-            </td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr><td colspan="4" class="text-center">No global tags.</td></tr>
-        </ng-template>
-      </p-table>
+      </app-data-table>
     </div>
+
+    <ng-template #categoryCell let-t>{{ t.category ?? '—' }}</ng-template>
   `,
   styles: [`
     .global-tags { max-width: 800px; }
@@ -98,9 +84,17 @@ export class GlobalTagsComponent implements OnInit {
   newCategory = '';
   newValue = '';
 
+  @ViewChild('categoryCell', { static: true }) categoryCell!: TemplateRef<{ $implicit: TagDto }>;
+  columns: DataTableColumn<TagDto>[] = [];
+
   constructor(private tagService: TagService, private messageService: MessageService) {}
 
   ngOnInit(): void {
+    this.columns = [
+      { field: 'category', header: 'Category', cellTemplate: this.categoryCell },
+      { field: 'value', header: 'Value', sortable: true },
+      { field: 'createdBy', header: 'Created By', sortable: true }
+    ];
     void this.load();
   }
 

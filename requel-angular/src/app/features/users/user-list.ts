@@ -18,51 +18,35 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { UserDto } from '../../models/user';
 import { UserService } from '../../core/user.service';
 import { ListPageComponent } from '../../shared/list-page';
+import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
   selector: 'app-user-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule],
   template: `
-    <app-list-page title="Users" searchPlaceholder="Search users..."
-                   (search)="dt.filterGlobal($event, 'contains')">
-      <ng-container actions>
-        <p-button label="New User" icon="pi pi-plus" (onClick)="onNewUser()" />
-      </ng-container>
-
-      <p-table #dt [value]="users()" [loading]="loading()" [paginator]="true" [rows]="20"
-               [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
-               [globalFilterFields]="['username', 'name', 'emailAddress', 'organizationName']">
-        <ng-template #header>
-          <tr>
-            <th pSortableColumn="username">Username <p-sortIcon field="username" /></th>
-            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
-            <th pSortableColumn="emailAddress">Email <p-sortIcon field="emailAddress" /></th>
-            <th pSortableColumn="organizationName">Organization <p-sortIcon field="organizationName" /></th>
-            <th>Roles</th>
-          </tr>
-        </ng-template>
-        <ng-template #body let-user>
-          <tr [pSelectableRow]="user" [attr.data-username]="user.username">
-            <td>{{ user.username }}</td>
-            <td>{{ user.name }}</td>
-            <td>{{ user.emailAddress }}</td>
-            <td>{{ user.organizationName }}</td>
-            <td>{{ user.roles.join(', ') }}</td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr><td colspan="5">No users found.</td></tr>
-        </ng-template>
-      </p-table>
+    <app-list-page title="Users" [showSearch]="false">
+      <app-data-table [value]="users()" [columns]="columns" [loading]="loading()"
+                      [rowActions]="rowActions" searchPlaceholder="Search users..."
+                      [globalFilterFields]="['username', 'name', 'emailAddress', 'organizationName']"
+                      testid="user-list" (rowClick)="onRowSelect({ data: $event })"
+                      emptyTitle="No users yet"
+                      emptyMessage="Add the people who can sign in to Requel."
+                      emptyIcon="pi-users" emptyActionLabel="New User"
+                      [showEmptyAction]="true" (emptyAction)="onNewUser()">
+        <div toolbarActions>
+          <p-button label="New User" icon="pi pi-plus" (onClick)="onNewUser()" />
+        </div>
+      </app-data-table>
     </app-list-page>
+
+    <ng-template #rolesCell let-user>{{ user.roles.join(', ') }}</ng-template>
   `,
   styles: []
 })
@@ -71,9 +55,22 @@ export class UserListComponent implements OnInit {
   readonly users = signal<UserDto[]>([]);
   readonly loading = signal(true);
 
+  @ViewChild('rolesCell', { static: true }) rolesCell!: TemplateRef<{ $implicit: UserDto }>;
+  columns: DataTableColumn<UserDto>[] = [];
+  rowActions: RowAction<UserDto>[] = [
+    { label: 'Open', icon: 'pi pi-eye', command: u => this.onRowSelect({ data: u }) }
+  ];
+
   constructor(private userService: UserService, private router: Router) {}
 
   async ngOnInit(): Promise<void> {
+    this.columns = [
+      { field: 'username', header: 'Username', sortable: true },
+      { field: 'name', header: 'Name', sortable: true },
+      { field: 'emailAddress', header: 'Email', sortable: true },
+      { field: 'organizationName', header: 'Organization', sortable: true },
+      { field: 'roles', header: 'Roles', cellTemplate: this.rolesCell }
+    ];
     try {
       const users = await this.userService.listUsers();
       this.users.set(users);

@@ -18,80 +18,62 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { StakeholderDto } from '../../models/stakeholder';
 import { StakeholderService } from '../../core/stakeholder.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
-import { EmptyStateComponent } from '../../shared/empty-state';
+import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
   selector: 'app-stakeholder-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, EmptyStateComponent],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule],
   template: `
-    <app-list-page title="Stakeholders" searchPlaceholder="Search stakeholders..."
-                   (search)="dt.filterGlobal($event, 'contains')">
-      <ng-container actions>
-        @if (canEdit()) {
-          <p-button label="Add User" icon="pi pi-user-plus"
-                    (onClick)="onNewUserStakeholder()" />
-          <p-button label="Add Non-User" icon="pi pi-building" severity="secondary"
-                    [outlined]="true" (onClick)="onNewNonUserStakeholder()" />
-        }
-      </ng-container>
-
+    <app-list-page title="Stakeholders" [showSearch]="false">
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <p-table #dt [value]="stakeholders()" [loading]="loading()" [paginator]="true" [rows]="20"
-               [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
-               [globalFilterFields]="['name', 'type', 'userDetails.emailAddress', 'userDetails.teamName']">
-        <ng-template #header>
-          <tr>
-            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
-            <th pSortableColumn="type">Type <p-sortIcon field="type" /></th>
-            <th>Team</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Created By</th>
-          </tr>
-        </ng-template>
-        <ng-template #body let-s>
-          <tr [pSelectableRow]="s">
-            <td>{{ s.name }}</td>
-            <td>{{ s.type === 'user' ? 'User' : 'Non-User' }}</td>
-            <td>{{ s.userDetails?.teamName }}</td>
-            <td>{{ s.userDetails?.emailAddress }}</td>
-            <td>{{ s.userDetails?.phoneNumber }}</td>
-            <td>{{ s.createdBy }}</td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr>
-            <td colspan="6">
-              <app-empty-state title="No stakeholders yet"
-                               message="Add the people and groups with a stake in this project to capture their perspectives."
-                               icon="pi-users" actionLabel="Add User" [showAction]="canEdit()"
-                               testid="stakeholder-list-empty" (action)="onNewUserStakeholder()" />
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
+      <app-data-table [value]="stakeholders()" [columns]="columns" [loading]="loading()"
+                      [rowActions]="rowActions" searchPlaceholder="Search stakeholders..."
+                      [globalFilterFields]="['name', 'type', 'userDetails.emailAddress', 'userDetails.teamName']"
+                      testid="stakeholder-list" (rowClick)="onRowSelect({ data: $event })"
+                      emptyTitle="No stakeholders yet"
+                      emptyMessage="Add the people and groups with a stake in this project to capture their perspectives."
+                      emptyIcon="pi-users" emptyActionLabel="Add User"
+                      [showEmptyAction]="canEdit()" (emptyAction)="onNewUserStakeholder()">
+        <div toolbarActions class="stakeholder-toolbar-actions">
+          @if (canEdit()) {
+            <p-button label="Add User" icon="pi pi-user-plus" (onClick)="onNewUserStakeholder()" />
+            <p-button label="Add Non-User" icon="pi pi-building" severity="secondary"
+                      [outlined]="true" (onClick)="onNewNonUserStakeholder()" />
+          }
+        </div>
+      </app-data-table>
     </app-list-page>
-  `
+
+    <ng-template #typeCell let-s>{{ s.type === 'user' ? 'User' : 'Non-User' }}</ng-template>
+  `,
+  styles: [`
+    .stakeholder-toolbar-actions { display: flex; align-items: center; gap: var(--rq-space-2); }
+  `]
 })
 export class StakeholderListComponent implements OnInit, OnDestroy {
   stakeholders = signal<StakeholderDto[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
   canEdit = signal(false);
+
+  @ViewChild('typeCell', { static: true }) typeCell!: TemplateRef<{ $implicit: StakeholderDto }>;
+  columns: DataTableColumn<StakeholderDto>[] = [];
+  rowActions: RowAction<StakeholderDto>[] = [
+    { label: 'Open', icon: 'pi pi-eye', command: s => this.onRowSelect({ data: s }) }
+  ];
 
   private projectName = '';
   private paramSub?: Subscription;
@@ -104,6 +86,14 @@ export class StakeholderListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.columns = [
+      { field: 'name', header: 'Name', sortable: true },
+      { field: 'type', header: 'Type', sortable: true, cellTemplate: this.typeCell },
+      { field: 'userDetails.teamName', header: 'Team' },
+      { field: 'userDetails.emailAddress', header: 'Email' },
+      { field: 'userDetails.phoneNumber', header: 'Phone' },
+      { field: 'createdBy', header: 'Created By' }
+    ];
     this.paramSub = this.route.paramMap.subscribe(async params => {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {

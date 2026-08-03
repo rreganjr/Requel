@@ -22,50 +22,37 @@ import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
-import { TableModule } from 'primeng/table';
 import { MessageModule } from 'primeng/message';
 import { ScenarioDto } from '../../models/scenario';
 import { ScenarioService } from '../../core/scenario.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
+import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
   selector: 'app-scenario-list',
   standalone: true,
-  imports: [ListPageComponent, ButtonModule, TableModule, MessageModule],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule],
   template: `
     <app-list-page title="Scenarios" [showSearch]="false">
-      <ng-container actions>
-        @if (canEdit()) {
-          <p-button label="New Scenario" icon="pi pi-plus" (onClick)="onNew()" />
-        }
-      </ng-container>
-
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <p-table [value]="scenarios()" [loading]="loading()" [rows]="15"
-               [paginator]="scenarios().length > 15" [rowHover]="true"
-               (onRowSelect)="onSelect($event)" selectionMode="single">
-        <ng-template #header>
-          <tr>
-            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
-            <th pSortableColumn="scenarioType">Type <p-sortIcon field="scenarioType" /></th>
-            <th pSortableColumn="createdBy">Created By <p-sortIcon field="createdBy" /></th>
-          </tr>
-        </ng-template>
-        <ng-template #body let-s>
-          <tr [pSelectableRow]="s">
-            <td>{{ s.name }}</td>
-            <td>{{ s.scenarioType }}</td>
-            <td>{{ s.createdBy }}</td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr><td colspan="3" class="text-center">No scenarios yet.</td></tr>
-        </ng-template>
-      </p-table>
+      <app-data-table [value]="scenarios()" [columns]="columns" [loading]="loading()"
+                      [rowActions]="rowActions" [rows]="15" searchPlaceholder="Search scenarios..."
+                      [globalFilterFields]="['name', 'scenarioType', 'createdBy']"
+                      testid="scenario-list" (rowClick)="onSelect({ data: $event })"
+                      emptyTitle="No scenarios yet"
+                      emptyMessage="Describe the flows this project needs to support."
+                      emptyIcon="pi-sitemap" emptyActionLabel="New Scenario"
+                      [showEmptyAction]="canEdit()" (emptyAction)="onNew()">
+        <div toolbarActions>
+          @if (canEdit()) {
+            <p-button label="New Scenario" icon="pi pi-plus" (onClick)="onNew()" />
+          }
+        </div>
+      </app-data-table>
     </app-list-page>
   `,
   styles: []
@@ -75,6 +62,15 @@ export class ScenarioListComponent implements OnInit, OnDestroy {
   loading = signal(false);
   errorMessage = signal<string | null>(null);
   canEdit = signal(false);
+
+  columns: DataTableColumn<ScenarioDto>[] = [
+    { field: 'name', header: 'Name', sortable: true },
+    { field: 'scenarioType', header: 'Type', sortable: true },
+    { field: 'createdBy', header: 'Created By', sortable: true }
+  ];
+  rowActions: RowAction<ScenarioDto>[] = [
+    { label: 'Open', icon: 'pi pi-eye', command: s => this.onSelect({ data: s }) }
+  ];
 
   projectName = '';
   private paramSub?: Subscription;

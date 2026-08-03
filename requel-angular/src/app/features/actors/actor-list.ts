@@ -18,10 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SlicePipe } from '@angular/common';
@@ -29,49 +28,41 @@ import { ActorDto } from '../../models/actor';
 import { ActorService } from '../../core/actor.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
+import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
   selector: 'app-actor-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SlicePipe],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, SlicePipe],
   template: `
-    <app-list-page title="Actors" searchPlaceholder="Search actors..."
-                   (search)="dt.filterGlobal($event, 'contains')">
-      <ng-container actions>
-        @if (canEdit()) {
-          <p-button label="New Actor" icon="pi pi-plus" (onClick)="onNewActor()" />
-        }
-      </ng-container>
-
+    <app-list-page title="Actors" [showSearch]="false">
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <p-table #dt [value]="actors()" [loading]="loading()" [paginator]="true" [rows]="20"
-               [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
-               [globalFilterFields]="['name', 'text', 'createdBy']">
-        <ng-template #header>
-          <tr>
-            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
-            <th>Description</th>
-            <th pSortableColumn="createdBy">Created By <p-sortIcon field="createdBy" /></th>
-          </tr>
-        </ng-template>
-        <ng-template #body let-a>
-          <tr [pSelectableRow]="a">
-            <td>{{ a.name }}</td>
-            <td class="text-preview">{{ a.text | slice:0:80 }}{{ (a.text?.length ?? 0) > 80 ? '...' : '' }}</td>
-            <td>{{ a.createdBy }}</td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr><td colspan="3" class="text-center">No actors found.</td></tr>
-        </ng-template>
-      </p-table>
+      <app-data-table [value]="actors()" [columns]="columns" [loading]="loading()"
+                      [rowActions]="rowActions" searchPlaceholder="Search actors..."
+                      [globalFilterFields]="['name', 'text', 'createdBy']"
+                      testid="actor-list" (rowClick)="onRowSelect({ data: $event })"
+                      emptyTitle="No actors yet"
+                      emptyMessage="Add the actors that interact with this system."
+                      emptyIcon="pi-user" emptyActionLabel="New Actor"
+                      [showEmptyAction]="canEdit()" (emptyAction)="onNewActor()">
+        <div toolbarActions>
+          @if (canEdit()) {
+            <p-button label="New Actor" icon="pi pi-plus" (onClick)="onNewActor()" />
+          }
+        </div>
+      </app-data-table>
     </app-list-page>
+
+    <ng-template #textCell let-a>
+      <span class="text-preview">{{ a.text | slice:0:80 }}{{ (a.text?.length ?? 0) > 80 ? '...' : '' }}</span>
+    </ng-template>
   `,
   styles: [`
-    .text-preview { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .text-preview { display: inline-block; max-width: 400px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
   `]
 })
 export class ActorListComponent implements OnInit, OnDestroy {
@@ -79,6 +70,12 @@ export class ActorListComponent implements OnInit, OnDestroy {
   loading = signal(true);
   errorMessage = signal<string | null>(null);
   canEdit = signal(false);
+
+  @ViewChild('textCell', { static: true }) textCell!: TemplateRef<{ $implicit: ActorDto }>;
+  columns: DataTableColumn<ActorDto>[] = [];
+  rowActions: RowAction<ActorDto>[] = [
+    { label: 'Open', icon: 'pi pi-eye', command: a => this.onRowSelect({ data: a }) }
+  ];
 
   private projectName = '';
   private paramSub?: Subscription;
@@ -91,6 +88,11 @@ export class ActorListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.columns = [
+      { field: 'name', header: 'Name', sortable: true },
+      { field: 'text', header: 'Description', cellTemplate: this.textCell },
+      { field: 'createdBy', header: 'Created By', sortable: true }
+    ];
     this.paramSub = this.route.paramMap.subscribe(async params => {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {

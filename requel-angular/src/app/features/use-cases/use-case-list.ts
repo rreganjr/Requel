@@ -18,53 +18,43 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { UseCaseDto } from '../../models/use-case';
 import { UseCaseService } from '../../core/use-case.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
+import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
   selector: 'app-use-case-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule],
   template: `
     <app-list-page title="Use Cases" [showSearch]="false">
-      <ng-container actions>
-        @if (canEdit()) {
-          <p-button label="New Use Case" icon="pi pi-plus"
-                    (onClick)="onCreate()" />
-        }
-      </ng-container>
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
-      <p-table [value]="useCases()" [loading]="loading()"
-               selectionMode="single" (onRowSelect)="onSelect($event)"
-               [rowHover]="true" styleClass="p-datatable-sm">
-        <ng-template pTemplate="header">
-          <tr>
-            <th>Name</th>
-            <th>Primary Actor</th>
-            <th>Created By</th>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="body" let-uc>
-          <tr [pSelectableRow]="uc">
-            <td>{{ uc.name }}</td>
-            <td>{{ uc.primaryActorName ?? '—' }}</td>
-            <td>{{ uc.createdBy }}</td>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="emptymessage">
-          <tr><td colspan="3" class="text-center">No use cases yet.</td></tr>
-        </ng-template>
-      </p-table>
+
+      <app-data-table [value]="useCases()" [columns]="columns" [loading]="loading()"
+                      [rowActions]="rowActions" searchPlaceholder="Search use cases..."
+                      [globalFilterFields]="['name', 'primaryActorName', 'createdBy']"
+                      testid="use-case-list" (rowClick)="onSelect({ data: $event })"
+                      emptyTitle="No use cases yet"
+                      emptyMessage="Capture the goals actors accomplish with this system."
+                      emptyIcon="pi-directions" emptyActionLabel="New Use Case"
+                      [showEmptyAction]="canEdit()" (emptyAction)="onCreate()">
+        <div toolbarActions>
+          @if (canEdit()) {
+            <p-button label="New Use Case" icon="pi pi-plus" (onClick)="onCreate()" />
+          }
+        </div>
+      </app-data-table>
     </app-list-page>
+
+    <ng-template #primaryActorCell let-uc>{{ uc.primaryActorName ?? '—' }}</ng-template>
   `,
   styles: []
 })
@@ -73,6 +63,12 @@ export class UseCaseListComponent implements OnInit {
   loading = signal(true);
   errorMessage = signal<string | null>(null);
   canEdit = signal(false);
+
+  @ViewChild('primaryActorCell', { static: true }) primaryActorCell!: TemplateRef<{ $implicit: UseCaseDto }>;
+  columns: DataTableColumn<UseCaseDto>[] = [];
+  rowActions: RowAction<UseCaseDto>[] = [
+    { label: 'Open', icon: 'pi pi-eye', command: uc => this.onSelect({ data: uc }) }
+  ];
 
   private projectName = '';
 
@@ -84,6 +80,11 @@ export class UseCaseListComponent implements OnInit {
   ) {}
 
   async ngOnInit(): Promise<void> {
+    this.columns = [
+      { field: 'name', header: 'Name', sortable: true },
+      { field: 'primaryActorName', header: 'Primary Actor', cellTemplate: this.primaryActorCell },
+      { field: 'createdBy', header: 'Created By', sortable: true }
+    ];
     this.projectName = this.route.snapshot.paramMap.get('name') ?? '';
     await this.permissionService.loadForProject(this.projectName);
     this.canEdit.set(this.permissionService.canEdit('UseCase'));

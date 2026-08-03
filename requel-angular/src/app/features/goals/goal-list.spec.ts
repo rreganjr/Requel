@@ -72,10 +72,10 @@ describe('GoalListComponent', () => {
     expect(comp.canEdit()).toBe(true);
   });
 
-  it('onRowSelect navigates to goal editor', async () => {
+  it('openGoal navigates to goal editor', async () => {
     fixture.detectChanges();
     await flush();
-    comp.onRowSelect({ data: MOCK_GOALS[0] });
+    comp.openGoal(MOCK_GOALS[0]);
     expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'goals', 1]);
   });
 

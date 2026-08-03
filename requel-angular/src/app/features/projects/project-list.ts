@@ -20,7 +20,6 @@
  */
 import { Component, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { ProjectDto } from '../../models/project';
@@ -28,25 +27,14 @@ import { ProjectService } from '../../core/project.service';
 import { AuthService } from '../../core/auth.service';
 import { ListPageComponent } from '../../shared/list-page';
 import { FileUploadButtonComponent } from '../../shared/file-upload-button';
-import { EmptyStateComponent } from '../../shared/empty-state';
+import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, FileUploadButtonComponent, EmptyStateComponent],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, FileUploadButtonComponent],
   template: `
-    <app-list-page title="Projects" searchPlaceholder="Search projects..."
-                   (search)="dt.filterGlobal($event, 'contains')">
-      <ng-container actions>
-        @if (canCreateProjects()) {
-          <p-button label="New Project" icon="pi pi-plus" data-testid="project-list-new-project" (onClick)="onNewProject()" />
-          <app-file-upload-button label="Import" [outlined]="true" [loading]="importing()"
-                                  accept=".xml" buttonTestid="project-list-import-button"
-                                  inputTestid="project-list-import-input"
-                                  (fileSelected)="onImportFile($event)" />
-        }
-      </ng-container>
-
+    <app-list-page title="Projects" [showSearch]="false">
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" data-testid="project-list-error" />
       }
@@ -54,48 +42,29 @@ import { EmptyStateComponent } from '../../shared/empty-state';
         <p-message severity="success" [text]="successMessage()!" data-testid="project-list-success" />
       }
 
-      <p-table #dt [value]="projects()" [loading]="loading()" [paginator]="true" [rows]="20"
-               [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
-               [globalFilterFields]="['name', 'organizationName', 'status', 'createdBy']">
-        <ng-template #header>
-          <tr>
-            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
-            <th pSortableColumn="organizationName">Organization <p-sortIcon field="organizationName" /></th>
-            <th pSortableColumn="status">Status <p-sortIcon field="status" /></th>
-            <th pSortableColumn="createdBy">Created By <p-sortIcon field="createdBy" /></th>
-            <th>Stakeholders</th>
-            <th>Goals</th>
-            <th>Stories</th>
-            <th>Use Cases</th>
-          </tr>
-        </ng-template>
-        <ng-template #body let-project>
-          <tr [pSelectableRow]="project">
-            <td>{{ project.name }}</td>
-            <td>{{ project.organizationName }}</td>
-            <td>{{ project.status }}</td>
-            <td>{{ project.createdBy }}</td>
-            <td>{{ project.stakeholderCount }}</td>
-            <td>{{ project.goalCount }}</td>
-            <td>{{ project.storyCount }}</td>
-            <td>{{ project.useCaseCount }}</td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr>
-            <td colspan="8">
-              <app-empty-state title="No projects yet"
-                               message="Create a project to start capturing goals, stories, and use cases — or import an existing one."
-                               icon="pi-folder-open" actionLabel="New Project"
-                               [showAction]="canCreateProjects()" testid="project-list-empty"
-                               (action)="onNewProject()" />
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
+      <app-data-table [value]="projects()" [columns]="columns" [loading]="loading()"
+                      [rowActions]="rowActions" searchPlaceholder="Search projects..."
+                      [globalFilterFields]="['name', 'organizationName', 'status', 'createdBy']"
+                      testid="project-list" (rowClick)="onRowSelect({ data: $event })"
+                      emptyTitle="No projects yet"
+                      emptyMessage="Create a project to start capturing goals, stories, and use cases — or import an existing one."
+                      emptyIcon="pi-folder-open" emptyActionLabel="New Project"
+                      [showEmptyAction]="canCreateProjects()" (emptyAction)="onNewProject()">
+        <div toolbarActions class="project-toolbar-actions">
+          @if (canCreateProjects()) {
+            <p-button label="New Project" icon="pi pi-plus" data-testid="project-list-new-project" (onClick)="onNewProject()" />
+            <app-file-upload-button label="Import" [outlined]="true" [loading]="importing()"
+                                    accept=".xml" buttonTestid="project-list-import-button"
+                                    inputTestid="project-list-import-input"
+                                    (fileSelected)="onImportFile($event)" />
+          }
+        </div>
+      </app-data-table>
     </app-list-page>
   `,
-  styles: []
+  styles: [`
+    .project-toolbar-actions { display: flex; align-items: center; gap: var(--rq-space-2); }
+  `]
 })
 export class ProjectListComponent implements OnInit {
 
@@ -107,6 +76,19 @@ export class ProjectListComponent implements OnInit {
 
   readonly canCreateProjects = signal(false);
 
+  columns: DataTableColumn<ProjectDto>[] = [
+    { field: 'name', header: 'Name', sortable: true },
+    { field: 'organizationName', header: 'Organization', sortable: true },
+    { field: 'status', header: 'Status', sortable: true },
+    { field: 'createdBy', header: 'Created By', sortable: true },
+    { field: 'stakeholderCount', header: 'Stakeholders' },
+    { field: 'goalCount', header: 'Goals' },
+    { field: 'storyCount', header: 'Stories' },
+    { field: 'useCaseCount', header: 'Use Cases' }
+  ];
+  rowActions: RowAction<ProjectDto>[] = [
+    { label: 'Open', icon: 'pi pi-eye', command: p => this.onRowSelect({ data: p }) }
+  ];
 
   constructor(
     private projectService: ProjectService,

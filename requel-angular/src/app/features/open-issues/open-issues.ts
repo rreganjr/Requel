@@ -18,17 +18,17 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { projectApiUrl } from '../../core/api-url';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
 import { MessageModule } from 'primeng/message';
 import { ListPageComponent } from '../../shared/list-page';
+import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
 
 interface OpenIssueDto {
   issueId: number;
@@ -55,60 +55,41 @@ const ENTITY_ROUTES: Record<string, string> = {
 @Component({
   selector: 'app-open-issues',
   standalone: true,
-  imports: [ListPageComponent, RouterLink, TableModule, ButtonModule, BadgeModule, MessageModule],
+  imports: [ListPageComponent, AppDataTableComponent, RouterLink, ButtonModule, BadgeModule, MessageModule],
   template: `
-    <app-list-page title="Open Issues" searchPlaceholder="Search issues..."
-                   (search)="dt.filterGlobal($event, 'contains')">
-      <ng-container actions>
-        @if (mustResolveCount() > 0) {
-          <p-badge [value]="mustResolveCount().toString()" severity="danger" data-testid="open-issues-badge" />
-        }
-      </ng-container>
-
+    <app-list-page title="Open Issues" [showSearch]="false">
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" data-testid="open-issues-error" />
       }
 
-      @if (!loading() && issues().length === 0) {
-        <p-message severity="success" text="No open issues — all clear." data-testid="open-issues-empty" />
-      }
-
-      <p-table #dt [value]="issues()" [loading]="loading()" [paginator]="true" [rows]="25"
-               [rowHover]="true" [globalFilterFields]="['entityType', 'entityName', 'issueText']"
-               [sortField]="'entityType'" [sortOrder]="1">
-        <ng-template #header>
-          <tr>
-            <th pSortableColumn="entityType">Type <p-sortIcon field="entityType" /></th>
-            <th pSortableColumn="entityName">Entity <p-sortIcon field="entityName" /></th>
-            <th pSortableColumn="issueText">Issue <p-sortIcon field="issueText" /></th>
-            <th>Required</th>
-          </tr>
-        </ng-template>
-        <ng-template #body let-issue>
-          <tr>
-            <td>{{ issue.entityType }}</td>
-            <td>
-              @if (routeFor(issue); as route) {
-                <a class="entity-link" data-testid="open-issue-entity-link" [routerLink]="route">{{ issue.entityName }}</a>
-              } @else {
-                <span data-testid="open-issue-entity-name">{{ issue.entityName }}</span>
-              }
-            </td>
-            <td>{{ issue.issueText }}</td>
-            <td>
-              @if (issue.mustBeResolved) {
-                <span class="must-resolve" data-testid="open-issue-required">Yes</span>
-              } @else {
-                <span class="optional" data-testid="open-issue-optional">No</span>
-              }
-            </td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr><td colspan="4" class="text-center">No open issues.</td></tr>
-        </ng-template>
-      </p-table>
+      <app-data-table [value]="issues()" [columns]="columns" [loading]="loading()"
+                      [rowClickable]="false" [defaultActions]="false" [rows]="25"
+                      sortField="entityType" [sortOrder]="1" searchPlaceholder="Search issues..."
+                      [globalFilterFields]="['entityType', 'entityName', 'issueText']"
+                      testid="open-issues" emptyTitle="No open issues"
+                      emptyMessage="All clear — everything in this project is resolved." emptyIcon="pi-check-circle">
+        <div toolbarActions>
+          @if (mustResolveCount() > 0) {
+            <p-badge [value]="mustResolveCount().toString()" severity="danger" data-testid="open-issues-badge" />
+          }
+        </div>
+      </app-data-table>
     </app-list-page>
+
+    <ng-template #entityCell let-issue>
+      @if (routeFor(issue); as route) {
+        <a class="entity-link" data-testid="open-issue-entity-link" [routerLink]="route">{{ issue.entityName }}</a>
+      } @else {
+        <span data-testid="open-issue-entity-name">{{ issue.entityName }}</span>
+      }
+    </ng-template>
+    <ng-template #requiredCell let-issue>
+      @if (issue.mustBeResolved) {
+        <span class="must-resolve" data-testid="open-issue-required">Yes</span>
+      } @else {
+        <span class="optional" data-testid="open-issue-optional">No</span>
+      }
+    </ng-template>
   `,
   styles: [`
     .entity-link { color: var(--p-primary-color); cursor: pointer; text-decoration: underline; }
@@ -125,6 +106,10 @@ export class OpenIssuesComponent implements OnInit, OnDestroy {
   errorMessage = signal<string | null>(null);
   mustResolveCount = signal(0);
 
+  @ViewChild('entityCell', { static: true }) entityCell!: TemplateRef<{ $implicit: OpenIssueDto }>;
+  @ViewChild('requiredCell', { static: true }) requiredCell!: TemplateRef<{ $implicit: OpenIssueDto }>;
+  columns: DataTableColumn<OpenIssueDto>[] = [];
+
   private projectName = '';
   private paramSub?: Subscription;
 
@@ -135,6 +120,12 @@ export class OpenIssuesComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.columns = [
+      { field: 'entityType', header: 'Type', sortable: true },
+      { field: 'entityName', header: 'Entity', sortable: true, cellTemplate: this.entityCell },
+      { field: 'issueText', header: 'Issue', sortable: true },
+      { field: 'mustBeResolved', header: 'Required', cellTemplate: this.requiredCell }
+    ];
     this.paramSub = this.route.paramMap.subscribe(params => {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {
