@@ -28,11 +28,12 @@ import { ProjectService } from '../../core/project.service';
 import { AuthService } from '../../core/auth.service';
 import { ListPageComponent } from '../../shared/list-page';
 import { FileUploadButtonComponent } from '../../shared/file-upload-button';
+import { EmptyStateComponent } from '../../shared/empty-state';
 
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, FileUploadButtonComponent],
+  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, FileUploadButtonComponent, EmptyStateComponent],
   template: `
     <app-list-page title="Projects" searchPlaceholder="Search projects..."
                    (search)="dt.filterGlobal($event, 'contains')">
@@ -81,7 +82,15 @@ import { FileUploadButtonComponent } from '../../shared/file-upload-button';
           </tr>
         </ng-template>
         <ng-template #emptymessage>
-          <tr data-testid="project-list-empty"><td colspan="8">No projects found.</td></tr>
+          <tr>
+            <td colspan="8">
+              <app-empty-state title="No projects yet"
+                               message="Create a project to start capturing goals, stories, and use cases — or import an existing one."
+                               icon="pi-folder-open" actionLabel="New Project"
+                               [showAction]="canCreateProjects()" testid="project-list-empty"
+                               (action)="onNewProject()" />
+            </td>
+          </tr>
         </ng-template>
       </p-table>
     </app-list-page>

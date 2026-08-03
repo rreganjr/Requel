@@ -39,11 +39,13 @@ import { UserService } from '../../core/user.service';
 import { CommandService } from '../../core/command.service';
 import { PermissionService } from '../../core/permission.service';
 import { TagSelectorComponent } from '../../shared/tag-selector';
+import { LoadingStateComponent } from '../../shared/loading-state';
+import { ErrorStateComponent } from '../../shared/error-state';
 
 @Component({
   selector: 'app-project-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, FormsModule, InputText, TextareaModule, ButtonModule, SelectModule, MessageModule, ConfirmDialogModule, TagSelectorComponent],
+  imports: [PageHeaderComponent, AppCardComponent, FormsModule, InputText, TextareaModule, ButtonModule, SelectModule, MessageModule, ConfirmDialogModule, TagSelectorComponent, LoadingStateComponent, ErrorStateComponent],
   providers: [ConfirmationService],
   template: `
     <div class="project-editor" data-testid="project-editor">
@@ -65,43 +67,52 @@ import { TagSelectorComponent } from '../../shared/tag-selector';
         <p-message severity="success" [text]="successMessage()!" />
       }
 
-      <app-card>
-        <form #projectForm="ngForm" (ngSubmit)="onSave()">
-          <div class="form-grid">
-            <div class="field">
-              <label for="name">Project Name</label>
-              <input pInputText id="name" [(ngModel)]="name" name="name" required />
+      @if (loading()) {
+        <app-card>
+          <app-loading-state label="Loading project…" [lines]="4" testid="project-editor-loading" />
+        </app-card>
+      } @else if (loadError()) {
+        <app-error-state [message]="loadError()!" testid="project-editor-load-error"
+                         (retry)="retryLoad()" />
+      } @else {
+        <app-card>
+          <form #projectForm="ngForm" (ngSubmit)="onSave()">
+            <div class="form-grid">
+              <div class="field">
+                <label for="name">Project Name</label>
+                <input pInputText id="name" [(ngModel)]="name" name="name" required />
+              </div>
+
+              <div class="field">
+                <label for="org">Organization</label>
+                <p-select id="org" [(ngModel)]="selectedOrg" name="org"
+                          [options]="orgOptions()" optionLabel="label" optionValue="value"
+                          [editable]="true" placeholder="Select or type organization" />
+              </div>
+
+              <div class="field full-width">
+                <label for="description">Description</label>
+                <textarea pTextarea id="description" [(ngModel)]="description" name="description"
+                          [rows]="5" [autoResize]="true"></textarea>
+              </div>
             </div>
 
-            <div class="field">
-              <label for="org">Organization</label>
-              <p-select id="org" [(ngModel)]="selectedOrg" name="org"
-                        [options]="orgOptions()" optionLabel="label" optionValue="value"
-                        [editable]="true" placeholder="Select or type organization" />
+            <div class="actions">
+              <p-button type="submit" label="Save" icon="pi pi-check" data-testid="project-save"
+                        [loading]="saving()" [disabled]="!projectForm.dirty" />
+              <p-button label="Cancel" icon="pi pi-times" severity="secondary" data-testid="project-cancel"
+                        (onClick)="onCancel()" [outlined]="true" />
             </div>
+          </form>
+        </app-card>
 
-            <div class="field full-width">
-              <label for="description">Description</label>
-              <textarea pTextarea id="description" [(ngModel)]="description" name="description"
-                        [rows]="5" [autoResize]="true"></textarea>
-            </div>
-          </div>
-
-          <div class="actions">
-            <p-button type="submit" label="Save" icon="pi pi-check" data-testid="project-save"
-                      [loading]="saving()" [disabled]="!projectForm.dirty" />
-            <p-button label="Cancel" icon="pi pi-times" severity="secondary" data-testid="project-cancel"
-                      (onClick)="onCancel()" [outlined]="true" />
-          </div>
-        </form>
-      </app-card>
-
-      @if (!isNew()) {
-        <app-tag-selector
-          [projectName]="originalName()"
-          entityType="Project"
-          [entityId]="tagEntityId()"
-          [canEdit]="canEdit()" />
+        @if (!isNew()) {
+          <app-tag-selector
+            [projectName]="originalName()"
+            entityType="Project"
+            [entityId]="tagEntityId()"
+            [canEdit]="canEdit()" />
+        }
       }
     </div>
 
@@ -129,9 +140,13 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  // Load failures are tracked separately from save/inline errors so the
+  // retryable error state replaces the form only when the initial load fails.
+  readonly loadError = signal<string | null>(null);
   readonly originalName = signal('');
   private projectId: number | null = null;
   private projectVersion: number | null = null;
+  private lastNameParam: string | null = null;
 
   // Form fields
   name = '';
@@ -198,11 +213,18 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     this.paramSub?.unsubscribe();
   }
 
+  /** Re-run the last attempted load; wired to the error state's (retry) output. */
+  retryLoad(): void {
+    void this.loadProject(this.lastNameParam);
+  }
+
   private async loadProject(nameParam: string | null): Promise<void> {
     const newIsNew = nameParam === 'new' || !nameParam;
     this.isNew.set(newIsNew);
+    this.lastNameParam = nameParam;
     this.errorMessage.set(null);
     this.successMessage.set(null);
+    this.loadError.set(null);
     this.loading.set(true);
 
     try {
@@ -221,6 +243,10 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
         this.description = '';
         this.selectedOrg = null;
       }
+    } catch (err: unknown) {
+      // Previously uncaught: a failed load left a blank form with no feedback.
+      // Surface a retryable error state instead.
+      this.loadError.set(err instanceof Error ? err.message : 'Failed to load project.');
     } finally {
       this.loading.set(false);
       // Reset form dirty state after load

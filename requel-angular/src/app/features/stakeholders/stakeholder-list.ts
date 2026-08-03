@@ -28,11 +28,12 @@ import { StakeholderDto } from '../../models/stakeholder';
 import { StakeholderService } from '../../core/stakeholder.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
+import { EmptyStateComponent } from '../../shared/empty-state';
 
 @Component({
   selector: 'app-stakeholder-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule],
+  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, EmptyStateComponent],
   template: `
     <app-list-page title="Stakeholders" searchPlaceholder="Search stakeholders..."
                    (search)="dt.filterGlobal($event, 'contains')">
@@ -73,7 +74,14 @@ import { ListPageComponent } from '../../shared/list-page';
           </tr>
         </ng-template>
         <ng-template #emptymessage>
-          <tr><td colspan="6" class="text-center">No stakeholders found.</td></tr>
+          <tr>
+            <td colspan="6">
+              <app-empty-state title="No stakeholders yet"
+                               message="Add the people and groups with a stake in this project to capture their perspectives."
+                               icon="pi-users" actionLabel="Add User" [showAction]="canEdit()"
+                               testid="stakeholder-list-empty" (action)="onNewUserStakeholder()" />
+            </td>
+          </tr>
         </ng-template>
       </p-table>
     </app-list-page>

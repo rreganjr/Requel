@@ -34,11 +34,12 @@ import { TagService } from '../../core/tag.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
 import { AppChipComponent } from '../../shared/app-chip';
+import { EmptyStateComponent } from '../../shared/empty-state';
 
 @Component({
   selector: 'app-goal-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SelectModule, FormsModule, SlicePipe, AppChipComponent],
+  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SelectModule, FormsModule, SlicePipe, AppChipComponent, EmptyStateComponent],
   template: `
     <app-list-page title="Goals" [eyebrow]="projectContext()" searchPlaceholder="Search goals..."
                    (search)="dt.filterGlobal($event, 'contains')">
@@ -82,7 +83,20 @@ import { AppChipComponent } from '../../shared/app-chip';
           </tr>
         </ng-template>
         <ng-template #emptymessage>
-          <tr><td colspan="4" class="text-center">No goals found.</td></tr>
+          <tr>
+            <td colspan="4">
+              @if (selectedTagId() != null) {
+                <app-empty-state title="No goals match this tag"
+                                 message="Try clearing the tag filter to see all goals."
+                                 icon="pi-filter-slash" testid="goal-list-empty" />
+              } @else {
+                <app-empty-state title="No goals yet"
+                                 message="Capture the objectives this project needs to meet."
+                                 icon="pi-flag" actionLabel="New Goal" [showAction]="canEdit()"
+                                 testid="goal-list-empty" (action)="onNewGoal()" />
+              }
+            </td>
+          </tr>
         </ng-template>
       </p-table>
     </app-list-page>

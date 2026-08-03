@@ -30,12 +30,13 @@ import { AnnotationsDto, IssueDto, NoteDto, PositionDto, SUPPORT_LEVEL_OPTIONS }
 import { AnnotationService } from '../core/annotation.service';
 import { AppCardComponent } from './app-card';
 import { AppTagComponent } from './app-tag';
+import { ErrorStateComponent } from './error-state';
 import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
 
 @Component({
   selector: 'app-annotations-section',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule, AppCardComponent, AppTagComponent],
+  imports: [FormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule, AppCardComponent, AppTagComponent, ErrorStateComponent],
   template: `
     @if (entityId != null) {
       <div class="annotations-section" data-testid="annotations-section">
@@ -53,6 +54,11 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
             </div>
           }
         </div>
+
+        @if (loadError()) {
+          <app-error-state severity="warn" [message]="loadError()!" retryLabel="Retry"
+                           testid="annotations-load-error" (retry)="reload()" />
+        }
 
         <!-- Add Note form -->
         @if (showNoteForm()) {
@@ -261,6 +267,10 @@ export class AnnotationsSectionComponent implements OnChanges {
 
   private _annotations = signal<AnnotationsDto>({ notes: [], issues: [] });
   annotations = this._annotations.asReadonly();
+  // Non-blocking inline warning when the supplemental annotation load fails,
+  // instead of the previous silent swallow (issue #131).
+  private _loadError = signal<string | null>(null);
+  loadError = this._loadError.asReadonly();
 
   showNoteForm = signal(false);
   showIssueForm = signal(false);
@@ -287,13 +297,23 @@ export class AnnotationsSectionComponent implements OnChanges {
     }
   }
 
+  /** Re-run the annotation load; wired to the inline warning's (retry) output. */
+  reload(): void {
+    void this.load();
+  }
+
   private async load(): Promise<void> {
     if (!this.entityId) return;
     try {
       const data = await this.annotationService.getAnnotations(this.projectName, this.entityType, this.entityId);
       this._annotations.set(data);
+      this._loadError.set(null);
     } catch {
-      // Silently ignore load failures — annotations are supplemental
+      // Annotations are supplemental, so a failure must not block the editor — but
+      // it is no longer swallowed silently: surface a non-blocking inline warning
+      // so the lost capability is visible and retryable (issue #131). Annotations
+      // are central to requirements triage, so hiding a failure is costly.
+      this._loadError.set('Annotations could not be loaded.');
     }
   }
 

@@ -26,6 +26,7 @@ import { MessageService } from 'primeng/api';
 import { TagCategoryDto, TagDto, tagLabel } from '../models/tag';
 import { TagService } from '../core/tag.service';
 import { AppChipComponent } from './app-chip';
+import { ErrorStateComponent } from './error-state';
 
 /**
  * Reusable tag chip/selector for any taggable entity. Shows the entity's assigned tags as
@@ -35,11 +36,16 @@ import { AppChipComponent } from './app-chip';
 @Component({
   selector: 'app-tag-selector',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, AppChipComponent],
+  imports: [FormsModule, ButtonModule, InputText, AppChipComponent, ErrorStateComponent],
   template: `
     @if (entityId != null) {
       <div class="tags-section" data-testid="tags-section">
         <div class="section-header"><h3>Tags</h3></div>
+
+        @if (loadError()) {
+          <app-error-state severity="warn" [message]="loadError()!" retryLabel="Retry"
+                           testid="tags-load-error" (retry)="reload()" />
+        }
 
         <div class="chips" data-testid="tag-chips">
           @for (t of assigned(); track t.id) {
@@ -100,6 +106,10 @@ export class TagSelectorComponent implements OnChanges {
   private _categories = signal<string[]>([]);
   categories = this._categories.asReadonly();
   private _typedCategories = signal<TagCategoryDto[]>([]);
+  // Non-blocking inline warning when the supplemental tag load fails, instead of
+  // the previous silent swallow (issue #131).
+  private _loadError = signal<string | null>(null);
+  loadError = this._loadError.asReadonly();
 
   newCategory = '';
   newValue = '';
@@ -144,6 +154,11 @@ export class TagSelectorComponent implements OnChanges {
     return tag.color ?? this.categoryFor(tag.category)?.color ?? null;
   }
 
+  /** Re-run the tag load; wired to the inline warning's (retry) output. */
+  reload(): void {
+    void this.load();
+  }
+
   private async load(): Promise<void> {
     if (this.entityId == null) return;
     try {
@@ -157,8 +172,12 @@ export class TagSelectorComponent implements OnChanges {
       this._available.set(available);
       this._categories.set(categories);
       this._typedCategories.set(typedCategories);
+      this._loadError.set(null);
     } catch {
-      // Tags are supplemental — ignore load failures silently.
+      // Tags are supplemental, so a failure must not block the editor — but it is
+      // no longer swallowed silently: surface a non-blocking inline warning so the
+      // lost capability is visible and retryable (issue #131).
+      this._loadError.set('Tags could not be loaded.');
     }
   }
 

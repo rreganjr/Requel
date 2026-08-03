@@ -44,6 +44,8 @@ import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { ScenarioSelectorDialogComponent, ScenarioRef } from '../../shared/scenario-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { LoadingStateComponent } from '../../shared/loading-state';
+import { ErrorStateComponent } from '../../shared/error-state';
 
 const SCENARIO_TYPE_OPTIONS = [
   { label: 'Primary', value: 'Primary' },
@@ -67,7 +69,7 @@ interface StepNodeData {
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             MessageModule, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
-            ScenarioSelectorDialogComponent, AnnotationsSectionComponent],
+            ScenarioSelectorDialogComponent, AnnotationsSectionComponent, LoadingStateComponent, ErrorStateComponent],
   providers: [ConfirmationService],
   template: `
     <div class="scenario-editor" data-testid="scenario-editor">
@@ -93,6 +95,14 @@ interface StepNodeData {
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
+      @if (loading()) {
+        <app-card>
+          <app-loading-state label="Loading scenario…" [lines]="4" testid="scenario-editor-loading" />
+        </app-card>
+      } @else if (loadError()) {
+        <app-error-state [message]="loadError()!" testid="scenario-editor-load-error"
+                         (retry)="retryLoad()" />
+      } @else {
       <app-card>
         <div class="form-grid">
           <label for="name">Name</label>
@@ -201,6 +211,7 @@ interface StepNodeData {
             </div>
           }
         </div>
+      }
       }
 
       <!-- Step detail edit dialog -->
@@ -311,6 +322,10 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   scenarioName = signal('');
   scenario = signal<ScenarioDto | null>(null);
   errorMessage = signal<string | null>(null);
+  loading = signal(true);
+  // Load failures tracked separately from save/SSE errors so the retryable
+  // error state replaces the form only when the initial load fails.
+  loadError = signal<string | null>(null);
   saving = signal(false);
   canEdit = signal(false);
   canDelete = signal(false);
@@ -368,6 +383,10 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
         this.scenarioType = 'Primary';
         this.version = null;
         this.stepNodes.set([]);
+        // New scenarios don't load — resolve the loading/error state so the
+        // form renders immediately instead of the skeleton.
+        this.loading.set(false);
+        this.loadError.set(null);
       }
 
       await this.permissionService.loadForProject(this.projectName);
@@ -394,7 +413,19 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     this.sseSub?.unsubscribe();
   }
 
+  /** Re-run the initial load; wired to the error state's (retry) output. */
+  retryLoad(): void {
+    void this.loadScenario();
+  }
+
   private async loadScenario(fromSSE = false): Promise<void> {
+    // Only the user-initiated (non-SSE) load drives the skeleton / retryable
+    // error state; a background SSE refresh must not blank the form the user is
+    // looking at.
+    if (!fromSSE) {
+      this.loading.set(true);
+      this.loadError.set(null);
+    }
     try {
       const s = await this.scenarioService.getScenario(this.projectName, this.scenarioId!);
       // Don't overwrite unsaved user edits when called from an SSE notification.
@@ -417,7 +448,17 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       this.stepsSaveNeeded.set(false);
       this.stepNodes.set(this.stepsToNodes(s.steps ?? []));
     } catch {
-      this.errorMessage.set('Failed to load scenario.');
+      // A background refresh failure shows a non-blocking message; an initial
+      // load failure shows the retryable error state in place of the form.
+      if (fromSSE) {
+        this.errorMessage.set('Failed to load scenario.');
+      } else {
+        this.loadError.set('Failed to load scenario.');
+      }
+    } finally {
+      if (!fromSSE) {
+        this.loading.set(false);
+      }
     }
     if (this.scenarioId && !this.sseSub) {
       void this.eventStreamService.addSubscription('Scenario', this.scenarioId);

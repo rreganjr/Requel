@@ -35,11 +35,13 @@ import { UserDto } from '../../models/user';
 import { RoleDto } from '../../models/role';
 import { UserService } from '../../core/user.service';
 import { CommandService } from '../../core/command.service';
+import { LoadingStateComponent } from '../../shared/loading-state';
+import { ErrorStateComponent } from '../../shared/error-state';
 
 @Component({
   selector: 'app-user-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, FormsModule, InputText, Password, ButtonModule, CheckboxModule, SelectModule, MessageModule],
+  imports: [PageHeaderComponent, AppCardComponent, FormsModule, InputText, Password, ButtonModule, CheckboxModule, SelectModule, MessageModule, LoadingStateComponent, ErrorStateComponent],
   template: `
     <div class="user-editor" data-testid="user-editor">
       <app-page-header [title]="isNew() ? 'New User' : 'Edit User: ' + username" />
@@ -51,6 +53,14 @@ import { CommandService } from '../../core/command.service';
         <p-message severity="success" [text]="successMessage()!" />
       }
 
+      @if (loading()) {
+        <app-card>
+          <app-loading-state label="Loading user…" [lines]="5" testid="user-editor-loading" />
+        </app-card>
+      } @else if (loadError()) {
+        <app-error-state [message]="loadError()!" testid="user-editor-load-error"
+                         (retry)="retryLoad()" />
+      } @else {
       <app-card>
         <form #userForm="ngForm" (ngSubmit)="onSave()">
           <div class="form-grid">
@@ -130,6 +140,7 @@ import { CommandService } from '../../core/command.service';
           </div>
         </form>
       </app-card>
+      }
     </div>
   `,
   styles: [`
@@ -155,6 +166,10 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
+  // Load failures tracked separately from save/inline errors so the retryable
+  // error state replaces the form only when the initial load fails.
+  readonly loadError = signal<string | null>(null);
+  private lastUsernameParam: string | null = null;
 
   // Form fields — plain properties so [(ngModel)] two-way binding works correctly.
   // readonly signals don't update via the (ngModelChange)="name=$event" write path.
@@ -205,8 +220,15 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.paramSub?.unsubscribe();
   }
 
+  /** Re-run the last attempted load; wired to the error state's (retry) output. */
+  retryLoad(): void {
+    void this.loadData(this.lastUsernameParam);
+  }
+
   private async loadData(usernameParam: string | null): Promise<void> {
     this.loading.set(true);
+    this.loadError.set(null);
+    this.lastUsernameParam = usernameParam;
     this.userId = null;
     this.userVersion = 0;
     try {
@@ -233,6 +255,9 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         // selectedPermissions set by the init loop above before populateForm runs.
         this.cdr.detectChanges();
       }
+    } catch (err: unknown) {
+      // Previously uncaught: a failed load left a blank form with no feedback.
+      this.loadError.set(err instanceof Error ? err.message : 'Failed to load user.');
     } finally {
       this.loading.set(false);
     }

@@ -67,7 +67,7 @@ export class ProjectsPage extends BaseListPage {
   }
 
   async expectNoProjectsMessage(): Promise<void> {
-    await expect(this.page.getByTestId('project-list-empty')).toContainText('No projects found.');
+    await expect(this.page.getByTestId('project-list-empty')).toContainText('No projects yet');
   }
 }
 
