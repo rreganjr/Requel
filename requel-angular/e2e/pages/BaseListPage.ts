@@ -25,7 +25,11 @@ export abstract class BaseListPage {
   }
 
   protected async clickNewButton(buttonName: string, targetUrl: string): Promise<void> {
-    await this.page.locator('app-list-page').getByRole('button', { name: buttonName }).click();
+    // Target the list-header action, which precedes the table in the DOM. An
+    // empty list also renders an app-empty-state CTA with the same label (e.g.
+    // "New Goal"), so match the first (header) button to avoid a strict-mode
+    // double-match when the list is empty (issue #131).
+    await this.page.locator('app-list-page').getByRole('button', { name: buttonName }).first().click();
     await this.page.waitForURL(targetUrl);
   }
 
