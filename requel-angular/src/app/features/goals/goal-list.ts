@@ -33,11 +33,12 @@ import { GoalService } from '../../core/goal.service';
 import { TagService } from '../../core/tag.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
+import { AppChipComponent } from '../../shared/app-chip';
 
 @Component({
   selector: 'app-goal-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SelectModule, FormsModule, SlicePipe],
+  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SelectModule, FormsModule, SlicePipe, AppChipComponent],
   template: `
     <app-list-page title="Goals" [eyebrow]="projectContext()" searchPlaceholder="Search goals..."
                    (search)="dt.filterGlobal($event, 'contains')">
@@ -73,7 +74,7 @@ import { ListPageComponent } from '../../shared/list-page';
             <td>
               <span class="chips" data-testid="goal-row-tags">
                 @for (t of tagsForGoal(g.id); track t.id) {
-                  <span class="tag-chip" [attr.data-tag]="label(t)">{{ label(t) }}</span>
+                  <app-chip [label]="label(t)" [tone]="'primary'" [attr.data-tag]="label(t)" />
                 }
               </span>
             </td>
@@ -90,9 +91,6 @@ import { ListPageComponent } from '../../shared/list-page';
     .text-preview { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tag-filter { min-width: 200px; }
     .chips { display: inline-flex; flex-wrap: wrap; gap: 0.3rem; }
-    .tag-chip { font-size: var(--rq-text-caption-size); font-weight: var(--rq-font-weight-semibold);
-      padding: 0.1rem 0.45rem; border-radius: 12px;
-      background: var(--p-primary-100, #dbeafe); color: var(--p-primary-700, #1d4ed8); white-space: nowrap; }
   `]
 })
 export class GoalListComponent implements OnInit, OnDestroy {

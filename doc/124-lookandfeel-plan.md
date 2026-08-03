@@ -97,7 +97,7 @@ it as a runtime mix.
 | Existing sub-issue | Action | Addition |
 |---|---|---|
 | #125 — 1.1 stock Aura, no brand layer | **Update** | Pin the preset to the target tokens (Figtree 14px, `#3b82f6`, blue-tinted surfaces, 6px radius) |
-| #126 — 1.2 component-local CSS fragments consistency | **Update** | Card-surface + severity-tint tokens become the single source, replacing hard-coded colors |
+| #126 — 1.2 component-local CSS fragments consistency | **Done (PR #162)** | Descoped to the mechanical de-`ng-deep` / de-inline-style pass only; chip/badge/card **color** remediation and the severity-tint tokens were explicitly deferred to #155 (N2) and #156 (N3) |
 | #127 — 1.3 typography too flat | **Update** | Adopt Figtree + a defined type scale |
 | #128 — 2.1 project context hidden in sidebar | **Update** | Fold in the top-bar breadcrumb + grouped/collapsible sidebar chrome |
 | #129 — 2.2 inconsistent list/detail, over-relies on row selection | **Update** | Adopt the data-table pattern (toolbar + New, checkbox select, status tag, row `⋯` menu, paginator) |
@@ -172,13 +172,55 @@ a11y landmark checks from #135.
 
 ### N2 — Tag & Chip severity system as shared primitives · priority:medium
 Add `app-tag` and `app-chip` wrappers over PrimeNG Tag/Chip: soft-tinted background +
-colored text; variants default / pill / icon for severities
-`primary|success|info|warning|danger`; chips support leading icon/avatar and optional
-remove (×). Replace the ad-hoc hard-coded tag colors in `goal-list`,
-`annotations-section`, and `tag-selector`.
-**Acceptance.** One component renders every severity/variant from tokens; used for
-entity status, annotation kind, and tag chips; color is never the only signal (icon or
-text label present) to satisfy #141.
+colored text; variants default / pill / icon. Replace the ad-hoc hard-coded tag colors
+in `goal-list`, `annotations-section`, and `tag-selector`.
+
+**Tokens (owned by N2).** #126 was descoped and did **not** ship the severity-tint
+tokens — N2 defines them. Add a `--rq-tag-{tone}-bg` / `--rq-tag-{tone}-fg` (and matching
+`--rq-chip-*`) scale to `styles.scss`, sourced from the #125 preset ramps. The components
+hold no color literals — all tint/text color reads from these tokens.
+
+**Tones (6).** `primary | success | info | warning | danger | neutral`. `neutral` is
+added beyond the original five because `Position` badges and `Neutral`-support arguments
+are genuinely gray today (`surface-200`) and must stay visually distinct from the blue
+`info` Note badge.
+
+**Chips.** Leading icon **or avatar or image**, plus optional trailing remove (×). The
+avatar/image variants are built now (not deferred) — they are needed for upcoming
+stakeholder/user chips. Remove controls are real `<button>`s with an accessible name and
+an AA target size.
+
+**Generic tone → icon map (for the `icon` variant):**
+
+| Tone | Tint | Icon |
+|---|---|---|
+| `primary` | brand blue | `pi pi-tag` |
+| `success` | green | `pi pi-check-circle` |
+| `info` | sky | `pi pi-info-circle` |
+| `warning` | amber | `pi pi-exclamation-triangle` |
+| `danger` | red | `pi pi-times-circle` |
+| `neutral` | gray | `pi pi-minus-circle` |
+
+**Domain concept → tone / icon map** (replaces the current hard-coded badges):
+
+| Concept | Tone | Icon |
+|---|---|---|
+| Annotation: Note | `info` | `pi pi-comment` |
+| Issue (open) | `warning` | `pi pi-exclamation-triangle` |
+| Issue (resolved) | `success` | `pi pi-check-circle` |
+| Position | `neutral` | `pi pi-flag` |
+| Argument For / StronglyFor | `success` | `pi pi-thumbs-up` |
+| Argument Against / StronglyAgainst | `danger` | `pi pi-thumbs-down` |
+| Argument Neutral | `neutral` | `pi pi-minus-circle` |
+| Must Resolve | `danger` | `pi pi-exclamation-circle` |
+| Entity status — Active | `success` | `pi pi-check-circle` |
+| Entity status — Inactive | `danger` | `pi pi-ban` |
+
+**Acceptance.** One component renders every tone/variant from tokens; used for entity
+status, annotation kind, and tag chips; avatar/image chip variants implemented; remove
+controls have accessible names and AA target size; color is never the only signal (icon
+or text label always present) to satisfy #141; no tag/chip color literals remain in
+`goal-list`, `annotations-section`, or `tag-selector`.
 
 ### N3 — Card / content-surface primitive (`app-card`) · priority:low
 Extract the repeated card container (title slot, padding, border, radius, soft shadow)

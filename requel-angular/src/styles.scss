@@ -98,6 +98,34 @@
   --rq-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.06),
     0 1px 3px rgba(15, 23, 42, 0.04);
 
+  // Tag / chip severity-tint system (issue #155, N2). The single source of truth
+  // for the soft-tinted status tags and chips (app-tag / app-chip). Each tone
+  // pairs a soft background tint with an AA-contrast text/icon colour, sourced
+  // from the Aura primitive ramps; the literal fallbacks mirror those ramp stops
+  // so tags still render if a primitive var is not emitted (same belt-and-braces
+  // the previous inline badges used). #126 was descoped and did not ship these —
+  // N2 owns them. Tones: primary | success | info | warning | danger | neutral.
+  // `neutral` exists for genuinely non-severity labels (Position badges,
+  // Neutral-support arguments) that must stay distinct from the blue `info` tone.
+  // Components hold no colour literals — they read only these tokens.
+  --rq-tag-primary-bg: var(--p-primary-100, #dbeafe);
+  --rq-tag-primary-fg: var(--p-primary-700, #1d4ed8);
+  --rq-tag-success-bg: var(--p-green-100, #dcfce7);
+  --rq-tag-success-fg: var(--p-green-700, #15803d);
+  --rq-tag-info-bg: var(--p-sky-100, #e0f2fe);
+  --rq-tag-info-fg: var(--p-sky-700, #0369a1);
+  --rq-tag-warning-bg: var(--p-amber-100, #fef3c7);
+  --rq-tag-warning-fg: var(--p-amber-800, #92400e);
+  --rq-tag-danger-bg: var(--p-red-100, #fee2e2);
+  --rq-tag-danger-fg: var(--p-red-700, #b91c1c);
+  --rq-tag-neutral-bg: var(--p-surface-200);
+  --rq-tag-neutral-fg: var(--p-text-secondary-color);
+
+  // Chip surface. The default chip is a neutral pill on the surface ramp; tone-
+  // coloured chips reuse the --rq-tag-* tints above.
+  --rq-chip-bg: var(--p-surface-100);
+  --rq-chip-fg: var(--p-text-color);
+
   // Minimum hit-area sizes for custom (non-PrimeNG) interactive controls
   // (issue #141, WCAG 2.2 SC 2.5.8 Target Size). `min` is the hard 24px floor
   // for controls packed inline among siblings (e.g. a chip's remove button);
