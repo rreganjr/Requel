@@ -29,11 +29,13 @@ import { MessageService } from 'primeng/api';
 import { AnnotationsDto, IssueDto, NoteDto, PositionDto, SUPPORT_LEVEL_OPTIONS } from '../models/annotation';
 import { AnnotationService } from '../core/annotation.service';
 import { AppCardComponent } from './app-card';
+import { AppTagComponent } from './app-tag';
+import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
 
 @Component({
   selector: 'app-annotations-section',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule, AppCardComponent],
+  imports: [FormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule, AppCardComponent, AppTagComponent],
   template: `
     @if (entityId != null) {
       <div class="annotations-section" data-testid="annotations-section">
@@ -90,7 +92,7 @@ import { AppCardComponent } from './app-card';
         @for (note of annotations().notes; track note.id) {
           <div class="annotation note-item" data-testid="annotation-note">
             <div class="annotation-row">
-              <span class="annotation-badge note-badge" data-testid="annotation-note-badge">Note</span>
+              <app-tag data-testid="annotation-note-badge" [tone]="'info'" icon="pi pi-comment" label="Note" />
               <span class="annotation-text">{{ note.text }}</span>
               <span class="annotation-creator">{{ note.createdBy }}</span>
               @if (canEdit) {
@@ -107,12 +109,12 @@ import { AppCardComponent } from './app-card';
           <div class="annotation issue-item" data-testid="annotation-issue"
                [attr.data-resolved]="issue.resolved" [class.resolved]="issue.resolved">
             <div class="annotation-row">
-              <span class="annotation-badge issue-badge" data-testid="annotation-issue-badge"
-                    [class.resolved-badge]="issue.resolved">
-                {{ issue.resolved ? 'Resolved' : 'Issue' }}
-              </span>
+              <app-tag data-testid="annotation-issue-badge"
+                       [tone]="issue.resolved ? 'success' : 'warning'"
+                       [icon]="issue.resolved ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'"
+                       [label]="issue.resolved ? 'Resolved' : 'Issue'" />
               @if (issue.mustBeResolved && !issue.resolved) {
-                <span class="must-resolve-badge">Must Resolve</span>
+                <app-tag [tone]="'danger'" icon="pi pi-exclamation-circle" label="Must Resolve" />
               }
               <span class="annotation-text">{{ issue.text }}</span>
               <span class="annotation-creator">{{ issue.createdBy }}</span>
@@ -136,7 +138,7 @@ import { AppCardComponent } from './app-card';
             @for (pos of issue.positions; track pos.id) {
               <div class="position-item" data-testid="annotation-position">
                 <div class="annotation-row">
-                  <span class="annotation-badge position-badge" data-testid="annotation-position-badge">Position</span>
+                  <app-tag data-testid="annotation-position-badge" [tone]="'neutral'" icon="pi pi-flag" label="Position" />
                   <span class="annotation-text">{{ pos.text }}</span>
                   <span class="annotation-creator">{{ pos.createdBy }}</span>
                   @if (canEdit && !issue.resolved) {
@@ -156,9 +158,9 @@ import { AppCardComponent } from './app-card';
                 @for (arg of pos.arguments; track arg.id) {
                   <div class="argument-item" data-testid="annotation-argument">
                     <div class="annotation-row">
-                      <span class="annotation-badge" [class]="'arg-badge ' + getSupportClass(arg.supportLevel)">
-                        {{ formatSupportLevel(arg.supportLevel) }}
-                      </span>
+                      <app-tag [tone]="supportTone(arg.supportLevel)"
+                               [icon]="supportIcon(arg.supportLevel)"
+                               [label]="formatSupportLevel(arg.supportLevel)" />
                       <span class="annotation-text">{{ arg.text }}</span>
                       <span class="annotation-creator">{{ arg.createdBy }}</span>
                       @if (canEdit) {
@@ -233,25 +235,17 @@ import { AppCardComponent } from './app-card';
     .form-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
 
     .annotation { border: 1px solid var(--p-surface-200); border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; }
-    .note-item { border-left: 3px solid var(--p-primary-color); }
-    .issue-item { border-left: 3px solid var(--p-orange-500, #f97316); }
-    .issue-item.resolved { border-left-color: var(--p-green-500, #22c55e); opacity: 0.8; }
+    /* Left-border accents echo each item's app-tag tone (Note=info, Issue=warning,
+       Resolved=success) so the strip and the badge read as one, from the same tokens. */
+    .note-item { border-left: 3px solid var(--rq-tag-info-fg); }
+    .issue-item { border-left: 3px solid var(--rq-tag-warning-fg); }
+    .issue-item.resolved { border-left-color: var(--rq-tag-success-fg); opacity: 0.8; }
     .position-item { margin-left: 1.5rem; border-left: 3px solid var(--p-surface-400); padding: 0.4rem 0.75rem; margin-top: 0.4rem; }
     .argument-item { margin-left: 1.5rem; padding: 0.25rem 0.5rem; margin-top: 0.25rem; }
 
     .annotation-row { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
-    .annotation-badge { font-size: 0.7rem; font-weight: 600; padding: 0.1rem 0.4rem; border-radius: 3px; text-transform: uppercase; white-space: nowrap; }
-    .note-badge { background: var(--p-primary-100, #dbeafe); color: var(--p-primary-700, #1d4ed8); }
-    .issue-badge { background: var(--p-orange-100, #ffedd5); color: var(--p-orange-700, #c2410c); }
-    .resolved-badge { background: var(--p-green-100, #dcfce7); color: var(--p-green-700, #15803d); }
-    .position-badge { background: var(--p-surface-200); color: var(--p-text-secondary-color); }
-    .arg-badge { font-size: 0.65rem; }
-    .arg-for { background: var(--p-green-100, #dcfce7); color: var(--p-green-700, #15803d); }
-    .arg-against { background: var(--p-red-100, #fee2e2); color: var(--p-red-700, #b91c1c); }
-    .arg-neutral { background: var(--p-surface-200); color: var(--p-text-secondary-color); }
-    .must-resolve-badge { font-size: 0.65rem; background: var(--p-red-100, #fee2e2); color: var(--p-red-700); padding: 0.1rem 0.4rem; border-radius: 3px; }
     .resolution-row { display: flex; align-items: baseline; gap: 0.4rem; margin-top: 0.25rem; font-size: 0.8rem; flex-wrap: wrap; }
-    .resolution-label { font-weight: 600; color: var(--p-green-700, #15803d); white-space: nowrap; }
+    .resolution-label { font-weight: 600; color: var(--rq-tag-success-fg); white-space: nowrap; }
     .resolution-text { color: var(--p-text-color); font-style: italic; }
 
     .annotation-text { flex: 1; }
@@ -403,10 +397,14 @@ export class AnnotationsSectionComponent implements OnChanges {
     }
   }
 
-  getSupportClass(supportLevel: string): string {
-    if (supportLevel === 'StronglyFor' || supportLevel === 'For') return 'arg-for';
-    if (supportLevel === 'StronglyAgainst' || supportLevel === 'Against') return 'arg-against';
-    return 'arg-neutral';
+  /** Argument support level -> app-tag tone (see severity.ts / the N2 mapping). */
+  supportTone(supportLevel: string): RqTone {
+    return supportLevelTone(supportLevel);
+  }
+
+  /** Argument support level -> app-tag leading icon. */
+  supportIcon(supportLevel: string): string {
+    return supportLevelIcon(supportLevel);
   }
 
   formatSupportLevel(level: string): string {

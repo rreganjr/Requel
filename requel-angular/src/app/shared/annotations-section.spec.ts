@@ -271,12 +271,18 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
     expect(annotationServiceMock.getAnnotations).toHaveBeenCalledTimes(2);
   });
 
-  it('getSupportClass() returns correct CSS class for support levels', () => {
-    expect(comp.getSupportClass('For')).toBe('arg-for');
-    expect(comp.getSupportClass('StronglyFor')).toBe('arg-for');
-    expect(comp.getSupportClass('Against')).toBe('arg-against');
-    expect(comp.getSupportClass('StronglyAgainst')).toBe('arg-against');
-    expect(comp.getSupportClass('Neutral')).toBe('arg-neutral');
+  it('supportTone() maps support levels to app-tag tones', () => {
+    expect(comp.supportTone('For')).toBe('success');
+    expect(comp.supportTone('StronglyFor')).toBe('success');
+    expect(comp.supportTone('Against')).toBe('danger');
+    expect(comp.supportTone('StronglyAgainst')).toBe('danger');
+    expect(comp.supportTone('Neutral')).toBe('neutral');
+  });
+
+  it('supportIcon() maps support levels to leading icons', () => {
+    expect(comp.supportIcon('For')).toBe('pi pi-thumbs-up');
+    expect(comp.supportIcon('StronglyAgainst')).toBe('pi pi-thumbs-down');
+    expect(comp.supportIcon('Neutral')).toBe('pi pi-minus-circle');
   });
 
   it('formatSupportLevel() returns label from SUPPORT_LEVEL_OPTIONS', () => {
