@@ -224,12 +224,30 @@ describe('ScenarioEditorComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'scenarios']);
   });
 
-  it('errorMessage set when loadScenario fails', async () => {
+  it('loadError set (driving the retryable error state) when the initial load fails', async () => {
     scenarioServiceMock.getScenario.mockRejectedValue(new Error('Network error'));
     paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
     fixture.detectChanges();
     await flush();
-    expect(comp.errorMessage()).toBe('Failed to load scenario.');
+    // Initial (non-SSE) load failures surface the retryable error state, not the
+    // inline errorMessage banner (issue #131).
+    expect(comp.loadError()).toBe('Failed to load scenario.');
+    expect(comp.errorMessage()).toBeNull();
+    expect(comp.loading()).toBe(false);
+  });
+
+  it('retryLoad recovers from a failed initial load', async () => {
+    scenarioServiceMock.getScenario.mockRejectedValueOnce(new Error('Network error'));
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    expect(comp.loadError()).toBe('Failed to load scenario.');
+
+    // A subsequent successful fetch clears the error and populates the form.
+    comp.retryLoad();
+    await flush();
+    expect(comp.loadError()).toBeNull();
+    expect(comp.name).toBe('Login Flow');
   });
 
   it('onSave sets errorMessage when command fails', async () => {

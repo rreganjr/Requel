@@ -136,6 +136,15 @@
   --rq-target-min: 24px;
   --rq-target-comfortable: 36px;
 
+  // Loading skeleton (issue #131). Placeholder bars shown while editor content
+  // loads, so users see the shape of the form instead of a blank surface. `base`
+  // is a faint surface fill; `sheen` is a lighter band the shimmer animation
+  // sweeps across. Both read the Slate surface ramp so they theme with the rest
+  // of the app — the component holds no colour literals.
+  --rq-skeleton-base: var(--p-surface-200);
+  --rq-skeleton-sheen: var(--p-surface-100);
+  --rq-skeleton-radius: var(--rq-radius-sm);
+
   // Make PrimeNG components inherit Figtree (font-family is not set by Aura).
   --p-font-family: var(--rq-font-family);
 }
@@ -208,6 +217,21 @@ html, body {
   font-weight: var(--rq-text-caption-weight);
   line-height: var(--rq-text-caption-line);
   color: var(--rq-text-muted-color);
+}
+
+// Visually-hidden text (issue #131). Removes content from the visual layout while
+// keeping it in the accessibility tree, so status/loading regions can carry a
+// readable label for assistive tech without showing it on screen. Standard
+// clip-rect pattern; do not use `display:none`/`visibility:hidden` (those hide
+// from AT too).
+.rq-visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 // -------------------------------------------------------------------------
