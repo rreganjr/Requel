@@ -106,8 +106,19 @@
   // tokens so app-field introduces no new colour literals — the divider reuses the
   // card border so a stack of rows matches the surface it sits on, and the error /
   // required marker colours read the same red ramp stop as --rq-tag-danger-fg.
-  --rq-field-label-w: 7.5rem;
-  --rq-field-divider: var(--rq-card-border);
+  // The label measure is named twice: --rq-field-label-w is the effective value a
+  // row reads, and the -wide / -compact pair are the two named stops. A group
+  // (#172) rebinds the effective value to the compact stop for its cells and back
+  // to the wide stop once it has collapsed to one column; that round trip needs a
+  // name to return to, which an overridden --rq-field-label-w cannot provide.
+  --rq-field-label-w-wide: 7.5rem;
+  --rq-field-label-w-compact: 6rem;
+  --rq-field-label-w: var(--rq-field-label-w-wide);
+  // Same reason: a group cell hides the row's own divider by rebinding
+  // --rq-field-divider, so the group's replacement hairline reads the base name.
+  --rq-field-divider-base: var(--rq-card-border);
+  --rq-field-divider: var(--rq-field-divider-base);
+  --rq-field-group-gap: var(--rq-space-6);
   --rq-field-error-fg: var(--rq-tag-danger-fg);
   --rq-field-required-fg: var(--rq-tag-danger-fg);
 
@@ -289,6 +300,64 @@ html, body {
 // Entity-selector dialog type filter keeps a stable minimum width.
 .type-filter-select {
   min-width: 130px;
+}
+
+// -------------------------------------------------------------------------
+// Form row group (issue #172)
+//
+// app-field-group lays out app-field rows in columns so the two dense editors
+// (project, user) stay side-by-side instead of collapsing to a long scroll.
+//
+// These rules are global rather than component-local because the rows are
+// PROJECTED content: they carry the host template's encapsulation attribute, not
+// app-field-group's, so an encapsulated rule cannot select them. #126 removed the
+// codebase's `:host ::ng-deep` blocks for exactly this situation and moved the
+// styling here behind a class hook - same approach. app-field-group stamps
+// .rq-field-cell on every projected row and .rq-field-cell-last-row on the rows of
+// the final grid line.
+// -------------------------------------------------------------------------
+
+.app-field-group {
+  display: grid;
+  // minmax(0, 1fr) rather than 1fr: a long unbroken value in one cell would
+  // otherwise widen its track and push the other column out of alignment.
+  grid-template-columns: repeat(var(--rq-field-group-columns, 2), minmax(0, 1fr));
+  column-gap: var(--rq-field-group-gap);
+  // The group owns the row dividers, so rows must butt together vertically.
+  row-gap: 0;
+  // A half-width cell has too little room for the wide label measure.
+  --rq-field-label-w: var(--rq-field-label-w-compact);
+}
+
+.app-field-group > .rq-field-cell {
+  // The row's own hairline is hidden rather than switched off via [divider]:
+  // it keeps occupying its 1px, so every row in the group stays the same height
+  // whether or not it is the one drawing the visible line. Switching the input off
+  // from a parent content hook is also what triggers NG0100 under the zoneless
+  // TestBed.
+  --rq-field-divider: transparent;
+  // Drawn on the cell, so a full row's two borders meet across the column gap and
+  // read as one hairline spanning the group.
+  border-bottom: 1px solid var(--rq-field-divider-base);
+}
+
+// The final grid line draws nothing. With an odd row count that line holds a
+// single cell, and a border there would stop halfway across the group.
+.app-field-group > .rq-field-cell-last-row {
+  border-bottom: none;
+}
+
+// Collapse to one column BEFORE app-field's own 30rem query stacks label above
+// control, so the degradation reads two-column -> one-column -> stacked in that
+// order. Breakpoints are literals because a @container condition cannot read a
+// custom property - the same constraint app-field's 30rem rule documents.
+@container (max-width: 40rem) {
+  .app-field-group {
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 0;
+    // One column per row means the wide label measure fits again.
+    --rq-field-label-w: var(--rq-field-label-w-wide);
+  }
 }
 
 // -------------------------------------------------------------------------
