@@ -56,7 +56,7 @@ export class ReportListPage extends BaseListPage {
   }
 
   async expectEmptyState(): Promise<void> {
-    await expect(this.page.getByTestId('report-list-empty')).toContainText('No documents found.');
+    await expect(this.page.getByTestId('report-list-empty')).toContainText('No documents yet');
   }
 }
 

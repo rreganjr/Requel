@@ -18,10 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { SlicePipe } from '@angular/common';
@@ -29,51 +28,41 @@ import { StoryDto } from '../../models/story';
 import { StoryService } from '../../core/story.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
+import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
   selector: 'app-story-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule, SlicePipe],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, SlicePipe],
   template: `
-    <app-list-page title="Stories" [eyebrow]="projectContext()" searchPlaceholder="Search stories..."
-                   (search)="dt.filterGlobal($event, 'contains')">
-      <ng-container actions>
-        @if (canEdit()) {
-          <p-button label="New Story" icon="pi pi-plus" (onClick)="onNewStory()" />
-        }
-      </ng-container>
-
+    <app-list-page title="Stories" [eyebrow]="projectContext()" [showSearch]="false">
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <p-table #dt [value]="stories()" [loading]="loading()" [paginator]="true" [rows]="20"
-               [rowHover]="true" selectionMode="single" (onRowSelect)="onRowSelect($event)"
-               [globalFilterFields]="['name', 'text', 'storyType', 'createdBy']">
-        <ng-template #header>
-          <tr>
-            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
-            <th pSortableColumn="storyType">Type <p-sortIcon field="storyType" /></th>
-            <th>Text</th>
-            <th pSortableColumn="createdBy">Created By <p-sortIcon field="createdBy" /></th>
-          </tr>
-        </ng-template>
-        <ng-template #body let-s>
-          <tr [pSelectableRow]="s">
-            <td>{{ s.name }}</td>
-            <td>{{ s.storyType }}</td>
-            <td class="text-preview">{{ s.text | slice:0:80 }}{{ s.text?.length > 80 ? '...' : '' }}</td>
-            <td>{{ s.createdBy }}</td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr><td colspan="4" class="text-center">No stories found.</td></tr>
-        </ng-template>
-      </p-table>
+      <app-data-table [value]="stories()" [columns]="columns" [loading]="loading()"
+                      [rowActions]="rowActions" searchPlaceholder="Search stories..."
+                      [globalFilterFields]="['name', 'text', 'storyType', 'createdBy']"
+                      testid="story-list" (rowClick)="onRowSelect({ data: $event })"
+                      emptyTitle="No stories yet"
+                      emptyMessage="Capture the user stories this project needs to deliver."
+                      emptyIcon="pi-book" emptyActionLabel="New Story"
+                      [showEmptyAction]="canEdit()" (emptyAction)="onNewStory()">
+        <div toolbarActions>
+          @if (canEdit()) {
+            <p-button label="New Story" icon="pi pi-plus" (onClick)="onNewStory()" />
+          }
+        </div>
+      </app-data-table>
     </app-list-page>
+
+    <ng-template #textCell let-s>
+      <span class="text-preview">{{ s.text | slice:0:80 }}{{ s.text?.length > 80 ? '...' : '' }}</span>
+    </ng-template>
   `,
   styles: [`
-    .text-preview { max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .text-preview { display: inline-block; max-width: 400px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
   `]
 })
 export class StoryListComponent implements OnInit, OnDestroy {
@@ -83,6 +72,12 @@ export class StoryListComponent implements OnInit, OnDestroy {
   canEdit = signal(false);
   /** Project-name context shown as the page eyebrow (issue #127). */
   projectContext = signal('');
+
+  @ViewChild('textCell', { static: true }) textCell!: TemplateRef<{ $implicit: StoryDto }>;
+  columns: DataTableColumn<StoryDto>[] = [];
+  rowActions: RowAction<StoryDto>[] = [
+    { label: 'Open', icon: 'pi pi-eye', command: s => this.onRowSelect({ data: s }) }
+  ];
 
   private projectName = '';
   private paramSub?: Subscription;
@@ -95,6 +90,12 @@ export class StoryListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.columns = [
+      { field: 'name', header: 'Name', sortable: true },
+      { field: 'storyType', header: 'Type', sortable: true },
+      { field: 'text', header: 'Text', cellTemplate: this.textCell },
+      { field: 'createdBy', header: 'Created By', sortable: true }
+    ];
     this.paramSub = this.route.paramMap.subscribe(async params => {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {

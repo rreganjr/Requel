@@ -166,7 +166,19 @@ export class ScenarioEditorPage {
   }
 
   async openStepEdit(index: number): Promise<void> {
-    await this.stepRows().nth(index).getByTestId('scenario-step-edit').click();
+    // The step rows re-render right after a save() (the post-save detail reload
+    // repopulates stepNodes). A single click on the edit button can land during
+    // that re-render, before Angular's (click)="openStepEdit(step)" handler is
+    // wired to the fresh element, so editingStep is never set and the p-dialog
+    // never opens — the flake behind scenarios.e2e "edit step via popup". Retry
+    // the click until the dialog's name field is actually visible so the open is
+    // deterministic regardless of render timing.
+    const editButton = this.stepRows().nth(index).getByTestId('scenario-step-edit');
+    const nameInput = this.page.getByTestId('scenario-step-edit-name');
+    await expect(async () => {
+      await editButton.click();
+      await expect(nameInput).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 15000 });
   }
 
   async fillStepEditName(name: string): Promise<void> {

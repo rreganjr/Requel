@@ -21,62 +21,51 @@
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
 import { ReportGeneratorDto } from '../../models/report';
 import { ReportService } from '../../core/report.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
+import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
 
 @Component({
   selector: 'app-report-list',
   standalone: true,
-  imports: [ListPageComponent, TableModule, ButtonModule, MessageModule],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule],
   template: `
-    <app-list-page title="Documents" searchPlaceholder="Search documents..."
-                   (search)="dt.filterGlobal($event, 'contains')">
-      <ng-container actions>
-        @if (canEdit()) {
-          <p-button label="New Document" icon="pi pi-plus" data-testid="report-list-new" (onClick)="onNew()" />
-        }
-      </ng-container>
-
+    <app-list-page title="Documents" [showSearch]="false">
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" data-testid="report-list-error" />
       }
 
-      <p-table #dt [value]="reports()" [loading]="loading()" [paginator]="true" [rows]="20"
-               [rowHover]="true" [globalFilterFields]="['name', 'createdBy']">
-        <ng-template #header>
-          <tr>
-            <th pSortableColumn="name">Name <p-sortIcon field="name" /></th>
-            <th pSortableColumn="createdBy">Created By <p-sortIcon field="createdBy" /></th>
-            <th>Actions</th>
-          </tr>
+      <app-data-table [value]="reports()" [columns]="columns" [loading]="loading()"
+                      [rowClickable]="false" rowTestid="report-list-row"
+                      searchPlaceholder="Search documents..."
+                      [globalFilterFields]="['name', 'createdBy']" testid="report-list"
+                      emptyTitle="No documents yet"
+                      emptyMessage="Create a document generator to produce reports from this project."
+                      emptyIcon="pi-file" emptyActionLabel="New Document"
+                      [showEmptyAction]="canEdit()" (emptyAction)="onNew()">
+        <div toolbarActions>
+          @if (canEdit()) {
+            <p-button label="New Document" icon="pi pi-plus" data-testid="report-list-new" (onClick)="onNew()" />
+          }
+        </div>
+        <ng-template #rowActions let-r>
+          <div class="action-cell">
+            <p-button label="Edit" icon="pi pi-pencil" size="small" [text]="true"
+                      data-testid="report-list-edit" (onClick)="onEdit(r)" />
+            <p-button label="Run" icon="pi pi-play" size="small" [text]="true"
+                      data-testid="report-list-run" severity="success"
+                      (onClick)="onRun(r)" [loading]="runningId() === r.id" />
+          </div>
         </ng-template>
-        <ng-template #body let-r>
-          <tr data-testid="report-list-row">
-            <td>{{ r.name }}</td>
-            <td>{{ r.createdBy }}</td>
-            <td class="action-cell">
-              <p-button label="Edit" icon="pi pi-pencil" size="small" [text]="true"
-                        data-testid="report-list-edit"
-                        (onClick)="onEdit(r)" />
-              <p-button label="Run" icon="pi pi-play" size="small" [text]="true"
-                        data-testid="report-list-run"
-                        severity="success" (onClick)="onRun(r)" [loading]="runningId() === r.id" />
-            </td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr data-testid="report-list-empty"><td colspan="3" class="text-center">No documents found.</td></tr>
-        </ng-template>
-      </p-table>
+      </app-data-table>
     </app-list-page>
   `,
   styles: [`
-    .action-cell { display: flex; gap: 0.25rem; }
+    .action-cell { display: flex; gap: 0.25rem; justify-content: flex-end; }
   `]
 })
 export class ReportListComponent implements OnInit, OnDestroy {
@@ -85,6 +74,11 @@ export class ReportListComponent implements OnInit, OnDestroy {
   errorMessage = signal<string | null>(null);
   runningId = signal<number | null>(null);
   canEdit = signal(false);
+
+  columns: DataTableColumn<ReportGeneratorDto>[] = [
+    { field: 'name', header: 'Name', sortable: true },
+    { field: 'createdBy', header: 'Created By', sortable: true }
+  ];
 
   private projectName = '';
   private paramSub?: Subscription;

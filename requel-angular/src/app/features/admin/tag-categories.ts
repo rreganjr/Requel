@@ -18,10 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { FormsModule } from '@angular/forms';
-import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -29,6 +28,7 @@ import { MessageModule } from 'primeng/message';
 import { MessageService } from 'primeng/api';
 import { TagCategoryDto } from '../../models/tag';
 import { TagService } from '../../core/tag.service';
+import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
 
 /**
  * Admin surface for the global typed-category set (Phase 6): categories with no owning project,
@@ -38,7 +38,7 @@ import { TagService } from '../../core/tag.service';
 @Component({
   selector: 'app-tag-categories',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, TableModule, ButtonModule, InputText, CheckboxModule, MessageModule],
+  imports: [PageHeaderComponent, FormsModule, AppDataTableComponent, ButtonModule, InputText, CheckboxModule, MessageModule],
   template: `
     <div class="tag-categories" data-testid="tag-categories">
       <div class="page-header"><app-page-header title="Global Tag Categories" /></div>
@@ -64,32 +64,21 @@ import { TagService } from '../../core/tag.service';
                   (onClick)="addCategory()" />
       </div>
 
-      <p-table [value]="categories()" [loading]="loading()" [paginator]="true" [rows]="20" [rowHover]="true">
-        <ng-template #header>
-          <tr>
-            <th>Name</th><th>Exclusive</th><th>Allowed Types</th><th>Values</th><th>Color</th>
-            <th class="col-actions"></th>
-          </tr>
+      <app-data-table [value]="categories()" [columns]="columns" [loading]="loading()"
+                      [showToolbar]="false" [rowClickable]="false" testid="tag-category"
+                      emptyTitle="No global categories" emptyIcon="pi-tags">
+        <ng-template #rowActions let-c>
+          <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
+                    data-testid="tag-category-delete" [ariaLabel]="'Delete category ' + c.name"
+                    (onClick)="deleteCategory(c)" />
         </ng-template>
-        <ng-template #body let-c>
-          <tr data-testid="tag-category-row">
-            <td>{{ c.name }}</td>
-            <td>{{ c.exclusive ? 'yes' : '—' }}</td>
-            <td>{{ c.allowedEntityTypes.length ? c.allowedEntityTypes.join(', ') : 'any' }}</td>
-            <td>{{ c.values.length ? c.values.join(', ') : 'any' }}</td>
-            <td>{{ c.color ?? '—' }}</td>
-            <td>
-              <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                        data-testid="tag-category-delete" [ariaLabel]="'Delete category ' + c.name"
-                        (onClick)="deleteCategory(c)" />
-            </td>
-          </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-          <tr><td colspan="6" class="text-center">No global categories.</td></tr>
-        </ng-template>
-      </p-table>
+      </app-data-table>
     </div>
+
+    <ng-template #exclusiveCell let-c>{{ c.exclusive ? 'yes' : '—' }}</ng-template>
+    <ng-template #allowedCell let-c>{{ c.allowedEntityTypes.length ? c.allowedEntityTypes.join(', ') : 'any' }}</ng-template>
+    <ng-template #valuesCell let-c>{{ c.values.length ? c.values.join(', ') : 'any' }}</ng-template>
+    <ng-template #colorCell let-c>{{ c.color ?? '—' }}</ng-template>
   `,
   styles: [`
     .tag-categories { max-width: 960px; }
@@ -111,9 +100,22 @@ export class TagCategoriesComponent implements OnInit {
   newValues = '';
   newColor = '';
 
+  @ViewChild('exclusiveCell', { static: true }) exclusiveCell!: TemplateRef<{ $implicit: TagCategoryDto }>;
+  @ViewChild('allowedCell', { static: true }) allowedCell!: TemplateRef<{ $implicit: TagCategoryDto }>;
+  @ViewChild('valuesCell', { static: true }) valuesCell!: TemplateRef<{ $implicit: TagCategoryDto }>;
+  @ViewChild('colorCell', { static: true }) colorCell!: TemplateRef<{ $implicit: TagCategoryDto }>;
+  columns: DataTableColumn<TagCategoryDto>[] = [];
+
   constructor(private tagService: TagService, private messageService: MessageService) {}
 
   ngOnInit(): void {
+    this.columns = [
+      { field: 'name', header: 'Name', sortable: true },
+      { field: 'exclusive', header: 'Exclusive', cellTemplate: this.exclusiveCell },
+      { field: 'allowedEntityTypes', header: 'Allowed Types', cellTemplate: this.allowedCell },
+      { field: 'values', header: 'Values', cellTemplate: this.valuesCell },
+      { field: 'color', header: 'Color', cellTemplate: this.colorCell }
+    ];
     void this.load();
   }
 
