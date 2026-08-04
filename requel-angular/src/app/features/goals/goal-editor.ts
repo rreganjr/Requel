@@ -19,11 +19,12 @@
  *
  */
 import { Component, computed, ElementRef, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -33,6 +34,7 @@ import { MessageModule } from 'primeng/message';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
+import { CommandResult } from '../../models/command';
 import { GoalDto, GoalRelationDto } from '../../models/goal';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { GoalService } from '../../core/goal.service';
@@ -44,13 +46,25 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { TagSelectorComponent } from '../../shared/tag-selector';
 import { AppCardComponent } from '../../shared/app-card';
+import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import {
+  AppFormWizardComponent,
+  AppWizardStepComponent,
+  WizardCommitRequest,
+} from '../../shared/app-form-wizard';
+
+/** Wording for the stale-version recovery path, so the 409 case reads as recoverable. */
+const STALE_VERSION_MESSAGE =
+  'This goal was changed elsewhere. Your copy has been refreshed — review the values and continue.';
 
 @Component({
   selector: 'app-goal-editor',
   standalone: true,
-  imports: [PageHeaderComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, RouterLink, FormsModule, ReactiveFormsModule, NgTemplateOutlet,
+            ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, DialogModule, ConfirmDialogModule, EntitySelectorDialogComponent,
-            AnnotationsSectionComponent, TagSelectorComponent, AppCardComponent],
+            AnnotationsSectionComponent, TagSelectorComponent, AppCardComponent, AppFieldComponent,
+            AppFieldControlDirective, AppFormWizardComponent, AppWizardStepComponent],
   providers: [ConfirmationService],
   template: `
     <div class="goal-editor" data-testid="goal-editor">
@@ -76,81 +90,59 @@ import { AppCardComponent } from '../../shared/app-card';
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <app-card>
-        <div class="form-grid">
-          <label for="name">Name</label>
-          <input id="name" pInputText [(ngModel)]="name" placeholder="Goal name" />
+      @if (isNew()) {
+        <!--
+          Create runs as a wizard so Tags and Relations are reachable before the first
+          save. Step 1 commits EditGoal on Continue, which is what gives steps 2 and 3
+          the persisted goalId they need.
+        -->
+        <app-form-wizard
+          [(activeKey)]="wizardStep"
+          navLabel="New goal steps"
+          (stepCommit)="onStepCommit($event)"
+          (cancelled)="onBack()"
+          (finished)="onWizardFinished()"
+          data-testid="goal-wizard"
+        >
+          <app-wizard-step key="details" label="Details" helper="Name and description"
+                           [form]="detailsForm">
+            <ng-template>
+              <ng-container [ngTemplateOutlet]="detailsFields" />
+            </ng-template>
+          </app-wizard-step>
 
-          <label for="text">Description</label>
-          <textarea id="text" pTextarea [(ngModel)]="text" rows="6"
-                    placeholder="Goal description"></textarea>
-        </div>
+          <app-wizard-step key="tags" label="Tags" helper="Categorise this goal" [optional]="true">
+            <ng-template>
+              <ng-container [ngTemplateOutlet]="tagsSection" />
+            </ng-template>
+          </app-wizard-step>
 
-        <div class="form-actions">
-          <p-button label="Save" icon="pi pi-check" data-testid="goal-save" (onClick)="onSave()" [loading]="saving()" />
-        </div>
-      </app-card>
+          <app-wizard-step key="relations" label="Relations" helper="Link to other goals"
+                           [optional]="true">
+            <ng-template>
+              <!-- heading: false — the wizard panel's own h2 already reads "Relations". -->
+              <ng-container [ngTemplateOutlet]="relationsSection"
+                            [ngTemplateOutletContext]="{ heading: false }" />
+            </ng-template>
+          </app-wizard-step>
+        </app-form-wizard>
+      } @else {
+        <app-card>
+          <ng-container [ngTemplateOutlet]="detailsFields" />
 
-      <!-- Relations: outgoing (this goal supports/conflicts with...) -->
-      @if (!isNew() && goal()) {
-        <div class="section">
-          <div class="section-header">
-            <h3>This Goal's Relations</h3>
-            @if (canEdit()) {
-              <p-button #addRelationBtn label="Add Relation" icon="pi pi-plus" size="small" data-testid="goal-add-relation"
-                        (onClick)="showRelationSelector = true" />
-            }
+          <div class="form-actions">
+            <p-button label="Save" icon="pi pi-check" data-testid="goal-save"
+                      [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
           </div>
+        </app-card>
 
-          @if (goal()!.relationsFromThisGoal?.length) {
-            <p-table [value]="goal()!.relationsFromThisGoal!" [rows]="10">
-              <ng-template #header>
-                <tr>
-                  <th>Goal</th>
-                  <th>Type</th>
-                  @if (canEdit()) { <th class="col-actions"></th> }
-                </tr>
-              </ng-template>
-              <ng-template #body let-r>
-                <tr data-testid="goal-relation-row">
-                  <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', r.goalId]">{{ r.goalName }}</a></td>
-                  <td>{{ r.relationType }}</td>
-                  @if (canEdit()) {
-                    <td><p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                                  data-testid="goal-remove-relation" [ariaLabel]="'Remove relation to ' + r.goalName"
-                                  (onClick)="onDeleteRelation(r)" /></td>
-                  }
-                </tr>
-              </ng-template>
-            </p-table>
-          } @else {
-            <p class="empty-text">No relations defined.</p>
-          }
+        <ng-container [ngTemplateOutlet]="relationsSection"
+                      [ngTemplateOutletContext]="{ heading: true }" />
 
-          <!-- Incoming relations (other goals relate to this one) -->
-          @if (goal()!.relationsToThisGoal?.length) {
-            <h4>Related To This Goal</h4>
-            <p-table [value]="goal()!.relationsToThisGoal!" [rows]="10">
-              <ng-template #header>
-                <tr>
-                  <th>Goal</th>
-                  <th>Type</th>
-                </tr>
-              </ng-template>
-              <ng-template #body let-r>
-                <tr>
-                  <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', r.goalId]">{{ r.goalName }}</a></td>
-                  <td>{{ r.relationType }}</td>
-                </tr>
-              </ng-template>
-            </p-table>
-          }
-        </div>
-
-        <!-- Referenced By -->
-        @if (goal()!.referencedBy?.length) {
+        @if (goal()?.referencedBy?.length) {
           <div class="section">
-            <h3>Referenced By</h3>
+            <!-- h2: these sections sit directly under the page's single h1. -->
+            <h2 class="rq-section-title">Referenced By</h2>
             <p-table [value]="goal()!.referencedBy!" [rows]="10">
               <ng-template #header>
                 <tr>
@@ -167,6 +159,20 @@ import { AppCardComponent } from '../../shared/app-card';
             </p-table>
           </div>
         }
+
+        <ng-container [ngTemplateOutlet]="tagsSection" />
+      }
+
+      <!--
+        Annotations render against a persisted entity, so they stay outside the wizard
+        and appear once the goal exists rather than as a dead panel during create.
+      -->
+      @if (goalId != null) {
+        <app-annotations-section
+          [projectName]="projectName"
+          entityType="Goal"
+          [entityId]="goalId"
+          [canEdit]="canEdit()" />
       }
 
       <!-- Add Relation Dialog -->
@@ -194,32 +200,111 @@ import { AppCardComponent } from '../../shared/app-card';
         </div>
       </p-dialog>
 
-      @if (!isNew()) {
-        <app-tag-selector
-          [projectName]="projectName"
-          entityType="Goal"
-          [entityId]="goalId"
-          [canEdit]="canEdit()" />
-      }
-
-      <app-annotations-section
-        [projectName]="projectName"
-        entityType="Goal"
-        [entityId]="goalId"
-        [canEdit]="canEdit()" />
-
       <p-confirmDialog />
+
+      <!--
+        Shared bodies. Each is used by both the wizard step and the edit view, so the
+        two modes cannot drift apart. Controls bind with [formControl], not
+        formControlName: these templates are projected into the wizard, where
+        formControlName would look for a parent formGroup that is not there.
+      -->
+      <ng-template #detailsFields>
+        <app-field label="Name" helper="Short and outcome-focused."
+                   [control]="detailsForm.controls.name"
+                   [errorMessages]="nameErrors"
+                   [submitted]="submitted()">
+          <input appFieldControl pInputText [formControl]="detailsForm.controls.name"
+                 placeholder="Goal name" data-testid="goal-name" />
+        </app-field>
+
+        <app-field label="Description" [control]="detailsForm.controls.text" [divider]="false"
+                   [submitted]="submitted()">
+          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" rows="6"
+                    placeholder="Goal description" data-testid="goal-text"></textarea>
+        </app-field>
+      </ng-template>
+
+      <ng-template #tagsSection>
+        @if (goalId != null) {
+          <app-tag-selector
+            [projectName]="projectName"
+            entityType="Goal"
+            [entityId]="goalId"
+            [canEdit]="canEdit()" />
+        } @else {
+          <p class="empty-text">Save the goal's details first to add tags.</p>
+        }
+      </ng-template>
+
+      <ng-template #relationsSection let-heading="heading">
+        <div class="section">
+          <div class="section-header">
+            @if (heading) {
+              <h2 class="rq-section-title">This Goal's Relations</h2>
+            }
+            @if (canEdit() && goalId != null) {
+              <p-button #addRelationBtn label="Add Relation" icon="pi pi-plus" size="small" data-testid="goal-add-relation"
+                        (onClick)="showRelationSelector = true" />
+            }
+          </div>
+
+          @if (goalId == null) {
+            <p class="empty-text">Save the goal's details first to add relations.</p>
+          } @else if (goal()?.relationsFromThisGoal?.length) {
+            <p-table [value]="goal()!.relationsFromThisGoal!" [rows]="10">
+              <ng-template #header>
+                <tr>
+                  <th>Goal</th>
+                  <th>Type</th>
+                  @if (canEdit()) { <th class="col-actions"></th> }
+                </tr>
+              </ng-template>
+              <ng-template #body let-r>
+                <tr data-testid="goal-relation-row">
+                  <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', r.goalId]">{{ r.goalName }}</a></td>
+                  <td>{{ r.relationType }}</td>
+                  @if (canEdit()) {
+                    <td><p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
+                                  data-testid="goal-remove-relation" [ariaLabel]="'Remove relation to ' + r.goalName"
+                                  (onClick)="onDeleteRelation(r)" /></td>
+                  }
+                </tr>
+              </ng-template>
+            </p-table>
+          } @else {
+            <p class="empty-text">No relations defined.</p>
+          }
+
+          <!-- Incoming relations (other goals relate to this one) -->
+          @if (goal()?.relationsToThisGoal?.length) {
+            <h3>Related To This Goal</h3>
+            <p-table [value]="goal()!.relationsToThisGoal!" [rows]="10">
+              <ng-template #header>
+                <tr>
+                  <th>Goal</th>
+                  <th>Type</th>
+                </tr>
+              </ng-template>
+              <ng-template #body let-r>
+                <tr>
+                  <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', r.goalId]">{{ r.goalName }}</a></td>
+                  <td>{{ r.relationType }}</td>
+                </tr>
+              </ng-template>
+            </p-table>
+          }
+        </div>
+      </ng-template>
     </div>
   `,
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .page-actions { display: flex; gap: 0.5rem; }
-    .form-grid { display: grid; grid-template-columns: 120px 1fr; gap: 0.75rem 1rem; align-items: start; max-width: 700px; }
     .form-actions { margin-top: 1rem; }
     .section { margin-top: 1.5rem; }
-    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-    .section-header h3 { margin: 0; }
-    h4 { margin: 1rem 0 0.5rem; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; }
+    .section-header h2 { margin: 0; }
+    .section h3 { margin: 1rem 0 0.5rem; }
     .empty-text { color: var(--p-text-secondary-color); font-style: italic; }
     .entity-link { cursor: pointer; color: var(--p-primary-color); text-decoration: underline; }
     .dialog-body { display: flex; flex-direction: column; }
@@ -234,6 +319,8 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   saving = signal(false);
   canEdit = signal(false);
   canDelete = signal(false);
+  /** True once a save/commit has been attempted, so untouched invalid fields explain themselves. */
+  submitted = signal(false);
   pendingRelationGoal = signal<EntityReferenceDto | null>(null);
   relationDialogVisible = signal(false);
   relationDialogHeader = computed(() => {
@@ -243,10 +330,17 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   @ViewChild('addRelationBtn', { read: ElementRef }) addRelationBtn?: ElementRef<HTMLElement>;
 
-  name = '';
-  text = '';
-  private originalName = '';
-  private originalText = '';
+  /** Details step / edit form. Replaces the previous `name` + `text` ngModel fields. */
+  readonly detailsForm = new FormGroup({
+    name: new FormControl('', { validators: [Validators.required], nonNullable: true }),
+    text: new FormControl('', { nonNullable: true }),
+  });
+
+  readonly nameErrors = { required: 'A goal needs a name.' };
+
+  /** Active wizard step key, two-way bound to `app-form-wizard`. */
+  wizardStep = 'details';
+
   showRelationSelector = false;
   newRelationType = 'Supports';
   relationTypeOptions = [
@@ -285,11 +379,11 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (newIsNew) {
         this.isNew.set(true);
         this.goal.set(null);
-        this.name = '';
-        this.text = '';
-        this.originalName = '';
-        this.originalText = '';
+        this.goalId = null;
         this.version = null;
+        this.wizardStep = 'details';
+        this.submitted.set(false);
+        this.detailsForm.reset({ name: '', text: '' });
       }
 
       await this.permissionService.loadForProject(this.projectName);
@@ -305,7 +399,12 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   hasUnsavedChanges(): boolean {
-    return this.name !== this.originalName || this.text !== this.originalText;
+    return this.detailsForm.dirty;
+  }
+
+  /** Edit-mode Save: blocked on invalid, unchanged, or in-flight. */
+  canSave(): boolean {
+    return this.detailsForm.valid && this.detailsForm.dirty && !this.saving();
   }
 
   ngOnDestroy(): void {
@@ -321,14 +420,15 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       const g = await this.goalService.getGoal(this.projectName, this.goalId!);
       // Don't overwrite unsaved user edits when called from an SSE notification.
       if (fromSSE && this.hasUnsavedChanges()) {
+        // Still take the new version: the entity moved on, and holding the stale one
+        // guarantees a 409 on the user's next save.
+        this.version = g.version;
+        this.goal.set(g);
         return;
       }
       this.goal.set(g);
       this.goalName.set(g.name);
-      this.name = g.name;
-      this.text = g.text;
-      this.originalName = g.name;
-      this.originalText = g.text;
+      this.detailsForm.reset({ name: g.name, text: g.text });
       this.version = g.version;
     } catch {
       this.errorMessage.set('Failed to load goal.');
@@ -353,40 +453,128 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     return ids;
   }
 
-  async onSave(): Promise<void> {
+  /**
+   * Runs the commit for the wizard's current step.
+   *
+   * Only Details talks to the API — Tags and Relations commit through their own
+   * widgets as the user works, so their Continue just advances.
+   */
+  async onStepCommit(request: WizardCommitRequest): Promise<void> {
+    if (request.step.key !== 'details') {
+      request.complete();
+      return;
+    }
+
+    this.submitted.set(true);
+    const result = await this.saveDetails();
+
+    if (result.success) {
+      request.complete();
+      return;
+    }
+
+    if (await this.recoverFromStaleVersion(result)) {
+      request.fail(STALE_VERSION_MESSAGE);
+      return;
+    }
+    request.fail(result.error ?? 'Save failed.');
+  }
+
+  /** Done on the last step: the goal is already saved, so just go to it. */
+  onWizardFinished(): void {
+    if (this.goalId != null) {
+      this.router.navigate(['/projects', this.projectName, 'goals', this.goalId]);
+    } else {
+      this.onBack();
+    }
+  }
+
+  /**
+   * Issues `EditGoal` for the Details values and, on success, adopts the id and
+   * version from the response.
+   *
+   * The version is **spent on use**: every accepted `EditGoal` bumps it server-side,
+   * so it is re-read from `result.entity` each time. Holding the value captured at
+   * create and sending it again — which is what happens if the user steps back to
+   * Details and presses Continue a second time — is a guaranteed 409.
+   */
+  private async saveDetails(): Promise<CommandResult<unknown>> {
     this.saving.set(true);
     this.errorMessage.set(null);
     try {
-      const input: Record<string, unknown> = {
-        projectName: this.projectName,
-        name: this.name,
-        text: this.text,
-      };
+      const { name, text } = this.detailsForm.getRawValue();
+      const input: Record<string, unknown> = { projectName: this.projectName, name, text };
       if (this.goalId != null) input['goalId'] = this.goalId;
       if (this.version != null) input['version'] = this.version;
+
       const result = await this.commandService.execute('EditGoal', input);
-      if (result.success) {
-        this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Goal saved.' });
-        if (this.isNew()) {
-          this.projectService.notifyTreeChanged();
-          if (result.entity) {
-            const saved = result.entity as GoalDto;
-            // Reset originals before navigation so CanDeactivate guard doesn't fire
-            this.originalName = this.name;
-            this.originalText = this.text;
-            this.router.navigate(['/projects', this.projectName, 'goals', saved.id]);
-          }
-        } else {
-          await this.loadGoal(); // resets originalName/originalText
-        }
-      } else {
-        this.errorMessage.set(result.error ?? 'Save failed.');
+      if (!result.success) {
+        return result;
       }
+
+      const wasCreate = this.goalId == null;
+      if (wasCreate) {
+        this.projectService.notifyTreeChanged();
+      }
+
+      const saved = result.entity as GoalDto | null;
+      if (saved) {
+        this.goalId = saved.id;
+        this.version = saved.version;
+        this.goalName.set(saved.name);
+      }
+      this.detailsForm.markAsPristine();
+      this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Goal saved.' });
+
+      // Hydrate relations / referencedBy (and start the SSE subscription) the first
+      // time the goal exists, so steps 2 and 3 have something to render.
+      if (wasCreate && this.goalId != null) {
+        await this.loadGoal();
+      }
+      return result;
     } catch {
-      this.errorMessage.set('An unexpected error occurred.');
+      return {
+        success: false,
+        entityType: 'Goal',
+        entity: null,
+        error: 'An unexpected error occurred.',
+        violations: null,
+      };
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /**
+   * If `result` is an optimistic-lock conflict (HTTP 409 from
+   * `EntityLockException.staleEntity`), refetch so the held version is current and
+   * the user can retry. Returns whether it handled the result.
+   */
+  private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
+    if (result.status !== 409 || this.goalId == null) {
+      return false;
+    }
+    await this.loadGoal();
+    return true;
+  }
+
+  /** Edit-mode Save. */
+  async onSave(): Promise<void> {
+    this.submitted.set(true);
+    if (this.detailsForm.invalid) {
+      this.detailsForm.markAllAsTouched();
+      return;
+    }
+
+    const result = await this.saveDetails();
+    if (result.success) {
+      return;
+    }
+    if (await this.recoverFromStaleVersion(result)) {
+      this.errorMessage.set(STALE_VERSION_MESSAGE);
+      return;
+    }
+    this.errorMessage.set(result.error ?? 'Save failed.');
   }
 
   onCopy(): void {
@@ -419,6 +607,8 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         });
         if (result.success) {
           this.projectService.notifyTreeChanged();
+          // Nothing left to guard against — don't let the dirty check block the exit.
+          this.detailsForm.markAsPristine();
           this.router.navigate(['/projects', this.projectName, 'goals']);
         } else {
           this.errorMessage.set(result.error ?? 'Delete failed.');
@@ -451,7 +641,9 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
     const result = await this.commandService.execute('EditGoalRelation', {
       projectName: this.projectName,
-      fromGoalName: this.name,
+      // The persisted name, not the form value: an unsaved rename in the Name field
+      // would otherwise be sent as the relation's from-goal and not resolve.
+      fromGoalName: this.goalName(),
       toGoalName: ref.name,
       relationType: this.newRelationType
     });

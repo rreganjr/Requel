@@ -127,7 +127,8 @@ test.describe('Open Issues', () => {
     const storyRow = page.getByRole('row', { name: new RegExp(storyIssueText) });
     await storyRow.getByTestId('open-issue-entity-link').click();
     await page.waitForURL(new RegExp(`/projects/${encodeURIComponent(PROJECT_NAME)}/stories/${storyToCleanup.id}$`));
-    await expect(page.locator('#name')).not.toHaveValue('');
+    // Since #158 the story form is app-field rows with generated ids — locate by testid.
+    await expect(page.getByTestId('story-name')).not.toHaveValue('');
 
     await page.close();
   });

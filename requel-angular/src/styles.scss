@@ -98,6 +98,31 @@
   --rq-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.06),
     0 1px 3px rgba(15, 23, 42, 0.04);
 
+  // Form row (issue #158, N5). The single source of truth for the label column
+  // width and row divider that nine editors each redefined locally as
+  // `.form-grid { grid-template-columns: 120px 1fr }` at varying widths. The label
+  // column is the one field-specific measure (7.5rem == the 120px the editors had
+  // converged on, expressed in the rem scale); everything else aliases existing
+  // tokens so app-field introduces no new colour literals — the divider reuses the
+  // card border so a stack of rows matches the surface it sits on, and the error /
+  // required marker colours read the same red ramp stop as --rq-tag-danger-fg.
+  --rq-field-label-w: 7.5rem;
+  --rq-field-divider: var(--rq-card-border);
+  --rq-field-error-fg: var(--rq-tag-danger-fg);
+  --rq-field-required-fg: var(--rq-tag-danger-fg);
+
+  // Form wizard step nav (issue #158, N5). app-form-wizard hand-rolls its step nav
+  // rather than wrapping p-stepper, which hard-codes role="tablist" on itself and so
+  // fails axe's aria-required-children in every composition. These tokens cover the
+  // only chrome that nav needs: the active row tint and the numbered/checked step
+  // marker. Everything aliases the surface and primary ramps from the #125 preset -
+  // no new literals, and dark mode (N6) inherits automatically.
+  --rq-wizard-step-active-bg: var(--p-surface-100);
+  --rq-wizard-marker-size: 1.5rem;
+  --rq-wizard-marker-bg: var(--p-surface-200);
+  --rq-wizard-marker-complete-bg: var(--p-primary-color);
+  --rq-wizard-marker-complete-fg: var(--p-primary-contrast-color);
+
   // Tag / chip severity-tint system (issue #155, N2). The single source of truth
   // for the soft-tinted status tags and chips (app-tag / app-chip). Each tone
   // pairs a soft background tint with an AA-contrast text/icon colour, sourced

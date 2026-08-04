@@ -19,12 +19,13 @@
  *
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -33,6 +34,7 @@ import { TableModule } from 'primeng/table';
 import { MessageModule } from 'primeng/message';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
+import { CommandResult } from '../../models/command';
 import { StoryDto } from '../../models/story';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { StoryService } from '../../core/story.service';
@@ -43,13 +45,25 @@ import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import {
+  AppFormWizardComponent,
+  AppWizardStepComponent,
+  WizardCommitRequest,
+} from '../../shared/app-form-wizard';
+
+/** Wording for the stale-version recovery path, so the 409 case reads as recoverable. */
+const STALE_VERSION_MESSAGE =
+  'This story was changed elsewhere. Your copy has been refreshed — review the values and continue.';
 
 @Component({
   selector: 'app-story-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
+            ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
-            AnnotationsSectionComponent],
+            AnnotationsSectionComponent, AppFieldComponent, AppFieldControlDirective,
+            AppFormWizardComponent, AppWizardStepComponent],
   providers: [ConfirmationService],
   template: `
     <div class="story-editor" data-testid="story-editor">
@@ -78,57 +92,156 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <app-card>
-        <div class="form-grid">
-          <label for="name">Name</label>
-          <input id="name" pInputText [(ngModel)]="name" placeholder="Story name"
-                 (ngModelChange)="trackChanges()" />
+      @if (isNew()) {
+        <!--
+          Create runs as a wizard so Goals and Additional Actors are reachable before
+          the first save. Step 1 commits EditStory on Continue, which is what gives the
+          later steps the persisted storyId their association commands need.
+        -->
+        <app-form-wizard
+          [(activeKey)]="wizardStep"
+          navLabel="New story steps"
+          (stepCommit)="onStepCommit($event)"
+          (cancelled)="onBack()"
+          (finished)="onWizardFinished()"
+          data-testid="story-wizard"
+        >
+          <app-wizard-step key="details" label="Details" helper="Name, type and text"
+                           [form]="detailsForm">
+            <ng-template>
+              <ng-container [ngTemplateOutlet]="detailsFields" />
+            </ng-template>
+          </app-wizard-step>
 
-          <label for="type">Type</label>
-          <p-select id="type" inputId="storyTypeInput" data-testid="story-type"
-                    [(ngModel)]="storyType" [options]="storyTypeOptions"
-                    optionLabel="label" optionValue="value"
-                    (ngModelChange)="trackChanges()" />
+          <app-wizard-step key="goals" label="Goals" helper="Goals this story serves"
+                           [optional]="true">
+            <ng-template>
+              <ng-container [ngTemplateOutlet]="goalsSection"
+                            [ngTemplateOutletContext]="{ heading: false }" />
+            </ng-template>
+          </app-wizard-step>
 
-          <label for="primaryActor">Primary Actor</label>
-          <p-select id="primaryActor" inputId="storyPrimaryActorInput"
+          <app-wizard-step key="actors" label="Additional Actors"
+                           helper="Actors beyond the primary" [optional]="true">
+            <ng-template>
+              <ng-container [ngTemplateOutlet]="actorsSection"
+                            [ngTemplateOutletContext]="{ heading: false }" />
+            </ng-template>
+          </app-wizard-step>
+        </app-form-wizard>
+      } @else {
+        <app-card>
+          <ng-container [ngTemplateOutlet]="detailsFields" />
+
+          <div class="form-actions">
+            <p-button label="Save" icon="pi pi-check" data-testid="story-save"
+                      [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
+          </div>
+        </app-card>
+
+        <ng-container [ngTemplateOutlet]="goalsSection"
+                      [ngTemplateOutletContext]="{ heading: true }" />
+        <ng-container [ngTemplateOutlet]="actorsSection"
+                      [ngTemplateOutletContext]="{ heading: true }" />
+      }
+
+      <app-entity-selector-dialog
+        [visible]="showGoalSelector"
+        [projectName]="projectName"
+        entityType="Goal"
+        [excludeIds]="existingGoalIds()"
+        (selected)="onGoalSelected($event)"
+        (closed)="showGoalSelector = false" />
+
+      <app-entity-selector-dialog
+        [visible]="showActorSelector"
+        [projectName]="projectName"
+        entityType="Actor"
+        [excludeIds]="existingActorIds()"
+        (selected)="onActorSelected($event)"
+        (closed)="showActorSelector = false" />
+
+      <!--
+        Annotations render against a persisted entity, so they stay outside the wizard
+        and appear once the story exists rather than as a dead panel during create.
+      -->
+      @if (storyId != null) {
+        <app-annotations-section
+          [projectName]="projectName"
+          entityType="Story"
+          [entityId]="storyId"
+          [canEdit]="canEdit()" />
+      }
+
+      <p-confirmDialog />
+
+      <!--
+        Shared bodies, used by both the wizard step and the edit view so the two modes
+        cannot drift apart. Controls bind with [formControl], not formControlName: these
+        templates are projected into the wizard, where formControlName would look for a
+        parent formGroup that is not there.
+
+        The two p-selects pass controlId matching their own inputId, so app-field's
+        <label for> targets the input PrimeNG renders inside its wrapper rather than
+        depending on DOM-probe timing.
+      -->
+      <ng-template #detailsFields>
+        <app-field label="Name" helper="What the story is called."
+                   [control]="detailsForm.controls.name"
+                   [errorMessages]="nameErrors"
+                   [submitted]="submitted()">
+          <input appFieldControl pInputText [formControl]="detailsForm.controls.name"
+                 placeholder="Story name" data-testid="story-name" />
+        </app-field>
+
+        <app-field label="Type" controlId="storyTypeInput"
+                   [control]="detailsForm.controls.storyType"
+                   [submitted]="submitted()">
+          <p-select appFieldControl inputId="storyTypeInput" data-testid="story-type"
+                    [formControl]="detailsForm.controls.storyType"
+                    [options]="storyTypeOptions"
+                    optionLabel="label" optionValue="value" />
+        </app-field>
+
+        <app-field label="Primary Actor" controlId="storyPrimaryActorInput"
+                   helper="The actor this story is told from."
+                   [control]="detailsForm.controls.primaryActorName"
+                   [submitted]="submitted()">
+          <p-select appFieldControl inputId="storyPrimaryActorInput"
                     data-testid="story-primary-actor"
-                    [(ngModel)]="primaryActorName"
+                    [formControl]="detailsForm.controls.primaryActorName"
                     [options]="actorOptions()"
                     optionLabel="label"
                     optionValue="value"
                     [showClear]="true"
                     [pt]="{ clearIcon: { 'data-testid': 'story-primary-actor-clear' } }"
                     placeholder="Select primary actor"
-                    (ngModelChange)="trackChanges()"
                     styleClass="w-full" />
+        </app-field>
 
-          <label for="text">Text</label>
-          <textarea id="text" pTextarea [(ngModel)]="text" rows="8"
-                    placeholder="Story text"
-                    (ngModelChange)="trackChanges()"></textarea>
-        </div>
+        <app-field label="Text" [control]="detailsForm.controls.text" [divider]="false"
+                   [submitted]="submitted()">
+          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" rows="8"
+                    placeholder="Story text" data-testid="story-text"></textarea>
+        </app-field>
+      </ng-template>
 
-        <div class="form-actions">
-          <p-button label="Save" icon="pi pi-check" data-testid="story-save"
-                    (onClick)="onSave()" [loading]="saving()"
-                    [disabled]="!isNew() && !hasChanges()" />
-        </div>
-      </app-card>
-
-      <!-- Goals sub-table -->
-      @if (!isNew() && story()) {
+      <ng-template #goalsSection let-heading="heading">
         <div class="section">
           <div class="section-header">
-            <h3>Goals</h3>
-            @if (canEdit()) {
+            @if (heading) {
+              <h2 class="rq-section-title">Goals</h2>
+            }
+            @if (canEdit() && storyId != null) {
               <p-button label="Add Goal" icon="pi pi-plus" size="small"
                         data-testid="story-add-goal"
                         (onClick)="showGoalSelector = true" />
             }
           </div>
 
-          @if (story()!.goals?.length) {
+          @if (storyId == null) {
+            <p class="empty-text">Save the story's details first to add goals.</p>
+          } @else if (story()?.goals?.length) {
             <p-table [value]="story()!.goals!" [rows]="10" data-testid="story-goals-table">
               <ng-template #header>
                 <tr>
@@ -151,18 +264,24 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <p class="empty-text">No goals associated.</p>
           }
         </div>
+      </ng-template>
 
-        <!-- Additional Actors sub-table -->
+      <ng-template #actorsSection let-heading="heading">
         <div class="section">
           <div class="section-header">
-            <h3>Additional Actors</h3>
-            @if (canEdit()) {
+            @if (heading) {
+              <h2 class="rq-section-title">Additional Actors</h2>
+            }
+            @if (canEdit() && storyId != null) {
               <p-button label="Add Actor" icon="pi pi-plus" size="small"
                         data-testid="story-add-actor"
                         (onClick)="showActorSelector = true" />
             }
           </div>
-          @if (story()!.actors?.length) {
+
+          @if (storyId == null) {
+            <p class="empty-text">Save the story's details first to add actors.</p>
+          } @else if (story()?.actors?.length) {
             <p-table [value]="story()!.actors!" [rows]="10" data-testid="story-additional-actors-table">
               <ng-template #header>
                 <tr>
@@ -185,41 +304,16 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
             <p class="empty-text">No actors associated.</p>
           }
         </div>
-      }
-
-      <app-entity-selector-dialog
-        [visible]="showGoalSelector"
-        [projectName]="projectName"
-        entityType="Goal"
-        [excludeIds]="existingGoalIds()"
-        (selected)="onGoalSelected($event)"
-        (closed)="showGoalSelector = false" />
-
-      <app-entity-selector-dialog
-        [visible]="showActorSelector"
-        [projectName]="projectName"
-        entityType="Actor"
-        [excludeIds]="existingActorIds()"
-        (selected)="onActorSelected($event)"
-        (closed)="showActorSelector = false" />
-
-      <app-annotations-section
-        [projectName]="projectName"
-        entityType="Story"
-        [entityId]="storyId"
-        [canEdit]="canEdit()" />
-
-      <p-confirmDialog />
+      </ng-template>
     </div>
   `,
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .page-actions { display: flex; gap: 0.5rem; }
-    .form-grid { display: grid; grid-template-columns: 120px 1fr; gap: 0.75rem 1rem; align-items: start; max-width: 700px; }
     .form-actions { margin-top: 1rem; }
     .section { margin-top: 1.5rem; }
-    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-    .section-header h3 { margin: 0; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; }
+    .section-header h2 { margin: 0; }
     .empty-text { color: var(--p-text-secondary-color); font-style: italic; }
     .entity-link { cursor: pointer; color: var(--p-primary-color); text-decoration: underline; }
   `]
@@ -232,16 +326,30 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   saving = signal(false);
   canEdit = signal(false);
   canDelete = signal(false);
+  /** True once a save/commit has been attempted, so untouched invalid fields explain themselves. */
+  submitted = signal(false);
 
   actorOptions = signal<{label: string, value: string}[]>([]);
 
-  name = '';
-  text = '';
-  storyType = 'Success';
-  primaryActorName = '';
+  /**
+   * Details step / edit form. Replaces the previous `name` / `text` / `storyType` /
+   * `primaryActorName` ngModel fields and the hand-rolled `trackChanges()` +
+   * `original*` comparison, which the form's own dirty state now covers.
+   */
+  readonly detailsForm = new FormGroup({
+    name: new FormControl('', { validators: [Validators.required], nonNullable: true }),
+    storyType: new FormControl('Success', { validators: [Validators.required], nonNullable: true }),
+    primaryActorName: new FormControl('', { nonNullable: true }),
+    text: new FormControl('', { nonNullable: true }),
+  });
+
+  readonly nameErrors = { required: 'A story needs a name.' };
+
+  /** Active wizard step key, two-way bound to `app-form-wizard`. */
+  wizardStep = 'details';
+
   showGoalSelector = false;
   showActorSelector = false;
-  hasChanges = signal(false);
   storyTypeOptions = [
     { label: 'Success', value: 'Success' },
     { label: 'Exception', value: 'Exception' }
@@ -250,10 +358,6 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   projectName = '';
   storyId: number | null = null;
   private version: number | null = null;
-  private originalName = '';
-  private originalText = '';
-  private originalStoryType = 'Success';
-  private originalPrimaryActorName = '';
   private paramSub?: Subscription;
   private sseSub?: Subscription;
 
@@ -284,10 +388,11 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (newIsNew) {
         this.isNew.set(true);
         this.story.set(null);
-        this.name = '';
-        this.text = '';
-        this.storyType = 'Success';
+        this.storyId = null;
         this.version = null;
+        this.wizardStep = 'details';
+        this.submitted.set(false);
+        this.detailsForm.reset({ name: '', storyType: 'Success', primaryActorName: '', text: '' });
       }
 
       await this.permissionService.loadForProject(this.projectName);
@@ -306,7 +411,12 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   hasUnsavedChanges(): boolean {
-    return this.hasChanges();
+    return this.detailsForm.dirty;
+  }
+
+  /** Edit-mode Save: blocked on invalid, unchanged, or in-flight. */
+  canSave(): boolean {
+    return this.detailsForm.valid && this.detailsForm.dirty && !this.saving();
   }
 
   ngOnDestroy(): void {
@@ -317,21 +427,26 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.sseSub?.unsubscribe();
   }
 
-  private async loadStory(): Promise<void> {
+  private async loadStory(fromSSE = false): Promise<void> {
     try {
       const s = await this.storyService.getStory(this.projectName, this.storyId!);
+      if (fromSSE && this.hasUnsavedChanges()) {
+        // Don't overwrite unsaved user edits, but still take the new version: the
+        // entity moved on, and holding the stale one guarantees a 409 on the next
+        // save. (The previous implementation had no such guard and clobbered edits.)
+        this.version = s.version;
+        this.story.set(s);
+        return;
+      }
       this.story.set(s);
       this.storyName.set(s.name);
-      this.name = s.name;
-      this.text = s.text;
-      this.storyType = s.storyType;
-      this.primaryActorName = s.primaryActorName ?? '';
+      this.detailsForm.reset({
+        name: s.name,
+        storyType: s.storyType,
+        primaryActorName: s.primaryActorName ?? '',
+        text: s.text,
+      });
       this.version = s.version;
-      this.originalName = s.name;
-      this.originalText = s.text;
-      this.originalStoryType = s.storyType;
-      this.originalPrimaryActorName = s.primaryActorName ?? '';
-      this.hasChanges.set(false);
     } catch {
       this.errorMessage.set('Failed to load story.');
     }
@@ -339,19 +454,10 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       void this.eventStreamService.addSubscription('Story', this.storyId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'Story' && envelope.targetId === this.storyId) {
-          void this.loadStory();
+          void this.loadStory(true);
         }
       });
     }
-  }
-
-  trackChanges(): void {
-    this.hasChanges.set(
-      this.name !== this.originalName ||
-      this.text !== this.originalText ||
-      this.storyType !== this.originalStoryType ||
-      this.primaryActorName !== this.originalPrimaryActorName
-    );
   }
 
   existingGoalIds(): number[] {
@@ -366,45 +472,134 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       .map(a => a.id!);
   }
 
-  async onSave(): Promise<void> {
+  /**
+   * Runs the commit for the wizard's current step.
+   *
+   * Only Details talks to the API — Goals and Additional Actors commit through their
+   * own association commands as the user works, so their Continue just advances.
+   */
+  async onStepCommit(request: WizardCommitRequest): Promise<void> {
+    if (request.step.key !== 'details') {
+      request.complete();
+      return;
+    }
+
+    this.submitted.set(true);
+    const result = await this.saveDetails();
+
+    if (result.success) {
+      request.complete();
+      return;
+    }
+
+    if (await this.recoverFromStaleVersion(result)) {
+      request.fail(STALE_VERSION_MESSAGE);
+      return;
+    }
+    request.fail(result.error ?? 'Save failed.');
+  }
+
+  /** Done on the last step: the story is already saved, so just go to it. */
+  onWizardFinished(): void {
+    if (this.storyId != null) {
+      this.router.navigate(['/projects', this.projectName, 'stories', this.storyId]);
+    } else {
+      this.onBack();
+    }
+  }
+
+  /**
+   * Issues `EditStory` for the Details values and, on success, adopts the id and
+   * version from the response.
+   *
+   * The version is **spent on use**: every accepted `EditStory` bumps it server-side,
+   * so it is re-read from `result.entity` each time. Holding the value captured at
+   * create and sending it again — which is what happens if the user steps back to
+   * Details and presses Continue a second time — is a guaranteed 409.
+   */
+  private async saveDetails(): Promise<CommandResult<unknown>> {
     this.saving.set(true);
     this.errorMessage.set(null);
     try {
+      const { name, storyType, primaryActorName, text } = this.detailsForm.getRawValue();
       const input: Record<string, unknown> = {
         projectName: this.projectName,
-        name: this.name,
-        text: this.text,
-        storyTypeName: this.storyType,
-        primaryActorName: this.primaryActorName || null,
+        name,
+        text,
+        storyTypeName: storyType,
+        primaryActorName: primaryActorName || null,
       };
       if (this.storyId != null) input['storyId'] = this.storyId;
       if (this.version != null) input['version'] = this.version;
+
       const result = await this.commandService.execute('EditStory', input);
-      if (result.success) {
-        this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Story saved.' });
-        if (this.isNew()) {
-          this.projectService.notifyTreeChanged();
-          if (result.entity) {
-            const saved = result.entity as StoryDto;
-            this.hasChanges.set(false);
-            this.router.navigate(['/projects', this.projectName, 'stories', saved.id]);
-          }
-        } else {
-          this.originalName = this.name;
-          this.originalText = this.text;
-          this.originalStoryType = this.storyType;
-          this.originalPrimaryActorName = this.primaryActorName;
-          this.hasChanges.set(false);
-          await this.loadStory();
-        }
-      } else {
-        this.errorMessage.set(result.error ?? 'Save failed.');
+      if (!result.success) {
+        return result;
       }
+
+      const wasCreate = this.storyId == null;
+      if (wasCreate) {
+        this.projectService.notifyTreeChanged();
+      }
+
+      const saved = result.entity as StoryDto | null;
+      if (saved) {
+        this.storyId = saved.id;
+        this.version = saved.version;
+        this.storyName.set(saved.name);
+      }
+      this.detailsForm.markAsPristine();
+      this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Story saved.' });
+
+      // Hydrate goals / actors (and start the SSE subscription) the first time the
+      // story exists, so the later steps have something to render.
+      if (wasCreate && this.storyId != null) {
+        await this.loadStory();
+      }
+      return result;
     } catch {
-      this.errorMessage.set('An unexpected error occurred.');
+      return {
+        success: false,
+        entityType: 'Story',
+        entity: null,
+        error: 'An unexpected error occurred.',
+        violations: null,
+      };
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /**
+   * If `result` is an optimistic-lock conflict (HTTP 409 from
+   * `EntityLockException.staleEntity`), refetch so the held version is current and
+   * the user can retry. Returns whether it handled the result.
+   */
+  private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
+    if (result.status !== 409 || this.storyId == null) {
+      return false;
+    }
+    await this.loadStory();
+    return true;
+  }
+
+  /** Edit-mode Save. */
+  async onSave(): Promise<void> {
+    this.submitted.set(true);
+    if (this.detailsForm.invalid) {
+      this.detailsForm.markAllAsTouched();
+      return;
+    }
+
+    const result = await this.saveDetails();
+    if (result.success) {
+      return;
+    }
+    if (await this.recoverFromStaleVersion(result)) {
+      this.errorMessage.set(STALE_VERSION_MESSAGE);
+      return;
+    }
+    this.errorMessage.set(result.error ?? 'Save failed.');
   }
 
   onCopy(): void {
@@ -437,6 +632,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         });
         if (result.success) {
           this.projectService.notifyTreeChanged();
+          // Nothing left to guard against — don't let the dirty check block the exit.
+          this.detailsForm.markAsPristine();
           this.router.navigate(['/projects', this.projectName, 'stories']);
         } else {
           this.errorMessage.set(result.error ?? 'Delete failed.');

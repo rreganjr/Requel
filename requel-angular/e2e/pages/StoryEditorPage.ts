@@ -1,5 +1,6 @@
 import { Page, expect } from '@playwright/test';
 import { BaseListPage } from './BaseListPage';
+import { FormWizardPage } from './FormWizardPage';
 
 export class StoryListPage extends BaseListPage {
   constructor(page: Page) {
@@ -43,8 +44,22 @@ export class StoryListPage extends BaseListPage {
   }
 }
 
+/**
+ * Page object for the story editor.
+ *
+ * Since #158 the create route (`/stories/new`) renders a 3-step `app-form-wizard`
+ * (Details → Goals → Additional Actors) while the edit route keeps a single card.
+ * The form controls are `app-field` rows whose ids are generated for plain inputs,
+ * so those are located by `data-testid` rather than the old static `#name` / `#text`.
+ * The two `p-select`s keep their explicit `inputId`s (`storyTypeInput`,
+ * `storyPrimaryActorInput`), which is what `app-field`'s `controlId` binds the label to.
+ */
 export class StoryEditorPage {
-  constructor(private page: Page) {}
+  readonly wizard: FormWizardPage;
+
+  constructor(private page: Page) {
+    this.wizard = new FormWizardPage(page);
+  }
 
   private goalRows(name: string) {
     return this.page.getByTestId('story-goal-row').filter({ hasText: name });
@@ -58,14 +73,22 @@ export class StoryEditorPage {
     return this.page.getByTestId('story-primary-actor');
   }
 
+  private nameInput() {
+    return this.page.getByTestId('story-name');
+  }
+
+  private textInput() {
+    return this.page.getByTestId('story-text');
+  }
+
   async fillName(name: string): Promise<void> {
-    const input = this.page.locator('#name');
+    const input = this.nameInput();
     await input.clear();
     await input.fill(name);
   }
 
   async fillText(text: string): Promise<void> {
-    const ta = this.page.locator('#text');
+    const ta = this.textInput();
     await ta.clear();
     await ta.fill(text);
   }
@@ -87,7 +110,24 @@ export class StoryEditorPage {
     await this.page.getByRole('option', { name: actorName }).click();
   }
 
+  /**
+   * Persist the story and land on it.
+   *
+   * On the edit route this is the Save button. On the create route there is no Save —
+   * the wizard commits Details on Continue, so this commits, skips the two optional
+   * steps and presses Done, which navigates to the saved story. That reproduces the
+   * pre-#158 contract of "fill the fields, call save(), end up on /stories/<id>", so
+   * existing specs keep working unchanged.
+   *
+   * Use `commitDetails()` / `wizard` directly when a test needs the individual steps.
+   */
   async save(): Promise<void> {
+    if (await this.wizard.isPresent()) {
+      await this.commitDetails();
+      await this.wizard.skipToStep('actors');
+      await this.wizard.finish(/\/stories\/\d+/);
+      return;
+    }
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/EditStory')),
       this.page.getByTestId('story-save').click(),
@@ -95,6 +135,34 @@ export class StoryEditorPage {
     if (!response.ok()) {
       throw new Error(`EditStory command failed: ${response.status()} ${await response.text()}`);
     }
+  }
+
+  /** Commit the wizard's Details step, which creates (or updates) the story. */
+  async commitDetails(): Promise<void> {
+    await this.wizard.commitStep('EditStory');
+  }
+
+  /** The edit-route Save button, for asserting the disable policy. */
+  saveButton() {
+    return this.page.getByTestId('story-save').locator('button');
+  }
+
+  /** The inline error rendered by `app-field` under an invalid control. */
+  fieldError() {
+    return this.page.getByTestId('field-error');
+  }
+
+  /**
+   * Assert both `p-select` rows point their label at the input PrimeNG renders inside
+   * the wrapper — the wrapper case `app-field`'s `controlId` exists for.
+   */
+  async expectSelectsAccessiblyLabelled(): Promise<void> {
+    await expect(this.page.locator('label[for="storyTypeInput"]')).toContainText('Type');
+    await expect(this.page.locator('#storyTypeInput')).toHaveCount(1);
+    await expect(this.page.locator('label[for="storyPrimaryActorInput"]')).toContainText(
+      'Primary Actor'
+    );
+    await expect(this.page.locator('#storyPrimaryActorInput')).toHaveCount(1);
   }
 
   async clearPrimaryActor(): Promise<void> {
@@ -157,7 +225,11 @@ export class StoryEditorPage {
   }
 
   async expectNameValue(name: string): Promise<void> {
-    await expect(this.page.locator('#name')).toHaveValue(name);
+    await expect(this.nameInput()).toHaveValue(name);
+  }
+
+  async expectTextValue(text: string): Promise<void> {
+    await expect(this.textInput()).toHaveValue(text);
   }
 
   async expectStoryTypeValue(type: string): Promise<void> {

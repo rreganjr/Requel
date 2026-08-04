@@ -69,18 +69,25 @@ export class CommandService {
     }
   }
 
+  /**
+   * Normalises a failed request into a `CommandResult`, carrying the HTTP `status`
+   * through so callers can distinguish a **409** optimistic-lock conflict from an
+   * ordinary failure. A body that is already a `CommandResult` keeps its own fields
+   * and only gains `status`.
+   */
   private handleError<T>(err: unknown, commandType: string): CommandResult<T> {
     if (err instanceof HttpErrorResponse) {
       const body = err.error as CommandResult<T> | ErrorResponse;
-      if ('success' in body) {
-        return body as CommandResult<T>;
+      if (body && typeof body === 'object' && 'success' in body) {
+        return { ...(body as CommandResult<T>), status: err.status };
       }
       return {
         success: false,
         entityType: commandType,
-        error: (body as ErrorResponse).message ?? err.message,
+        error: (body as ErrorResponse)?.message ?? err.message,
         entity: null,
-        violations: null
+        violations: null,
+        status: err.status
       };
     }
     return {
