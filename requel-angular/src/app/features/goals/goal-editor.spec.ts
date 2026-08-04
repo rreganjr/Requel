@@ -10,13 +10,34 @@ import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
+import { AppWizardStepComponent, WizardCommitRequest } from '../../shared/app-form-wizard';
 
 const MOCK_GOAL = {
-  id: 10, version: 0, name: 'Improve UX', text: 'Make it great.',
+  id: 10, version: 5, name: 'Improve UX', text: 'Make it great.',
   relationsFromThisGoal: [], relationsToThisGoal: [], referencedBy: []
 };
 
 const flush = () => new Promise(r => setTimeout(r, 0));
+
+/** A stand-in for the wizard's commit handshake, so the host can be driven directly. */
+function commitRequest(key: string): WizardCommitRequest & {
+  completed: () => boolean;
+  failure: () => string | null;
+} {
+  let completed = false;
+  let failure: string | null = null;
+  return {
+    step: { key } as AppWizardStepComponent,
+    complete: () => {
+      completed = true;
+    },
+    fail: (message: string) => {
+      failure = message;
+    },
+    completed: () => completed,
+    failure: () => failure,
+  };
+}
 
 describe('GoalEditorComponent', () => {
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
@@ -29,6 +50,10 @@ describe('GoalEditorComponent', () => {
   let fixture: any;
   let comp: GoalEditorComponent;
   let router: Router;
+
+  /** Payload of the nth (0-based) EditGoal call. */
+  const editGoalCall = (n: number) =>
+    commandServiceMock.execute.mock.calls.filter(c => c[0] === 'EditGoal')[n]?.[1];
 
   beforeEach(() => {
     paramMap$ = new BehaviorSubject(convertToParamMap({ name: 'proj1', goalId: 'new' }));
@@ -75,28 +100,45 @@ describe('GoalEditorComponent', () => {
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
   });
 
-  it('isNew() is true when goalId param is "new"', async () => {
+  /** Render the create route. */
+  async function renderNew(): Promise<void> {
     fixture.detectChanges();
     await flush();
+    fixture.detectChanges();
+  }
+
+  /** Render the edit route for goal 10. */
+  async function renderExisting(): Promise<void> {
+    paramMap$.next(convertToParamMap({ name: 'proj1', goalId: '10' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+  }
+
+  it('isNew() is true when goalId param is "new"', async () => {
+    await renderNew();
     expect(comp.isNew()).toBe(true);
   });
 
   it('isNew() is false and goal() loaded when goalId is numeric', async () => {
-    paramMap$.next(convertToParamMap({ name: 'proj1', goalId: '10' }));
-    fixture.detectChanges();
-    await flush();
+    await renderExisting();
     expect(comp.isNew()).toBe(false);
     expect(goalServiceMock.getGoal).toHaveBeenCalledWith('proj1', 10);
     expect(comp.goalName()).toBe('Improve UX');
     expect(comp.goal()?.id).toBe(10);
   });
 
-  it('onSave calls commandService.execute("EditGoal") with projectName and name', async () => {
-    fixture.detectChanges();
-    await flush();
-    comp.name = 'New Goal';
-    comp.text = 'Details';
+  it('loads the existing goal into the reactive form', async () => {
+    await renderExisting();
+    expect(comp.detailsForm.getRawValue()).toEqual({ name: 'Improve UX', text: 'Make it great.' });
+    expect(comp.detailsForm.pristine).toBe(true);
+  });
+
+  it('onSave calls commandService.execute("EditGoal") with the form values', async () => {
+    await renderExisting();
+    comp.detailsForm.setValue({ name: 'New Goal', text: 'Details' });
     await comp.onSave();
+
     expect(commandServiceMock.execute).toHaveBeenCalledWith('EditGoal', expect.objectContaining({
       projectName: 'proj1',
       name: 'New Goal',
@@ -106,15 +148,218 @@ describe('GoalEditorComponent', () => {
 
   it('onSave sets errorMessage when command returns error', async () => {
     commandServiceMock.execute.mockResolvedValue({ success: false, error: 'Name conflict' });
-    comp.name = 'Duplicate';
+    await renderExisting();
+    comp.detailsForm.setValue({ name: 'Duplicate', text: '' });
     await comp.onSave();
+
     expect(comp.errorMessage()).toBe('Name conflict');
   });
 
+  it('onSave refuses an invalid form without calling the command', async () => {
+    await renderExisting();
+    commandServiceMock.execute.mockClear();
+    comp.detailsForm.setValue({ name: '', text: 'no name' });
+    await comp.onSave();
+
+    expect(commandServiceMock.execute).not.toHaveBeenCalled();
+    expect(comp.detailsForm.controls.name.touched).toBe(true);
+  });
+
+  describe('the edit-mode Save policy', () => {
+    it('is disabled while the form is pristine', async () => {
+      await renderExisting();
+      expect(comp.canSave()).toBe(false);
+    });
+
+    it('is enabled once a valid change is made', async () => {
+      await renderExisting();
+      comp.detailsForm.controls.name.setValue('Renamed');
+      comp.detailsForm.controls.name.markAsDirty();
+      expect(comp.canSave()).toBe(true);
+    });
+
+    it('is disabled again after a successful save', async () => {
+      await renderExisting();
+      comp.detailsForm.setValue({ name: 'Renamed', text: 'x' });
+      await comp.onSave();
+      expect(comp.canSave()).toBe(false);
+      expect(comp.hasUnsavedChanges()).toBe(false);
+    });
+
+    it('is disabled while the name is blank', async () => {
+      await renderExisting();
+      comp.detailsForm.setValue({ name: '', text: 'x' });
+      expect(comp.canSave()).toBe(false);
+    });
+  });
+
+  describe('the create wizard', () => {
+    it('renders the wizard on the create route and not on the edit route', async () => {
+      await renderNew();
+      expect(fixture.nativeElement.querySelector('app-form-wizard')).not.toBeNull();
+
+      await renderExisting();
+      expect(fixture.nativeElement.querySelector('app-form-wizard')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="goal-save"]')).not.toBeNull();
+    });
+
+    it('starts on the details step with an empty form', async () => {
+      await renderNew();
+      expect(comp.wizardStep).toBe('details');
+      expect(comp.detailsForm.getRawValue()).toEqual({ name: '', text: '' });
+      expect(comp.goalId).toBeNull();
+    });
+
+    it('creates the goal on the details commit, without a goalId or version', async () => {
+      await renderNew();
+      comp.detailsForm.setValue({ name: 'Reduce setup time', text: 'Cut it to a day.' });
+
+      const request = commitRequest('details');
+      await comp.onStepCommit(request);
+
+      expect(editGoalCall(0)).toEqual({
+        projectName: 'proj1',
+        name: 'Reduce setup time',
+        text: 'Cut it to a day.'
+      });
+      expect(request.completed()).toBe(true);
+      expect(comp.goalId).toBe(10);
+      expect(projectServiceMock.notifyTreeChanged).toHaveBeenCalled();
+    });
+
+    it('hydrates relations after create so the later steps have data', async () => {
+      await renderNew();
+      comp.detailsForm.setValue({ name: 'Reduce setup time', text: '' });
+      await comp.onStepCommit(commitRequest('details'));
+
+      expect(goalServiceMock.getGoal).toHaveBeenCalledWith('proj1', 10);
+      expect(comp.goal()?.id).toBe(10);
+    });
+
+    it('advances the optional steps without calling the API', async () => {
+      await renderNew();
+      commandServiceMock.execute.mockClear();
+
+      const tags = commitRequest('tags');
+      await comp.onStepCommit(tags);
+      const relations = commitRequest('relations');
+      await comp.onStepCommit(relations);
+
+      expect(tags.completed()).toBe(true);
+      expect(relations.completed()).toBe(true);
+      expect(commandServiceMock.execute).not.toHaveBeenCalled();
+    });
+
+    it('reports a failed create on the step instead of advancing', async () => {
+      commandServiceMock.execute.mockResolvedValue({ success: false, error: 'Name conflict' });
+      await renderNew();
+      comp.detailsForm.setValue({ name: 'Duplicate', text: '' });
+
+      const request = commitRequest('details');
+      await comp.onStepCommit(request);
+
+      expect(request.completed()).toBe(false);
+      expect(request.failure()).toBe('Name conflict');
+      expect(comp.goalId).toBeNull();
+    });
+
+    it('navigates to the saved goal when the wizard finishes', async () => {
+      await renderNew();
+      comp.detailsForm.setValue({ name: 'Reduce setup time', text: '' });
+      await comp.onStepCommit(commitRequest('details'));
+
+      comp.onWizardFinished();
+      expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'goals', 10]);
+    });
+  });
+
+  describe('the version contract', () => {
+    it('adopts the version from the response and sends it on the next save', async () => {
+      await renderExisting();
+      // The server bumps the version on each accepted edit; the editor must re-read it
+      // rather than keep sending the one it loaded with.
+      commandServiceMock.execute.mockResolvedValue({
+        success: true,
+        entity: { ...MOCK_GOAL, version: 9 }
+      });
+
+      comp.detailsForm.setValue({ name: 'First rename', text: '' });
+      await comp.onSave();
+      comp.detailsForm.setValue({ name: 'Second rename', text: '' });
+      await comp.onSave();
+
+      expect(editGoalCall(0)).toEqual(expect.objectContaining({ goalId: 10, version: 5 }));
+      expect(editGoalCall(1)).toEqual(expect.objectContaining({ goalId: 10, version: 9 }));
+    });
+
+    it('sends the refreshed version when the user steps back to Details and re-commits', async () => {
+      // The regression this whole contract exists for: create on step 1, walk forward,
+      // come back to fix a typo, Continue again. Re-sending the create-time version
+      // would be a guaranteed 409.
+      await renderNew();
+      comp.detailsForm.setValue({ name: 'Reduce setup time', text: '' });
+      await comp.onStepCommit(commitRequest('details'));
+
+      comp.detailsForm.setValue({ name: 'Reduce setup time drastically', text: '' });
+      const second = commitRequest('details');
+      await comp.onStepCommit(second);
+
+      expect(editGoalCall(0)['version']).toBeUndefined();
+      expect(editGoalCall(1)).toEqual(expect.objectContaining({ goalId: 10, version: 5 }));
+      expect(second.completed()).toBe(true);
+    });
+
+    it('recovers from a stale-version 409 by refetching and keeping the step', async () => {
+      await renderExisting();
+      goalServiceMock.getGoal.mockClear();
+      commandServiceMock.execute.mockResolvedValue({
+        success: false,
+        status: 409,
+        error: 'Goal has been changed by another user.'
+      });
+
+      comp.detailsForm.setValue({ name: 'Renamed', text: '' });
+      const request = commitRequest('details');
+      await comp.onStepCommit(request);
+
+      expect(goalServiceMock.getGoal).toHaveBeenCalledWith('proj1', 10);
+      expect(request.completed()).toBe(false);
+      expect(request.failure()).toContain('changed elsewhere');
+    });
+
+    it('surfaces the stale-version message on an edit-mode save', async () => {
+      await renderExisting();
+      commandServiceMock.execute.mockResolvedValue({
+        success: false,
+        status: 409,
+        error: 'Goal has been changed by another user.'
+      });
+
+      comp.detailsForm.setValue({ name: 'Renamed', text: '' });
+      await comp.onSave();
+
+      expect(comp.errorMessage()).toContain('changed elsewhere');
+    });
+
+    it('treats a non-409 failure as an ordinary error, with no refetch', async () => {
+      await renderExisting();
+      goalServiceMock.getGoal.mockClear();
+      commandServiceMock.execute.mockResolvedValue({
+        success: false,
+        status: 400,
+        error: 'Name is required.'
+      });
+
+      comp.detailsForm.setValue({ name: 'Renamed', text: '' });
+      await comp.onSave();
+
+      expect(goalServiceMock.getGoal).not.toHaveBeenCalled();
+      expect(comp.errorMessage()).toBe('Name is required.');
+    });
+  });
+
   it('onDelete triggers confirm then calls execute("DeleteGoal")', async () => {
-    paramMap$.next(convertToParamMap({ name: 'proj1', goalId: '10' }));
-    fixture.detectChanges();
-    await flush();
+    await renderExisting();
 
     const cs = fixture.debugElement.injector.get(ConfirmationService);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -131,9 +376,7 @@ describe('GoalEditorComponent', () => {
   });
 
   it('onCopy triggers confirm then calls execute("CopyGoal")', async () => {
-    paramMap$.next(convertToParamMap({ name: 'proj1', goalId: '10' }));
-    fixture.detectChanges();
-    await flush();
+    await renderExisting();
 
     commandServiceMock.execute.mockResolvedValue({ success: true, entity: { ...MOCK_GOAL, id: 99 } });
     const cs = fixture.debugElement.injector.get(ConfirmationService);
@@ -148,5 +391,33 @@ describe('GoalEditorComponent', () => {
       goalId: 10
     }));
     expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'goals', 99]);
+  });
+
+  it('sends the persisted name as the relation source, not an unsaved rename', async () => {
+    await renderExisting();
+    comp.detailsForm.controls.name.setValue('Unsaved rename');
+    comp.onRelationGoalSelected({ entityType: 'Goal', id: 2, name: 'Reduce churn' });
+    await comp.onConfirmRelation();
+
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('EditGoalRelation', expect.objectContaining({
+      fromGoalName: 'Improve UX',
+      toGoalName: 'Reduce churn'
+    }));
+  });
+
+  it('keeps the SSE guard from clobbering unsaved edits but still takes the new version', async () => {
+    await renderExisting();
+    comp.detailsForm.controls.name.setValue('Local edit');
+    comp.detailsForm.controls.name.markAsDirty();
+
+    goalServiceMock.getGoal.mockResolvedValue({ ...MOCK_GOAL, name: 'Remote edit', version: 12 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (comp as any).loadGoal(true);
+
+    expect(comp.detailsForm.controls.name.value).toBe('Local edit');
+
+    commandServiceMock.execute.mockResolvedValue({ success: true, entity: MOCK_GOAL });
+    await comp.onSave();
+    expect(editGoalCall(0)).toEqual(expect.objectContaining({ version: 12 }));
   });
 });

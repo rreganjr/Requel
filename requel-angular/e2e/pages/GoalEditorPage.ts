@@ -1,5 +1,6 @@
 import { Page, expect } from '@playwright/test';
 import { BaseListPage } from './BaseListPage';
+import { FormWizardPage } from './FormWizardPage';
 
 export class GoalListPage extends BaseListPage {
   constructor(page: Page) {
@@ -20,7 +21,9 @@ export class GoalListPage extends BaseListPage {
 
   async clickGoal(name: string): Promise<void> {
     await this.searchFor(name);
-    await this.clickTableRow(name, /\/goals\/\d+/);
+    // BaseListPage's readySelector defaults to '#name', which the goal editor no longer
+    // has — since #158 its form is app-field rows with generated ids.
+    await this.clickTableRow(name, /\/goals\/\d+/, '[data-testid="goal-name"]');
   }
 
   async expectGoalInTable(name: string): Promise<void> {
@@ -34,28 +37,80 @@ export class GoalListPage extends BaseListPage {
   }
 }
 
+/**
+ * Page object for the goal editor.
+ *
+ * Since #158 the create route (`/goals/new`) renders a 3-step `app-form-wizard`
+ * (Details → Tags → Relations) while the edit route keeps a single card. The form
+ * controls are `app-field` rows whose ids are generated, so everything here locates
+ * by `data-testid` rather than the old static `#name` / `#text`.
+ */
 export class GoalEditorPage {
-  constructor(private page: Page) {}
+  readonly wizard: FormWizardPage;
+
+  constructor(private page: Page) {
+    this.wizard = new FormWizardPage(page);
+  }
 
   private relationRows(name: string) {
     return this.page.getByTestId('goal-relation-row').filter({ hasText: name });
   }
 
+  private nameInput() {
+    return this.page.getByTestId('goal-name');
+  }
+
+  private descriptionInput() {
+    return this.page.getByTestId('goal-text');
+  }
+
   async fillName(name: string): Promise<void> {
-    const input = this.page.locator('#name');
+    const input = this.nameInput();
     await input.clear();
     await input.fill(name);
   }
 
   async fillDescription(text: string): Promise<void> {
-    const ta = this.page.locator('#text');
+    const ta = this.descriptionInput();
     await ta.clear();
     await ta.fill(text);
   }
 
+  /**
+   * Persist the goal and land on it.
+   *
+   * On the edit route this is the Save button. On the create route there is no Save —
+   * the wizard commits Details on Continue, so this commits, skips the two optional
+   * steps and presses Done, which navigates to the saved goal. That reproduces the
+   * pre-#158 contract of "fill the fields, call save(), end up on /goals/<id>", so
+   * existing specs keep working unchanged.
+   *
+   * Use `commitDetails()` / `wizard` directly when a test needs the individual steps.
+   */
   async save(): Promise<void> {
-    await this.page.getByTestId('goal-save').click();
-    await this.page.waitForLoadState('domcontentloaded');
+    if (await this.wizard.isPresent()) {
+      await this.commitDetails();
+      await this.wizard.skipToStep('relations');
+      await this.wizard.finish(/\/goals\/\d+/);
+      return;
+    }
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/EditGoal')),
+      this.page.getByTestId('goal-save').click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`EditGoal failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  /** Commit the wizard's Details step, which creates (or updates) the goal. */
+  async commitDetails(): Promise<void> {
+    await this.wizard.commitStep('EditGoal');
+  }
+
+  /** The edit-route Save button, for asserting the disable policy. */
+  saveButton() {
+    return this.page.getByTestId('goal-save').locator('button');
   }
 
   async delete(): Promise<void> {
@@ -83,11 +138,37 @@ export class GoalEditorPage {
   }
 
   async expectNameValue(name: string): Promise<void> {
-    await expect(this.page.locator('#name')).toHaveValue(name);
+    await expect(this.nameInput()).toHaveValue(name);
   }
 
   async expectDescriptionValue(text: string): Promise<void> {
-    await expect(this.page.locator('#text')).toHaveValue(text);
+    await expect(this.descriptionInput()).toHaveValue(text);
+  }
+
+  /** The inline error rendered by `app-field` under an invalid control. */
+  fieldError() {
+    return this.page.getByTestId('field-error');
+  }
+
+  /**
+   * Blur the Name input. `app-field` only shows an error once the control is touched
+   * (or a save has been attempted), so a test that clears the field has to leave it
+   * before asserting on the message.
+   */
+  async nameBlur(): Promise<void> {
+    await this.nameInput().blur();
+  }
+
+  /**
+   * Assert the Name row wires label, error and required state to the input, which is
+   * what makes the label/error association structural rather than per-editor (#138).
+   */
+  async expectNameAccessiblyLabelled(): Promise<void> {
+    const input = this.nameInput();
+    const id = await input.getAttribute('id');
+    expect(id).toBeTruthy();
+    await expect(this.page.locator(`label[for="${id}"]`)).toContainText('Name');
+    await expect(input).toHaveAttribute('aria-required', 'true');
   }
 
   /**

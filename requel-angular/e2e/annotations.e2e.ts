@@ -169,7 +169,8 @@ test.describe('Annotations (IBIS)', () => {
     await issueRow.getByTestId('open-issue-entity-link').click();
 
     await page.waitForURL(new RegExp(`/goals/${goalFixture.id}$`));
-    await expect(page.locator('#name')).not.toHaveValue('');
+    // Since #158 the goal form is app-field rows with generated ids — locate by testid.
+    await expect(page.getByTestId('goal-name')).not.toHaveValue('');
 
     await page.close();
   });

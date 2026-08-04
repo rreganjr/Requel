@@ -182,8 +182,10 @@ test.describe('Actor management', () => {
     const ucEditorPage = new UseCaseEditorPage(page);
 
     // Story editor — open new-story form and verify the actor is offered as a primary-actor option.
+    // Since #158 /stories/new is the wizard; Primary Actor lives on its first (Details) step,
+    // so the dropdown is reachable without advancing, and ids are generated — locate by testid.
     await page.goto(`/projects/${encodeURIComponent(PROJECT_NAME)}/stories/new`);
-    await expect(page.locator('#name')).toBeVisible();
+    await expect(page.getByTestId('story-name')).toBeVisible();
     await storyEditorPage.expectActorInPrimaryActorDropdown(actorName);
 
     // Use-case editor — same verification on the use-case form.

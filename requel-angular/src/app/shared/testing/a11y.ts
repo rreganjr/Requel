@@ -39,9 +39,24 @@ export function getOpenDialog(): HTMLElement | null {
  * The `color-contrast` rule is disabled: jsdom has no layout engine / real getComputedStyle box
  * model, so contrast results are unreliable in unit tests. Color contrast is governed separately
  * (UI/UX review Finding 4.7), not here.
+ *
+ * `exclude` takes CSS selectors for subtrees to skip, so a whole-page assertion is still
+ * possible when some third-party host element carries a defect of its own. The known case is
+ * `p-confirmdialog`: PrimeNG puts `role="alertdialog"` on the component's host element even
+ * when no confirmation is showing (its container is an empty comment), so axe reports an
+ * unnamed dialog on every page that mounts one. That is a PrimeNG-level issue affecting all
+ * such pages rather than anything the page under test controls — it belongs with the modal
+ * a11y work (#139), not to whichever ticket happens to run axe over the page.
  */
-export async function expectNoAxeViolations(root: Element = document.body): Promise<void> {
-  const results = await axe.run(root, {
+export async function expectNoAxeViolations(
+  root: Element = document.body,
+  exclude: string[] = []
+): Promise<void> {
+  const context = exclude.length
+    ? { include: [root], exclude: exclude.map(selector => [selector]) }
+    : root;
+
+  const results = await axe.run(context as Parameters<typeof axe.run>[0], {
     rules: { 'color-contrast': { enabled: false } },
   });
 

@@ -55,7 +55,8 @@ test.describe('SSE live refresh', () => {
     );
 
     await page.goto(`/projects/${encodeURIComponent(projectName)}/goals/${goal.id}`);
-    const nameInput = page.locator('#name');
+    // Since #158 the goal form is app-field rows with generated ids — locate by testid.
+    const nameInput = page.getByTestId('goal-name');
     await expect(nameInput).toHaveValue(originalName);
     await subscriptionPromise;
 

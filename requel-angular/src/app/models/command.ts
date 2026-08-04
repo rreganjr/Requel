@@ -24,6 +24,15 @@ export interface CommandResult<T = unknown> {
   entity: T | null;
   error: string | null;
   violations: FieldViolation[] | null;
+  /**
+   * HTTP status, set by `CommandService` only when the command failed with an error
+   * response. Present so callers can tell an optimistic-lock conflict (**409**, from
+   * `EntityLockException.staleEntity` — see issue #108) apart from an ordinary
+   * validation or server failure, and recover by refetching instead of showing a
+   * generic "save failed". Absent on success, and on a network error where there is
+   * no status to report.
+   */
+  status?: number;
 }
 
 export interface FieldViolation {

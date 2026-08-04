@@ -37,6 +37,14 @@ export abstract class BaseListPage {
     return this.page.locator('p-table tbody tr', { hasText: text });
   }
 
+  /**
+   * Click a row and wait for the target editor to be populated.
+   *
+   * `readySelector` defaults to `#name`, which is the static id the not-yet-migrated
+   * editors still render. Editors migrated to `app-field` (goal, story — issue #158) have
+   * generated ids instead, so their list pages must pass their own testid, e.g.
+   * `'[data-testid="goal-name"]'`. #132 will move the rest over the same way.
+   */
   protected async clickTableRow(text: string, targetUrl: string | RegExp, readySelector = '#name'): Promise<void> {
     const row = this.tableRowsWithText(text).first();
     await expect(row).toBeVisible();

@@ -108,4 +108,83 @@ describe('GoalEditorComponent — relation-type dialog accessibility', () => {
     expect(document.activeElement).toBe(addBtn);
     expect(comp.pendingRelationGoal()).toBeNull();
   });
+
+  describe('the migrated forms (issue #158)', () => {
+    /** Render the edit route and settle. */
+    async function renderEdit(): Promise<HTMLElement> {
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    /** Render the create route, which renders the wizard instead of the edit card. */
+    async function renderCreate(): Promise<HTMLElement> {
+      paramMap$.next(convertToParamMap({ name: 'proj1', goalId: 'new' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    /**
+     * `p-confirmdialog` is excluded: PrimeNG marks its host `role="alertdialog"` even
+     * when nothing is showing, so axe reports an unnamed dialog on every page that
+     * mounts one. Pre-existing and not specific to these forms — see the note on
+     * `expectNoAxeViolations` and #139.
+     */
+    const EXCLUDE = ['p-confirmdialog'];
+
+    it('has no axe-core violations on the edit form', async () => {
+      await expectNoAxeViolations(await renderEdit(), EXCLUDE);
+    });
+
+    it('has no axe-core violations on the create wizard', async () => {
+      await expectNoAxeViolations(await renderCreate(), EXCLUDE);
+    });
+
+    it('has no axe-core violations with the name error showing', async () => {
+      const el = await renderCreate();
+      comp.detailsForm.controls.name.markAsTouched();
+      comp.submitted.set(true);
+      fixture.detectChanges();
+
+      expect(el.querySelector('[data-testid="field-error"]')).not.toBeNull();
+      await expectNoAxeViolations(el, EXCLUDE);
+    });
+
+    it('associates the Name label and error with the input', async () => {
+      const el = await renderCreate();
+      comp.detailsForm.controls.name.markAsTouched();
+      fixture.detectChanges();
+
+      const input = el.querySelector<HTMLInputElement>('[data-testid="goal-name"]');
+      const error = el.querySelector('[data-testid="field-error"]');
+      const label = el.querySelector<HTMLLabelElement>(`label[for="${input?.id}"]`);
+
+      expect(label?.textContent).toContain('Name');
+      expect(input?.getAttribute('aria-invalid')).toBe('true');
+      expect(input?.getAttribute('aria-describedby')).toContain(error?.id ?? '');
+      expect(input?.getAttribute('aria-required')).toBe('true');
+    });
+
+    it('no longer renders the per-editor form-grid', async () => {
+      const editEl = await renderEdit();
+      expect(editEl.querySelector('.form-grid')).toBeNull();
+      expect(editEl.querySelectorAll('app-field').length).toBe(2);
+    });
+
+    it('reaches Tags and Relations during create without an isNew gate', async () => {
+      const el = await renderCreate();
+      const stepKeys = Array.from(el.querySelectorAll('[data-testid^="wizard-step-"]')).map(n =>
+        n.getAttribute('data-testid')
+      );
+
+      expect(stepKeys).toEqual([
+        'wizard-step-details',
+        'wizard-step-tags',
+        'wizard-step-relations',
+      ]);
+    });
+  });
 });
