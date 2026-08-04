@@ -25,7 +25,9 @@ export class StoryListPage extends BaseListPage {
 
   async clickStory(name: string): Promise<void> {
     await this.searchFor(name);
-    await this.clickTableRow(name, /\/stories\/\d+/);
+    // BaseListPage's readySelector defaults to '#name', which the story editor no longer
+    // has — since #158 its form is app-field rows with generated ids.
+    await this.clickTableRow(name, /\/stories\/\d+/, '[data-testid="story-name"]');
   }
 
   async expectStoryInTable(name: string): Promise<void> {

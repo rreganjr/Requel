@@ -21,7 +21,9 @@ export class GoalListPage extends BaseListPage {
 
   async clickGoal(name: string): Promise<void> {
     await this.searchFor(name);
-    await this.clickTableRow(name, /\/goals\/\d+/);
+    // BaseListPage's readySelector defaults to '#name', which the goal editor no longer
+    // has — since #158 its form is app-field rows with generated ids.
+    await this.clickTableRow(name, /\/goals\/\d+/, '[data-testid="goal-name"]');
   }
 
   async expectGoalInTable(name: string): Promise<void> {
