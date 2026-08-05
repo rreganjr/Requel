@@ -18,9 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, signal, computed, ViewChild } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
-import { FormsModule, NgForm } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { InputText } from 'primeng/inputtext';
 import { Password } from 'primeng/password';
@@ -30,6 +30,19 @@ import { MessageModule } from 'primeng/message';
 import { AuthService } from '../../core/auth.service';
 import { CommandService } from '../../core/command.service';
 import { UserService } from '../../core/user.service';
+import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { applyCommandErrors, clearServerErrors, passwordsMatch } from '../../shared/form-errors';
+import { PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
+
+/**
+ * JPA entity property name -> form control name, for {@link applyCommandErrors}.
+ *
+ * `UserImpl` stores the hash, so a password constraint arrives as `encryptedPassword`;
+ * the form calls that field `password`. `emailAddress` and the rest already match.
+ */
+const ACCOUNT_FIELD_MAP: Record<string, string> = {
+  encryptedPassword: 'password',
+};
 
 /**
  * Edit Account page — allows the current user to update their own profile.
@@ -39,7 +52,17 @@ import { UserService } from '../../core/user.service';
 @Component({
   selector: 'app-edit-account',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, InputText, Password, SelectModule, ButtonModule, MessageModule],
+  imports: [
+    PageHeaderComponent,
+    ReactiveFormsModule,
+    InputText,
+    Password,
+    SelectModule,
+    ButtonModule,
+    MessageModule,
+    AppFieldComponent,
+    AppFieldControlDirective,
+  ],
   template: `
     <div class="edit-account" data-testid="account-editor">
       <app-page-header title="Edit Account" />
@@ -51,97 +74,175 @@ import { UserService } from '../../core/user.service';
         <p-message severity="success" [text]="successMessage()!" />
       }
 
-      <form #accountForm="ngForm" (ngSubmit)="onSave()">
-        <div class="field">
-          <label for="username">Username</label>
-          <input pInputText id="username" [ngModel]="username()" name="username" disabled />
-        </div>
+      <form [formGroup]="form" (ngSubmit)="onSave()">
+        <!--
+          controlId values match the ids the e2e page objects locate (#username, #name,
+          #email, #password, #repassword). For the two p-password rows that means the id
+          now lands on the INNER input rather than the p-password host, so the page
+          objects' .locator('#password').locator('input') became .locator('#password') —
+          updated in e2e/pages/UserEditorPage.ts and e2e/account.e2e.ts.
+        -->
+        <app-field label="Username" controlId="username" [control]="form.controls.username">
+          <input pInputText appFieldControl id="username" formControlName="username" autocomplete="username" />
+        </app-field>
 
-        <div class="field">
-          <label for="name">Name</label>
-          <input pInputText id="name" [(ngModel)]="name" name="name" />
-        </div>
+        <app-field
+          label="Name"
+          controlId="name"
+          [control]="form.controls.name"
+          [submitted]="submitted()"
+        >
+          <input pInputText appFieldControl id="name" formControlName="name" autocomplete="name" />
+        </app-field>
 
-        <div class="field">
-          <label for="email">Email</label>
-          <input pInputText id="email" [(ngModel)]="emailAddress" name="email" type="email" />
-        </div>
+        <app-field
+          label="Email"
+          controlId="email"
+          [control]="form.controls.emailAddress"
+          [submitted]="submitted()"
+        >
+          <input pInputText appFieldControl id="email" type="email" formControlName="emailAddress"
+                 autocomplete="email" />
+        </app-field>
 
-        <div class="field">
-          <label for="phone">Phone</label>
-          <input pInputText id="phone" [(ngModel)]="phoneNumber" name="phone" />
-        </div>
+        <app-field
+          label="Phone"
+          controlId="phone"
+          [control]="form.controls.phoneNumber"
+          [submitted]="submitted()"
+        >
+          <input pInputText appFieldControl id="phone" formControlName="phoneNumber" autocomplete="tel" />
+        </app-field>
 
-        <div class="field">
-          <label for="org">Organization</label>
-          <p-select id="org" [(ngModel)]="organizationName" name="org"
-                    [options]="orgOptions()" [editable]="true"
-                    placeholder="Select or type organization" />
-        </div>
+        <app-field
+          label="Organization"
+          controlId="account-org-input"
+          [control]="form.controls.organizationName"
+          [submitted]="submitted()"
+        >
+          <p-select
+            appFieldControl
+            inputId="account-org-input"
+            data-testid="account-organization"
+            formControlName="organizationName"
+            [options]="orgOptions()"
+            [editable]="true"
+            placeholder="Select or type organization"
+          />
+        </app-field>
 
-        <div class="field">
-          <label for="password">New Password (leave blank to keep current)</label>
-          <p-password id="password" [(ngModel)]="password" name="password"
-                      [feedback]="false" [toggleMask]="true" />
-        </div>
+        <app-field
+          label="New Password"
+          helper="Leave blank to keep your current password."
+          controlId="password"
+          [control]="form.controls.password"
+          [submitted]="submitted()"
+        >
+          <p-password
+            appFieldControl
+            inputId="password"
+            formControlName="password"
+            [feedback]="false"
+            [toggleMask]="true"
+            autocomplete="new-password"
+          />
+        </app-field>
 
-        <div class="field">
-          <label for="repassword">Confirm New Password</label>
-          <p-password id="repassword" [(ngModel)]="repassword" name="repassword"
-                      [feedback]="false" [toggleMask]="true" />
-        </div>
+        <app-field
+          label="Confirm New Password"
+          controlId="repassword"
+          [control]="form.controls.repassword"
+          [submitted]="submitted()"
+          [divider]="false"
+        >
+          <p-password
+            appFieldControl
+            inputId="repassword"
+            formControlName="repassword"
+            [feedback]="false"
+            [toggleMask]="true"
+            autocomplete="new-password"
+          />
+        </app-field>
 
         <div class="actions">
           <p-button type="submit" label="Save" icon="pi pi-check" data-testid="account-save"
-                    [loading]="saving()" [disabled]="!accountForm.dirty" />
+                    [loading]="saving()"
+                    [disabled]="form.invalid || form.pristine || saving()" />
         </div>
       </form>
     </div>
   `,
   styles: [`
     .edit-account { max-width: 500px; }
-    .field { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
-    .field label { font-weight: 500; }
-    .field input, .field p-password, .field p-select { width: 100%; }
-    .actions { margin-top: 1rem; }
+    /* app-field owns the rows (issue #132); the caller keeps control width. */
+    app-field input, app-field p-password, app-field p-select { width: 100%; }
+    .actions { margin-top: var(--rq-space-4); }
   `]
 })
 export class EditAccountComponent implements OnInit, DirtyCheckable {
 
-  @ViewChild('accountForm') private viewAccountForm?: NgForm;
-
   readonly saving = signal(false);
+  readonly submitted = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
 
   readonly username = computed(() => this.authService.user()?.username ?? '');
-  readonly name = signal('');
-  readonly emailAddress = signal('');
-  readonly phoneNumber = signal('');
-  readonly organizationName = signal('');
-  readonly password = signal('');
-  readonly repassword = signal('');
 
   readonly organizations = signal<{label: string; value: string}[]>([]);
   readonly orgOptions = computed(() => this.organizations());
+
+  /**
+   * The password rows are optional here — blank means "keep the current one" — and the
+   * validators express that without a conditional branch: Angular's `minLength` returns
+   * null for an empty value, so `minLength(1)` only bites once something is typed, and
+   * `passwordsMatch` is satisfied when both rows are empty. `maxLength` mirrors
+   * `UserImpl.MAX_PASSWORD_LENGTH`, the only password bound the server enforces.
+   *
+   * `username` is disabled rather than read-only, matching the previous markup and the
+   * e2e assertion that it is disabled. Disabled controls are excluded from `form.value`,
+   * so the save path reads `getRawValue()`.
+   */
+  readonly form = new FormGroup(
+    {
+      username: new FormControl('', { nonNullable: true }),
+      name: new FormControl('', { validators: Validators.required, nonNullable: true }),
+      emailAddress: new FormControl('', { validators: Validators.email, nonNullable: true }),
+      phoneNumber: new FormControl('', { nonNullable: true }),
+      organizationName: new FormControl('', { nonNullable: true }),
+      password: new FormControl('', {
+        validators: [Validators.minLength(1), Validators.maxLength(PASSWORD_MAX_LENGTH)],
+        nonNullable: true,
+      }),
+      repassword: new FormControl('', { nonNullable: true }),
+    },
+    { validators: passwordsMatch('password', 'repassword') }
+  );
 
   constructor(
     private authService: AuthService,
     private commandService: CommandService,
     private userService: UserService
-  ) {}
+  ) {
+    this.form.controls.username.disable();
+  }
 
+  /** Derived from the form, so there is no NgForm ViewChild to reach through (#132). */
   hasUnsavedChanges(): boolean {
-    return this.viewAccountForm?.dirty ?? false;
+    return this.form.dirty;
   }
 
   async ngOnInit(): Promise<void> {
     const user = this.authService.user();
     if (user) {
-      this.name.set(user.name ?? '');
-      this.emailAddress.set(user.emailAddress ?? '');
-      this.phoneNumber.set(user.phoneNumber ?? '');
-      this.organizationName.set(user.organizationName ?? '');
+      this.form.patchValue({
+        username: user.username ?? '',
+        name: user.name ?? '',
+        emailAddress: user.emailAddress ?? '',
+        phoneNumber: user.phoneNumber ?? '',
+        organizationName: user.organizationName ?? '',
+      });
+      this.form.markAsPristine();
     }
     try {
       const orgs = await this.userService.listOrganizations();
@@ -152,33 +253,48 @@ export class EditAccountComponent implements OnInit, DirtyCheckable {
   }
 
   async onSave(): Promise<void> {
+    this.submitted.set(true);
+    // Before the validity check: a server error from the last attempt makes its control
+    // invalid, so clearing afterwards would leave the form permanently unsubmittable.
+    clearServerErrors(this.form);
+
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
     this.saving.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
     try {
+      const value = this.form.getRawValue();
       const input: Record<string, unknown> = {
         username: this.username(),
-        name: this.name(),
-        emailAddress: this.emailAddress(),
-        phoneNumber: this.phoneNumber(),
-        organizationName: this.organizationName() || null
+        name: value.name,
+        emailAddress: value.emailAddress,
+        phoneNumber: value.phoneNumber,
+        organizationName: value.organizationName || null
       };
 
-      if (this.password()) {
-        input['password'] = this.password();
-        input['repassword'] = this.repassword();
+      if (value.password) {
+        input['password'] = value.password;
+        input['repassword'] = value.repassword;
       }
 
       const result = await this.commandService.execute('EditUser', input);
       if (result.success) {
         this.successMessage.set('Account updated.');
-        this.password.set('');
-        this.repassword.set('');
-        this.viewAccountForm?.form.markAsPristine();
-      } else if (result.violations?.length) {
-        this.errorMessage.set(result.violations.map(v => v.message).join('; '));
-      } else {
+        this.form.patchValue({ password: '', repassword: '' });
+        this.form.markAsPristine();
+        this.submitted.set(false);
+        return;
+      }
+
+      const unresolved = applyCommandErrors(this.form, result.violations, ACCOUNT_FIELD_MAP);
+      if (unresolved.length) {
+        this.errorMessage.set(unresolved.join(' '));
+      } else if (!result.violations?.length) {
         this.errorMessage.set(result.error ?? 'Save failed.');
       }
     } catch (err: unknown) {

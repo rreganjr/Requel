@@ -87,10 +87,12 @@ export class UserEditorPage {
     // focus() is used instead of click() so that an open p-select dropdown (from org field)
     // does not intercept the action — focus() calls element.focus() directly, bypassing
     // Playwright's overlay intercept check.
-    const pwInput = this.page.locator('#password').locator('input');
+    // #password / #repassword are now the real inputs: app-field puts the caller's
+    // controlId on the inner input rather than the p-password host (issue #132).
+    const pwInput = this.page.locator('#password');
     await pwInput.focus();
     await pwInput.pressSequentially(password);
-    const rpwInput = this.page.locator('#repassword').locator('input');
+    const rpwInput = this.page.locator('#repassword');
     await rpwInput.focus();
     await rpwInput.pressSequentially(password);
   }

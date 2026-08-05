@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { MessageService } from 'primeng/api';
 import { ReportEditorComponent } from './report-editor';
 import { ReportService } from '../../core/report.service';
 import { PermissionService } from '../../core/permission.service';
@@ -59,6 +59,11 @@ describe('ReportEditorComponent', () => {
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
   });
 
+  function fill(name: string, text = ''): void {
+    comp.form.setValue({ name, text });
+    comp.form.markAsDirty();
+  }
+
   it('isNew() is true when reportId param is "new"', async () => {
     fixture.detectChanges();
     await flush();
@@ -73,27 +78,17 @@ describe('ReportEditorComponent', () => {
     expect(reportServiceMock.getReport).toHaveBeenCalledWith('proj1', 7);
     expect(comp.reportName()).toBe('Requirements Doc');
     expect(comp.reportId()).toBe(7);
-    expect(comp.name).toBe('Requirements Doc');
+    expect(comp.form.controls.name.value).toBe('Requirements Doc');
   });
 
   it('onSave calls reportService.saveReport with name and text', async () => {
     fixture.detectChanges();
     await flush();
-    comp.name = 'My Template';
-    comp.text = '<xsl:stylesheet/>';
+    fill('My Template', '<xsl:stylesheet/>');
     await comp.onSave();
     expect(reportServiceMock.saveReport).toHaveBeenCalledWith(
       'proj1', null, 'My Template', '<xsl:stylesheet/>'
     );
-  });
-
-  it('onSave sets errorMessage when name is empty', async () => {
-    fixture.detectChanges();
-    await flush();
-    comp.name = '';
-    await comp.onSave();
-    expect(comp.errorMessage()).toBe('Document name is required.');
-    expect(reportServiceMock.saveReport).not.toHaveBeenCalled();
   });
 
   it('onRun calls reportService.downloadReport', async () => {
@@ -103,5 +98,173 @@ describe('ReportEditorComponent', () => {
     await comp.onRun();
     expect(reportServiceMock.downloadReport).toHaveBeenCalledWith('proj1', 7, 'Requirements Doc');
     expect(comp.running()).toBe(false);
+  });
+
+  describe('reactive form (issue #132)', () => {
+    it('loads the document into the form and leaves it pristine', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+      fixture.detectChanges();
+      await flush();
+
+      expect(comp.form.getRawValue()).toEqual({
+        name: 'Requirements Doc',
+        text: '<xsl:stylesheet>...</xsl:stylesheet>',
+      });
+      expect(comp.form.pristine).toBe(true);
+    });
+
+    it('does not save an empty name, and reports it inline rather than page-level', async () => {
+      fixture.detectChanges();
+      await flush();
+      fill('');
+
+      await comp.onSave();
+
+      expect(reportServiceMock.saveReport).not.toHaveBeenCalled();
+      expect(comp.errorMessage()).toBeNull();
+      expect(comp.form.controls.name.hasError('required')).toBe(true);
+      expect(comp.submitted()).toBe(true);
+    });
+
+    it('sends null rather than an empty string for an empty template', async () => {
+      fixture.detectChanges();
+      await flush();
+      fill('Doc', '');
+
+      await comp.onSave();
+
+      expect(reportServiceMock.saveReport).toHaveBeenCalledWith('proj1', null, 'Doc', null);
+    });
+
+    it('hasUnsavedChanges() derives from form.dirty', async () => {
+      fixture.detectChanges();
+      await flush();
+      expect(comp.hasUnsavedChanges()).toBe(false);
+
+      comp.form.controls.text.setValue('changed');
+      comp.form.controls.text.markAsDirty();
+      expect(comp.hasUnsavedChanges()).toBe(true);
+    });
+
+    it('disables Save while pristine', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+        '[data-testid="report-save"] button'
+      );
+      expect(button?.disabled).toBe(true);
+    });
+
+    it('keeps the #name and #text ids the e2e page objects locate', async () => {
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('input#name')).not.toBeNull();
+      expect(el.querySelector('textarea#text')).not.toBeNull();
+    });
+  });
+
+  describe('XSLT upload (issue #132)', () => {
+    /** Minimal FileReader stand-in — jsdom's needs a real Blob and fires async. */
+    function stubFileReader(contents: string): void {
+      class StubReader {
+        result: string | null = null;
+        onload: (() => void) | null = null;
+        readAsText(): void {
+          this.result = contents;
+          this.onload?.();
+        }
+      }
+      vi.stubGlobal('FileReader', StubReader);
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('puts the uploaded text in the form and marks it dirty so Save enables', async () => {
+      fixture.detectChanges();
+      await flush();
+      stubFileReader('<xsl:stylesheet>uploaded</xsl:stylesheet>');
+
+      comp.onFileUpload(new File([''], 'my-template.xsl'));
+
+      expect(comp.form.controls.text.value).toBe('<xsl:stylesheet>uploaded</xsl:stylesheet>');
+      expect(comp.form.dirty).toBe(true);
+    });
+
+    it('derives the name from the filename only when the name is empty', async () => {
+      fixture.detectChanges();
+      await flush();
+      stubFileReader('<xsl/>');
+
+      comp.onFileUpload(new File([''], 'my-template.xsl'));
+      expect(comp.form.controls.name.value).toBe('my-template');
+    });
+
+    it('leaves an existing name alone', async () => {
+      fixture.detectChanges();
+      await flush();
+      fill('Chosen name');
+      stubFileReader('<xsl/>');
+
+      comp.onFileUpload(new File([''], 'my-template.xsl'));
+      expect(comp.form.controls.name.value).toBe('Chosen name');
+    });
+  });
+
+  describe('command error handling (issue #132)', () => {
+    it('puts a field violation on its control instead of the page message', async () => {
+      reportServiceMock.saveReport.mockResolvedValue({
+        success: false,
+        violations: [{ field: 'name', message: 'A document with that name already exists.' }],
+        error: 'Validation failed',
+      });
+      fixture.detectChanges();
+      await flush();
+      fill('Duplicate');
+
+      await comp.onSave();
+
+      expect(comp.form.controls.name.errors).toEqual({
+        server: 'A document with that name already exists.',
+      });
+      expect(comp.errorMessage()).toBeNull();
+    });
+
+    it('puts a text violation on the template control', async () => {
+      reportServiceMock.saveReport.mockResolvedValue({
+        success: false,
+        violations: [{ field: 'text', message: 'Not well-formed XSLT.' }],
+        error: 'Validation failed',
+      });
+      fixture.detectChanges();
+      await flush();
+      fill('Doc', '<not-xslt>');
+
+      await comp.onSave();
+
+      expect(comp.form.controls.text.errors).toEqual({ server: 'Not well-formed XSLT.' });
+    });
+
+    it('shows a command-level failure page-level', async () => {
+      reportServiceMock.saveReport.mockResolvedValue({
+        success: false,
+        violations: [{ field: null, message: 'Validation failed.' }],
+        error: 'Validation failed',
+      });
+      fixture.detectChanges();
+      await flush();
+      fill('Doc');
+
+      await comp.onSave();
+
+      expect(comp.errorMessage()).toBe('Validation failed.');
+    });
   });
 });

@@ -18,12 +18,12 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, signal, computed, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal, computed } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { FormsModule, NgForm } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { InputText } from 'primeng/inputtext';
 import { Password } from 'primeng/password';
@@ -37,14 +37,51 @@ import { UserService } from '../../core/user.service';
 import { CommandService } from '../../core/command.service';
 import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
+import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { AppFieldGroupComponent } from '../../shared/app-field-group';
+import {
+  applyCommandErrors,
+  atLeastOne,
+  clearServerErrors,
+  firstErrorMessage,
+  passwordsMatch,
+} from '../../shared/form-errors';
+import { PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
+
+/**
+ * JPA entity property name -> form control name, for {@link applyCommandErrors}.
+ *
+ * `UserImpl` stores a hash (`encryptedPassword`) and holds `roles`, while the form calls
+ * those `password` and `roleNames`. Everything else already matches.
+ */
+const USER_FIELD_MAP: Record<string, string> = {
+  encryptedPassword: 'password',
+  roles: 'roleNames',
+  userRoleNames: 'roleNames',
+};
 
 @Component({
   selector: 'app-user-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, FormsModule, InputText, Password, ButtonModule, CheckboxModule, SelectModule, MessageModule, LoadingStateComponent, ErrorStateComponent],
+  imports: [
+    PageHeaderComponent,
+    AppCardComponent,
+    ReactiveFormsModule,
+    InputText,
+    Password,
+    ButtonModule,
+    CheckboxModule,
+    SelectModule,
+    MessageModule,
+    LoadingStateComponent,
+    ErrorStateComponent,
+    AppFieldComponent,
+    AppFieldControlDirective,
+    AppFieldGroupComponent,
+  ],
   template: `
     <div class="user-editor" data-testid="user-editor">
-      <app-page-header [title]="isNew() ? 'New User' : 'Edit User: ' + username" />
+      <app-page-header [title]="isNew() ? 'New User' : 'Edit User: ' + form.controls.username.value" />
 
       @if (errorMessage()) {
         <p-message severity="error" [text]="errorMessage()!" />
@@ -62,67 +99,77 @@ import { ErrorStateComponent } from '../../shared/error-state';
                          (retry)="retryLoad()" />
       } @else {
       <app-card>
-        <form #userForm="ngForm" (ngSubmit)="onSave()">
-          <div class="form-grid">
-            <div class="field">
-              <label for="username">Username</label>
-              <input pInputText id="username" [(ngModel)]="username" name="username"
-                     [disabled]="!isNew()" />
-            </div>
+        <form [formGroup]="form" (ngSubmit)="onSave()">
+          <!--
+            The two-column group from issue #172 keeps this form dense; migrating seven
+            fields to single-column rows would have turned it into a long scroll. Seven
+            rows over two columns leaves a partial final row, which is exactly the case
+            app-field-group suppresses the trailing divider for.
 
-            <div class="field">
-              <label for="name">Name</label>
-              <input pInputText id="name" [(ngModel)]="name" name="name" />
-            </div>
+            controlId values match the ids the e2e page objects locate. For #password and
+            #repassword the id now lands on the INNER input rather than the p-password
+            host, so UserEditorPage's .locator('#password').locator('input') became
+            .locator('#password').
+          -->
+          <app-field-group [columns]="2">
+            <app-field label="Username" controlId="username" [control]="form.controls.username"
+                       [submitted]="submitted()">
+              <input pInputText appFieldControl id="username" formControlName="username" />
+            </app-field>
 
-            <div class="field">
-              <label for="email">Email</label>
-              <input pInputText id="email" [(ngModel)]="emailAddress" name="email" type="email" />
-            </div>
+            <app-field label="Name" controlId="name" [control]="form.controls.name"
+                       [submitted]="submitted()">
+              <input pInputText appFieldControl id="name" formControlName="name" />
+            </app-field>
 
-            <div class="field">
-              <label for="phone">Phone</label>
-              <input pInputText id="phone" [(ngModel)]="phoneNumber" name="phone" />
-            </div>
+            <app-field label="Email" controlId="email" [control]="form.controls.emailAddress"
+                       [submitted]="submitted()">
+              <input pInputText appFieldControl id="email" type="email" formControlName="emailAddress" />
+            </app-field>
 
-            <div class="field">
-              <label for="org">Organization</label>
-              <p-select id="org" inputId="userOrgInput" data-testid="user-organization"
-                        [(ngModel)]="organizationName" name="org"
-                        [options]="orgOptions()" [editable]="true"
-                        appendTo="body"
+            <app-field label="Phone" controlId="phone" [control]="form.controls.phoneNumber"
+                       [submitted]="submitted()">
+              <input pInputText appFieldControl id="phone" formControlName="phoneNumber" />
+            </app-field>
+
+            <app-field label="Organization" controlId="userOrgInput"
+                       [control]="form.controls.organizationName" [submitted]="submitted()">
+              <p-select appFieldControl inputId="userOrgInput" data-testid="user-organization"
+                        formControlName="organizationName"
+                        [options]="orgOptions()" [editable]="true" appendTo="body"
                         placeholder="Select or type organization" />
-            </div>
+            </app-field>
 
-            <div class="field">
-              <label for="password">Password</label>
-              <p-password id="password" [(ngModel)]="password" name="password"
-                          [feedback]="false" [toggleMask]="true" />
-            </div>
+            <app-field label="Password" controlId="password" [control]="form.controls.password"
+                       [submitted]="submitted()"
+                       [helper]="isNew() ? '' : 'Leave blank to keep the current password.'">
+              <p-password appFieldControl inputId="password" formControlName="password"
+                          [feedback]="false" [toggleMask]="true" autocomplete="new-password" />
+            </app-field>
 
-            <div class="field">
-              <label for="repassword">Confirm Password</label>
-              <p-password id="repassword" [(ngModel)]="repassword" name="repassword"
-                          [feedback]="false" [toggleMask]="true" />
-            </div>
-          </div>
+            <app-field label="Confirm Password" controlId="repassword"
+                       [control]="form.controls.repassword" [submitted]="submitted()">
+              <p-password appFieldControl inputId="repassword" formControlName="repassword"
+                          [feedback]="false" [toggleMask]="true" autocomplete="new-password" />
+            </app-field>
+          </app-field-group>
 
           <div class="roles-section" data-testid="user-roles-section">
-            <h3>Roles &amp; Permissions</h3>
+            <!-- h2, not h3: sibling of the section headings #158 standardised, and an h3
+                 straight after the page h1 is an axe heading-order violation. -->
+            <h2 class="rq-section-title">Roles &amp; Permissions</h2>
+
             @for (role of availableRoles(); track role.roleName) {
               <div class="role-group" data-testid="user-role-group" [attr.data-role-name]="role.roleName">
                 <label class="checkbox-label" data-testid="user-role-label">
-                  <p-checkbox [(ngModel)]="selectedRoleNames" [name]="'role_' + role.roleName"
-                              [value]="role.roleName" />
+                  <p-checkbox [formControl]="form.controls.roleNames" [value]="role.roleName" />
                   {{ role.displayName }}
                 </label>
                 @if (isRoleSelected(role.roleName)) {
                   <div class="permissions">
                     @for (perm of role.availablePermissions; track perm.name) {
                       <label class="checkbox-label">
-                        <p-checkbox [(ngModel)]="selectedPermissions[role.roleName]"
-                                    [name]="'perm_' + role.roleName + '_' + perm.name"
-                                    [value]="perm.name" />
+                        <p-checkbox [formControl]="permissionsControl(role.roleName)" [value]="perm.name" />
                         {{ perm.name }}
                       </label>
                     }
@@ -130,12 +177,24 @@ import { ErrorStateComponent } from '../../shared/error-state';
                 }
               </div>
             }
+
+            <!--
+              The roles error has no single control to sit under — it is about the group —
+              so it renders here, next to the checkboxes it concerns, with the same
+              role="alert" treatment an app-field error gets.
+            -->
+            @if (showRolesError()) {
+              <p class="roles-error" role="alert" data-testid="user-roles-error">
+                {{ rolesErrorMessage() }}
+              </p>
+            }
           </div>
 
           <div class="actions">
             <p-button type="submit" label="Save" icon="pi pi-check" data-testid="user-save"
-                      [loading]="saving()" [disabled]="!userForm.dirty" />
-            <p-button label="Cancel" icon="pi pi-times" severity="secondary"
+                      [loading]="saving()"
+                      [disabled]="form.invalid || form.pristine || saving()" />
+            <p-button type="button" label="Cancel" icon="pi pi-times" severity="secondary"
                       (onClick)="onCancel()" [outlined]="true" />
           </div>
         </form>
@@ -145,25 +204,29 @@ import { ErrorStateComponent } from '../../shared/error-state';
   `,
   styles: [`
     .user-editor { max-width: 800px; }
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
-    .field { display: flex; flex-direction: column; gap: 0.5rem; }
-    .field label { font-weight: 500; }
-    .field input, .field p-password, .field p-select { width: 100%; }
-    .roles-section { margin-bottom: 1.5rem; }
-    .roles-section h3 { margin: 0 0 0.75rem; }
-    .role-group { margin-bottom: 0.75rem; }
-    .checkbox-label { display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; }
-    .permissions { margin-left: 2rem; margin-top: 0.25rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
-    .actions { display: flex; gap: 0.5rem; }
+    /* The local .form-grid { 1fr 1fr } is gone — app-field-group owns the columns now
+       (issue #172), and app-field owns each row. */
+    app-field input, app-field p-password, app-field p-select { width: 100%; }
+    .roles-section { margin-block: var(--rq-space-6); }
+    .roles-section h2 { margin: 0 0 var(--rq-space-3); }
+    .role-group { margin-bottom: var(--rq-space-3); }
+    .checkbox-label { display: inline-flex; align-items: center; gap: var(--rq-space-2); cursor: pointer; }
+    .permissions { margin-left: var(--rq-space-8); margin-top: var(--rq-space-1); display: flex; flex-wrap: wrap; gap: var(--rq-space-2); }
+    .roles-error {
+      margin: var(--rq-space-1) 0 0;
+      color: var(--rq-field-error-fg);
+      font-size: var(--rq-text-helper-size);
+      line-height: var(--rq-text-helper-line);
+    }
+    .actions { display: flex; gap: var(--rq-space-2); }
   `]
 })
 export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
-  @ViewChild('userForm') private viewUserForm?: NgForm;
-
   readonly isNew = signal(true);
   readonly loading = signal(true);
   readonly saving = signal(false);
+  readonly submitted = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   // Load failures tracked separately from save/inline errors so the retryable
@@ -171,24 +234,36 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   readonly loadError = signal<string | null>(null);
   private lastUsernameParam: string | null = null;
 
-  // Form fields — plain properties so [(ngModel)] two-way binding works correctly.
-  // readonly signals don't update via the (ngModelChange)="name=$event" write path.
-  username = '';
-  name = '';
-  emailAddress = '';
-  phoneNumber = '';
-  organizationName = '';
-  password = '';
-  repassword = '';
+  /**
+   * `permissions` is a nested group with one `string[]` control per role, filled in once
+   * the role list arrives. Keeping it inside the form is what makes ticking a permission
+   * mark the form dirty — with the checkboxes outside the form, Save would have stayed
+   * disabled after a permission-only change.
+   *
+   * Password is required on create and optional on edit; {@link applyPasswordRules} sets
+   * that once `isNew` is known. `minLength(1)` is a no-op on an empty value, so the edit
+   * case needs no conditional branch beyond dropping `required`.
+   */
+  readonly form = new FormGroup(
+    {
+      username: new FormControl('', { validators: Validators.required, nonNullable: true }),
+      name: new FormControl('', { validators: Validators.required, nonNullable: true }),
+      emailAddress: new FormControl('', { validators: Validators.email, nonNullable: true }),
+      phoneNumber: new FormControl('', { nonNullable: true }),
+      organizationName: new FormControl('', { nonNullable: true }),
+      password: new FormControl('', { nonNullable: true }),
+      repassword: new FormControl('', { nonNullable: true }),
+      roleNames: new FormControl<string[]>([], { validators: atLeastOne(), nonNullable: true }),
+      permissions: new FormGroup<Record<string, FormControl<string[]>>>({}),
+    },
+    { validators: passwordsMatch('password', 'repassword') }
+  );
 
   // Identity for optimistic locking
   private userId: number | null = null;
   private userVersion: number = 0;
 
-  // Roles & permissions
   readonly availableRoles = signal<RoleDto[]>([]);
-  selectedRoleNames: string[] = [];
-  selectedPermissions: Record<string, string[]> = {};
 
   // Organization dropdown
   readonly organizations = signal<{label: string; value: string}[]>([]);
@@ -200,8 +275,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     private route: ActivatedRoute,
     private router: Router,
     private userService: UserService,
-    private commandService: CommandService,
-    private cdr: ChangeDetectorRef
+    private commandService: CommandService
   ) {}
 
   ngOnInit(): void {
@@ -212,8 +286,9 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     });
   }
 
+  /** Derived from the form, so there is no NgForm ViewChild to reach through (#132). */
   hasUnsavedChanges(): boolean {
-    return this.viewUserForm?.dirty ?? false;
+    return this.form.dirty;
   }
 
   ngOnDestroy(): void {
@@ -225,12 +300,64 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     void this.loadData(this.lastUsernameParam);
   }
 
+  /** The per-role permission control, created lazily so the template can bind it. */
+  permissionsControl(roleName: string): FormControl<string[]> {
+    const group = this.form.controls.permissions;
+    let control = group.controls[roleName];
+    if (!control) {
+      control = new FormControl<string[]>([], { nonNullable: true });
+      group.addControl(roleName, control);
+    }
+    return control;
+  }
+
+  /**
+   * Whether to show the "select at least one role" message. Same visibility rule
+   * `app-field` applies to a control-level error: only after the user has engaged, or
+   * after a save attempt — never on a create form nobody has filled in yet.
+   */
+  showRolesError(): boolean {
+    const control = this.form.controls.roleNames;
+    return control.invalid && (control.touched || this.submitted());
+  }
+
+  /**
+   * The roles message, resolved through the shared map rather than written here — the
+   * wording for `atLeastOne` (and for a `server` violation mapped onto this control)
+   * lives in form-errors.ts with every other validation message.
+   */
+  rolesErrorMessage(): string | null {
+    return firstErrorMessage(this.form.controls.roleNames);
+  }
+
+  private applyPasswordRules(): void {
+    const password = this.form.controls.password;
+    password.setValidators(
+      this.isNew()
+        ? [Validators.required, Validators.maxLength(PASSWORD_MAX_LENGTH)]
+        : [Validators.minLength(1), Validators.maxLength(PASSWORD_MAX_LENGTH)]
+    );
+    password.updateValueAndValidity({ emitEvent: false });
+  }
+
   private async loadData(usernameParam: string | null): Promise<void> {
     this.loading.set(true);
     this.loadError.set(null);
+    this.submitted.set(false);
     this.lastUsernameParam = usernameParam;
     this.userId = null;
     this.userVersion = 0;
+
+    // Username is the identity of an existing user and cannot be changed; disabling the
+    // control both matches the previous [disabled]="!isNew()" markup and keeps it out of
+    // the validity calculation, which getRawValue() then reads past.
+    if (this.isNew()) {
+      this.form.controls.username.enable({ emitEvent: false });
+    } else {
+      this.form.controls.username.disable({ emitEvent: false });
+    }
+    this.applyPasswordRules();
+
     try {
       // Load reference data in parallel
       const [roles, orgs] = await Promise.all([
@@ -240,21 +367,20 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       this.availableRoles.set(roles);
       this.organizations.set(orgs.map(o => ({ label: o.name, value: o.name })));
 
-      // Initialize permissions map
+      // A control per role, so a permission tick is a form change like any other.
       for (const role of roles) {
-        this.selectedPermissions[role.roleName] = [];
+        this.permissionsControl(role.roleName).setValue([], { emitEvent: false });
       }
 
       // Load existing user if editing
       if (!this.isNew() && usernameParam) {
         const user = await this.userService.getUser(usernameParam);
         this.populateForm(user);
-        // Force CD so the @if(isRoleSelected) block and p-checkbox components
-        // initialize from the already-populated values in a single pass.
-        // Without this, PrimeNG checkboxes can initialize from the empty
-        // selectedPermissions set by the init loop above before populateForm runs.
-        this.cdr.detectChanges();
       }
+      // The ChangeDetectorRef.detectChanges() that used to be needed here is gone: the
+      // p-checkbox and p-select value accessors are written to directly by setValue, so
+      // they no longer race the empty-then-populate sequence that plain properties had.
+      this.form.markAsPristine();
     } catch (err: unknown) {
       // Previously uncaught: a failed load left a blank form with no feedback.
       this.loadError.set(err instanceof Error ? err.message : 'Failed to load user.');
@@ -264,44 +390,62 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   isRoleSelected(roleName: string): boolean {
-    return this.selectedRoleNames.includes(roleName);
+    return this.form.controls.roleNames.value.includes(roleName);
   }
 
   async onSave(): Promise<void> {
+    this.submitted.set(true);
+    // Before the validity check — see term-editor: a standing server error would
+    // otherwise make the form permanently unsubmittable.
+    clearServerErrors(this.form);
+
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
     this.saving.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
     try {
+      const value = this.form.getRawValue();
       const input: Record<string, unknown> = {
         id: this.userId,
         version: this.userVersion,
-        username: this.username,
-        name: this.name,
-        emailAddress: this.emailAddress,
-        phoneNumber: this.phoneNumber,
-        organizationName: this.organizationName,
+        username: value.username,
+        name: value.name,
+        emailAddress: value.emailAddress,
+        phoneNumber: value.phoneNumber,
+        organizationName: value.organizationName,
         editable: true,
-        userRoleNames: this.selectedRoleNames,
-        userRolePermissionNames: this.selectedPermissions
+        userRoleNames: value.roleNames,
+        // Only the selected roles' permissions, so a deselected role does not ship a
+        // stale permission list the server would have to ignore.
+        userRolePermissionNames: this.selectedPermissionsPayload(value.roleNames),
       };
 
       // Only include password if set
-      if (this.password) {
-        input['password'] = this.password;
-        input['repassword'] = this.repassword;
+      if (value.password) {
+        input['password'] = value.password;
+        input['repassword'] = value.repassword;
       }
 
       const result = await this.commandService.execute('EditUser', input);
       if (result.success) {
         this.successMessage.set('User saved successfully.');
-        this.viewUserForm?.form.markAsPristine();
+        this.form.markAsPristine();
+        this.submitted.set(false);
         if (this.isNew()) {
-          await this.router.navigate(['/users', this.username]);
+          await this.router.navigate(['/users', value.username]);
         }
-      } else if (result.violations?.length) {
-        this.errorMessage.set(result.violations.map(v => v.message).join('; '));
-      } else {
+        return;
+      }
+
+      const unresolved = applyCommandErrors(this.form, result.violations, USER_FIELD_MAP);
+      if (unresolved.length) {
+        this.errorMessage.set(unresolved.join(' '));
+      } else if (!result.violations?.length) {
         this.errorMessage.set(result.error ?? 'Save failed.');
       }
     } catch (err: unknown) {
@@ -311,6 +455,15 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     }
   }
 
+  /** `{ roleName: permissionName[] }` for the selected roles only. */
+  private selectedPermissionsPayload(roleNames: string[]): Record<string, string[]> {
+    const payload: Record<string, string[]> = {};
+    for (const roleName of roleNames) {
+      payload[roleName] = this.permissionsControl(roleName).value;
+    }
+    return payload;
+  }
+
   onCancel(): void {
     this.router.navigate(['/users']);
   }
@@ -318,15 +471,22 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   private populateForm(user: UserDto): void {
     this.userId = user.id ?? null;
     this.userVersion = user.version ?? 0;
-    this.username = user.username;
-    this.name = user.name ?? '';
-    this.emailAddress = user.emailAddress ?? '';
-    this.phoneNumber = user.phoneNumber ?? '';
-    this.organizationName = user.organizationName ?? '';
-    this.selectedRoleNames = [...user.roles];
+    this.form.patchValue(
+      {
+        username: user.username,
+        name: user.name ?? '',
+        emailAddress: user.emailAddress ?? '',
+        phoneNumber: user.phoneNumber ?? '',
+        organizationName: user.organizationName ?? '',
+        roleNames: [...user.roles],
+      },
+      { emitEvent: false }
+    );
     // Seed per-role permissions from the server's permissionsByRole map
     for (const roleName of user.roles) {
-      this.selectedPermissions[roleName] = [...(user.permissionsByRole?.[roleName] ?? [])];
+      this.permissionsControl(roleName).setValue([...(user.permissionsByRole?.[roleName] ?? [])], {
+        emitEvent: false,
+      });
     }
   }
 }

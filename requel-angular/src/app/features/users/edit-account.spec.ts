@@ -41,6 +41,15 @@ describe('EditAccountComponent', () => {
     comp = fixture.componentInstance;
   });
 
+  /** Edit the form the way a user would, leaving it dirty. */
+  function patch(values: Partial<{
+    name: string; emailAddress: string; phoneNumber: string;
+    organizationName: string; password: string; repassword: string;
+  }>): void {
+    comp.form.patchValue(values);
+    comp.form.markAsDirty();
+  }
+
   it('username() is computed from authService.user().username', () => {
     expect(comp.username()).toBe('admin');
   });
@@ -48,10 +57,13 @@ describe('EditAccountComponent', () => {
   it('ngOnInit populates fields from authService.user()', async () => {
     fixture.detectChanges();
     await fixture.whenStable();
-    expect(comp.name()).toBe('Admin User');
-    expect(comp.emailAddress()).toBe('admin@example.com');
-    expect(comp.phoneNumber()).toBe('555-1234');
-    expect(comp.organizationName()).toBe('Acme');
+    expect(comp.form.getRawValue()).toMatchObject({
+      username: 'admin',
+      name: 'Admin User',
+      emailAddress: 'admin@example.com',
+      phoneNumber: '555-1234',
+      organizationName: 'Acme',
+    });
   });
 
   it('ngOnInit calls userService.listOrganizations', async () => {
@@ -62,10 +74,9 @@ describe('EditAccountComponent', () => {
   });
 
   it('onSave calls commandService.execute("EditUser") with username and fields', async () => {
-    comp.name.set('New Name');
-    comp.emailAddress.set('new@example.com');
-    comp.phoneNumber.set('');
-    comp.organizationName.set('Beta');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    patch({ name: 'New Name', emailAddress: 'new@example.com', phoneNumber: '', organizationName: 'Beta' });
     await comp.onSave();
     expect(commandServiceMock.execute).toHaveBeenCalledWith('EditUser', expect.objectContaining({
       username: 'admin',
@@ -75,7 +86,9 @@ describe('EditAccountComponent', () => {
   });
 
   it('onSave sets successMessage on success', async () => {
-    comp.name.set('Updated');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    patch({ name: 'Updated' });
     await comp.onSave();
     expect(comp.successMessage()).toBe('Account updated.');
     expect(comp.saving()).toBe(false);
@@ -83,8 +96,237 @@ describe('EditAccountComponent', () => {
 
   it('onSave sets errorMessage when command fails', async () => {
     commandServiceMock.execute.mockResolvedValue({ success: false, error: 'Permission denied' });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    patch({ name: 'Updated' });
     await comp.onSave();
     expect(comp.errorMessage()).toBe('Permission denied');
     expect(comp.saving()).toBe(false);
+  });
+
+  describe('reactive form (issue #132)', () => {
+    beforeEach(async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    it('starts valid and pristine, so Save is disabled', () => {
+      expect(comp.form.valid).toBe(true);
+      expect(comp.form.pristine).toBe(true);
+      expect(comp.hasUnsavedChanges()).toBe(false);
+    });
+
+    it('keeps username disabled but still sends it', async () => {
+      expect(comp.form.controls.username.disabled).toBe(true);
+      patch({ name: 'Updated' });
+      await comp.onSave();
+      expect(commandServiceMock.execute).toHaveBeenCalledWith(
+        'EditUser',
+        expect.objectContaining({ username: 'admin' })
+      );
+    });
+
+    it('requires a name', () => {
+      patch({ name: '' });
+      expect(comp.form.controls.name.hasError('required')).toBe(true);
+      expect(comp.form.invalid).toBe(true);
+    });
+
+    it('rejects a malformed email', () => {
+      patch({ emailAddress: 'not-an-email' });
+      expect(comp.form.controls.emailAddress.hasError('email')).toBe(true);
+    });
+
+    it('accepts an empty email', () => {
+      patch({ emailAddress: '' });
+      expect(comp.form.controls.emailAddress.valid).toBe(true);
+    });
+
+    it('hasUnsavedChanges() derives from form.dirty', () => {
+      patch({ phoneNumber: '555-9999' });
+      expect(comp.hasUnsavedChanges()).toBe(true);
+    });
+
+    it('marks pristine and clears the password rows after a successful save', async () => {
+      patch({ name: 'Updated', password: 'hunter2', repassword: 'hunter2' });
+      await comp.onSave();
+
+      expect(comp.form.controls.password.value).toBe('');
+      expect(comp.form.controls.repassword.value).toBe('');
+      expect(comp.form.pristine).toBe(true);
+    });
+
+    it('does not save an invalid form', async () => {
+      patch({ name: '' });
+      await comp.onSave();
+      expect(commandServiceMock.execute).not.toHaveBeenCalled();
+      expect(comp.submitted()).toBe(true);
+    });
+
+    it('disables Save while pristine and enables it once dirty', () => {
+      const save = () =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+          '[data-testid="account-save"] button'
+        );
+      fixture.detectChanges();
+      expect(save()?.disabled).toBe(true);
+
+      patch({ name: 'Changed' });
+      fixture.detectChanges();
+      expect(save()?.disabled).toBe(false);
+    });
+
+    it('keeps the ids the e2e page objects locate, with #password on the real input', () => {
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('input#username')).not.toBeNull();
+      expect(el.querySelector('input#name')).not.toBeNull();
+      expect(el.querySelector('input#email')).not.toBeNull();
+      // The id lands on the inner input, not the p-password host — the e2e locators
+      // changed from .locator('#password').locator('input') to .locator('#password').
+      expect(el.querySelector('#password')?.tagName.toLowerCase()).toBe('input');
+      expect(el.querySelector('#repassword')?.tagName.toLowerCase()).toBe('input');
+    });
+  });
+
+  describe('optional password (issue #132)', () => {
+    beforeEach(async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    /**
+     * "Leave blank to keep current" needs no conditional branch: Angular's minLength
+     * returns null for an empty value, and passwordsMatch is satisfied when both rows
+     * are empty. This asserts that reading of the semantics, since it is the reason
+     * there is no isNew-style flag here.
+     */
+    it('is valid with both password rows blank', () => {
+      patch({ name: 'Updated' });
+      expect(comp.form.valid).toBe(true);
+    });
+
+    it('omits password from the payload when blank', async () => {
+      patch({ name: 'Updated' });
+      await comp.onSave();
+
+      const input = commandServiceMock.execute.mock.calls[0][1] as Record<string, unknown>;
+      expect('password' in input).toBe(false);
+      expect('repassword' in input).toBe(false);
+    });
+
+    it('includes password and repassword when set', async () => {
+      patch({ name: 'Updated', password: 'hunter2', repassword: 'hunter2' });
+      await comp.onSave();
+
+      expect(commandServiceMock.execute).toHaveBeenCalledWith(
+        'EditUser',
+        expect.objectContaining({ password: 'hunter2', repassword: 'hunter2' })
+      );
+    });
+
+    it('reports a mismatch on the confirm row and blocks the save', async () => {
+      patch({ name: 'Updated', password: 'hunter2', repassword: 'hunter3' });
+
+      expect(comp.form.controls.repassword.hasError('passwordMismatch')).toBe(true);
+      expect(comp.form.invalid).toBe(true);
+
+      await comp.onSave();
+      expect(commandServiceMock.execute).not.toHaveBeenCalled();
+    });
+
+    it('clears the mismatch when the confirm row catches up', () => {
+      patch({ password: 'hunter2', repassword: 'hunter3' });
+      comp.form.controls.repassword.setValue('hunter2');
+      expect(comp.form.controls.repassword.errors).toBeNull();
+    });
+
+    it('re-flags a mismatch when the password changes after confirming', () => {
+      patch({ name: 'Updated', password: 'hunter2', repassword: 'hunter2' });
+      expect(comp.form.valid).toBe(true);
+
+      comp.form.controls.password.setValue('hunter3');
+      expect(comp.form.controls.repassword.hasError('passwordMismatch')).toBe(true);
+    });
+
+    it('rejects a password over the server maximum', () => {
+      patch({ password: 'x'.repeat(129), repassword: 'x'.repeat(129) });
+      expect(comp.form.controls.password.hasError('maxlength')).toBe(true);
+    });
+
+    it('accepts a password at exactly the server maximum', () => {
+      const pw = 'x'.repeat(128);
+      patch({ name: 'Updated', password: pw, repassword: pw });
+      expect(comp.form.controls.password.valid).toBe(true);
+    });
+  });
+
+  describe('command error handling (issue #132)', () => {
+    beforeEach(async () => {
+      fixture.detectChanges();
+      await fixture.whenStable();
+    });
+
+    it('puts a field violation on its control instead of the page message', async () => {
+      commandServiceMock.execute.mockResolvedValue({
+        success: false,
+        violations: [{ field: 'emailAddress', message: 'That address is already in use.' }],
+        error: 'Validation failed',
+      });
+      patch({ name: 'Updated' });
+
+      await comp.onSave();
+
+      expect(comp.form.controls.emailAddress.errors).toEqual({
+        server: 'That address is already in use.',
+      });
+      expect(comp.errorMessage()).toBeNull();
+    });
+
+    it('maps encryptedPassword onto the password control', async () => {
+      commandServiceMock.execute.mockResolvedValue({
+        success: false,
+        violations: [{ field: 'encryptedPassword', message: 'Password is not acceptable.' }],
+        error: 'Validation failed',
+      });
+      patch({ name: 'Updated', password: 'hunter2', repassword: 'hunter2' });
+
+      await comp.onSave();
+
+      expect(comp.form.controls.password.errors).toEqual({
+        server: 'Password is not acceptable.',
+      });
+    });
+
+    it('shows an unmappable violation page-level rather than dropping it', async () => {
+      commandServiceMock.execute.mockResolvedValue({
+        success: false,
+        violations: [{ field: 'somethingElse', message: 'Unexpected.' }],
+        error: 'Validation failed',
+      });
+      patch({ name: 'Updated' });
+
+      await comp.onSave();
+
+      expect(comp.errorMessage()).toBe('Unexpected.');
+    });
+
+    it('lets a second save through after a server error, rather than deadlocking', async () => {
+      commandServiceMock.execute.mockResolvedValue({
+        success: false,
+        violations: [{ field: 'emailAddress', message: 'Taken.' }],
+        error: 'Validation failed',
+      });
+      patch({ name: 'Updated' });
+      await comp.onSave();
+      expect(comp.form.controls.emailAddress.errors?.['server']).toBe('Taken.');
+
+      commandServiceMock.execute.mockResolvedValue({ success: true });
+      await comp.onSave();
+
+      expect(comp.form.controls.emailAddress.errors).toBeNull();
+      expect(commandServiceMock.execute).toHaveBeenCalledTimes(2);
+    });
   });
 });

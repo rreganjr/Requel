@@ -53,10 +53,11 @@ test.describe('Edit account', () => {
     await pg1.waitForLoadState('domcontentloaded');
 
     // p-password needs pressSequentially to fire per-char input events for Angular's CVA
-    const pwInput = pg1.locator('#password').locator('input');
+    // #password is now the real input, not the p-password host (issue #132).
+    const pwInput = pg1.locator('#password');
     await pwInput.focus();
     await pwInput.pressSequentially(newPassword);
-    const rpwInput = pg1.locator('#repassword').locator('input');
+    const rpwInput = pg1.locator('#repassword');
     await rpwInput.focus();
     await rpwInput.pressSequentially(newPassword);
 

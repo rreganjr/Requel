@@ -24,7 +24,7 @@ import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -36,12 +36,35 @@ import { ReportService } from '../../core/report.service';
 import { PermissionService } from '../../core/permission.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { FileUploadButtonComponent } from '../../shared/file-upload-button';
+import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
+
+/**
+ * JPA entity property name -> form control name, for {@link applyCommandErrors}.
+ *
+ * Empty because `ReportGeneratorImpl`'s `name` and `text` properties already match the
+ * control names. Declared rather than omitted so the convention is visible: when a
+ * violation arrives for a property this form calls something else, it goes here.
+ */
+const REPORT_FIELD_MAP: Record<string, string> = {};
 
 @Component({
   selector: 'app-report-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
-            ConfirmDialogModule, AnnotationsSectionComponent, FileUploadButtonComponent],
+  imports: [
+    PageHeaderComponent,
+    AppCardComponent,
+    ReactiveFormsModule,
+    ButtonModule,
+    InputText,
+    TextareaModule,
+    MessageModule,
+    ConfirmDialogModule,
+    AnnotationsSectionComponent,
+    FileUploadButtonComponent,
+    AppFieldComponent,
+    AppFieldControlDirective,
+  ],
   providers: [ConfirmationService],
   template: `
     <div class="report-editor" data-testid="report-editor">
@@ -66,26 +89,60 @@ import { FileUploadButtonComponent } from '../../shared/file-upload-button';
       }
 
       <app-card>
-        <div class="form-grid">
-          <label for="name">Name</label>
-          <input id="name" pInputText [(ngModel)]="name" placeholder="Template name" />
+        <form [formGroup]="form" (ngSubmit)="onSave()">
+          <!-- controlId "name" / "text": ReportEditorPage and BaseListPage's default
+               readySelector locate #name and #text, so those ids stay stable. -->
+          <app-field
+            label="Name"
+            controlId="name"
+            [control]="form.controls.name"
+            [submitted]="submitted()"
+          >
+            <input
+              id="name"
+              pInputText
+              appFieldControl
+              formControlName="name"
+              placeholder="Template name"
+            />
+          </app-field>
 
-          <label for="text">XSLT Template</label>
-          <div class="xslt-field">
-            <textarea id="text" pTextarea [(ngModel)]="text" rows="20"
-                      placeholder="Paste XSLT stylesheet here..." class="xslt-textarea"></textarea>
-            <div class="upload-row">
-              <app-file-upload-button label="Upload XSLT" [outlined]="true" size="small"
-                                      accept=".xsl,.xslt,.xml" (fileSelected)="onFileUpload($event)" />
-              <span class="upload-hint">Upload a .xsl/.xslt file to replace the template text.</span>
+          <app-field
+            label="XSLT Template"
+            controlId="text"
+            [control]="form.controls.text"
+            [submitted]="submitted()"
+            [divider]="false"
+          >
+            <div class="xslt-field">
+              <textarea
+                id="text"
+                pTextarea
+                appFieldControl
+                formControlName="text"
+                rows="20"
+                placeholder="Paste XSLT stylesheet here..."
+                class="xslt-textarea"
+              ></textarea>
+              <div class="upload-row">
+                <app-file-upload-button label="Upload XSLT" [outlined]="true" size="small"
+                                        accept=".xsl,.xslt,.xml" (fileSelected)="onFileUpload($event)" />
+                <span class="upload-hint">Upload a .xsl/.xslt file to replace the template text.</span>
+              </div>
             </div>
-          </div>
-        </div>
+          </app-field>
 
-        <div class="form-actions">
-          <p-button label="Save" icon="pi pi-check" data-testid="report-save" (onClick)="onSave()" [loading]="saving()"
-                    [disabled]="!isNew() && !isDirty()" />
-        </div>
+          <div class="form-actions">
+            <p-button
+              type="submit"
+              label="Save"
+              icon="pi pi-check"
+              data-testid="report-save"
+              [loading]="saving()"
+              [disabled]="form.invalid || form.pristine || saving()"
+            />
+          </div>
+        </form>
       </app-card>
 
       @if (!isNew()) {
@@ -100,15 +157,15 @@ import { FileUploadButtonComponent } from '../../shared/file-upload-button';
     <p-confirmDialog />
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-actions { display: flex; gap: 0.5rem; }
-    .form-grid { display: grid; grid-template-columns: 140px 1fr; gap: 0.75rem 1rem; align-items: start; max-width: 900px; margin-bottom: 1rem; }
-    .form-grid label { font-weight: 600; padding-top: 0.4rem; }
-    .xslt-field { display: flex; flex-direction: column; gap: 0.5rem; }
-    .xslt-textarea { width: 100%; font-family: monospace; font-size: 12px; }
-    .upload-row { display: flex; align-items: center; gap: 0.75rem; }
-    .upload-hint { font-size: 12px; color: var(--p-text-secondary-color); }
-    .form-actions { margin-bottom: 1.5rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--rq-space-4); }
+    .page-actions { display: flex; gap: var(--rq-space-2); }
+    /* The local .form-grid (140px label column) is gone; app-field owns the rows now. */
+    .xslt-field { display: flex; flex-direction: column; gap: var(--rq-space-2); }
+    .xslt-textarea { width: 100%; font-family: monospace; font-size: var(--rq-font-size-xs); }
+    app-field input { width: 100%; }
+    .upload-row { display: flex; align-items: center; gap: var(--rq-space-3); }
+    .upload-hint { font-size: var(--rq-font-size-xs); color: var(--p-text-secondary-color); }
+    .form-actions { margin-block: var(--rq-space-4) var(--rq-space-6); }
   `]
 })
 export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
@@ -116,22 +173,19 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
   reportName = signal('');
   reportId = signal<number | null>(null);
   saving = signal(false);
+  submitted = signal(false);
   running = signal(false);
   errorMessage = signal<string | null>(null);
 
-  name = '';
-  text = '';
-
-  private originalName = '';
-  private originalText = '';
+  /** `text` has no maxLength until #171 supplies a real one to mirror. */
+  readonly form = new FormGroup({
+    name: new FormControl('', { validators: Validators.required, nonNullable: true }),
+    text: new FormControl('', { nonNullable: true }),
+  });
 
   projectName = '';
   canEdit = signal(false);
   canDelete = signal(false);
-
-  isDirty(): boolean {
-    return this.name !== this.originalName || this.text !== this.originalText;
-  }
 
   private paramSub?: Subscription;
 
@@ -156,14 +210,11 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
 
       // Reset the form synchronously for the new-report path BEFORE the
       // loadForProject await. Otherwise typing during the yield would later
-      // be clobbered by the reset and Angular change-detection would clear
-      // the input. See term-editor.ts for the same pattern.
+      // be clobbered by the reset. See term-editor.ts for the same pattern.
       if (newIsNew) {
         this.reportId.set(null);
-        this.name = '';
-        this.text = '';
-        this.originalName = '';
-        this.originalText = '';
+        this.submitted.set(false);
+        this.form.reset({ name: '', text: '' });
       }
 
       await this.permissionService.loadForProject(this.projectName);
@@ -176,8 +227,9 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
     });
   }
 
+  /** Derived from the form, so there is no change-tracker to keep in step (#132). */
   hasUnsavedChanges(): boolean {
-    return this.isDirty();
+    return this.form.dirty;
   }
 
   ngOnDestroy(): void {
@@ -190,37 +242,57 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
       this.report.set(r);
       this.reportId.set(r.id);
       this.reportName.set(r.name);
-      this.name = r.name;
-      this.text = r.text ?? '';
-      this.originalName = this.name;
-      this.originalText = this.text;
+      this.form.patchValue({ name: r.name, text: r.text ?? '' });
+      this.form.markAsPristine();
+      this.submitted.set(false);
     } catch {
       this.errorMessage.set('Failed to load document.');
     }
   }
 
   async onSave(): Promise<void> {
-    if (!this.name.trim()) {
-      this.errorMessage.set('Document name is required.');
+    this.submitted.set(true);
+    // Before the validity check, not after: a `server` error from the previous attempt
+    // makes its control invalid, so leaving the clear until later meant a second save
+    // bailed out here and never ran — the form was stuck at that value with Save
+    // disabled and no way to retry. Clearing first re-validates against the client
+    // rules only, and lets the server have another say.
+    clearServerErrors(this.form);
+
+    if (this.form.invalid) {
+      // Replaces the imperative `if (!this.name.trim())` check and its page-level
+      // "Document name is required." message — `required` renders under the field now.
+      this.form.markAllAsTouched();
       return;
     }
+
     this.saving.set(true);
     this.errorMessage.set(null);
+
+    const { name, text } = this.form.getRawValue();
+    const trimmedName = name.trim();
     const result = await this.reportService.saveReport(
-      this.projectName, this.reportId(), this.name.trim(), this.text || null
+      this.projectName, this.reportId(), trimmedName, text || null
     );
     this.saving.set(false);
+
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Document saved', life: 3000 });
       const saved = result.entity as ReportGeneratorDto | null;
       if (this.isNew() && saved?.id) {
-        this.originalName = this.name.trim();
-        this.originalText = this.text;
+        this.form.patchValue({ name: trimmedName });
+        this.form.markAsPristine();
         this.router.navigate(['/projects', this.projectName, 'reports', saved.id], { replaceUrl: true });
       } else {
         await this.loadReport(this.reportId()!);
       }
-    } else {
+      return;
+    }
+
+    const unresolved = applyCommandErrors(this.form, result.violations, REPORT_FIELD_MAP);
+    if (unresolved.length) {
+      this.errorMessage.set(unresolved.join(' '));
+    } else if (!result.violations?.length) {
       this.errorMessage.set(result.error ?? 'Save failed.');
     }
   }
@@ -254,12 +326,19 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
     }
   }
 
+  /**
+   * Replacing the template from a file is a user edit, so the control is marked dirty
+   * explicitly — `patchValue` does not do it, and without this Save would stay disabled
+   * after an upload.
+   */
   onFileUpload(file: File): void {
     const reader = new FileReader();
     reader.onload = () => {
-      this.text = reader.result as string;
-      if (!this.name) {
-        this.name = file.name.replace(/\.[^.]+$/, '');
+      this.form.controls.text.setValue(reader.result as string);
+      this.form.controls.text.markAsDirty();
+      if (!this.form.controls.name.value) {
+        this.form.controls.name.setValue(file.name.replace(/\.[^.]+$/, ''));
+        this.form.controls.name.markAsDirty();
       }
     };
     reader.readAsText(file);
