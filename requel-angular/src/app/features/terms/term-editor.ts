@@ -53,6 +53,14 @@ const TERM_FIELD_MAP: Record<string, string> = {
   canonicalTerm: 'canonicalTermId',
 };
 
+/**
+ * Separator for several command-level messages sharing the one page-level banner.
+ * Semicolons, not spaces: two sentence fragments run together ("Email is invalid Phone
+ * is required") read as one broken sentence. This is the separator the pre-#132 code
+ * used and e2e/account.e2e.ts asserts.
+ */
+const SEPARATOR = '; ';
+
 @Component({
   selector: 'app-term-editor',
   standalone: true,
@@ -401,7 +409,7 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     // page-level message, so nothing is dropped and nothing is duplicated.
     const unresolved = applyCommandErrors(this.form, result.violations, TERM_FIELD_MAP);
     if (unresolved.length) {
-      this.errorMessage.set(unresolved.join(' '));
+      this.errorMessage.set(unresolved.join(SEPARATOR));
     } else if (!result.violations?.length) {
       this.errorMessage.set(result.error ?? 'Save failed.');
     }

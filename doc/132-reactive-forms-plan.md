@@ -270,7 +270,7 @@ Two ways to close it. Do both, in this order:
    `{ entityProperty: controlName }` object living next to that editor's form definition.
    Eleven small maps, most of them empty. Unresolvable names fall through to page-level, so a
    missing entry degrades rather than breaks.
-2. **Follow-up issue:** change `CommandController` to emit input-DTO field names instead of
+2. **Follow-up: #176.** Change `CommandController` to emit input-DTO field names instead of
    entity property names, then delete the maps. One backend change replacing eleven client
    maps. Worth filing now with a pointer back here, but not worth blocking on — the fallback
    path makes #132 correct either way.
@@ -399,7 +399,7 @@ resolves to nothing. Update `UserEditorPage.ts:90` and `account.e2e.ts:56` to
   already exists on the issue, and `add_blocked_by` is idempotent, so the line is a no-op —
   #171 needs adding to the script for the next fresh run.
 - #138 stays blocked by #132, and should gain **#173** as a blocker too.
-- The §4.2 follow-up (backend emits DTO field names) is independent and can land any time
+- **#176** (§4.2, backend emits DTO field names) is independent and can land any time
   after #132.
 
 ## 9. Points and splitting
@@ -535,4 +535,4 @@ Dependency shape after the split:
 - Inline-vs-toast policy and the toast-site audit — **#133** (§4.3).
 - The broader form-labelling sweep — **#138**.
 - Signal/state hygiene beyond the form itself — **#143**.
-- Changing `CommandController` to emit DTO field names — follow-up issue, §4.2.
+- Changing `CommandController` to emit DTO field names — **#176** (§4.2).

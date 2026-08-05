@@ -291,7 +291,7 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
 
     const unresolved = applyCommandErrors(this.form, result.violations, REPORT_FIELD_MAP);
     if (unresolved.length) {
-      this.errorMessage.set(unresolved.join(' '));
+      this.errorMessage.set(unresolved.join(SEPARATOR));
     } else if (!result.violations?.length) {
       this.errorMessage.set(result.error ?? 'Save failed.');
     }
@@ -348,3 +348,11 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
     this.router.navigate(['/projects', this.projectName, 'reports']);
   }
 }
+
+/**
+ * Separator for several command-level messages sharing the one page-level banner.
+ * Semicolons, not spaces: two sentence fragments run together ("Email is invalid Phone
+ * is required") read as one broken sentence. This is the separator the pre-#132 code
+ * used and e2e/account.e2e.ts asserts.
+ */
+const SEPARATOR = '; ';

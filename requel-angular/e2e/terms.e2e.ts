@@ -94,11 +94,17 @@ test.describe('Glossary term management', () => {
   });
 
   test('save with empty name shows validation error and does not save', async ({ adminContext }) => {
-    // Drives the early-return branch in onSave():
-    //   if (!this.name.trim()) { this.errorMessage.set('Term name is required.'); return; }
-    // Also exercises the <p-message data-testid="term-error"> render that was previously
-    // never visible in any covered E2E run. We don't tie a fixture to the test because
-    // no term is created — the save attempt is rejected client-side.
+    // Since #132 this asserts the *user-visible* guard rather than onSave()'s early
+    // return, because that return is no longer reachable from the UI: Save is disabled
+    // while the form is invalid, and Enter does not submit either — implicit submission
+    // goes through the form's default button, which is that same disabled Save. The
+    // early return survives as defence in depth and is covered by term-editor.spec.ts.
+    //
+    // What the user sees instead: a `required` validator rendering INLINE under the Term
+    // row via app-field, with wording from the shared map in form-errors.ts ('This field
+    // is required.', not the old bespoke 'Term name is required.'). The page-level
+    // <p-message data-testid="term-error"> is now reserved for failures with no field to
+    // attach to. No fixture is needed because no term is created.
     const page = await adminContext.newPage();
     const listPage = new TermListPage(page);
     const editorPage = new TermEditorPage(page);
@@ -109,11 +115,14 @@ test.describe('Glossary term management', () => {
     // Definition only — leave the name blank.
     await editorPage.fillText('A term with no name.');
 
-    // Click save without filling Name. saveNew() expects a URL change which won't
-    // happen (the early-return prevents the API call), so we click directly and
-    // assert the inline error instead.
-    await page.getByTestId('term-save').click();
-    await editorPage.expectErrorMessage('Term name is required.');
+    // Touching the empty Term field is what surfaces its error — app-field deliberately
+    // does not shout at a create form nobody has filled in yet.
+    const nameInput = page.locator('#name');
+    await nameInput.click();
+    await nameInput.blur();
+
+    await editorPage.expectFieldError('This field is required.');
+    await expect(page.getByTestId('term-save').locator('button')).toBeDisabled();
 
     // Confirm we stayed on /terms/new (no URL change) — proves the save was blocked
     // before the API was invoked.

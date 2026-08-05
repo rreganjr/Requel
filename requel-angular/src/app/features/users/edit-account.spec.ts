@@ -299,6 +299,42 @@ describe('EditAccountComponent', () => {
       });
     });
 
+    /**
+     * Several command-level messages share the one banner, so the separator matters.
+     * Regression: #132 briefly joined with a space, which turned two fragments into one
+     * broken sentence ("Email is invalid Phone is required") — caught by
+     * e2e/account.e2e.ts, not by any unit test, hence this one.
+     */
+    it('joins several command-level violations readably', async () => {
+      commandServiceMock.execute.mockResolvedValue({
+        success: false,
+        violations: [
+          { field: null, message: 'Email is invalid' },
+          { field: null, message: 'Phone is required' },
+        ],
+        error: null,
+      });
+      patch({ name: 'Updated' });
+
+      await comp.onSave();
+
+      expect(comp.errorMessage()).toBe('Email is invalid; Phone is required');
+    });
+
+    it('treats a violation with no field at all as command-level', async () => {
+      // The server omits `field` entirely rather than sending null — same handling.
+      commandServiceMock.execute.mockResolvedValue({
+        success: false,
+        violations: [{ message: 'Email is invalid' }, { message: 'Phone is required' }],
+        error: null,
+      });
+      patch({ name: 'Updated' });
+
+      await comp.onSave();
+
+      expect(comp.errorMessage()).toBe('Email is invalid; Phone is required');
+    });
+
     it('shows an unmappable violation page-level rather than dropping it', async () => {
       commandServiceMock.execute.mockResolvedValue({
         success: false,
