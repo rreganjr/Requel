@@ -42,7 +42,15 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
       <div class="annotations-section" data-testid="annotations-section">
         <app-card>
         <div class="section-header">
-          <h3>Annotations</h3>
+          <!--
+            h2, not h3: this is a top-level page section, a sibling of the "Referenced By"
+            and "Relations" sections that issue #158 standardised on h2.rq-section-title.
+            As an h3 directly under the page h1 it produced an axe heading-order violation
+            on every editor that mounts it, whenever the editor's own optional h2 sections
+            happened to be empty. Found and fixed under issue #132.
+            NB: no backticks in this comment - the template is a TS template literal.
+          -->
+          <h2 class="rq-section-title">Annotations</h2>
           @if (canEdit) {
             <div class="action-buttons">
               <p-button label="Add Note" icon="pi pi-comment" size="small" severity="secondary"
@@ -230,7 +238,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
   styles: [`
     .annotations-section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-    .section-header h3 { margin: 0; }
+    .section-header h2 { margin: 0; }
     .action-buttons { display: flex; gap: 0.5rem; }
 
     .add-form { background: var(--p-surface-50, #f8f9fa); border: 1px solid var(--p-surface-200); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem; }

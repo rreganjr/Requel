@@ -23,7 +23,7 @@ import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -38,12 +38,47 @@ import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AppCardComponent } from '../../shared/app-card';
+import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
+
+/**
+ * JPA entity property name -> form control name, for {@link applyCommandErrors}.
+ *
+ * `CommandController` reports violations using entity property names (see
+ * `BeanValidationExceptionAdapter`), which mostly match the control names here.
+ * `canonicalTerm` is the exception: the entity holds the related `GlossaryTerm`, the
+ * form holds its id.
+ */
+const TERM_FIELD_MAP: Record<string, string> = {
+  canonicalTerm: 'canonicalTermId',
+};
+
+/**
+ * Separator for several command-level messages sharing the one page-level banner.
+ * Semicolons, not spaces: two sentence fragments run together ("Email is invalid Phone
+ * is required") read as one broken sentence. This is the separator the pre-#132 code
+ * used and e2e/account.e2e.ts asserts.
+ */
+const SEPARATOR = '; ';
 
 @Component({
   selector: 'app-term-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
-            TableModule, MessageModule, ConfirmDialogModule, AnnotationsSectionComponent],
+  imports: [
+    PageHeaderComponent,
+    AppCardComponent,
+    ReactiveFormsModule,
+    ButtonModule,
+    InputText,
+    TextareaModule,
+    SelectModule,
+    TableModule,
+    MessageModule,
+    ConfirmDialogModule,
+    AnnotationsSectionComponent,
+    AppFieldComponent,
+    AppFieldControlDirective,
+  ],
   providers: [ConfirmationService],
   template: `
     <div class="term-editor" data-testid="term-editor">
@@ -64,31 +99,81 @@ import { AppCardComponent } from '../../shared/app-card';
       }
 
       <app-card>
-        <div class="form-grid">
-          <label for="name">Term</label>
-          <input id="name" pInputText [(ngModel)]="name" placeholder="Term name" />
+        <form [formGroup]="form" (ngSubmit)="onSave()">
+          <!--
+            controlId is "name" / "text" on purpose: those ids are an e2e contract, not
+            an implementation detail. TermEditorPage and BaseListPage's default
+            readySelector both locate #name, so letting app-field generate rq-field-{n}
+            here would break navigation in tests that have nothing to do with this form.
+          -->
+          <app-field
+            label="Term"
+            controlId="name"
+            [control]="form.controls.name"
+            [submitted]="submitted()"
+          >
+            <input
+              id="name"
+              pInputText
+              appFieldControl
+              formControlName="name"
+              placeholder="Term name"
+            />
+          </app-field>
 
-          <label for="text">Definition</label>
-          <textarea id="text" pTextarea [(ngModel)]="text" rows="5"
-                    placeholder="Definition of this term"></textarea>
+          <app-field
+            label="Definition"
+            controlId="text"
+            [control]="form.controls.text"
+            [submitted]="submitted()"
+          >
+            <textarea
+              id="text"
+              pTextarea
+              appFieldControl
+              formControlName="text"
+              rows="5"
+              placeholder="Definition of this term"
+            ></textarea>
+          </app-field>
 
-          <label for="canonical">Canonical Term</label>
-          <p-select id="canonical" [options]="canonicalOptions()" [(ngModel)]="canonicalTermId"
-                    optionLabel="label" optionValue="value"
-                    data-testid="term-canonical-select"
-                    placeholder="None (this is a canonical term)" [showClear]="true" />
-        </div>
+          <app-field
+            label="Canonical Term"
+            controlId="canonical-term-input"
+            [control]="form.controls.canonicalTermId"
+            [submitted]="submitted()"
+            [divider]="false"
+          >
+            <p-select
+              appFieldControl
+              inputId="canonical-term-input"
+              data-testid="term-canonical-select"
+              formControlName="canonicalTermId"
+              [options]="canonicalOptions()"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="None (this is a canonical term)"
+              [showClear]="true"
+            />
+          </app-field>
 
-        <div class="form-actions">
-          <p-button label="Save" icon="pi pi-check" data-testid="term-save" (onClick)="onSave()" [loading]="saving()"
-                    [disabled]="!isNew() && !isDirty()" />
-        </div>
+          <div class="form-actions">
+            <p-button
+              type="submit"
+              label="Save"
+              icon="pi pi-check"
+              data-testid="term-save"
+              [loading]="saving()"
+              [disabled]="form.invalid || form.pristine || saving()"
+            />
+          </div>
+        </form>
       </app-card>
 
       <!-- Alternate Terms (terms that point to this as their canonical) -->
       @if (!isNew() && term()?.alternateTerms?.length) {
         <div class="section" data-testid="term-alternate-terms-section">
-          <h3>Alternate Terms</h3>
+          <h2 class="rq-section-title">Alternate Terms</h2>
           <p-table [value]="term()!.alternateTerms!" [rows]="10">
             <ng-template #header>
               <tr>
@@ -108,7 +193,7 @@ import { AppCardComponent } from '../../shared/app-card';
       <!-- Referenced By -->
       @if (!isNew() && term()?.referers?.length) {
         <div class="section" data-testid="term-referenced-by-section">
-          <h3>Referenced By</h3>
+          <h2 class="rq-section-title">Referenced By</h2>
           <p-table [value]="term()!.referers!" [rows]="10">
             <ng-template #header>
               <tr>
@@ -137,14 +222,14 @@ import { AppCardComponent } from '../../shared/app-card';
     <p-confirmDialog />
   `,
   styles: [`
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .page-actions { display: flex; gap: 0.5rem; }
-    .form-grid { display: grid; grid-template-columns: 160px 1fr; gap: 0.75rem 1rem; align-items: start; max-width: 700px; margin-bottom: 1rem; }
-    .form-grid label { font-weight: 600; padding-top: 0.4rem; }
-    .form-grid input, .form-grid textarea, .form-grid p-select { width: 100%; }
-    .form-actions { margin-bottom: 1.5rem; }
-    .section { margin-top: 1.5rem; }
-    .section h3 { margin-bottom: 0.75rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--rq-space-4); }
+    .page-actions { display: flex; gap: var(--rq-space-2); }
+    /* The rows are app-field's now (issue #132); the local .form-grid that redefined a
+       160px label column is gone. Only control width stays with the caller. */
+    app-field input, app-field textarea, app-field p-select { width: 100%; }
+    .form-actions { margin-block: var(--rq-space-4) var(--rq-space-6); }
+    .section { margin-top: var(--rq-space-6); }
+    .section h2 { margin-bottom: var(--rq-space-3); }
     .clickable-row { cursor: pointer; }
     .clickable-row:hover td { background: var(--p-surface-100); }
   `]
@@ -154,26 +239,24 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   termName = signal('');
   termId = signal<number | null>(null);
   saving = signal(false);
+  submitted = signal(false);
   errorMessage = signal<string | null>(null);
   canonicalOptions = signal<{ label: string; value: number }[]>([]);
 
-  name = '';
-  text = '';
-  canonicalTermId: number | null = null;
-
-  private originalName = '';
-  private originalText = '';
-  private originalCanonicalTermId: number | null = null;
+  /**
+   * `text` carries no maxLength yet — there is no backend `@Size` on it to mirror, and
+   * inventing a client-side cap would reject content the server accepts. #171 adds the
+   * real constraints; the value then comes from `shared/validation-limits.ts`.
+   */
+  readonly form = new FormGroup({
+    name: new FormControl('', { validators: Validators.required, nonNullable: true }),
+    text: new FormControl('', { nonNullable: true }),
+    canonicalTermId: new FormControl<number | null>(null),
+  });
 
   projectName = '';
   canEdit = signal(false);
   canDelete = signal(false);
-
-  isDirty(): boolean {
-    return this.name !== this.originalName
-      || this.text !== this.originalText
-      || this.canonicalTermId !== this.originalCanonicalTermId;
-  }
 
   private paramSub?: Subscription;
   private sseSub?: Subscription;
@@ -202,16 +285,11 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       // The async work below (loadForProject, loadCanonicalOptions) yields the
       // event loop, and any user input — or fast-typing E2E test — that lands
       // during those yields would otherwise be clobbered when the reset
-      // eventually ran. Doing the reset first means subsequent ngModel writes
-      // from typing are preserved.
+      // eventually ran. Doing the reset first means subsequent typing is preserved.
       if (newIsNew) {
         this.termId.set(null);
-        this.name = '';
-        this.text = '';
-        this.canonicalTermId = null;
-        this.originalName = '';
-        this.originalText = '';
-        this.originalCanonicalTermId = null;
+        this.submitted.set(false);
+        this.form.reset({ name: '', text: '', canonicalTermId: null });
       }
 
       await this.permissionService.loadForProject(this.projectName);
@@ -227,8 +305,9 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     });
   }
 
+  /** Derived from the form, so there is no change-tracker to keep in step (#132). */
   hasUnsavedChanges(): boolean {
-    return this.isDirty();
+    return this.form.dirty;
   }
 
   ngOnDestroy(): void {
@@ -259,12 +338,16 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       this.term.set(t);
       this.termId.set(t.id);
       this.termName.set(t.name);
-      this.name = t.name;
-      this.text = t.text ?? '';
-      this.canonicalTermId = t.canonicalTermId ?? null;
-      this.originalName = this.name;
-      this.originalText = this.text;
-      this.originalCanonicalTermId = this.canonicalTermId;
+      // An SSE-driven reload must not throw away what the user is editing. The guard
+      // is on the caller side for the SSE path below; here we only refresh a form the
+      // user has not touched.
+      this.form.patchValue({
+        name: t.name,
+        text: t.text ?? '',
+        canonicalTermId: t.canonicalTermId ?? null,
+      });
+      this.form.markAsPristine();
+      this.submitted.set(false);
     } catch {
       this.errorMessage.set('Failed to load term.');
     }
@@ -272,6 +355,11 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       void this.eventStreamService.addSubscription('GlossaryTerm', id);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'GlossaryTerm' && envelope.targetId === id) {
+          // Don't clobber in-progress edits with a remote change (same guard the N5
+          // editors use). The user's copy wins until they save or navigate away.
+          if (this.hasUnsavedChanges()) {
+            return;
+          }
           void this.loadTerm(id);
         }
       });
@@ -279,28 +367,50 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   async onSave(): Promise<void> {
-    if (!this.name.trim()) {
-      this.errorMessage.set('Term name is required.');
+    this.submitted.set(true);
+    // Before the validity check, not after: a `server` error from the previous attempt
+    // makes its control invalid, so leaving the clear until later meant a second save
+    // bailed out here and never ran — the form was stuck at that value with Save
+    // disabled and no way to retry. Clearing first re-validates against the client
+    // rules only, and lets the server have another say.
+    clearServerErrors(this.form);
+
+    if (this.form.invalid) {
+      // Replaces the imperative `if (!this.name.trim())` check and its page-level
+      // "Term name is required." message — `required` now renders under the field.
+      this.form.markAllAsTouched();
       return;
     }
+
     this.saving.set(true);
     this.errorMessage.set(null);
+
+    const { name, text, canonicalTermId } = this.form.getRawValue();
+    const trimmedName = name.trim();
     const result = await this.termService.saveTerm(
-      this.projectName, this.termId(), this.name.trim(), this.text || null, this.canonicalTermId
+      this.projectName, this.termId(), trimmedName, text || null, canonicalTermId
     );
     this.saving.set(false);
+
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Term saved', life: 3000 });
       const saved = result.entity as GlossaryTermDto | null;
       if (this.isNew() && saved?.id) {
-        this.originalName = this.name.trim();
-        this.originalText = this.text;
-        this.originalCanonicalTermId = this.canonicalTermId;
+        this.form.patchValue({ name: trimmedName });
+        this.form.markAsPristine();
         this.router.navigate(['/projects', this.projectName, 'terms', saved.id], { replaceUrl: true });
       } else {
         await this.loadTerm(this.termId()!);
       }
-    } else {
+      return;
+    }
+
+    // Field violations land on their controls; only what could not be placed becomes a
+    // page-level message, so nothing is dropped and nothing is duplicated.
+    const unresolved = applyCommandErrors(this.form, result.violations, TERM_FIELD_MAP);
+    if (unresolved.length) {
+      this.errorMessage.set(unresolved.join(SEPARATOR));
+    } else if (!result.violations?.length) {
       this.errorMessage.set(result.error ?? 'Save failed.');
     }
   }

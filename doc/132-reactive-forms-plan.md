@@ -239,8 +239,18 @@ export function applyCommandErrors(
 - `server` joins `ERROR_PRECEDENCE` last, so a live client-side complaint outranks a stale
   server one.
 - A `server` error must clear on the next change to that control, or the user is stuck staring
-  at an error they've already fixed with a disabled Save. Wire `valueChanges` per control to
-  drop the `server` key.
+  at an error they've already fixed with a disabled Save.
+
+  **Implemented as a validator, not `setErrors` — and this matters more than it looks.**
+  Angular's `updateValueAndValidity` reassigns `errors` from the validator result, so a
+  directly-written key is dropped the next time validation runs. That gives the clear-on-edit
+  behaviour for free, but validation also runs on **render**: `setUpControl` revalidates
+  whenever a `[formControl]` directive initialises. Measured during slice 5 — a server
+  violation mapped onto `user-editor`'s `roleNames` (bound to its role checkboxes via
+  `[formControl]`) read back as `null` after a single `detectChanges()`, i.e. the user would
+  never have seen it. So `applyCommandErrors` attaches a validator closed over a snapshot of
+  the rejected value: it reports while the value is unchanged, returns null once edited, and
+  survives revalidation either way. `clearServerErrors` detaches it.
 - `FieldViolation.field` is nullable; a null field is command-level and goes straight into the
   returned array.
 - Return type is deliberately `string[]` rather than `void`: the caller feeds it to
@@ -260,7 +270,7 @@ Two ways to close it. Do both, in this order:
    `{ entityProperty: controlName }` object living next to that editor's form definition.
    Eleven small maps, most of them empty. Unresolvable names fall through to page-level, so a
    missing entry degrades rather than breaks.
-2. **Follow-up issue:** change `CommandController` to emit input-DTO field names instead of
+2. **Follow-up: #176.** Change `CommandController` to emit input-DTO field names instead of
    entity property names, then delete the maps. One backend change replacing eleven client
    maps. Worth filing now with a pointer back here, but not worth blocking on — the fallback
    path makes #132 correct either way.
@@ -358,6 +368,19 @@ Inherits the N5 harness — Vitest via `@angular/build:unit-test`, `TestBed`, an
 Existing Playwright e2e driving these forms need selector updates where `app-field` generates
 ids (`rq-field-{n}`). Pass `controlId` to keep stable ids on any control an e2e test targets.
 
+**The concrete list, found while migrating `login`.** `#username` and `#password` are shared
+across three page objects — `e2e/pages/LoginPage.ts:11`, `e2e/pages/UserEditorPage.ts:55,90,128,132`
+and `e2e/account.e2e.ts:31,32,47,56` — so those two ids are a contract, not an implementation
+detail. `login` therefore keeps `controlId="username"` / `controlId="password"` rather than
+taking prefixed ids, and no e2e change was needed.
+
+`user-editor` and `edit-account` (slice 5) have a subtler version of the same problem: today
+`#password` is the **`p-password` host** and the tests reach the real input with
+`.locator('#password').locator('input')`. Once those editors pass `controlId="password"` +
+`inputId="password"`, `#password` becomes the inner input itself and that chained locator
+resolves to nothing. Update `UserEditorPage.ts:90` and `account.e2e.ts:56` to
+`.locator('#password')` in the same PR, or the e2e failure will look like a form bug.
+
 ## 8. Sequencing
 
 ```
@@ -376,7 +399,7 @@ ids (`rq-field-{n}`). Pass `controlId` to keep stable ids on any control an e2e 
   already exists on the issue, and `add_blocked_by` is idempotent, so the line is a no-op —
   #171 needs adding to the script for the next fresh run.
 - #138 stays blocked by #132, and should gain **#173** as a blocker too.
-- The §4.2 follow-up (backend emits DTO field names) is independent and can land any time
+- **#176** (§4.2, backend emits DTO field names) is independent and can land any time
   after #132.
 
 ## 9. Points and splitting
@@ -512,4 +535,4 @@ Dependency shape after the split:
 - Inline-vs-toast policy and the toast-site audit — **#133** (§4.3).
 - The broader form-labelling sweep — **#138**.
 - Signal/state hygiene beyond the form itself — **#143**.
-- Changing `CommandController` to emit DTO field names — follow-up issue, §4.2.
+- Changing `CommandController` to emit DTO field names — **#176** (§4.2).

@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
-import { BehaviorSubject, EMPTY } from 'rxjs';
-import { ConfirmationService, MessageService } from 'primeng/api';
+import { BehaviorSubject, EMPTY, Subject } from 'rxjs';
+import { MessageService } from 'primeng/api';
 import { TermEditorComponent } from './term-editor';
 import { TermService } from '../../core/term.service';
 import { PermissionService } from '../../core/permission.service';
@@ -23,6 +23,7 @@ const flush = () => new Promise(r => setTimeout(r, 0));
 
 describe('TermEditorComponent', () => {
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
+  let events$: Subject<{ targetType: string; targetId: number }>;
   let termServiceMock: {
     listTerms: ReturnType<typeof vi.fn>;
     getTerm: ReturnType<typeof vi.fn>;
@@ -30,7 +31,7 @@ describe('TermEditorComponent', () => {
     deleteTerm: ReturnType<typeof vi.fn>;
   };
   let permissionServiceMock: { loadForProject: ReturnType<typeof vi.fn>; canEdit: ReturnType<typeof vi.fn>; canDelete: ReturnType<typeof vi.fn> };
-  let eventStreamServiceMock: { events$: typeof EMPTY; addSubscription: ReturnType<typeof vi.fn>; removeSubscription: ReturnType<typeof vi.fn> };
+  let eventStreamServiceMock: { events$: unknown; addSubscription: ReturnType<typeof vi.fn>; removeSubscription: ReturnType<typeof vi.fn> };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fixture: any;
   let comp: TermEditorComponent;
@@ -38,6 +39,7 @@ describe('TermEditorComponent', () => {
 
   beforeEach(() => {
     paramMap$ = new BehaviorSubject(convertToParamMap({ name: 'proj1', termId: 'new' }));
+    events$ = new Subject();
 
     termServiceMock = {
       listTerms: vi.fn().mockResolvedValue(MOCK_TERMS),
@@ -74,6 +76,12 @@ describe('TermEditorComponent', () => {
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
   });
 
+  /** Fills the form the way a user would, leaving it dirty. */
+  function fill(name: string, text = '', canonicalTermId: number | null = null): void {
+    comp.form.setValue({ name, text, canonicalTermId });
+    comp.form.markAsDirty();
+  }
+
   it('isNew() is true when termId param is "new"', async () => {
     fixture.detectChanges();
     await flush();
@@ -85,7 +93,6 @@ describe('TermEditorComponent', () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
     fixture.detectChanges();
     await flush();
-    // term id=2 should be excluded from canonical options
     const options = comp.canonicalOptions();
     expect(options.some(o => o.value === 2)).toBe(false);
     expect(options.length).toBe(MOCK_TERMS.length - 1);
@@ -103,21 +110,278 @@ describe('TermEditorComponent', () => {
   it('onSave calls termService.saveTerm with name and text', async () => {
     fixture.detectChanges();
     await flush();
-    comp.name = 'New Term';
-    comp.text = 'A definition';
-    comp.canonicalTermId = null;
+    fill('New Term', 'A definition');
     await comp.onSave();
     expect(termServiceMock.saveTerm).toHaveBeenCalledWith(
       'proj1', null, 'New Term', 'A definition', null
     );
   });
 
-  it('onSave sets errorMessage when name is empty', async () => {
-    fixture.detectChanges();
-    await flush();
-    comp.name = '';
-    await comp.onSave();
-    expect(comp.errorMessage()).toBe('Term name is required.');
-    expect(termServiceMock.saveTerm).not.toHaveBeenCalled();
+  describe('reactive form (issue #132)', () => {
+    it('loads the term into the form and leaves it pristine', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+      fixture.detectChanges();
+      await flush();
+
+      expect(comp.form.getRawValue()).toEqual({
+        name: 'Goal',
+        text: 'A desired outcome.',
+        canonicalTermId: null,
+      });
+      expect(comp.form.pristine).toBe(true);
+    });
+
+    it('resets the form for the new-term path', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+      fixture.detectChanges();
+      await flush();
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: 'new' }));
+      await flush();
+
+      expect(comp.form.getRawValue()).toEqual({ name: '', text: '', canonicalTermId: null });
+      expect(comp.form.pristine).toBe(true);
+    });
+
+    /**
+     * Replaces the imperative `if (!this.name.trim())` guard and its page-level "Term
+     * name is required." message. The complaint now renders under the field, so the
+     * page-level slot is left for things that have no field.
+     */
+    it('does not save an empty name, and reports it inline rather than page-level', async () => {
+      fixture.detectChanges();
+      await flush();
+      fill('');
+
+      await comp.onSave();
+
+      expect(termServiceMock.saveTerm).not.toHaveBeenCalled();
+      expect(comp.errorMessage()).toBeNull();
+      expect(comp.form.controls.name.hasError('required')).toBe(true);
+      expect(comp.form.controls.name.touched).toBe(true);
+      expect(comp.submitted()).toBe(true);
+    });
+
+    it('treats a whitespace-only name as present but trims it before sending', async () => {
+      fixture.detectChanges();
+      await flush();
+      fill('  Spaced  ', 'text');
+
+      await comp.onSave();
+
+      expect(termServiceMock.saveTerm).toHaveBeenCalledWith('proj1', null, 'Spaced', 'text', null);
+    });
+
+    it('sends null rather than an empty string for a blank definition', async () => {
+      fixture.detectChanges();
+      await flush();
+      fill('Term', '');
+
+      await comp.onSave();
+
+      expect(termServiceMock.saveTerm).toHaveBeenCalledWith('proj1', null, 'Term', null, null);
+    });
+
+    it('hasUnsavedChanges() derives from form.dirty', async () => {
+      fixture.detectChanges();
+      await flush();
+      expect(comp.hasUnsavedChanges()).toBe(false);
+
+      comp.form.controls.name.setValue('Changed');
+      comp.form.controls.name.markAsDirty();
+      expect(comp.hasUnsavedChanges()).toBe(true);
+    });
+
+    it('marks the form pristine after a successful save of an existing term', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+      fixture.detectChanges();
+      await flush();
+      comp.form.controls.text.setValue('Edited');
+      comp.form.controls.text.markAsDirty();
+
+      await comp.onSave();
+      await flush();
+
+      expect(comp.form.pristine).toBe(true);
+    });
+
+    it('disables Save while pristine and enables it once dirty and valid', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      const save = () =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+          '[data-testid="term-save"] button'
+        );
+      expect(save()?.disabled).toBe(true);
+
+      comp.form.controls.name.setValue('Renamed');
+      comp.form.controls.name.markAsDirty();
+      fixture.detectChanges();
+      expect(save()?.disabled).toBe(false);
+    });
+
+    it('keeps the #name and #text ids the e2e page objects locate', async () => {
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+      const el = fixture.nativeElement as HTMLElement;
+
+      expect(el.querySelector('input#name')).not.toBeNull();
+      expect(el.querySelector('textarea#text')).not.toBeNull();
+      expect(el.querySelector('[data-testid="term-canonical-select"]')).not.toBeNull();
+    });
+  });
+
+  describe('command error handling (issue #132)', () => {
+    it('puts a field violation on its control instead of the page message', async () => {
+      termServiceMock.saveTerm.mockResolvedValue({
+        success: false,
+        violations: [{ field: 'name', message: 'A term with that name already exists.' }],
+        error: 'Validation failed',
+      });
+      fixture.detectChanges();
+      await flush();
+      fill('Duplicate');
+
+      await comp.onSave();
+
+      expect(comp.form.controls.name.errors).toEqual({
+        server: 'A term with that name already exists.',
+      });
+      expect(comp.errorMessage()).toBeNull();
+    });
+
+    it('maps the canonicalTerm entity property onto the canonicalTermId control', async () => {
+      termServiceMock.saveTerm.mockResolvedValue({
+        success: false,
+        violations: [{ field: 'canonicalTerm', message: 'Cannot be its own canonical term.' }],
+        error: 'Validation failed',
+      });
+      fixture.detectChanges();
+      await flush();
+      fill('Term', '', 2);
+
+      await comp.onSave();
+
+      expect(comp.form.controls.canonicalTermId.errors).toEqual({
+        server: 'Cannot be its own canonical term.',
+      });
+    });
+
+    it('shows an unmappable violation page-level rather than dropping it', async () => {
+      termServiceMock.saveTerm.mockResolvedValue({
+        success: false,
+        violations: [{ field: 'somethingElse', message: 'Deeply unexpected.' }],
+        error: 'Validation failed',
+      });
+      fixture.detectChanges();
+      await flush();
+      fill('Term');
+
+      await comp.onSave();
+
+      expect(comp.errorMessage()).toBe('Deeply unexpected.');
+    });
+
+    it('falls back to the page-level error when there are no violations at all', async () => {
+      termServiceMock.saveTerm.mockResolvedValue({
+        success: false,
+        violations: null,
+        error: 'Save failed.',
+      });
+      fixture.detectChanges();
+      await flush();
+      fill('Term');
+
+      await comp.onSave();
+
+      expect(comp.errorMessage()).toBe('Save failed.');
+    });
+
+    /**
+     * A server error makes its control invalid, which is what disables Save until the
+     * user changes something. The trap: if onSave cleared those errors *after* its
+     * validity guard, the guard would see the stale error, bail, and the form would be
+     * stuck at that value forever with no retry and no feedback.
+     */
+    it('clears a previous attempt\'s server error before re-submitting', async () => {
+      termServiceMock.saveTerm.mockResolvedValue({
+        success: false,
+        violations: [{ field: 'name', message: 'Taken.' }],
+        error: 'Validation failed',
+      });
+      fixture.detectChanges();
+      await flush();
+      fill('Duplicate');
+      await comp.onSave();
+      expect(comp.form.controls.name.errors?.['server']).toBe('Taken.');
+
+      // Same value, so no valueChanges to clear it implicitly — onSave must do it.
+      termServiceMock.saveTerm.mockResolvedValue({ success: true, entity: MOCK_TERM });
+      await comp.onSave();
+
+      expect(comp.form.controls.name.errors).toBeNull();
+      expect(termServiceMock.saveTerm).toHaveBeenCalledTimes(2);
+    });
+
+    it('a standing server error disables Save until something changes', async () => {
+      termServiceMock.saveTerm.mockResolvedValue({
+        success: false,
+        violations: [{ field: 'name', message: 'Taken.' }],
+        error: 'Validation failed',
+      });
+      fixture.detectChanges();
+      await flush();
+      fill('Duplicate');
+      await comp.onSave();
+      fixture.detectChanges();
+
+      const save = () =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+          '[data-testid="term-save"] button'
+        );
+      expect(save()?.disabled).toBe(true);
+
+      comp.form.controls.name.setValue('Something else');
+      fixture.detectChanges();
+      expect(save()?.disabled).toBe(false);
+    });
+  });
+
+  describe('SSE reload (issue #132)', () => {
+    beforeEach(() => {
+      eventStreamServiceMock.events$ = events$.asObservable();
+    });
+
+    it('does not clobber in-progress edits when a remote change arrives', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+      fixture.detectChanges();
+      await flush();
+
+      comp.form.controls.text.setValue('My unsaved edit');
+      comp.form.controls.text.markAsDirty();
+      const callsBefore = termServiceMock.getTerm.mock.calls.length;
+
+      events$.next({ targetType: 'GlossaryTerm', targetId: 2 });
+      await flush();
+
+      expect(termServiceMock.getTerm.mock.calls.length).toBe(callsBefore);
+      expect(comp.form.controls.text.value).toBe('My unsaved edit');
+    });
+
+    it('reloads when the form is clean', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+      fixture.detectChanges();
+      await flush();
+      const callsBefore = termServiceMock.getTerm.mock.calls.length;
+
+      events$.next({ targetType: 'GlossaryTerm', targetId: 2 });
+      await flush();
+
+      expect(termServiceMock.getTerm.mock.calls.length).toBeGreaterThan(callsBefore);
+    });
   });
 });

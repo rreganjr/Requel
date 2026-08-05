@@ -85,10 +85,26 @@ export class TermEditorPage {
     await expect(this.page.locator('#text')).toHaveValue(text);
   }
 
-  /** Wait for the validation/error <p-message> to render with the given text. */
+  /**
+   * Wait for the PAGE-LEVEL <p-message> to render with the given text. Since #132 this
+   * carries only failures with no field to attach to — a command-level rejection or a
+   * violation whose property does not map to a control. A field's own complaint renders
+   * inline instead; use expectFieldError for those.
+   */
   async expectErrorMessage(message: string | RegExp): Promise<void> {
     await expect(this.page.getByTestId('term-error')).toBeVisible();
     await expect(this.page.getByTestId('term-error')).toContainText(message);
+  }
+
+  /**
+   * Wait for an inline field error under one of the app-field rows (#132). app-field
+   * stamps every one with data-testid="field-error", so this matches the first — the
+   * editor's rows are asserted in order and Term is the first row.
+   */
+  async expectFieldError(message: string | RegExp): Promise<void> {
+    const error = this.page.getByTestId('field-error').first();
+    await expect(error).toBeVisible();
+    await expect(error).toContainText(message);
   }
 
   /**
