@@ -39,7 +39,13 @@ public record EditStoryInput(
         @NotBlank String name,
         String text,
         String storyTypeName,
-        @NotBlank String primaryActorName,
+        // Deliberately unconstrained: a story's primary actor is optional, and passing null is how
+        // the SPA CLEARS it (ProjectCommandRegistrar:364 applies it unconditionally, and
+        // StoryPrimaryActorMappingTest asserts the clear). A @NotBlank here made every story edit
+        // fail with 422 -- including stories that never had a primary actor. Note
+        // EditUseCaseInput.primaryActorName is likewise unconstrained. Enforcing it was dormant and
+        // therefore invisible until #171 turned DTO validation on.
+        String primaryActorName,
         Integer version
 ) {
 }

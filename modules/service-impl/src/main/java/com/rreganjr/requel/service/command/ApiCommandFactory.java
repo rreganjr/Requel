@@ -67,6 +67,11 @@ public class ApiCommandFactory {
      * Create a new command instance with optional file support.
      * For multipart commands, the file is bridged onto the command via the
      * registration's fileApplicator — MultipartFile never leaks into domain interfaces.
+     *
+     * <p>The {@link CommandMetadata} stamped here is also how {@link ValidatingCommandHandler}
+     * recovers the input DTO in order to bean-validate it (issue #171), which is why a command that
+     * has an input but cannot carry metadata is rejected outright rather than allowed through
+     * unvalidated.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Command newCommand(String commandType, Object input, Object file) {
@@ -86,6 +91,14 @@ public class ApiCommandFactory {
         }
         if (cmd instanceof CommandMetadataAware metadataAware) {
             metadataAware.setCommandMetadata(new CommandMetadata(commandType, input));
+        } else if (input != null) {
+            // Every command reachable from the API extends AbstractCommand and so is
+            // CommandMetadataAware. If that ever stops being true, the command would reach the
+            // handler chain with no way to recover its input DTO and ValidatingCommandHandler would
+            // skip it — silently unvalidated. Fail loudly instead: this is a wiring bug, not input.
+            throw new IllegalStateException("Command type '" + commandType + "' produced "
+                    + cmd.getClass().getName() + ", which is not CommandMetadataAware, so its input "
+                    + "cannot be validated in the handler chain. Make it extend AbstractCommand.");
         }
         return cmd;
     }

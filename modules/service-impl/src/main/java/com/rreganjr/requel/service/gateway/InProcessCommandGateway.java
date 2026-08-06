@@ -32,6 +32,7 @@ import com.rreganjr.requel.gateway.GatewayResult;
 import com.rreganjr.requel.gateway.PolicyDecision;
 import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.command.ApiCommandFactory;
+import com.rreganjr.validator.EntityValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -105,6 +106,14 @@ public class InProcessCommandGateway implements CommandGateway {
             throw new GatewayException(GatewayException.Kind.UNAUTHORIZED, e.getMessage(), e);
         } catch (GatewayException e) {
             throw e;
+        } catch (EntityValidationException e) {
+            // Bean-validation failures reach here from two places: the input DTO, validated by
+            // CommandInputValidator before the command is built (#171), and the entity, validated
+            // at flush time by BeanValidationExceptionAdapter. Both are the caller sending
+            // something invalid, so INVALID_INPUT rather than EXECUTION_ERROR -- an MCP or CLI
+            // caller can then tell "fix your arguments" from "the command broke".
+            throw new GatewayException(GatewayException.Kind.INVALID_INPUT,
+                    "Input for command '" + commandType + "' is invalid: " + e.getMessage(), e);
         } catch (Exception e) {
             log.warn("Gateway command '{}' failed: {}", commandType, e.getMessage());
             throw new GatewayException(GatewayException.Kind.EXECUTION_ERROR,
