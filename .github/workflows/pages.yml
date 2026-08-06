@@ -20,6 +20,10 @@ on:
   push:
     branches:
       - master
+      # release/** matches ci.yml. Active development lands on release/2.0, and a publish
+      # workflow that only watches master would leave the URL stamped into every export
+      # 404ing -- the exact failure this workflow exists to prevent.
+      - "release/**"
     paths:
       - "website/**"
       - ".github/workflows/pages.yml"
