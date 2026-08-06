@@ -30,6 +30,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Temporal;
@@ -122,6 +123,7 @@ public class ArgumentImpl implements Argument, Serializable {
 		this.position = position;
 	}
 
+	@Lob
 	@XmlElement(name = "text", namespace = "http://www.rreganjr.com/requel")
 	public String getText() {
 		return text;

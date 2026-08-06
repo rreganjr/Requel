@@ -147,4 +147,65 @@ public class AnnotationAnyMappingTest {
 		assertEquals("This is the strongest option", reloadedArgument.getText());
 		assertEquals(ArgumentPositionSupportLevel.For, reloadedArgument.getSupportLevel());
 	}
+
+	/**
+	 * Issue #171: {@code arguments.text} and {@code positions.text} were VARCHAR(255) while
+	 * {@code annotations.text} (notes and issues) has always been LONGTEXT, because
+	 * ArgumentImpl/PositionImpl lacked the {@code @Lob} that AbstractAnnotation carries. A long
+	 * argument or position body therefore failed at the driver and surfaced as a generic
+	 * INTERNAL_ERROR naming no field.
+	 *
+	 * <p>These are free-text discussion fields, so they were widened to match their sibling
+	 * (V14__widen_annotation_text.sql) rather than capped with a @Size. This test writes past the old
+	 * boundary and reads it back: it fails on the exact mapping that was missing, and would fail
+	 * again if the {@code @Lob} were dropped.
+	 *
+	 * <p>The schema here is built from the entities (ddl-auto=create-drop, Flyway disabled), so this
+	 * covers the annotations; the migration is what carries the same change to a populated MySQL
+	 * database.
+	 */
+	@Test
+	@Transactional
+	public void positionAndArgumentTextExceedTheOldVarchar255Bound() throws Exception {
+		User admin = userRepository.findUserByUsername("admin");
+		Long adminId = ((com.rreganjr.requel.user.impl.UserImpl) Hibernate.unproxy(admin)).getId();
+		User adminRef = entityManager.find(com.rreganjr.requel.user.impl.UserImpl.class, adminId);
+
+		// Comfortably past the old 255 limit, and past it by enough that a silent truncation would
+		// be obvious rather than off-by-one.
+		final String longText = "d".repeat(4000);
+
+		Project project = new ProjectImpl("AnnoLob-" + UUID.randomUUID(), adminRef,
+				new OrganizationImpl("AnnoLobOrg"));
+		GoalImpl goal = new GoalImpl(project, adminRef, "Goal-" + UUID.randomUUID(), "goal text");
+
+		IssueImpl issue = new IssueImpl(project, "Issue needing a long discussion", true, adminRef);
+		issue.getAnnotatables().add(goal);
+
+		PositionImpl position = new PositionImpl(longText, adminRef);
+		position.getIssues().add(issue);
+		issue.getPositions().add(position);
+
+		ArgumentImpl argument = new ArgumentImpl(position, longText,
+				ArgumentPositionSupportLevel.For, adminRef);
+		position.getArguments().add(argument);
+
+		entityManager.persist(project);
+		entityManager.persist(goal);
+		entityManager.persist(issue);
+		entityManager.flush();
+		entityManager.clear();
+
+		IssueImpl reloaded = entityManager.find(IssueImpl.class, issue.getId());
+		PositionImpl reloadedPosition = (PositionImpl) reloaded.getPositions().iterator().next();
+		ArgumentImpl reloadedArgument =
+				(ArgumentImpl) reloadedPosition.getArguments().iterator().next();
+
+		assertEquals(longText.length(), reloadedPosition.getText().length(),
+				"position text should round-trip without truncation");
+		assertEquals(longText, reloadedPosition.getText());
+		assertEquals(longText.length(), reloadedArgument.getText().length(),
+				"argument text should round-trip without truncation");
+		assertEquals(longText, reloadedArgument.getText());
+	}
 }
