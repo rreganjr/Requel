@@ -80,6 +80,8 @@ import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
 import com.rreganjr.requel.user.impl.UserImpl;
 import com.rreganjr.requel.utils.jaxb.DateAdapter;import jakarta.validation.constraints.NotEmpty;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * @author ron
@@ -173,6 +175,7 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 	@Column(nullable = false)
 	@NotEmpty(message = "a name is required.")
 	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return name;
 	}

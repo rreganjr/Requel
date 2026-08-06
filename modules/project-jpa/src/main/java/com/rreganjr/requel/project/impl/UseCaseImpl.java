@@ -55,6 +55,8 @@ import jakarta.xml.bind.annotation.XmlIDREF;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * @author ron
@@ -101,6 +103,7 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase, Taggable
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
 	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return super.getName();
 	}

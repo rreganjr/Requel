@@ -57,6 +57,8 @@ import com.rreganjr.requel.tagging.Taggable;
 import com.rreganjr.requel.project.GoalRelation;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.platform.identity.User;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * @author ron
@@ -95,6 +97,7 @@ public class GoalImpl extends AbstractTextEntity implements Goal, Taggable {
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
 	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return super.getName();
 	}

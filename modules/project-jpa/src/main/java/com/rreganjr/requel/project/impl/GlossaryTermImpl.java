@@ -57,6 +57,8 @@ import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.platform.identity.User;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * Implementation of a Glossary Term.
@@ -96,6 +98,7 @@ public class GlossaryTermImpl extends AbstractTextEntity implements GlossaryTerm
 	@Column(nullable = false, unique = false)
 	@NotEmpty(message = "a unique name is required.")
 	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return super.getName();
 	}

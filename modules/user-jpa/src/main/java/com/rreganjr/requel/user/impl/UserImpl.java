@@ -70,6 +70,7 @@ import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.exception.UserEntityException;
 import com.rreganjr.requel.user.JAXBOrganizedEntityPatcher;
 import com.rreganjr.requel.user.impl.User2UserImplAdapter;
+import com.rreganjr.validator.ValidationLimits;
 
 /**
  * @author ron
@@ -181,6 +182,7 @@ public class UserImpl implements User, Serializable {
 	}
 
 	@XmlElement(name = "name", defaultValue = "", required = true, namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return name;
 	}
@@ -192,6 +194,7 @@ public class UserImpl implements User, Serializable {
 	@Column(unique = true, nullable = false)
 	@NotEmpty(message = "username is required.")
 	@XmlElement(name = "username", required = true, namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getUsername() {
 		return username;
 	}

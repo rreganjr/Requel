@@ -20,6 +20,9 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
+
 /**
  * One entry in the steps list when saving a scenario.
  * stepId=null means create new. isScenario=true means this step is a sub-scenario;
@@ -27,6 +30,7 @@ package com.rreganjr.requel.service.api.dto;
  */
 public record EditStepInput(
     Long stepId,
+    @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
     String name,
     String text,
     String scenarioTypeName,

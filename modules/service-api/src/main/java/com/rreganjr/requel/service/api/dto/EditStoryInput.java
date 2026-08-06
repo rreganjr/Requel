@@ -21,6 +21,8 @@
 package com.rreganjr.requel.service.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * Input DTO for creating or editing a story.
@@ -36,7 +38,9 @@ import jakarta.validation.constraints.NotBlank;
 public record EditStoryInput(
         @NotBlank String projectName,
         Long storyId,
-        @NotBlank String name,
+        @NotBlank
+        @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
+        String name,
         String text,
         String storyTypeName,
         // Deliberately unconstrained: a story's primary actor is optional, and passing null is how

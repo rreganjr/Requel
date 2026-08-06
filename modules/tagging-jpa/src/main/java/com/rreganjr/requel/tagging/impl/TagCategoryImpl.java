@@ -45,6 +45,8 @@ import jakarta.persistence.Temporal;
 import jakarta.persistence.TemporalType;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * JPA implementation of {@link TagCategory} — the optional rules overlay for a tag category.
@@ -114,6 +116,7 @@ public class TagCategoryImpl implements TagCategory, Serializable {
 
 	@Override
 	@Column(name = "name", nullable = false, length = 255)
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return name;
 	}

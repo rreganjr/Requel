@@ -21,11 +21,15 @@
 package com.rreganjr.requel.service.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 public record EditUseCaseInput(
         @NotBlank String projectName,
         Long useCaseId,
-        @NotBlank String name,
+        @NotBlank
+        @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
+        String name,
         String text,
         String primaryActorName,
         Integer version

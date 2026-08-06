@@ -27,6 +27,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Map;
+import java.util.Set;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -34,6 +37,8 @@ import org.junit.jupiter.api.Test;
 
 import com.rreganjr.repository.jpa.BeanValidationException;
 import com.rreganjr.requel.service.api.dto.EditGoalInput;
+import com.rreganjr.requel.service.api.dto.EditUserInput;
+import com.rreganjr.validator.ValidationLimits;
 
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
@@ -134,4 +139,62 @@ class CommandInputValidatorTest {
         assertSame(input, e.getEntity());
         assertEquals(EditGoalInput.class, e.getEntityType());
     }
+
+    // ---------------------------------------------------------------- slice 2: @Size and @Email
+
+    @Test
+    @DisplayName("a name at exactly the limit is accepted")
+    void nameAtTheLimitPasses() {
+        var input = new EditGoalInput("Project A", null,
+                "a".repeat(ValidationLimits.ARTIFACT_NAME_MAX), null, null);
+        assertDoesNotThrow(() -> validator.validate(input));
+    }
+
+    @Test
+    @DisplayName("a name one character over the limit is rejected with the shared message")
+    void nameOverTheLimitIsRejected() {
+        var input = new EditGoalInput("Project A", null,
+                "a".repeat(ValidationLimits.ARTIFACT_NAME_MAX + 1), null, null);
+
+        BeanValidationException e =
+                assertThrows(BeanValidationException.class, () -> validator.validate(input));
+
+        assertArrayEquals(new String[] {"name"}, e.getEntityPropertyNames());
+        assertEquals("must be " + ValidationLimits.ARTIFACT_NAME_MAX + " characters or fewer.",
+                e.getFieldMessages()[0]);
+    }
+
+    @Test
+    @DisplayName("artifact text is deliberately unbounded")
+    void textIsNotLengthLimited() {
+        // AbstractTextEntity.getText() is @Lob/longtext, so there is no server-side bound to mirror.
+        // If a @Size ever appears on text, validation-limits.ts needs the matching entry or the
+        // client will accept what the server rejects.
+        var input = new EditGoalInput("Project A", null, "A goal",
+                "x".repeat(ValidationLimits.ARTIFACT_NAME_MAX * 40), null);
+        assertDoesNotThrow(() -> validator.validate(input));
+    }
+
+    @Test
+    @DisplayName("a malformed email address is rejected on the field the client binds")
+    void malformedEmailIsRejected() {
+        var input = new EditUserInput(1L, 1, "ron", null, null, "Ron", "not-an-email",
+                null, null, true, Set.of("Administrator"), Map.of());
+
+        BeanValidationException e =
+                assertThrows(BeanValidationException.class, () -> validator.validate(input));
+
+        // `emailAddress`, not `email` -- this is the DTO field name the Angular applyCommandErrors
+        // adapter resolves against the form control, and the reason #176 becomes unnecessary.
+        assertArrayEquals(new String[] {"emailAddress"}, e.getEntityPropertyNames());
+    }
+
+    @Test
+    @DisplayName("a well-formed email address passes")
+    void wellFormedEmailPasses() {
+        var input = new EditUserInput(1L, 1, "ron", null, null, "Ron", "ron@example.com",
+                null, null, true, Set.of("Administrator"), Map.of());
+        assertDoesNotThrow(() -> validator.validate(input));
+    }
 }
+

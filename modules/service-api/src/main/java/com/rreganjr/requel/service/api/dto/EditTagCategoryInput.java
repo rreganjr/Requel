@@ -21,6 +21,8 @@
 package com.rreganjr.requel.service.api.dto;
 
 import java.util.List;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * Input for EditTagCategory. {@code categoryId} null = create; {@code projectName} null/blank =
@@ -30,6 +32,7 @@ import java.util.List;
 public record EditTagCategoryInput(
         Long categoryId,
         String projectName,
+        @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String name,
         boolean exclusive,
         String color,
