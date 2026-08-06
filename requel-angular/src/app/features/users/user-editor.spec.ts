@@ -5,6 +5,7 @@ import { BehaviorSubject } from 'rxjs';
 import { UserEditorComponent } from './user-editor';
 import { UserService } from '../../core/user.service';
 import { CommandService } from '../../core/command.service';
+import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
 const MOCK_ROLES = [
   { roleName: 'ProjectUserRole', displayName: 'Project User',
@@ -516,6 +517,30 @@ describe('UserEditorComponent', () => {
       expect(
         (fixture.nativeElement as HTMLElement).querySelector('[data-testid="user-editor-load-error"]')
       ).not.toBeNull();
+    });
+  });
+
+  // #171: users.name and users.username share the same varchar(255) column, and UserImpl now
+  // carries @Size on both. Mirrored client-side so neither can be typed past what will save.
+  describe('name and username max length (#171)', () => {
+    it('bounds both identity fields at the shared limit', () => {
+      fixture.detectChanges();
+
+      for (const field of ['name', 'username'] as const) {
+        const control = comp.form.controls[field];
+
+        control.setValue('a'.repeat(ARTIFACT_NAME_MAX_LENGTH));
+        expect(control.hasError('maxlength')).toBe(false);
+
+        control.setValue('a'.repeat(ARTIFACT_NAME_MAX_LENGTH + 1));
+        expect(control.hasError('maxlength')).toBe(true);
+      }
+    });
+
+    it('exposes the limit for the maxlength attribute', () => {
+      // Bound as [attr.maxlength], not [maxlength] -- the latter would register a second
+      // MaxLengthValidator on top of the one in the form definition.
+      expect(comp.nameMaxLength).toBe(ARTIFACT_NAME_MAX_LENGTH);
     });
   });
 });

@@ -172,7 +172,7 @@ export class SettingsComponent implements OnInit {
    * widget would not produce, and `integer()` covers the typed case — PrimeNG's
    * decimal mode will accept a fractional entry that the preference has no meaning
    * for. These are UI bounds, not backend constraints: preferences are not validated
-   * server-side, so unlike the artifact name/text limits they do not wait on #171.
+   * server-side, so they never waited on #171 the way the artifact name limit did.
    */
   readonly form = new FormGroup({
     sidebarProjectLimit: new FormControl<number | null>(PROJECT_LIMIT_DEFAULT, {

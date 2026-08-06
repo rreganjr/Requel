@@ -1,0 +1,59 @@
+name: Pages
+
+# Publishes the static site in website/ to GitHub Pages.
+#
+# The reason this exists (issue #171): exported project XML carries an
+# xsi:schemaLocation pointing at the published XSD, and for years that pointed at
+# requel.sourceforge.net/integration/1.0/project.xsd — a copy that had drifted from the
+# JAXB model and no longer even compiled as a schema (non-deterministic content model),
+# so anyone following the hint could not build a validator at all. SourceForge is a
+# leftover from the 2009 thesis release and nothing in this repo publishes to it.
+#
+# Pages gives the schema a home that is deployed from the repo, so the URL stamped into
+# every export resolves to the same file the build validates against. See
+# doc/171-bean-validation-plan.md §6.
+#
+# Repo setting required once, by hand: Settings → Pages → Build and deployment →
+# Source: "GitHub Actions". Without it this workflow runs and the deploy step fails.
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "website/**"
+      - ".github/workflows/pages.yml"
+  # Allow publishing on demand, e.g. after the Pages source setting is first enabled.
+  workflow_dispatch:
+
+# Never cancel a deploy in flight — a half-published site is worse than a slow one.
+# Same reasoning as the Release workflow.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload website/
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

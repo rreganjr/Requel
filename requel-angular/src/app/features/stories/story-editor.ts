@@ -51,6 +51,7 @@ import {
   AppWizardStepComponent,
   WizardCommitRequest,
 } from '../../shared/app-form-wizard';
+import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
 /** Wording for the stale-version recovery path, so the 409 case reads as recoverable. */
 const STALE_VERSION_MESSAGE =
@@ -191,6 +192,7 @@ const STALE_VERSION_MESSAGE =
                    [errorMessages]="nameErrors"
                    [submitted]="submitted()">
           <input appFieldControl pInputText [formControl]="detailsForm.controls.name"
+                 [attr.maxlength]="nameMaxLength"
                  placeholder="Story name" data-testid="story-name" />
         </app-field>
 
@@ -332,12 +334,24 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   actorOptions = signal<{label: string, value: string}[]>([]);
 
   /**
+   * Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). Bound with
+   * `[attr.maxlength]` rather than `maxlength` on purpose: Angular's MaxLengthValidator directive
+   * matches `[maxlength][formControl]`, so the plain binding would register a SECOND maxlength
+   * validator on top of the one in the form definition. `attr.` sets the HTML attribute only, which
+   * is all that is wanted here — the browser stops the typing, the form owns the validation.
+   */
+  readonly nameMaxLength = ARTIFACT_NAME_MAX_LENGTH;
+
+  /**
    * Details step / edit form. Replaces the previous `name` / `text` / `storyType` /
    * `primaryActorName` ngModel fields and the hand-rolled `trackChanges()` +
    * `original*` comparison, which the form's own dirty state now covers.
    */
   readonly detailsForm = new FormGroup({
-    name: new FormControl('', { validators: [Validators.required], nonNullable: true }),
+    name: new FormControl('', {
+      validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+      nonNullable: true,
+    }),
     storyType: new FormControl('Success', { validators: [Validators.required], nonNullable: true }),
     primaryActorName: new FormControl('', { nonNullable: true }),
     text: new FormControl('', { nonNullable: true }),

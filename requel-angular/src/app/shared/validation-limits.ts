@@ -30,12 +30,11 @@
  * says where, so the next person can diff this against the annotations instead of
  * guessing which numbers are real.
  *
- * What is deliberately ABSENT: max lengths for artifact `name` and `text`. As of this
- * writing there is exactly one bean-validation size constraint in all of
- * `modules/*&#47;src/main/java` — `UserImpl`'s `@Size(min = 1)` on roles — and no `@Size`
- * or `@Column(length=…)` on any artifact name or text field. **#171** adds them; the
- * corresponding entries land here when it merges, and the editors read them from here
- * rather than hard-coding their own.
+ * What is deliberately ABSENT: a max length for artifact `text`. `AbstractTextEntity.getText()`
+ * is `@Lob` (`longtext`), so there is no server-side bound to mirror — and a cap here with no
+ * server-side counterpart is the exact failure this file exists to prevent. The `name` bound
+ * below arrived with #171, which also made these DTO constraints actually run: before it, nothing
+ * in the backend invoked a `Validator` at all.
  */
 
 /**
@@ -57,3 +56,17 @@ export const PASSWORD_MAX_LENGTH = 128;
  * constraint the backend already had before #171.
  */
 export const USER_ROLES_MIN = 1;
+
+/**
+ * Maximum length of an artifact `name`.
+ *
+ * Source: `ValidationLimits.ARTIFACT_NAME_MAX` (platform-core), applied as
+ * `@Size(max = 255)` to the `name` of every artifact entity — goals, stories, actors, use cases,
+ * scenarios, terms, reports, stakeholders, projects, teams, tag categories, organizations, users —
+ * and to the matching `Edit*Input` DTO fields. It is not an invented product limit: every one of
+ * those columns is already `varchar(255)`, so this is the database's own bound made visible to the
+ * user instead of surfacing as a driver error.
+ *
+ * Also applies to `username`, which shares the 255-character column on `users`.
+ */
+export const ARTIFACT_NAME_MAX_LENGTH = 255;

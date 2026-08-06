@@ -46,7 +46,7 @@ import {
   firstErrorMessage,
   passwordsMatch,
 } from '../../shared/form-errors';
-import { PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
+import { ARTIFACT_NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
 
 /**
  * JPA entity property name -> form control name, for {@link applyCommandErrors}.
@@ -122,12 +122,14 @@ const SEPARATOR = '; ';
           <app-field-group [columns]="2">
             <app-field label="Username" controlId="username" [control]="form.controls.username"
                        [submitted]="submitted()">
-              <input pInputText appFieldControl id="username" formControlName="username" />
+              <input pInputText appFieldControl id="username" formControlName="username"
+                     [attr.maxlength]="nameMaxLength" />
             </app-field>
 
             <app-field label="Name" controlId="name" [control]="form.controls.name"
                        [submitted]="submitted()">
-              <input pInputText appFieldControl id="name" formControlName="name" />
+              <input pInputText appFieldControl id="name" formControlName="name"
+                     [attr.maxlength]="nameMaxLength" />
             </app-field>
 
             <app-field label="Email" controlId="email" [control]="form.controls.emailAddress"
@@ -243,6 +245,15 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   private lastUsernameParam: string | null = null;
 
   /**
+   * Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). Bound with
+   * `[attr.maxlength]` rather than `maxlength` on purpose: Angular's MaxLengthValidator directive
+   * matches `[maxlength][formControl]`, so the plain binding would register a SECOND maxlength
+   * validator on top of the one in the form definition. `attr.` sets the HTML attribute only, which
+   * is all that is wanted here — the browser stops the typing, the form owns the validation.
+   */
+  readonly nameMaxLength = ARTIFACT_NAME_MAX_LENGTH;
+
+  /**
    * `permissions` is a nested group with one `string[]` control per role, filled in once
    * the role list arrives. Keeping it inside the form is what makes ticking a permission
    * mark the form dirty — with the checkboxes outside the form, Save would have stayed
@@ -254,8 +265,14 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    */
   readonly form = new FormGroup(
     {
-      username: new FormControl('', { validators: Validators.required, nonNullable: true }),
-      name: new FormControl('', { validators: Validators.required, nonNullable: true }),
+      username: new FormControl('', {
+        validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+        nonNullable: true,
+      }),
+      name: new FormControl('', {
+        validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+        nonNullable: true,
+      }),
       emailAddress: new FormControl('', { validators: Validators.email, nonNullable: true }),
       phoneNumber: new FormControl('', { nonNullable: true }),
       organizationName: new FormControl('', { nonNullable: true }),

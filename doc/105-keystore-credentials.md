@@ -106,7 +106,7 @@ export REQUEL_OAUTH_JWK_KEYSTORE_LOCATION=file:/etc/requel/requel-oauth-signing.
 export REQUEL_OAUTH_JWK_KEY_ALIAS=requel-oauth-signing
 # REQUEL_OAUTH_JWK_KEYSTORE_PASSWORD already exported by the OS-specific step above
 
-java -jar modules/requel-app/target/requel-app-1.2.0.jar
+java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar
 ```
 
 With no `REQUEL_OAUTH_JWK_KEYSTORE_LOCATION` set, the AS falls back to an ephemeral key and logs the

@@ -136,9 +136,9 @@ likely to ship silently.
 
 | Field | Validator | Source of truth |
 |---|---|---|
-| Any artifact `name` | `required` + `maxLength(n)` | `@NotBlank` today; `n` from **#171** (§2.3) |
-| Any artifact `text` / description | `maxLength(n)` | from **#171** (§2.3) |
-| `emailAddress` | `email` | `type="email"` today; §2.3 should add `@Email` |
+| Any artifact `name` | `required` + `maxLength(n)` | `ARTIFACT_NAME_MAX_LENGTH` (255), from #171 |
+| Any artifact `text` / description | *(none)* | `@Lob` server-side — no bound to mirror (#171) |
+| `emailAddress` | `email` | `@Email` on `UserImpl` and `EditUserInput` (#171) |
 | `password` | `minLength(1)`, `maxLength(128)` | `UserImpl.MAX_PASSWORD_LENGTH` |
 | `repassword` | `passwordsMatch` | client-only concern |
 | Roles | `atLeastOne` | **`UserImpl:385` `@Size(min = 1)`** — already backend-backed |
