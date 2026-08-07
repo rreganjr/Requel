@@ -147,4 +147,32 @@ describe('StakeholderEditorComponent - create wizard accessibility', () => {
     expect(comp.wizardStep).toBe('goals');
     await expectNoAxeViolations(wizard);
   });
+
+  // Regression guard for the e2e contract. The Playwright page objects address these controls
+  // by DOM id - locator('#name'), locator('#text') - because that is the convention app-field
+  // established (controlId on the field, matching id on the control; see term-editor). The
+  // #173 conversion dropped the ids and let app-field generate them, so #name matched nothing
+  // and 23 e2e tests failed while every unit test stayed green. Nothing here asserted the
+  // association, so nothing caught it.
+  it('keeps the stable control ids the e2e page objects address', async () => {
+    setup('new-nonuser');
+    const wizard = await renderWizard();
+    {
+      const el = wizard.querySelector('#name');
+      expect(el, 'missing #name - e2e page objects locate this control by id').not.toBeNull();
+      expect(el!.tagName).toBe('INPUT');
+      // The label must point at that same id, or the id is present but unassociated.
+      const label = wizard.querySelector('label[for="name"]');
+      expect(label, 'no <label for="name">').not.toBeNull();
+    }
+    {
+      const el = wizard.querySelector('#text');
+      expect(el, 'missing #text - e2e page objects locate this control by id').not.toBeNull();
+      expect(el!.tagName).toBe('TEXTAREA');
+      // The label must point at that same id, or the id is present but unassociated.
+      const label = wizard.querySelector('label[for="text"]');
+      expect(label, 'no <label for="text">').not.toBeNull();
+    }
+  });
+
 });

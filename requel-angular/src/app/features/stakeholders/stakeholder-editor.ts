@@ -185,9 +185,9 @@ interface PermissionGroup {
             </app-field>
           }
 
-          <app-field label="Team" [control]="detailsForm.controls.teamName"
+          <app-field label="Team" controlId="team" [control]="detailsForm.controls.teamName"
                      [divider]="permissionGroups().length === 0" [submitted]="submitted()">
-            <input appFieldControl pInputText [formControl]="detailsForm.controls.teamName"
+            <input appFieldControl pInputText [formControl]="detailsForm.controls.teamName" id="team"
                    placeholder="Team name" data-testid="stakeholder-team" />
           </app-field>
 
@@ -224,16 +224,16 @@ interface PermissionGroup {
             </div>
           }
         } @else {
-          <app-field label="Name" [control]="detailsForm.controls.name"
+          <app-field label="Name" controlId="name" [control]="detailsForm.controls.name"
                      [errorMessages]="nameErrors" [submitted]="submitted()">
-            <input appFieldControl pInputText [formControl]="detailsForm.controls.name"
+            <input appFieldControl pInputText [formControl]="detailsForm.controls.name" id="name"
                    [attr.maxlength]="nameMaxLength"
                    placeholder="Stakeholder name" data-testid="stakeholder-name" />
           </app-field>
 
-          <app-field label="Description" [control]="detailsForm.controls.text" [divider]="false"
+          <app-field label="Description" controlId="text" [control]="detailsForm.controls.text" [divider]="false"
                      [submitted]="submitted()">
-            <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" rows="4"
+            <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4"
                       placeholder="Description of this stakeholder"
                       data-testid="stakeholder-text"></textarea>
           </app-field>

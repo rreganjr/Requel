@@ -153,9 +153,9 @@ const SEPARATOR = '; ';
         where formControlName would look for a parent formGroup that is not there.
       -->
       <ng-template #detailsFields>
-        <app-field label="Project Name" [control]="detailsForm.controls.name"
+        <app-field label="Project Name" controlId="name" [control]="detailsForm.controls.name"
                    [errorMessages]="nameErrors" [submitted]="submitted()">
-          <input appFieldControl pInputText [formControl]="detailsForm.controls.name"
+          <input appFieldControl pInputText [formControl]="detailsForm.controls.name" id="name"
                  [attr.maxlength]="nameMaxLength"
                  placeholder="Project name" data-testid="project-name" />
         </app-field>
@@ -168,9 +168,9 @@ const SEPARATOR = '; ';
                     [editable]="true" placeholder="Select or type organization" />
         </app-field>
 
-        <app-field label="Description" [control]="detailsForm.controls.description"
+        <app-field label="Description" controlId="description" [control]="detailsForm.controls.description"
                    [divider]="false" [submitted]="submitted()">
-          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.description"
+          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.description" id="description"
                     [rows]="5" [autoResize]="true" data-testid="project-description"></textarea>
         </app-field>
       </ng-template>

@@ -242,9 +242,9 @@ const STALE_VERSION_MESSAGE =
         yet on first render, and the selectors all key off the persisted use case.
       -->
       <ng-template #detailsFields>
-        <app-field label="Name" [control]="detailsForm.controls.name"
+        <app-field label="Name" controlId="name" [control]="detailsForm.controls.name"
                    [errorMessages]="nameErrors" [submitted]="submitted()">
-          <input appFieldControl pInputText [formControl]="detailsForm.controls.name"
+          <input appFieldControl pInputText [formControl]="detailsForm.controls.name" id="name"
                  [attr.maxlength]="nameMaxLength"
                  placeholder="Use case name" data-testid="use-case-name" />
         </app-field>
@@ -260,9 +260,9 @@ const STALE_VERSION_MESSAGE =
                     placeholder="Select primary actor" styleClass="w-full" />
         </app-field>
 
-        <app-field label="Description" [control]="detailsForm.controls.text" [divider]="false"
+        <app-field label="Description" controlId="text" [control]="detailsForm.controls.text" [divider]="false"
                    [submitted]="submitted()">
-          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" rows="4"
+          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4"
                     placeholder="Use case description" data-testid="use-case-text"></textarea>
         </app-field>
       </ng-template>

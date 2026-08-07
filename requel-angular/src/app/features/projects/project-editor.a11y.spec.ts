@@ -111,4 +111,19 @@ describe('ProjectEditorComponent - create wizard accessibility', () => {
     expect(comp.wizardStep).toBe('tags');
     await expectNoAxeViolations(wizard);
   });
+
+  // Regression guard for the e2e contract. ProjectsPage addresses these by DOM id -
+  // locator('#name'), locator('#description'). The #173 conversion dropped the ids and let
+  // app-field generate them, which broke 23 e2e tests while every unit test stayed green.
+  it('keeps the stable control ids the e2e page objects address', async () => {
+    const wizard = await renderWizard();
+    for (const [id, tag] of [['name', 'INPUT'], ['description', 'TEXTAREA']] as const) {
+      const el = wizard.querySelector(`#${id}`);
+      expect(el, `missing #${id} - e2e page objects locate this control by id`).not.toBeNull();
+      expect(el!.tagName).toBe(tag);
+      // The label must point at that same id, or the id is present but unassociated.
+      expect(wizard.querySelector(`label[for="${id}"]`), `no <label for="${id}">`).not.toBeNull();
+    }
+  });
+
 });

@@ -237,10 +237,10 @@ interface StepNodeData {
       -->
       <ng-template #detailsFields>
         <app-field label="Name" helper="What happens in this scenario."
-                   [control]="detailsForm.controls.name"
+                   controlId="name" [control]="detailsForm.controls.name"
                    [errorMessages]="nameErrors"
                    [submitted]="submitted()">
-          <input appFieldControl pInputText [formControl]="detailsForm.controls.name"
+          <input appFieldControl pInputText [formControl]="detailsForm.controls.name" id="name"
                  [attr.maxlength]="nameMaxLength"
                  placeholder="Scenario name" data-testid="scenario-name" />
         </app-field>
@@ -253,9 +253,9 @@ interface StepNodeData {
                     [options]="typeOptions" optionLabel="label" optionValue="value" />
         </app-field>
 
-        <app-field label="Description" [control]="detailsForm.controls.text" [divider]="false"
+        <app-field label="Description" controlId="text" [control]="detailsForm.controls.text" [divider]="false"
                    [submitted]="submitted()">
-          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" rows="4"
+          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4"
                     placeholder="Scenario description" data-testid="scenario-text"></textarea>
         </app-field>
       </ng-template>
