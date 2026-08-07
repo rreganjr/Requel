@@ -1,49 +1,360 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-	<head>
-		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
-		<meta name="description" content="SourceForge presents the Requel project. Requel is an open source application. SourceForge provides the world's largest selection of Open Source Software. Requel is a Web-based requirements engineering system that supports collaboration among all stakeholders and provides automated assistance to validate requirements and suggest improvements. It supports requirements as goals, stories, and use-cases." />
-		<meta name="keywords" content="Open Source, Software, Development, Developers, Projects, Downloads, OSTG, VA Software, SF.net, SourceForge, GNU General Public License (GPL), 3 - Alpha, Developers, Management, Quality Assurance, Collaborative development tools, Web-based, Java, Requel,requel" />
-		<title>SourceForge.net: Requel - Colaborative Requirements Tool</title>
-		<style type="text/css">
-		.title {
-			text-align: center;
-		}
-		#screenShot {
-			text-align: center;
-		}
-		#ft {
-			text-align: center;
-		}
-		</style> 
-	</head>
-	<body>
-		<h1 class="title"><img src="./images/Title_335x83.png"/></h1>
-		<h2 class="title">the Collaborative Requirements Elicitation System</h2>
-		<div id="intro">
-		<h2>Intro</h2>
-		<p>Poor requirements have been cited as the primary cause of software project failures and cost overruns. Fredrick Brooks tells us that "The hardest single part of building a software system is deciding precisely what to build."</p>
-		<p>What causes poor quality requirements and why is it so hard to acquiring requirements that are understandable, unambiguous, precise, and complete? One of the key problems in identifying requirements is a lack of stakeholder involvement. All stakeholders, including users, managers, and developers, need to be involved during requirements acquisition. Another problem is the high level of detail necessary to implement software. Most people don't think about the intricacies of the tasks they perform at a conscious level.</p> 
-		<p>Requel is a requirements engineering system that supports collaboration among business and technical stakeholders and provides automated assistance to validate requirements and suggest improvements. It is a Web-based application to facilitate a distributed team of users. It supports collaboration with a semi-structured discussion and negotiation mechanism. It assists users by applying natural language processing to the requirements to detect and report ambiguity and complexity. It identifies potential significant terms in the requirements to assist in build a glossary and making the requirements more understandable and consistent.</p>
-		</div>
-		<div>Requel is the results from a master’s thesis at Harvard University. The ThesisFinal.pdf document in the download section includes background information about the project and a user guide.
-		<p><div id="screenShot"><img src="./images/screen_login.png" width="416" hieght="216"/></div></p>
-		<div id="links">
-        	<p><strong><a href="spec.html">Example Requirements Output</a></strong></p>
-        	<p><strong><a href="http://sourceforge.net/project/platformdownload.php?group_id=259442">Download Requel files</a></strong></p>
-			<p><strong><a href="http://sourceforge.net/projects/requel/">Project detail and discuss</a></strong></p>
-			<p><strong><a href="http://sourceforge.net/support/getsupport.php?group_id=259442">Get support</a></strong></p>
-			<p><strong><a href="http://sourceforge.net/project/project_donations.php?group_id=259442" class="donate" title="Donate to this project"></strong></p>
-		</div>
-		<div id="ft">
-			<p>
-				<a href="http://sourceforge.net/">Project Web Hosted by <img src="http://sflogo.sourceforge.net/sflogo.php?group_id=259442&amp;type=3" alt="SourceForge.net" /></a>
-            </p>
-            <p>
-				<a href="http://sourceforge.net/about">About</a> - 
-                <a href="http://sourceforge.net/tos/tos.php">Legal</a> - 
-				<a href="http://sourceforge.net/support">Help</a>
-            </p>
-        </div>
-	</body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Requel — the Collaborative Requirements Elicitation System</title>
+<meta name="description" content="Requel is a web-based requirements engineering system that supports collaboration among all stakeholders and provides automated assistance to validate requirements and suggest improvements. It models requirements as goals, stories, actors, scenarios, and use-cases." />
+<link rel="icon" type="image/png" href="./images/logo_robot.png" />
+<style>
+/* Design tokens mirrored from the Requel Angular app
+   (requel-angular/src/styles.scss and src/app/theme/requel-preset.ts):
+   Tailwind Blue primary ramp, Tailwind Slate surface ramp, 6px content
+   radius, Figtree at a 14px base. Values are inlined here because this is a
+   static page with no build step — keep them in sync with the preset. */
+:root {
+  --rq-font-family: 'Figtree Variable', 'Figtree', system-ui, -apple-system,
+    'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --rq-font-size-base: 14px;
+
+  --rq-space-1: 0.25rem;
+  --rq-space-2: 0.5rem;
+  --rq-space-3: 0.75rem;
+  --rq-space-4: 1rem;
+  --rq-space-6: 1.5rem;
+  --rq-space-8: 2rem;
+
+  --rq-radius-sm: 4px;
+  --rq-radius-md: 6px;
+
+  /* Tailwind Blue — primary ramp */
+  --rq-primary-100: #dbeafe;
+  --rq-primary-500: #3b82f6;
+  --rq-primary-600: #2563eb;
+  --rq-primary-700: #1d4ed8;
+  --rq-primary-900: #1e3a8a;
+
+  /* Tailwind Slate — surface ramp */
+  --rq-surface-0: #ffffff;
+  --rq-surface-50: #f8fafc;
+  --rq-surface-100: #f1f5f9;
+  --rq-surface-200: #e2e8f0;
+  --rq-surface-500: #64748b;
+  --rq-surface-600: #475569;
+  --rq-surface-700: #334155;
+  --rq-surface-800: #1e293b;
+
+  --rq-header-bg: var(--rq-primary-900);
+  --rq-header-fg: var(--rq-surface-0);
+
+  --rq-card-bg: var(--rq-surface-0);
+  --rq-card-border: var(--rq-surface-200);
+  --rq-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.06),
+    0 1px 3px rgba(15, 23, 42, 0.04);
+
+  --rq-content-max: 52rem;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: var(--rq-font-size-base); }
+
+body {
+  margin: 0;
+  font-family: var(--rq-font-family);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--rq-surface-700);
+  background: var(--rq-surface-50);
+}
+
+a { color: var(--rq-primary-600); text-decoration: none; }
+a:hover { color: var(--rq-primary-700); text-decoration: underline; }
+a:focus-visible {
+  outline: 2px solid var(--rq-primary-500);
+  outline-offset: 2px;
+  border-radius: var(--rq-radius-sm);
+}
+
+/* Header brand bar — mirrors --rq-header-bg / --rq-header-fg in the app. */
+header.brand {
+  background: var(--rq-header-bg);
+  color: var(--rq-header-fg);
+  padding: var(--rq-space-6) var(--rq-space-4);
+}
+.brand-inner {
+  max-width: var(--rq-content-max);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--rq-space-4);
+  flex-wrap: wrap;
+}
+.brand img { width: 48px; height: auto; flex: none; }
+.brand h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.brand p {
+  margin: var(--rq-space-1) 0 0;
+  font-size: 1rem;
+  color: #bfdbfe;
+}
+
+main {
+  max-width: var(--rq-content-max);
+  margin: 0 auto;
+  padding: var(--rq-space-8) var(--rq-space-4) var(--rq-space-6);
+}
+
+section + section { margin-top: var(--rq-space-8); }
+
+h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--rq-surface-800);
+  margin: 0 0 var(--rq-space-3);
+}
+
+h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--rq-surface-800);
+  margin: 0 0 var(--rq-space-4);
+}
+
+p { margin: 0 0 var(--rq-space-4); }
+p:last-child { margin-bottom: 0; }
+
+/* Status banner — the soft-tinted "primary" tag tone from the app. */
+.status {
+  display: flex;
+  align-items: baseline;
+  gap: var(--rq-space-3);
+  flex-wrap: wrap;
+  background: var(--rq-primary-100);
+  color: var(--rq-primary-700);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--rq-radius-md);
+  padding: var(--rq-space-3) var(--rq-space-4);
+  margin-bottom: var(--rq-space-8);
+}
+.status .tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--rq-primary-700);
+  color: var(--rq-surface-0);
+  border-radius: var(--rq-radius-sm);
+  padding: 2px var(--rq-space-2);
+  flex: none;
+}
+.status span.msg { font-size: 0.875rem; }
+.status a { color: var(--rq-primary-700); text-decoration: underline; }
+
+/* Card surface — mirrors --rq-card-* in the app. */
+.card {
+  background: var(--rq-card-bg);
+  border: 1px solid var(--rq-card-border);
+  border-radius: var(--rq-radius-md);
+  box-shadow: var(--rq-card-shadow);
+  padding: var(--rq-space-6);
+}
+
+ul.features { list-style: none; margin: 0; padding: 0; }
+ul.features li { padding: var(--rq-space-3) 0; border-top: 1px solid var(--rq-card-border); }
+ul.features li:first-child { border-top: 0; padding-top: 0; }
+ul.features li:last-child { padding-bottom: 0; }
+ul.features strong { color: var(--rq-surface-800); font-weight: 600; }
+
+.links { display: grid; gap: var(--rq-space-3); grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); }
+.links a.tile {
+  display: block;
+  background: var(--rq-card-bg);
+  border: 1px solid var(--rq-card-border);
+  border-radius: var(--rq-radius-md);
+  box-shadow: var(--rq-card-shadow);
+  padding: var(--rq-space-4);
+  color: inherit;
+  text-decoration: none;
+}
+.links a.tile:hover { border-color: var(--rq-primary-500); text-decoration: none; }
+.links a.tile .title { font-weight: 600; color: var(--rq-primary-600); display: block; }
+.links a.tile .desc {
+  display: block;
+  margin-top: var(--rq-space-1);
+  font-size: 0.875rem;
+  color: var(--rq-surface-500);
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  background: var(--rq-surface-100);
+  border-radius: var(--rq-radius-sm);
+  padding: 1px 4px;
+}
+
+.muted { color: var(--rq-surface-500); font-size: 0.875rem; }
+
+footer {
+  border-top: 1px solid var(--rq-card-border);
+  margin-top: var(--rq-space-8);
+  padding: var(--rq-space-6) var(--rq-space-4);
+  color: var(--rq-surface-500);
+  font-size: 0.875rem;
+}
+.footer-inner { max-width: var(--rq-content-max); margin: 0 auto; }
+.footer-inner p { margin: 0 0 var(--rq-space-2); }
+.footer-inner p:last-child { margin-bottom: 0; }
+</style>
+</head>
+<body>
+
+<header class="brand">
+  <div class="brand-inner">
+    <img src="./images/logo_robot.png" alt="" />
+    <div>
+      <h1>Requel</h1>
+      <p>the Collaborative Requirements Elicitation System</p>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div class="status">
+    <span class="tag">Coming soon</span>
+    <span class="msg">Requel 2.0 is in active development and has not been released yet. Follow progress on
+      <a href="https://github.com/rreganjr/Requel">GitHub</a>; released versions appear under
+      <a href="https://github.com/rreganjr/Requel/releases">Releases</a>.</span>
+  </div>
+
+  <section>
+    <h2>What Requel is</h2>
+    <div class="card">
+      <p>Poor requirements have been cited as the primary cause of software project failures and cost
+        overruns. Frederick Brooks tells us that &ldquo;The hardest single part of building a software
+        system is deciding precisely what to build.&rdquo;</p>
+      <p>What causes poor quality requirements, and why is it so hard to acquire requirements that are
+        understandable, unambiguous, precise, and complete? One of the key problems in identifying
+        requirements is a lack of stakeholder involvement. All stakeholders &mdash; including users,
+        managers, and developers &mdash; need to be involved during requirements acquisition. Another
+        problem is the high level of detail necessary to implement software. Most people don&rsquo;t
+        think about the intricacies of the tasks they perform at a conscious level.</p>
+      <p>Requel is a web-based requirements engineering system that supports collaboration among
+        business and technical stakeholders and provides automated assistance to validate requirements
+        and suggest improvements. It models requirements as goals, stories, actors, scenarios, and
+        use-cases, with an IBIS-style annotation and discussion layer for raising issues, proposing
+        solutions, and tracking decisions. It applies natural language processing to the requirements
+        to detect and report ambiguity and complexity, and identifies potentially significant terms to
+        assist in building a glossary and making the requirements more understandable and consistent.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>What&rsquo;s new in 2.0</h2>
+    <div class="card">
+      <p>Version 2.0 replaces the Echo2 server-side Java UI with an Angular single-page application.
+        The Angular build is produced by Maven and bundled directly into the Spring Boot JAR, so there
+        is no separate web server to run or configure &mdash; one JAR and one database, the same as 1.2.</p>
+      <h3>Key changes from 1.2</h3>
+      <ul class="features">
+        <li><strong>Angular SPA</strong> &mdash; a full rewrite of the UI in Angular with PrimeNG
+          components. The requirements editing screens, the IBIS annotation and discussion layer, and
+          the project sidebar are now client-side, with SSE-based live refresh when background NLP
+          analysis updates entities.</li>
+        <li><strong>CQRS API</strong> &mdash; a clean REST API backs the SPA:
+          <code>POST /api/commands/{type}</code> for writes and <code>GET /api/&hellip;</code> for
+          reads. The same API is available for integration or scripting.</li>
+        <li><strong>Command audit log</strong> &mdash; every API-dispatched command is recorded with
+          the user, timestamp, command type, and project. Background NLP commands are excluded.</li>
+        <li><strong>Actors on stories</strong> &mdash; stories now support a primary actor and a set of
+          additional actors, consistent with use-cases.</li>
+        <li><strong>JWT authentication</strong> &mdash; the Angular client authenticates with JWT
+          tokens, and sessions are enforced per user on the SSE stream.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Project links</h2>
+    <div class="links">
+      <a class="tile" href="https://github.com/rreganjr/Requel">
+        <span class="title">Source code</span>
+        <span class="desc">The GitHub repository, including build and run instructions in the README.</span>
+      </a>
+      <a class="tile" href="https://github.com/rreganjr/Requel/issues">
+        <span class="title">Issues and discussion</span>
+        <span class="desc">Report a problem, request a feature, or follow what is being worked on.</span>
+      </a>
+      <a class="tile" href="https://github.com/rreganjr/Requel/releases">
+        <span class="title">Releases</span>
+        <span class="desc">Published versions and release notes.</span>
+      </a>
+      <a class="tile" href="./spec.html">
+        <span class="title">Example requirements output</span>
+        <span class="desc">A sample requirements document generated by Requel from a project.</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>Project file schema</h2>
+    <div class="card">
+      <p>Requel projects can be exported to and imported from XML. Exported files carry an
+        <code>xsi:schemaLocation</code> pointing at the published schema below, so an export can be
+        validated against the same definition the build uses.</p>
+      <div class="links">
+        <a class="tile" href="./integration/2.0/project.xsd">
+          <span class="title">project.xsd &mdash; 2.0</span>
+          <span class="desc">Current schema, used by Requel 2.0 exports.</span>
+        </a>
+        <a class="tile" href="./integration/1.0/project.xsd">
+          <span class="title">project.xsd &mdash; 1.0</span>
+          <span class="desc">Legacy schema, kept so older exports still resolve.</span>
+        </a>
+      </div>
+      <p class="muted" style="margin-top: var(--rq-space-4);">An example project file that can be
+        imported:
+        <a href="https://raw.githubusercontent.com/rreganjr/Requel/v1.0.1-beta/doc/samples/Requel.xml">Requel.xml</a>.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Background</h2>
+    <div class="card">
+      <p>Requel began as a master&rsquo;s thesis project at the Harvard Extension School (ALM, 2009).
+        The thesis document covers the background on requirements engineering and why it matters, and
+        the user guide covers the core concepts of the system.</p>
+      <div class="links">
+        <a class="tile" href="https://github.com/rreganjr/Requel/raw/master/doc/ThesisFinalColor.pdf">
+          <span class="title">Thesis document (PDF)</span>
+          <span class="desc">Harvard ALM, 2009 &mdash; background and design rationale.</span>
+        </a>
+        <a class="tile" href="https://github.com/rreganjr/Requel/raw/master/doc/UserGuide.pdf">
+          <span class="title">User guide (PDF)</span>
+          <span class="desc">Core concepts. Chapter 5 (Requel Setup) describes the old WAR deployment
+            and no longer applies.</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p>Requel is free software, released under the
+      <a href="https://github.com/rreganjr/Requel/blob/master/LICENSE">GNU General Public License v3</a>.</p>
+    <p>Hosted on <a href="https://github.com/rreganjr/Requel">GitHub</a>.</p>
+  </div>
+</footer>
+
+</body>
 </html>
