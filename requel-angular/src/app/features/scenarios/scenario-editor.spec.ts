@@ -127,8 +127,8 @@ describe('ScenarioEditorComponent', () => {
   it('onSave calls commandService.execute("EditScenario") with steps', async () => {
     fixture.detectChanges();
     await flush();
-    comp.name = 'My Scenario';
-    comp.scenarioType = 'Alternative';
+    comp.detailsForm.controls.name.setValue('My Scenario');
+    comp.detailsForm.controls.scenarioType.setValue('Alternative');
     comp.addStep();
     comp.stepNodes()[0].name = 'Step one';
     await comp.onSave();
@@ -149,14 +149,26 @@ describe('ScenarioEditorComponent', () => {
     expect(comp.canDelete()).toBe(true);
   });
 
-  it('trackChanges() sets hasChanges() when name differs from loaded', async () => {
+  // #173: trackChanges()/hasChanges() are gone. Dirtiness is the form's own state OR a
+  // pending step edit, since steps live outside the form and ship with EditScenario.
+  it('hasUnsavedChanges() follows form.dirty once the scenario is loaded', async () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
     fixture.detectChanges();
     await flush();
-    expect(comp.hasChanges()).toBe(false);
-    comp.name = 'Different Name';
-    comp.trackChanges();
-    expect(comp.hasChanges()).toBe(true);
+    expect(comp.hasUnsavedChanges()).toBe(false);
+    comp.detailsForm.controls.name.setValue('Different Name');
+    comp.detailsForm.controls.name.markAsDirty();
+    expect(comp.hasUnsavedChanges()).toBe(true);
+  });
+
+  it('hasUnsavedChanges() is true for a step change with a pristine form', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+    fixture.detectChanges();
+    await flush();
+    expect(comp.hasUnsavedChanges()).toBe(false);
+    comp.addStep();
+    expect(comp.detailsForm.dirty).toBe(false);
+    expect(comp.hasUnsavedChanges()).toBe(true);
   });
 
   it('openStepEdit() sets editingStep; applyStepEdit() applies changes and clears', () => {
@@ -247,14 +259,87 @@ describe('ScenarioEditorComponent', () => {
     comp.retryLoad();
     await flush();
     expect(comp.loadError()).toBeNull();
-    expect(comp.name).toBe('Login Flow');
+    expect(comp.detailsForm.controls.name.value).toBe('Login Flow');
+  });
+
+  // #173 required test. EditScenarioCommandImpl calls checkExpectedVersion and then merges
+  // the scenario twice, so every accepted save bumps @Version. If the wizard held the version
+  // captured at step 1, coming back to Details and continuing again would 409. This asserts
+  // the held version is re-read from each result instead.
+  describe('wizard version contract (#173)', () => {
+    const created = { ...MOCK_SCENARIO, id: 15, version: 1, name: 'Created' };
+
+    it('re-reads version from every step result, so a back-navigation edit does not 409', async () => {
+      fixture.detectChanges();
+      await flush();
+
+      // Each accepted save returns the next version, as the server would.
+      let nextVersion = 1;
+      commandServiceMock.execute.mockImplementation(async () => ({
+        success: true,
+        entity: { ...created, version: nextVersion++ }
+      }));
+      scenarioServiceMock.getScenario.mockImplementation(async () => ({
+        ...created, version: nextVersion - 1, steps: []
+      }));
+
+      comp.detailsForm.controls.name.setValue('Created');
+
+      // Step 1: Details.
+      const step1 = { step: { key: 'details' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(step1 as any);
+      expect(step1.complete).toHaveBeenCalled();
+
+      // Step 2: mutate an association, then commit.
+      comp.addStep();
+      comp.stepNodes()[0].name = 'Step one';
+      const step2 = { step: { key: 'steps' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(step2 as any);
+      expect(step2.complete).toHaveBeenCalled();
+
+      // Back to step 1, edit the name, continue again.
+      comp.detailsForm.controls.name.setValue('Renamed');
+      const step3 = { step: { key: 'details' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(step3 as any);
+      expect(step3.complete).toHaveBeenCalled();
+      expect(step3.fail).not.toHaveBeenCalled();
+
+      // Each accepted save advances the version, so the third call must carry what the
+      // SECOND save returned. The value that matters is the one it must NOT be: 1 is the
+      // version captured at step 1, and sending that again is the 409 this test exists for.
+      const calls = commandServiceMock.execute.mock.calls.filter(c => c[0] === 'EditScenario');
+      const versions = calls.map(c => c[1].version);
+      expect(versions).toEqual([undefined, 1, 2]);
+      const last = calls[calls.length - 1][1];
+      expect(last.version).not.toBe(1);
+      // ...and the renamed value, proving step 2 did not pin the details to a snapshot.
+      expect(last.name).toBe('Renamed');
+    });
+
+    it('a 409 keeps the step and reports the stale-version message', async () => {
+      fixture.detectChanges();
+      await flush();
+      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409, error: 'Conflict' });
+      comp.scenarioId = 15;
+      comp.detailsForm.controls.name.setValue('Whatever');
+
+      const request = { step: { key: 'details' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(request as any);
+
+      expect(request.complete).not.toHaveBeenCalled();
+      expect(request.fail).toHaveBeenCalledWith(expect.stringContaining('changed elsewhere'));
+    });
   });
 
   it('onSave sets errorMessage when command fails', async () => {
     fixture.detectChanges();
     await flush();
     commandServiceMock.execute.mockResolvedValue({ success: false, error: 'Conflict' });
-    comp.name = 'Test';
+    comp.detailsForm.controls.name.setValue('Test');
     await comp.onSave();
     expect(comp.errorMessage()).toBe('Conflict');
     expect(comp.saving()).toBe(false);

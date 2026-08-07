@@ -100,3 +100,112 @@ describe('ScenarioEditorComponent — step-detail dialog accessibility', () => {
     expect(getOpenDialog()).toBeNull();
   });
 });
+
+// #173: create is now an app-form-wizard, so the create surface needs its own axe pass -
+// including with a field in the error state, which is where a missing/duplicated label or an
+// unassociated message actually shows up. The dialog suite above covers the edit surface.
+const CREATED = {
+  id: 7, version: 2, name: 'Created scenario', text: '', scenarioType: 'Primary', steps: [],
+};
+
+describe('ScenarioEditorComponent - create wizard accessibility', () => {
+  let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fixture: any;
+  let comp: ScenarioEditorComponent;
+
+  beforeEach(() => {
+    paramMap$ = new BehaviorSubject(convertToParamMap({ name: 'proj1', scenarioId: 'new' }));
+
+    TestBed.configureTestingModule({
+      imports: [ScenarioEditorComponent],
+      providers: [
+        provideNoopAnimations(),
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { paramMap: paramMap$.asObservable() } },
+        { provide: Location, useValue: { back: vi.fn() } },
+        { provide: ScenarioService, useValue: { getScenario: vi.fn().mockResolvedValue(CREATED) } },
+        { provide: CommandService, useValue: {
+            execute: vi.fn().mockResolvedValue({ success: true, entity: CREATED }),
+          } },
+        { provide: ProjectService, useValue: { notifyTreeChanged: vi.fn() } },
+        { provide: PermissionService, useValue: {
+            loadForProject: vi.fn().mockResolvedValue(undefined),
+            canEdit: vi.fn().mockReturnValue(true),
+            canDelete: vi.fn().mockReturnValue(true),
+          } },
+        { provide: EventStreamService, useValue: {
+            events$: EMPTY,
+            addSubscription: vi.fn().mockResolvedValue(undefined),
+            removeSubscription: vi.fn().mockResolvedValue(undefined),
+          } },
+        { provide: MessageService, useValue: { add: vi.fn() } },
+      ],
+    });
+    fixture = TestBed.createComponent(ScenarioEditorComponent);
+    comp = fixture.componentInstance;
+    const router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    fixture.destroy();
+  });
+
+  async function settle(): Promise<void> {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  async function renderWizard(): Promise<HTMLElement> {
+    fixture.detectChanges();
+    await flush();
+    await settle();
+    const wizard = fixture.nativeElement.querySelector('[data-testid="scenario-wizard"]');
+    expect(wizard).not.toBeNull();
+    return wizard as HTMLElement;
+  }
+
+  it('renders the wizard on create, with the step nav labelled and Details current', async () => {
+    const wizard = await renderWizard();
+    const nav = wizard.querySelector('nav');
+    expect(nav!.getAttribute('aria-label')).toBe('New scenario steps');
+    const current = wizard.querySelector('[aria-current="step"]');
+    expect(current!.textContent).toContain('Details');
+  });
+
+  it('has no axe-core violations on the Details step', async () => {
+    const wizard = await renderWizard();
+    await expectNoAxeViolations(wizard);
+  });
+
+  it('has no axe-core violations with the name field in the error state', async () => {
+    const wizard = await renderWizard();
+    comp.submitted.set(true);
+    comp.detailsForm.controls.name.setValue('');
+    comp.detailsForm.markAllAsTouched();
+    await settle();
+    // The error has to actually be on screen, or this asserts nothing.
+    expect(wizard.textContent).toContain('A scenario needs a name.');
+    await expectNoAxeViolations(wizard);
+  });
+
+  it('has no axe-core violations on the Steps step', async () => {
+    const wizard = await renderWizard();
+
+    // Advance the way a user does. Assigning comp.wizardStep directly mutates the value the
+    // [(activeKey)] binding was checked with and throws NG0100 - and it would also skip the
+    // step-1 commit, so Steps would render against a scenario that does not exist yet.
+    comp.detailsForm.controls.name.setValue('Created scenario');
+    await settle();
+    (wizard.querySelector('[data-testid="wizard-continue"] button') as HTMLButtonElement).click();
+    await flush();
+    await settle();
+    expect(comp.wizardStep).toBe('steps');
+
+    comp.addStep();
+    await settle();
+    await expectNoAxeViolations(wizard);
+  });
+});
