@@ -20,6 +20,9 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
+
 /**
  * Input DTO for the EditProject command. Used for both creating and updating projects.
  * When id is provided, the matching project is updated; otherwise a new project is created.
@@ -31,9 +34,11 @@ public record EditProjectInput(
         Long id,
         Integer version,
         String projectName,
+        @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String name,
         String description,
         Long organizationId,
+        @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String organizationName
 ) {
 }

@@ -41,6 +41,8 @@ import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 /**
  * A stakeholder that is not a user.
  * 
@@ -73,6 +75,7 @@ public class NonUserStakeholderImpl extends AbstractStakeholder implements NonUs
 	@Override
 	@Column(nullable = true, unique = false)
 	@XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return super.getName();
 	}

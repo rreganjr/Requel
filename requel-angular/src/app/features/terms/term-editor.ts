@@ -40,6 +40,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AppCardComponent } from '../../shared/app-card';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
+import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
 /**
  * JPA entity property name -> form control name, for {@link applyCommandErrors}.
@@ -117,6 +118,7 @@ const SEPARATOR = '; ';
               pInputText
               appFieldControl
               formControlName="name"
+              [attr.maxlength]="nameMaxLength"
               placeholder="Term name"
             />
           </app-field>
@@ -244,12 +246,24 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   canonicalOptions = signal<{ label: string; value: number }[]>([]);
 
   /**
-   * `text` carries no maxLength yet — there is no backend `@Size` on it to mirror, and
-   * inventing a client-side cap would reject content the server accepts. #171 adds the
-   * real constraints; the value then comes from `shared/validation-limits.ts`.
+   * Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). Bound with
+   * `[attr.maxlength]` rather than `maxlength` on purpose: Angular's MaxLengthValidator directive
+   * matches `[maxlength][formControl]`, so the plain binding would register a SECOND maxlength
+   * validator on top of the one in the form definition. `attr.` sets the HTML attribute only, which
+   * is all that is wanted here — the browser stops the typing, the form owns the validation.
+   */
+  readonly nameMaxLength = ARTIFACT_NAME_MAX_LENGTH;
+
+  /**
+   * `text` carries no maxLength: `AbstractTextEntity.getText()` is `@Lob`, so there is still no
+   * backend `@Size` on it to mirror, and inventing a client-side cap would reject content the
+   * server accepts. `name` is bounded — #171 supplied the real constraint.
    */
   readonly form = new FormGroup({
-    name: new FormControl('', { validators: Validators.required, nonNullable: true }),
+    name: new FormControl('', {
+      validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+      nonNullable: true,
+    }),
     text: new FormControl('', { nonNullable: true }),
     canonicalTermId: new FormControl<number | null>(null),
   });

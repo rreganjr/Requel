@@ -21,6 +21,8 @@
 package com.rreganjr.requel.service.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * Input for EditActor command.
@@ -30,7 +32,9 @@ import jakarta.validation.constraints.NotBlank;
 public record EditActorInput(
         @NotBlank String projectName,
         Long actorId,
-        @NotBlank String name,
+        @NotBlank
+        @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
+        String name,
         String description,
         Integer version
 ) {

@@ -22,6 +22,9 @@ package com.rreganjr.requel.service.api.dto;
 
 import java.util.Map;
 import java.util.Set;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Email;
 
 /**
  * Input DTO for the EditUser command. Used for both creating and updating users.
@@ -31,12 +34,16 @@ import java.util.Set;
 public record EditUserInput(
         Long id,
         Integer version,
+        @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String username,
         String password,
         String repassword,
+        @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String name,
+        @Email
         String emailAddress,
         String phoneNumber,
+        @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String organizationName,
         Boolean editable,
         Set<String> userRoleNames,

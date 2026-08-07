@@ -115,15 +115,17 @@ mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests
 
 ## Running Locally
 
+The jar is named for the reactor version in the root `pom.xml` (`requel-app-<version>.jar`), currently `2.0.0-dev` — update these commands when that version changes.
+
 ```bash
 # With local MySQL (Angular served from the JAR at /)
-java -jar modules/requel-app/target/requel-app-1.2.0.jar \
+java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
   --spring.datasource.username=root --spring.datasource.password=password --server.port=8080
 
 # Angular dev server (hot reload) + Spring Boot backend
 # Start backend with dev profile so CORS allows localhost:4200:
-java -jar modules/requel-app/target/requel-app-1.2.0.jar \
+java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
   --spring.profiles.active=dev --server.port=8080 \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
   --spring.datasource.username=root --spring.datasource.password=password

@@ -45,6 +45,19 @@
                 </includes>
                 <targetPath>doc/samples</targetPath>
             </testResource>
+            <!--
+              The published schema at website/integration/2.0 must stay byte-identical to
+              doc/samples/project.xsd; the 1.0 copy silently drifted for years and ended up
+              advertised by every export while being unloadable. Copy it onto the test classpath so
+              ProjectSchemaNameLengthTest can fail the build the moment the two diverge again.
+            -->
+            <testResource>
+                <directory>${project.basedir}/../../website/integration/2.0</directory>
+                <includes>
+                    <include>project.xsd</include>
+                </includes>
+                <targetPath>website/integration/2.0</targetPath>
+            </testResource>
         </testResources>
         <plugins>
             <plugin>

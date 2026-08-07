@@ -32,7 +32,7 @@ import { CommandService } from '../../core/command.service';
 import { UserService } from '../../core/user.service';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { applyCommandErrors, clearServerErrors, passwordsMatch } from '../../shared/form-errors';
-import { PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
+import { ARTIFACT_NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
 
 /**
  * JPA entity property name -> form control name, for {@link applyCommandErrors}.
@@ -100,7 +100,8 @@ const SEPARATOR = '; ';
           [control]="form.controls.name"
           [submitted]="submitted()"
         >
-          <input pInputText appFieldControl id="name" formControlName="name" autocomplete="name" />
+          <input pInputText appFieldControl id="name" formControlName="name" autocomplete="name"
+                 [attr.maxlength]="nameMaxLength" />
         </app-field>
 
         <app-field
@@ -201,6 +202,15 @@ export class EditAccountComponent implements OnInit, DirtyCheckable {
   readonly orgOptions = computed(() => this.organizations());
 
   /**
+   * Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). Bound with
+   * `[attr.maxlength]` rather than `maxlength` on purpose: Angular's MaxLengthValidator directive
+   * matches `[maxlength][formControl]`, so the plain binding would register a SECOND maxlength
+   * validator on top of the one in the form definition. `attr.` sets the HTML attribute only, which
+   * is all that is wanted here — the browser stops the typing, the form owns the validation.
+   */
+  readonly nameMaxLength = ARTIFACT_NAME_MAX_LENGTH;
+
+  /**
    * The password rows are optional here — blank means "keep the current one" — and the
    * validators express that without a conditional branch: Angular's `minLength` returns
    * null for an empty value, so `minLength(1)` only bites once something is typed, and
@@ -214,7 +224,10 @@ export class EditAccountComponent implements OnInit, DirtyCheckable {
   readonly form = new FormGroup(
     {
       username: new FormControl('', { nonNullable: true }),
-      name: new FormControl('', { validators: Validators.required, nonNullable: true }),
+      name: new FormControl('', {
+        validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+        nonNullable: true,
+      }),
       emailAddress: new FormControl('', { validators: Validators.email, nonNullable: true }),
       phoneNumber: new FormControl('', { nonNullable: true }),
       organizationName: new FormControl('', { nonNullable: true }),

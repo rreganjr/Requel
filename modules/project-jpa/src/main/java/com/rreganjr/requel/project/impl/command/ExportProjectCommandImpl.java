@@ -157,7 +157,19 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 			JAXBContext context = JAXBContext.newInstance(CLASSES_FOR_JAXB);
 			Marshaller marshaller = context.createMarshaller();
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
-			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://www.rreganjr.com/requel http://requel.sourceforge.net/integration/1.0/project.xsd");
+			// Exports advertise the 2.0 schema (issue #171), published in-repo at
+			// website/integration/2.0/project.xsd and byte-identical to the copy the round-trip ITs
+			// validate against (asserted by ProjectSchemaNameLengthTest).
+			//
+			// The 1.0 copy this replaces is frozen: it predates annotationRef, primaryActorRef and the
+			// password fields, and does not compile as a schema at all (non-deterministic content
+			// model), so exports were advertising a hint no consumer could act on. Documents already
+			// in the wild still reference 1.0, which is why that file stays where it is.
+			//
+			// Published by .github/workflows/pages.yml, which deploys website/ to GitHub Pages on
+			// pushes to master. That the publish is automated is the point: 1.0 rotted because
+			// uploading it to requel.sourceforge.net was a manual step nobody repeated.
+			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://www.rreganjr.com/requel https://rreganjr.github.io/Requel/integration/2.0/project.xsd");
 			jaxbAdapterConfigurer.configure(marshaller);
 			marshaller.marshal(project, getOutputStream());
 		} catch (Exception e) {

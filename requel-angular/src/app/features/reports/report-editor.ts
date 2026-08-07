@@ -38,6 +38,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { FileUploadButtonComponent } from '../../shared/file-upload-button';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
+import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
 /**
  * JPA entity property name -> form control name, for {@link applyCommandErrors}.
@@ -103,6 +104,7 @@ const REPORT_FIELD_MAP: Record<string, string> = {};
               pInputText
               appFieldControl
               formControlName="name"
+              [attr.maxlength]="nameMaxLength"
               placeholder="Template name"
             />
           </app-field>
@@ -177,9 +179,21 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
   running = signal(false);
   errorMessage = signal<string | null>(null);
 
-  /** `text` has no maxLength until #171 supplies a real one to mirror. */
+  /**
+   * Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). Bound with
+   * `[attr.maxlength]` rather than `maxlength` on purpose: Angular's MaxLengthValidator directive
+   * matches `[maxlength][formControl]`, so the plain binding would register a SECOND maxlength
+   * validator on top of the one in the form definition. `attr.` sets the HTML attribute only, which
+   * is all that is wanted here — the browser stops the typing, the form owns the validation.
+   */
+  readonly nameMaxLength = ARTIFACT_NAME_MAX_LENGTH;
+
+  /** `text` has no maxLength: it is `@Lob` server-side, so there is no bound to mirror. */
   readonly form = new FormGroup({
-    name: new FormControl('', { validators: Validators.required, nonNullable: true }),
+    name: new FormControl('', {
+      validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+      nonNullable: true,
+    }),
     text: new FormControl('', { nonNullable: true }),
   });
 

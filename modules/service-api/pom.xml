@@ -40,9 +40,12 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
         </dependency>
-        <!-- @NotNull/@NotBlank on the input DTO records mark required fields; read reflectively
-             by the MCP schema generator (issue #104). Metadata only — no bean-validation provider
-             is wired here, so these do not change command behavior. -->
+        <!-- @NotNull/@NotBlank/@Size on the input DTO records mark required fields and bounds;
+             read reflectively by the MCP schema generator (issue #104). As of issue #171 these are
+             also ENFORCED at runtime: service-impl's CommandInputValidator validates the bound DTO
+             in ApiCommandFactory.newCommand, which every write path funnels through. No provider is
+             wired in this module (it stays api-only), so adding a constraint here changes
+             behavior for all callers. -->
         <dependency>
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>

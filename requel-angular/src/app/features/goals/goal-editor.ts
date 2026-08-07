@@ -52,6 +52,7 @@ import {
   AppWizardStepComponent,
   WizardCommitRequest,
 } from '../../shared/app-form-wizard';
+import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
 /** Wording for the stale-version recovery path, so the 409 case reads as recoverable. */
 const STALE_VERSION_MESSAGE =
@@ -214,6 +215,7 @@ const STALE_VERSION_MESSAGE =
                    [errorMessages]="nameErrors"
                    [submitted]="submitted()">
           <input appFieldControl pInputText [formControl]="detailsForm.controls.name"
+                 [attr.maxlength]="nameMaxLength"
                  placeholder="Goal name" data-testid="goal-name" />
         </app-field>
 
@@ -330,9 +332,21 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   @ViewChild('addRelationBtn', { read: ElementRef }) addRelationBtn?: ElementRef<HTMLElement>;
 
+  /**
+   * Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). Bound with
+   * `[attr.maxlength]` rather than `maxlength` on purpose: Angular's MaxLengthValidator directive
+   * matches `[maxlength][formControl]`, so the plain binding would register a SECOND maxlength
+   * validator on top of the one in the form definition. `attr.` sets the HTML attribute only, which
+   * is all that is wanted here — the browser stops the typing, the form owns the validation.
+   */
+  readonly nameMaxLength = ARTIFACT_NAME_MAX_LENGTH;
+
   /** Details step / edit form. Replaces the previous `name` + `text` ngModel fields. */
   readonly detailsForm = new FormGroup({
-    name: new FormControl('', { validators: [Validators.required], nonNullable: true }),
+    name: new FormControl('', {
+      validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+      nonNullable: true,
+    }),
     text: new FormControl('', { nonNullable: true }),
   });
 

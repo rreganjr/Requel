@@ -21,6 +21,8 @@
 package com.rreganjr.requel.service.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * Input DTO for creating or editing a non-user stakeholder (external authority).
@@ -34,7 +36,9 @@ import jakarta.validation.constraints.NotBlank;
 public record EditNonUserStakeholderInput(
         @NotBlank String projectName,
         Long stakeholderId,
-        @NotBlank String name,
+        @NotBlank
+        @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
+        String name,
         String text,
         Integer version
 ) {

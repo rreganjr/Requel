@@ -11,6 +11,7 @@ import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { AppWizardStepComponent, WizardCommitRequest } from '../../shared/app-form-wizard';
+import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
 const MOCK_GOAL = {
   id: 10, version: 5, name: 'Improve UX', text: 'Make it great.',
@@ -419,5 +420,27 @@ describe('GoalEditorComponent', () => {
     commandServiceMock.execute.mockResolvedValue({ success: true, entity: MOCK_GOAL });
     await comp.onSave();
     expect(editGoalCall(0)).toEqual(expect.objectContaining({ version: 12 }));
+  });
+
+  // #171: the server caps an artifact name at 255 (ValidationLimits.ARTIFACT_NAME_MAX, applied as
+  // @Size on every artifact entity and its Edit*Input). The client mirrors it so an over-long name
+  // is reported under the field instead of coming back as a 422 after a round trip.
+  describe('name max length (#171)', () => {
+    it('accepts a name at the limit and rejects one over it', async () => {
+      await renderNew();
+
+      comp.detailsForm.controls.name.setValue('a'.repeat(ARTIFACT_NAME_MAX_LENGTH));
+      expect(comp.detailsForm.controls.name.hasError('maxlength')).toBe(false);
+
+      comp.detailsForm.controls.name.setValue('a'.repeat(ARTIFACT_NAME_MAX_LENGTH + 1));
+      expect(comp.detailsForm.controls.name.hasError('maxlength')).toBe(true);
+    });
+
+    it('exposes the limit for the maxlength attribute', async () => {
+      await renderNew();
+      // Bound as [attr.maxlength], not [maxlength] -- the latter would register a second
+      // MaxLengthValidator on top of the one in the form definition.
+      expect(comp.nameMaxLength).toBe(ARTIFACT_NAME_MAX_LENGTH);
+    });
   });
 });

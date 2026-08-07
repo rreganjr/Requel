@@ -333,6 +333,12 @@ export async function addGoalToUseCase(
     projectName,
     goalContainerId: useCaseId,
     goalId,
+    // Required by AddGoalToGoalContainerInput, and the value the SPA sends
+    // (use-case-editor.ts). ProjectCommandRegistrar:737 resolves it case-insensitively to pick
+    // the container out of the project. Omitting it was silently tolerated until #171 turned DTO
+    // validation on; it now fails with 422 "containerType: must not be blank". Note the Actor and
+    // Story container inputs have no equivalent field, so only this call needed it.
+    containerType: 'UseCase',
   });
 }
 

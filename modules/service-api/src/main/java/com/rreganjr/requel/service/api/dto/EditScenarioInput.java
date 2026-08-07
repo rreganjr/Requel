@@ -23,10 +23,13 @@ package com.rreganjr.requel.service.api.dto;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 public record EditScenarioInput(
     @NotBlank String projectName,
     Long scenarioId,
+    @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
     String name,
     String text,
     String scenarioTypeName,

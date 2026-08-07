@@ -36,6 +36,8 @@ import jakarta.xml.bind.annotation.XmlType;
 import jakarta.validation.constraints.NotEmpty;
 
 import com.rreganjr.requel.user.Organization;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * @author ron
@@ -87,6 +89,7 @@ public class OrganizationImpl implements Organization, Serializable {
 	@Column(unique = true, nullable = false)
 	@NotEmpty(message = "organization name is required.")
 	@XmlAttribute(name = "name")
+	@Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
 	public String getName() {
 		return name;
 	}

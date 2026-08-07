@@ -21,10 +21,19 @@
 package com.rreganjr.requel.service.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import com.rreganjr.validator.ValidationLimits;
+import jakarta.validation.constraints.Size;
 
 /**
  * Input DTO for EditReportGenerator command.
  * reportId is null when creating a new report generator.
  */
-public record EditReportGeneratorInput(@NotBlank String projectName, Long reportId, @NotBlank String name, String text) {
+public record EditReportGeneratorInput(
+        @NotBlank String projectName,
+        Long reportId,
+        @NotBlank
+        @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
+        String name,
+        String text
+) {
 }

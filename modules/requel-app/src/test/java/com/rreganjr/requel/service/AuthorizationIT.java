@@ -394,6 +394,32 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 .andExpect(status().isForbidden());
     }
 
+    /**
+     * Ordering guard for #171. DTO bean validation runs in {@code ValidatingCommandHandler}, which
+     * sits INSIDE {@code AuthorizingCommandHandler}, so a caller without {@code Story[Edit]} is
+     * refused before the payload is inspected — 403, and no field names disclosed.
+     *
+     * <p>If validation is ever moved back outside authorization (it started in
+     * {@code ApiCommandFactory.newCommand}, which runs before the handler chain entirely), this
+     * returns 422 with {@code name} and its message, telling a caller with no access what the input
+     * DTO looks like. That regression is invisible to every other test here, because they all send
+     * payloads that are valid.
+     */
+    @Test
+    void noAccessWithInvalidPayloadStillReturnsForbidden() throws Exception {
+        String invalidPayload = objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "name", "   ",  // violates @NotBlank on EditStoryInput.name
+                "text", "authorization test story",
+                "storyTypeName", "Success"));
+
+        mockMvc.perform(post("/api/commands/EditStory")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidPayload))
+                .andExpect(status().isForbidden());
+    }
+
     // -------------------------------------------------------------------------
     // DeleteActor — requires Actor[Delete]
     // -------------------------------------------------------------------------
