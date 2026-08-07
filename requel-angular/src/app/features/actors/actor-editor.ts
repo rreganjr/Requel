@@ -22,9 +22,10 @@ import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -41,13 +42,42 @@ import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import {
+  AppFormWizardComponent,
+  AppWizardStepComponent,
+  WizardCommitRequest,
+} from '../../shared/app-form-wizard';
+import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
+import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { CommandResult } from '../../models/command';
+
+/**
+ * JPA entity property name -> form control name, for {@link applyCommandErrors}.
+ *
+ * `CommandController` reports violations using the entity's property names, so `ActorImpl`'s
+ * inherited `text` is the key; `EditActorInput` spells the same field `description`, mapped
+ * here too so the control resolves whichever name arrives. #176 deletes this map.
+ */
+const ACTOR_FIELD_MAP: Record<string, string> = {
+  description: 'text',
+};
+
+/** Joins page-level violations that resolved to no control. */
+const SEPARATOR = '; ';
+
+/** Wording for the stale-version recovery path, so the 409 case reads as recoverable. */
+const STALE_VERSION_MESSAGE =
+  'This actor was changed elsewhere. Your copy has been refreshed - review the values and continue.';
 
 @Component({
   selector: 'app-actor-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, TableModule,
+  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
+            ButtonModule, InputText, TextareaModule, TableModule,
             MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
-            AnnotationsSectionComponent],
+            AnnotationsSectionComponent, AppFieldComponent, AppFieldControlDirective,
+            AppFormWizardComponent, AppWizardStepComponent],
   providers: [ConfirmationService],
   template: `
     <div class="actor-editor" data-testid="actor-editor">
@@ -73,75 +103,50 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
         <p-message severity="error" [text]="errorMessage()!" data-testid="actor-error" />
       }
 
-      <app-card>
-        <div class="form-grid">
-          <label for="name">Name</label>
-          <input id="name" pInputText [(ngModel)]="name"
-                 placeholder="Actor name" [disabled]="!canEdit()"
-                 (ngModelChange)="trackChanges()" />
-
-          <label for="text">Description</label>
-          <textarea id="text" pTextarea [(ngModel)]="text"
-                    placeholder="Actor description" [rows]="4"
-                    [disabled]="!canEdit()"
-                    (ngModelChange)="trackChanges()"></textarea>
-        </div>
-
-        @if (canEdit()) {
-          <div class="form-actions">
-            <p-button label="{{ isNew() ? 'Create' : 'Save' }}" icon="pi pi-check"
-                      [attr.data-testid]="isNew() ? 'actor-create' : 'actor-save'"
-                      [disabled]="!isNew() && !hasChanges()"
-                      (onClick)="onSave()" />
-          </div>
-        }
-      </app-card>
-
-      @if (!isNew()) {
-        <div class="goals-section">
-          <div class="section-header">
-            <h3>Goals</h3>
-            @if (canEdit()) {
-              <p-button label="Add Goal" icon="pi pi-plus" severity="secondary"
-                        data-testid="actor-add-goal"
-                        [outlined]="true" (onClick)="showGoalSelector = true" />
-            }
-          </div>
-          <p-table [value]="goals()" [rows]="10">
-            <ng-template #header>
-              <tr>
-                <th>Name</th>
-                @if (canEdit()) { <th class="col-actions"></th> }
-              </tr>
+      @if (isNew()) {
+        <!--
+          Create runs as a wizard (#173) so Goals is reachable before the first save. Step 1
+          commits EditActor on Continue, which is what gives step 2 the persisted actorId the
+          goal selector needs.
+        -->
+        <app-form-wizard
+          [(activeKey)]="wizardStep"
+          navLabel="New actor steps"
+          (stepCommit)="onStepCommit($event)"
+          (cancelled)="onBack()"
+          (finished)="onWizardFinished()"
+          data-testid="actor-wizard"
+        >
+          <app-wizard-step key="details" label="Details" helper="Name and description"
+                           [form]="detailsForm">
+            <ng-template>
+              <ng-container [ngTemplateOutlet]="detailsFields" />
             </ng-template>
-            <ng-template #body let-g>
-              <tr data-testid="actor-goal-row">
-                <td>
-                  <a class="entity-link" data-testid="actor-goal-link"
-                     [routerLink]="['/projects', projectName, 'goals', g.id]">{{ g.name }}</a>
-                </td>
-                @if (canEdit()) {
-                  <td>
-                    <p-button icon="pi pi-times" severity="danger" [text]="true"
-                              data-testid="actor-remove-goal" [ariaLabel]="'Remove goal ' + g.name"
-                              [rounded]="true" (onClick)="onRemoveGoal(g)" />
-                  </td>
-                }
-              </tr>
-            </ng-template>
-            <ng-template #emptymessage>
-              <tr><td colspan="2" class="empty-text">No goals associated.</td></tr>
-            </ng-template>
-          </p-table>
-        </div>
+          </app-wizard-step>
 
-        <app-entity-selector-dialog
-          entityType="Goal"
-          [projectName]="projectName"
-          [excludeIds]="goalIds()"
-          [visible]="showGoalSelector"
-          (selected)="onGoalSelected($event)"
-          (closed)="showGoalSelector = false" />
+          <app-wizard-step key="goals" label="Goals" helper="Link goals to this actor"
+                           [optional]="true">
+            <ng-template>
+              <!-- heading: false - the wizard panel's own h2 already reads "Goals". -->
+              <ng-container [ngTemplateOutlet]="goalsSection"
+                            [ngTemplateOutletContext]="{ heading: false }" />
+            </ng-template>
+          </app-wizard-step>
+        </app-form-wizard>
+      } @else {
+        <app-card>
+          <ng-container [ngTemplateOutlet]="detailsFields" />
+
+          @if (canEdit()) {
+            <div class="form-actions">
+              <p-button label="Save" icon="pi pi-check" data-testid="actor-save"
+                        [disabled]="!canSave()" (onClick)="onSave()" />
+            </div>
+          }
+        </app-card>
+
+        <ng-container [ngTemplateOutlet]="goalsSection"
+                      [ngTemplateOutletContext]="{ heading: true }" />
 
         <!-- Referenced By -->
         <div class="goals-section">
@@ -181,18 +186,103 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
       }
     </div>
 
-    <app-annotations-section
+    <app-entity-selector-dialog
+      entityType="Goal"
       [projectName]="projectName"
-      entityType="Actor"
-      [entityId]="actorId"
-      [canEdit]="canEdit()" />
+      [excludeIds]="goalIds()"
+      [visible]="showGoalSelector"
+      (selected)="onGoalSelected($event)"
+      (closed)="showGoalSelector = false" />
+
+    <!--
+      Annotations render against a persisted entity, so they stay outside the wizard and appear
+      once the actor exists rather than as a dead panel during create.
+    -->
+    @if (actorId != null) {
+      <app-annotations-section
+        [projectName]="projectName"
+        entityType="Actor"
+        [entityId]="actorId"
+        [canEdit]="canEdit()" />
+    }
 
     <p-confirmDialog />
+
+    <!--
+      Shared bodies, used by both the wizard step and the edit view so the two cannot drift.
+      Controls bind [formControl], not formControlName: these are projected into the wizard,
+      where formControlName would look for a parent formGroup that is not there.
+    -->
+    <ng-template #detailsFields>
+      <app-field label="Name" [control]="detailsForm.controls.name"
+                 [errorMessages]="nameErrors" [submitted]="submitted()">
+        <input appFieldControl pInputText [formControl]="detailsForm.controls.name"
+               [attr.maxlength]="nameMaxLength"
+               placeholder="Actor name" data-testid="actor-name" />
+      </app-field>
+
+      <app-field label="Description" [control]="detailsForm.controls.text" [divider]="false"
+                 [submitted]="submitted()">
+        <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" rows="4"
+                  placeholder="Actor description" data-testid="actor-text"></textarea>
+      </app-field>
+    </ng-template>
+
+    <ng-template #goalsSection let-heading="heading">
+      <div class="goals-section">
+        <div class="section-header">
+          @if (heading) {
+            <h2 class="rq-section-title">Goals</h2>
+          }
+          @if (canEdit() && actorId != null) {
+            <p-button label="Add Goal" icon="pi pi-plus" severity="secondary"
+                      data-testid="actor-add-goal"
+                      [outlined]="true" (onClick)="showGoalSelector = true" />
+          }
+        </div>
+        @if (actorId == null) {
+          <p class="empty-text">Save the actor's details first to add goals.</p>
+        } @else {
+          <p-table [value]="goals()" [rows]="10">
+            <ng-template #header>
+              <tr>
+                <th>Name</th>
+                @if (canEdit()) {
+                  <!--
+                    An actions column still needs a header for screen readers; an empty <th>
+                    is an axe empty-table-header violation. Visually hidden so the column
+                    stays icon-only. Caught by actor-editor.a11y.spec.ts.
+                  -->
+                  <th class="col-actions"><span class="rq-visually-hidden">Actions</span></th>
+                }
+              </tr>
+            </ng-template>
+            <ng-template #body let-g>
+              <tr data-testid="actor-goal-row">
+                <td>
+                  <a class="entity-link" data-testid="actor-goal-link"
+                     [routerLink]="['/projects', projectName, 'goals', g.id]">{{ g.name }}</a>
+                </td>
+                @if (canEdit()) {
+                  <td>
+                    <p-button icon="pi pi-times" severity="danger" [text]="true"
+                              data-testid="actor-remove-goal" [ariaLabel]="'Remove goal ' + g.name"
+                              [rounded]="true" (onClick)="onRemoveGoal(g)" />
+                  </td>
+                }
+              </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+              <tr><td colspan="2" class="empty-text">No goals associated.</td></tr>
+            </ng-template>
+          </p-table>
+        }
+      </div>
+    </ng-template>
   `,
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .page-actions { display: flex; gap: 0.5rem; }
-    .form-grid { display: grid; grid-template-columns: 150px 1fr; gap: 0.75rem 1rem; align-items: start; max-width: 700px; }
     .form-actions { margin-top: 1rem; max-width: 700px; }
     .goals-section { margin-top: 2rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
@@ -215,14 +305,34 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   referencedByStories = signal<EntityReferenceDto[]>([]);
   showGoalSelector = false;
 
-  name = '';
-  text = '';
+  saving = signal(false);
+  submitted = signal(false);
   version: number | null = null;
   projectName = '';
 
-  private originalName = '';
-  private originalText = '';
-  hasChanges = signal(false);
+  /**
+   * Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). Bound with
+   * `[attr.maxlength]` rather than `maxlength`: the latter matches Angular's MaxLengthValidator
+   * directive selector and would register a second validator on top of the form's own.
+   */
+  readonly nameMaxLength = ARTIFACT_NAME_MAX_LENGTH;
+
+  /**
+   * Details step / edit form. Replaces the `name` + `text` ngModel fields and the hand-rolled
+   * `trackChanges()` + `original*` comparison, which the form's own dirty state now covers.
+   */
+  readonly detailsForm = new FormGroup({
+    name: new FormControl('', {
+      validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+      nonNullable: true,
+    }),
+    text: new FormControl('', { nonNullable: true }),
+  });
+
+  readonly nameErrors = { required: 'An actor needs a name.' };
+
+  /** Active wizard step key, two-way bound to `app-form-wizard`. */
+  wizardStep = 'details';
 
   actorId: number | null = null;
   private paramSub?: Subscription;
@@ -253,9 +363,12 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (newIsNew) {
         this.isNew.set(true);
         this.actor.set(null);
-        this.name = '';
-        this.text = '';
+        this.actorId = null;
         this.version = null;
+        this.wizardStep = 'details';
+        this.submitted.set(false);
+        this.detailsForm.reset({ name: '', text: '' });
+        this.goals.set([]);
       }
 
       await this.permissionService.loadForProject(this.projectName);
@@ -271,7 +384,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   hasUnsavedChanges(): boolean {
-    return this.hasChanges();
+    return this.detailsForm.dirty;
   }
 
   ngOnDestroy(): void {
@@ -286,20 +399,20 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     try {
       const a = await this.actorService.getActor(this.projectName, this.actorId!);
       // Don't overwrite unsaved user edits when called from an SSE notification.
-      if (fromSSE && this.hasChanges()) {
+      if (fromSSE && this.hasUnsavedChanges()) {
+        // Still take the new version: the entity moved on, and holding the stale one
+        // guarantees a 409 on the user's next save.
+        this.version = a.version;
+        this.actor.set(a);
         return;
       }
       this.actor.set(a);
       this.actorName.set(a.name);
-      this.name = a.name;
-      this.text = a.text ?? '';
+      this.detailsForm.reset({ name: a.name, text: a.text ?? '' });
       this.version = a.version;
       this.goals.set(a.goals ?? []);
       this.referencedByUseCases.set(a.referencedByUseCases ?? []);
       this.referencedByStories.set(a.referencedByStories ?? []);
-      this.originalName = a.name;
-      this.originalText = a.text ?? '';
-      this.hasChanges.set(false);
     } catch {
       this.errorMessage.set('Failed to load actor.');
     }
@@ -313,39 +426,170 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     }
   }
 
-  trackChanges(): void {
-    this.hasChanges.set(this.name !== this.originalName || this.text !== this.originalText);
+  /**
+   * Re-reads the actor's optimistic-lock version after a goal association changes.
+   *
+   * `AddGoalToGoalContainerCommandImpl` / `RemoveGoalFromGoalContainerCommandImpl` end by
+   * merging the container - which IS this actor - so every add or remove bumps its
+   * `@Version`. The client cannot read the new value from the response: both commands are
+   * registered through the 4-arg `CommandRegistry.register` overload, which leaves
+   * `resultExtractor` null, so `ApiCommandFactory.extractResult` returns null and
+   * `result.entity` is empty. A refetch is the only way to see it.
+   *
+   * Without this, adding a goal and then saving the name fails with a 409 the user did
+   * nothing to deserve. Pre-existing bug; #173's wizard makes it reachable in the create
+   * flow too, which is what surfaced it.
+   *
+   * Deliberately narrow — it takes `version` and nothing else. A full `loadActor()` here
+   * would overwrite whatever the user had typed into Name or Description before touching
+   * the Goals table.
+   */
+  private async refreshVersionAfterAssociation(): Promise<void> {
+    if (this.actorId == null) {
+      return;
+    }
+    try {
+      const a = await this.actorService.getActor(this.projectName, this.actorId);
+      this.version = a.version;
+    } catch {
+      // Leave the held version as-is: a failed refresh is not worth blocking the user, and
+      // the next save reports the 409 with the existing recovery path.
+    }
   }
 
-  async onSave(): Promise<void> {
-    this.errorMessage.set(null);
-    try {
-      const result = await this.commandService.execute('EditActor', {
-        projectName: this.projectName,
-        actorId: this.isNew() ? null : this.actorId,
-        name: this.name,
-        description: this.text || null,
-        version: this.version
-      });
-      if (result.success) {
-        if (this.isNew()) {
-          this.projectService.notifyTreeChanged();
-          this.hasChanges.set(false);
-          this.router.navigate(['/projects', this.projectName, 'actors', (result.entity as ActorDto).id]);
-        } else {
-          this.actorName.set(this.name);
-          this.version = (result.entity as ActorDto).version;
-          this.originalName = this.name;
-          this.originalText = this.text;
-          this.hasChanges.set(false);
-          this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Actor saved.' });
-        }
-      } else {
-        this.errorMessage.set(result.error ?? 'Save failed.');
-      }
-    } catch {
-      this.errorMessage.set('Save failed.');
+
+  /** Edit-mode Save: blocked on invalid, unchanged, or in-flight. */
+  canSave(): boolean {
+    return this.detailsForm.valid && this.detailsForm.dirty && !this.saving();
+  }
+
+  /**
+   * Runs the commit for the wizard's current step.
+   *
+   * Only Details talks to the API. The Goals step's associations commit through the selector
+   * as the user works, so its Continue just advances.
+   */
+  async onStepCommit(request: WizardCommitRequest): Promise<void> {
+    if (request.step.key !== 'details') {
+      request.complete();
+      return;
     }
+
+    this.submitted.set(true);
+    const result = await this.saveDetails();
+
+    if (result.success) {
+      request.complete();
+      return;
+    }
+    if (await this.recoverFromStaleVersion(result)) {
+      request.fail(STALE_VERSION_MESSAGE);
+      return;
+    }
+    request.fail(result.error ?? 'Save failed.');
+  }
+
+  /** Done on the last step: the actor is already saved, so just go to it. */
+  onWizardFinished(): void {
+    if (this.actorId != null) {
+      this.router.navigate(['/projects', this.projectName, 'actors', this.actorId]);
+    } else {
+      this.onBack();
+    }
+  }
+
+  /**
+   * Issues `EditActor` and, on success, adopts the id and version from the response.
+   *
+   * The version is spent on use: every accepted `EditActor` bumps it server-side, so it is
+   * re-read from `result.entity` each time. Note the DTO spells the description field
+   * `description` while the entity property is `text` - hence ACTOR_FIELD_MAP.
+   */
+  private async saveDetails(): Promise<CommandResult<unknown>> {
+    this.saving.set(true);
+    this.errorMessage.set(null);
+    clearServerErrors(this.detailsForm);
+    try {
+      const { name, text } = this.detailsForm.getRawValue();
+      const input: Record<string, unknown> = {
+        projectName: this.projectName,
+        actorId: this.actorId,
+        name,
+        description: text || null,
+      };
+      if (this.version != null) input['version'] = this.version;
+
+      const result = await this.commandService.execute('EditActor', input);
+      if (!result.success) {
+        const unresolved = applyCommandErrors(this.detailsForm, result.violations, ACTOR_FIELD_MAP);
+        if (unresolved.length) {
+          this.errorMessage.set(unresolved.join(SEPARATOR));
+        }
+        return result;
+      }
+
+      const wasCreate = this.actorId == null;
+      if (wasCreate) {
+        this.projectService.notifyTreeChanged();
+      }
+
+      const saved = result.entity as ActorDto | null;
+      if (saved) {
+        this.actorId = saved.id;
+        this.version = saved.version;
+        this.actorName.set(saved.name);
+      }
+      this.detailsForm.markAsPristine();
+      this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Actor saved.' });
+
+      // Hydrate goals / referencedBy and start the SSE subscription the first time the actor
+      // exists, so step 2 has something to render.
+      if (wasCreate && this.actorId != null) {
+        await this.loadActor();
+      }
+      return result;
+    } catch {
+      return {
+        success: false,
+        entityType: 'Actor',
+        entity: null,
+        error: 'Save failed.',
+        violations: null,
+      };
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
+  /**
+   * If `result` is an optimistic-lock conflict (HTTP 409), refetch so the held version is
+   * current and the user can retry. Returns whether it handled the result.
+   */
+  private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
+    if (result.status !== 409 || this.actorId == null) {
+      return false;
+    }
+    await this.loadActor();
+    return true;
+  }
+
+  /** Edit-mode Save. */
+  async onSave(): Promise<void> {
+    this.submitted.set(true);
+    if (this.detailsForm.invalid) {
+      this.detailsForm.markAllAsTouched();
+      return;
+    }
+
+    const result = await this.saveDetails();
+    if (result.success) {
+      return;
+    }
+    if (await this.recoverFromStaleVersion(result)) {
+      this.errorMessage.set(STALE_VERSION_MESSAGE);
+      return;
+    }
+    this.errorMessage.set(result.error ?? 'Save failed.');
   }
 
   onCopy(): void {
@@ -378,6 +622,8 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         });
         if (result.success) {
           this.projectService.notifyTreeChanged();
+          // Nothing left to guard against - don't let the dirty check block the exit.
+          this.detailsForm.markAsPristine();
           this.router.navigate(['/projects', this.projectName, 'actors']);
         } else {
           this.errorMessage.set(result.error ?? 'Delete failed.');
@@ -397,6 +643,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       });
       if (result.success) {
         this.goals.update(list => [...list, goal].sort((a, b) => a.name.localeCompare(b.name)));
+        await this.refreshVersionAfterAssociation();
         this.messageService.add({ severity: 'success', summary: 'Goal added', detail: `"${goal.name}" added successfully.` });
       } else {
         this.errorMessage.set(result.error ?? 'Failed to add goal.');
@@ -416,6 +663,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       });
       if (result.success) {
         this.goals.update(list => list.filter(g => g.id !== goal.id));
+        await this.refreshVersionAfterAssociation();
         this.messageService.add({ severity: 'info', summary: 'Goal removed', detail: `"${goal.name}" removed.` });
       } else {
         this.errorMessage.set(result.error ?? 'Failed to remove goal.');

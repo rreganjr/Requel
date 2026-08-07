@@ -16,9 +16,10 @@ Three findings from source verification, each of which changes the work:
 1. **None of the five is reactive yet.** #173 is not "add wizard chrome to reactive editors"; it is
    the full #132 conversion (reactive forms, `app-field` rows, `applyCommandErrors`, delete
    `trackChanges`) across 2,758 lines, *plus* the wizard, *plus* the version contract.
-2. **Every client-reachable association command bumps the parent AND returns it.** §3 was right that
-   the Goal/Story precedent does not carry over, but the remedy is simpler than it feared: the
-   refetch it called for is never required. Read the version off the result.
+2. **Every client-reachable association command bumps the parent; only three return it.** §3 was
+   right that the Goal/Story precedent does not carry over, and right to ask for a refetch — six of
+   the nine send no entity back at all, because their registration declares no result extractor.
+   See §2 for the table and for the correction to an earlier revision of this document.
 3. **`scenario-editor` is not the shape §3 assumes.** Its steps are not association commands at all.
 
 ## Decisions (locked)
@@ -55,27 +56,42 @@ the per-editor cost is measured rather than guessed.
 §3 asked that each command be verified rather than assumed. Done, against
 `modules/project-jpa/.../impl/command/`:
 
-| Command | Mutates parent? | Merges parent? | Returns parent? | Verdict |
-|---|---|---|---|---|
-| `AddGoalToGoalContainer` | yes | `merge(addingContainer)` | `setGoalContainer` | **bumps**, result usable |
-| `RemoveGoalFromGoalContainer` | yes | `merge(removingContainer)` | `setGoalContainer` | **bumps**, result usable |
-| `AddScenarioToUseCase` | yes | `merge(useCaseImpl)` | `setUseCase` | **bumps**, result usable |
-| `RemoveScenarioFromUseCase` | yes | `merge(useCaseImpl)` | `setUseCase` | **bumps**, result usable |
-| `SetPrimaryScenarioOnUseCase` | yes | `merge(useCaseImpl)` | `setUseCase` | **bumps**, result usable |
-| `AddStoryToStoryContainer` | yes | `merge(addingContainer)` | `setStoryContainer` | **bumps**, result usable |
-| `RemoveStoryFromStoryContainer` | yes | `merge(removingContainer)` | `setStoryContainer` | **bumps**, result usable |
-| `AddActorToActorContainer` | yes | `merge(addingContainer)` | `setActorContainer` | **bumps**, result usable |
-| `RemoveActorFromActorContainer` | yes | `merge(removingContainer)` | `setActorContainer` | **bumps**, result usable |
-| `AssignTag` | no — mutates `Tag` | — | — | clean (as #158 found) |
+| Command | Merges parent (bumps `@Version`) | Returns parent to the client | Wizard must |
+|---|---|---|---|
+| `AddGoalToGoalContainer` | yes | **no** | refetch |
+| `RemoveGoalFromGoalContainer` | yes | **no** | refetch |
+| `AddStoryToStoryContainer` | yes | **no** | refetch |
+| `RemoveStoryFromStoryContainer` | yes | **no** | refetch |
+| `AddActorToActorContainer` | yes | **no** | refetch |
+| `RemoveActorFromActorContainer` | yes | **no** | refetch |
+| `AddScenarioToUseCase` | yes | yes | read `result.entity` |
+| `RemoveScenarioFromUseCase` | yes | yes | read `result.entity` |
+| `SetPrimaryScenarioOnUseCase` | yes | yes | read `result.entity` |
+| `AssignTag` | no — mutates `Tag` | n/a | nothing |
 
-Two notes on this table.
+**Correction, 2026-08-07.** An earlier revision of this document claimed all nine returned the
+merged parent and that §3's refetch branch was dead code. That was wrong, and the error is worth
+recording because it is invisible from the command implementations alone.
 
-- **`RemoveActorFromActorContainer` and `RemoveStoryFromStoryContainer` were missing from §3's
-  list.** Both are invoked by `use-case-editor`. Both verified above.
-- **The refetch §3 required is never needed.** Every command that bumps also returns the merged
-  parent, so the wizard host reads the new `version` off `result.entity` — exactly the #158
-  mechanism, just applied after *every* step rather than only step 1. §3's "or refetch when the
-  command does not return the parent" branch is dead code for these nine. Do not build it.
+`AddGoalToGoalContainerCommandImpl` really does end with `setGoalContainer(addingContainer)` — but
+that is the *Java command object*, not the HTTP response. `CommandController` builds the response
+body from `ApiCommandFactory.extractResult`, which returns `reg.resultExtractor().apply(command)`
+if the registration declared one and **`null` otherwise**. Six of these register through the 4-arg
+`CommandRegistry.register` overload, which passes `null` for both the file applicator and the
+result extractor, so the merged container never reaches the client. `AddScenarioToUseCase` and its
+two siblings pass the 6-arg overload with `cmd -> ProjectQueryController.toUseCaseDetailDto(...)`,
+which is why those three differ.
+
+Consequence: **§3's "or refetch when the command does not return the parent" branch is required for
+six of the nine, not dead.** Read `result.entity` only for the three that populate it.
+
+Second consequence, worth its own ticket: `CommandController.publishEntityChangedIfPresent` derives
+its SSE target from the result DTO's `id()`. A null result means **no targeted SSE event fires** for
+those six commands, so another session with the same actor/story/use-case open is never told to
+refresh after a goal, story or actor association changes. Registering result extractors would fix
+the version problem and this one together, but the container is polymorphic (`GoalContainer` is an
+Actor, Story, UseCase or Stakeholder), so a single extractor has to switch on the concrete type —
+which is why this plan takes the client-side refetch and leaves the backend change to a follow-up.
 
 ## 3. Correction to §3, part two — four commands are unreachable from the client
 
