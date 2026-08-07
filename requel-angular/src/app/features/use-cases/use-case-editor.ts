@@ -22,10 +22,10 @@ import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Location } from '@angular/common';
+import { Location, NgTemplateOutlet } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -50,13 +50,43 @@ import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import {
+  AppFormWizardComponent,
+  AppWizardStepComponent,
+  WizardCommitRequest,
+} from '../../shared/app-form-wizard';
+import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
+import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { CommandResult } from '../../models/command';
+
+/**
+ * JPA entity property name -> form control name, for {@link applyCommandErrors}.
+ *
+ * `UseCaseImpl`'s inherited text field is `text`; the primary actor arrives as
+ * `primaryActorName` on the DTO and resolves against the actor by name server-side.
+ * #176 deletes this map.
+ */
+const USE_CASE_FIELD_MAP: Record<string, string> = {
+  primaryActor: 'primaryActorName',
+};
+
+/** Joins page-level violations that resolved to no control. */
+const SEPARATOR = '; ';
+
+/** Wording for the stale-version recovery path, so the 409 case reads as recoverable. */
+const STALE_VERSION_MESSAGE =
+  'This use case was changed elsewhere. Your copy has been refreshed - review the values and continue.';
 
 @Component({
   selector: 'app-use-case-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, MessageModule,
+  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
+            ButtonModule, InputText, TextareaModule, MessageModule,
             ConfirmDialogModule, TableModule, TooltipModule, SelectModule,
-            EntitySelectorDialogComponent, AnnotationsSectionComponent],
+            EntitySelectorDialogComponent, AnnotationsSectionComponent,
+            AppFieldComponent, AppFieldControlDirective,
+            AppFormWizardComponent, AppWizardStepComponent],
   providers: [ConfirmationService],
   template: `
     <div class="use-case-editor" data-testid="use-case-editor">
@@ -82,49 +112,176 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <app-card>
-        <div class="form-grid">
-          <label for="name">Name</label>
-          <input id="name" pInputText [(ngModel)]="name" placeholder="Use case name"
-                 (ngModelChange)="trackChanges()" />
+      @if (isNew()) {
+        <!--
+          Create runs as a wizard (#173). Four steps because this editor gates five separate
+          sections; grouping Goals with Stories keeps the count at four without putting six
+          tables on one panel. Step 1 commits EditUseCase, which is what gives every later step
+          the persisted useCaseId its selector needs.
+        -->
+        <app-form-wizard
+          [(activeKey)]="wizardStep"
+          navLabel="New use case steps"
+          (stepCommit)="onStepCommit($event)"
+          (cancelled)="onBack()"
+          (finished)="onWizardFinished()"
+          data-testid="use-case-wizard"
+        >
+          <app-wizard-step key="details" label="Details" helper="Name, actor and description"
+                           [form]="detailsForm">
+            <ng-template>
+              <ng-container [ngTemplateOutlet]="detailsFields" />
+            </ng-template>
+          </app-wizard-step>
 
-          <label for="primaryActor">Primary Actor</label>
-          <p-select id="primaryActor" inputId="useCasePrimaryActorInput"
+          <app-wizard-step key="scenarios" label="Scenarios" helper="Primary and additional"
+                           [optional]="true">
+            <ng-template>
+              <ng-container [ngTemplateOutlet]="scenariosSection"
+                            [ngTemplateOutletContext]="{ heading: false }" />
+            </ng-template>
+          </app-wizard-step>
+
+          <app-wizard-step key="goals-stories" label="Goals & Stories" helper="What it satisfies"
+                           [optional]="true">
+            <ng-template>
+              <ng-container [ngTemplateOutlet]="goalsSection"
+                            [ngTemplateOutletContext]="{ heading: true }" />
+              <ng-container [ngTemplateOutlet]="storiesSection"
+                            [ngTemplateOutletContext]="{ heading: true }" />
+            </ng-template>
+          </app-wizard-step>
+
+          <app-wizard-step key="actors" label="Actors" helper="Additional actors"
+                           [optional]="true">
+            <ng-template>
+              <ng-container [ngTemplateOutlet]="actorsSection"
+                            [ngTemplateOutletContext]="{ heading: false }" />
+            </ng-template>
+          </app-wizard-step>
+        </app-form-wizard>
+      } @else {
+        <app-card>
+          <ng-container [ngTemplateOutlet]="detailsFields" />
+
+          <div class="form-actions">
+            <p-button label="Save" icon="pi pi-check" data-testid="use-case-save"
+                      [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
+          </div>
+        </app-card>
+
+        <ng-container [ngTemplateOutlet]="scenariosSection"
+                      [ngTemplateOutletContext]="{ heading: true }" />
+        <ng-container [ngTemplateOutlet]="goalsSection"
+                      [ngTemplateOutletContext]="{ heading: true }" />
+        <ng-container [ngTemplateOutlet]="storiesSection"
+                      [ngTemplateOutletContext]="{ heading: true }" />
+        <ng-container [ngTemplateOutlet]="actorsSection"
+                      [ngTemplateOutletContext]="{ heading: true }" />
+      }
+
+      <!-- Primary scenario selector (shows only Primary-type scenarios) -->
+      <app-entity-selector-dialog
+        [visible]="showPrimaryScenarioSelector"
+        [projectName]="projectName"
+        entityType="Scenario"
+        [excludeIds]="primaryScenarioExcludeIds()"
+        [includeTypes]="['Primary']"
+        (selected)="selectPrimaryScenario($event)"
+        (closed)="showPrimaryScenarioSelector = false" />
+
+      <!-- Additional scenario selector (excludes Primary-type and already-added scenarios) -->
+      <app-entity-selector-dialog
+        [visible]="showScenarioSelector"
+        [projectName]="projectName"
+        entityType="Scenario"
+        [excludeIds]="additionalScenarioIds()"
+        [excludeTypes]="['Primary']"
+        (selected)="addScenario($event)"
+        (closed)="showScenarioSelector = false" />
+
+      <!-- Entity selector dialogs -->
+      <app-entity-selector-dialog
+        [visible]="showGoalSelector"
+        [projectName]="projectName"
+        entityType="Goal"
+        [excludeIds]="goalIds()"
+        (selected)="addGoal($event)"
+        (closed)="showGoalSelector = false" />
+
+      <app-entity-selector-dialog
+        [visible]="showStorySelector"
+        [projectName]="projectName"
+        entityType="Story"
+        [excludeIds]="storyIds()"
+        (selected)="addStory($event)"
+        (closed)="showStorySelector = false" />
+
+      <app-entity-selector-dialog
+        [visible]="showActorSelector"
+        [projectName]="projectName"
+        entityType="Actor"
+        [excludeIds]="actorIds()"
+        (selected)="addActorToList($event)"
+        (closed)="showActorSelector = false" />
+
+      <app-annotations-section
+        [projectName]="projectName"
+        entityType="UseCase"
+        [entityId]="useCaseId"
+        [canEdit]="canEdit()" />
+
+      <p-confirmDialog />
+
+      <!--
+        Shared bodies, used by both the wizard steps and the edit view so the two cannot drift.
+        Controls bind [formControl], not formControlName: these are projected into the wizard,
+        where formControlName would look for a parent formGroup that is not there.
+
+        Every association section guards on useCaseId: during create, step 1 has not committed
+        yet on first render, and the selectors all key off the persisted use case.
+      -->
+      <ng-template #detailsFields>
+        <app-field label="Name" [control]="detailsForm.controls.name"
+                   [errorMessages]="nameErrors" [submitted]="submitted()">
+          <input appFieldControl pInputText [formControl]="detailsForm.controls.name"
+                 [attr.maxlength]="nameMaxLength"
+                 placeholder="Use case name" data-testid="use-case-name" />
+        </app-field>
+
+        <app-field label="Primary Actor" controlId="useCasePrimaryActorInput"
+                   [control]="detailsForm.controls.primaryActorName" [submitted]="submitted()">
+          <p-select appFieldControl inputId="useCasePrimaryActorInput"
                     data-testid="use-case-primary-actor"
-                    [(ngModel)]="primaryActorName"
-                    [options]="actorOptions()"
-                    optionLabel="label"
-                    optionValue="value"
+                    [formControl]="detailsForm.controls.primaryActorName"
+                    [options]="actorOptions()" optionLabel="label" optionValue="value"
                     [showClear]="true"
                     [pt]="{ clearIcon: { 'data-testid': 'use-case-primary-actor-clear' } }"
-                    placeholder="Select primary actor"
-                    (ngModelChange)="trackChanges()"
-                    styleClass="w-full" />
+                    placeholder="Select primary actor" styleClass="w-full" />
+        </app-field>
 
-          <label for="text">Description</label>
-          <textarea id="text" pTextarea [(ngModel)]="text" rows="4"
-                    placeholder="Use case description"
-                    (ngModelChange)="trackChanges()"></textarea>
-        </div>
+        <app-field label="Description" [control]="detailsForm.controls.text" [divider]="false"
+                   [submitted]="submitted()">
+          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" rows="4"
+                    placeholder="Use case description" data-testid="use-case-text"></textarea>
+        </app-field>
+      </ng-template>
 
-        <div class="form-actions">
-          <p-button label="Save" icon="pi pi-check" data-testid="use-case-save"
-                    (onClick)="onSave()" [loading]="saving()"
-                    [disabled]="!isNew() && !hasChanges()" />
-        </div>
-      </app-card>
-
-      <!-- Primary Scenario section -->
-      @if (!isNew()) {
+      <ng-template #scenariosSection let-heading="heading">
         <div class="section">
           <div class="section-header">
-            <h3>Primary Scenario</h3>
+            @if (heading) {
+              <h2 class="rq-section-title">Primary Scenario</h2>
+            }
           </div>
-          @if (!useCase()?.scenarioId) {
+          @if (useCaseId == null) {
+            <p class="no-scenario-hint">Save the use case's details first to add scenarios.</p>
+          } @else if (!useCase()?.scenarioId) {
             <p class="no-scenario-hint">No primary scenario yet.</p>
             @if (canEdit()) {
               <div class="primary-scenario-actions">
                 <p-button label="Create New" icon="pi pi-plus" size="small"
+                          data-testid="use-case-create-primary-scenario"
                           pTooltip="Create a primary scenario using the use case name"
                           (onClick)="createPrimaryScenario()" [loading]="saving()" />
                 <p-button label="Select Existing" icon="pi pi-search" size="small"
@@ -166,213 +323,179 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
           }
         </div>
 
-        <!-- Additional Scenarios section -->
-        <div class="section">
-          <div class="section-header">
-            <h3>Additional Scenarios</h3>
-            @if (canEdit()) {
-              <p-button label="Add Scenario" icon="pi pi-plus" size="small"
-                        data-testid="use-case-add-scenario"
-                        severity="secondary" [outlined]="true"
-                        (onClick)="showScenarioSelector = true" />
-            }
+        @if (useCaseId != null) {
+          <div class="section">
+            <div class="section-header">
+              <h3>Additional Scenarios</h3>
+              @if (canEdit()) {
+                <p-button label="Add Scenario" icon="pi pi-plus" size="small"
+                          data-testid="use-case-add-scenario"
+                          severity="secondary" [outlined]="true"
+                          (onClick)="showScenarioSelector = true" />
+              }
+            </div>
+            <p-table [value]="additionalScenarios()" styleClass="p-datatable-sm"
+                     data-testid="use-case-scenarios-table" [rowHover]="true">
+              <ng-template pTemplate="header">
+                <tr><th>Name</th><th>Type</th>
+                  <!-- An empty <th> is an axe empty-table-header violation. -->
+                  <th class="col-actions"><span class="rq-visually-hidden">Actions</span></th></tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-s>
+                <tr data-testid="use-case-scenario-row">
+                  <td><a class="entity-link" data-testid="use-case-scenario-link"
+                         [routerLink]="['/projects', projectName, 'scenarios', s.id]">{{ s.name }}</a></td>
+                  <td>{{ s.scenarioType }}</td>
+                  <td>
+                    @if (canEdit()) {
+                      <p-button icon="pi pi-times" severity="danger" [text]="true"
+                                data-testid="use-case-remove-scenario" [ariaLabel]="'Remove scenario ' + s.name"
+                                size="small" pTooltip="Remove scenario"
+                                (onClick)="removeScenario(s)" />
+                    }
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="3" class="text-center">No additional scenarios.</td></tr>
+              </ng-template>
+            </p-table>
           </div>
-          <p-table [value]="additionalScenarios()" styleClass="p-datatable-sm"
-                   data-testid="use-case-scenarios-table" [rowHover]="true">
-            <ng-template pTemplate="header">
-              <tr><th>Name</th><th>Type</th><th class="col-actions"></th></tr>
-            </ng-template>
-            <ng-template pTemplate="body" let-s>
-              <tr data-testid="use-case-scenario-row">
-                <td><a class="entity-link" data-testid="use-case-scenario-link"
-                       [routerLink]="['/projects', projectName, 'scenarios', s.id]">{{ s.name }}</a></td>
-                <td>{{ s.scenarioType }}</td>
-                <td>
-                  @if (canEdit()) {
-                    <p-button icon="pi pi-times" severity="danger" [text]="true"
-                              data-testid="use-case-remove-scenario" [ariaLabel]="'Remove scenario ' + s.name"
-                              size="small" pTooltip="Remove scenario"
-                              (onClick)="removeScenario(s)" />
-                  }
-                </td>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="emptymessage">
-              <tr><td colspan="3" class="text-center">No additional scenarios.</td></tr>
-            </ng-template>
-          </p-table>
-        </div>
-      }
+        }
+      </ng-template>
 
-      <!-- Primary scenario selector (shows only Primary-type scenarios) -->
-      <app-entity-selector-dialog
-        [visible]="showPrimaryScenarioSelector"
-        [projectName]="projectName"
-        entityType="Scenario"
-        [excludeIds]="primaryScenarioExcludeIds()"
-        [includeTypes]="['Primary']"
-        (selected)="selectPrimaryScenario($event)"
-        (closed)="showPrimaryScenarioSelector = false" />
-
-      <!-- Additional scenario selector (excludes Primary-type and already-added scenarios) -->
-      <app-entity-selector-dialog
-        [visible]="showScenarioSelector"
-        [projectName]="projectName"
-        entityType="Scenario"
-        [excludeIds]="additionalScenarioIds()"
-        [excludeTypes]="['Primary']"
-        (selected)="addScenario($event)"
-        (closed)="showScenarioSelector = false" />
-
-      <!-- Goals sub-table -->
-      @if (!isNew()) {
+      <ng-template #goalsSection let-heading="heading">
         <div class="section">
           <div class="section-header">
-            <h3>Goals</h3>
-            @if (canEdit()) {
+            @if (heading) { <h3>Goals</h3> }
+            @if (canEdit() && useCaseId != null) {
               <p-button label="Add Goal" icon="pi pi-plus" size="small"
                         data-testid="use-case-add-goal"
                         severity="secondary" [outlined]="true"
                         (onClick)="showGoalSelector = true" />
             }
           </div>
-          <p-table [value]="goals()" styleClass="p-datatable-sm"
-                   data-testid="use-case-goals-table" [rowHover]="canEdit()">
-            <ng-template pTemplate="header">
-              <tr><th>Name</th><th class="col-actions"></th></tr>
-            </ng-template>
-            <ng-template pTemplate="body" let-goal>
-              <tr data-testid="use-case-goal-row">
-                <td>
-                  <a class="entity-link" data-testid="use-case-goal-link"
-                     [routerLink]="['/projects', projectName, 'goals', goal.id]">{{ goal.name }}</a>
-                </td>
-                <td>
-                  @if (canEdit()) {
-                    <p-button icon="pi pi-times" severity="danger" [text]="true"
-                              data-testid="use-case-remove-goal" [ariaLabel]="'Remove goal ' + goal.name"
-                              size="small" pTooltip="Remove goal"
-                              (onClick)="removeGoal(goal)" />
-                  }
-                </td>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="emptymessage">
-              <tr><td colspan="2" class="text-center">No goals.</td></tr>
-            </ng-template>
-          </p-table>
+          @if (useCaseId == null) {
+            <p class="text-center">Save the use case's details first to add goals.</p>
+          } @else {
+            <p-table [value]="goals()" styleClass="p-datatable-sm"
+                     data-testid="use-case-goals-table" [rowHover]="canEdit()">
+              <ng-template pTemplate="header">
+                <tr><th>Name</th>
+                  <th class="col-actions"><span class="rq-visually-hidden">Actions</span></th></tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-goal>
+                <tr data-testid="use-case-goal-row">
+                  <td>
+                    <a class="entity-link" data-testid="use-case-goal-link"
+                       [routerLink]="['/projects', projectName, 'goals', goal.id]">{{ goal.name }}</a>
+                  </td>
+                  <td>
+                    @if (canEdit()) {
+                      <p-button icon="pi pi-times" severity="danger" [text]="true"
+                                data-testid="use-case-remove-goal" [ariaLabel]="'Remove goal ' + goal.name"
+                                size="small" pTooltip="Remove goal"
+                                (onClick)="removeGoal(goal)" />
+                    }
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="2" class="text-center">No goals.</td></tr>
+              </ng-template>
+            </p-table>
+          }
         </div>
+      </ng-template>
 
-        <!-- Stories sub-table -->
+      <ng-template #storiesSection let-heading="heading">
         <div class="section">
           <div class="section-header">
-            <h3>Stories</h3>
-            @if (canEdit()) {
+            @if (heading) { <h3>Stories</h3> }
+            @if (canEdit() && useCaseId != null) {
               <p-button label="Add Story" icon="pi pi-plus" size="small"
                         data-testid="use-case-add-story"
                         severity="secondary" [outlined]="true"
                         (onClick)="showStorySelector = true" />
             }
           </div>
-          <p-table [value]="stories()" styleClass="p-datatable-sm"
-                   data-testid="use-case-stories-table" [rowHover]="canEdit()">
-            <ng-template pTemplate="header">
-              <tr><th>Name</th><th>Type</th><th class="col-actions"></th></tr>
-            </ng-template>
-            <ng-template pTemplate="body" let-story>
-              <tr data-testid="use-case-story-row">
-                <td>
-                  <a class="entity-link" data-testid="use-case-story-link"
-                     [routerLink]="['/projects', projectName, 'stories', story.id]">{{ story.name }}</a>
-                </td>
-                <td>{{ story.storyType }}</td>
-                <td>
-                  @if (canEdit()) {
-                    <p-button icon="pi pi-times" severity="danger" [text]="true"
-                              data-testid="use-case-remove-story" [ariaLabel]="'Remove story ' + story.name"
-                              size="small" pTooltip="Remove story"
-                              (onClick)="removeStory(story)" />
-                  }
-                </td>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="emptymessage">
-              <tr><td colspan="3" class="text-center">No stories.</td></tr>
-            </ng-template>
-          </p-table>
+          @if (useCaseId == null) {
+            <p class="text-center">Save the use case's details first to add stories.</p>
+          } @else {
+            <p-table [value]="stories()" styleClass="p-datatable-sm"
+                     data-testid="use-case-stories-table" [rowHover]="canEdit()">
+              <ng-template pTemplate="header">
+                <tr><th>Name</th><th>Type</th>
+                  <th class="col-actions"><span class="rq-visually-hidden">Actions</span></th></tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-story>
+                <tr data-testid="use-case-story-row">
+                  <td>
+                    <a class="entity-link" data-testid="use-case-story-link"
+                       [routerLink]="['/projects', projectName, 'stories', story.id]">{{ story.name }}</a>
+                  </td>
+                  <td>{{ story.storyType }}</td>
+                  <td>
+                    @if (canEdit()) {
+                      <p-button icon="pi pi-times" severity="danger" [text]="true"
+                                data-testid="use-case-remove-story" [ariaLabel]="'Remove story ' + story.name"
+                                size="small" pTooltip="Remove story"
+                                (onClick)="removeStory(story)" />
+                    }
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="3" class="text-center">No stories.</td></tr>
+              </ng-template>
+            </p-table>
+          }
         </div>
+      </ng-template>
 
-        <!-- Additional actors sub-table -->
+      <ng-template #actorsSection let-heading="heading">
         <div class="section">
           <div class="section-header">
-            <h3>Additional Actors</h3>
-            @if (canEdit()) {
+            @if (heading) { <h3>Additional Actors</h3> }
+            @if (canEdit() && useCaseId != null) {
               <p-button label="Add Actor" icon="pi pi-plus" size="small"
                         data-testid="use-case-add-actor"
                         severity="secondary" [outlined]="true"
                         (onClick)="showActorSelector = true" />
             }
           </div>
-          <p-table [value]="actors()" styleClass="p-datatable-sm"
-                   data-testid="use-case-actors-table" [rowHover]="canEdit()">
-            <ng-template pTemplate="header">
-              <tr><th>Name</th><th class="col-actions"></th></tr>
-            </ng-template>
-            <ng-template pTemplate="body" let-actor>
-              <tr data-testid="use-case-actor-row">
-                <td>
-                  <a class="entity-link" data-testid="use-case-actor-link"
-                     [routerLink]="['/projects', projectName, 'actors', actor.id]">{{ actor.name }}</a>
-                </td>
-                <td>
-                  @if (canEdit()) {
-                    <p-button icon="pi pi-times" severity="danger" [text]="true"
-                              data-testid="use-case-remove-actor" [ariaLabel]="'Remove actor ' + actor.name"
-                              size="small" pTooltip="Remove actor"
-                              (onClick)="removeActor(actor)" />
-                  }
-                </td>
-              </tr>
-            </ng-template>
-            <ng-template pTemplate="emptymessage">
-              <tr><td colspan="2" class="text-center">No additional actors.</td></tr>
-            </ng-template>
-          </p-table>
+          @if (useCaseId == null) {
+            <p class="text-center">Save the use case's details first to add actors.</p>
+          } @else {
+            <p-table [value]="actors()" styleClass="p-datatable-sm"
+                     data-testid="use-case-actors-table" [rowHover]="canEdit()">
+              <ng-template pTemplate="header">
+                <tr><th>Name</th>
+                  <th class="col-actions"><span class="rq-visually-hidden">Actions</span></th></tr>
+              </ng-template>
+              <ng-template pTemplate="body" let-actor>
+                <tr data-testid="use-case-actor-row">
+                  <td>
+                    <a class="entity-link" data-testid="use-case-actor-link"
+                       [routerLink]="['/projects', projectName, 'actors', actor.id]">{{ actor.name }}</a>
+                  </td>
+                  <td>
+                    @if (canEdit()) {
+                      <p-button icon="pi pi-times" severity="danger" [text]="true"
+                                data-testid="use-case-remove-actor" [ariaLabel]="'Remove actor ' + actor.name"
+                                size="small" pTooltip="Remove actor"
+                                (onClick)="removeActor(actor)" />
+                    }
+                  </td>
+                </tr>
+              </ng-template>
+              <ng-template pTemplate="emptymessage">
+                <tr><td colspan="2" class="text-center">No additional actors.</td></tr>
+              </ng-template>
+            </p-table>
+          }
         </div>
-      }
-
-      <!-- Entity selector dialogs -->
-      <app-entity-selector-dialog
-        [visible]="showGoalSelector"
-        [projectName]="projectName"
-        entityType="Goal"
-        [excludeIds]="goalIds()"
-        (selected)="addGoal($event)"
-        (closed)="showGoalSelector = false" />
-
-      <app-entity-selector-dialog
-        [visible]="showStorySelector"
-        [projectName]="projectName"
-        entityType="Story"
-        [excludeIds]="storyIds()"
-        (selected)="addStory($event)"
-        (closed)="showStorySelector = false" />
-
-      <app-entity-selector-dialog
-        [visible]="showActorSelector"
-        [projectName]="projectName"
-        entityType="Actor"
-        [excludeIds]="actorIds()"
-        (selected)="addActorToList($event)"
-        (closed)="showActorSelector = false" />
-
-      <app-annotations-section
-        [projectName]="projectName"
-        entityType="UseCase"
-        [entityId]="useCaseId"
-        [canEdit]="canEdit()" />
-
-      <p-confirmDialog />
+      </ng-template>
     </div>
   `,
   styles: [`
@@ -399,7 +522,6 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   saving = signal(false);
   canEdit = signal(false);
   canDelete = signal(false);
-  hasChanges = signal(false);
   goals = signal<GoalDto[]>([]);
   stories = signal<StoryDto[]>([]);
   actors = signal<ActorDto[]>([]);
@@ -431,12 +553,32 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   showScenarioSelector = false;
   showPrimaryScenarioSelector = false;
 
+  submitted = signal(false);
+
+  /** Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). */
+  readonly nameMaxLength = ARTIFACT_NAME_MAX_LENGTH;
+
+  /**
+   * Details step / edit form. Replaces the three `ngModel` fields and the `trackChanges()` +
+   * `original*` comparison.
+   */
+  readonly detailsForm = new FormGroup({
+    name: new FormControl('', {
+      validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+      nonNullable: true,
+    }),
+    primaryActorName: new FormControl('', { nonNullable: true }),
+    text: new FormControl('', { nonNullable: true }),
+  });
+
+  readonly nameErrors = { required: 'A use case needs a name.' };
+
+  /** Active wizard step key, two-way bound to `app-form-wizard`. */
+  wizardStep = 'details';
+
   projectName = '';
   useCaseId: number | null = null;
   private version: number | null = null;
-  private originalName = '';
-  private originalText = '';
-  private originalPrimaryActorName = '';
   private paramSub?: Subscription;
   private sseSub?: Subscription;
 
@@ -469,6 +611,16 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       const idParam = params.get('useCaseId') ?? '';
       if (idParam === 'new') {
         this.isNew.set(true);
+        this.useCaseId = null;
+        this.version = null;
+        this.wizardStep = 'details';
+        this.submitted.set(false);
+        this.detailsForm.reset({ name: '', primaryActorName: '', text: '' });
+        this.goals.set([]);
+        this.stories.set([]);
+        this.actors.set([]);
+        this.additionalScenarios.set([]);
+        this.primaryScenario.set(null);
       } else {
         this.isNew.set(false);
         this.useCaseId = +idParam;
@@ -478,7 +630,12 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   }
 
   hasUnsavedChanges(): boolean {
-    return this.hasChanges();
+    return this.detailsForm.dirty;
+  }
+
+  /** Edit-mode Save: blocked on invalid, unchanged, or in-flight. */
+  canSave(): boolean {
+    return this.detailsForm.valid && this.detailsForm.dirty && !this.saving();
   }
 
   ngOnDestroy(): void {
@@ -494,14 +651,12 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       const uc = await this.useCaseService.getUseCase(this.projectName, this.useCaseId!);
       this.useCase.set(uc);
       this.useCaseName.set(uc.name);
-      this.name = uc.name;
-      this.text = uc.text ?? '';
-      this.primaryActorName = uc.primaryActorName ?? '';
+      this.detailsForm.reset({
+        name: uc.name,
+        primaryActorName: uc.primaryActorName ?? '',
+        text: uc.text ?? '',
+      });
       this.version = uc.version;
-      this.originalName = uc.name;
-      this.originalText = uc.text ?? '';
-      this.originalPrimaryActorName = uc.primaryActorName ?? '';
-      this.hasChanges.set(false);
       this.goals.set(uc.goals ?? []);
       this.stories.set(uc.stories ?? []);
       this.actors.set(uc.actors ?? []);
@@ -524,56 +679,141 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     }
   }
 
-  trackChanges(): void {
-    this.hasChanges.set(
-      this.name !== this.originalName ||
-      this.text !== this.originalText ||
-      this.primaryActorName !== this.originalPrimaryActorName
-    );
+  /**
+   * Runs the commit for the wizard's current step. Only Details talks to the API; the other
+   * three steps' associations commit through their selectors as the user works, and each one
+   * refreshes the held version via refreshCollections().
+   */
+  async onStepCommit(request: WizardCommitRequest): Promise<void> {
+    if (request.step.key !== 'details') {
+      request.complete();
+      return;
+    }
+
+    this.submitted.set(true);
+    const result = await this.saveDetails();
+    if (result.success) {
+      request.complete();
+      return;
+    }
+    if (await this.recoverFromStaleVersion(result)) {
+      request.fail(STALE_VERSION_MESSAGE);
+      return;
+    }
+    request.fail(result.error ?? 'Save failed.');
   }
 
-  async onSave(): Promise<void> {
+  /** Done on the last step: the use case is already saved, so just go to it. */
+  onWizardFinished(): void {
+    if (this.useCaseId != null) {
+      this.router.navigate(['/projects', this.projectName, 'use-cases', this.useCaseId]);
+    } else {
+      this.onBack();
+    }
+  }
+
+  /**
+   * Issues `EditUseCase` and, on success, adopts the id and version from the response.
+   *
+   * Deliberately does not navigate on create - the old path routed to the saved use case
+   * immediately, which is what made all five association sections unreachable until a second
+   * visit. The wizard captures the id and advances instead.
+   */
+  private async saveDetails(): Promise<CommandResult<unknown>> {
     this.saving.set(true);
     this.errorMessage.set(null);
+    clearServerErrors(this.detailsForm);
     try {
+      const { name, primaryActorName, text } = this.detailsForm.getRawValue();
       const input: Record<string, unknown> = {
         projectName: this.projectName,
-        name: this.name,
-        text: this.text || null,
-        primaryActorName: this.primaryActorName || null,
+        name,
+        text: text || null,
+        primaryActorName: primaryActorName || null,
       };
-      if (this.version != null) input['version'] = this.version;
       if (this.useCaseId != null) input['useCaseId'] = this.useCaseId;
+      if (this.version != null) input['version'] = this.version;
 
       const result = await this.commandService.execute('EditUseCase', input);
-      if (result.success) {
-        this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Use case saved.' });
-        if (this.isNew()) {
-          this.projectService.notifyTreeChanged();
-          const saved = result.entity as UseCaseDto;
-          this.hasChanges.set(false);
-          this.router.navigate(['/projects', this.projectName, 'use-cases', saved.id]);
-        } else {
-          this.originalName = this.name;
-          this.originalText = this.text;
-          this.originalPrimaryActorName = this.primaryActorName;
-          this.hasChanges.set(false);
-          await this.loadUseCase();
+      if (!result.success) {
+        const unresolved = applyCommandErrors(this.detailsForm, result.violations, USE_CASE_FIELD_MAP);
+        if (unresolved.length) {
+          this.errorMessage.set(unresolved.join(SEPARATOR));
         }
-      } else {
-        this.errorMessage.set(result.error ?? 'Save failed.');
+        return result;
       }
+
+      const wasCreate = this.useCaseId == null;
+      if (wasCreate) {
+        this.projectService.notifyTreeChanged();
+      }
+
+      const saved = result.entity as UseCaseDto | null;
+      if (saved) {
+        this.useCaseId = saved.id;
+        this.version = saved.version;
+        this.useCaseName.set(saved.name);
+      }
+      this.detailsForm.markAsPristine();
+      this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Use case saved.' });
+
+      if (wasCreate && this.useCaseId != null) {
+        await this.loadUseCase();
+      }
+      return result;
     } catch {
-      this.errorMessage.set('An unexpected error occurred.');
+      return {
+        success: false,
+        entityType: 'UseCase',
+        entity: null,
+        error: 'An unexpected error occurred.',
+        violations: null,
+      };
     } finally {
       this.saving.set(false);
     }
   }
 
-  /** Reload only the sub-collections without touching unsaved form fields. */
+  /**
+   * If `result` is an optimistic-lock conflict (HTTP 409), refetch so the held version is
+   * current and the user can retry. Returns whether it handled the result.
+   */
+  private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
+    if (result.status !== 409 || this.useCaseId == null) {
+      return false;
+    }
+    await this.loadUseCase();
+    return true;
+  }
+
+  /** Edit-mode Save. */
+  async onSave(): Promise<void> {
+    this.submitted.set(true);
+    if (this.detailsForm.invalid) {
+      this.detailsForm.markAllAsTouched();
+      return;
+    }
+
+    const result = await this.saveDetails();
+    if (result.success) {
+      return;
+    }
+    if (await this.recoverFromStaleVersion(result)) {
+      this.errorMessage.set(STALE_VERSION_MESSAGE);
+      return;
+    }
+    this.errorMessage.set(result.error ?? 'Save failed.');
+  }
+
   private async refreshCollections(): Promise<void> {
     try {
       const uc = await this.useCaseService.getUseCase(this.projectName, this.useCaseId!);
+      // Take the version. Every association command here merges the use case and bumps its
+      // @Version, and none of them returns an entity (they register no result extractor), so
+      // this refetch is the only place the new value can come from. It was refetching
+      // everything EXCEPT this, which made the bug invisible: the refresh looked complete.
+      // Without it, adding a goal and then saving the name 409s. See #178/#180.
+      this.version = uc.version;
       this.useCase.set(uc);
       this.goals.set(uc.goals ?? []);
       this.stories.set(uc.stories ?? []);
@@ -649,9 +889,9 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     try {
       const input: Record<string, unknown> = {
         projectName: this.projectName,
-        name: this.name,
-        text: this.text || null,
-        primaryActorName: this.primaryActorName || null,
+        name: this.detailsForm.controls.name.value,
+        text: this.detailsForm.controls.text.value || null,
+        primaryActorName: this.detailsForm.controls.primaryActorName.value || null,
         useCaseId: this.useCaseId,
         version: this.version
       };
