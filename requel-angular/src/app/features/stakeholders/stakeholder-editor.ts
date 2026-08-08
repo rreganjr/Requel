@@ -22,9 +22,10 @@ import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, FormRecord, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -43,6 +44,34 @@ import { UserService } from '../../core/user.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
+import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import {
+  AppFormWizardComponent,
+  AppWizardStepComponent,
+  WizardCommitRequest,
+} from '../../shared/app-form-wizard';
+import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
+import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
+import { CommandResult } from '../../models/command';
+
+/**
+ * JPA entity property name -> form control name, for {@link applyCommandErrors}.
+ *
+ * The two save commands spell things differently from the entities they write:
+ * `EditUserStakeholderInput` carries `username`/`teamName`, `EditNonUserStakeholderInput`
+ * carries `name`/`text`. #176 deletes this map.
+ */
+const STAKEHOLDER_FIELD_MAP: Record<string, string> = {
+  teamName: 'teamName',
+  text: 'text',
+};
+
+/** Joins page-level violations that resolved to no control. */
+const SEPARATOR = '; ';
+
+/** Wording for the stale-version recovery path, so the 409 case reads as recoverable. */
+const STALE_VERSION_MESSAGE =
+  'This stakeholder was changed elsewhere. Your copy has been refreshed - review the values and continue.';
 
 interface PermissionGroup {
   entityType: string;
@@ -52,9 +81,11 @@ interface PermissionGroup {
 @Component({
   selector: 'app-stakeholder-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule,
+            ButtonModule, InputText, TextareaModule, SelectModule,
             CheckboxModule, MessageModule, ConfirmDialogModule, TableModule,
-            EntitySelectorDialogComponent],
+            EntitySelectorDialogComponent, AppFieldComponent, AppFieldControlDirective,
+            AppFormWizardComponent, AppWizardStepComponent],
   providers: [ConfirmationService],
   template: `
     <div class="stakeholder-editor">
@@ -74,43 +105,117 @@ interface PermissionGroup {
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <app-card>
-        <div class="form-grid">
-          @if (isUserType()) {
-            <label for="username">User</label>
-            <p-select id="username" [(ngModel)]="username" [options]="userOptions()"
+      @if (isNew()) {
+        <!--
+          Create runs as a wizard (#173) so Goals is reachable before the first save. The User
+          select stays on step 1 and stays [disabled]="!isNew()" - it is the mode selector, and
+          EditUserStakeholder is keyed by username, so it can never change after creation.
+        -->
+        <app-form-wizard
+          [(activeKey)]="wizardStep"
+          navLabel="New stakeholder steps"
+          (stepCommit)="onStepCommit($event)"
+          (cancelled)="onBack()"
+          (finished)="onWizardFinished()"
+          data-testid="stakeholder-wizard"
+        >
+          <app-wizard-step key="details" label="Details"
+                           [helper]="isUserType() ? 'User, team and permissions' : 'Name and description'"
+                           [form]="detailsForm">
+            <ng-template>
+              <ng-container [ngTemplateOutlet]="detailsFields" />
+            </ng-template>
+          </app-wizard-step>
+
+          <app-wizard-step key="goals" label="Goals" helper="Link goals to this stakeholder"
+                           [optional]="true">
+            <ng-template>
+              <!-- heading: false - the wizard panel's own h2 already reads "Goals". -->
+              <ng-container [ngTemplateOutlet]="goalsSection"
+                            [ngTemplateOutletContext]="{ heading: false }" />
+            </ng-template>
+          </app-wizard-step>
+        </app-form-wizard>
+      } @else {
+        <app-card>
+          <ng-container [ngTemplateOutlet]="detailsFields" />
+
+          <div class="form-actions">
+            <p-button label="Save" icon="pi pi-check" data-testid="stakeholder-save"
+                      [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
+          </div>
+        </app-card>
+
+        <ng-container [ngTemplateOutlet]="goalsSection"
+                      [ngTemplateOutletContext]="{ heading: true }" />
+      }
+
+      <app-entity-selector-dialog
+        [visible]="showGoalSelector"
+        [projectName]="projectName"
+        entityType="Goal"
+        [excludeIds]="goalIds()"
+        (selected)="onGoalSelected($event)"
+        (closed)="showGoalSelector = false" />
+
+      <p-confirmDialog />
+
+      <!--
+        Shared bodies, used by both the wizard step and the edit view so the two cannot drift.
+        Controls bind [formControl], not formControlName: these are projected into the wizard,
+        where formControlName would look for a parent formGroup that is not there.
+      -->
+      <ng-template #detailsFields>
+        @if (isUserType()) {
+          <app-field label="User" controlId="stakeholderUserInput"
+                     [control]="detailsForm.controls.username"
+                     [errorMessages]="usernameErrors" [submitted]="submitted()">
+            <p-select appFieldControl inputId="stakeholderUserInput" data-testid="stakeholder-user"
+                      [formControl]="detailsForm.controls.username" [options]="userOptions()"
                       optionLabel="label" optionValue="value"
-                      placeholder="Select a user" [filter]="true"
-                      [disabled]="!isNew()" />
+                      placeholder="Select a user" [filter]="true" />
+          </app-field>
 
-            @if (loadedUserDetails(); as ud) {
-              <label>Email</label>
+          @if (loadedUserDetails(); as ud) {
+            <app-field label="Email">
               <span class="readonly-field">{{ ud.emailAddress || '—' }}</span>
-
-              <label>Phone</label>
+            </app-field>
+            <app-field label="Phone">
               <span class="readonly-field">{{ ud.phoneNumber || '—' }}</span>
-            }
-
-            <label for="team">Team</label>
-            <input id="team" pInputText [(ngModel)]="teamName" placeholder="Team name"
-                   (ngModelChange)="trackChanges()" />
+            </app-field>
           }
 
-          @if (isUserType() && permissionGroups().length > 0) {
+          <app-field label="Team" controlId="team" [control]="detailsForm.controls.teamName"
+                     [divider]="permissionGroups().length === 0" [submitted]="submitted()">
+            <input appFieldControl pInputText [formControl]="detailsForm.controls.teamName" id="team"
+                   placeholder="Team name" data-testid="stakeholder-team" />
+          </app-field>
+
+          @if (permissionGroups().length > 0) {
             <div class="permissions-section">
-              <h3>Permissions</h3>
-              <div class="permission-grid">
+              <!-- h3 under the card/panel heading, not a page-level section title. -->
+              <h3 id="stakeholder-permissions-heading">Permissions</h3>
+              <div class="permission-grid" role="group"
+                   aria-labelledby="stakeholder-permissions-heading">
                 <div class="permission-header"></div>
                 <div class="permission-header">Edit</div>
                 <div class="permission-header">Delete</div>
                 <div class="permission-header">Grant</div>
                 @for (group of permissionGroups(); track group.entityType) {
                   <div class="permission-entity">{{ group.entityType }}</div>
-                  @for (type of ['Edit', 'Delete', 'Grant']; track type) {
+                  @for (type of permissionTypes; track type) {
                     <div class="permission-check">
                       @if (getPermission(group, type); as perm) {
-                        <p-checkbox [(ngModel)]="perm.checked" [binary]="true"
-                                    [name]="perm.key" (onChange)="trackChanges()" />
+                        <p-checkbox [formControl]="permissionControl(perm.key)" [binary]="true"
+                                    [inputId]="'perm-' + perm.key"
+                                    [attr.data-testid]="'stakeholder-perm-' + perm.key" />
+                        <!--
+                          Each checkbox needs its own name; the column header alone is not an
+                          accessible name. Visually hidden so the grid still reads as a matrix.
+                        -->
+                        <label class="rq-visually-hidden" [attr.for]="'perm-' + perm.key">
+                          {{ type }} {{ group.entityType }}
+                        </label>
                       }
                     </div>
                   }
@@ -118,75 +223,74 @@ interface PermissionGroup {
               </div>
             </div>
           }
+        } @else {
+          <app-field label="Name" controlId="name" [control]="detailsForm.controls.name"
+                     [errorMessages]="nameErrors" [submitted]="submitted()">
+            <input appFieldControl pInputText [formControl]="detailsForm.controls.name" id="name"
+                   [attr.maxlength]="nameMaxLength"
+                   placeholder="Stakeholder name" data-testid="stakeholder-name" />
+          </app-field>
 
-          @if (!isUserType()) {
-            <label for="name">Name</label>
-            <input id="name" pInputText [(ngModel)]="stakeholderName" placeholder="Stakeholder name"
-                   (ngModelChange)="trackChanges()" />
-
-            <label for="text">Description</label>
-            <textarea id="text" pTextarea [(ngModel)]="text" rows="4"
+          <app-field label="Description" controlId="text" [control]="detailsForm.controls.text" [divider]="false"
+                     [submitted]="submitted()">
+            <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4"
                       placeholder="Description of this stakeholder"
-                      (ngModelChange)="trackChanges()"></textarea>
-          }
-        </div>
+                      data-testid="stakeholder-text"></textarea>
+          </app-field>
+        }
+      </ng-template>
 
-        <div class="form-actions">
-          <p-button label="Save" icon="pi pi-check" (onClick)="onSave()" [loading]="saving()"
-                    [disabled]="!isNew() && !hasChanges()" />
-        </div>
-      </app-card>
-
-      @if (!isNew()) {
+      <ng-template #goalsSection let-heading="heading">
         <div class="section">
           <div class="section-header">
-            <h3>Goals</h3>
-            @if (canEditGoals()) {
+            @if (heading) {
+              <h2 class="rq-section-title">Goals</h2>
+            }
+            @if (canEditGoals() && stakeholderId != null) {
               <p-button label="Add Goal" icon="pi pi-plus" size="small"
+                        data-testid="stakeholder-add-goal"
                         [text]="true" (onClick)="showGoalSelector = true" />
             }
           </div>
 
-          <p-table [value]="goals()" [rowHover]="true">
-            <ng-template #header>
-              <tr>
-                <th>Name</th>
-                @if (canEditGoals()) { <th class="col-actions"></th> }
-              </tr>
-            </ng-template>
-            <ng-template #body let-g>
-              <tr>
-                <td class="entity-link" (click)="onGoalClick(g)">{{ g.name }}</td>
-                @if (canEditGoals()) {
-                  <td>
-                    <p-button icon="pi pi-times" severity="danger" [text]="true"
-                              size="small" (onClick)="onRemoveGoal(g)" />
-                  </td>
-                }
-              </tr>
-            </ng-template>
-            <ng-template #emptymessage>
-              <tr><td [attr.colspan]="canEditGoals() ? 2 : 1" class="empty-text">No goals assigned.</td></tr>
-            </ng-template>
-          </p-table>
+          @if (stakeholderId == null) {
+            <p class="empty-text">Save the stakeholder's details first to add goals.</p>
+          } @else {
+            <p-table [value]="goals()" [rowHover]="true">
+              <ng-template #header>
+                <tr>
+                  <th>Name</th>
+                  @if (canEditGoals()) {
+                    <!-- An empty <th> is an axe empty-table-header violation. -->
+                    <th class="col-actions"><span class="rq-visually-hidden">Actions</span></th>
+                  }
+                </tr>
+              </ng-template>
+              <ng-template #body let-g>
+                <tr>
+                  <td class="entity-link" (click)="onGoalClick(g)">{{ g.name }}</td>
+                  @if (canEditGoals()) {
+                    <td>
+                      <p-button icon="pi pi-times" severity="danger" [text]="true"
+                                data-testid="stakeholder-remove-goal"
+                                [ariaLabel]="'Remove goal ' + g.name"
+                                size="small" (onClick)="onRemoveGoal(g)" />
+                    </td>
+                  }
+                </tr>
+              </ng-template>
+              <ng-template #emptymessage>
+                <tr><td [attr.colspan]="canEditGoals() ? 2 : 1" class="empty-text">No goals assigned.</td></tr>
+              </ng-template>
+            </p-table>
+          }
         </div>
-
-        <app-entity-selector-dialog
-          [visible]="showGoalSelector"
-          [projectName]="projectName"
-          entityType="Goal"
-          [excludeIds]="goalIds()"
-          (selected)="onGoalSelected($event)"
-          (closed)="showGoalSelector = false" />
-      }
-
-      <p-confirmDialog />
+      </ng-template>
     </div>
   `,
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .page-actions { display: flex; gap: 0.5rem; }
-    .form-grid { display: grid; grid-template-columns: 120px 1fr; gap: 0.75rem 1rem; align-items: center; max-width: 600px; }
     .readonly-field { color: var(--p-text-color); padding: 0.5rem 0; }
     .form-actions { margin-top: 1rem; }
     .permissions-section { grid-column: 1 / -1; margin-top: 0.5rem; }
@@ -214,20 +318,47 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   permissionGroups = signal<PermissionGroup[]>([]);
   goals = signal<EntityReferenceDto[]>([]);
   goalIds = computed(() => this.goals().map(g => g.id).filter((id): id is number => id != null));
-  hasChanges = signal(false);
+  submitted = signal(false);
 
-  username = '';
-  teamName = '';
-  text = '';
   showGoalSelector = false;
 
-  private originalTeamName = '';
-  private originalPermissionKeys = '';
-  private originalName = '';
-  private originalText = '';
+  /** Column order of the permission matrix; was an inline array literal in the template. */
+  readonly permissionTypes = ['Edit', 'Delete', 'Grant'];
+
+  /** Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). */
+  readonly nameMaxLength = ARTIFACT_NAME_MAX_LENGTH;
+
+  /**
+   * Details step / edit form for BOTH modes. The irrelevant half is disabled rather than
+   * omitted: disabled controls are excluded from `value` and from validity, so one form can
+   * drive the wizard's `[form]` binding whichever mode the route asked for, and `getRawValue`
+   * still reaches whatever a mode needs.
+   */
+  readonly detailsForm = new FormGroup({
+    username: new FormControl('', { validators: [Validators.required], nonNullable: true }),
+    teamName: new FormControl('', { nonNullable: true }),
+    name: new FormControl('', {
+      validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+      nonNullable: true,
+    }),
+    text: new FormControl('', { nonNullable: true }),
+  });
+
+  /**
+   * One boolean control per permission key, rebuilt whenever the matrix loads. Keeping these in
+   * a form rather than mutating `perm.checked` is what lets `hasUnsavedChanges()` be pure form
+   * state instead of the old string-join comparison against `originalPermissionKeys`.
+   */
+  readonly permissionsForm = new FormRecord<FormControl<boolean>>({});
+
+  readonly nameErrors = { required: 'A stakeholder needs a name.' };
+  readonly usernameErrors = { required: 'Select a user.' };
+
+  /** Active wizard step key, two-way bound to `app-form-wizard`. */
+  wizardStep = 'details';
 
   projectName = '';
-  private stakeholderId: number | null = null;
+  stakeholderId: number | null = null;
   private version: number | null = null;
   private paramSub?: Subscription;
   private sseSub?: Subscription;
@@ -253,13 +384,11 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
 
       const idParam = params.get('stakeholderId') ?? '';
       if (idParam === 'new-user') {
-        this.isNew.set(true);
-        this.isUserType.set(true);
+        this.resetForCreate(true);
         this.loadUsers();
         this.loadPermissions([]);
       } else if (idParam === 'new-nonuser') {
-        this.isNew.set(true);
-        this.isUserType.set(false);
+        this.resetForCreate(false);
       } else {
         this.isNew.set(false);
         this.stakeholderId = +idParam;
@@ -268,8 +397,53 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
     });
   }
 
+  private resetForCreate(isUser: boolean): void {
+    this.isNew.set(true);
+    this.isUserType.set(isUser);
+    this.stakeholderId = null;
+    this.version = null;
+    this.wizardStep = 'details';
+    this.submitted.set(false);
+    this.goals.set([]);
+    this.detailsForm.reset({ username: '', teamName: '', name: '', text: '' });
+    this.applyMode(isUser);
+  }
+
+  /**
+   * Permissions live in their own form, so dirtiness is either half. `detailsForm.dirty` alone
+   * would miss a user who only ticked a permission box.
+   */
   hasUnsavedChanges(): boolean {
-    return this.hasChanges();
+    return this.detailsForm.dirty || this.permissionsForm.dirty;
+  }
+
+  /** Edit-mode Save: blocked on invalid, unchanged, or in-flight. */
+  canSave(): boolean {
+    return this.detailsForm.valid && this.hasUnsavedChanges() && !this.saving();
+  }
+
+  /**
+   * Enables the half of the form the current mode uses and disables the other, so a disabled
+   * control's `required` cannot block Continue for a mode that does not show it.
+   */
+  private applyMode(isUser: boolean): void {
+    const { username, teamName, name, text } = this.detailsForm.controls;
+    if (isUser) {
+      username.enable({ emitEvent: false });
+      teamName.enable({ emitEvent: false });
+      name.disable({ emitEvent: false });
+      text.disable({ emitEvent: false });
+    } else {
+      username.disable({ emitEvent: false });
+      teamName.disable({ emitEvent: false });
+      name.enable({ emitEvent: false });
+      text.enable({ emitEvent: false });
+    }
+  }
+
+  /** The control backing one permission checkbox. */
+  permissionControl(key: string): FormControl<boolean> {
+    return this.permissionsForm.controls[key];
   }
 
   ngOnDestroy(): void {
@@ -294,23 +468,27 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       const s = await this.stakeholderService.getStakeholder(this.projectName, this.stakeholderId!);
       this.stakeholderName.set(s.name);
       this.version = s.version;
-      this.isUserType.set(s.type === 'user');
+      const isUser = s.type === 'user';
+      this.isUserType.set(isUser);
+      this.applyMode(isUser);
       this.goals.set(s.goals ?? []);
 
       if (s.userDetails) {
         this.loadedUserDetails.set(s.userDetails);
-        this.username = s.userDetails.username;
-        this.teamName = s.userDetails.teamName ?? '';
-        this.originalTeamName = this.teamName;
+        this.detailsForm.patchValue({
+          username: s.userDetails.username,
+          teamName: s.userDetails.teamName ?? '',
+        }, { emitEvent: false });
         await this.loadUsers();
         await this.loadPermissions(s.userDetails.permissionKeys);
-        this.originalPermissionKeys = this.getSelectedPermissionKeys().sort().join(',');
       } else if (s.nonUserDetails) {
-        this.text = s.nonUserDetails.text;
-        this.originalName = s.name;
-        this.originalText = this.text;
+        this.detailsForm.patchValue({
+          name: s.name,
+          text: s.nonUserDetails.text,
+        }, { emitEvent: false });
       }
-      this.hasChanges.set(false);
+      this.detailsForm.markAsPristine();
+      this.permissionsForm.markAsPristine();
     } catch {
       this.errorMessage.set('Failed to load stakeholder.');
     }
@@ -321,21 +499,6 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
           void this.loadStakeholder();
         }
       });
-    }
-  }
-
-  trackChanges(): void {
-    if (this.isUserType()) {
-      const permKeys = this.getSelectedPermissionKeys().sort().join(',');
-      this.hasChanges.set(
-        this.teamName !== this.originalTeamName ||
-        permKeys !== this.originalPermissionKeys
-      );
-    } else {
-      this.hasChanges.set(
-        this.stakeholderName() !== this.originalName ||
-        this.text !== this.originalText
-      );
     }
   }
 
@@ -353,8 +516,9 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
         containerType: 'Stakeholder'
       });
       if (result.success) {
-        this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
         this.goals.update(list => [...list, goal].sort((a, b) => a.name.localeCompare(b.name)));
+        await this.refreshVersionAfterAssociation();
+        this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
       } else {
         this.errorMessage.set(result.error ?? 'Failed to add goal.');
       }
@@ -372,13 +536,36 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
         containerType: 'Stakeholder'
       });
       if (result.success) {
-        this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });
         this.goals.update(list => list.filter(g => g.id !== goal.id));
+        await this.refreshVersionAfterAssociation();
+        this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });
       } else {
         this.errorMessage.set(result.error ?? 'Failed to remove goal.');
       }
     } catch {
       this.errorMessage.set('Failed to remove goal.');
+    }
+  }
+
+  /**
+   * Re-reads the version after a goal association changes.
+   *
+   * Add/RemoveGoalFromGoalContainer merge the container - this stakeholder - so each bumps its
+   * `@Version`, but they register no result extractor, so `result.entity` is null and a refetch
+   * is the only way to see the new value. Without it, adding a goal then saving 409s. Same bug
+   * and same fix as actor-editor (#173 slice 2); #178/#180 remove the refetch.
+   *
+   * Narrow on purpose: `version` only, never the form, so an in-progress edit survives.
+   */
+  private async refreshVersionAfterAssociation(): Promise<void> {
+    if (this.stakeholderId == null) {
+      return;
+    }
+    try {
+      const s = await this.stakeholderService.getStakeholder(this.projectName, this.stakeholderId);
+      this.version = s.version;
+    } catch {
+      // Leave the held version alone; the existing 409 path recovers on the next save.
     }
   }
 
@@ -406,6 +593,20 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
           .map(([entityType, permissions]) => ({ entityType, permissions }))
           .sort((a, b) => a.entityType.localeCompare(b.entityType));
       this.permissionGroups.set(groups);
+
+      // Rebuild the checkbox controls to match, then mark the whole set pristine: loading is
+      // not a user edit, and leaving it dirty would arm the unsaved-changes guard on open.
+      for (const key of Object.keys(this.permissionsForm.controls)) {
+        this.permissionsForm.removeControl(key, { emitEvent: false });
+      }
+      for (const perm of groups.flatMap(g => g.permissions)) {
+        this.permissionsForm.addControl(
+          perm.key,
+          new FormControl(perm.checked, { nonNullable: true }),
+          { emitEvent: false }
+        );
+      }
+      this.permissionsForm.markAsPristine();
     } catch {
       this.errorMessage.set('Failed to load permissions.');
     }
@@ -416,75 +617,150 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   }
 
   getSelectedPermissionKeys(): string[] {
-    return this.permissionGroups()
-        .flatMap(g => g.permissions)
-        .filter(p => p.checked)
-        .map(p => p.key);
+    return Object.entries(this.permissionsForm.controls)
+        .filter(([, control]) => control.value)
+        .map(([key]) => key);
   }
 
-  async onSave(): Promise<void> {
+  /**
+   * Runs the commit for the wizard's current step. Only Details talks to the API; the Goals
+   * step's associations commit through the selector as the user works.
+   */
+  async onStepCommit(request: WizardCommitRequest): Promise<void> {
+    if (request.step.key !== 'details') {
+      request.complete();
+      return;
+    }
+
+    this.submitted.set(true);
+    const result = await this.saveDetails();
+
+    if (result.success) {
+      request.complete();
+      return;
+    }
+    if (await this.recoverFromStaleVersion(result)) {
+      request.fail(STALE_VERSION_MESSAGE);
+      return;
+    }
+    request.fail(result.error ?? 'Save failed.');
+  }
+
+  /** Done on the last step: the stakeholder is already saved, so just go to it. */
+  onWizardFinished(): void {
+    if (this.stakeholderId != null) {
+      this.router.navigate(['..', this.stakeholderId], { relativeTo: this.route });
+    } else {
+      this.onBack();
+    }
+  }
+
+  /**
+   * Issues whichever save command the mode calls for and, on success, adopts the id and
+   * version from the response.
+   *
+   * The two commands are not symmetric: `EditUserStakeholder` is keyed by `username` and takes
+   * no id, while `EditNonUserStakeholder` takes `stakeholderId` once one exists. That is why
+   * the payload is built per branch rather than shared.
+   *
+   * Note this no longer navigates on create. The old code routed away the moment a new
+   * stakeholder saved, which is exactly what made Goals unreachable until a second visit -
+   * the wizard captures the id instead and moves to step 2.
+   */
+  private async saveDetails(): Promise<CommandResult<unknown>> {
     this.saving.set(true);
     this.errorMessage.set(null);
-
+    clearServerErrors(this.detailsForm);
     try {
-      if (this.isUserType()) {
-        const input: Record<string, unknown> = {
-          projectName: this.projectName,
-          username: this.username,
-          teamName: this.teamName || null,
-          permissionKeys: this.getSelectedPermissionKeys(),
-        };
-        if (this.version != null) input['version'] = this.version;
-        const result = await this.commandService.execute('EditUserStakeholder', input);
-        if (result.success) {
-          this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Stakeholder saved.' });
-          if (this.isNew()) {
-            this.projectService.notifyTreeChanged();
-            if (result.entity) {
-              const saved = result.entity as StakeholderDto;
-              this.hasChanges.set(false);
-              this.router.navigate(['..', saved.id], { relativeTo: this.route });
-            }
-          } else {
-            this.originalTeamName = this.teamName;
-            this.originalPermissionKeys = this.getSelectedPermissionKeys().sort().join(',');
-            this.hasChanges.set(false);
+      const raw = this.detailsForm.getRawValue();
+      const isUser = this.isUserType();
+
+      const input: Record<string, unknown> = isUser
+        ? {
+            projectName: this.projectName,
+            username: raw.username,
+            teamName: raw.teamName || null,
+            permissionKeys: this.getSelectedPermissionKeys(),
           }
-        } else {
-          this.errorMessage.set(result.error ?? 'Save failed.');
+        : {
+            projectName: this.projectName,
+            name: raw.name,
+            text: raw.text,
+          };
+      if (!isUser && this.stakeholderId != null) input['stakeholderId'] = this.stakeholderId;
+      if (this.version != null) input['version'] = this.version;
+
+      const command = isUser ? 'EditUserStakeholder' : 'EditNonUserStakeholder';
+      const result = await this.commandService.execute(command, input);
+      if (!result.success) {
+        const unresolved = applyCommandErrors(this.detailsForm, result.violations, STAKEHOLDER_FIELD_MAP);
+        if (unresolved.length) {
+          this.errorMessage.set(unresolved.join(SEPARATOR));
         }
-      } else {
-        const input: Record<string, unknown> = {
-          projectName: this.projectName,
-          name: this.stakeholderName(),
-          text: this.text,
-        };
-        if (this.stakeholderId != null) input['stakeholderId'] = this.stakeholderId;
-        if (this.version != null) input['version'] = this.version;
-        const result = await this.commandService.execute('EditNonUserStakeholder', input);
-        if (result.success) {
-          this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Stakeholder saved.' });
-          if (this.isNew()) {
-            this.projectService.notifyTreeChanged();
-            if (result.entity) {
-              const saved = result.entity as StakeholderDto;
-              this.hasChanges.set(false);
-              this.router.navigate(['..', saved.id], { relativeTo: this.route });
-            }
-          } else {
-            this.originalName = this.stakeholderName();
-            this.originalText = this.text;
-            this.hasChanges.set(false);
-          }
-        } else {
-          this.errorMessage.set(result.error ?? 'Save failed.');
-        }
+        return result;
       }
+
+      const wasCreate = this.stakeholderId == null;
+      if (wasCreate) {
+        this.projectService.notifyTreeChanged();
+      }
+
+      const saved = result.entity as StakeholderDto | null;
+      if (saved) {
+        this.stakeholderId = saved.id;
+        this.version = saved.version;
+        this.stakeholderName.set(saved.name);
+      }
+      this.detailsForm.markAsPristine();
+      this.permissionsForm.markAsPristine();
+      this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Stakeholder saved.' });
+
+      if (wasCreate && this.stakeholderId != null) {
+        await this.loadStakeholder();
+      }
+      return result;
     } catch {
-      this.errorMessage.set('An unexpected error occurred.');
+      return {
+        success: false,
+        entityType: 'Stakeholder',
+        entity: null,
+        error: 'Save failed.',
+        violations: null,
+      };
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /**
+   * If `result` is an optimistic-lock conflict (HTTP 409), refetch so the held version is
+   * current and the user can retry. Returns whether it handled the result.
+   */
+  private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
+    if (result.status !== 409 || this.stakeholderId == null) {
+      return false;
+    }
+    await this.loadStakeholder();
+    return true;
+  }
+
+  /** Edit-mode Save. */
+  async onSave(): Promise<void> {
+    this.submitted.set(true);
+    if (this.detailsForm.invalid) {
+      this.detailsForm.markAllAsTouched();
+      return;
+    }
+
+    const result = await this.saveDetails();
+    if (result.success) {
+      return;
+    }
+    if (await this.recoverFromStaleVersion(result)) {
+      this.errorMessage.set(STALE_VERSION_MESSAGE);
+      return;
+    }
+    this.errorMessage.set(result.error ?? 'Save failed.');
   }
 
   onDelete(): void {

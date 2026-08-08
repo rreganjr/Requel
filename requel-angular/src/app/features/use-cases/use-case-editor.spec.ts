@@ -111,8 +111,8 @@ describe('UseCaseEditorComponent', () => {
   it('onSave calls commandService.execute("EditUseCase") with fields', async () => {
     fixture.detectChanges();
     await flush();
-    comp.name = 'New Use Case';
-    comp.text = 'Description';
+    comp.detailsForm.patchValue({ name: 'New Use Case', text: 'Description' });
+    comp.detailsForm.markAsDirty();
     await comp.onSave();
     expect(commandServiceMock.execute).toHaveBeenCalledWith('EditUseCase', expect.objectContaining({
       projectName: 'proj1',
@@ -123,7 +123,8 @@ describe('UseCaseEditorComponent', () => {
 
   it('onSave sets errorMessage when command fails', async () => {
     commandServiceMock.execute.mockResolvedValue({ success: false, error: 'Conflict' });
-    comp.name = 'Test';
+    comp.detailsForm.controls.name.setValue('Test');
+    comp.detailsForm.markAsDirty();
     await comp.onSave();
     expect(comp.errorMessage()).toBe('Conflict');
     expect(comp.saving()).toBe(false);
@@ -155,14 +156,76 @@ describe('UseCaseEditorComponent', () => {
     expect(comp.additionalScenarios()[0].name).toBe('Exception flow');
   });
 
-  it('trackChanges() sets hasChanges() when name differs from loaded', async () => {
+  // #173: trackChanges()/hasChanges() are gone; the form owns dirtiness.
+  it('hasUnsavedChanges() follows form.dirty', async () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
     fixture.detectChanges();
     await flush();
-    expect(comp.hasChanges()).toBe(false);
-    comp.name = 'Different Name';
-    comp.trackChanges();
-    expect(comp.hasChanges()).toBe(true);
+    expect(comp.hasUnsavedChanges()).toBe(false);
+    comp.detailsForm.controls.name.setValue('Different Name');
+    comp.detailsForm.controls.name.markAsDirty();
+    expect(comp.hasUnsavedChanges()).toBe(true);
+  });
+
+  // #173 required test (§10.3). refreshCollections() refetched every collection but never the
+  // version, so an association left it stale and the next save 409'd. All eight association
+  // commands on this editor bump the use case, so this is the editor where it mattered most.
+  describe('wizard version contract (#173)', () => {
+    it('re-reads version after an association, so a later save does not 409', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+      fixture.detectChanges();
+      await flush();
+
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
+      useCaseServiceMock.getUseCase.mockResolvedValue({ ...MOCK_USE_CASE, version: 5 });
+
+      await comp.addGoal({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
+
+      commandServiceMock.execute.mockClear();
+      commandServiceMock.execute.mockResolvedValue({
+        success: true, entity: { ...MOCK_USE_CASE, version: 6 }
+      });
+      comp.detailsForm.controls.name.setValue('Renamed');
+      comp.detailsForm.markAsDirty();
+      await comp.onSave();
+
+      const edit = commandServiceMock.execute.mock.calls.find(c => c[0] === 'EditUseCase');
+      expect(edit![1].version).toBe(5);
+    });
+
+    it('a non-details step just advances - it issues no command of its own', async () => {
+      fixture.detectChanges();
+      await flush();
+      commandServiceMock.execute.mockClear();
+
+      for (const key of ['scenarios', 'goals-stories', 'actors']) {
+        const request = { step: { key }, complete: vi.fn(), fail: vi.fn() };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await comp.onStepCommit(request as any);
+        expect(request.complete).toHaveBeenCalled();
+      }
+      expect(commandServiceMock.execute).not.toHaveBeenCalled();
+    });
+
+    it('step 1 captures the use case without navigating away', async () => {
+      fixture.detectChanges();
+      await flush();
+      const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+      navigate.mockClear();
+
+      commandServiceMock.execute.mockResolvedValue({
+        success: true, entity: { ...MOCK_USE_CASE, id: 30, version: 1 }
+      });
+      comp.detailsForm.controls.name.setValue('New Use Case');
+
+      const request = { step: { key: 'details' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(request as any);
+
+      expect(request.complete).toHaveBeenCalled();
+      expect(navigate).not.toHaveBeenCalled();
+      expect(comp.useCaseId).toBe(30);
+    });
   });
 
   it('addGoal calls AddGoalToGoalContainer and refreshes collections', async () => {

@@ -37,9 +37,18 @@ test.describe('Settings / preferences', () => {
     await page.close();
   });
 
-  test('change staleness threshold → persists after reload', async ({ adminContext }) => {
+  test('change staleness threshold → persists after reload', async ({ adminContext, request }) => {
     const page = await adminContext.newPage();
     const settings = new SettingsPage(page);
+
+    // Seed a baseline that differs from the value under test. Save is disabled while the form
+    // is pristine, and picking the option that is already selected is not a change -- so if a
+    // previous (or aborted) run left the stored threshold at SIX_MONTHS, this test would leave
+    // Save disabled and hang on the PUT that never fires. afterEach restores the snapshot.
+    await savePreferences(request, {
+      sidebarProjectLimit: originalPrefs?.sidebarProjectLimit ?? 10,
+      sidebarProjectStaleness: 'THREE_MONTHS',
+    });
 
     await settings.goto();
     await settings.selectStaleness('6 Months');

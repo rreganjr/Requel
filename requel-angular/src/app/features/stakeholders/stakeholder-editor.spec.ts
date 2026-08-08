@@ -121,8 +121,8 @@ describe('StakeholderEditorComponent', () => {
   it('onSave calls execute("EditUserStakeholder") for user-type stakeholder', async () => {
     fixture.detectChanges();
     await flush();
-    comp.username = 'alice';
-    comp.teamName = 'Engineering';
+    comp.detailsForm.patchValue({ username: 'alice', teamName: 'Engineering' });
+    comp.detailsForm.markAsDirty();
     await comp.onSave();
     expect(commandServiceMock.execute).toHaveBeenCalledWith('EditUserStakeholder', expect.objectContaining({
       projectName: 'proj1',
@@ -135,14 +135,124 @@ describe('StakeholderEditorComponent', () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: 'new-nonuser' }));
     fixture.detectChanges();
     await flush();
-    comp.stakeholderName.set('FASB');
-    comp.text = 'Financial authority';
+    comp.detailsForm.patchValue({ name: 'FASB', text: 'Financial authority' });
+    comp.detailsForm.markAsDirty();
     await comp.onSave();
     expect(commandServiceMock.execute).toHaveBeenCalledWith('EditNonUserStakeholder', expect.objectContaining({
       projectName: 'proj1',
       name: 'FASB',
       text: 'Financial authority'
     }));
+  });
+
+  // #173: permissions moved from mutating perm.checked into their own FormRecord, so dirtiness
+  // is form state rather than a string-join comparison against originalPermissionKeys.
+  describe('permissions form (#173)', () => {
+    it('builds one control per permission key, pristine after load', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+      fixture.detectChanges();
+      await flush();
+
+      expect(Object.keys(comp.permissionsForm.controls).sort()).toEqual(['delete_goal', 'edit_goal']);
+      expect(comp.permissionControl('edit_goal').value).toBe(true);
+      expect(comp.permissionControl('delete_goal').value).toBe(false);
+      // Loading is not an edit - otherwise the unsaved-changes guard arms on open.
+      expect(comp.permissionsForm.dirty).toBe(false);
+      expect(comp.hasUnsavedChanges()).toBe(false);
+    });
+
+    it('ticking a permission alone marks the editor dirty', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+      fixture.detectChanges();
+      await flush();
+
+      comp.permissionControl('delete_goal').setValue(true);
+      comp.permissionControl('delete_goal').markAsDirty();
+
+      expect(comp.detailsForm.dirty).toBe(false);
+      expect(comp.hasUnsavedChanges()).toBe(true);
+      expect(comp.getSelectedPermissionKeys().sort()).toEqual(['delete_goal', 'edit_goal']);
+    });
+  });
+
+  // The mode's unused half is disabled, so its required validator cannot block Continue for a
+  // mode that never shows the field.
+  describe('mode switching (#173)', () => {
+    it('user mode enables username/team and disables name/text', async () => {
+      fixture.detectChanges();
+      await flush();
+      expect(comp.detailsForm.controls.username.enabled).toBe(true);
+      expect(comp.detailsForm.controls.name.disabled).toBe(true);
+    });
+
+    it('non-user mode enables name/text and disables username/team', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: 'new-nonuser' }));
+      fixture.detectChanges();
+      await flush();
+      expect(comp.detailsForm.controls.name.enabled).toBe(true);
+      expect(comp.detailsForm.controls.username.disabled).toBe(true);
+      // A blank username must not make the non-user form invalid.
+      comp.detailsForm.controls.name.setValue('FASB');
+      expect(comp.detailsForm.valid).toBe(true);
+    });
+  });
+
+  // #173 required test (§10.3). Goal associations bump the stakeholder's @Version and return no
+  // entity, so the wizard refetches. Without that, returning to Details would 409.
+  describe('wizard version contract (#173)', () => {
+    it('survives create -> add goal -> back to Details -> edit -> Continue', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: 'new-nonuser' }));
+      fixture.detectChanges();
+      await flush();
+
+      let version = 0;
+      commandServiceMock.execute.mockImplementation(async (type: string) => {
+        version += 1;
+        if (type === 'EditNonUserStakeholder') {
+          return { success: true, entity: { ...MOCK_STAKEHOLDER_NONUSER, id: 51, version } };
+        }
+        return { success: true, entity: null };
+      });
+      stakeholderServiceMock.getStakeholder.mockImplementation(async () => ({
+        ...MOCK_STAKEHOLDER_NONUSER, id: 51, version
+      }));
+
+      comp.detailsForm.controls.name.setValue('FASB');
+
+      const step1 = { step: { key: 'details' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(step1 as any);
+      expect(step1.complete).toHaveBeenCalled();
+
+      await comp.onGoalSelected({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
+
+      comp.detailsForm.controls.name.setValue('FASB Renamed');
+      const step3 = { step: { key: 'details' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(step3 as any);
+
+      expect(step3.complete).toHaveBeenCalled();
+      expect(step3.fail).not.toHaveBeenCalled();
+
+      const edits = commandServiceMock.execute.mock.calls.filter(c => c[0] === 'EditNonUserStakeholder');
+      const last = edits[edits.length - 1][1];
+      expect(last.name).toBe('FASB Renamed');
+      // Not the version captured at step 1 - that is the 409 this guards.
+      expect(last.version).not.toBe(1);
+    });
+
+    it('re-reads version after a goal association', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+      fixture.detectChanges();
+      await flush();
+
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
+      stakeholderServiceMock.getStakeholder.mockResolvedValue({ ...MOCK_STAKEHOLDER_USER, version: 6 });
+
+      await comp.onGoalSelected({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((comp as any).version).toBe(6);
+    });
   });
 
   it('canDelete() set from permissionService on init', async () => {

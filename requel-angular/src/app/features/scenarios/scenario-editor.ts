@@ -22,10 +22,10 @@ import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Location } from '@angular/common';
+import { Location, NgTemplateOutlet } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -36,6 +36,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TooltipModule } from 'primeng/tooltip';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ConfirmationService, MessageService } from 'primeng/api';
+import { CommandResult } from '../../models/command';
 import { ScenarioDto, StepDto, EditStepInput } from '../../models/scenario';
 import { ScenarioService } from '../../core/scenario.service';
 import { CommandService } from '../../core/command.service';
@@ -46,6 +47,14 @@ import { ScenarioSelectorDialogComponent, ScenarioRef } from '../../shared/scena
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
+import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import {
+  AppFormWizardComponent,
+  AppWizardStepComponent,
+  WizardCommitRequest,
+} from '../../shared/app-form-wizard';
+import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
+import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
 const SCENARIO_TYPE_OPTIONS = [
   { label: 'Primary', value: 'Primary' },
@@ -54,6 +63,26 @@ const SCENARIO_TYPE_OPTIONS = [
   { label: 'Alternative', value: 'Alternative' },
   { label: 'Exception', value: 'Exception' },
 ];
+
+/**
+ * JPA entity property name -> form control name, for {@link applyCommandErrors}.
+ *
+ * `CommandController` reports field violations using the entity's property names, not the
+ * input DTO's. `ScenarioImpl.getType()` backs what this form calls `scenarioType`, and the
+ * DTO field is `scenarioTypeName` again - all three spellings resolve to the one control.
+ * #176 makes the backend emit DTO field names and deletes this map.
+ */
+const SCENARIO_FIELD_MAP: Record<string, string> = {
+  type: 'scenarioType',
+  scenarioTypeName: 'scenarioType',
+};
+
+/** Joins page-level violations that resolved to no control. */
+const SEPARATOR = '; ';
+
+/** Wording for the stale-version recovery path, so the 409 case reads as recoverable. */
+const STALE_VERSION_MESSAGE =
+  'This scenario was changed elsewhere. Your copy has been refreshed - review the values and continue.';
 
 interface StepNodeData {
   stepId: number | null;
@@ -67,9 +96,12 @@ interface StepNodeData {
 @Component({
   selector: 'app-scenario-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, FormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
+  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, FormsModule,
+            ReactiveFormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             MessageModule, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
-            ScenarioSelectorDialogComponent, AnnotationsSectionComponent, LoadingStateComponent, ErrorStateComponent],
+            ScenarioSelectorDialogComponent, AnnotationsSectionComponent, LoadingStateComponent,
+            ErrorStateComponent, AppFieldComponent, AppFieldControlDirective,
+            AppFormWizardComponent, AppWizardStepComponent],
   providers: [ConfirmationService],
   template: `
     <div class="scenario-editor" data-testid="scenario-editor">
@@ -102,116 +134,54 @@ interface StepNodeData {
       } @else if (loadError()) {
         <app-error-state [message]="loadError()!" testid="scenario-editor-load-error"
                          (retry)="retryLoad()" />
+      } @else if (isNew()) {
+        <!--
+          Create runs as a wizard (#173). Steps *are* the scenario - gating them behind a
+          first save is what made the old create flow produce an empty scenario the user had
+          to navigate back into.
+
+          Unlike goal/story, both steps commit the SAME command: EditScenario carries the
+          whole step list and rebuilds scenario.getSteps() server-side, so there is no
+          per-association command to issue. Step 2 therefore re-sends name/type/text, which
+          is why saveDetails() always reads them from the form rather than from a snapshot
+          taken at step 1 - otherwise a back-navigation edit to the name would be silently
+          discarded on Done.
+        -->
+        <app-form-wizard
+          [(activeKey)]="wizardStep"
+          navLabel="New scenario steps"
+          (stepCommit)="onStepCommit($event)"
+          (cancelled)="onBack()"
+          (finished)="onWizardFinished()"
+          data-testid="scenario-wizard"
+        >
+          <app-wizard-step key="details" label="Details" helper="Name, type and description"
+                           [form]="detailsForm">
+            <ng-template>
+              <ng-container [ngTemplateOutlet]="detailsFields" />
+            </ng-template>
+          </app-wizard-step>
+
+          <app-wizard-step key="steps" label="Steps" helper="Write the scenario">
+            <ng-template>
+              <!-- heading: false - the wizard panel's own h2 already reads "Steps". -->
+              <ng-container [ngTemplateOutlet]="stepsSection"
+                            [ngTemplateOutletContext]="{ heading: false }" />
+            </ng-template>
+          </app-wizard-step>
+        </app-form-wizard>
       } @else {
-      <app-card>
-        <div class="form-grid">
-          <label for="name">Name</label>
-          <input id="name" pInputText [(ngModel)]="name" placeholder="Scenario name"
-                 (ngModelChange)="trackChanges()" />
+        <app-card>
+          <ng-container [ngTemplateOutlet]="detailsFields" />
 
-          <label for="type">Type</label>
-          <p-select id="type" inputId="scenarioTypeInput" data-testid="scenario-type" [(ngModel)]="scenarioType" [options]="typeOptions"
-                    optionLabel="label" optionValue="value"
-                    (ngModelChange)="trackChanges()" />
-
-          <label for="text">Description</label>
-          <textarea id="text" pTextarea [(ngModel)]="text" rows="4"
-                    placeholder="Scenario description"
-                    (ngModelChange)="trackChanges()"></textarea>
-        </div>
-
-        <div class="form-actions">
-          <p-button label="Save" icon="pi pi-check" data-testid="scenario-save"
-                    (onClick)="onSave()" [loading]="saving()"
-                    [disabled]="!isNew() && !hasChanges()" />
-        </div>
-      </app-card>
-
-      <!-- Steps section -->
-      @if (!isNew()) {
-        <div class="section">
-          <div class="section-header">
-            <h3>Steps</h3>
-            @if (canEdit()) {
-              <div class="section-actions">
-                <p-button label="Add Sub-scenario" icon="pi pi-sitemap" size="small"
-                          severity="secondary" [outlined]="true"
-                          data-testid="scenario-add-sub"
-                          (onClick)="showScenarioSelector = true" />
-              </div>
-            }
+          <div class="form-actions">
+            <p-button label="Save" icon="pi pi-check" data-testid="scenario-save"
+                      [disabled]="!canSave()" [loading]="saving()" (onClick)="onSave()" />
           </div>
+        </app-card>
 
-          <div cdkDropList data-testid="scenario-step-list" [cdkDropListDisabled]="!canEdit()"
-               (cdkDropListDropped)="onDrop($event)"
-               class="step-list">
-            @if (canEdit()) {
-              <button type="button" class="add-step-row" data-testid="scenario-add-step-top" (click)="addStepAt(0)">
-                <i class="pi pi-plus" aria-hidden="true"></i> Add step
-              </button>
-            }
-            @for (step of stepNodes(); track step; let stepIndex = $index) {
-              <div cdkDrag class="step-row" data-testid="scenario-step-row"
-                   [attr.data-step-index]="stepIndex">
-                  @if (canEdit()) {
-                    <span cdkDragHandle class="drag-handle" data-testid="scenario-step-drag-handle"
-                          pTooltip="Drag to reorder" tooltipPosition="left">
-                      <i class="pi pi-bars"></i>
-                    </span>
-                  }
-                  @if (step.isScenario) {
-                    <i class="pi pi-sitemap step-icon"></i>
-                    <a class="entity-link step-name"
-                       data-testid="scenario-step-link"
-                       [routerLink]="['/projects', projectName, 'scenarios', step.stepId!]">{{ step.name }}</a>
-                    <span class="step-type-badge">{{ step.scenarioType }}</span>
-                    @if (canEdit()) {
-                      <p-button icon="pi pi-times" severity="danger" [text]="true"
-                                data-testid="scenario-step-remove" [ariaLabel]="'Remove ' + step.name + ' from scenario'"
-                                size="small" pTooltip="Remove from scenario"
-                                (onClick)="removeStep(step)" />
-                    }
-                  } @else {
-                    <input pInputText [(ngModel)]="step.name"
-                           class="step-name-input"
-                           data-testid="scenario-step-name"
-                           placeholder="Step description..."
-                           [disabled]="!canEdit()"
-                           (keydown)="$event.stopPropagation()"
-                           (blur)="onStepNameChange()" />
-                    @if (canEdit()) {
-                      <p-button icon="pi pi-pencil" [text]="true" size="small"
-                                data-testid="scenario-step-edit" ariaLabel="Edit step details"
-                                pTooltip="Edit details" tooltipPosition="top"
-                                (onClick)="openStepEdit(step)" />
-                      <p-button icon="pi pi-plus" severity="secondary" [text]="true"
-                                data-testid="scenario-step-add-below" ariaLabel="Add step below"
-                                size="small" pTooltip="Add step below" tooltipPosition="top"
-                                (onClick)="addStepBelow(step)" />
-                      <p-button icon="pi pi-times" severity="danger" [text]="true"
-                                data-testid="scenario-step-remove" ariaLabel="Remove step"
-                                size="small" pTooltip="Remove step" tooltipPosition="top"
-                                (onClick)="removeStep(step)" />
-                    }
-                  }
-                  <!-- CDK drag placeholder styling -->
-                  <div *cdkDragPlaceholder class="step-row-placeholder"></div>
-                </div>
-              }
-            @if (canEdit()) {
-              <button type="button" class="add-step-row" data-testid="scenario-add-step-bottom" (click)="addStep()">
-                <i class="pi pi-plus" aria-hidden="true"></i> Add step
-              </button>
-            }
-          </div>
-
-          @if (stepsSaveNeeded()) {
-            <div class="steps-save-note">
-              <p-message severity="info" text="Steps have unsaved changes. Click Save to apply." />
-            </div>
-          }
-        </div>
-      }
+        <ng-container [ngTemplateOutlet]="stepsSection"
+                      [ngTemplateOutletContext]="{ heading: true }" />
       }
 
       <!-- Step detail edit dialog -->
@@ -245,23 +215,148 @@ interface StepNodeData {
         (selected)="onSubScenarioSelected($event)"
         (closed)="showScenarioSelector = false" />
 
-      <app-annotations-section
-        [projectName]="projectName"
-        entityType="Scenario"
-        [entityId]="scenarioId"
-        [canEdit]="canEdit()" />
+      <!--
+        Annotations render against a persisted entity, so they stay outside the wizard and
+        appear once the scenario exists rather than as a dead panel during create.
+      -->
+      @if (scenarioId != null) {
+        <app-annotations-section
+          [projectName]="projectName"
+          entityType="Scenario"
+          [entityId]="scenarioId"
+          [canEdit]="canEdit()" />
+      }
 
       <p-confirmDialog />
+
+      <!--
+        Shared bodies. Each is used by both the wizard step and the edit view, so the two
+        modes cannot drift apart. Controls bind with [formControl], not formControlName:
+        these templates are projected into the wizard, where formControlName would look for
+        a parent formGroup that is not there.
+      -->
+      <ng-template #detailsFields>
+        <app-field label="Name" helper="What happens in this scenario."
+                   controlId="name" [control]="detailsForm.controls.name"
+                   [errorMessages]="nameErrors"
+                   [submitted]="submitted()">
+          <input appFieldControl pInputText [formControl]="detailsForm.controls.name" id="name"
+                 [attr.maxlength]="nameMaxLength"
+                 placeholder="Scenario name" data-testid="scenario-name" />
+        </app-field>
+
+        <app-field label="Type" controlId="scenarioTypeInput"
+                   [control]="detailsForm.controls.scenarioType"
+                   [submitted]="submitted()">
+          <p-select appFieldControl inputId="scenarioTypeInput" data-testid="scenario-type"
+                    [formControl]="detailsForm.controls.scenarioType"
+                    [options]="typeOptions" optionLabel="label" optionValue="value" />
+        </app-field>
+
+        <app-field label="Description" controlId="text" [control]="detailsForm.controls.text" [divider]="false"
+                   [submitted]="submitted()">
+          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4"
+                    placeholder="Scenario description" data-testid="scenario-text"></textarea>
+        </app-field>
+      </ng-template>
+
+      <ng-template #stepsSection let-heading="heading">
+        <div class="section">
+          <div class="section-header">
+            @if (heading) {
+              <h2 class="rq-section-title">Steps</h2>
+            }
+            @if (canEdit()) {
+              <div class="section-actions">
+                <p-button label="Add Sub-scenario" icon="pi pi-sitemap" size="small"
+                          severity="secondary" [outlined]="true"
+                          data-testid="scenario-add-sub"
+                          (onClick)="showScenarioSelector = true" />
+              </div>
+            }
+          </div>
+
+          <div cdkDropList data-testid="scenario-step-list" [cdkDropListDisabled]="!canEdit()"
+               (cdkDropListDropped)="onDrop($event)"
+               class="step-list">
+            @if (canEdit()) {
+              <button type="button" class="add-step-row" data-testid="scenario-add-step-top" (click)="addStepAt(0)">
+                <i class="pi pi-plus" aria-hidden="true"></i> Add step
+              </button>
+            }
+            @for (step of stepNodes(); track step; let stepIndex = $index) {
+              <div cdkDrag class="step-row" data-testid="scenario-step-row"
+                   [attr.data-step-index]="stepIndex">
+                @if (canEdit()) {
+                  <span cdkDragHandle class="drag-handle" data-testid="scenario-step-drag-handle"
+                        pTooltip="Drag to reorder" tooltipPosition="left">
+                    <i class="pi pi-bars"></i>
+                  </span>
+                }
+                @if (step.isScenario) {
+                  <i class="pi pi-sitemap step-icon"></i>
+                  <a class="entity-link step-name"
+                     data-testid="scenario-step-link"
+                     [routerLink]="['/projects', projectName, 'scenarios', step.stepId!]">{{ step.name }}</a>
+                  <span class="step-type-badge">{{ step.scenarioType }}</span>
+                  @if (canEdit()) {
+                    <p-button icon="pi pi-times" severity="danger" [text]="true"
+                              data-testid="scenario-step-remove" [ariaLabel]="'Remove ' + step.name + ' from scenario'"
+                              size="small" pTooltip="Remove from scenario"
+                              (onClick)="removeStep(step)" />
+                  }
+                } @else {
+                  <input pInputText [(ngModel)]="step.name"
+                         class="step-name-input"
+                         data-testid="scenario-step-name"
+                         placeholder="Step description..."
+                         [disabled]="!canEdit()"
+                         (keydown)="$event.stopPropagation()"
+                         (blur)="onStepNameChange()" />
+                  @if (canEdit()) {
+                    <p-button icon="pi pi-pencil" [text]="true" size="small"
+                              data-testid="scenario-step-edit" ariaLabel="Edit step details"
+                              pTooltip="Edit details" tooltipPosition="top"
+                              (onClick)="openStepEdit(step)" />
+                    <p-button icon="pi pi-plus" severity="secondary" [text]="true"
+                              data-testid="scenario-step-add-below" ariaLabel="Add step below"
+                              size="small" pTooltip="Add step below" tooltipPosition="top"
+                              (onClick)="addStepBelow(step)" />
+                    <p-button icon="pi pi-times" severity="danger" [text]="true"
+                              data-testid="scenario-step-remove" ariaLabel="Remove step"
+                              size="small" pTooltip="Remove step" tooltipPosition="top"
+                              (onClick)="removeStep(step)" />
+                  }
+                }
+                <!-- CDK drag placeholder styling -->
+                <div *cdkDragPlaceholder class="step-row-placeholder"></div>
+              </div>
+            }
+            @if (canEdit()) {
+              <button type="button" class="add-step-row" data-testid="scenario-add-step-bottom" (click)="addStep()">
+                <i class="pi pi-plus" aria-hidden="true"></i> Add step
+              </button>
+            }
+          </div>
+
+          @if (stepsSaveNeeded()) {
+            <div class="steps-save-note">
+              <p-message severity="info"
+                         [text]="isNew()
+                           ? 'Steps have unsaved changes. Press Done to apply.'
+                           : 'Steps have unsaved changes. Click Save to apply.'" />
+            </div>
+          }
+        </div>
+      </ng-template>
     </div>
   `,
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .page-actions { display: flex; gap: 0.5rem; }
-    .form-grid { display: grid; grid-template-columns: 120px 1fr; gap: 0.75rem 1rem; align-items: start; max-width: 700px; }
     .form-actions { margin-top: 1rem; }
     .section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-    .section-header h3 { margin: 0; }
     .section-actions { display: flex; gap: 0.5rem; }
     .steps-save-note { margin-top: 0.5rem; }
     .empty-text { color: var(--p-text-secondary-color); font-style: italic; }
@@ -327,16 +422,47 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   // error state replaces the form only when the initial load fails.
   loadError = signal<string | null>(null);
   saving = signal(false);
+  submitted = signal(false);
   canEdit = signal(false);
   canDelete = signal(false);
-  hasChanges = signal(false);
   stepsSaveNeeded = signal(false);
   stepNodes = signal<StepNodeData[]>([]);
   editingStep = signal<StepNodeData | null>(null);
 
-  name = '';
-  text = '';
-  scenarioType = 'Primary';
+  /**
+   * Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). Bound with
+   * `[attr.maxlength]` rather than `maxlength` on purpose: Angular's MaxLengthValidator directive
+   * matches `[maxlength][formControl]`, so the plain binding would register a SECOND maxlength
+   * validator on top of the one in the form definition. `attr.` sets the HTML attribute only, which
+   * is all that is wanted here - the browser stops the typing, the form owns the validation.
+   */
+  readonly nameMaxLength = ARTIFACT_NAME_MAX_LENGTH;
+
+  /**
+   * Details step / edit form. Replaces the `name` + `scenarioType` + `text` ngModel fields and
+   * the hand-rolled `trackChanges()` + `original*` comparison, which the form's own dirty state
+   * now covers.
+   *
+   * `text` carries no maxLength: `AbstractTextEntity.getText()` is `@Lob` server-side, so there
+   * is no bound to mirror and inventing one would reject content the server accepts.
+   */
+  readonly detailsForm = new FormGroup({
+    name: new FormControl('', {
+      validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+      nonNullable: true,
+    }),
+    scenarioType: new FormControl('Primary', {
+      validators: [Validators.required],
+      nonNullable: true,
+    }),
+    text: new FormControl('', { nonNullable: true }),
+  });
+
+  readonly nameErrors = { required: 'A scenario needs a name.' };
+
+  /** Active wizard step key, two-way bound to `app-form-wizard`. */
+  wizardStep = 'details';
+
   typeOptions = SCENARIO_TYPE_OPTIONS;
   showScenarioSelector = false;
   editingName = '';
@@ -346,9 +472,6 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   projectName = '';
   scenarioId: number | null = null;
   private version: number | null = null;
-  private originalName = '';
-  private originalText = '';
-  private originalScenarioType = 'Primary';
   private paramSub?: Subscription;
   private sseSub?: Subscription;
 
@@ -378,11 +501,13 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       if (newIsNew) {
         this.isNew.set(true);
         this.scenario.set(null);
-        this.name = '';
-        this.text = '';
-        this.scenarioType = 'Primary';
+        this.scenarioId = null;
         this.version = null;
+        this.wizardStep = 'details';
+        this.submitted.set(false);
+        this.detailsForm.reset({ name: '', scenarioType: 'Primary', text: '' });
         this.stepNodes.set([]);
+        this.stepsSaveNeeded.set(false);
         // New scenarios don't load — resolve the loading/error state so the
         // form renders immediately instead of the skeleton.
         this.loading.set(false);
@@ -401,8 +526,17 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     });
   }
 
+  /**
+   * Steps live outside the form - they are local nodes submitted wholesale with EditScenario -
+   * so the dirty check is the form's own state OR a pending step change.
+   */
   hasUnsavedChanges(): boolean {
-    return this.hasChanges();
+    return this.detailsForm.dirty || this.stepsSaveNeeded();
+  }
+
+  /** Edit-mode Save: blocked on invalid, unchanged, or in-flight. */
+  canSave(): boolean {
+    return this.detailsForm.valid && this.hasUnsavedChanges() && !this.saving();
   }
 
   ngOnDestroy(): void {
@@ -418,11 +552,15 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     void this.loadScenario();
   }
 
-  private async loadScenario(fromSSE = false): Promise<void> {
-    // Only the user-initiated (non-SSE) load drives the skeleton / retryable
-    // error state; a background SSE refresh must not blank the form the user is
-    // looking at.
-    if (!fromSSE) {
+  /**
+   * @param fromSSE  background refresh driven by an event, not by the user.
+   * @param skeleton show the loading skeleton. Suppressed after a save, where blanking the
+   *                 wizard panel the user is standing in would be worse than a stale moment.
+   */
+  private async loadScenario(fromSSE = false, skeleton = !fromSSE): Promise<void> {
+    // Only the user-initiated load drives the skeleton / retryable error state; a background
+    // refresh must not blank the form the user is looking at.
+    if (skeleton) {
       this.loading.set(true);
       this.loadError.set(null);
     }
@@ -432,31 +570,33 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       // Check after the async fetch so we catch edits made while the request was in-flight.
       // editingStep() !== null means the step-detail popup is open: replacing stepNodes
       // would orphan the object that editingStep points to, losing any in-progress edits.
-      if (fromSSE && (this.hasChanges() || this.saving() || this.editingStep() !== null)) {
+      if (fromSSE && (this.hasUnsavedChanges() || this.saving() || this.editingStep() !== null)) {
+        // Still take the new version: the entity moved on, and holding the stale one
+        // guarantees a 409 on the user's next save.
+        this.version = s.version;
+        this.scenario.set(s);
         return;
       }
       this.scenario.set(s);
       this.scenarioName.set(s.name);
-      this.name = s.name;
-      this.text = s.text ?? '';
-      this.scenarioType = s.scenarioType ?? 'Primary';
+      this.detailsForm.reset({
+        name: s.name,
+        scenarioType: s.scenarioType ?? 'Primary',
+        text: s.text ?? '',
+      });
       this.version = s.version;
-      this.originalName = s.name;
-      this.originalText = s.text ?? '';
-      this.originalScenarioType = s.scenarioType ?? 'Primary';
-      this.hasChanges.set(false);
       this.stepsSaveNeeded.set(false);
       this.stepNodes.set(this.stepsToNodes(s.steps ?? []));
     } catch {
       // A background refresh failure shows a non-blocking message; an initial
       // load failure shows the retryable error state in place of the form.
-      if (fromSSE) {
-        this.errorMessage.set('Failed to load scenario.');
-      } else {
+      if (skeleton) {
         this.loadError.set('Failed to load scenario.');
+      } else {
+        this.errorMessage.set('Failed to load scenario.');
       }
     } finally {
-      if (!fromSSE) {
+      if (skeleton) {
         this.loading.set(false);
       }
     }
@@ -475,24 +615,14 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       stepId: step.id,
       name: step.name,
       text: step.text ?? null,
-      scenarioType: step.scenarioType ?? this.scenarioType,
+      scenarioType: step.scenarioType ?? this.detailsForm.controls.scenarioType.value,
       isScenario: step.isScenario,
       isNew: false
     }));
   }
 
-  trackChanges(): void {
-    this.hasChanges.set(
-      this.name !== this.originalName ||
-      this.text !== this.originalText ||
-      this.scenarioType !== this.originalScenarioType ||
-      this.stepsSaveNeeded()
-    );
-  }
-
   onStepNameChange(): void {
     this.stepsSaveNeeded.set(true);
-    this.hasChanges.set(true);
   }
 
   excludeScenarioIds(): number[] {
@@ -504,42 +634,37 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     return ids;
   }
 
-  addStep(): void {
-    this.stepNodes.update(steps => [...steps, {
+  private newStepNode(): StepNodeData {
+    return {
       stepId: null, name: '', text: null,
-      scenarioType: this.scenarioType, isScenario: false, isNew: true
-    }]);
+      scenarioType: this.detailsForm.controls.scenarioType.value,
+      isScenario: false, isNew: true
+    };
+  }
+
+  addStep(): void {
+    this.stepNodes.update(steps => [...steps, this.newStepNode()]);
     this.stepsSaveNeeded.set(true);
-    this.hasChanges.set(true);
   }
 
   addStepAt(index: number): void {
     const steps = [...this.stepNodes()];
-    steps.splice(index, 0, {
-      stepId: null, name: '', text: null,
-      scenarioType: this.scenarioType, isScenario: false, isNew: true
-    });
+    steps.splice(index, 0, this.newStepNode());
     this.stepNodes.set(steps);
     this.stepsSaveNeeded.set(true);
-    this.hasChanges.set(true);
   }
 
   addStepBelow(step: StepNodeData): void {
     const steps = [...this.stepNodes()];
     const idx = steps.indexOf(step);
-    steps.splice(idx + 1, 0, {
-      stepId: null, name: '', text: null,
-      scenarioType: this.scenarioType, isScenario: false, isNew: true
-    });
+    steps.splice(idx + 1, 0, this.newStepNode());
     this.stepNodes.set(steps);
     this.stepsSaveNeeded.set(true);
-    this.hasChanges.set(true);
   }
 
   removeStep(step: StepNodeData): void {
     this.stepNodes.update(steps => steps.filter(s => s !== step));
     this.stepsSaveNeeded.set(true);
-    this.hasChanges.set(true);
   }
 
   onDrop(event: CdkDragDrop<StepNodeData[]>): void {
@@ -547,7 +672,6 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     moveItemInArray(steps, event.previousIndex, event.currentIndex);
     this.stepNodes.set(steps);
     this.stepsSaveNeeded.set(true);
-    this.hasChanges.set(true);
   }
 
   openStepEdit(step: StepNodeData): void {
@@ -566,7 +690,6 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     this.stepNodes.set([...this.stepNodes()]);
     this.editingStep.set(null);
     this.stepsSaveNeeded.set(true);
-    this.hasChanges.set(true);
   }
 
   closeStepEdit(): void {
@@ -589,11 +712,10 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     this.showScenarioSelector = false;
     this.stepNodes.update(steps => [...steps, {
       stepId: ref.id, name: ref.name, text: null,
-      scenarioType: ref.scenarioType ?? this.scenarioType,
+      scenarioType: ref.scenarioType ?? this.detailsForm.controls.scenarioType.value,
       isScenario: true, isNew: false
     }]);
     this.stepsSaveNeeded.set(true);
-    this.hasChanges.set(true);
   }
 
   private buildStepInputs(): EditStepInput[] {
@@ -606,46 +728,140 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     }));
   }
 
-  async onSave(): Promise<void> {
+  /**
+   * Runs the commit for the wizard's current step.
+   *
+   * Both steps issue `EditScenario`, because steps are part of the scenario's own save rather
+   * than separate association commands. Step 1 creates and yields the id/version; step 2
+   * re-sends the same details plus the step list against the refreshed version.
+   */
+  async onStepCommit(request: WizardCommitRequest): Promise<void> {
+    this.submitted.set(true);
+    const result = await this.saveDetails();
+
+    if (result.success) {
+      request.complete();
+      return;
+    }
+    if (await this.recoverFromStaleVersion(result)) {
+      request.fail(STALE_VERSION_MESSAGE);
+      return;
+    }
+    request.fail(result.error ?? 'Save failed.');
+  }
+
+  /** Done on the last step: the scenario is already saved, so just go to it. */
+  onWizardFinished(): void {
+    if (this.scenarioId != null) {
+      this.router.navigate(['/projects', this.projectName, 'scenarios', this.scenarioId]);
+    } else {
+      this.onBack();
+    }
+  }
+
+  /**
+   * Issues `EditScenario` for the Details values plus the current step list and, on success,
+   * adopts the id and version from the response.
+   *
+   * The version is **spent on use**: `EditScenarioCommandImpl` calls `checkExpectedVersion` and
+   * then merges the scenario twice, so every accepted save bumps it. It is re-read from
+   * `result.entity` each time - holding the value captured at create and sending it again,
+   * which is exactly what happens when the user steps back to Details and continues a second
+   * time, is a guaranteed 409.
+   *
+   * Name/type/text come from the form on every call, never from a snapshot: step 2 re-sends
+   * them, so a back-navigation edit has to be picked up here or it is silently dropped.
+   */
+  private async saveDetails(): Promise<CommandResult<unknown>> {
     this.saving.set(true);
     this.errorMessage.set(null);
+    clearServerErrors(this.detailsForm);
     try {
+      const { name, scenarioType, text } = this.detailsForm.getRawValue();
       const input: Record<string, unknown> = {
         projectName: this.projectName,
-        name: this.name,
-        text: this.text || null,
-        scenarioTypeName: this.scenarioType,
-        steps: this.buildStepInputs()
+        name,
+        text: text || null,
+        scenarioTypeName: scenarioType,
+        steps: this.buildStepInputs(),
       };
-      if (this.version != null) input['version'] = this.version;
       if (this.scenarioId != null) input['scenarioId'] = this.scenarioId;
+      if (this.version != null) input['version'] = this.version;
 
       const result = await this.commandService.execute('EditScenario', input);
-      if (result.success) {
-        this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Scenario saved.' });
-        if (this.isNew()) {
-          this.projectService.notifyTreeChanged();
-          if (result.entity) {
-            const saved = result.entity as ScenarioDto;
-            this.hasChanges.set(false);
-            this.router.navigate(['/projects', this.projectName, 'scenarios', saved.id]);
-          }
-        } else {
-          this.originalName = this.name;
-          this.originalText = this.text;
-          this.originalScenarioType = this.scenarioType;
-          this.hasChanges.set(false);
-          this.stepsSaveNeeded.set(false);
-          await this.loadScenario();
+      if (!result.success) {
+        const unresolved = applyCommandErrors(this.detailsForm, result.violations, SCENARIO_FIELD_MAP);
+        if (unresolved.length) {
+          this.errorMessage.set(unresolved.join(SEPARATOR));
         }
-      } else {
-        this.errorMessage.set(result.error ?? 'Save failed.');
+        return result;
       }
+
+      const wasCreate = this.scenarioId == null;
+      if (wasCreate) {
+        this.projectService.notifyTreeChanged();
+      }
+
+      const saved = result.entity as ScenarioDto | null;
+      if (saved) {
+        this.scenarioId = saved.id;
+        this.version = saved.version;
+        this.scenarioName.set(saved.name);
+      }
+      this.detailsForm.markAsPristine();
+      this.stepsSaveNeeded.set(false);
+      this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Scenario saved.' });
+
+      // Refetch so new steps pick up their server-assigned ids, and so the SSE subscription
+      // starts the first time the scenario exists. No skeleton: in the wizard that would
+      // blank the panel the user is standing in.
+      if (this.scenarioId != null) {
+        await this.loadScenario(false, false);
+      }
+      return result;
     } catch {
-      this.errorMessage.set('An unexpected error occurred.');
+      return {
+        success: false,
+        entityType: 'Scenario',
+        entity: null,
+        error: 'An unexpected error occurred.',
+        violations: null,
+      };
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /**
+   * If `result` is an optimistic-lock conflict (HTTP 409 from
+   * `EntityLockException.staleEntity`), refetch so the held version is current and the user
+   * can retry. Returns whether it handled the result.
+   */
+  private async recoverFromStaleVersion(result: CommandResult<unknown>): Promise<boolean> {
+    if (result.status !== 409 || this.scenarioId == null) {
+      return false;
+    }
+    await this.loadScenario(false, false);
+    return true;
+  }
+
+  /** Edit-mode Save. */
+  async onSave(): Promise<void> {
+    this.submitted.set(true);
+    if (this.detailsForm.invalid) {
+      this.detailsForm.markAllAsTouched();
+      return;
+    }
+
+    const result = await this.saveDetails();
+    if (result.success) {
+      return;
+    }
+    if (await this.recoverFromStaleVersion(result)) {
+      this.errorMessage.set(STALE_VERSION_MESSAGE);
+      return;
+    }
+    this.errorMessage.set(result.error ?? 'Save failed.');
   }
 
   onCopy(): void {
@@ -678,6 +894,9 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
         });
         if (result.success) {
           this.projectService.notifyTreeChanged();
+          // Nothing left to guard against - don't let the dirty check block the exit.
+          this.detailsForm.markAsPristine();
+          this.stepsSaveNeeded.set(false);
           this.router.navigate(['/projects', this.projectName, 'scenarios']);
         } else {
           this.errorMessage.set(result.error ?? 'Delete failed.');

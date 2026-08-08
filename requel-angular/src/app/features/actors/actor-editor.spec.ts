@@ -93,21 +93,22 @@ describe('ActorEditorComponent', () => {
     expect(comp.goals()[0].name).toBe('Purchase item');
   });
 
-  it('trackChanges() sets hasChanges() when name differs from original', async () => {
+  // #173: trackChanges()/hasChanges() are gone; the form owns dirtiness now.
+  it('hasUnsavedChanges() follows form.dirty', async () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
     fixture.detectChanges();
     await flush();
-    expect(comp.hasChanges()).toBe(false);
-    comp.name = 'Modified Actor';
-    comp.trackChanges();
-    expect(comp.hasChanges()).toBe(true);
+    expect(comp.hasUnsavedChanges()).toBe(false);
+    comp.detailsForm.controls.name.setValue('Modified Actor');
+    comp.detailsForm.controls.name.markAsDirty();
+    expect(comp.hasUnsavedChanges()).toBe(true);
   });
 
   it('onSave calls commandService.execute("EditActor") with actor fields', async () => {
     fixture.detectChanges();
     await flush();
-    comp.name = 'New Actor';
-    comp.text = 'Description';
+    comp.detailsForm.setValue({ name: 'New Actor', text: 'Description' });
+    comp.detailsForm.markAsDirty();
     await comp.onSave();
     expect(commandServiceMock.execute).toHaveBeenCalledWith('EditActor', expect.objectContaining({
       projectName: 'proj1',
@@ -154,8 +155,8 @@ describe('ActorEditorComponent', () => {
       success: true,
       entity: { ...MOCK_ACTOR, name: 'Customer Renamed', version: 1 }
     });
-    comp.name = 'Customer Renamed';
-    comp.text = 'Updated description';
+    comp.detailsForm.setValue({ name: 'Customer Renamed', text: 'Updated description' });
+    comp.detailsForm.markAsDirty();
     await comp.onSave();
 
     expect(commandServiceMock.execute).toHaveBeenCalledWith('EditActor', expect.objectContaining({
@@ -165,7 +166,7 @@ describe('ActorEditorComponent', () => {
     }));
     expect(comp.actorName()).toBe('Customer Renamed');
     expect(comp.version).toBe(1);
-    expect(comp.hasChanges()).toBe(false);
+    expect(comp.hasUnsavedChanges()).toBe(false);
     expect(messageServiceMock.add).toHaveBeenCalledWith(expect.objectContaining({
       severity: 'success', summary: 'Saved'
     }));
@@ -177,7 +178,7 @@ describe('ActorEditorComponent', () => {
     fixture.detectChanges();
     await flush();
     commandServiceMock.execute.mockResolvedValue({ success: false, error: 'Name conflict' });
-    comp.name = 'Duplicate';
+    comp.detailsForm.controls.name.setValue('Duplicate');
     await comp.onSave();
     expect(comp.errorMessage()).toBe('Name conflict');
   });
@@ -186,9 +187,69 @@ describe('ActorEditorComponent', () => {
     fixture.detectChanges();
     await flush();
     commandServiceMock.execute.mockRejectedValue(new Error('network down'));
-    comp.name = 'Anything';
+    comp.detailsForm.controls.name.setValue('Anything');
     await comp.onSave();
     expect(comp.errorMessage()).toBe('Save failed.');
+  });
+
+  // #173 required test (§10.3). The Goals step's associations bump the actor's @Version but
+  // return no entity, so the wizard has to refetch. If it did not, coming back to Details and
+  // pressing Continue would send the version captured at step 1 and 409.
+  describe('wizard version contract (#173)', () => {
+    it('survives create -> add goal -> back to Details -> rename -> Continue', async () => {
+      fixture.detectChanges();
+      await flush();
+
+      let version = 0;
+      commandServiceMock.execute.mockImplementation(async (type: string) => {
+        if (type === 'EditActor') {
+          version += 1;
+          return { success: true, entity: { ...MOCK_ACTOR, id: 5, version } };
+        }
+        // Association commands return no entity - that is the whole point.
+        version += 1;
+        return { success: true, entity: null };
+      });
+      actorServiceMock.getActor.mockImplementation(async () => ({ ...MOCK_ACTOR, id: 5, version }));
+
+      comp.detailsForm.controls.name.setValue('Customer');
+
+      const step1 = { step: { key: 'details' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(step1 as any);
+      expect(step1.complete).toHaveBeenCalled();
+
+      // Goals step: associate, which bumps the actor server-side.
+      await comp.onGoalSelected({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
+
+      // Back to Details, rename, Continue again.
+      comp.detailsForm.controls.name.setValue('Customer Renamed');
+      const step3 = { step: { key: 'details' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(step3 as any);
+
+      expect(step3.complete).toHaveBeenCalled();
+      expect(step3.fail).not.toHaveBeenCalled();
+
+      // The second EditActor must not carry the version from the first.
+      const edits = commandServiceMock.execute.mock.calls.filter(c => c[0] === 'EditActor');
+      expect(edits).toHaveLength(2);
+      expect(edits[1][1].version).toBe(2);
+      expect(edits[1][1].name).toBe('Customer Renamed');
+    });
+
+    it('the Goals step just advances - it issues no command of its own', async () => {
+      fixture.detectChanges();
+      await flush();
+      commandServiceMock.execute.mockClear();
+
+      const request = { step: { key: 'goals' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(request as any);
+
+      expect(request.complete).toHaveBeenCalled();
+      expect(commandServiceMock.execute).not.toHaveBeenCalled();
+    });
   });
 
   it('onCopy triggers confirm then calls execute("CopyActor") and navigates to copy', async () => {
@@ -257,6 +318,70 @@ describe('ActorEditorComponent', () => {
     }));
   });
 
+  // Regression: AddGoal/RemoveGoal merge the container (this actor), bumping its @Version,
+  // but register no result extractor - so result.entity is null and the new version can only
+  // be had by refetching. Before this, adding a goal and then saving the name gave a 409.
+  describe('stale version after a goal association', () => {
+    it('re-reads version after adding a goal', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+      fixture.detectChanges();
+      await flush();
+      expect(comp.version).toBe(0);
+
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
+      actorServiceMock.getActor.mockResolvedValue({ ...MOCK_ACTOR, version: 3 });
+
+      await comp.onGoalSelected({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
+      expect(comp.version).toBe(3);
+    });
+
+    it('re-reads version after removing a goal', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+      fixture.detectChanges();
+      await flush();
+
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
+      actorServiceMock.getActor.mockResolvedValue({ ...MOCK_ACTOR, version: 4 });
+
+      await comp.onRemoveGoal({ id: 1, name: 'Purchase item', entityType: 'Goal' });
+      expect(comp.version).toBe(4);
+    });
+
+    it('does not discard unsaved detail edits while refreshing the version', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+      fixture.detectChanges();
+      await flush();
+
+      // User types a new name, then adds a goal without saving first.
+      comp.detailsForm.controls.name.setValue('Renamed but unsaved');
+      comp.detailsForm.controls.name.markAsDirty();
+
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
+      actorServiceMock.getActor.mockResolvedValue({ ...MOCK_ACTOR, version: 9 });
+      await comp.onGoalSelected({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
+
+      // The version advanced, but the in-progress edit survived - which is why the refresh
+      // is narrow instead of a full loadActor().
+      expect(comp.version).toBe(9);
+      expect(comp.detailsForm.controls.name.value).toBe('Renamed but unsaved');
+      expect(comp.hasUnsavedChanges()).toBe(true);
+    });
+
+    it('leaves the held version alone when the refresh fetch fails', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+      fixture.detectChanges();
+      await flush();
+
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
+      actorServiceMock.getActor.mockRejectedValue(new Error('network'));
+
+      await comp.onGoalSelected({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
+      // Still 0, and no error surfaced: the association itself succeeded.
+      expect(comp.version).toBe(0);
+      expect(comp.goals().some(g => g.id === 7)).toBe(true);
+    });
+  });
+
   it('onGoalSelected sets errorMessage when add fails', async () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
     fixture.detectChanges();
@@ -318,9 +443,9 @@ describe('ActorEditorComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'actors']);
   });
 
-  it('hasUnsavedChanges() returns hasChanges() value', () => {
+  it('hasUnsavedChanges() reflects the form dirty state', () => {
     expect(comp.hasUnsavedChanges()).toBe(false);
-    comp.hasChanges.set(true);
+    comp.detailsForm.markAsDirty();
     expect(comp.hasUnsavedChanges()).toBe(true);
   });
 
@@ -354,16 +479,16 @@ describe('ActorEditorComponent', () => {
     fixture.detectChanges();
     await flush();
 
-    comp.name = 'Editing in progress';
-    comp.trackChanges();
-    expect(comp.hasChanges()).toBe(true);
+    comp.detailsForm.controls.name.setValue('Editing in progress');
+    comp.detailsForm.controls.name.markAsDirty();
+    expect(comp.hasUnsavedChanges()).toBe(true);
 
     events$.next({ targetType: 'Actor', targetId: 5 });
     await flush();
 
     // The reload was attempted (getActor called) but the result was discarded —
     // so the component's name field still holds the user's unsaved edit.
-    expect(comp.name).toBe('Editing in progress');
+    expect(comp.detailsForm.controls.name.value).toBe('Editing in progress');
     expect(comp.actorName()).toBe('Customer'); // unchanged from initial load
   });
 

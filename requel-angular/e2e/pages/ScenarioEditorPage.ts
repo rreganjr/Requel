@@ -1,5 +1,6 @@
 import { Page, expect } from '@playwright/test';
 import { BaseListPage } from './BaseListPage';
+import { completeCreateWizard } from './wizard';
 
 export class ScenarioListPage extends BaseListPage {
   constructor(page: Page) {
@@ -63,6 +64,16 @@ export class ScenarioEditorPage {
   }
 
   async save(): Promise<void> {
+    // Create is a wizard since #173; edit still has a Save button. The detail-reload wait is
+    // registered first either way - in the wizard it is satisfied by the refetch that follows
+    // the step-1 commit.
+    if ((await this.page.getByTestId('wizard-continue').count()) > 0) {
+      const wizardReloadPromise = this.waitForScenarioDetailReload();
+      await completeCreateWizard(this.page, /\/api\/commands\/EditScenario/);
+      await wizardReloadPromise;
+      return;
+    }
+
     await expect(this.saveButton()).toBeEnabled();
     const scenarioReloadPromise = this.waitForScenarioDetailReload();
     const [response] = await Promise.all([

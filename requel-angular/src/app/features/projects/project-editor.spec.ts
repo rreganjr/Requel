@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { provideRouter, ActivatedRoute, convertToParamMap } from '@angular/router';
+import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ProjectEditorComponent } from './project-editor';
@@ -32,6 +32,7 @@ describe('ProjectEditorComponent', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fixture: any;
   let comp: ProjectEditorComponent;
+  let router: Router;
 
   beforeEach(() => {
     paramMap$ = new BehaviorSubject(convertToParamMap({ name: 'new' }));
@@ -71,6 +72,7 @@ describe('ProjectEditorComponent', () => {
     });
     fixture = TestBed.createComponent(ProjectEditorComponent);
     comp = fixture.componentInstance;
+    router = TestBed.inject(Router);
   });
 
   it('isNew() is true when name param is "new"', async () => {
@@ -97,16 +99,79 @@ describe('ProjectEditorComponent', () => {
   it('onSave calls commandService.execute("EditProject") with name', async () => {
     fixture.detectChanges();
     await flush();
-    comp.name = 'My New Project';
+    comp.detailsForm.controls.name.setValue('My New Project');
+    comp.detailsForm.markAsDirty();
     await comp.onSave();
     expect(commandServiceMock.execute).toHaveBeenCalledWith('EditProject', expect.objectContaining({
       name: 'My New Project'
     }));
   });
 
+  // #173: create is a wizard. Project is the one editor whose second step needs no version
+  // handling - AssignTag mutates the Tag, not the project - so the contract to pin here is that
+  // step 1 captures the id WITHOUT navigating. The old code routed away on save, which both hid
+  // Tags and destroyed the wizard, since the route param is the project's identity.
+  describe('create wizard (#173)', () => {
+    it('step 1 captures the project without navigating away', async () => {
+      fixture.detectChanges();
+      await flush();
+      const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+      navigate.mockClear();
+
+      commandServiceMock.execute.mockResolvedValue({
+        success: true,
+        entity: { id: 9, version: 1, name: 'My New Project', description: null, organizationName: null }
+      });
+      comp.detailsForm.controls.name.setValue('My New Project');
+
+      const request = { step: { key: 'details' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(request as any);
+
+      expect(request.complete).toHaveBeenCalled();
+      expect(navigate).not.toHaveBeenCalled();
+      // Tags can only render once the project exists.
+      expect(comp.tagEntityId()).toBe(9);
+      expect(comp.originalName()).toBe('My New Project');
+    });
+
+    it('the Tags step just advances - it issues no command of its own', async () => {
+      fixture.detectChanges();
+      await flush();
+      commandServiceMock.execute.mockClear();
+
+      const request = { step: { key: 'tags' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(request as any);
+
+      expect(request.complete).toHaveBeenCalled();
+      expect(commandServiceMock.execute).not.toHaveBeenCalled();
+    });
+
+    it('Done navigates to the created project', async () => {
+      fixture.detectChanges();
+      await flush();
+      const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+      commandServiceMock.execute.mockResolvedValue({
+        success: true,
+        entity: { id: 9, version: 1, name: 'My New Project', description: null, organizationName: null }
+      });
+      comp.detailsForm.controls.name.setValue('My New Project');
+      const request = { step: { key: 'details' }, complete: vi.fn(), fail: vi.fn() };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await comp.onStepCommit(request as any);
+
+      navigate.mockClear();
+      comp.onWizardFinished();
+      expect(navigate).toHaveBeenCalledWith(['/projects', 'My New Project']);
+    });
+  });
+
   it('onSave sets errorMessage when command returns error', async () => {
     commandServiceMock.execute.mockResolvedValue({ success: false, error: 'Duplicate name' });
-    comp.name = 'Taken';
+    comp.detailsForm.controls.name.setValue('Taken');
+    comp.detailsForm.markAsDirty();
     await comp.onSave();
     expect(comp.errorMessage()).toBe('Duplicate name');
     expect(comp.saving()).toBe(false);
