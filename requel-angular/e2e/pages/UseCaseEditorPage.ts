@@ -1,5 +1,6 @@
 import { Page, expect } from '@playwright/test';
 import { BaseListPage } from './BaseListPage';
+import { completeCreateWizard } from './wizard';
 
 export class UseCaseListPage extends BaseListPage {
   constructor(page: Page) {
@@ -75,6 +76,10 @@ export class UseCaseEditorPage {
   }
 
   async save(): Promise<void> {
+    // Create is a wizard since #173; edit still has a Save button.
+    if (await completeCreateWizard(this.page, /\/api\/commands\/EditUseCase/)) {
+      return;
+    }
     await this.page.getByTestId('use-case-save').click();
     await this.page.waitForLoadState('domcontentloaded');
   }

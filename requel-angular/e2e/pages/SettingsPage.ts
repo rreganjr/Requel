@@ -36,28 +36,35 @@ export class SettingsPage {
     await option.click();
   }
 
-  async save(): Promise<void> {
+  /**
+   * Save is `[disabled]="form.invalid || form.pristine || saving()"` and `data-testid` sits on
+   * the `p-button` host, not the inner control -- so clicking the host while the inner button
+   * is disabled silently no-ops and `waitForResponse` then burns the entire test timeout with
+   * a useless "target closed" trace. Assert enabled first so an unchanged form says so.
+   */
+  private async clickAndAwaitPut(testId: string): Promise<void> {
+    const button = this.page.getByTestId(testId).locator('button');
+    await expect(button, `${testId} is disabled -- the form is pristine or invalid`)
+      .toBeEnabled({ timeout: 10_000 });
     const [response] = await Promise.all([
       this.page.waitForResponse(r =>
         r.url().includes('/user-preferences') && r.request().method() === 'PUT'
       ),
-      this.page.getByTestId('settings-save').click(),
+      button.click({ timeout: 10_000 }),
     ]);
     if (!response.ok()) {
-      throw new Error(`PUT /user-preferences failed: ${response.status()} ${await response.text()}`);
+      throw new Error(
+        `PUT /user-preferences (${testId}) failed: ${response.status()} ${await response.text()}`
+      );
     }
   }
 
+  async save(): Promise<void> {
+    await this.clickAndAwaitPut('settings-save');
+  }
+
   async resetToDefaults(): Promise<void> {
-    const [response] = await Promise.all([
-      this.page.waitForResponse(r =>
-        r.url().includes('/user-preferences') && r.request().method() === 'PUT'
-      ),
-      this.page.getByTestId('settings-reset').click(),
-    ]);
-    if (!response.ok()) {
-      throw new Error(`PUT /user-preferences (reset) failed: ${response.status()} ${await response.text()}`);
-    }
+    await this.clickAndAwaitPut('settings-reset');
   }
 
   async expectProjectLimit(limit: number): Promise<void> {

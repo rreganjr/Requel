@@ -1,5 +1,6 @@
 import { Download, Page, expect } from '@playwright/test';
 import { BaseListPage } from './BaseListPage';
+import { completeCreateWizard } from './wizard';
 
 export class ProjectsPage extends BaseListPage {
   constructor(page: Page) {
@@ -93,6 +94,10 @@ export class ProjectEditorPage {
   }
 
   async save(): Promise<void> {
+    // Create is a wizard since #173; edit still has a Save button.
+    if (await completeCreateWizard(this.page, /\/api\/commands\/EditProject/)) {
+      return;
+    }
     await this.page.getByTestId('project-save').click();
     // wait for navigation away from /new or for save to complete
     await this.page.waitForLoadState('domcontentloaded');

@@ -1,5 +1,6 @@
 import { Page, expect } from '@playwright/test';
 import { BaseListPage } from './BaseListPage';
+import { completeCreateWizard } from './wizard';
 
 export class ActorListPage extends BaseListPage {
   constructor(page: Page) {
@@ -56,7 +57,14 @@ export class ActorEditorPage {
 
   /** New actors show "Create"; existing actors show "Save" */
   async save(): Promise<void> {
-    // Try "Create" first (new actor), fall back to "Save" (existing actor)
+    // Create is a wizard since #173; edit still has a Save button.
+    if (await completeCreateWizard(this.page, /\/api\/commands\/EditActor/)) {
+      return;
+    }
+    // Edit mode shows "Save"; a pre-#173 build shows "Create" on the new-actor form. Keeping
+    // the fallback means this page object still works against an older build instead of
+    // failing on a missing testid, which is otherwise a confusing way to discover you are
+    // running the wrong jar.
     const createBtn = this.page.getByTestId('actor-create');
     const saveBtn = this.page.getByTestId('actor-save');
     const btn = (await createBtn.count()) > 0 ? createBtn : saveBtn;
