@@ -395,24 +395,35 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.sseSub?.unsubscribe();
   }
 
-  private async loadActor(fromSSE = false): Promise<void> {
+  /**
+   * Reads the actor and applies it in two parts: server state always, form state only when the
+   * user has nothing unsaved.
+   *
+   * The guard used to be `fromSSE && hasUnsavedChanges()`, which left the *initial* load free to
+   * reset the form. `page.goto()` on the edit route returns long before this fetch does, so
+   * anything typed in that gap was silently discarded and the form went back to pristine —
+   * Save then stayed disabled with no explanation. `ngOnInit`'s create path already resets
+   * synchronously to dodge exactly this; the edit path had no equivalent. It applies to every
+   * caller now, which also means a 409 recovery keeps the edit the user is retrying instead of
+   * throwing it away.
+   *
+   * The three collections stay unconditional. Previously the early return skipped them, so a
+   * refresh arriving while the form was dirty left the goals and referenced-by tables stale.
+   */
+  private async loadActor(): Promise<void> {
     try {
       const a = await this.actorService.getActor(this.projectName, this.actorId!);
-      // Don't overwrite unsaved user edits when called from an SSE notification.
-      if (fromSSE && this.hasUnsavedChanges()) {
-        // Still take the new version: the entity moved on, and holding the stale one
-        // guarantees a 409 on the user's next save.
-        this.version = a.version;
-        this.actor.set(a);
-        return;
-      }
+      // Always take the version. The entity moved on, and holding the stale one guarantees a
+      // 409 on the user's next save.
       this.actor.set(a);
-      this.actorName.set(a.name);
-      this.detailsForm.reset({ name: a.name, text: a.text ?? '' });
       this.version = a.version;
       this.goals.set(a.goals ?? []);
       this.referencedByUseCases.set(a.referencedByUseCases ?? []);
       this.referencedByStories.set(a.referencedByStories ?? []);
+      if (!this.hasUnsavedChanges()) {
+        this.actorName.set(a.name);
+        this.detailsForm.reset({ name: a.name, text: a.text ?? '' });
+      }
     } catch {
       this.errorMessage.set('Failed to load actor.');
     }
@@ -420,7 +431,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       void this.eventStreamService.addSubscription('Actor', this.actorId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'Actor' && envelope.targetId === this.actorId) {
-          void this.loadActor(true);
+          void this.loadActor();
         }
       });
     }

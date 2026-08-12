@@ -375,22 +375,164 @@ describe('StoryEditorComponent', () => {
       expect(comp.errorMessage()).toBe('Name is required.');
     });
 
-    it('keeps unsaved edits on an SSE reload but still takes the new version', async () => {
-      // The previous implementation had no fromSSE guard at all here and overwrote
-      // whatever the user was typing.
+    it('keeps unsaved edits on a reload but still takes the new version', async () => {
+      // The first implementation had no guard here at all and overwrote whatever the user was
+      // typing. The second guarded only SSE-driven reloads, so the initial load still did.
       await renderExisting();
       comp.detailsForm.controls.name.setValue('Local edit');
       comp.detailsForm.controls.name.markAsDirty();
 
       storyServiceMock.getStory.mockResolvedValue({ ...MOCK_STORY, name: 'Remote edit', version: 15 });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (comp as any).loadStory(true);
+      await (comp as any).loadStory();
 
       expect(comp.detailsForm.controls.name.value).toBe('Local edit');
 
       commandServiceMock.execute.mockResolvedValue({ success: true, entity: MOCK_STORY });
       await comp.onSave();
       expect(editStoryCall(0)).toEqual(expect.objectContaining({ version: 15 }));
+    });
+
+    // The initial load is the case that actually bit: form-wizard.e2e.ts typed into the edit
+    // form before the detail GET resolved, the reset landed on top, and Save stayed disabled
+    // with the typed value gone.
+    it('does not clobber a value typed while the initial load is still in flight', async () => {
+      let resolveGet: (story: unknown) => void = () => {};
+      storyServiceMock.getStory.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', storyId: '20' }));
+      fixture.detectChanges();
+      await flush();
+
+      // The user is faster than the network.
+      comp.detailsForm.controls.name.setValue('Typed while loading');
+      comp.detailsForm.controls.name.markAsDirty();
+
+      resolveGet({ ...MOCK_STORY, name: 'User logs in', version: 4 });
+      await flush();
+
+      expect(comp.detailsForm.controls.name.value).toBe('Typed while loading');
+      expect(comp.detailsForm.dirty).toBe(true);
+      // Server state still landed, so Save has a usable version to send.
+      expect(comp.story()?.id).toBe(20);
+
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: MOCK_STORY });
+      await comp.onSave();
+      expect(editStoryCall(0)).toEqual(expect.objectContaining({
+        name: 'Typed while loading', version: 4
+      }));
+    });
+  });
+
+  // Regression #179. AddGoal/RemoveGoal/AddActor/RemoveActor all merge the container — which
+  // here is the story — so each bumps its @Version, but none of the four registers a result
+  // extractor, so result.entity is null and the new value can only be read back (#178).
+  // Before this, adding a goal and then saving the name gave a 409 the user could not avoid.
+  describe('association refresh (#179)', () => {
+    const GOAL_A = { id: 7, name: 'Avoid late fees', entityType: 'Goal' };
+    const GOAL_B = { id: 8, name: 'Buy quickly', entityType: 'Goal' };
+    const ACTOR_A = { id: 1, name: 'Customer', entityType: 'Actor' };
+
+    /** Association commands answer `entity: null` — that is the whole reason for the refetch. */
+    function associationSucceeds(): void {
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
+    }
+
+    /** Renames and saves, so the version the component now holds shows up on the wire. */
+    async function saveAndReadVersion(): Promise<number | undefined> {
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: MOCK_STORY });
+      comp.detailsForm.patchValue({ name: 'Renamed after association' });
+      comp.detailsForm.markAsDirty();
+      await comp.onSave();
+      return editStoryCall(0)?.['version'] as number | undefined;
+    }
+
+    it.each([
+      ['onGoalSelected', GOAL_A, 5],
+      ['onRemoveGoal', GOAL_A, 6],
+      ['onActorSelected', ACTOR_A, 7],
+      ['onRemoveActor', ACTOR_A, 8],
+    ] as const)('%s takes the bumped version and sends it on the next save', async (method, ref, bumped) => {
+      await renderExisting();
+      associationSucceeds();
+      storyServiceMock.getStory.mockResolvedValue({ ...MOCK_STORY, version: bumped });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (comp as any)[method](ref);
+
+      // Without the refresh this would still be MOCK_STORY's 4 and the save would 409.
+      expect(await saveAndReadVersion()).toBe(bumped);
+    });
+
+    it('takes the goals list from the response instead of patching it locally', async () => {
+      await renderExisting();
+      associationSucceeds();
+      // The server sorted, renamed and assigned — none of which a local patch could know.
+      storyServiceMock.getStory.mockResolvedValue({
+        ...MOCK_STORY, version: 5, goals: [GOAL_A, GOAL_B]
+      });
+
+      await comp.onGoalSelected(GOAL_A);
+
+      expect(comp.story()?.goals).toEqual([GOAL_A, GOAL_B]);
+      expect(comp.existingGoalIds()).toEqual([7, 8]);
+    });
+
+    it('discards an out-of-order refresh so the newer read wins', async () => {
+      await renderExisting();
+      associationSucceeds();
+
+      // Two removes in flight at once — two clicks on the goals table. Their GETs are held so
+      // they can be resolved in the wrong order on purpose.
+      const resolvers: Array<(story: unknown) => void> = [];
+      storyServiceMock.getStory.mockImplementation(
+        () => new Promise(resolve => resolvers.push(resolve))
+      );
+
+      const first = comp.onRemoveGoal(GOAL_A);
+      await flush();
+      const second = comp.onRemoveGoal(GOAL_B);
+      await flush();
+      expect(resolvers.length).toBe(2);
+
+      // Newer read lands first, then the older one — the case the sequence guard exists for.
+      resolvers[1]({ ...MOCK_STORY, version: 9, goals: [] });
+      resolvers[0]({ ...MOCK_STORY, version: 7, goals: [GOAL_B] });
+      await Promise.all([first, second]);
+
+      // Unguarded, the stale snapshot would resurrect GOAL_B and roll the version back to 7.
+      expect(comp.story()?.goals).toEqual([]);
+      expect(comp.story()?.version).toBe(9);
+      expect(await saveAndReadVersion()).toBe(9);
+    });
+
+    it('keeps the held version and list when the refresh itself fails', async () => {
+      await renderExisting();
+      associationSucceeds();
+      storyServiceMock.getStory.mockRejectedValue(new Error('network'));
+
+      await comp.onGoalSelected(GOAL_A);
+
+      // A failed refresh must not block the user: nothing is surfaced, the stale version is
+      // still sent, and the 409 it earns is reported through recoverFromStaleVersion().
+      expect(comp.errorMessage()).toBeNull();
+      expect(comp.story()?.goals).toEqual([]);
+      expect(await saveAndReadVersion()).toBe(4);
+    });
+
+    it('does not refresh when the association command fails', async () => {
+      await renderExisting();
+      storyServiceMock.getStory.mockClear();
+      commandServiceMock.execute.mockResolvedValue({
+        success: false, status: 400, error: 'Goal already associated.'
+      });
+
+      await comp.onGoalSelected(GOAL_A);
+
+      expect(storyServiceMock.getStory).not.toHaveBeenCalled();
+      expect(comp.errorMessage()).toBe('Goal already associated.');
     });
   });
 

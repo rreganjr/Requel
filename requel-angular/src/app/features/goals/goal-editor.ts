@@ -429,21 +429,34 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.sseSub?.unsubscribe();
   }
 
-  private async loadGoal(fromSSE = false): Promise<void> {
+  /**
+   * Reads the goal and applies it in two parts: server state always, form state only when the
+   * user has nothing unsaved.
+   *
+   * The guard used to be `fromSSE && hasUnsavedChanges()`, which left the *initial* load free to
+   * reset the form. `page.goto()` on the edit route returns long before this fetch does, so
+   * anything typed in that gap was silently discarded and the form went back to pristine —
+   * Save then stayed disabled with no explanation. `ngOnInit`'s create path already resets
+   * synchronously to dodge exactly this; the edit path had no equivalent. It applies to every
+   * caller now, which also means a 409 recovery keeps the edit the user is retrying instead of
+   * throwing it away.
+   *
+   * `goal` stays unconditional because the relations tables render from it, so the refresh after
+   * adding or deleting a relation still lands even with a rename sitting in the Name field.
+   * `goalName` is the *persisted* name used to address relation commands, so it deliberately
+   * moves only with the form.
+   */
+  private async loadGoal(): Promise<void> {
     try {
       const g = await this.goalService.getGoal(this.projectName, this.goalId!);
-      // Don't overwrite unsaved user edits when called from an SSE notification.
-      if (fromSSE && this.hasUnsavedChanges()) {
-        // Still take the new version: the entity moved on, and holding the stale one
-        // guarantees a 409 on the user's next save.
-        this.version = g.version;
-        this.goal.set(g);
-        return;
-      }
+      // Always take the version. The entity moved on, and holding the stale one guarantees a
+      // 409 on the user's next save.
       this.goal.set(g);
-      this.goalName.set(g.name);
-      this.detailsForm.reset({ name: g.name, text: g.text });
       this.version = g.version;
+      if (!this.hasUnsavedChanges()) {
+        this.goalName.set(g.name);
+        this.detailsForm.reset({ name: g.name, text: g.text });
+      }
     } catch {
       this.errorMessage.set('Failed to load goal.');
     }
@@ -451,7 +464,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       void this.eventStreamService.addSubscription('Goal', this.goalId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'Goal' && envelope.targetId === this.goalId) {
-          void this.loadGoal(true);
+          void this.loadGoal();
         }
       });
     }
