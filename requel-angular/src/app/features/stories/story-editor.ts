@@ -372,6 +372,12 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   projectName = '';
   storyId: number | null = null;
   private version: number | null = null;
+  /**
+   * Monotonic ticket for story reads. `refreshAfterAssociation()` takes one before its GET
+   * and applies the response only if it is still the newest, so an older read cannot land
+   * last and undo a newer one. See that method for why the guard is needed.
+   */
+  private storyReadSeq = 0;
   private paramSub?: Subscription;
   private sseSub?: Subscription;
 
@@ -441,26 +447,40 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.sseSub?.unsubscribe();
   }
 
-  private async loadStory(fromSSE = false): Promise<void> {
+  /**
+   * Reads the story and applies it in two parts: server state always, form state only when the
+   * user has nothing unsaved.
+   *
+   * The guard used to be `fromSSE && hasUnsavedChanges()`, which left the *initial* load free to
+   * reset the form. `page.goto()` on the edit route returns long before this fetch does, so
+   * anything typed in that gap was silently discarded and the form went back to pristine —
+   * Save then stayed disabled with no explanation. `ngOnInit`'s create path already resets
+   * synchronously to dodge exactly this; the edit path had no equivalent. It applies to every
+   * caller now, which also means a 409 recovery keeps the edit the user is retrying instead of
+   * throwing it away.
+   *
+   * Server state stays unconditional so a refresh triggered while the form is dirty still
+   * refreshes what it was called for.
+   */
+  private async loadStory(): Promise<void> {
     try {
       const s = await this.storyService.getStory(this.projectName, this.storyId!);
-      if (fromSSE && this.hasUnsavedChanges()) {
-        // Don't overwrite unsaved user edits, but still take the new version: the
-        // entity moved on, and holding the stale one guarantees a 409 on the next
-        // save. (The previous implementation had no such guard and clobbered edits.)
-        this.version = s.version;
-        this.story.set(s);
-        return;
-      }
+      // A full load supersedes any association refresh still in flight: whichever of the two
+      // reads resolves last would otherwise win, and this one carries the form reset.
+      this.storyReadSeq++;
+      // Always take the version. The entity moved on, and holding the stale one guarantees a
+      // 409 on the next save.
       this.story.set(s);
-      this.storyName.set(s.name);
-      this.detailsForm.reset({
-        name: s.name,
-        storyType: s.storyType,
-        primaryActorName: s.primaryActorName ?? '',
-        text: s.text,
-      });
       this.version = s.version;
+      if (!this.hasUnsavedChanges()) {
+        this.storyName.set(s.name);
+        this.detailsForm.reset({
+          name: s.name,
+          storyType: s.storyType,
+          primaryActorName: s.primaryActorName ?? '',
+          text: s.text,
+        });
+      }
     } catch {
       this.errorMessage.set('Failed to load story.');
     }
@@ -468,9 +488,49 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       void this.eventStreamService.addSubscription('Story', this.storyId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'Story' && envelope.targetId === this.storyId) {
-          void this.loadStory(true);
+          void this.loadStory();
         }
       });
+    }
+  }
+
+  /**
+   * Re-reads the story after an association command so the held `@Version` and the goals /
+   * actors tables both come from the server rather than from a locally patched array.
+   *
+   * `Add`/`RemoveGoalToGoalContainer` and `Add`/`RemoveActorToActorContainer` merge their
+   * container — which here is the story — so each one bumps its `@Version`. None of the four
+   * registers a result extractor, so `result.entity` is null and the new version can only be
+   * read back (#178). Without this, adding a goal and then saving the name 409s (#179).
+   *
+   * Applying the response is guarded by `storyReadSeq`. Two associations in quick succession —
+   * easiest by clicking two remove buttons — issue two GETs that can resolve in either order,
+   * and the older snapshot landing last would silently restore a row the user just removed.
+   * A stale *version* is self-correcting, since the next save 409s into
+   * `recoverFromStaleVersion()`, but a stale *list* is not, which is why the guard exists at
+   * all now that the tables are refreshed too.
+   *
+   * Unlike `loadStory()` this never touches `detailsForm`, so it cannot discard unsaved edits:
+   * the form belongs to the user, the signal to the server.
+   *
+   * #180 deletes this method: once the four commands return their merged container, the
+   * version and the lists both come off `result.entity` and the extra GET goes away.
+   */
+  private async refreshAfterAssociation(): Promise<void> {
+    if (this.storyId == null) {
+      return;
+    }
+    const seq = ++this.storyReadSeq;
+    try {
+      const s = await this.storyService.getStory(this.projectName, this.storyId);
+      if (seq !== this.storyReadSeq) {
+        return;
+      }
+      this.version = s.version;
+      this.story.set(s);
+    } catch {
+      // Leave the held version and lists as they are. A failed refresh is not worth blocking
+      // the user on, and a resulting 409 still reports itself through the existing recovery.
     }
   }
 
@@ -666,11 +726,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         containerType: 'Story'
       });
       if (result.success) {
+        await this.refreshAfterAssociation();
         this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
-        this.story.update(s => s ? {
-          ...s,
-          goals: [...(s.goals ?? []), ref].sort((a, b) => a.name.localeCompare(b.name))
-        } : s);
       } else {
         this.errorMessage.set(result.error ?? 'Failed to add goal.');
       }
@@ -688,11 +745,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         containerType: 'Story'
       });
       if (result.success) {
+        await this.refreshAfterAssociation();
         this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });
-        this.story.update(s => s ? {
-          ...s,
-          goals: (s.goals ?? []).filter(g => g.id !== goalRef.id)
-        } : s);
       } else {
         this.errorMessage.set(result.error ?? 'Failed to remove goal.');
       }
@@ -710,11 +764,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         actorId: ref.id
       });
       if (result.success) {
+        await this.refreshAfterAssociation();
         this.messageService.add({ severity: 'success', summary: 'Actor added', detail: 'Actor added.' });
-        this.story.update(s => s ? {
-          ...s,
-          actors: [...(s.actors ?? []), ref].sort((a, b) => a.name.localeCompare(b.name))
-        } : s);
       } else {
         this.errorMessage.set(result.error ?? 'Failed to add actor.');
       }
@@ -731,11 +782,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         actorId: actorRef.id
       });
       if (result.success) {
+        await this.refreshAfterAssociation();
         this.messageService.add({ severity: 'success', summary: 'Actor removed', detail: 'Actor removed.' });
-        this.story.update(s => s ? {
-          ...s,
-          actors: (s.actors ?? []).filter(a => a.id !== actorRef.id)
-        } : s);
       } else {
         this.errorMessage.set(result.error ?? 'Failed to remove actor.');
       }

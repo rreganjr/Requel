@@ -13,6 +13,7 @@ import {
 } from './fixtures/api-helper';
 import { GoalListPage, GoalEditorPage } from './pages/GoalEditorPage';
 import { StoryListPage, StoryEditorPage } from './pages/StoryEditorPage';
+import { gotoAndWaitForGet } from './helpers/navigation';
 
 /**
  * End-to-end coverage for the entity-create wizard (issue #158).
@@ -396,7 +397,16 @@ test.describe('Edit forms after the migration', () => {
 
     const page = await adminContext.newPage();
     const editor = new GoalEditorPage(page);
-    await page.goto(`/projects/${encodeURIComponent(PROJECT_NAME)}/goals/${goal.id}`);
+    // Wait for the goal GET, not just document load. Everything asserted below the wizard
+    // check is also true of an empty form, so a bare page.goto() lets this test type into the
+    // input before the fetch lands and then have the load reset it out from under us - Save
+    // stays disabled and the failure reads as a Save-gating bug rather than a race.
+    await gotoAndWaitForGet(
+      page,
+      `/projects/${encodeURIComponent(PROJECT_NAME)}/goals/${goal.id}`,
+      r => /\/goals\/\d+$/.test(r.url())
+    );
+    await editor.expectNameValue(goal.name);
 
     // No wizard chrome on the edit route.
     await expect(editor.wizard.root()).toHaveCount(0);
