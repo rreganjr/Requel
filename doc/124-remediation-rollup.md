@@ -7,7 +7,7 @@ Grouped from `doc/UI_UX_REVIEW.md` findings 1.1–5.6 plus the look-and-feel ite
 - Phase 1 closes app-wide accessibility blockers that later components must not reintroduce.
 - Phase 2 creates tokens and shared primitives. N4 #157 owns `app-data-table`; N5 #158 owns `app-field`/wizard primitives only, not full form migration. #172 (`app-field-group`) is an additive layout extension of the N5 primitive and blocks #132.
 - Phase 3 migrates forms using the N5 primitives. #132 is blocked by #158 and #172; #138 is blocked by #132 and the command-error adapter #133.
-- Phase 3 server-side backing: #171 supplies the real `@Size`/`@Email` constraints that #132's client-side validation is supposed to mirror, and #176 makes command field violations report input-DTO field names so #133's `applyCommandErrors` stops needing per-editor rename maps. #173 (3.1b create-flow wizards) is blocked by #132 and consumes its helpers.
+- Phase 3 server-side backing: #171 supplies the real `@Size`/`@Email` constraints that #132's client-side validation is supposed to mirror, and #176 makes command field violations report input-DTO field names so #133's `applyCommandErrors` stops needing per-editor rename maps — #176 is ordered ahead of #133 because #173 grew those maps to nine, and #133 should audit error rendering on a base that no longer carries the workaround. #173 (3.1b create-flow wizards) is blocked by #132 and consumes its helpers.
 - Phase 4 applies the primitives to IA/workflow tickets. #146 is an adoption/integration ticket after N1–N5, not a catch-all primitive build.
 - Phase 5 handles lower-level Angular/SSE/bundle work plus optional dark-mode config.
 
@@ -34,10 +34,10 @@ Grouped from `doc/UI_UX_REVIEW.md` findings 1.1–5.6 plus the look-and-feel ite
 ### Phase 3 — Forms and validation remediation
 
 - [x] #132 — 3.1 Forms are mostly template-driven and lack consistent validation
-- [ ] #171 — 3.1 server backing: bean validation `@Size`/`@Email` constraints on artifact name/text and user email inputs (blocks #132 — client caps must mirror real constraints)
-- [ ] #173 — 3.1b Create-flow wizards for project, actor, stakeholder, scenario, use-case (blocked by #132)
+- [x] #171 — 3.1 server backing: bean validation `@Size`/`@Email` constraints on artifact name/text and user email inputs (blocks #132 — client caps must mirror real constraints)
+- [x] #173 — 3.1b Create-flow wizards for project, actor, stakeholder, scenario, use-case (blocked by #132)
+- [ ] #176 — 3.2 server backing: `CommandController` should report field violations using input-DTO field names, not JPA entity property names (do this before #133 — it deletes the nine per-editor rename maps and the map parameter on `applyCommandErrors`)
 - [ ] #133 — 3.2 API and command errors are surfaced inconsistently
-- [ ] #176 — 3.2 server backing: `CommandController` should report field violations using input-DTO field names, not JPA entity property names (independent; retires the per-editor rename maps in #133)
 - [ ] #134 — 3.3 Mini-forms (annotations, tags, admin, dialogs) need the same validation contract
 - [ ] #138 — 4.4 Form labels and error associations are incomplete
 - [ ] #143 — 5.2 Signals are used, but form/state hygiene is mixed
@@ -59,4 +59,4 @@ Grouped from `doc/UI_UX_REVIEW.md` findings 1.1–5.6 plus the look-and-feel ite
 - [ ] #147 — 5.6 Bundle and dependency posture is reasonable but should be measured
 - [ ] #159 — N6 Theme switcher + dark mode via config panel (optional)
 
-**Progress: 15 / 33 complete** (Phase 1 ✅, Phase 2 ✅, Phase 3 in progress).
+**Progress: 17 / 33 complete** (Phase 1 ✅, Phase 2 ✅, Phase 3 in progress).
