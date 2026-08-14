@@ -3,7 +3,7 @@ import {
   createProject, deleteProject, createTerm, deleteTerm, getTermDetail, TermFixture
 } from './fixtures/api-helper';
 import { TermListPage, TermEditorPage } from './pages/TermEditorPage';
-import { reloadAndWaitForGet } from './helpers/navigation';
+import { reloadAndWaitForGet, gotoAndWaitForGet } from './helpers/navigation';
 
 const PROJECT_NAME = `e2e-terms-${Date.now()}`;
 let termToCleanup: TermFixture | null = null;
@@ -182,7 +182,14 @@ test.describe('Glossary term management', () => {
     // rendered (B has no alternates of its own). The sister test below
     // ("set canonical term via UI selector …") already uses direct
     // navigation for the same reason.
-    await page.goto(`/projects/${encodeURIComponent(PROJECT_NAME)}/terms/${canonical.id}`);
+    // gotoAndWaitForGet, not goto: page.goto() resolves on document load, well before the term
+    // detail fetch returns, and #185 now gates the form on that fetch. Asserting straight after
+    // a bare goto races the skeleton.
+    await gotoAndWaitForGet(
+      page,
+      `/projects/${encodeURIComponent(PROJECT_NAME)}/terms/${canonical.id}`,
+      response => response.url().includes(`/terms/${canonical.id}`)
+    );
 
     await editorPage.expectAlternateTermInTable(alternateName);
     await editorPage.clickAlternateTerm(alternateName);
@@ -235,7 +242,11 @@ test.describe('Glossary term management', () => {
 
     // Assert the relation server-side via the alternate-terms section on A's editor —
     // this is the canonical observable proof that B.canonicalTermId === A.id.
-    await page.goto(`/projects/${encodeURIComponent(PROJECT_NAME)}/terms/${a.id}`);
+    await gotoAndWaitForGet(
+      page,
+      `/projects/${encodeURIComponent(PROJECT_NAME)}/terms/${a.id}`,
+      response => response.url().includes(`/terms/${a.id}`)
+    );
     await editorPage.expectAlternateTermInTable(bName);
 
     // Clean up B explicitly — without clearing its canonical pointer first the

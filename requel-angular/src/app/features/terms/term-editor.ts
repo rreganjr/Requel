@@ -39,6 +39,8 @@ import { EventStreamService } from '../../core/event-stream.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AppCardComponent } from '../../shared/app-card';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { LoadingStateComponent } from '../../shared/loading-state';
+import { ErrorStateComponent } from '../../shared/error-state';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
@@ -79,6 +81,8 @@ const SEPARATOR = '; ';
     AnnotationsSectionComponent,
     AppFieldComponent,
     AppFieldControlDirective,
+    LoadingStateComponent,
+    ErrorStateComponent,
   ],
   providers: [ConfirmationService],
   template: `
@@ -99,126 +103,136 @@ const SEPARATOR = '; ';
         <p-message severity="error" [text]="errorMessage()!" data-testid="term-error" />
       }
 
-      <app-card>
-        <form [formGroup]="form" (ngSubmit)="onSave()">
-          <!--
-            controlId is "name" / "text" on purpose: those ids are an e2e contract, not
-            an implementation detail. TermEditorPage and BaseListPage's default
-            readySelector both locate #name, so letting app-field generate rq-field-{n}
-            here would break navigation in tests that have nothing to do with this form.
-          -->
-          <app-field
-            label="Term"
-            controlId="name"
-            [control]="form.controls.name"
-            [submitted]="submitted()"
-          >
-            <input
-              id="name"
-              pInputText
-              appFieldControl
-              formControlName="name"
-              [attr.maxlength]="nameMaxLength"
-              placeholder="Term name"
-            />
-          </app-field>
+      @if (loading()) {
+        <app-card>
+          <app-loading-state label="Loading term…" [lines]="4" testid="term-editor-loading" />
+        </app-card>
+      } @else if (loadError()) {
+        <app-error-state [message]="loadError()!" testid="term-editor-load-error"
+                         (retry)="retryLoad()" />
+      } @else {
+        <app-card>
+          <form [formGroup]="form" (ngSubmit)="onSave()">
+            <!--
+              controlId is "name" / "text" on purpose: those ids are an e2e contract, not
+              an implementation detail. TermEditorPage and BaseListPage's default
+              readySelector both locate #name, so letting app-field generate rq-field-{n}
+              here would break navigation in tests that have nothing to do with this form.
+            -->
+            <app-field
+              label="Term"
+              controlId="name"
+              [control]="form.controls.name"
+              [submitted]="submitted()"
+            >
+              <input
+                id="name"
+                pInputText
+                appFieldControl
+                formControlName="name"
+                [attr.maxlength]="nameMaxLength"
+                placeholder="Term name"
+              />
+            </app-field>
 
-          <app-field
-            label="Definition"
-            controlId="text"
-            [control]="form.controls.text"
-            [submitted]="submitted()"
-          >
-            <textarea
-              id="text"
-              pTextarea
-              appFieldControl
-              formControlName="text"
-              rows="5"
-              placeholder="Definition of this term"
-            ></textarea>
-          </app-field>
+            <app-field
+              label="Definition"
+              controlId="text"
+              [control]="form.controls.text"
+              [submitted]="submitted()"
+            >
+              <textarea
+                id="text"
+                pTextarea
+                appFieldControl
+                formControlName="text"
+                rows="5"
+                placeholder="Definition of this term"
+              ></textarea>
+            </app-field>
 
-          <app-field
-            label="Canonical Term"
-            controlId="canonical-term-input"
-            [control]="form.controls.canonicalTermId"
-            [submitted]="submitted()"
-            [divider]="false"
-          >
-            <p-select
-              appFieldControl
-              inputId="canonical-term-input"
-              data-testid="term-canonical-select"
-              formControlName="canonicalTermId"
-              [options]="canonicalOptions()"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="None (this is a canonical term)"
-              [showClear]="true"
-            />
-          </app-field>
+            <app-field
+              label="Canonical Term"
+              controlId="canonical-term-input"
+              [control]="form.controls.canonicalTermId"
+              [submitted]="submitted()"
+              [divider]="false"
+            >
+              <p-select
+                appFieldControl
+                inputId="canonical-term-input"
+                data-testid="term-canonical-select"
+                formControlName="canonicalTermId"
+                [options]="canonicalOptions()"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="None (this is a canonical term)"
+                [showClear]="true"
+              />
+            </app-field>
 
-          <div class="form-actions">
-            <p-button
-              type="submit"
-              label="Save"
-              icon="pi pi-check"
-              data-testid="term-save"
-              [loading]="saving()"
-              [disabled]="form.invalid || form.pristine || saving()"
-            />
+            <div class="form-actions">
+              <p-button
+                type="submit"
+                label="Save"
+                icon="pi pi-check"
+                data-testid="term-save"
+                [loading]="saving()"
+                [disabled]="form.invalid || form.pristine || saving()"
+              />
+            </div>
+          </form>
+        </app-card>
+
+        <!-- Alternate Terms (terms that point to this as their canonical) -->
+        @if (!isNew() && term()?.alternateTerms?.length) {
+          <div class="section" data-testid="term-alternate-terms-section">
+            <h2 class="rq-section-title">Alternate Terms</h2>
+            <p-table [value]="term()!.alternateTerms!" [rows]="10">
+              <ng-template #header>
+                <tr>
+                  <th>Term</th>
+                </tr>
+              </ng-template>
+              <ng-template #body let-a>
+                <tr class="clickable-row" data-testid="term-alternate-row"
+                    (click)="navigateToTerm(a.id)">
+                  <td>{{ a.name }}</td>
+                </tr>
+              </ng-template>
+            </p-table>
           </div>
-        </form>
-      </app-card>
+        }
 
-      <!-- Alternate Terms (terms that point to this as their canonical) -->
-      @if (!isNew() && term()?.alternateTerms?.length) {
-        <div class="section" data-testid="term-alternate-terms-section">
-          <h2 class="rq-section-title">Alternate Terms</h2>
-          <p-table [value]="term()!.alternateTerms!" [rows]="10">
-            <ng-template #header>
-              <tr>
-                <th>Term</th>
-              </tr>
-            </ng-template>
-            <ng-template #body let-a>
-              <tr class="clickable-row" data-testid="term-alternate-row"
-                  (click)="navigateToTerm(a.id)">
-                <td>{{ a.name }}</td>
-              </tr>
-            </ng-template>
-          </p-table>
-        </div>
+        <!-- Referenced By -->
+        @if (!isNew() && term()?.referers?.length) {
+          <div class="section" data-testid="term-referenced-by-section">
+            <h2 class="rq-section-title">Referenced By</h2>
+            <p-table [value]="term()!.referers!" [rows]="10">
+              <ng-template #header>
+                <tr>
+                  <th>Type</th>
+                  <th>Name</th>
+                </tr>
+              </ng-template>
+              <ng-template #body let-r>
+                <tr data-testid="term-referer-row">
+                  <td>{{ r.entityType }}</td>
+                  <td>{{ r.name }}</td>
+                </tr>
+              </ng-template>
+            </p-table>
+          </div>
+        }
+
+        <!-- Annotations -->
+        <app-annotations-section
+          [projectName]="projectName"
+          entityType="GlossaryTerm"
+          [entityId]="termId()"
+          [canEdit]="canEdit()" />
       }
 
-      <!-- Referenced By -->
-      @if (!isNew() && term()?.referers?.length) {
-        <div class="section" data-testid="term-referenced-by-section">
-          <h2 class="rq-section-title">Referenced By</h2>
-          <p-table [value]="term()!.referers!" [rows]="10">
-            <ng-template #header>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-              </tr>
-            </ng-template>
-            <ng-template #body let-r>
-              <tr data-testid="term-referer-row">
-                <td>{{ r.entityType }}</td>
-                <td>{{ r.name }}</td>
-              </tr>
-            </ng-template>
-          </p-table>
-        </div>
-      }
-
-      <!-- Annotations -->
-      <app-annotations-section
-        [projectName]="projectName"
-        entityType="GlossaryTerm"
-        [entityId]="termId()"
-        [canEdit]="canEdit()" />
     </div>
 
     <p-confirmDialog />
@@ -243,6 +257,14 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   saving = signal(false);
   submitted = signal(false);
   errorMessage = signal<string | null>(null);
+  /**
+   * #185. The edit form renders only once the detail GET resolves, so there is no window in which
+   * a user can type into a form the load is about to reset. Starts true: an edit route is loading
+   * from the first frame, and the create path clears it synchronously in ngOnInit.
+   */
+  loading = signal(true);
+  loadError = signal<string | null>(null);
+  private lastTermId: number | null = null;
   canonicalOptions = signal<{ label: string; value: number }[]>([]);
 
   /**
@@ -304,6 +326,10 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.termId.set(null);
         this.submitted.set(false);
         this.form.reset({ name: '', text: '', canonicalTermId: null });
+        // Nothing to load, so resolve the gate synchronously (#185) - otherwise the create form
+        // would sit behind the skeleton forever. Same reason the reset above is synchronous.
+        this.loading.set(false);
+        this.loadError.set(null);
       }
 
       await this.permissionService.loadForProject(this.projectName);
@@ -365,7 +391,24 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    * confirmation - so it moves only with the form, matching `goal-editor`. `submitted` likewise:
    * clearing it would hide validation errors the user is looking at.
    */
-  private async loadTerm(id: number): Promise<void> {
+  /** Re-run the last attempted load; wired to the error state's (retry) output. */
+  retryLoad(): void {
+    if (this.lastTermId != null) {
+      void this.loadTerm(this.lastTermId);
+    }
+  }
+
+  /**
+   * @param skeleton show the loading skeleton and the retryable error state. Suppressed for the
+   *                 post-save refetch and the SSE refresh, where blanking the form the user is
+   *                 looking at would be worse than a stale moment. Mirrors `scenario-editor`.
+   */
+  private async loadTerm(id: number, skeleton = true): Promise<void> {
+    this.lastTermId = id;
+    if (skeleton) {
+      this.loading.set(true);
+      this.loadError.set(null);
+    }
     try {
       const t = await this.termService.getTerm(this.projectName, id);
       this.term.set(t);
@@ -381,13 +424,21 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.submitted.set(false);
       }
     } catch {
-      this.errorMessage.set('Failed to load term.');
+      if (skeleton) {
+        this.loadError.set('Failed to load term.');
+      } else {
+        this.errorMessage.set('Failed to load term.');
+      }
+    } finally {
+      if (skeleton) {
+        this.loading.set(false);
+      }
     }
     if (id && !this.sseSub) {
       void this.eventStreamService.addSubscription('GlossaryTerm', id);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'GlossaryTerm' && envelope.targetId === id) {
-          void this.loadTerm(id);
+          void this.loadTerm(id, false);
         }
       });
     }
@@ -433,7 +484,7 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         // result, so Save stayed enabled on a freshly saved form. Same ordering scenario-editor
         // uses around its post-save refetch.
         this.form.markAsPristine();
-        await this.loadTerm(this.termId()!);
+        await this.loadTerm(this.termId()!, false);
       }
       return;
     }

@@ -117,6 +117,95 @@ describe('TermEditorComponent', () => {
     );
   });
 
+  // #185. The gate is the structural half of the fix: with the form absent until the detail GET
+  // resolves, there is no input for a user - or a fast e2e test - to type into before the load
+  // lands. The dirty-guard in loadTerm() is then belt-and-braces for the SSE / post-save paths.
+  describe('render gate (#185, finishing #131)', () => {
+    function el(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('shows the skeleton and no form until the detail GET resolves', async () => {
+      let resolveGet: (term: unknown) => void = () => {};
+      termServiceMock.getTerm.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="term-editor-loading"]')).not.toBeNull();
+      // The point of the gate: nothing to type into yet.
+      expect(el().querySelector('input#name')).toBeNull();
+
+      resolveGet(MOCK_TERM);
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="term-editor-loading"]')).toBeNull();
+      expect(el().querySelector('input#name')).not.toBeNull();
+    });
+
+    // The create route never loads, so the gate has to be resolved synchronously in ngOnInit -
+    // otherwise a new term sits behind the skeleton forever.
+    it('renders the create form immediately, with no skeleton', async () => {
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('[data-testid="term-editor-loading"]')).toBeNull();
+      expect(el().querySelector('input#name')).not.toBeNull();
+    });
+
+    it('shows a retryable error state when the load fails, and recovers on retry', async () => {
+      termServiceMock.getTerm.mockRejectedValueOnce(new Error('boom'));
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="term-editor-load-error"]')).not.toBeNull();
+      expect(el().querySelector('input#name')).toBeNull();
+
+      termServiceMock.getTerm.mockResolvedValue(MOCK_TERM);
+      comp.retryLoad();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="term-editor-load-error"]')).toBeNull();
+      expect(comp.form.controls.name.value).toBe('Goal');
+    });
+
+    // An SSE refresh passes skeleton=false. Blanking the form under a user who is reading it
+    // because someone else touched the term would be its own bug.
+    it('does not blank the form for an SSE refresh', async () => {
+      eventStreamServiceMock.events$ = events$.asObservable();
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+      fixture.detectChanges();
+      await flush();
+
+      let resolveGet: (term: unknown) => void = () => {};
+      termServiceMock.getTerm.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+
+      events$.next({ targetType: 'GlossaryTerm', targetId: 2 });
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('input#name')).not.toBeNull();
+
+      resolveGet(MOCK_TERM);
+      await flush();
+    });
+  });
+
   describe('reactive form (issue #132)', () => {
     it('loads the term into the form and leaves it pristine', async () => {
       paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
