@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
-import { BehaviorSubject, EMPTY } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { StakeholderEditorComponent } from './stakeholder-editor';
 import { StakeholderService } from '../../core/stakeholder.service';
@@ -172,6 +172,66 @@ describe('StakeholderEditorComponent', () => {
       expect(comp.detailsForm.dirty).toBe(false);
       expect(comp.hasUnsavedChanges()).toBe(true);
       expect(comp.getSelectedPermissionKeys().sort()).toEqual(['delete_goal', 'edit_goal']);
+    });
+  });
+
+  // #185. Two forms to protect here rather than one, and an unusually wide window: loadUsers()
+  // and loadPermissions() are awaited inside loadStakeholder(), so on the user path the form is
+  // typeable across three round trips.
+  describe('unsaved edits survive a load (#185)', () => {
+    it('does not clobber a value typed while the initial load is still in flight', async () => {
+      let resolveGet: (stakeholder: unknown) => void = () => {};
+      stakeholderServiceMock.getStakeholder.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '51' }));
+      fixture.detectChanges();
+      await flush();
+
+      // The user is faster than the network.
+      comp.detailsForm.controls.name.setValue('Typed while loading');
+      comp.detailsForm.controls.name.markAsDirty();
+
+      resolveGet({ ...MOCK_STAKEHOLDER_NONUSER, version: 4 });
+      await flush();
+
+      expect(comp.detailsForm.controls.name.value).toBe('Typed while loading');
+      expect(comp.detailsForm.dirty).toBe(true);
+      // Server state still landed, so Save has a usable version to send.
+      expect(comp.isUserType()).toBe(false);
+    });
+
+    // The distinguishing case for this editor: loadPermissions() rebuilds the checkbox controls
+    // from the server's key set, so running it over a half-ticked matrix silently reverts the
+    // ticks. detailsForm is pristine throughout - only permissionsForm is dirty.
+    it('does not revert permission ticks when an SSE refresh lands', async () => {
+      const events$ = new Subject<{ targetType: string; targetId: number }>();
+      eventStreamServiceMock.events$ = events$.asObservable() as typeof EMPTY;
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+      fixture.detectChanges();
+      await flush();
+
+      comp.permissionControl('delete_goal').setValue(true);
+      comp.permissionControl('delete_goal').markAsDirty();
+      expect(comp.detailsForm.dirty).toBe(false);
+
+      // A refresh whose server state still has only edit_goal selected.
+      stakeholderServiceMock.getStakeholder.mockResolvedValue({
+        ...MOCK_STAKEHOLDER_USER,
+        version: 7,
+        goals: [{ id: 1, name: 'Added elsewhere', entityType: 'Goal' }]
+      });
+
+      events$.next({ targetType: 'Stakeholder', targetId: 50 });
+      await flush();
+
+      // The tick survives...
+      expect(comp.permissionControl('delete_goal').value).toBe(true);
+      expect(comp.permissionsForm.dirty).toBe(true);
+      // ...while the goals table still refreshed, rather than sitting stale behind the edit.
+      expect(comp.goals().length).toBe(1);
     });
   });
 

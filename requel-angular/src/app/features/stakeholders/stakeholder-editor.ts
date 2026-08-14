@@ -463,32 +463,62 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
     }
   }
 
+  /**
+   * Reads the stakeholder and applies it in two parts: server state always, form state only when
+   * the user has nothing unsaved.
+   *
+   * This editor had no guard, so every caller - initial load, SSE refresh, 409 recovery - patched
+   * over whatever the user was typing and then marked both forms pristine, leaving Save disabled
+   * with nothing on screen explaining why (#185). The window here is unusually wide even before
+   * the detail GET: `loadUsers()` and `loadPermissions()` are awaited *inside* this method, so on
+   * the user-stakeholder path the form is on screen and typeable across three round trips.
+   *
+   * The check therefore sits after those awaits rather than immediately after the detail GET, so
+   * it catches edits made at any point while the load was still running.
+   *
+   * `hasUnsavedChanges()` is `detailsForm.dirty || permissionsForm.dirty`, so a user who has only
+   * ticked a permission box is protected too - which is why `loadPermissions()` moved inside the
+   * guard. It rebuilds the checkbox controls from the server's key set, so running it over a
+   * half-ticked matrix would silently revert the ticks.
+   *
+   * Unconditional, because none of it is user-editable state: `version` (holding a stale one
+   * guarantees a 409 on the next save), the user/non-user mode and the enable/disable pattern that
+   * follows from it, the goals table, `loadedUserDetails` (template display only), and the user
+   * dropdown options. Skipping the goals table behind a dirty form is the stale-table trap #184
+   * found in `actor-editor`. `stakeholderName` is the *persisted* name, so it moves with the form.
+   */
   private async loadStakeholder(): Promise<void> {
     try {
       const s = await this.stakeholderService.getStakeholder(this.projectName, this.stakeholderId!);
-      this.stakeholderName.set(s.name);
+      // Server state, always.
       this.version = s.version;
       const isUser = s.type === 'user';
       this.isUserType.set(isUser);
       this.applyMode(isUser);
       this.goals.set(s.goals ?? []);
-
       if (s.userDetails) {
         this.loadedUserDetails.set(s.userDetails);
-        this.detailsForm.patchValue({
-          username: s.userDetails.username,
-          teamName: s.userDetails.teamName ?? '',
-        }, { emitEvent: false });
         await this.loadUsers();
-        await this.loadPermissions(s.userDetails.permissionKeys);
-      } else if (s.nonUserDetails) {
-        this.detailsForm.patchValue({
-          name: s.name,
-          text: s.nonUserDetails.text,
-        }, { emitEvent: false });
       }
-      this.detailsForm.markAsPristine();
-      this.permissionsForm.markAsPristine();
+
+      // Form state, only when the user has nothing unsaved - in either form.
+      if (!this.hasUnsavedChanges()) {
+        this.stakeholderName.set(s.name);
+        if (s.userDetails) {
+          this.detailsForm.patchValue({
+            username: s.userDetails.username,
+            teamName: s.userDetails.teamName ?? '',
+          }, { emitEvent: false });
+          await this.loadPermissions(s.userDetails.permissionKeys);
+        } else if (s.nonUserDetails) {
+          this.detailsForm.patchValue({
+            name: s.name,
+            text: s.nonUserDetails.text,
+          }, { emitEvent: false });
+        }
+        this.detailsForm.markAsPristine();
+        this.permissionsForm.markAsPristine();
+      }
     } catch {
       this.errorMessage.set('Failed to load stakeholder.');
     }
