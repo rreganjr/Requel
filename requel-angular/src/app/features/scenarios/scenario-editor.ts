@@ -553,11 +553,29 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   }
 
   /**
-   * @param fromSSE  background refresh driven by an event, not by the user.
-   * @param skeleton show the loading skeleton. Suppressed after a save, where blanking the
-   *                 wizard panel the user is standing in would be worse than a stale moment.
+   * Reads the scenario and applies it in two parts: server state always, form and step state only
+   * when the user has nothing in progress.
+   *
+   * The guard used to be `fromSSE && (...)`, so only a background refresh protected the user's
+   * work. Unlike the other editors in #185 the initial load was never the problem here - this
+   * editor is render-gated (`loading = signal(true)` with the form behind `@if (loading())`), so
+   * there is no window to type into before the fetch returns. The unprotected callers were the
+   * *other* two: the post-save refetch and the 409 recovery, both of which passed `fromSSE = false`
+   * and so reset unconditionally. The 409 one is the live bug - it threw away the edit the user
+   * was retrying, which is the opposite of what #184 established for goal/story/actor.
+   *
+   * `fromSSE` is gone; the guard no longer varies by caller. `skeleton` keeps its own default.
+   *
+   * The three conditions are unchanged. `saving()` matters more than it looks: the post-save
+   * refetch runs while `saving()` is still true, so it now deterministically takes the merge path
+   * below - which is exactly the path it wants, since the form was marked pristine and the step
+   * list settled before it was issued. `editingStep() !== null` means the step-detail popup is
+   * open, and replacing `stepNodes` would orphan the object it points at.
+   *
+   * @param skeleton show the loading skeleton. Suppressed for background refreshes, where blanking
+   *                 the wizard panel the user is standing in would be worse than a stale moment.
    */
-  private async loadScenario(fromSSE = false, skeleton = !fromSSE): Promise<void> {
+  private async loadScenario(skeleton = true): Promise<void> {
     // Only the user-initiated load drives the skeleton / retryable error state; a background
     // refresh must not blank the form the user is looking at.
     if (skeleton) {
@@ -566,25 +584,21 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     }
     try {
       const s = await this.scenarioService.getScenario(this.projectName, this.scenarioId!);
-      // Don't overwrite unsaved user edits when called from an SSE notification.
-      // Check after the async fetch so we catch edits made while the request was in-flight.
-      // editingStep() !== null means the step-detail popup is open: replacing stepNodes
-      // would orphan the object that editingStep points to, losing any in-progress edits.
-      if (fromSSE && (this.hasUnsavedChanges() || this.saving() || this.editingStep() !== null)) {
-        // Still take the new version: the entity moved on, and holding the stale one
-        // guarantees a 409 on the user's next save.
-        this.version = s.version;
-        this.scenario.set(s);
+      // Always take the version. The entity moved on, and holding the stale one guarantees a
+      // 409 on the user's next save.
+      this.version = s.version;
+      this.scenario.set(s);
+      // Checked after the fetch so it catches edits made while the request was in flight.
+      if (this.hasUnsavedChanges() || this.saving() || this.editingStep() !== null) {
+        this.mergeStepIds(s.steps ?? []);
         return;
       }
-      this.scenario.set(s);
       this.scenarioName.set(s.name);
       this.detailsForm.reset({
         name: s.name,
         scenarioType: s.scenarioType ?? 'Primary',
         text: s.text ?? '',
       });
-      this.version = s.version;
       this.stepsSaveNeeded.set(false);
       this.stepNodes.set(this.stepsToNodes(s.steps ?? []));
     } catch {
@@ -604,10 +618,37 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       void this.eventStreamService.addSubscription('Scenario', this.scenarioId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'Scenario' && envelope.targetId === this.scenarioId) {
-          void this.loadScenario(true);
+          void this.loadScenario(false);
         }
       });
     }
+  }
+
+  /**
+   * Copy server-assigned ids onto the nodes the user is already holding, instead of replacing the
+   * array wholesale.
+   *
+   * `stepNodes` is not display state like `actor-editor`'s tables - it is editable state submitted
+   * with `EditScenario`, so it can go neither inside the guard nor outside it. The post-save
+   * refetch exists precisely so newly created steps pick up their ids; if the user types during it
+   * the guard skips `stepNodes.set(...)` and those nodes keep `stepId: null` / `isNew: true`, and
+   * the next `EditScenario` sends them as new again - duplicating them server-side.
+   *
+   * Only id-less nodes are filled in, and matching is by position, which is how `EditScenario`
+   * submits the list: sent and rebuilt wholesale, in order. Known gap: if the user reorders steps
+   * between the save and this refetch, an id-less node can sit at a position now held by a
+   * different server step and take the wrong id. Pinned by a test rather than fixed - the ids are
+   * only unknown for the brief window just after a create, and an identity match would need a key
+   * the client does not have for a step the server has never seen.
+   */
+  private mergeStepIds(steps: StepDto[]): void {
+    this.stepNodes.update(nodes => nodes.map((node, i) => {
+      const step = steps[i];
+      if (!step || node.stepId != null) {
+        return node;
+      }
+      return { ...node, stepId: step.id, isNew: false };
+    }));
   }
 
   private stepsToNodes(steps: StepDto[]): StepNodeData[] {
@@ -816,7 +857,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       // starts the first time the scenario exists. No skeleton: in the wizard that would
       // blank the panel the user is standing in.
       if (this.scenarioId != null) {
-        await this.loadScenario(false, false);
+        await this.loadScenario(false);
       }
       return result;
     } catch {
@@ -841,7 +882,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     if (result.status !== 409 || this.scenarioId == null) {
       return false;
     }
-    await this.loadScenario(false, false);
+    await this.loadScenario(false);
     return true;
   }
 

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
 import { Location } from '@angular/common';
-import { BehaviorSubject, EMPTY } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ScenarioEditorComponent } from './scenario-editor';
 import { ScenarioService } from '../../core/scenario.service';
@@ -332,6 +332,128 @@ describe('ScenarioEditorComponent', () => {
 
       expect(request.complete).not.toHaveBeenCalled();
       expect(request.fail).toHaveBeenCalledWith(expect.stringContaining('changed elsewhere'));
+    });
+  });
+
+  // #185. Unlike the other editors in this issue, scenario-editor is render-gated - the form sits
+  // behind @if (loading()), so the "typed before the detail GET returned" race cannot happen here.
+  // Its unguarded callers were the post-save refetch and the 409 recovery, both of which passed
+  // fromSSE = false and so reset unconditionally.
+  describe('unsaved work survives a load (#185)', () => {
+    it('a 409 recovery keeps the edit being retried and adopts the new version', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+
+      comp.detailsForm.controls.name.setValue('My retried rename');
+      comp.detailsForm.controls.name.markAsDirty();
+
+      // The save conflicts; the recovery refetch returns a scenario that moved on.
+      commandServiceMock.execute.mockResolvedValue({ success: false, status: 409, error: 'Conflict' });
+      scenarioServiceMock.getScenario.mockResolvedValue({
+        ...MOCK_SCENARIO, version: 9, name: 'Renamed elsewhere'
+      });
+
+      await comp.onSave();
+
+      // The whole point of a retry: the user's edit is still there to resend...
+      expect(comp.detailsForm.controls.name.value).toBe('My retried rename');
+      expect(comp.detailsForm.dirty).toBe(true);
+      // ...against a version that will not 409 again.
+      expect(comp.scenario()?.version).toBe(9);
+    });
+
+    it('the post-save refetch gives new steps their server ids without replacing the list',
+      async () => {
+        fixture.detectChanges();
+        await flush();
+
+        comp.detailsForm.controls.name.setValue('Created');
+        comp.addStep();
+        comp.stepNodes()[0].name = 'Step one';
+        expect(comp.stepNodes()[0].stepId).toBeNull();
+        expect(comp.stepNodes()[0].isNew).toBe(true);
+
+        // The save succeeds and the refetch reports the step the server just created. That
+        // refetch runs while saving() is still true, so it takes the merge path.
+        //
+        // The server's copy is deliberately given a DIFFERENT name here. In production the two
+        // agree, but that makes the merge path and the old wholesale `stepNodes.set(...)`
+        // indistinguishable - both end up with stepId 77 and the test passes either way. Making
+        // them differ is what pins which path actually ran: the merge keeps the user's node and
+        // only fills in the id, a wholesale replace adopts the server's name.
+        commandServiceMock.execute.mockResolvedValue({
+          success: true, entity: { ...MOCK_SCENARIO, id: 15, version: 1 }
+        });
+        scenarioServiceMock.getScenario.mockResolvedValue({
+          ...MOCK_SCENARIO, id: 15, version: 1,
+          steps: [{ id: 77, name: 'Server copy', text: null, scenarioType: 'Primary', isScenario: false }]
+        });
+
+        const request = { step: { key: 'details' }, complete: vi.fn(), fail: vi.fn() };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await comp.onStepCommit(request as any);
+        await flush();
+
+        // Without the merge the node keeps stepId null and the next EditScenario recreates it.
+        expect(comp.stepNodes()).toHaveLength(1);
+        expect(comp.stepNodes()[0].stepId).toBe(77);
+        expect(comp.stepNodes()[0].isNew).toBe(false);
+        expect(comp.stepNodes()[0].name).toBe('Step one');
+      });
+
+    // Pins the known gap in the position-based merge rather than claiming it is handled: a node
+    // that already has an id is never re-keyed, so a reorder cannot corrupt saved steps - but an
+    // id-less node sitting at a position now held by a different server step takes that step's id.
+    it('only fills in id-less step nodes, leaving already-identified ones alone', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+
+      // Two loaded steps (ids 1 and 2) plus one the user just added.
+      comp.addStep();
+      comp.stepNodes()[2].name = 'Third';
+      comp.detailsForm.controls.name.setValue('Dirty');
+      comp.detailsForm.controls.name.markAsDirty();
+
+      scenarioServiceMock.getScenario.mockResolvedValue({
+        ...MOCK_SCENARIO,
+        steps: [
+          { id: 1, name: 'User opens login page', text: null, scenarioType: 'Primary', isScenario: false },
+          { id: 2, name: 'User submits credentials', text: null, scenarioType: 'Primary', isScenario: false },
+          { id: 3, name: 'Third', text: null, scenarioType: 'Primary', isScenario: false }
+        ]
+      });
+
+      const events$ = new Subject<{ targetType: string; targetId: number }>();
+      eventStreamServiceMock.events$ = events$.asObservable() as typeof EMPTY;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (comp as any).loadScenario(false);
+
+      expect(comp.stepNodes().map(n => n.stepId)).toEqual([1, 2, 3]);
+      expect(comp.stepNodes()[2].isNew).toBe(false);
+      // The form itself is untouched - this ran with the guard closed.
+      expect(comp.detailsForm.controls.name.value).toBe('Dirty');
+      expect(comp.detailsForm.dirty).toBe(true);
+    });
+
+    it('an SSE refresh while the step popup is open does not orphan the edited node', async () => {
+      const events$ = new Subject<{ targetType: string; targetId: number }>();
+      eventStreamServiceMock.events$ = events$.asObservable() as typeof EMPTY;
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+
+      comp.openStepEdit(comp.stepNodes()[0]);
+      const editing = comp.editingStep();
+
+      events$.next({ targetType: 'Scenario', targetId: 15 });
+      await flush();
+
+      // Same object identity - a wholesale stepNodes.set() would have replaced it.
+      expect(comp.editingStep()).toBe(editing);
+      expect(comp.stepNodes()[0]).toBe(editing);
     });
   });
 
