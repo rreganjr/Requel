@@ -531,4 +531,37 @@ describe('GoalEditorComponent', () => {
     });
   });
 
+  // #185 acceptance criterion: one of these per editor with a detail form, including the three
+  // #184 fixed. goal-editor's existing guard coverage was the SSE path only
+  // ("keeps the SSE guard from clobbering unsaved edits"), which is a different caller - this
+  // pins the guard on the *initial* load, where the bug was originally reported.
+  //
+  // Since the render gate landed, a user cannot actually type during this window - the form is
+  // not on screen. The test still earns its place: the guard is the only defence on the SSE,
+  // 409 and post-save paths, and holding the GET open is the cheapest way to pin it. It asserts
+  // the component contract, not the rendered one.
+  it('does not clobber a value typed while the initial load is still in flight', async () => {
+    let resolveGet: (entity: unknown) => void = () => {};
+    goalServiceMock.getGoal.mockImplementation(
+      () => new Promise(resolve => { resolveGet = resolve; })
+    );
+
+    paramMap$.next(convertToParamMap({ name: 'proj1', goalId: '10' }));
+    fixture.detectChanges();
+    await flush();
+
+    comp.detailsForm.controls.name.setValue('Typed while loading');
+    comp.detailsForm.controls.name.markAsDirty();
+
+    resolveGet({ ...MOCK_GOAL, version: 9 });
+    await flush();
+
+    expect(comp.detailsForm.controls.name.value).toBe('Typed while loading');
+    expect(comp.detailsForm.dirty).toBe(true);
+    // Server state still landed, so the next save carries a version that will not 409.
+      expect(comp.goal()?.id).toBe(10);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((comp as any).version).toBe(9);
+  });
+
 });
