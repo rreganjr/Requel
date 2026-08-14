@@ -408,4 +408,96 @@ describe('StakeholderEditorComponent', () => {
       expect.objectContaining({ stakeholderId: 50 }));
     expect(router.navigate).toHaveBeenCalled();
   });
+  // #185. The gate is the structural half of the fix: with the form absent until the detail GET
+  // resolves, there is no input for a user - or a fast e2e test - to type into before the load
+  // lands. The dirty-guard in loadStakeholder() is then belt-and-braces for the background callers.
+  // Finishes the #131 / #168 migration for this editor.
+  describe('render gate (#185, finishing #131)', () => {
+    function el(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('shows the skeleton and no form until the detail GET resolves', async () => {
+      let resolveGet: (entity: unknown) => void = () => {};
+      stakeholderServiceMock.getStakeholder.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '51' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="stakeholder-editor-loading"]')).not.toBeNull();
+      // The point of the gate: nothing to type into yet.
+      expect(el().querySelector('[data-testid="stakeholder-name"]')).toBeNull();
+
+      resolveGet(MOCK_STAKEHOLDER_NONUSER);
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="stakeholder-editor-loading"]')).toBeNull();
+      expect(el().querySelector('[data-testid="stakeholder-name"]')).not.toBeNull();
+    });
+
+    // The create route never loads, so the gate has to be resolved there explicitly - otherwise
+    // the wizard sits behind the skeleton forever and create becomes unreachable.
+    it('renders the create wizard, with no skeleton', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: 'new-nonuser' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('[data-testid="stakeholder-editor-loading"]')).toBeNull();
+      expect(el().querySelector('[data-testid="stakeholder-wizard"]')).not.toBeNull();
+    });
+
+    it('shows a retryable error state when the load fails, and recovers on retry', async () => {
+      stakeholderServiceMock.getStakeholder.mockRejectedValueOnce(new Error('boom'));
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '51' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="stakeholder-editor-load-error"]')).not.toBeNull();
+      expect(el().querySelector('[data-testid="stakeholder-name"]')).toBeNull();
+
+      stakeholderServiceMock.getStakeholder.mockResolvedValue(MOCK_STAKEHOLDER_NONUSER);
+      comp.retryLoad();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="stakeholder-editor-load-error"]')).toBeNull();
+      expect(el().querySelector('[data-testid="stakeholder-name"]')).not.toBeNull();
+    });
+
+    // Background callers pass skeleton=false. Blanking the form under a user who is reading it
+    // because someone else touched the entity would be its own bug.
+    it('does not blank the form for a background reload', async () => {
+      // Explicitly a non-user stakeholder: the default mock is the user type, whose Details step
+      // renders username/team instead of the name field this test asserts on.
+      stakeholderServiceMock.getStakeholder.mockResolvedValue(MOCK_STAKEHOLDER_NONUSER);
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '51' }));
+      fixture.detectChanges();
+      await flush();
+
+      let resolveGet: (entity: unknown) => void = () => {};
+      stakeholderServiceMock.getStakeholder.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const reload = (comp as any).loadStakeholder(false);
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('[data-testid="stakeholder-name"]')).not.toBeNull();
+
+      resolveGet(MOCK_STAKEHOLDER_NONUSER);
+      await reload;
+    });
+  });
+
 });

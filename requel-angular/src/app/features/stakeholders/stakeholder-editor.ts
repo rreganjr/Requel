@@ -45,6 +45,8 @@ import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { LoadingStateComponent } from '../../shared/loading-state';
+import { ErrorStateComponent } from '../../shared/error-state';
 import {
   AppFormWizardComponent,
   AppWizardStepComponent,
@@ -85,7 +87,8 @@ interface PermissionGroup {
             ButtonModule, InputText, TextareaModule, SelectModule,
             CheckboxModule, MessageModule, ConfirmDialogModule, TableModule,
             EntitySelectorDialogComponent, AppFieldComponent, AppFieldControlDirective,
-            AppFormWizardComponent, AppWizardStepComponent],
+            AppFormWizardComponent, AppWizardStepComponent,
+            LoadingStateComponent, ErrorStateComponent],
   providers: [ConfirmationService],
   template: `
     <div class="stakeholder-editor">
@@ -105,7 +108,14 @@ interface PermissionGroup {
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      @if (isNew()) {
+      @if (loading()) {
+        <app-card>
+          <app-loading-state label="Loading stakeholder…" [lines]="4" testid="stakeholder-editor-loading" />
+        </app-card>
+      } @else if (loadError()) {
+        <app-error-state [message]="loadError()!" testid="stakeholder-editor-load-error"
+                         (retry)="retryLoad()" />
+      } @else if (isNew()) {
         <!--
           Create runs as a wizard (#173) so Goals is reachable before the first save. The User
           select stays on step 1 and stays [disabled]="!isNew()" - it is the mode selector, and
@@ -311,6 +321,14 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   isUserType = signal(true);
   stakeholderName = signal('');
   errorMessage = signal<string | null>(null);
+  /**
+   * #185. The edit form renders only once the detail GET resolves, so there is no window in which
+   * a user can type into a form the load is about to reset. Starts true: an edit route is loading
+   * from the first frame, and the create path clears it as soon as it knows there is nothing to
+   * load.
+   */
+  loading = signal(true);
+  loadError = signal<string | null>(null);
   saving = signal(false);
   canDelete = signal(false);
   userOptions = signal<{ label: string; value: string }[]>([]);
@@ -407,6 +425,11 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
     this.goals.set([]);
     this.detailsForm.reset({ username: '', teamName: '', name: '', text: '' });
     this.applyMode(isUser);
+    // Nothing to load, so resolve the gate (#185) - otherwise the create wizard sits behind the
+    // skeleton forever and create becomes unreachable. Both create routes - new-user and
+    // new-nonuser - come through here.
+    this.loading.set(false);
+    this.loadError.set(null);
   }
 
   /**
@@ -487,7 +510,23 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
    * dropdown options. Skipping the goals table behind a dirty form is the stale-table trap #184
    * found in `actor-editor`. `stakeholderName` is the *persisted* name, so it moves with the form.
    */
-  private async loadStakeholder(): Promise<void> {
+  /** Re-run the initial load; wired to the error state's (retry) output. */
+  retryLoad(): void {
+    void this.loadStakeholder();
+  }
+
+  /**
+   * @param skeleton show the loading skeleton and the retryable error state. Suppressed for every
+   *                 background caller - SSE refresh, post-save refetch and 409 recovery and the association refreshes - where
+   *                 blanking the form the user is looking at would be worse than a stale moment,
+   *                 and where a failure belongs in the inline message rather than in place of the
+   *                 form. Mirrors `scenario-editor`.
+   */
+  private async loadStakeholder(skeleton = true): Promise<void> {
+    if (skeleton) {
+      this.loading.set(true);
+      this.loadError.set(null);
+    }
     try {
       const s = await this.stakeholderService.getStakeholder(this.projectName, this.stakeholderId!);
       // Server state, always.
@@ -520,13 +559,21 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
         this.permissionsForm.markAsPristine();
       }
     } catch {
-      this.errorMessage.set('Failed to load stakeholder.');
+      if (skeleton) {
+        this.loadError.set('Failed to load stakeholder.');
+      } else {
+        this.errorMessage.set('Failed to load stakeholder.');
+      }
+    } finally {
+      if (skeleton) {
+        this.loading.set(false);
+      }
     }
     if (this.stakeholderId && !this.sseSub) {
       void this.eventStreamService.addSubscription('Stakeholder', this.stakeholderId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'Stakeholder' && envelope.targetId === this.stakeholderId) {
-          void this.loadStakeholder();
+          void this.loadStakeholder(false);
         }
       });
     }
@@ -746,7 +793,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Stakeholder saved.' });
 
       if (wasCreate && this.stakeholderId != null) {
-        await this.loadStakeholder();
+        await this.loadStakeholder(false);
       }
       return result;
     } catch {
@@ -770,7 +817,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
     if (result.status !== 409 || this.stakeholderId == null) {
       return false;
     }
-    await this.loadStakeholder();
+    await this.loadStakeholder(false);
     return true;
   }
 
