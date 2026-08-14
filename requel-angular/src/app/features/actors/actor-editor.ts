@@ -43,6 +43,8 @@ import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { LoadingStateComponent } from '../../shared/loading-state';
+import { ErrorStateComponent } from '../../shared/error-state';
 import {
   AppFormWizardComponent,
   AppWizardStepComponent,
@@ -77,7 +79,8 @@ const STALE_VERSION_MESSAGE =
             ButtonModule, InputText, TextareaModule, TableModule,
             MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, AppFieldComponent, AppFieldControlDirective,
-            AppFormWizardComponent, AppWizardStepComponent],
+            AppFormWizardComponent, AppWizardStepComponent,
+            LoadingStateComponent, ErrorStateComponent],
   providers: [ConfirmationService],
   template: `
     <div class="actor-editor" data-testid="actor-editor">
@@ -103,7 +106,14 @@ const STALE_VERSION_MESSAGE =
         <p-message severity="error" [text]="errorMessage()!" data-testid="actor-error" />
       }
 
-      @if (isNew()) {
+      @if (loading()) {
+        <app-card>
+          <app-loading-state label="Loading actor…" [lines]="4" testid="actor-editor-loading" />
+        </app-card>
+      } @else if (loadError()) {
+        <app-error-state [message]="loadError()!" testid="actor-editor-load-error"
+                         (retry)="retryLoad()" />
+      } @else if (isNew()) {
         <!--
           Create runs as a wizard (#173) so Goals is reachable before the first save. Step 1
           commits EditActor on Continue, which is what gives step 2 the persisted actorId the
@@ -299,6 +309,13 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   canEdit = signal(false);
   canDelete = signal(false);
   errorMessage = signal<string | null>(null);
+  /**
+   * #185. The edit form renders only once the detail GET resolves, so there is no window in which
+   * a user can type into a form the load is about to reset. Starts true: an edit route is loading
+   * from the first frame, and the create path clears it synchronously in ngOnInit.
+   */
+  loading = signal(true);
+  loadError = signal<string | null>(null);
   goals = signal<EntityReferenceDto[]>([]);
   goalIds = computed(() => this.goals().map(g => g.id).filter((id): id is number => id !== null));
   referencedByUseCases = signal<EntityReferenceDto[]>([]);
@@ -369,6 +386,10 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.submitted.set(false);
         this.detailsForm.reset({ name: '', text: '' });
         this.goals.set([]);
+        // Nothing to load, so resolve the gate synchronously (#185) - otherwise the create wizard
+        // would sit behind the skeleton forever. Same reason the reset above is synchronous.
+        this.loading.set(false);
+        this.loadError.set(null);
       }
 
       await this.permissionService.loadForProject(this.projectName);
@@ -410,7 +431,23 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    * The three collections stay unconditional. Previously the early return skipped them, so a
    * refresh arriving while the form was dirty left the goals and referenced-by tables stale.
    */
-  private async loadActor(): Promise<void> {
+  /** Re-run the initial load; wired to the error state's (retry) output. */
+  retryLoad(): void {
+    void this.loadActor();
+  }
+
+  /**
+   * @param skeleton show the loading skeleton and the retryable error state. Suppressed for every
+   *                 background caller - SSE refresh, post-save refetch and 409 recovery - where
+   *                 blanking the form the user is looking at would be worse than a stale moment,
+   *                 and where a failure belongs in the inline message rather than in place of the
+   *                 form. Mirrors `scenario-editor`.
+   */
+  private async loadActor(skeleton = true): Promise<void> {
+    if (skeleton) {
+      this.loading.set(true);
+      this.loadError.set(null);
+    }
     try {
       const a = await this.actorService.getActor(this.projectName, this.actorId!);
       // Always take the version. The entity moved on, and holding the stale one guarantees a
@@ -425,13 +462,21 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.detailsForm.reset({ name: a.name, text: a.text ?? '' });
       }
     } catch {
-      this.errorMessage.set('Failed to load actor.');
+      if (skeleton) {
+        this.loadError.set('Failed to load actor.');
+      } else {
+        this.errorMessage.set('Failed to load actor.');
+      }
+    } finally {
+      if (skeleton) {
+        this.loading.set(false);
+      }
     }
     if (this.actorId && !this.sseSub) {
       void this.eventStreamService.addSubscription('Actor', this.actorId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'Actor' && envelope.targetId === this.actorId) {
-          void this.loadActor();
+          void this.loadActor(false);
         }
       });
     }
@@ -556,7 +601,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       // Hydrate goals / referencedBy and start the SSE subscription the first time the actor
       // exists, so step 2 has something to render.
       if (wasCreate && this.actorId != null) {
-        await this.loadActor();
+        await this.loadActor(false);
       }
       return result;
     } catch {
@@ -580,7 +625,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     if (result.status !== 409 || this.actorId == null) {
       return false;
     }
-    await this.loadActor();
+    await this.loadActor(false);
     return true;
   }
 

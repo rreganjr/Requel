@@ -449,12 +449,32 @@ describe('ActorEditorComponent', () => {
     expect(comp.hasUnsavedChanges()).toBe(true);
   });
 
-  it('loadActor sets errorMessage when getActor throws', async () => {
+  // #185 moved this from the inline message to the retryable error state. A failed *initial*
+  // load now replaces the form rather than annotating it - there is no form to annotate, since
+  // the gate never opened. Background loads (SSE, post-save, 409) still use errorMessage; the
+  // test below covers that half.
+  it('loadActor sets loadError when the initial getActor throws', async () => {
     actorServiceMock.getActor.mockRejectedValue(new Error('not found'));
     paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '999' }));
     fixture.detectChanges();
     await flush();
+    expect(comp.loadError()).toBe('Failed to load actor.');
+    expect(comp.errorMessage()).toBeNull();
+    expect(comp.loading()).toBe(false);
+  });
+
+  it('a failing background reload uses the inline message, not the error state', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+    fixture.detectChanges();
+    await flush();
+
+    actorServiceMock.getActor.mockRejectedValue(new Error('boom'));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (comp as any).loadActor(false);
+
     expect(comp.errorMessage()).toBe('Failed to load actor.');
+    // The form stays on screen - a background failure must not replace it.
+    expect(comp.loadError()).toBeNull();
   });
 
   it('SSE event for matching actor triggers loadActor reload', async () => {
@@ -512,4 +532,92 @@ describe('ActorEditorComponent', () => {
     fixture.destroy();
     expect(eventStreamServiceMock.removeSubscription).toHaveBeenCalledWith('Actor', 5);
   });
+  // #185. The gate is the structural half of the fix: with the form absent until the detail GET
+  // resolves, there is no input for a user - or a fast e2e test - to type into before the load
+  // lands. The dirty-guard in loadActor() is then belt-and-braces for the background callers.
+  // Finishes the #131 / #168 migration for this editor.
+  describe('render gate (#185, finishing #131)', () => {
+    function el(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('shows the skeleton and no form until the detail GET resolves', async () => {
+      let resolveGet: (actor: unknown) => void = () => {};
+      actorServiceMock.getActor.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="actor-editor-loading"]')).not.toBeNull();
+      // The point of the gate: nothing to type into yet.
+      expect(el().querySelector('[data-testid="actor-name"]')).toBeNull();
+
+      resolveGet(MOCK_ACTOR);
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="actor-editor-loading"]')).toBeNull();
+      expect(el().querySelector('[data-testid="actor-name"]')).not.toBeNull();
+    });
+
+    // The create route never loads, so the gate has to be resolved synchronously in ngOnInit -
+    // otherwise the wizard sits behind the skeleton forever and create is unreachable.
+    it('renders the create wizard immediately, with no skeleton', async () => {
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('[data-testid="actor-editor-loading"]')).toBeNull();
+      expect(el().querySelector('[data-testid="actor-wizard"]')).not.toBeNull();
+    });
+
+    it('shows a retryable error state when the load fails, and recovers on retry', async () => {
+      actorServiceMock.getActor.mockRejectedValueOnce(new Error('boom'));
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="actor-editor-load-error"]')).not.toBeNull();
+      expect(el().querySelector('[data-testid="actor-name"]')).toBeNull();
+
+      actorServiceMock.getActor.mockResolvedValue(MOCK_ACTOR);
+      comp.retryLoad();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="actor-editor-load-error"]')).toBeNull();
+      expect(el().querySelector('[data-testid="actor-name"]')).not.toBeNull();
+    });
+
+    // Background callers pass skeleton=false. Blanking the form under a user who is reading it
+    // because someone else touched the entity would be its own bug.
+    it('does not blank the form for a background reload', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+      fixture.detectChanges();
+      await flush();
+
+      let resolveGet: (actor: unknown) => void = () => {};
+      actorServiceMock.getActor.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const reload = (comp as any).loadActor(false);
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('[data-testid="actor-name"]')).not.toBeNull();
+
+      resolveGet(MOCK_ACTOR);
+      await reload;
+    });
+  });
+
 });

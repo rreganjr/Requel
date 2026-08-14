@@ -2,6 +2,7 @@ import { test, expect } from './fixtures/auth';
 import {
   createProject, createGoal, updateGoal,
 } from './fixtures/api-helper';
+import { gotoAndWaitForGet } from './helpers/navigation';
 
 /**
  * Live-refresh tests for the SSE event stream wired through
@@ -54,7 +55,16 @@ test.describe('SSE live refresh', () => {
       { timeout: 15_000 }
     );
 
-    await page.goto(`/projects/${encodeURIComponent(projectName)}/goals/${goal.id}`);
+    // gotoAndWaitForGet, not goto: page.goto() resolves on document load, well before the goal
+    // detail fetch returns, and #185 now gates the form on that fetch. The assertion below
+    // happens to be safe either way - toHaveValue(originalName) retries and cannot pass against
+    // an absent element - but waiting explicitly is the point of the helper: the test should say
+    // what it depends on rather than rely on a locator to paper over it.
+    await gotoAndWaitForGet(
+      page,
+      `/projects/${encodeURIComponent(projectName)}/goals/${goal.id}`,
+      response => response.url().includes(`/goals/${goal.id}`)
+    );
     // Since #158 the goal form is app-field rows with generated ids — locate by testid.
     const nameInput = page.getByTestId('goal-name');
     await expect(nameInput).toHaveValue(originalName);
