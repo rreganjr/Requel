@@ -646,17 +646,40 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     this.sseSub?.unsubscribe();
   }
 
+  /**
+   * Reads the use case and applies it in two parts: server state always, form state only when the
+   * user has nothing unsaved.
+   *
+   * This editor had no guard of any kind, so every caller reset the form - including the SSE
+   * subscription below, which meant a remote change discarded whatever the user was typing. The
+   * initial load was worse still: `ngOnInit` awaits `loadForProject()` *and* `listActors()` before
+   * this fetch is even issued, so the window between the form rendering and the reset landing is
+   * the widest of any editor here (#185).
+   *
+   * The check sits after the await on purpose, so it catches edits made while the request was
+   * still in flight. Applying it to every caller also means a 409 recovery keeps the edit the user
+   * is retrying rather than throwing it away, matching #184.
+   *
+   * The five collections stay unconditional: they render their own tables, so a refresh after an
+   * association still lands even with a rename sitting in the Name field - the stale-table trap
+   * #184 found in `actor-editor`. `useCaseName` is the *persisted* name, so it moves only with the
+   * form.
+   */
   private async loadUseCase(): Promise<void> {
     try {
       const uc = await this.useCaseService.getUseCase(this.projectName, this.useCaseId!);
+      // Always take the version. The entity moved on, and holding the stale one guarantees a
+      // 409 on the user's next save.
       this.useCase.set(uc);
-      this.useCaseName.set(uc.name);
-      this.detailsForm.reset({
-        name: uc.name,
-        primaryActorName: uc.primaryActorName ?? '',
-        text: uc.text ?? '',
-      });
       this.version = uc.version;
+      if (!this.hasUnsavedChanges()) {
+        this.useCaseName.set(uc.name);
+        this.detailsForm.reset({
+          name: uc.name,
+          primaryActorName: uc.primaryActorName ?? '',
+          text: uc.text ?? '',
+        });
+      }
       this.goals.set(uc.goals ?? []);
       this.stories.set(uc.stories ?? []);
       this.actors.set(uc.actors ?? []);
