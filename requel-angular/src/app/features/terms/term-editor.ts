@@ -346,22 +346,40 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     }
   }
 
+  /**
+   * Reads the term and applies it in two parts: server state always, form state only when the
+   * user has nothing unsaved.
+   *
+   * The guard used to live on the SSE subscription below, as an early `return` before the reload
+   * was even issued. That protected the SSE path and left the *initial* load free to patch over
+   * whatever the user had typed - `page.goto()` on the edit route returns long before this fetch
+   * does, so anything typed in that gap was silently discarded and the form went back to pristine
+   * (#185). Moving the check in here covers every caller, and the early `return` is gone so a
+   * remote change still refreshes `term` / `termId` even while the form is dirty - the stale-
+   * collection trap #184 hit in `actor-editor`.
+   *
+   * The check sits after the await on purpose, so it catches edits made while the request was
+   * still in flight.
+   *
+   * `termName` is the *persisted* name - it titles the page and is quoted in the delete
+   * confirmation - so it moves only with the form, matching `goal-editor`. `submitted` likewise:
+   * clearing it would hide validation errors the user is looking at.
+   */
   private async loadTerm(id: number): Promise<void> {
     try {
       const t = await this.termService.getTerm(this.projectName, id);
       this.term.set(t);
       this.termId.set(t.id);
-      this.termName.set(t.name);
-      // An SSE-driven reload must not throw away what the user is editing. The guard
-      // is on the caller side for the SSE path below; here we only refresh a form the
-      // user has not touched.
-      this.form.patchValue({
-        name: t.name,
-        text: t.text ?? '',
-        canonicalTermId: t.canonicalTermId ?? null,
-      });
-      this.form.markAsPristine();
-      this.submitted.set(false);
+      if (!this.hasUnsavedChanges()) {
+        this.termName.set(t.name);
+        this.form.patchValue({
+          name: t.name,
+          text: t.text ?? '',
+          canonicalTermId: t.canonicalTermId ?? null,
+        });
+        this.form.markAsPristine();
+        this.submitted.set(false);
+      }
     } catch {
       this.errorMessage.set('Failed to load term.');
     }
@@ -369,11 +387,6 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       void this.eventStreamService.addSubscription('GlossaryTerm', id);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'GlossaryTerm' && envelope.targetId === id) {
-          // Don't clobber in-progress edits with a remote change (same guard the N5
-          // editors use). The user's copy wins until they save or navigate away.
-          if (this.hasUnsavedChanges()) {
-            return;
-          }
           void this.loadTerm(id);
         }
       });
@@ -414,6 +427,12 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.form.markAsPristine();
         this.router.navigate(['/projects', this.projectName, 'terms', saved.id], { replaceUrl: true });
       } else {
+        // Mark pristine BEFORE the refetch. The load method only adopts server state into the
+        // form when the form has nothing unsaved (#185), and what was "unsaved" a moment ago is
+        // exactly what we just persisted - leaving it dirty would make the reload skip its own
+        // result, so Save stayed enabled on a freshly saved form. Same ordering scenario-editor
+        // uses around its post-save refetch.
+        this.form.markAsPristine();
         await this.loadTerm(this.termId()!);
       }
       return;

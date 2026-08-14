@@ -356,7 +356,11 @@ describe('TermEditorComponent', () => {
       eventStreamServiceMock.events$ = events$.asObservable();
     });
 
-    it('does not clobber in-progress edits when a remote change arrives', async () => {
+    // #185 changed the shape of this guarantee. The guard used to be an early `return` on this
+    // subscription, so a remote change while dirty issued no fetch at all and `term` / `termId`
+    // went stale behind the edit - the same trap #184 found in `actor-editor`. The reload now
+    // always runs and always adopts server state; only the form is protected.
+    it('refetches on a remote change but does not clobber in-progress edits', async () => {
       paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
       fixture.detectChanges();
       await flush();
@@ -364,12 +368,43 @@ describe('TermEditorComponent', () => {
       comp.form.controls.text.setValue('My unsaved edit');
       comp.form.controls.text.markAsDirty();
       const callsBefore = termServiceMock.getTerm.mock.calls.length;
+      termServiceMock.getTerm.mockResolvedValue({
+        ...MOCK_TERM, name: 'Renamed remotely', text: 'Remote definition.'
+      });
 
       events$.next({ targetType: 'GlossaryTerm', targetId: 2 });
       await flush();
 
-      expect(termServiceMock.getTerm.mock.calls.length).toBe(callsBefore);
+      // Server state landed...
+      expect(termServiceMock.getTerm.mock.calls.length).toBeGreaterThan(callsBefore);
+      expect(comp.term()?.name).toBe('Renamed remotely');
+      // ...but the form and its dirty flag are untouched.
       expect(comp.form.controls.text.value).toBe('My unsaved edit');
+      expect(comp.form.dirty).toBe(true);
+    });
+
+    it('does not clobber a value typed while the initial load is still in flight', async () => {
+      let resolveGet: (term: unknown) => void = () => {};
+      termServiceMock.getTerm.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', termId: '2' }));
+      fixture.detectChanges();
+      await flush();
+
+      // The user is faster than the network.
+      comp.form.controls.name.setValue('Typed while loading');
+      comp.form.controls.name.markAsDirty();
+
+      resolveGet({ ...MOCK_TERM, name: 'Goal' });
+      await flush();
+
+      expect(comp.form.controls.name.value).toBe('Typed while loading');
+      expect(comp.form.dirty).toBe(true);
+      // Server state still landed, so the editor knows which term it is holding.
+      expect(comp.term()?.id).toBe(2);
+      expect(comp.termId()).toBe(2);
     });
 
     it('reloads when the form is clean', async () => {

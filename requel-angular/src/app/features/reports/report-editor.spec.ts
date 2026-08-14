@@ -100,6 +100,49 @@ describe('ReportEditorComponent', () => {
     expect(comp.running()).toBe(false);
   });
 
+  // #185: the edit route renders before the detail GET resolves, so the reset had a window to
+  // overwrite whatever the user typed into it - and clearing `dirty` left Save disabled with
+  // nothing on screen explaining why.
+  it('does not clobber a value typed while the initial load is still in flight', async () => {
+    let resolveGet: (report: unknown) => void = () => {};
+    reportServiceMock.getReport.mockImplementation(
+      () => new Promise(resolve => { resolveGet = resolve; })
+    );
+
+    paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+    fixture.detectChanges();
+    await flush();
+
+    // The user is faster than the network.
+    comp.form.controls.name.setValue('Typed while loading');
+    comp.form.controls.name.markAsDirty();
+
+    resolveGet(MOCK_REPORT);
+    await flush();
+
+    expect(comp.form.controls.name.value).toBe('Typed while loading');
+    expect(comp.form.dirty).toBe(true);
+    // Server state still landed, so the editor knows which document it is holding.
+    expect(comp.report()?.id).toBe(7);
+    expect(comp.reportId()).toBe(7);
+  });
+
+  // Guards the ordering inside onSave: the post-save refetch has to run against a form already
+  // marked pristine, or the #185 guard makes loadReport skip its own result. term-editor had a
+  // test for this; report-editor did not.
+  it('marks the form pristine after a successful save of an existing document', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+    fixture.detectChanges();
+    await flush();
+    comp.form.controls.text.setValue('<xsl:edited/>');
+    comp.form.controls.text.markAsDirty();
+
+    await comp.onSave();
+    await flush();
+
+    expect(comp.form.pristine).toBe(true);
+  });
+
   describe('reactive form (issue #132)', () => {
     it('loads the document into the form and leaves it pristine', async () => {
       paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));

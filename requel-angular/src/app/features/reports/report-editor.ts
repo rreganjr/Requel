@@ -250,15 +250,32 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
     this.paramSub?.unsubscribe();
   }
 
+  /**
+   * Reads the document and applies it in two parts: server state always, form state only when the
+   * user has nothing unsaved.
+   *
+   * The patch/`markAsPristine()` pair used to run unconditionally. `page.goto()` on the edit route
+   * returns long before this fetch does, so anything typed in that gap was silently discarded and
+   * the form went back to pristine - Save then stayed disabled with no explanation (#185).
+   * `ngOnInit`'s create path already resets synchronously to dodge exactly this; the edit path had
+   * no equivalent. The check sits after the await on purpose, so it catches edits made while the
+   * request was still in flight.
+   *
+   * `reportName` is the *persisted* name - it titles the page, names the download, and is quoted
+   * in the delete confirmation - so it moves only with the form, matching `goal-editor`.
+   * `submitted` likewise: clearing it would hide validation errors the user is looking at.
+   */
   private async loadReport(id: number): Promise<void> {
     try {
       const r = await this.reportService.getReport(this.projectName, id);
       this.report.set(r);
       this.reportId.set(r.id);
-      this.reportName.set(r.name);
-      this.form.patchValue({ name: r.name, text: r.text ?? '' });
-      this.form.markAsPristine();
-      this.submitted.set(false);
+      if (!this.hasUnsavedChanges()) {
+        this.reportName.set(r.name);
+        this.form.patchValue({ name: r.name, text: r.text ?? '' });
+        this.form.markAsPristine();
+        this.submitted.set(false);
+      }
     } catch {
       this.errorMessage.set('Failed to load document.');
     }
@@ -298,6 +315,12 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
         this.form.markAsPristine();
         this.router.navigate(['/projects', this.projectName, 'reports', saved.id], { replaceUrl: true });
       } else {
+        // Mark pristine BEFORE the refetch. The load method only adopts server state into the
+        // form when the form has nothing unsaved (#185), and what was "unsaved" a moment ago is
+        // exactly what we just persisted - leaving it dirty would make the reload skip its own
+        // result, so Save stayed enabled on a freshly saved form. Same ordering scenario-editor
+        // uses around its post-save refetch.
+        this.form.markAsPristine();
         await this.loadReport(this.reportId()!);
       }
       return;
