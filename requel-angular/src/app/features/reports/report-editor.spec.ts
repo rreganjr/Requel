@@ -100,6 +100,136 @@ describe('ReportEditorComponent', () => {
     expect(comp.running()).toBe(false);
   });
 
+  // #185: the edit route renders before the detail GET resolves, so the reset had a window to
+  // overwrite whatever the user typed into it - and clearing `dirty` left Save disabled with
+  // nothing on screen explaining why.
+  it('does not clobber a value typed while the initial load is still in flight', async () => {
+    let resolveGet: (report: unknown) => void = () => {};
+    reportServiceMock.getReport.mockImplementation(
+      () => new Promise(resolve => { resolveGet = resolve; })
+    );
+
+    paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+    fixture.detectChanges();
+    await flush();
+
+    // The user is faster than the network.
+    comp.form.controls.name.setValue('Typed while loading');
+    comp.form.controls.name.markAsDirty();
+
+    resolveGet(MOCK_REPORT);
+    await flush();
+
+    expect(comp.form.controls.name.value).toBe('Typed while loading');
+    expect(comp.form.dirty).toBe(true);
+    // Server state still landed, so the editor knows which document it is holding.
+    expect(comp.report()?.id).toBe(7);
+    expect(comp.reportId()).toBe(7);
+  });
+
+  // Guards the ordering inside onSave: the post-save refetch has to run against a form already
+  // marked pristine, or the #185 guard makes loadReport skip its own result. term-editor had a
+  // test for this; report-editor did not.
+  it('marks the form pristine after a successful save of an existing document', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+    fixture.detectChanges();
+    await flush();
+    comp.form.controls.text.setValue('<xsl:edited/>');
+    comp.form.controls.text.markAsDirty();
+
+    await comp.onSave();
+    await flush();
+
+    expect(comp.form.pristine).toBe(true);
+  });
+
+  // #185. The gate is the structural half of the fix: with the form absent until the detail GET
+  // resolves, there is no input for a user - or a fast e2e test - to type into before the load
+  // lands. The dirty-guard in loadReport() is then belt-and-braces for the SSE / post-save paths.
+  describe('render gate (#185, finishing #131)', () => {
+    function el(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('shows the skeleton and no form until the detail GET resolves', async () => {
+      let resolveGet: (report: unknown) => void = () => {};
+      reportServiceMock.getReport.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="report-editor-loading"]')).not.toBeNull();
+      // The point of the gate: nothing to type into yet.
+      expect(el().querySelector('input#name')).toBeNull();
+
+      resolveGet(MOCK_REPORT);
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="report-editor-loading"]')).toBeNull();
+      expect(el().querySelector('input#name')).not.toBeNull();
+    });
+
+    // The create route never loads, so the gate has to be resolved synchronously in ngOnInit -
+    // otherwise a new document sits behind the skeleton forever.
+    it('renders the create form immediately, with no skeleton', async () => {
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('[data-testid="report-editor-loading"]')).toBeNull();
+      expect(el().querySelector('input#name')).not.toBeNull();
+    });
+
+    it('shows a retryable error state when the load fails, and recovers on retry', async () => {
+      reportServiceMock.getReport.mockRejectedValueOnce(new Error('boom'));
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="report-editor-load-error"]')).not.toBeNull();
+      expect(el().querySelector('input#name')).toBeNull();
+
+      reportServiceMock.getReport.mockResolvedValue(MOCK_REPORT);
+      comp.retryLoad();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="report-editor-load-error"]')).toBeNull();
+      expect(comp.form.controls.name.value).toBe('Requirements Doc');
+    });
+
+    // The post-save refetch passes skeleton=false: blanking the form the user just saved would be
+    // worse than a stale moment, and a failure there belongs inline rather than in place of it.
+    it('does not blank the form for the post-save refetch', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+      fixture.detectChanges();
+      await flush();
+
+      let resolveGet: (report: unknown) => void = () => {};
+      reportServiceMock.getReport.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+      fill('Edited', '<xsl:edited/>');
+      const saving = comp.onSave();
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('input#name')).not.toBeNull();
+
+      resolveGet(MOCK_REPORT);
+      await saving;
+    });
+  });
+
   describe('reactive form (issue #132)', () => {
     it('loads the document into the form and leaves it pristine', async () => {
       paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));

@@ -47,6 +47,8 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { TagSelectorComponent } from '../../shared/tag-selector';
 import { AppCardComponent } from '../../shared/app-card';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { LoadingStateComponent } from '../../shared/loading-state';
+import { ErrorStateComponent } from '../../shared/error-state';
 import {
   AppFormWizardComponent,
   AppWizardStepComponent,
@@ -65,7 +67,8 @@ const STALE_VERSION_MESSAGE =
             ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, DialogModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, TagSelectorComponent, AppCardComponent, AppFieldComponent,
-            AppFieldControlDirective, AppFormWizardComponent, AppWizardStepComponent],
+            AppFieldControlDirective, AppFormWizardComponent, AppWizardStepComponent,
+            LoadingStateComponent, ErrorStateComponent],
   providers: [ConfirmationService],
   template: `
     <div class="goal-editor" data-testid="goal-editor">
@@ -91,7 +94,14 @@ const STALE_VERSION_MESSAGE =
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      @if (isNew()) {
+      @if (loading()) {
+        <app-card>
+          <app-loading-state label="Loading goal…" [lines]="4" testid="goal-editor-loading" />
+        </app-card>
+      } @else if (loadError()) {
+        <app-error-state [message]="loadError()!" testid="goal-editor-load-error"
+                         (retry)="retryLoad()" />
+      } @else if (isNew()) {
         <!--
           Create runs as a wizard so Tags and Relations are reachable before the first
           save. Step 1 commits EditGoal on Continue, which is what gives steps 2 and 3
@@ -318,6 +328,13 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   goalName = signal('');
   goal = signal<GoalDto | null>(null);
   errorMessage = signal<string | null>(null);
+  /**
+   * #185. The edit form renders only once the detail GET resolves, so there is no window in which
+   * a user can type into a form the load is about to reset. Starts true: an edit route is loading
+   * from the first frame, and the create path clears it synchronously in ngOnInit.
+   */
+  loading = signal(true);
+  loadError = signal<string | null>(null);
   saving = signal(false);
   canEdit = signal(false);
   canDelete = signal(false);
@@ -398,6 +415,10 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.wizardStep = 'details';
         this.submitted.set(false);
         this.detailsForm.reset({ name: '', text: '' });
+        // Nothing to load, so resolve the gate synchronously (#185) - otherwise the create wizard
+        // would sit behind the skeleton forever. Same reason the reset above is synchronous.
+        this.loading.set(false);
+        this.loadError.set(null);
       }
 
       await this.permissionService.loadForProject(this.projectName);
@@ -446,7 +467,23 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    * `goalName` is the *persisted* name used to address relation commands, so it deliberately
    * moves only with the form.
    */
-  private async loadGoal(): Promise<void> {
+  /** Re-run the initial load; wired to the error state's (retry) output. */
+  retryLoad(): void {
+    void this.loadGoal();
+  }
+
+  /**
+   * @param skeleton show the loading skeleton and the retryable error state. Suppressed for every
+   *                 background caller - SSE refresh, post-save refetch, 409 recovery and the
+   *                 relation-table refreshes - where blanking the form the user is looking at
+   *                 would be worse than a stale moment, and where a failure belongs in the inline
+   *                 message rather than in place of the form. Mirrors `scenario-editor`.
+   */
+  private async loadGoal(skeleton = true): Promise<void> {
+    if (skeleton) {
+      this.loading.set(true);
+      this.loadError.set(null);
+    }
     try {
       const g = await this.goalService.getGoal(this.projectName, this.goalId!);
       // Always take the version. The entity moved on, and holding the stale one guarantees a
@@ -458,13 +495,21 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.detailsForm.reset({ name: g.name, text: g.text });
       }
     } catch {
-      this.errorMessage.set('Failed to load goal.');
+      if (skeleton) {
+        this.loadError.set('Failed to load goal.');
+      } else {
+        this.errorMessage.set('Failed to load goal.');
+      }
+    } finally {
+      if (skeleton) {
+        this.loading.set(false);
+      }
     }
     if (this.goalId && !this.sseSub) {
       void this.eventStreamService.addSubscription('Goal', this.goalId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'Goal' && envelope.targetId === this.goalId) {
-          void this.loadGoal();
+          void this.loadGoal(false);
         }
       });
     }
@@ -556,7 +601,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       // Hydrate relations / referencedBy (and start the SSE subscription) the first
       // time the goal exists, so steps 2 and 3 have something to render.
       if (wasCreate && this.goalId != null) {
-        await this.loadGoal();
+        await this.loadGoal(false);
       }
       return result;
     } catch {
@@ -581,7 +626,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     if (result.status !== 409 || this.goalId == null) {
       return false;
     }
-    await this.loadGoal();
+    await this.loadGoal(false);
     return true;
   }
 
@@ -676,7 +721,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     });
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Relation added', detail: 'Goal relation added.' });
-      await this.loadGoal();
+      await this.loadGoal(false);
     } else {
       this.errorMessage.set(result.error ?? 'Failed to add relation.');
     }
@@ -690,7 +735,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     });
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Relation removed', detail: 'Goal relation removed.' });
-      await this.loadGoal();
+      await this.loadGoal(false);
     } else {
       this.errorMessage.set(result.error ?? 'Failed to delete relation.');
     }

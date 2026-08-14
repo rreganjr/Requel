@@ -443,4 +443,125 @@ describe('GoalEditorComponent', () => {
       expect(comp.nameMaxLength).toBe(ARTIFACT_NAME_MAX_LENGTH);
     });
   });
+  // #185. The gate is the structural half of the fix: with the form absent until the detail GET
+  // resolves, there is no input for a user - or a fast e2e test - to type into before the load
+  // lands. The dirty-guard in loadGoal() is then belt-and-braces for the background callers.
+  // Finishes the #131 / #168 migration for this editor.
+  describe('render gate (#185, finishing #131)', () => {
+    function el(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('shows the skeleton and no form until the detail GET resolves', async () => {
+      let resolveGet: (goal: unknown) => void = () => {};
+      goalServiceMock.getGoal.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', goalId: '7' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="goal-editor-loading"]')).not.toBeNull();
+      // The point of the gate: nothing to type into yet.
+      expect(el().querySelector('[data-testid="goal-name"]')).toBeNull();
+
+      resolveGet(MOCK_GOAL);
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="goal-editor-loading"]')).toBeNull();
+      expect(el().querySelector('[data-testid="goal-name"]')).not.toBeNull();
+    });
+
+    // The create route never loads, so the gate has to be resolved synchronously in ngOnInit -
+    // otherwise the wizard sits behind the skeleton forever and create is unreachable.
+    it('renders the create wizard immediately, with no skeleton', async () => {
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('[data-testid="goal-editor-loading"]')).toBeNull();
+      expect(el().querySelector('[data-testid="goal-wizard"]')).not.toBeNull();
+    });
+
+    it('shows a retryable error state when the load fails, and recovers on retry', async () => {
+      goalServiceMock.getGoal.mockRejectedValueOnce(new Error('boom'));
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', goalId: '7' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="goal-editor-load-error"]')).not.toBeNull();
+      expect(el().querySelector('[data-testid="goal-name"]')).toBeNull();
+
+      goalServiceMock.getGoal.mockResolvedValue(MOCK_GOAL);
+      comp.retryLoad();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="goal-editor-load-error"]')).toBeNull();
+      expect(el().querySelector('[data-testid="goal-name"]')).not.toBeNull();
+    });
+
+    // Background callers pass skeleton=false. Blanking the form under a user who is reading it
+    // because someone else touched the entity would be its own bug.
+    it('does not blank the form for a background reload', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', goalId: '7' }));
+      fixture.detectChanges();
+      await flush();
+
+      let resolveGet: (goal: unknown) => void = () => {};
+      goalServiceMock.getGoal.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const reload = (comp as any).loadGoal(false);
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('[data-testid="goal-name"]')).not.toBeNull();
+
+      resolveGet(MOCK_GOAL);
+      await reload;
+    });
+  });
+
+  // #185 acceptance criterion: one of these per editor with a detail form, including the three
+  // #184 fixed. goal-editor's existing guard coverage was the SSE path only
+  // ("keeps the SSE guard from clobbering unsaved edits"), which is a different caller - this
+  // pins the guard on the *initial* load, where the bug was originally reported.
+  //
+  // Since the render gate landed, a user cannot actually type during this window - the form is
+  // not on screen. The test still earns its place: the guard is the only defence on the SSE,
+  // 409 and post-save paths, and holding the GET open is the cheapest way to pin it. It asserts
+  // the component contract, not the rendered one.
+  it('does not clobber a value typed while the initial load is still in flight', async () => {
+    let resolveGet: (entity: unknown) => void = () => {};
+    goalServiceMock.getGoal.mockImplementation(
+      () => new Promise(resolve => { resolveGet = resolve; })
+    );
+
+    paramMap$.next(convertToParamMap({ name: 'proj1', goalId: '10' }));
+    fixture.detectChanges();
+    await flush();
+
+    comp.detailsForm.controls.name.setValue('Typed while loading');
+    comp.detailsForm.controls.name.markAsDirty();
+
+    resolveGet({ ...MOCK_GOAL, version: 9 });
+    await flush();
+
+    expect(comp.detailsForm.controls.name.value).toBe('Typed while loading');
+    expect(comp.detailsForm.dirty).toBe(true);
+    // Server state still landed, so the next save carries a version that will not 409.
+      expect(comp.goal()?.id).toBe(10);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((comp as any).version).toBe(9);
+  });
+
 });

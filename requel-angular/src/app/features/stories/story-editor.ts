@@ -46,6 +46,8 @@ import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { LoadingStateComponent } from '../../shared/loading-state';
+import { ErrorStateComponent } from '../../shared/error-state';
 import {
   AppFormWizardComponent,
   AppWizardStepComponent,
@@ -64,7 +66,8 @@ const STALE_VERSION_MESSAGE =
             ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, AppFieldComponent, AppFieldControlDirective,
-            AppFormWizardComponent, AppWizardStepComponent],
+            AppFormWizardComponent, AppWizardStepComponent,
+            LoadingStateComponent, ErrorStateComponent],
   providers: [ConfirmationService],
   template: `
     <div class="story-editor" data-testid="story-editor">
@@ -93,7 +96,14 @@ const STALE_VERSION_MESSAGE =
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      @if (isNew()) {
+      @if (loading()) {
+        <app-card>
+          <app-loading-state label="Loading story…" [lines]="4" testid="story-editor-loading" />
+        </app-card>
+      } @else if (loadError()) {
+        <app-error-state [message]="loadError()!" testid="story-editor-load-error"
+                         (retry)="retryLoad()" />
+      } @else if (isNew()) {
         <!--
           Create runs as a wizard so Goals and Additional Actors are reachable before
           the first save. Step 1 commits EditStory on Continue, which is what gives the
@@ -325,6 +335,13 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   storyName = signal('');
   story = signal<StoryDto | null>(null);
   errorMessage = signal<string | null>(null);
+  /**
+   * #185. The edit form renders only once the detail GET resolves, so there is no window in which
+   * a user can type into a form the load is about to reset. Starts true: an edit route is loading
+   * from the first frame, and the create path clears it synchronously in ngOnInit.
+   */
+  loading = signal(true);
+  loadError = signal<string | null>(null);
   saving = signal(false);
   canEdit = signal(false);
   canDelete = signal(false);
@@ -413,6 +430,10 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.wizardStep = 'details';
         this.submitted.set(false);
         this.detailsForm.reset({ name: '', storyType: 'Success', primaryActorName: '', text: '' });
+        // Nothing to load, so resolve the gate synchronously (#185) - otherwise the create wizard
+        // would sit behind the skeleton forever. Same reason the reset above is synchronous.
+        this.loading.set(false);
+        this.loadError.set(null);
       }
 
       await this.permissionService.loadForProject(this.projectName);
@@ -462,7 +483,23 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    * Server state stays unconditional so a refresh triggered while the form is dirty still
    * refreshes what it was called for.
    */
-  private async loadStory(): Promise<void> {
+  /** Re-run the initial load; wired to the error state's (retry) output. */
+  retryLoad(): void {
+    void this.loadStory();
+  }
+
+  /**
+   * @param skeleton show the loading skeleton and the retryable error state. Suppressed for every
+   *                 background caller - SSE refresh, post-save refetch and 409 recovery - where
+   *                 blanking the form the user is looking at would be worse than a stale moment,
+   *                 and where a failure belongs in the inline message rather than in place of the
+   *                 form. Mirrors `scenario-editor`.
+   */
+  private async loadStory(skeleton = true): Promise<void> {
+    if (skeleton) {
+      this.loading.set(true);
+      this.loadError.set(null);
+    }
     try {
       const s = await this.storyService.getStory(this.projectName, this.storyId!);
       // A full load supersedes any association refresh still in flight: whichever of the two
@@ -482,13 +519,21 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         });
       }
     } catch {
-      this.errorMessage.set('Failed to load story.');
+      if (skeleton) {
+        this.loadError.set('Failed to load story.');
+      } else {
+        this.errorMessage.set('Failed to load story.');
+      }
+    } finally {
+      if (skeleton) {
+        this.loading.set(false);
+      }
     }
     if (this.storyId && !this.sseSub) {
       void this.eventStreamService.addSubscription('Story', this.storyId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'Story' && envelope.targetId === this.storyId) {
-          void this.loadStory();
+          void this.loadStory(false);
         }
       });
     }
@@ -628,7 +673,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       // Hydrate goals / actors (and start the SSE subscription) the first time the
       // story exists, so the later steps have something to render.
       if (wasCreate && this.storyId != null) {
-        await this.loadStory();
+        await this.loadStory(false);
       }
       return result;
     } catch {
@@ -653,7 +698,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     if (result.status !== 409 || this.storyId == null) {
       return false;
     }
-    await this.loadStory();
+    await this.loadStory(false);
     return true;
   }
 

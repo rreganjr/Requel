@@ -37,6 +37,8 @@ import { PermissionService } from '../../core/permission.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { FileUploadButtonComponent } from '../../shared/file-upload-button';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { LoadingStateComponent } from '../../shared/loading-state';
+import { ErrorStateComponent } from '../../shared/error-state';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
@@ -65,6 +67,8 @@ const REPORT_FIELD_MAP: Record<string, string> = {};
     FileUploadButtonComponent,
     AppFieldComponent,
     AppFieldControlDirective,
+    LoadingStateComponent,
+    ErrorStateComponent,
   ],
   providers: [ConfirmationService],
   template: `
@@ -89,71 +93,81 @@ const REPORT_FIELD_MAP: Record<string, string> = {};
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      <app-card>
-        <form [formGroup]="form" (ngSubmit)="onSave()">
-          <!-- controlId "name" / "text": ReportEditorPage and BaseListPage's default
-               readySelector locate #name and #text, so those ids stay stable. -->
-          <app-field
-            label="Name"
-            controlId="name"
-            [control]="form.controls.name"
-            [submitted]="submitted()"
-          >
-            <input
-              id="name"
-              pInputText
-              appFieldControl
-              formControlName="name"
-              [attr.maxlength]="nameMaxLength"
-              placeholder="Template name"
-            />
-          </app-field>
-
-          <app-field
-            label="XSLT Template"
-            controlId="text"
-            [control]="form.controls.text"
-            [submitted]="submitted()"
-            [divider]="false"
-          >
-            <div class="xslt-field">
-              <textarea
-                id="text"
-                pTextarea
+      @if (loading()) {
+        <app-card>
+          <app-loading-state label="Loading document…" [lines]="4" testid="report-editor-loading" />
+        </app-card>
+      } @else if (loadError()) {
+        <app-error-state [message]="loadError()!" testid="report-editor-load-error"
+                         (retry)="retryLoad()" />
+      } @else {
+        <app-card>
+          <form [formGroup]="form" (ngSubmit)="onSave()">
+            <!-- controlId "name" / "text": ReportEditorPage and BaseListPage's default
+                 readySelector locate #name and #text, so those ids stay stable. -->
+            <app-field
+              label="Name"
+              controlId="name"
+              [control]="form.controls.name"
+              [submitted]="submitted()"
+            >
+              <input
+                id="name"
+                pInputText
                 appFieldControl
-                formControlName="text"
-                rows="20"
-                placeholder="Paste XSLT stylesheet here..."
-                class="xslt-textarea"
-              ></textarea>
-              <div class="upload-row">
-                <app-file-upload-button label="Upload XSLT" [outlined]="true" size="small"
-                                        accept=".xsl,.xslt,.xml" (fileSelected)="onFileUpload($event)" />
-                <span class="upload-hint">Upload a .xsl/.xslt file to replace the template text.</span>
+                formControlName="name"
+                [attr.maxlength]="nameMaxLength"
+                placeholder="Template name"
+              />
+            </app-field>
+
+            <app-field
+              label="XSLT Template"
+              controlId="text"
+              [control]="form.controls.text"
+              [submitted]="submitted()"
+              [divider]="false"
+            >
+              <div class="xslt-field">
+                <textarea
+                  id="text"
+                  pTextarea
+                  appFieldControl
+                  formControlName="text"
+                  rows="20"
+                  placeholder="Paste XSLT stylesheet here..."
+                  class="xslt-textarea"
+                ></textarea>
+                <div class="upload-row">
+                  <app-file-upload-button label="Upload XSLT" [outlined]="true" size="small"
+                                          accept=".xsl,.xslt,.xml" (fileSelected)="onFileUpload($event)" />
+                  <span class="upload-hint">Upload a .xsl/.xslt file to replace the template text.</span>
+                </div>
               </div>
+            </app-field>
+
+            <div class="form-actions">
+              <p-button
+                type="submit"
+                label="Save"
+                icon="pi pi-check"
+                data-testid="report-save"
+                [loading]="saving()"
+                [disabled]="form.invalid || form.pristine || saving()"
+              />
             </div>
-          </app-field>
+          </form>
+        </app-card>
 
-          <div class="form-actions">
-            <p-button
-              type="submit"
-              label="Save"
-              icon="pi pi-check"
-              data-testid="report-save"
-              [loading]="saving()"
-              [disabled]="form.invalid || form.pristine || saving()"
-            />
-          </div>
-        </form>
-      </app-card>
-
-      @if (!isNew()) {
-        <app-annotations-section
-          [projectName]="projectName"
-          entityType="ReportGenerator"
-          [entityId]="reportId()"
-          [canEdit]="canEdit()" />
+        @if (!isNew()) {
+          <app-annotations-section
+            [projectName]="projectName"
+            entityType="ReportGenerator"
+            [entityId]="reportId()"
+            [canEdit]="canEdit()" />
+        }
       }
+
     </div>
 
     <p-confirmDialog />
@@ -178,6 +192,14 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
   submitted = signal(false);
   running = signal(false);
   errorMessage = signal<string | null>(null);
+  /**
+   * #185. The edit form renders only once the detail GET resolves, so there is no window in which
+   * a user can type into a form the load is about to reset. Starts true: an edit route is loading
+   * from the first frame, and the create path clears it synchronously in ngOnInit.
+   */
+  loading = signal(true);
+  loadError = signal<string | null>(null);
+  private lastReportId: number | null = null;
 
   /**
    * Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). Bound with
@@ -229,6 +251,10 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
         this.reportId.set(null);
         this.submitted.set(false);
         this.form.reset({ name: '', text: '' });
+        // Nothing to load, so resolve the gate synchronously (#185) - otherwise the create form
+        // would sit behind the skeleton forever. Same reason the reset above is synchronous.
+        this.loading.set(false);
+        this.loadError.set(null);
       }
 
       await this.permissionService.loadForProject(this.projectName);
@@ -250,17 +276,60 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
     this.paramSub?.unsubscribe();
   }
 
-  private async loadReport(id: number): Promise<void> {
+  /**
+   * Reads the document and applies it in two parts: server state always, form state only when the
+   * user has nothing unsaved.
+   *
+   * The patch/`markAsPristine()` pair used to run unconditionally. `page.goto()` on the edit route
+   * returns long before this fetch does, so anything typed in that gap was silently discarded and
+   * the form went back to pristine - Save then stayed disabled with no explanation (#185).
+   * `ngOnInit`'s create path already resets synchronously to dodge exactly this; the edit path had
+   * no equivalent. The check sits after the await on purpose, so it catches edits made while the
+   * request was still in flight.
+   *
+   * `reportName` is the *persisted* name - it titles the page, names the download, and is quoted
+   * in the delete confirmation - so it moves only with the form, matching `goal-editor`.
+   * `submitted` likewise: clearing it would hide validation errors the user is looking at.
+   */
+  /** Re-run the last attempted load; wired to the error state's (retry) output. */
+  retryLoad(): void {
+    if (this.lastReportId != null) {
+      void this.loadReport(this.lastReportId);
+    }
+  }
+
+  /**
+   * @param skeleton show the loading skeleton and the retryable error state. Suppressed for the
+   *                 post-save refetch, where blanking the form the user is looking at would be
+   *                 worse than a stale moment, and where a failure belongs in the inline message
+   *                 rather than in place of the form. Mirrors `scenario-editor`.
+   */
+  private async loadReport(id: number, skeleton = true): Promise<void> {
+    this.lastReportId = id;
+    if (skeleton) {
+      this.loading.set(true);
+      this.loadError.set(null);
+    }
     try {
       const r = await this.reportService.getReport(this.projectName, id);
       this.report.set(r);
       this.reportId.set(r.id);
-      this.reportName.set(r.name);
-      this.form.patchValue({ name: r.name, text: r.text ?? '' });
-      this.form.markAsPristine();
-      this.submitted.set(false);
+      if (!this.hasUnsavedChanges()) {
+        this.reportName.set(r.name);
+        this.form.patchValue({ name: r.name, text: r.text ?? '' });
+        this.form.markAsPristine();
+        this.submitted.set(false);
+      }
     } catch {
-      this.errorMessage.set('Failed to load document.');
+      if (skeleton) {
+        this.loadError.set('Failed to load document.');
+      } else {
+        this.errorMessage.set('Failed to load document.');
+      }
+    } finally {
+      if (skeleton) {
+        this.loading.set(false);
+      }
     }
   }
 
@@ -298,7 +367,13 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
         this.form.markAsPristine();
         this.router.navigate(['/projects', this.projectName, 'reports', saved.id], { replaceUrl: true });
       } else {
-        await this.loadReport(this.reportId()!);
+        // Mark pristine BEFORE the refetch. The load method only adopts server state into the
+        // form when the form has nothing unsaved (#185), and what was "unsaved" a moment ago is
+        // exactly what we just persisted - leaving it dirty would make the reload skip its own
+        // result, so Save stayed enabled on a freshly saved form. Same ordering scenario-editor
+        // uses around its post-save refetch.
+        this.form.markAsPristine();
+        await this.loadReport(this.reportId()!, false);
       }
       return;
     }

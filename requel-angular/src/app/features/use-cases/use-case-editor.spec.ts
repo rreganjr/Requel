@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
 import { Location } from '@angular/common';
-import { BehaviorSubject, EMPTY } from 'rxjs';
+import { BehaviorSubject, EMPTY, Subject } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { UseCaseEditorComponent } from './use-case-editor';
 import { UseCaseService } from '../../core/use-case.service';
@@ -170,6 +170,65 @@ describe('UseCaseEditorComponent', () => {
   // #173 required test (§10.3). refreshCollections() refetched every collection but never the
   // version, so an association left it stale and the next save 409'd. All eight association
   // commands on this editor bump the use case, so this is the editor where it mattered most.
+  // #185. This editor had no guard at all, and the widest window of any of them: ngOnInit awaits
+  // loadForProject() and listActors() before the detail GET is even issued.
+  it('does not clobber a value typed while the initial load is still in flight', async () => {
+    let resolveGet: (useCase: unknown) => void = () => {};
+    useCaseServiceMock.getUseCase.mockImplementation(
+      () => new Promise(resolve => { resolveGet = resolve; })
+    );
+
+    paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+    fixture.detectChanges();
+    await flush();
+
+    // The user is faster than the network.
+    comp.detailsForm.controls.name.setValue('Typed while loading');
+    comp.detailsForm.controls.name.markAsDirty();
+
+    resolveGet({ ...MOCK_USE_CASE, version: 4 });
+    await flush();
+
+    expect(comp.detailsForm.controls.name.value).toBe('Typed while loading');
+    expect(comp.detailsForm.dirty).toBe(true);
+    // Server state still landed, so Save has a usable version to send.
+    expect(comp.useCase()?.id).toBe(30);
+    expect(comp.goals().length).toBe(1);
+  });
+
+  // The SSE subscription called loadUseCase() directly, so a remote change reset the form under
+  // the user. The guard now covers that caller too - but the collections must still refresh, or
+  // the tables sit stale behind an unsaved rename (the trap #184 found in actor-editor).
+  it('refetches on a remote change but does not clobber in-progress edits', async () => {
+    const events$ = new Subject<{ targetType: string; targetId: number }>();
+    eventStreamServiceMock.events$ = events$.asObservable() as typeof EMPTY;
+
+    paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+    fixture.detectChanges();
+    await flush();
+
+    comp.detailsForm.controls.name.setValue('My unsaved rename');
+    comp.detailsForm.controls.name.markAsDirty();
+    useCaseServiceMock.getUseCase.mockResolvedValue({
+      ...MOCK_USE_CASE,
+      version: 9,
+      goals: [
+        { id: 1, name: 'Buy product', entityType: 'Goal' },
+        { id: 2, name: 'Added elsewhere', entityType: 'Goal' }
+      ]
+    });
+
+    events$.next({ targetType: 'UseCase', targetId: 30 });
+    await flush();
+
+    // Form untouched...
+    expect(comp.detailsForm.controls.name.value).toBe('My unsaved rename');
+    expect(comp.detailsForm.dirty).toBe(true);
+    // ...while the goals table and the held version both moved on.
+    expect(comp.goals().length).toBe(2);
+    expect(comp.useCase()?.version).toBe(9);
+  });
+
   describe('wizard version contract (#173)', () => {
     it('re-reads version after an association, so a later save does not 409', async () => {
       paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
@@ -318,4 +377,93 @@ describe('UseCaseEditorComponent', () => {
     comp.navigateTo('goals', 42);
     expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'goals', 42]);
   });
+  // #185. The gate is the structural half of the fix: with the form absent until the detail GET
+  // resolves, there is no input for a user - or a fast e2e test - to type into before the load
+  // lands. The dirty-guard in loadUseCase() is then belt-and-braces for the background callers.
+  // Finishes the #131 / #168 migration for this editor.
+  describe('render gate (#185, finishing #131)', () => {
+    function el(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('shows the skeleton and no form until the detail GET resolves', async () => {
+      let resolveGet: (entity: unknown) => void = () => {};
+      useCaseServiceMock.getUseCase.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="use-case-editor-loading"]')).not.toBeNull();
+      // The point of the gate: nothing to type into yet.
+      expect(el().querySelector('[data-testid="use-case-name"]')).toBeNull();
+
+      resolveGet(MOCK_USE_CASE);
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="use-case-editor-loading"]')).toBeNull();
+      expect(el().querySelector('[data-testid="use-case-name"]')).not.toBeNull();
+    });
+
+    // The create route never loads, so the gate has to be resolved there explicitly - otherwise
+    // the wizard sits behind the skeleton forever and create becomes unreachable.
+    it('renders the create wizard, with no skeleton', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: 'new' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('[data-testid="use-case-editor-loading"]')).toBeNull();
+      expect(el().querySelector('[data-testid="use-case-wizard"]')).not.toBeNull();
+    });
+
+    it('shows a retryable error state when the load fails, and recovers on retry', async () => {
+      useCaseServiceMock.getUseCase.mockRejectedValueOnce(new Error('boom'));
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="use-case-editor-load-error"]')).not.toBeNull();
+      expect(el().querySelector('[data-testid="use-case-name"]')).toBeNull();
+
+      useCaseServiceMock.getUseCase.mockResolvedValue(MOCK_USE_CASE);
+      comp.retryLoad();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="use-case-editor-load-error"]')).toBeNull();
+      expect(el().querySelector('[data-testid="use-case-name"]')).not.toBeNull();
+    });
+
+    // Background callers pass skeleton=false. Blanking the form under a user who is reading it
+    // because someone else touched the entity would be its own bug.
+    it('does not blank the form for a background reload', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
+      fixture.detectChanges();
+      await flush();
+
+      let resolveGet: (entity: unknown) => void = () => {};
+      useCaseServiceMock.getUseCase.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const reload = (comp as any).loadUseCase(false);
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('[data-testid="use-case-name"]')).not.toBeNull();
+
+      resolveGet(MOCK_USE_CASE);
+      await reload;
+    });
+  });
+
 });

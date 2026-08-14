@@ -552,4 +552,92 @@ describe('StoryEditorComponent', () => {
     }));
     expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'stories']);
   });
+  // #185. The gate is the structural half of the fix: with the form absent until the detail GET
+  // resolves, there is no input for a user - or a fast e2e test - to type into before the load
+  // lands. The dirty-guard in loadStory() is then belt-and-braces for the background callers.
+  // Finishes the #131 / #168 migration for this editor.
+  describe('render gate (#185, finishing #131)', () => {
+    function el(): HTMLElement {
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('shows the skeleton and no form until the detail GET resolves', async () => {
+      let resolveGet: (story: unknown) => void = () => {};
+      storyServiceMock.getStory.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', storyId: '20' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="story-editor-loading"]')).not.toBeNull();
+      // The point of the gate: nothing to type into yet.
+      expect(el().querySelector('[data-testid="story-name"]')).toBeNull();
+
+      resolveGet(MOCK_STORY);
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="story-editor-loading"]')).toBeNull();
+      expect(el().querySelector('[data-testid="story-name"]')).not.toBeNull();
+    });
+
+    // The create route never loads, so the gate has to be resolved synchronously in ngOnInit -
+    // otherwise the wizard sits behind the skeleton forever and create is unreachable.
+    it('renders the create wizard immediately, with no skeleton', async () => {
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('[data-testid="story-editor-loading"]')).toBeNull();
+      expect(el().querySelector('[data-testid="story-wizard"]')).not.toBeNull();
+    });
+
+    it('shows a retryable error state when the load fails, and recovers on retry', async () => {
+      storyServiceMock.getStory.mockRejectedValueOnce(new Error('boom'));
+
+      paramMap$.next(convertToParamMap({ name: 'proj1', storyId: '20' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="story-editor-load-error"]')).not.toBeNull();
+      expect(el().querySelector('[data-testid="story-name"]')).toBeNull();
+
+      storyServiceMock.getStory.mockResolvedValue(MOCK_STORY);
+      comp.retryLoad();
+      await flush();
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="story-editor-load-error"]')).toBeNull();
+      expect(el().querySelector('[data-testid="story-name"]')).not.toBeNull();
+    });
+
+    // Background callers pass skeleton=false. Blanking the form under a user who is reading it
+    // because someone else touched the entity would be its own bug.
+    it('does not blank the form for a background reload', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', storyId: '20' }));
+      fixture.detectChanges();
+      await flush();
+
+      let resolveGet: (story: unknown) => void = () => {};
+      storyServiceMock.getStory.mockImplementation(
+        () => new Promise(resolve => { resolveGet = resolve; })
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const reload = (comp as any).loadStory(false);
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.loading()).toBe(false);
+      expect(el().querySelector('[data-testid="story-name"]')).not.toBeNull();
+
+      resolveGet(MOCK_STORY);
+      await reload;
+    });
+  });
+
 });

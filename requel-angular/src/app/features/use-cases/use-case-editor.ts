@@ -51,6 +51,8 @@ import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { LoadingStateComponent } from '../../shared/loading-state';
+import { ErrorStateComponent } from '../../shared/error-state';
 import {
   AppFormWizardComponent,
   AppWizardStepComponent,
@@ -86,7 +88,8 @@ const STALE_VERSION_MESSAGE =
             ConfirmDialogModule, TableModule, TooltipModule, SelectModule,
             EntitySelectorDialogComponent, AnnotationsSectionComponent,
             AppFieldComponent, AppFieldControlDirective,
-            AppFormWizardComponent, AppWizardStepComponent],
+            AppFormWizardComponent, AppWizardStepComponent,
+            LoadingStateComponent, ErrorStateComponent],
   providers: [ConfirmationService],
   template: `
     <div class="use-case-editor" data-testid="use-case-editor">
@@ -112,7 +115,14 @@ const STALE_VERSION_MESSAGE =
         <p-message severity="error" [text]="errorMessage()!" />
       }
 
-      @if (isNew()) {
+      @if (loading()) {
+        <app-card>
+          <app-loading-state label="Loading use case…" [lines]="4" testid="use-case-editor-loading" />
+        </app-card>
+      } @else if (loadError()) {
+        <app-error-state [message]="loadError()!" testid="use-case-editor-load-error"
+                         (retry)="retryLoad()" />
+      } @else if (isNew()) {
         <!--
           Create runs as a wizard (#173). Four steps because this editor gates five separate
           sections; grouping Goals with Stories keeps the count at four without putting six
@@ -519,6 +529,14 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   useCaseName = signal('');
   useCase = signal<UseCaseDto | null>(null);
   errorMessage = signal<string | null>(null);
+  /**
+   * #185. The edit form renders only once the detail GET resolves, so there is no window in which
+   * a user can type into a form the load is about to reset. Starts true: an edit route is loading
+   * from the first frame, and the create path clears it as soon as it knows there is nothing to
+   * load.
+   */
+  loading = signal(true);
+  loadError = signal<string | null>(null);
   saving = signal(false);
   canEdit = signal(false);
   canDelete = signal(false);
@@ -621,6 +639,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
         this.actors.set([]);
         this.additionalScenarios.set([]);
         this.primaryScenario.set(null);
+        // Nothing to load, so resolve the gate (#185) - otherwise the create wizard sits behind
+        // the skeleton forever and create becomes unreachable.
+        this.loading.set(false);
+        this.loadError.set(null);
       } else {
         this.isNew.set(false);
         this.useCaseId = +idParam;
@@ -646,17 +668,56 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     this.sseSub?.unsubscribe();
   }
 
-  private async loadUseCase(): Promise<void> {
+  /**
+   * Reads the use case and applies it in two parts: server state always, form state only when the
+   * user has nothing unsaved.
+   *
+   * This editor had no guard of any kind, so every caller reset the form - including the SSE
+   * subscription below, which meant a remote change discarded whatever the user was typing. The
+   * initial load was worse still: `ngOnInit` awaits `loadForProject()` *and* `listActors()` before
+   * this fetch is even issued, so the window between the form rendering and the reset landing is
+   * the widest of any editor here (#185).
+   *
+   * The check sits after the await on purpose, so it catches edits made while the request was
+   * still in flight. Applying it to every caller also means a 409 recovery keeps the edit the user
+   * is retrying rather than throwing it away, matching #184.
+   *
+   * The five collections stay unconditional: they render their own tables, so a refresh after an
+   * association still lands even with a rename sitting in the Name field - the stale-table trap
+   * #184 found in `actor-editor`. `useCaseName` is the *persisted* name, so it moves only with the
+   * form.
+   */
+  /** Re-run the initial load; wired to the error state's (retry) output. */
+  retryLoad(): void {
+    void this.loadUseCase();
+  }
+
+  /**
+   * @param skeleton show the loading skeleton and the retryable error state. Suppressed for every
+   *                 background caller - SSE refresh, post-save refetch and 409 recovery - where
+   *                 blanking the form the user is looking at would be worse than a stale moment,
+   *                 and where a failure belongs in the inline message rather than in place of the
+   *                 form. Mirrors `scenario-editor`.
+   */
+  private async loadUseCase(skeleton = true): Promise<void> {
+    if (skeleton) {
+      this.loading.set(true);
+      this.loadError.set(null);
+    }
     try {
       const uc = await this.useCaseService.getUseCase(this.projectName, this.useCaseId!);
+      // Always take the version. The entity moved on, and holding the stale one guarantees a
+      // 409 on the user's next save.
       this.useCase.set(uc);
-      this.useCaseName.set(uc.name);
-      this.detailsForm.reset({
-        name: uc.name,
-        primaryActorName: uc.primaryActorName ?? '',
-        text: uc.text ?? '',
-      });
       this.version = uc.version;
+      if (!this.hasUnsavedChanges()) {
+        this.useCaseName.set(uc.name);
+        this.detailsForm.reset({
+          name: uc.name,
+          primaryActorName: uc.primaryActorName ?? '',
+          text: uc.text ?? '',
+        });
+      }
       this.goals.set(uc.goals ?? []);
       this.stories.set(uc.stories ?? []);
       this.actors.set(uc.actors ?? []);
@@ -667,13 +728,21 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
         this.primaryScenario.set(null);
       }
     } catch {
-      this.errorMessage.set('Failed to load use case.');
+      if (skeleton) {
+        this.loadError.set('Failed to load use case.');
+      } else {
+        this.errorMessage.set('Failed to load use case.');
+      }
+    } finally {
+      if (skeleton) {
+        this.loading.set(false);
+      }
     }
     if (this.useCaseId && !this.sseSub) {
       void this.eventStreamService.addSubscription('UseCase', this.useCaseId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
         if (envelope.targetType === 'UseCase' && envelope.targetId === this.useCaseId) {
-          void this.loadUseCase();
+          void this.loadUseCase(false);
         }
       });
     }
@@ -758,7 +827,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Use case saved.' });
 
       if (wasCreate && this.useCaseId != null) {
-        await this.loadUseCase();
+        await this.loadUseCase(false);
       }
       return result;
     } catch {
@@ -782,7 +851,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     if (result.status !== 409 || this.useCaseId == null) {
       return false;
     }
-    await this.loadUseCase();
+    await this.loadUseCase(false);
     return true;
   }
 

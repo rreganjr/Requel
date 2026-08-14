@@ -28,6 +28,21 @@ Never commit unless explicitly told to commit
 
 Never push changes to the github repo
 
+**"Let's commit" / "let's push" means prepare, then hand over the commands.** Claude does not run
+`git` or `gh` commands that change state — not commit, push, branch, tag, PR, issue edit, or
+comment — even when told to. On either phrase Claude:
+
+1. Checks the working tree holds what it should and that the verification gate in step 3 of the
+   Development Workflow has passed.
+2. (Re)writes `commit.md` for the current change, in the format above.
+3. Prints the exact commands to paste, with nothing left to fill in: `git add` naming each changed
+   file, `git commit -F commit.md`, `git push -u origin <branch>`, `gh pr create ...`.
+
+Read-only git — `log`, `show`, `status`, `diff`, `rev-parse` — is fine for Claude to run, but
+always with `--no-optional-locks`. When Claude reaches the repo over the Cowork device bridge it
+cannot delete files, so any command that takes `.git/index.lock` leaves it behind and blocks the
+next git operation from the developer's own terminal.
+
 All plans, reviews, notes and documentation go in the doc folder.
 
 Never use `TL;DR` I hate that abbreviation, use `Summary`
@@ -36,9 +51,9 @@ Never use `TL;DR` I hate that abbreviation, use `Summary`
 
 Each release such as `release/2.0` has a github project, all issues for the release get added to the project. we use 'Story Point' and 'Story Point Retro' custom fields to track effort. 
 
-Every change is tied to a GitHub issue and lands via a ticket branch and a PR — never commit straight onto `release/2.0`. Steps that create or change Git/GitHub state (branch, commit, push, PR, issue edits) are performed by Claude ONLY when explicitly told; the "never commit/push unless told" rules above always apply. Claude drives GitHub with the `gh` CLI / `gh api` (issues, comments, PRs) when asked.
+Every change is tied to a GitHub issue and lands via a ticket branch and a PR — never commit straight onto `release/2.0`. Steps that create or change Git/GitHub state (branch, commit, push, PR, issue edits) are always run by the developer, never by Claude. Claude prepares them — writes `commit.md`, works out the exact `git` / `gh` invocation, checks the tree is in the state the command assumes — and hands the commands over to paste. See the "let's commit / let's push" rule above.
 
-1. **Issue** — start from a GitHub issue. If none exists, create it (`gh issue create`) when told. Record decisions/progress with `gh issue comment`.
+1. **Issue** — start from a GitHub issue. If none exists, Claude drafts the `gh issue create` command and the body; the developer runs it. Same for `gh issue comment` when recording decisions or progress.
 2. **Branch (at the start of work)** — cut a branch from `release/2.0` named
    `<issue-number>-<short-slug>` (e.g. `87-pat-delete`, matching the existing `73-api-tokens` /
    `77-spring-ai-provider-port` convention). Do all edits on that branch.
@@ -51,16 +66,17 @@ Every change is tied to a GitHub issue and lands via a ticket branch and a PR �
    Do not commit until the relevant suite passes.
 4. **Commit message** — write it to `commit.md` in the format above. Include a closing keyword
    (`Closes #<n>` / `Fixes #<n>`) so merging the PR closes the issue; reference related issues by URL.
-5. **Commit + push** — only when told; commit on the ticket branch and push it.
-6. **PR** — open with `gh pr create --base release/2.0` (when told), always passing a `--title`
-   (`<issue#>: <concise summary>`) and using the `commit.md` content as the body via
-   `--body-file`. PRs are squash-merged.
+5. **Commit + push** — Claude hands over the `git add` / `git commit -F commit.md` /
+   `git push -u origin <branch>` lines; the developer runs them on the ticket branch.
+6. **PR** — Claude hands over the `gh pr create --base release/2.0` line, always with a `--title`
+   (`<issue#>: <concise summary>`) and the `commit.md` content as the body via `--body-file`.
+   PRs are squash-merged.
 
 **Auto-close caveat:** the repo's default branch is `master`, but PRs target `release/2.0`. GitHub auto-closes an issue from `Closes #<n>` only when the PR merges into the **default** branch, so merging into `release/2.0` does **not** close the issue. Always close it explicitly after merge:
 `gh issue close <n> --comment "Merged to release/2.0 via #<pr>."`
 
-Command reference (Claude runs these only when told; `gh`/`mvn`/`ng` run in the developer's
-environment, not Claude's sandbox):
+Command reference — all of these are run by the developer, in the developer's environment, not
+Claude's sandbox. Claude fills in the placeholders and hands them over:
 
 ```bash
 # 1. Issue (if none): gh issue create --repo rreganjr/Requel --title "..." --body "..."
