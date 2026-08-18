@@ -44,6 +44,7 @@ import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.UseCase;
+import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.AddActorToActorContainerCommand;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
@@ -777,13 +778,14 @@ public class ProjectCommandRegistrar {
 
     private static StoryContainer findStoryContainerById(Project project, Long containerId) {
         if (project.getId().equals(containerId)) return project;
-        for (Stakeholder s : project.getStakeholders()) {
-            if (s.getId().equals(containerId)) return (StoryContainer) s;
-        }
         for (UseCase uc : project.getUseCases()) {
             if (uc.getId().equals(containerId)) return uc;
         }
-        throw new IllegalArgumentException("StoryContainer not found: " + containerId);
+        // Only Project and UseCase implement StoryContainer. Any other id
+        // (stakeholder, goal, actor, or a typo) is a caller error -> INVALID_INPUT/400.
+        throw EntityValidationException.validationFailed(
+                StoryContainer.class, "storyContainerId",
+                "id " + containerId + " does not identify a story container");
     }
 
     private static ActorContainer findActorContainerById(Project project, Long containerId) {

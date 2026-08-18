@@ -38,11 +38,13 @@ import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.Story;
+import com.rreganjr.requel.project.StoryType;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditNonUserStakeholderCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
+import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
 import com.rreganjr.requel.project.impl.StakeholderPermissionImpl;
 import com.rreganjr.requel.service.api.CommandRegistration;
@@ -66,6 +68,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -92,6 +95,7 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
     private Long goalId;
     private Long nonUserStakeholderId;
     private Long userStakeholderId;
+    private Long storyId;
 
     @BeforeAll
     void setUpFixture() throws Exception {
@@ -149,6 +153,16 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         goalCmd.setText("initial");
         goalCmd = getCommandHandler().execute(goalCmd);
         goalId = goalCmd.getGoal().getId();
+
+        // A real story, so story-container resolution tests fail only on the container id.
+        EditStoryCommand storyCmd = getProjectCommandFactory().newEditStoryCommand();
+        storyCmd.setEditedBy(admin);
+        storyCmd.setStoryContainer(project);
+        storyCmd.setName("gw-story-" + ts);
+        storyCmd.setText("gateway story-container test story");
+        storyCmd.setStoryTypeName(StoryType.Success.name());
+        storyCmd = getCommandHandler().execute(storyCmd);
+        storyId = storyCmd.getStory().getId();
     }
 
     @AfterEach
@@ -200,6 +214,46 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
                 new GatewayRequest("EditGoal",
                         Map.of("projectName", projectName, "goalId", "not-a-number", "name", "x"))));
+        assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind());
+    }
+
+    @Test
+    void addStoryToStakeholderContainerIsInvalid() {
+        authenticate(editorUsername);
+        // A stakeholder is not a StoryContainer (issue #187). Passing its id as
+        // storyContainerId is a caller error, so the gateway must map it to INVALID_INPUT
+        // rather than a ClassCastException surfaced as EXECUTION_ERROR.
+        Project project = getProjectRepository().findProjectByName(projectName);
+        assertNotEquals(project.getId(), userStakeholderId,
+                "fixture precondition: stakeholder id must not collide with the project id");
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("AddStoryToStoryContainer",
+                        Map.of("projectName", projectName, "storyContainerId", userStakeholderId,
+                                "storyId", storyId))));
+        assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind());
+    }
+
+    @Test
+    void removeStoryFromStakeholderContainerIsInvalid() {
+        authenticate(editorUsername);
+        Project project = getProjectRepository().findProjectByName(projectName);
+        assertNotEquals(project.getId(), userStakeholderId,
+                "fixture precondition: stakeholder id must not collide with the project id");
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("RemoveStoryFromStoryContainer",
+                        Map.of("projectName", projectName, "storyContainerId", userStakeholderId,
+                                "storyId", storyId))));
+        assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind());
+    }
+
+    @Test
+    void storyContainerWithUnknownIdIsInvalid() {
+        authenticate(editorUsername);
+        // An id matching neither the project nor any use case is not a story container.
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("AddStoryToStoryContainer",
+                        Map.of("projectName", projectName, "storyContainerId", 999_999_999L,
+                                "storyId", storyId))));
         assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind());
     }
 
