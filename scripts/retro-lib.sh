@@ -17,6 +17,40 @@ PROJECT_TITLE="${REQUEL_PROJECT_TITLE:-Requel $RELEASE}"
 # repo root, for git history (works whether sourced from scripts/ or elsewhere)
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# --- ProjectsV2 auth --------------------------------------------------------
+# ProjectsV2 mutations require a CLASSIC PAT with the `project` scope;
+# fine-grained PATs can read projects but cannot write them. Keep that token out
+# of the ambient environment: it is injected only for `gh project` calls, so
+# `gh issue`, git, and everything else keep using the repo-scoped fine-grained
+# GH_TOKEN that direnv exports for this tree.
+#
+# Store it (chmod 600, never committed) at:
+#   ~/.config/gh-tokens/rreganjr-projects
+# Override the location with REQUEL_PROJECT_TOKEN_FILE.
+PROJECT_TOKEN_FILE="${REQUEL_PROJECT_TOKEN_FILE:-$HOME/.config/gh-tokens/rreganjr-projects}"
+
+_project_token() {
+  if [ ! -r "$PROJECT_TOKEN_FILE" ]; then
+    echo "ERROR: no ProjectsV2 token at $PROJECT_TOKEN_FILE" >&2
+    echo "       Create a CLASSIC PAT with only the 'project' scope at" >&2
+    echo "       https://github.com/settings/tokens and write it there (chmod 600)." >&2
+    return 1
+  fi
+  tr -d '\r\n' < "$PROJECT_TOKEN_FILE"
+}
+
+# Intercept `gh project ...` only; every other gh invocation passes through
+# untouched. `command gh` avoids recursing into this function.
+gh() {
+  if [ "${1:-}" = project ]; then
+    local _tok
+    _tok="$(_project_token)" || return 1
+    GH_TOKEN="$_tok" GITHUB_TOKEN="$_tok" command gh "$@"
+  else
+    command gh "$@"
+  fi
+}
+
 # Look up the project NUMBER for PROJECT_TITLE. Empty if it doesn't exist yet.
 resolve_project_number() {
   gh project list --owner "$OWNER" --format json \

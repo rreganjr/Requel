@@ -15,6 +15,9 @@
 #
 set -euo pipefail
 
+# Route `gh project` through the classic-PAT wrapper (ProjectsV2 needs it).
+. "$(cd "$(dirname "$0")" && pwd)/retro-lib.sh"
+
 REPO="rreganjr/Requel"
 OWNER="rreganjr"
 EPIC="${EPIC:-124}"
