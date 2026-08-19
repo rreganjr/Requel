@@ -324,7 +324,8 @@ describe('UseCaseEditorComponent', () => {
     expect(commandServiceMock.execute).toHaveBeenCalledWith('AddStoryToStoryContainer', expect.objectContaining({
       projectName: 'proj1',
       storyContainerId: 30,
-      storyId: 5
+      storyId: 5,
+      containerType: 'UseCase'
     }));
   });
 
@@ -337,7 +338,8 @@ describe('UseCaseEditorComponent', () => {
     await comp.removeStory(story);
     expect(commandServiceMock.execute).toHaveBeenCalledWith('RemoveStoryFromStoryContainer', expect.objectContaining({
       storyContainerId: 30,
-      storyId: 5
+      storyId: 5,
+      containerType: 'UseCase'
     }));
   });
 

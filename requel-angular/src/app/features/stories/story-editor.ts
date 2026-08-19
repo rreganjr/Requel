@@ -806,7 +806,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       const result = await this.commandService.execute('AddActorToActorContainer', {
         projectName: this.projectName,
         actorContainerId: this.storyId,
-        actorId: ref.id
+        actorId: ref.id,
+        containerType: 'Story'
       });
       if (result.success) {
         await this.refreshAfterAssociation();
@@ -824,7 +825,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       const result = await this.commandService.execute('RemoveActorFromActorContainer', {
         projectName: this.projectName,
         actorContainerId: this.storyId,
-        actorId: actorRef.id
+        actorId: actorRef.id,
+        containerType: 'Story'
       });
       if (result.success) {
         await this.refreshAfterAssociation();

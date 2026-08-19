@@ -41,10 +41,12 @@ import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryType;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.UserStakeholder;
+import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditNonUserStakeholderCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditStoryCommand;
+import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
 import com.rreganjr.requel.project.impl.StakeholderPermissionImpl;
 import com.rreganjr.requel.service.api.CommandRegistration;
@@ -96,6 +98,9 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
     private Long nonUserStakeholderId;
     private Long userStakeholderId;
     private Long storyId;
+    private Long actorId;
+    private Long useCaseId;
+    private Long storyId2;
 
     @BeforeAll
     void setUpFixture() throws Exception {
@@ -163,6 +168,36 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         storyCmd.setStoryTypeName(StoryType.Success.name());
         storyCmd = getCommandHandler().execute(storyCmd);
         storyId = storyCmd.getStory().getId();
+
+        // A second story, so there is a story id that is NOT also a use case id (ids are
+        // per-table auto-increment and the first story/use case collide at 1). issue #189
+        EditStoryCommand storyCmd2 = getProjectCommandFactory().newEditStoryCommand();
+        storyCmd2.setEditedBy(admin);
+        storyCmd2.setStoryContainer(project);
+        storyCmd2.setName("gw-story2-" + ts);
+        storyCmd2.setText("second gateway story-container test story");
+        storyCmd2.setStoryTypeName(StoryType.Success.name());
+        storyCmd2 = getCommandHandler().execute(storyCmd2);
+        storyId2 = storyCmd2.getStory().getId();
+
+        // An actor and a use case, so actor/goal-container resolution tests can target a use case
+        // (and an actor) by id with an explicit containerType (issue #189).
+        EditActorCommand actorCmd = getProjectCommandFactory().newEditActorCommand();
+        actorCmd.setEditedBy(admin);
+        actorCmd.setActorContainer(project);
+        actorCmd.setName("gw-actor-" + ts);
+        actorCmd.setText("gateway actor-container test actor");
+        actorCmd = getCommandHandler().execute(actorCmd);
+        actorId = actorCmd.getActor().getId();
+
+        EditUseCaseCommand useCaseCmd = getProjectCommandFactory().newEditUseCaseCommand();
+        useCaseCmd.setEditedBy(admin);
+        useCaseCmd.setProjectOrDomain(project);
+        useCaseCmd.setName("gw-usecase-" + ts);
+        useCaseCmd.setText("gateway use-case-container test use case");
+        useCaseCmd.setPrimaryActorName(actorCmd.getActor().getName());
+        useCaseCmd = getCommandHandler().execute(useCaseCmd);
+        useCaseId = useCaseCmd.getUseCase().getId();
     }
 
     @AfterEach
@@ -229,7 +264,7 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
                 new GatewayRequest("AddStoryToStoryContainer",
                         Map.of("projectName", projectName, "storyContainerId", userStakeholderId,
-                                "storyId", storyId))));
+                                "storyId", storyId, "containerType", "Stakeholder"))));
         assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind());
     }
 
@@ -242,7 +277,7 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
                 new GatewayRequest("RemoveStoryFromStoryContainer",
                         Map.of("projectName", projectName, "storyContainerId", userStakeholderId,
-                                "storyId", storyId))));
+                                "storyId", storyId, "containerType", "Stakeholder"))));
         assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind());
     }
 
@@ -253,8 +288,48 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
                 new GatewayRequest("AddStoryToStoryContainer",
                         Map.of("projectName", projectName, "storyContainerId", 999_999_999L,
+                                "storyId", storyId, "containerType", "UseCase"))));
+        assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind());
+    }
+
+    @Test
+    void storyContainerMissingContainerTypeIsInvalid() {
+        authenticate(editorUsername);
+        // containerType is required (issue #189); omitting it is a caller error even when the id
+        // names a real story container.
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("AddStoryToStoryContainer",
+                        Map.of("projectName", projectName, "storyContainerId", useCaseId,
                                 "storyId", storyId))));
         assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind());
+    }
+
+    @Test
+    void actorContainerLookupIsScopedToNamedType() {
+        authenticate(editorUsername);
+        // Issue #189 core regression: the type-scoped lookup must not fall through to other
+        // collections the way the pre-fix scan-all lookup did. storyId2 exists only as a story
+        // (there is no use case with that id), so requesting it as a "UseCase" actor container is
+        // rejected. The old lookup would have matched the story (a valid ActorContainer) and
+        // silently attached the actor to the wrong parent.
+        assertNotEquals(useCaseId, storyId2,
+                "fixture precondition: the second story id must not also be a use case id");
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("AddActorToActorContainer",
+                        Map.of("projectName", projectName, "actorContainerId", storyId2,
+                                "actorId", actorId, "containerType", "UseCase"))));
+        assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind());
+    }
+
+    @Test
+    void goalContainerResolvesUseCaseByExplicitType() throws Exception {
+        authenticate(editorUsername);
+        // Positive path for the type-scoped goal lookup (issue #189): resolving a use case goal
+        // container by its named type executes without a resolution error.
+        GatewayResult result = gateway.execute(new GatewayRequest("AddGoalToGoalContainer",
+                Map.of("projectName", projectName, "goalContainerId", useCaseId,
+                        "goalId", goalId, "containerType", "UseCase")));
+        assertEquals("AddGoalToGoalContainer", result.commandType());
     }
 
     @Test

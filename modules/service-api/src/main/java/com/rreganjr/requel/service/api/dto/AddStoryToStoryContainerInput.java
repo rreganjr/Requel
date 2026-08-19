@@ -23,4 +23,10 @@ package com.rreganjr.requel.service.api.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record AddStoryToStoryContainerInput(@NotBlank String projectName, @NotNull Long storyContainerId, @NotNull Long storyId) {}
+public record AddStoryToStoryContainerInput(
+        @NotBlank String projectName,
+        @NotNull Long storyContainerId,
+        @NotNull Long storyId,
+        @NotBlank String containerType
+) {
+}

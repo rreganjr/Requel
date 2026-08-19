@@ -1421,10 +1421,10 @@ with `draggableNodes`/`droppableNodes` as the foundation.
 - `EditUseCaseInput` — `projectName, useCaseId, name, text, primaryActorName, version`
 - `DeleteUseCaseInput` — `projectName, useCaseId, version`
 - `CopyUseCaseInput` — `projectName, useCaseId`
-- `AddStoryToStoryContainerInput` — `projectName, storyContainerId, storyId`
-- `RemoveStoryFromStoryContainerInput` — `projectName, storyContainerId, storyId`
-- `AddActorToActorContainerInput` — `projectName, actorContainerId, actorId`
-- `RemoveActorFromActorContainerInput` — `projectName, actorContainerId, actorId`
+- `AddStoryToStoryContainerInput` — `projectName, storyContainerId, storyId, containerType`
+- `RemoveStoryFromStoryContainerInput` — `projectName, storyContainerId, storyId, containerType`
+- `AddActorToActorContainerInput` — `projectName, actorContainerId, actorId, containerType`
+- `RemoveActorFromActorContainerInput` — `projectName, actorContainerId, actorId, containerType`
 
 **Backend work — Commands (in `ProjectCommandRegistrar`):**
 1. Wire `EditUseCase` — fields: projectName, useCaseId (null = create), name, text,
