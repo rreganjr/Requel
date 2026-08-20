@@ -920,7 +920,8 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   async addStory(ref: EntityReferenceDto): Promise<void> {
     this.showStorySelector = false;
     const result = await this.commandService.execute('AddStoryToStoryContainer', {
-      projectName: this.projectName, storyContainerId: this.useCaseId, storyId: ref.id
+      projectName: this.projectName, storyContainerId: this.useCaseId, storyId: ref.id,
+      containerType: 'UseCase'
     });
     if (result.success) await this.refreshCollections();
     else this.errorMessage.set(result.error ?? 'Failed to add story.');
@@ -928,7 +929,8 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
 
   async removeStory(story: StoryDto): Promise<void> {
     const result = await this.commandService.execute('RemoveStoryFromStoryContainer', {
-      projectName: this.projectName, storyContainerId: this.useCaseId, storyId: story.id
+      projectName: this.projectName, storyContainerId: this.useCaseId, storyId: story.id,
+      containerType: 'UseCase'
     });
     if (result.success) await this.refreshCollections();
     else this.errorMessage.set(result.error ?? 'Failed to remove story.');
@@ -937,7 +939,8 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   async addActorToList(ref: EntityReferenceDto): Promise<void> {
     this.showActorSelector = false;
     const result = await this.commandService.execute('AddActorToActorContainer', {
-      projectName: this.projectName, actorContainerId: this.useCaseId, actorId: ref.id
+      projectName: this.projectName, actorContainerId: this.useCaseId, actorId: ref.id,
+      containerType: 'UseCase'
     });
     if (result.success) await this.refreshCollections();
     else this.errorMessage.set(result.error ?? 'Failed to add actor.');
@@ -945,7 +948,8 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
 
   async removeActor(actor: ActorDto): Promise<void> {
     const result = await this.commandService.execute('RemoveActorFromActorContainer', {
-      projectName: this.projectName, actorContainerId: this.useCaseId, actorId: actor.id
+      projectName: this.projectName, actorContainerId: this.useCaseId, actorId: actor.id,
+      containerType: 'UseCase'
     });
     if (result.success) await this.refreshCollections();
     else this.errorMessage.set(result.error ?? 'Failed to remove actor.');

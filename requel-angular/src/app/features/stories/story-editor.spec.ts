@@ -466,6 +466,32 @@ describe('StoryEditorComponent', () => {
       expect(await saveAndReadVersion()).toBe(bumped);
     });
 
+    it('onActorSelected sends AddActorToActorContainer with containerType Story', async () => {
+      await renderExisting();
+      associationSucceeds();
+      await comp.onActorSelected(ACTOR_A);
+      expect(commandServiceMock.execute).toHaveBeenCalledWith('AddActorToActorContainer',
+        expect.objectContaining({
+          projectName: 'proj1',
+          actorContainerId: 20,
+          actorId: 1,
+          containerType: 'Story'
+        }));
+    });
+
+    it('onRemoveActor sends RemoveActorFromActorContainer with containerType Story', async () => {
+      await renderExisting();
+      associationSucceeds();
+      await comp.onRemoveActor(ACTOR_A);
+      expect(commandServiceMock.execute).toHaveBeenCalledWith('RemoveActorFromActorContainer',
+        expect.objectContaining({
+          projectName: 'proj1',
+          actorContainerId: 20,
+          actorId: 1,
+          containerType: 'Story'
+        }));
+    });
+
     it('takes the goals list from the response instead of patching it locally', async () => {
       await renderExisting();
       associationSucceeds();

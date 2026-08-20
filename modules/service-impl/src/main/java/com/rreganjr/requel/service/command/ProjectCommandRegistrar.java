@@ -394,7 +394,7 @@ public class ProjectCommandRegistrar {
                     AddStoryToStoryContainerCommand c = (AddStoryToStoryContainerCommand) cmd;
                     AddStoryToStoryContainerInput i = (AddStoryToStoryContainerInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
-                    c.setStoryContainer(findStoryContainerById(project, i.storyContainerId()));
+                    c.setStoryContainer(findStoryContainerById(project, i.storyContainerId(), i.containerType()));
                     c.setStory(findStoryById(project, i.storyId()));
                 });
 
@@ -404,7 +404,7 @@ public class ProjectCommandRegistrar {
                     RemoveStoryFromStoryContainerCommand c = (RemoveStoryFromStoryContainerCommand) cmd;
                     RemoveStoryFromStoryContainerInput i = (RemoveStoryFromStoryContainerInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
-                    c.setStoryContainer(findStoryContainerById(project, i.storyContainerId()));
+                    c.setStoryContainer(findStoryContainerById(project, i.storyContainerId(), i.containerType()));
                     c.setStory(findStoryById(project, i.storyId()));
                 });
 
@@ -434,7 +434,7 @@ public class ProjectCommandRegistrar {
                     AddActorToActorContainerCommand c = (AddActorToActorContainerCommand) cmd;
                     AddActorToActorContainerInput i = (AddActorToActorContainerInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
-                    c.setActorContainer(findActorContainerById(project, i.actorContainerId()));
+                    c.setActorContainer(findActorContainerById(project, i.actorContainerId(), i.containerType()));
                     c.setActor(findActorById(project, i.actorId()));
                 });
 
@@ -444,7 +444,7 @@ public class ProjectCommandRegistrar {
                     RemoveActorFromActorContainerCommand c = (RemoveActorFromActorContainerCommand) cmd;
                     RemoveActorFromActorContainerInput i = (RemoveActorFromActorContainerInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
-                    c.setActorContainer(findActorContainerById(project, i.actorContainerId()));
+                    c.setActorContainer(findActorContainerById(project, i.actorContainerId(), i.containerType()));
                     c.setActor(findActorById(project, i.actorId()));
                 });
         registry.register("CopyActor", CopyActorInput.class,
@@ -733,70 +733,88 @@ public class ProjectCommandRegistrar {
     }
 
     private static GoalContainer findGoalContainerById(Project project, Long containerId, String containerType) {
-        // When the caller knows the entity type, skip straight to that collection to avoid
-        // ID collisions between entity types (all tables use per-table auto-increment).
+        // Resolve strictly within the named type to avoid cross-type ID collisions
+        // (all tables use per-table auto-increment). issue #189
+        if ("Project".equalsIgnoreCase(containerType)) {
+            if (project.getId().equals(containerId)) return project;
+            throw EntityValidationException.validationFailed(GoalContainer.class, "goalContainerId",
+                    "id " + containerId + " does not identify the project");
+        }
         if ("UseCase".equalsIgnoreCase(containerType)) {
             for (UseCase uc : project.getUseCases()) {
                 if (uc.getId().equals(containerId)) return (GoalContainer) uc;
             }
-            throw new IllegalArgumentException("UseCase GoalContainer not found: " + containerId);
+            throw EntityValidationException.validationFailed(GoalContainer.class, "goalContainerId",
+                    "id " + containerId + " does not identify a use case goal container");
         }
         if ("Story".equalsIgnoreCase(containerType)) {
             for (Story s : project.getStories()) {
                 if (s.getId().equals(containerId)) return (GoalContainer) s;
             }
-            throw new IllegalArgumentException("Story GoalContainer not found: " + containerId);
+            throw EntityValidationException.validationFailed(GoalContainer.class, "goalContainerId",
+                    "id " + containerId + " does not identify a story goal container");
         }
         if ("Actor".equalsIgnoreCase(containerType)) {
             for (Actor a : project.getActors()) {
                 if (a.getId().equals(containerId)) return (GoalContainer) a;
             }
-            throw new IllegalArgumentException("Actor GoalContainer not found: " + containerId);
+            throw EntityValidationException.validationFailed(GoalContainer.class, "goalContainerId",
+                    "id " + containerId + " does not identify an actor goal container");
         }
         if ("Stakeholder".equalsIgnoreCase(containerType) || "UserStakeholder".equalsIgnoreCase(containerType)
                 || "NonUserStakeholder".equalsIgnoreCase(containerType)) {
             for (Stakeholder s : project.getStakeholders()) {
                 if (s.getId().equals(containerId)) return (GoalContainer) s;
             }
-            throw new IllegalArgumentException("Stakeholder GoalContainer not found: " + containerId);
+            throw EntityValidationException.validationFailed(GoalContainer.class, "goalContainerId",
+                    "id " + containerId + " does not identify a stakeholder goal container");
         }
-        // Fall back: search all (legacy path, may hit ID collisions)
-        for (Stakeholder s : project.getStakeholders()) {
-            if (s.getId().equals(containerId)) return (GoalContainer) s;
-        }
-        for (Story s : project.getStories()) {
-            if (s.getId().equals(containerId)) return (GoalContainer) s;
-        }
-        for (Actor a : project.getActors()) {
-            if (a.getId().equals(containerId)) return (GoalContainer) a;
-        }
-        for (UseCase uc : project.getUseCases()) {
-            if (uc.getId().equals(containerId)) return (GoalContainer) uc;
-        }
-        throw new IllegalArgumentException("GoalContainer not found: " + containerId);
+        throw EntityValidationException.validationFailed(GoalContainer.class, "containerType",
+                "'" + containerType + "' is not a valid goal container type "
+                        + "(expected Project, UseCase, Story, Actor, or Stakeholder)");
     }
 
-    private static StoryContainer findStoryContainerById(Project project, Long containerId) {
-        if (project.getId().equals(containerId)) return project;
-        for (UseCase uc : project.getUseCases()) {
-            if (uc.getId().equals(containerId)) return uc;
+    private static StoryContainer findStoryContainerById(Project project, Long containerId, String containerType) {
+        // Resolve strictly within the named type. Only Project and UseCase are StoryContainers. issue #189
+        if ("Project".equalsIgnoreCase(containerType)) {
+            if (project.getId().equals(containerId)) return project;
+            throw EntityValidationException.validationFailed(StoryContainer.class, "storyContainerId",
+                    "id " + containerId + " does not identify the project");
         }
-        // Only Project and UseCase implement StoryContainer. Any other id
-        // (stakeholder, goal, actor, or a typo) is a caller error -> INVALID_INPUT/400.
-        throw EntityValidationException.validationFailed(
-                StoryContainer.class, "storyContainerId",
-                "id " + containerId + " does not identify a story container");
+        if ("UseCase".equalsIgnoreCase(containerType)) {
+            for (UseCase uc : project.getUseCases()) {
+                if (uc.getId().equals(containerId)) return uc;
+            }
+            throw EntityValidationException.validationFailed(StoryContainer.class, "storyContainerId",
+                    "id " + containerId + " does not identify a use case story container");
+        }
+        throw EntityValidationException.validationFailed(StoryContainer.class, "containerType",
+                "'" + containerType + "' is not a valid story container type (expected Project or UseCase)");
     }
 
-    private static ActorContainer findActorContainerById(Project project, Long containerId) {
-        if (project.getId().equals(containerId)) return project;
-        for (UseCase uc : project.getUseCases()) {
-            if (uc.getId().equals(containerId)) return uc;
+    private static ActorContainer findActorContainerById(Project project, Long containerId, String containerType) {
+        // Resolve strictly within the named type. Project, UseCase, and Story are ActorContainers. issue #189
+        if ("Project".equalsIgnoreCase(containerType)) {
+            if (project.getId().equals(containerId)) return project;
+            throw EntityValidationException.validationFailed(ActorContainer.class, "actorContainerId",
+                    "id " + containerId + " does not identify the project");
         }
-        for (Story s : project.getStories()) {
-            if (s.getId().equals(containerId)) return (ActorContainer) s;
+        if ("UseCase".equalsIgnoreCase(containerType)) {
+            for (UseCase uc : project.getUseCases()) {
+                if (uc.getId().equals(containerId)) return uc;
+            }
+            throw EntityValidationException.validationFailed(ActorContainer.class, "actorContainerId",
+                    "id " + containerId + " does not identify a use case actor container");
         }
-        throw new IllegalArgumentException("ActorContainer not found: " + containerId);
+        if ("Story".equalsIgnoreCase(containerType)) {
+            for (Story s : project.getStories()) {
+                if (s.getId().equals(containerId)) return (ActorContainer) s;
+            }
+            throw EntityValidationException.validationFailed(ActorContainer.class, "actorContainerId",
+                    "id " + containerId + " does not identify a story actor container");
+        }
+        throw EntityValidationException.validationFailed(ActorContainer.class, "containerType",
+                "'" + containerType + "' is not a valid actor container type (expected Project, UseCase, or Story)");
     }
 
     private static UseCase findUseCaseById(Project project, Long useCaseId) {
