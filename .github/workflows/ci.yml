@@ -162,7 +162,9 @@ jobs:
     name: E2E + frontend coverage
     needs: build-and-test
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # E2E is serial (workers:1) and coverage-instrumented; ~35 min observed. Give it
+    # headroom over the ~20 min norm without masking a real slowdown.
+    timeout-minutes: 60
     services:
       mysql:
         image: mysql:8.4
