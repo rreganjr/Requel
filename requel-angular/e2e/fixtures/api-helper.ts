@@ -305,6 +305,7 @@ export async function addActorToStory(
     projectName,
     actorContainerId: storyId,
     actorId,
+    containerType: 'Story',
   });
 }
 
@@ -319,6 +320,7 @@ export async function addActorToUseCase(
     projectName,
     actorContainerId: useCaseId,
     actorId,
+    containerType: 'UseCase',
   });
 }
 
@@ -334,10 +336,10 @@ export async function addGoalToUseCase(
     goalContainerId: useCaseId,
     goalId,
     // Required by AddGoalToGoalContainerInput, and the value the SPA sends
-    // (use-case-editor.ts). ProjectCommandRegistrar:737 resolves it case-insensitively to pick
-    // the container out of the project. Omitting it was silently tolerated until #171 turned DTO
-    // validation on; it now fails with 422 "containerType: must not be blank". Note the Actor and
-    // Story container inputs have no equivalent field, so only this call needed it.
+    // (use-case-editor.ts). ProjectCommandRegistrar resolves it case-insensitively to pick
+    // the container out of the named type. Omitting it fails with 422 "containerType: must not be
+    // blank". As of #189 the Actor and Story container inputs carry the same required field, so the
+    // addActorTo*/addStoryTo* helpers below set it too.
     containerType: 'UseCase',
   });
 }
@@ -368,6 +370,7 @@ export async function addStoryToUseCase(
     projectName,
     storyContainerId: useCaseId,
     storyId,
+    containerType: 'UseCase',
   });
 }
 
