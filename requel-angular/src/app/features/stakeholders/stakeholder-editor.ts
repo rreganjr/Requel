@@ -593,8 +593,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
         containerType: 'Stakeholder'
       });
       if (result.success) {
-        this.goals.update(list => [...list, goal].sort((a, b) => a.name.localeCompare(b.name)));
-        await this.refreshVersionAfterAssociation();
+        this.applyAssociationResult(result.entity as StakeholderDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
       } else {
         this.errorMessage.set(result.error ?? 'Failed to add goal.');
@@ -613,8 +612,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
         containerType: 'Stakeholder'
       });
       if (result.success) {
-        this.goals.update(list => list.filter(g => g.id !== goal.id));
-        await this.refreshVersionAfterAssociation();
+        this.applyAssociationResult(result.entity as StakeholderDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });
       } else {
         this.errorMessage.set(result.error ?? 'Failed to remove goal.');
@@ -625,25 +623,25 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   }
 
   /**
-   * Re-reads the version after a goal association changes.
+   * Apply the merged container an association command returns (#180). Add/RemoveGoalFromGoalContainer
+   * end by merging the container — this stakeholder — so each returns it with its bumped `@Version`
+   * and refreshed goals as `result.entity`. Taking both from the response removes the follow-up GET.
    *
-   * Add/RemoveGoalFromGoalContainer merge the container - this stakeholder - so each bumps its
-   * `@Version`, but they register no result extractor, so `result.entity` is null and a refetch
-   * is the only way to see the new value. Without it, adding a goal then saving 409s. Same bug
-   * and same fix as actor-editor (#173 slice 2); #178/#180 remove the refetch.
+   * Guarded on `version`: two associations can be in flight at once and resolve out of order; since
+   * every merge increments `@Version`, a response older than what we hold would restore a stale
+   * goals list, so we ignore it. A skipped version self-corrects through the next-save 409 path.
    *
-   * Narrow on purpose: `version` only, never the form, so an in-progress edit survives.
+   * Never touches the form, so an in-progress edit survives.
    */
-  private async refreshVersionAfterAssociation(): Promise<void> {
-    if (this.stakeholderId == null) {
+  private applyAssociationResult(entity: StakeholderDto | null): void {
+    if (!entity) {
       return;
     }
-    try {
-      const s = await this.stakeholderService.getStakeholder(this.projectName, this.stakeholderId);
-      this.version = s.version;
-    } catch {
-      // Leave the held version alone; the existing 409 path recovers on the next save.
+    if (this.version != null && entity.version <= this.version) {
+      return;
     }
+    this.version = entity.version;
+    this.goals.set(entity.goals ?? []);
   }
 
   onGoalClick(goal: EntityReferenceDto): void {

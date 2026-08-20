@@ -898,13 +898,40 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     }
   }
 
+  /**
+   * Apply the merged use case an association command returns (#180). Every goal/story/actor
+   * association here merges the use case and returns it — version, goals, stories, actors and
+   * additional scenarios — as `result.entity`, so we consume that instead of refetching.
+   * Associations never change the primary scenario, so unlike `refreshCollections()` this issues no
+   * scenario GET either. (The scenario commands keep `refreshCollections()` precisely because they
+   * do change the primary scenario.)
+   *
+   * Guarded on `version`: concurrent associations can resolve out of order, and since every merge
+   * increments `@Version`, a response older than what we hold would restore stale lists, so we
+   * ignore it. A skipped version self-corrects through the next-save 409 recovery.
+   */
+  private applyAssociationResult(entity: UseCaseDto | null): void {
+    if (!entity) {
+      return;
+    }
+    if (this.version != null && entity.version <= this.version) {
+      return;
+    }
+    this.version = entity.version;
+    this.useCase.set(entity);
+    this.goals.set(entity.goals ?? []);
+    this.stories.set(entity.stories ?? []);
+    this.actors.set(entity.actors ?? []);
+    this.additionalScenarios.set(entity.additionalScenarios ?? []);
+  }
+
   async addGoal(ref: EntityReferenceDto): Promise<void> {
     this.showGoalSelector = false;
     const result = await this.commandService.execute('AddGoalToGoalContainer', {
       projectName: this.projectName, goalContainerId: this.useCaseId, goalId: ref.id,
       containerType: 'UseCase'
     });
-    if (result.success) await this.refreshCollections();
+    if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
     else this.errorMessage.set(result.error ?? 'Failed to add goal.');
   }
 
@@ -913,7 +940,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       projectName: this.projectName, goalContainerId: this.useCaseId, goalId: goal.id,
       containerType: 'UseCase'
     });
-    if (result.success) await this.refreshCollections();
+    if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
     else this.errorMessage.set(result.error ?? 'Failed to remove goal.');
   }
 
@@ -923,7 +950,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       projectName: this.projectName, storyContainerId: this.useCaseId, storyId: ref.id,
       containerType: 'UseCase'
     });
-    if (result.success) await this.refreshCollections();
+    if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
     else this.errorMessage.set(result.error ?? 'Failed to add story.');
   }
 
@@ -932,7 +959,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       projectName: this.projectName, storyContainerId: this.useCaseId, storyId: story.id,
       containerType: 'UseCase'
     });
-    if (result.success) await this.refreshCollections();
+    if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
     else this.errorMessage.set(result.error ?? 'Failed to remove story.');
   }
 
@@ -942,7 +969,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       projectName: this.projectName, actorContainerId: this.useCaseId, actorId: ref.id,
       containerType: 'UseCase'
     });
-    if (result.success) await this.refreshCollections();
+    if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
     else this.errorMessage.set(result.error ?? 'Failed to add actor.');
   }
 
@@ -951,7 +978,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       projectName: this.projectName, actorContainerId: this.useCaseId, actorId: actor.id,
       containerType: 'UseCase'
     });
-    if (result.success) await this.refreshCollections();
+    if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
     else this.errorMessage.set(result.error ?? 'Failed to remove actor.');
   }
 

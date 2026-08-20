@@ -257,8 +257,9 @@ describe('StakeholderEditorComponent', () => {
     });
   });
 
-  // #173 required test (§10.3). Goal associations bump the stakeholder's @Version and return no
-  // entity, so the wizard refetches. Without that, returning to Details would 409.
+  // #173 required test (§10.3), updated for #180: goal associations bump the stakeholder's @Version
+  // and now return the merged stakeholder, so the wizard reads the new version from the response
+  // instead of refetching. Without that, returning to Details would 409.
   describe('wizard version contract (#173)', () => {
     it('survives create -> add goal -> back to Details -> edit -> Continue', async () => {
       paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: 'new-nonuser' }));
@@ -266,13 +267,14 @@ describe('StakeholderEditorComponent', () => {
       await flush();
 
       let version = 0;
-      commandServiceMock.execute.mockImplementation(async (type: string) => {
+      commandServiceMock.execute.mockImplementation(async () => {
+        // Every command here merges the stakeholder and returns it with a bumped @Version (#180).
         version += 1;
-        if (type === 'EditNonUserStakeholder') {
-          return { success: true, entity: { ...MOCK_STAKEHOLDER_NONUSER, id: 51, version } };
-        }
-        return { success: true, entity: null };
+        return { success: true, entity: { ...MOCK_STAKEHOLDER_NONUSER, id: 51, version } };
       });
+      // saveDetails() still refetches once right after CREATE (loadStakeholder(false)) - that is a
+      // separate load from the association refetch #180 removes, so this mock must stay or the
+      // reload falls back to the default (a user stakeholder) and flips the editor's mode.
       stakeholderServiceMock.getStakeholder.mockImplementation(async () => ({
         ...MOCK_STAKEHOLDER_NONUSER, id: 51, version
       }));
@@ -301,17 +303,18 @@ describe('StakeholderEditorComponent', () => {
       expect(last.version).not.toBe(1);
     });
 
-    it('re-reads version after a goal association', async () => {
+    it('takes version from the association response', async () => {
       paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
       fixture.detectChanges();
       await flush();
+      stakeholderServiceMock.getStakeholder.mockClear();
 
-      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
-      stakeholderServiceMock.getStakeholder.mockResolvedValue({ ...MOCK_STAKEHOLDER_USER, version: 6 });
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: { ...MOCK_STAKEHOLDER_USER, version: 6 } });
 
       await comp.onGoalSelected({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((comp as any).version).toBe(6);
+      expect(stakeholderServiceMock.getStakeholder).not.toHaveBeenCalled();
     });
   });
 
@@ -355,11 +358,14 @@ describe('StakeholderEditorComponent', () => {
     expect(comp.stakeholderName()).toBe('FASB');
   });
 
-  it('onGoalSelected calls AddGoalToGoalContainer and updates goals()', async () => {
+  it('onGoalSelected calls AddGoalToGoalContainer and applies the returned stakeholder to goals()', async () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
     fixture.detectChanges();
     await flush();
-    commandServiceMock.execute.mockResolvedValue({ success: true });
+    stakeholderServiceMock.getStakeholder.mockClear();
+    commandServiceMock.execute.mockResolvedValue({
+      success: true, entity: { ...MOCK_STAKEHOLDER_USER, version: 1, goals: [{ id: 10, name: 'Buy product', entityType: 'Goal' }] }
+    });
     await comp.onGoalSelected({ id: 10, name: 'Buy product', entityType: 'Goal' });
     expect(commandServiceMock.execute).toHaveBeenCalledWith('AddGoalToGoalContainer', expect.objectContaining({
       projectName: 'proj1',
@@ -368,6 +374,7 @@ describe('StakeholderEditorComponent', () => {
       containerType: 'Stakeholder'
     }));
     expect(comp.goals().some(g => g.id === 10)).toBe(true);
+    expect(stakeholderServiceMock.getStakeholder).not.toHaveBeenCalled();
   });
 
   it('onRemoveGoal calls RemoveGoalFromGoalContainer and removes from goals()', async () => {
@@ -379,7 +386,7 @@ describe('StakeholderEditorComponent', () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
     fixture.detectChanges();
     await flush();
-    commandServiceMock.execute.mockResolvedValue({ success: true });
+    commandServiceMock.execute.mockResolvedValue({ success: true, entity: { ...MOCK_STAKEHOLDER_USER, version: 1, goals: [] } });
     await comp.onRemoveGoal({ id: 10, name: 'Buy product', entityType: 'Goal' });
     expect(commandServiceMock.execute).toHaveBeenCalledWith('RemoveGoalFromGoalContainer', expect.objectContaining({
       goalId: 10,

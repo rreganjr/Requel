@@ -389,12 +389,6 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   projectName = '';
   storyId: number | null = null;
   private version: number | null = null;
-  /**
-   * Monotonic ticket for story reads. `refreshAfterAssociation()` takes one before its GET
-   * and applies the response only if it is still the newest, so an older read cannot land
-   * last and undo a newer one. See that method for why the guard is needed.
-   */
-  private storyReadSeq = 0;
   private paramSub?: Subscription;
   private sseSub?: Subscription;
 
@@ -502,9 +496,6 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     }
     try {
       const s = await this.storyService.getStory(this.projectName, this.storyId!);
-      // A full load supersedes any association refresh still in flight: whichever of the two
-      // reads resolves last would otherwise win, and this one carries the form reset.
-      this.storyReadSeq++;
       // Always take the version. The entity moved on, and holding the stale one guarantees a
       // 409 on the next save.
       this.story.set(s);
@@ -540,43 +531,27 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   /**
-   * Re-reads the story after an association command so the held `@Version` and the goals /
-   * actors tables both come from the server rather than from a locally patched array.
+   * Apply the merged story an association command returns (#180). Add/Remove Goal/Actor merge the
+   * container — this story — so each returns it with its bumped `@Version` and refreshed goals /
+   * actors as `result.entity`. Consuming that removes the follow-up GET this used to do.
    *
-   * `Add`/`RemoveGoalToGoalContainer` and `Add`/`RemoveActorToActorContainer` merge their
-   * container — which here is the story — so each one bumps its `@Version`. None of the four
-   * registers a result extractor, so `result.entity` is null and the new version can only be
-   * read back (#178). Without this, adding a goal and then saving the name 409s (#179).
+   * Guarded on `version`: two associations can be in flight at once (easiest by clicking two remove
+   * buttons) and resolve out of order. Since every merge increments `@Version`, a response older
+   * than what we already hold would restore a stale list, so we ignore it — this replaces the old
+   * `storyReadSeq` ticket and keys off the server's commit order rather than client issue order. A
+   * skipped version self-corrects through the next-save 409 recovery.
    *
-   * Applying the response is guarded by `storyReadSeq`. Two associations in quick succession —
-   * easiest by clicking two remove buttons — issue two GETs that can resolve in either order,
-   * and the older snapshot landing last would silently restore a row the user just removed.
-   * A stale *version* is self-correcting, since the next save 409s into
-   * `recoverFromStaleVersion()`, but a stale *list* is not, which is why the guard exists at
-   * all now that the tables are refreshed too.
-   *
-   * Unlike `loadStory()` this never touches `detailsForm`, so it cannot discard unsaved edits:
-   * the form belongs to the user, the signal to the server.
-   *
-   * #180 deletes this method: once the four commands return their merged container, the
-   * version and the lists both come off `result.entity` and the extra GET goes away.
+   * Never touches `detailsForm`, so an in-progress edit survives.
    */
-  private async refreshAfterAssociation(): Promise<void> {
-    if (this.storyId == null) {
+  private applyAssociationResult(entity: StoryDto | null): void {
+    if (!entity) {
       return;
     }
-    const seq = ++this.storyReadSeq;
-    try {
-      const s = await this.storyService.getStory(this.projectName, this.storyId);
-      if (seq !== this.storyReadSeq) {
-        return;
-      }
-      this.version = s.version;
-      this.story.set(s);
-    } catch {
-      // Leave the held version and lists as they are. A failed refresh is not worth blocking
-      // the user on, and a resulting 409 still reports itself through the existing recovery.
+    if (this.version != null && entity.version <= this.version) {
+      return;
     }
+    this.version = entity.version;
+    this.story.set(entity);
   }
 
   existingGoalIds(): number[] {
@@ -771,7 +746,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         containerType: 'Story'
       });
       if (result.success) {
-        await this.refreshAfterAssociation();
+        this.applyAssociationResult(result.entity as StoryDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
       } else {
         this.errorMessage.set(result.error ?? 'Failed to add goal.');
@@ -790,7 +765,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         containerType: 'Story'
       });
       if (result.success) {
-        await this.refreshAfterAssociation();
+        this.applyAssociationResult(result.entity as StoryDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });
       } else {
         this.errorMessage.set(result.error ?? 'Failed to remove goal.');
@@ -810,7 +785,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         containerType: 'Story'
       });
       if (result.success) {
-        await this.refreshAfterAssociation();
+        this.applyAssociationResult(result.entity as StoryDto | null);
         this.messageService.add({ severity: 'success', summary: 'Actor added', detail: 'Actor added.' });
       } else {
         this.errorMessage.set(result.error ?? 'Failed to add actor.');
@@ -829,7 +804,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         containerType: 'Story'
       });
       if (result.success) {
-        await this.refreshAfterAssociation();
+        this.applyAssociationResult(result.entity as StoryDto | null);
         this.messageService.add({ severity: 'success', summary: 'Actor removed', detail: 'Actor removed.' });
       } else {
         this.errorMessage.set(result.error ?? 'Failed to remove actor.');

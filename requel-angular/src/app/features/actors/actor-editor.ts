@@ -483,34 +483,27 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   /**
-   * Re-reads the actor's optimistic-lock version after a goal association changes.
+   * Apply the merged container an association command returns (#180). Add/RemoveGoalFromGoalContainer
+   * end by merging the container — which IS this actor — so each returns the actor with its bumped
+   * `@Version` and refreshed goals as `result.entity`. Taking both from the response removes the
+   * follow-up GET this used to do.
    *
-   * `AddGoalToGoalContainerCommandImpl` / `RemoveGoalFromGoalContainerCommandImpl` end by
-   * merging the container - which IS this actor - so every add or remove bumps its
-   * `@Version`. The client cannot read the new value from the response: both commands are
-   * registered through the 4-arg `CommandRegistry.register` overload, which leaves
-   * `resultExtractor` null, so `ApiCommandFactory.extractResult` returns null and
-   * `result.entity` is empty. A refetch is the only way to see it.
+   * Guarded on `version`: two associations can be in flight at once (e.g. two quick removes) and
+   * their responses can arrive out of order. Since every successful merge increments `@Version`, a
+   * response older than what we already hold would restore a stale goals list, so we ignore it.
+   * A skipped version is self-correcting — the next save 409s into the existing recovery path.
    *
-   * Without this, adding a goal and then saving the name fails with a 409 the user did
-   * nothing to deserve. Pre-existing bug; #173's wizard makes it reachable in the create
-   * flow too, which is what surfaced it.
-   *
-   * Deliberately narrow — it takes `version` and nothing else. A full `loadActor()` here
-   * would overwrite whatever the user had typed into Name or Description before touching
-   * the Goals table.
+   * Never touches `detailsForm`, so an in-progress Name/Description edit survives.
    */
-  private async refreshVersionAfterAssociation(): Promise<void> {
-    if (this.actorId == null) {
+  private applyAssociationResult(entity: ActorDto | null): void {
+    if (!entity) {
       return;
     }
-    try {
-      const a = await this.actorService.getActor(this.projectName, this.actorId);
-      this.version = a.version;
-    } catch {
-      // Leave the held version as-is: a failed refresh is not worth blocking the user, and
-      // the next save reports the 409 with the existing recovery path.
+    if (this.version != null && entity.version <= this.version) {
+      return;
     }
+    this.version = entity.version;
+    this.goals.set(entity.goals ?? []);
   }
 
 
@@ -698,8 +691,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         containerType: 'Actor'
       });
       if (result.success) {
-        this.goals.update(list => [...list, goal].sort((a, b) => a.name.localeCompare(b.name)));
-        await this.refreshVersionAfterAssociation();
+        this.applyAssociationResult(result.entity as ActorDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal added', detail: `"${goal.name}" added successfully.` });
       } else {
         this.errorMessage.set(result.error ?? 'Failed to add goal.');
@@ -718,8 +710,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         containerType: 'Actor'
       });
       if (result.success) {
-        this.goals.update(list => list.filter(g => g.id !== goal.id));
-        await this.refreshVersionAfterAssociation();
+        this.applyAssociationResult(result.entity as ActorDto | null);
         this.messageService.add({ severity: 'info', summary: 'Goal removed', detail: `"${goal.name}" removed.` });
       } else {
         this.errorMessage.set(result.error ?? 'Failed to remove goal.');
