@@ -29,5 +29,12 @@ public interface StreamEventPublisher {
 
     void publishTargetUpdate(String targetType, Long targetId, Object payload);
 
+    /**
+     * Publish a targeted update to every subscribed session except {@code excludeSessionId}
+     * (typically the session that issued the command, so it does not reload the form it just
+     * edited). A null {@code excludeSessionId} excludes nobody.
+     */
+    void publishTargetUpdate(String targetType, Long targetId, Object payload, String excludeSessionId);
+
     void publishTargetDeleted(String targetType, Long targetId);
 }

@@ -159,13 +159,31 @@ public class StreamService {
      * per-session and prune the offender so future broadcasts skip it.
      */
     public void pushToSubscribedSessions(String targetType, Long targetId, Object payload) {
+        pushToSubscribedSessions(targetType, targetId, payload, null);
+    }
+
+    /**
+     * Same as {@link #pushToSubscribedSessions(String, Long, Object)} but skips
+     * {@code excludeSessionId} (typically the session that issued the command, so it is not told to
+     * refresh an entity it just changed). A null {@code excludeSessionId} excludes nobody. The
+     * Project:0 broadcast never passes an exclusion — the acting session's sidebar counts must still
+     * update — so only targeted events are filtered.
+     */
+    public void pushToSubscribedSessions(String targetType, Long targetId, Object payload,
+                                         String excludeSessionId) {
         String targetKey = targetType + ":" + targetId;
         Set<String> sessionIds = sessionStore.getSessionsForTarget(targetKey);
-        log.debug("pushToSubscribedSessions targetKey={} sessions={}", targetKey, sessionIds.size());
+        log.debug("pushToSubscribedSessions targetKey={} sessions={} exclude={}", targetKey,
+                sessionIds.size(), excludeSessionId);
         StreamEventEnvelope envelope = payload != null
                 ? StreamEventEnvelope.data(targetType, targetId, payload)
                 : StreamEventEnvelope.targetDeleted(targetType, targetId);
         for (String sessionId : sessionIds) {
+            if (excludeSessionId != null && excludeSessionId.equals(sessionId)) {
+                log.debug("pushToSubscribedSessions skipping originator session {} for target {}",
+                        sessionId, targetKey);
+                continue;
+            }
             try {
                 sendEvent(sessionId, envelope);
             } catch (RuntimeException broadcastFailure) {

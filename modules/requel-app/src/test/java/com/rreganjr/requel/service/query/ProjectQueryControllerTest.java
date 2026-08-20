@@ -33,6 +33,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -263,6 +266,76 @@ class ProjectQueryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(7))
                 .andExpect(jsonPath("$.name").value("Bob"));
+    }
+
+    // -------------------------------------------------------------------------
+    // toContainerDetailDto — polymorphic container → detail DTO (issue #178 §4.1)
+    // Entity interfaces are mutually exclusive, so arm order can't misclassify; these pin the
+    // mapping (and the project → null decision) so a future refactor can't silently change it.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void toContainerDetailDtoMapsUseCaseToUseCaseDetail() {
+        UseCase useCase = stubUseCase(40L, "Delta use case");
+        when(useCase.getGoals()).thenReturn(Collections.emptySet());
+        when(useCase.getActors()).thenReturn(Collections.emptySet());
+        when(useCase.getStories()).thenReturn(Collections.emptySet());
+        when(useCase.getAdditionalScenarios()).thenReturn(Collections.emptySet());
+
+        Object dto = ProjectQueryController.toContainerDetailDto(useCase);
+
+        assertInstanceOf(com.rreganjr.requel.service.api.dto.UseCaseDto.class, dto);
+        assertEquals(40L, ((com.rreganjr.requel.service.api.dto.UseCaseDto) dto).id().longValue());
+    }
+
+    @Test
+    void toContainerDetailDtoMapsStoryToStoryDetail() {
+        Story story = stubStory(41L, "A story");
+        when(story.getStoryType()).thenReturn(StoryType.Success);
+        when(story.getGoals()).thenReturn(Collections.emptySet());
+        when(story.getActors()).thenReturn(Collections.emptySet());
+
+        Object dto = ProjectQueryController.toContainerDetailDto(story);
+
+        assertInstanceOf(com.rreganjr.requel.service.api.dto.StoryDto.class, dto);
+        assertEquals(41L, ((com.rreganjr.requel.service.api.dto.StoryDto) dto).id().longValue());
+    }
+
+    @Test
+    void toContainerDetailDtoMapsActorToActorDetail() {
+        Actor actor = stubActor(42L, "Bob");
+        when(actor.getGoals()).thenReturn(Collections.emptySet());
+        when(actor.getReferers()).thenReturn(Collections.emptySet());
+
+        Object dto = ProjectQueryController.toContainerDetailDto(actor);
+
+        assertInstanceOf(com.rreganjr.requel.service.api.dto.ActorDto.class, dto);
+        assertEquals(42L, ((com.rreganjr.requel.service.api.dto.ActorDto) dto).id().longValue());
+    }
+
+    @Test
+    void toContainerDetailDtoMapsStakeholderToStakeholderDetail() {
+        UserStakeholder stakeholder = stubUserStakeholder(43L, "Alice");
+        when(stakeholder.getGoals()).thenReturn(Collections.emptySet());
+
+        Object dto = ProjectQueryController.toContainerDetailDto(stakeholder);
+
+        assertInstanceOf(com.rreganjr.requel.service.api.dto.StakeholderDto.class, dto);
+        assertEquals(43L, ((com.rreganjr.requel.service.api.dto.StakeholderDto) dto).id().longValue());
+    }
+
+    @Test
+    void toContainerDetailDtoReturnsNullForProjectContainer() {
+        // The project itself is a GoalContainer/StoryContainer/ActorContainer, but no component
+        // subscribes to a targeted Project:<id> channel — the sidebar uses the Project:0 broadcast.
+        assertNull(ProjectQueryController.toContainerDetailDto(
+                mock(com.rreganjr.requel.project.ProjectOrDomain.class)));
+    }
+
+    @Test
+    void toContainerDetailDtoReturnsNullForUnknownAndNullContainer() {
+        assertNull(ProjectQueryController.toContainerDetailDto(new Object()));
+        assertNull(ProjectQueryController.toContainerDetailDto(null));
     }
 
     // -------------------------------------------------------------------------

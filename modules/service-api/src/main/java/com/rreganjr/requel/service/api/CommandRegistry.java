@@ -35,17 +35,35 @@ import java.util.function.Supplier;
 public interface CommandRegistry {
 
     /**
-     * Full registration: all fields including optional commandBuilder.
-     * When commandBuilder is non-null it is used in place of factoryMethod + inputApplicator —
-     * it receives the raw deserialized input and returns a fully-configured command.
-     * Use this for polymorphic commands where the correct subtype depends on the input.
+     * Full registration: all fields including the optional secondary result extractor and
+     * commandBuilder. When commandBuilder is non-null it is used in place of factoryMethod +
+     * inputApplicator — it receives the raw deserialized input and returns a fully-configured
+     * command. When secondaryResultExtractor is non-null the controller/gateway also publishes a
+     * targeted SSE event for that second entity (e.g. an association command's child); that second
+     * entity is publish-only and never enters the response body.
      */
     <T> void register(String commandType, Class<T> inputClass,
                       Supplier<Command> factoryMethod,
                       BiConsumer<Command, T> inputApplicator,
                       BiConsumer<Command, Object> fileApplicator,
                       Function<Command, Object> resultExtractor,
+                      Function<Command, Object> secondaryResultExtractor,
                       Function<Object, Command> commandBuilder);
+
+    /**
+     * Registration with a commandBuilder but no secondary result extractor. Delegates to the full
+     * signature with a null secondaryResultExtractor. This is the signature every other overload
+     * below funnels through, so they all get a null secondary extractor for free.
+     */
+    default <T> void register(String commandType, Class<T> inputClass,
+                              Supplier<Command> factoryMethod,
+                              BiConsumer<Command, T> inputApplicator,
+                              BiConsumer<Command, Object> fileApplicator,
+                              Function<Command, Object> resultExtractor,
+                              Function<Object, Command> commandBuilder) {
+        register(commandType, inputClass, factoryMethod, inputApplicator, fileApplicator,
+                resultExtractor, null, commandBuilder);
+    }
 
     /**
      * Standard registration: input class, factory, input applicator, file applicator, result extractor.

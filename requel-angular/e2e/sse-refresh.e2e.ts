@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/auth';
 import {
-  createProject, createGoal, updateGoal,
+  createProject, createGoal, updateGoal, createActor, addGoalToActor,
 } from './fixtures/api-helper';
 import { gotoAndWaitForGet } from './helpers/navigation';
 
@@ -96,6 +96,62 @@ test.describe('SSE live refresh', () => {
     const sentinelStillSet = await page.evaluate(() => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (globalThis as any).__sseRefreshSentinel != null;
+    });
+    expect(sentinelStillSet, 'sentinel survives, proving no page reload happened').toBeTruthy();
+
+    await page.close();
+  });
+
+  test('open actor editor in context A; associate a goal via API → context A goals table refreshes via targeted SSE (issue #178)', async ({ adminContext, request }) => {
+    test.setTimeout(30_000);
+
+    const nonce = Date.now();
+    const projectName = `e2e-sse-assoc-${nonce}`;
+    const actorName = `SSE Assoc Actor ${nonce}`;
+    const goalName = `SSE Assoc Goal ${nonce}`;
+    await createProject(request, projectName, 'SSE association source');
+    const actor = await createActor(request, projectName, actorName, 'actor text');
+    const goal = await createGoal(request, projectName, goalName, 'goal text');
+
+    const page = await adminContext.newPage();
+
+    // Same rationale as the goal test above: wait for the editor's Actor:<id> subscription POST
+    // (which also confirms the SSE connection is live) before firing the simulated context-B write.
+    const subscriptionPromise = page.waitForResponse(
+      r => r.url().includes('/events/stream/subscriptions') &&
+           r.request().method() === 'POST' &&
+           r.status() === 200,
+      { timeout: 15_000 }
+    );
+
+    await gotoAndWaitForGet(
+      page,
+      `/projects/${encodeURIComponent(projectName)}/actors/${actor.id}`,
+      response => response.url().includes(`/actors/${actor.id}`)
+    );
+    await expect(page.getByTestId('actor-name')).toHaveValue(actorName);
+    await subscriptionPromise;
+
+    // No goal on the actor yet.
+    await expect(page.getByTestId('actor-goal-link')).toHaveCount(0);
+
+    await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).__sseAssocSentinel = Date.now();
+    });
+
+    // Simulated context-B write: AddGoalToGoalContainer. Before #178 this command registered no
+    // result extractor, so no targeted Actor:<id> event fired and this open editor never refreshed.
+    // Now the merged container's detail DTO is the result, so the editor gets a targeted event.
+    await addGoalToActor(request, projectName, actor.id, goal.id);
+
+    // The actor editor's events$ handler calls loadActor(false); the goals table now shows the goal.
+    await expect(page.getByTestId('actor-goal-link')).toHaveText(goalName, { timeout: 10_000 });
+
+    // Sentinel still set ⇒ no full page reload occurred — the update was SSE-driven change detection.
+    const sentinelStillSet = await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (globalThis as any).__sseAssocSentinel != null;
     });
     expect(sentinelStillSet, 'sentinel survives, proving no page reload happened').toBeTruthy();
 

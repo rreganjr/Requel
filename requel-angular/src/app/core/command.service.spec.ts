@@ -3,14 +3,22 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { CommandService } from './command.service';
 import { CommandResult } from '../models/command';
+import { EventStreamService } from './event-stream.service';
 
 describe('CommandService', () => {
   let service: CommandService;
   let httpMock: HttpTestingController;
+  let sessionId: string | null;
 
   beforeEach(() => {
+    sessionId = null;
+    const eventStreamStub = { sessionId: () => sessionId };
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()]
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: EventStreamService, useValue: eventStreamStub }
+      ]
     });
     service = TestBed.inject(CommandService);
     httpMock = TestBed.inject(HttpTestingController);
@@ -60,5 +68,23 @@ describe('CommandService', () => {
     req.flush({ success: true, entityType: 'DeleteGoal', entity: null, error: null, violations: null });
     const result = await promise;
     expect(result.success).toBe(true);
+  });
+
+  it('execute() sends the X-Session-Id header when a stream session exists', async () => {
+    sessionId = 'sess-xyz';
+    const promise = service.execute('EditGoal', { name: 'x' });
+    const req = httpMock.expectOne('/api/commands/EditGoal');
+    expect(req.request.headers.get('X-Session-Id')).toBe('sess-xyz');
+    req.flush({ success: true, entityType: 'EditGoal', entity: null, error: null, violations: null });
+    await promise;
+  });
+
+  it('execute() omits the X-Session-Id header when no stream session is open', async () => {
+    sessionId = null;
+    const promise = service.execute('EditGoal', { name: 'x' });
+    const req = httpMock.expectOne('/api/commands/EditGoal');
+    expect(req.request.headers.has('X-Session-Id')).toBe(false);
+    req.flush({ success: true, entityType: 'EditGoal', entity: null, error: null, violations: null });
+    await promise;
   });
 });

@@ -38,7 +38,13 @@ public class StreamEventPublisherImpl implements StreamEventPublisher {
 
     @Override
     public void publishTargetUpdate(String targetType, Long targetId, Object payload) {
-        streamService.pushToSubscribedSessions(targetType, targetId, payload);
+        publishTargetUpdate(targetType, targetId, payload, null);
+    }
+
+    @Override
+    public void publishTargetUpdate(String targetType, Long targetId, Object payload,
+                                    String excludeSessionId) {
+        streamService.pushToSubscribedSessions(targetType, targetId, payload, excludeSessionId);
     }
 
     @Override

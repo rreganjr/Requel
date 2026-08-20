@@ -987,6 +987,37 @@ public class ProjectQueryController {
     }
 
     /**
+     * Resolve a container to the detail DTO the client re-reads after an association changes.
+     * Arms are ordered most-specific first: {@link UseCase} and {@link Story} implement several
+     * of the container interfaces, so they must be matched before the single-interface types.
+     * Returns {@code null} when the container is the project itself — no component subscribes to a
+     * targeted {@code Project:<id>} channel (the sidebar uses the fixed {@code Project:0}
+     * broadcast), so there is nothing to target. An unrecognized container type also returns
+     * {@code null} but is logged, so a future container type surfaces in the logs instead of
+     * silently going quiet. See {@code doc/178-association-result-extractors-plan.md} §Decisions.
+     */
+    public static Object toContainerDetailDto(Object container) {
+        if (container instanceof UseCase useCase) {
+            return toUseCaseDetailDto(useCase);
+        }
+        if (container instanceof Story story) {
+            return toStoryDetailDto(story);
+        }
+        if (container instanceof Actor actor) {
+            return toActorDetailDto(actor);
+        }
+        if (container instanceof Stakeholder stakeholder) {
+            return toStakeholderDetailDto(stakeholder);
+        }
+        if (container instanceof ProjectOrDomain) {
+            return null;
+        }
+        log.warn("toContainerDetailDto: unrecognized container type {}",
+                container == null ? "null" : container.getClass().getName());
+        return null;
+    }
+
+    /**
      * Convert a GoalContainer referer to an EntityReferenceDto.
      * GoalContainer doesn't expose getId() — we check concrete types.
      */

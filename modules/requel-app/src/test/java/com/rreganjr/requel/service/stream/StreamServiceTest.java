@@ -315,4 +315,37 @@ class StreamServiceTest {
         assertThatNoException().isThrownBy(
                 () -> streamService.pushToSubscribedSessions("Project", 0L, Map.of("type", "refresh")));
     }
+
+    // -------------------------------------------------------------------------
+    // pushToSubscribedSessions — originating-session exclusion (issue #178 §4.4)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void pushToSubscribedSessionsSkipsExcludedSession() throws Exception {
+        streamService.createStream("originator", "alice", 0L, List.of("Goal:1"));
+        streamService.createStream("other",      "alice", 0L, List.of("Goal:1"));
+
+        SseEmitter originator = swapInMockEmitter("originator");
+        SseEmitter other      = swapInMockEmitter("other");
+
+        streamService.pushToSubscribedSessions("Goal", 1L, Map.of("type", "refresh"), "originator");
+
+        // The originating session is skipped; every other subscriber still receives the event.
+        verify(originator, never()).send(any(SseEmitter.SseEventBuilder.class));
+        verify(other).send(any(SseEmitter.SseEventBuilder.class));
+    }
+
+    @Test
+    void pushToSubscribedSessionsWithNullExclusionDeliversToAll() throws Exception {
+        streamService.createStream("s1", "alice", 0L, List.of("Goal:1"));
+        streamService.createStream("s2", "alice", 0L, List.of("Goal:1"));
+
+        SseEmitter e1 = swapInMockEmitter("s1");
+        SseEmitter e2 = swapInMockEmitter("s2");
+
+        streamService.pushToSubscribedSessions("Goal", 1L, Map.of("type", "refresh"), null);
+
+        verify(e1).send(any(SseEmitter.SseEventBuilder.class));
+        verify(e2).send(any(SseEmitter.SseEventBuilder.class));
+    }
 }

@@ -47,6 +47,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -313,8 +314,66 @@ class CommandControllerTest {
                         .content("{}"))
                 .andExpect(status().isOk());
 
-        // Targeted event published: controller strips "Dto" suffix (GoalDto → "Goal")
-        verify(streamEventPublisher).publishTargetUpdate(eq("Goal"), eq(99L), any());
+        // Targeted event published via the exclusion-aware overload; no X-Session-Id header on this
+        // request, so excludeSessionId is null (exclude nobody). "GoalDto" is stripped to "Goal".
+        verify(streamEventPublisher).publishTargetUpdate(eq("Goal"), eq(99L), any(), isNull());
+    }
+
+    @Test
+    void targetedSseEventExcludesOriginatingSession() throws Exception {
+        record GoalDto(Long id, String name) {}
+        stubCommand("EditGoal", new GoalDto(99L, "SSE Goal"));
+
+        mockMvc.perform(post("/api/commands/EditGoal")
+                        .header("X-Session-Id", "sess-abc")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk());
+
+        verify(streamEventPublisher).publishTargetUpdate(eq("Goal"), eq(99L), any(), eq("sess-abc"));
+    }
+
+    @Test
+    void associationPublishesTargetedEventsForContainerAndChild() throws Exception {
+        record ActorDto(Long id, String name) {}
+        record GoalDto(Long id, String name) {}
+        Command cmd = mock(Command.class);
+        doReturn(Void.class).when(apiCommandFactory).getInputType("AddGoalToGoalContainer");
+        when(apiCommandFactory.newCommand(eq("AddGoalToGoalContainer"), any(), any())).thenReturn(cmd);
+        when(commandHandler.execute(cmd)).thenReturn(cmd);
+        when(apiCommandFactory.extractResult(eq("AddGoalToGoalContainer"), any()))
+                .thenReturn(new ActorDto(7L, "Container Actor"));
+        when(apiCommandFactory.extractSecondaryResult(eq("AddGoalToGoalContainer"), any()))
+                .thenReturn(new GoalDto(3L, "Child Goal"));
+
+        mockMvc.perform(post("/api/commands/AddGoalToGoalContainer")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk());
+
+        verify(streamEventPublisher).publishTargetUpdate(eq("Actor"), eq(7L), any(), isNull());
+        verify(streamEventPublisher).publishTargetUpdate(eq("Goal"), eq(3L), any(), isNull());
+    }
+
+    @Test
+    void nullResultPublishesNoTargetedEventButStillBroadcasts() throws Exception {
+        Project project = mock(Project.class);
+        when(project.getId()).thenReturn(55L);
+        Command cmd = mock(Command.class, withSettings().extraInterfaces(ProjectScopedCommand.class));
+        when(((ProjectScopedCommand) cmd).getProject()).thenReturn(project);
+        doReturn(Void.class).when(apiCommandFactory).getInputType("AddGoalToGoalContainer");
+        when(apiCommandFactory.newCommand(eq("AddGoalToGoalContainer"), any(), any())).thenReturn(cmd);
+        when(commandHandler.execute(cmd)).thenReturn(cmd);
+        when(apiCommandFactory.extractResult(eq("AddGoalToGoalContainer"), any())).thenReturn(null);
+        when(apiCommandFactory.extractSecondaryResult(eq("AddGoalToGoalContainer"), any())).thenReturn(null);
+
+        mockMvc.perform(post("/api/commands/AddGoalToGoalContainer")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk());
+
+        verify(streamEventPublisher).publishTargetUpdate(eq("Project"), eq(0L), any());
+        verify(streamEventPublisher, never()).publishTargetUpdate(any(), any(), any(), any());
     }
 
     @Test
@@ -323,7 +382,7 @@ class CommandControllerTest {
         GoalDto dto = new GoalDto(99L, "SSE Goal");
         Command cmd = stubCommand("EditGoal", dto);
         doThrow(new IllegalStateException("stream closed"))
-                .when(streamEventPublisher).publishTargetUpdate(eq("Goal"), eq(99L), any());
+                .when(streamEventPublisher).publishTargetUpdate(eq("Goal"), eq(99L), any(), any());
 
         mockMvc.perform(post("/api/commands/EditGoal")
                         .contentType(MediaType.APPLICATION_JSON)

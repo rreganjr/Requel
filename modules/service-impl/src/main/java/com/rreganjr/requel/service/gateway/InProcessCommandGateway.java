@@ -32,6 +32,7 @@ import com.rreganjr.requel.gateway.GatewayResult;
 import com.rreganjr.requel.gateway.PolicyDecision;
 import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.command.ApiCommandFactory;
+import com.rreganjr.requel.service.command.CommandEventPublisher;
 import com.rreganjr.validator.EntityValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,9 +53,10 @@ import org.springframework.stereotype.Service;
  * for establishing that security context (HTTP filter for remote clients; an explicit context for
  * stdio/tests — wired in Slice 5).
  * <p>
- * TODO(Slice 4): publish the same SSE change events the controller emits
- * ({@code publishProjectChangedIfScoped} / {@code publishEntityChangedIfPresent}) when the MCP
- * transport is wired, so external writes refresh open UI sessions.
+ * SSE parity (issue #178): after executing, it publishes the same change events the HTTP
+ * controller emits, via the shared {@link CommandEventPublisher} — the Project:0 broadcast plus
+ * targeted events for the primary and secondary result entities — so a write made over the
+ * gateway (e.g. MCP) refreshes open browser sessions. Having no HTTP session, it excludes none.
  */
 @Service
 public class InProcessCommandGateway implements CommandGateway {
@@ -66,15 +68,17 @@ public class InProcessCommandGateway implements CommandGateway {
     private final ApiCommandFactory apiCommandFactory;
     private final CommandHandler commandHandler;
     private final ObjectMapper objectMapper;
+    private final CommandEventPublisher eventPublisher;
 
     public InProcessCommandGateway(CommandPolicy policy, CommandRegistry registry,
             ApiCommandFactory apiCommandFactory, CommandHandler commandHandler,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper, CommandEventPublisher eventPublisher) {
         this.policy = policy;
         this.registry = registry;
         this.apiCommandFactory = apiCommandFactory;
         this.commandHandler = commandHandler;
         this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -101,6 +105,11 @@ public class InProcessCommandGateway implements CommandGateway {
             Command command = apiCommandFactory.newCommand(commandType, boundInput);
             commandHandler.execute(command);
             Object result = apiCommandFactory.extractResult(commandType, command);
+            Object secondaryResult = apiCommandFactory.extractSecondaryResult(commandType, command);
+            // Publish the same SSE events the HTTP controller emits so an association made over the
+            // gateway (e.g. MCP) refreshes open browser sessions. The gateway has no HTTP session,
+            // so it excludes nobody (null).
+            eventPublisher.publish(command, result, secondaryResult, null);
             return new GatewayResult(commandType, result);
         } catch (AuthorizationException e) {
             throw new GatewayException(GatewayException.Kind.UNAUTHORIZED, e.getMessage(), e);
