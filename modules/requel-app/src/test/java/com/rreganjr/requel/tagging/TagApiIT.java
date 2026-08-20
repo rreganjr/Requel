@@ -82,7 +82,7 @@ public class TagApiIT {
 	}
 
 	private void dispatchOk(String commandType, Map<String, Object> input) {
-		ResponseEntity<?> response = commandController.dispatchJson(commandType, input);
+		ResponseEntity<?> response = commandController.dispatchJson(commandType, null, input);
 		assertTrue(response.getStatusCode().is2xxSuccessful(),
 				commandType + " should dispatch successfully but was " + response.getStatusCode());
 	}

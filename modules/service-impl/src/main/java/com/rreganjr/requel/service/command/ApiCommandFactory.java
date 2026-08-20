@@ -123,4 +123,18 @@ public class ApiCommandFactory {
         }
         return null;
     }
+
+    /**
+     * Extract the secondary result DTO from a command after execution. This entity is published as
+     * a targeted SSE event (e.g. an association command's child) but never returned in the response
+     * body. Returns null if no secondary extractor is registered.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Object extractSecondaryResult(String commandType, Command command) {
+        CommandRegistration reg = registry.lookup(commandType);
+        if (reg.secondaryResultExtractor() != null) {
+            return reg.secondaryResultExtractor().apply(command);
+        }
+        return null;
+    }
 }

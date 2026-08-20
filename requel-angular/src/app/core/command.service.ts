@@ -19,10 +19,11 @@
  *
  */
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { CommandResult, ErrorResponse } from '../models/command';
+import { EventStreamService } from './event-stream.service';
 
 /**
  * Service for dispatching commands via the CQRS command endpoint.
@@ -31,7 +32,7 @@ import { CommandResult, ErrorResponse } from '../models/command';
 @Injectable({ providedIn: 'root' })
 export class CommandService {
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private eventStreamService: EventStreamService) {}
 
   /**
    * Execute a command with a JSON body and return the result.
@@ -41,7 +42,8 @@ export class CommandService {
       return await firstValueFrom(
         this.http.post<CommandResult<T>>(
           `${environment.apiBaseUrl}/commands/${commandType}`,
-          input
+          input,
+          this.sessionHeaders()
         )
       );
     } catch (err) {
@@ -61,12 +63,25 @@ export class CommandService {
       return await firstValueFrom(
         this.http.post<CommandResult<T>>(
           `${environment.apiBaseUrl}/commands/${commandType}`,
-          formData
+          formData,
+          this.sessionHeaders()
         )
       );
     } catch (err) {
       return this.handleError(err, commandType);
     }
+  }
+
+  /**
+   * Build the request options carrying the caller's SSE session id in an `X-Session-Id` header,
+   * so the server can exclude this session from the targeted refresh events it fires for the
+   * entity being changed (issue #178) — the editor should not reload the form it just saved. The
+   * header is omitted entirely when no stream is open yet (`sessionId()` is null), which the server
+   * treats as "exclude nobody".
+   */
+  private sessionHeaders(): { headers?: HttpHeaders } {
+    const sid = this.eventStreamService.sessionId();
+    return sid ? { headers: new HttpHeaders({ 'X-Session-Id': sid }) } : {};
   }
 
   /**

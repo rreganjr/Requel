@@ -52,6 +52,9 @@ import java.util.function.Supplier;
  * @param inputApplicator  maps the deserialized input DTO onto the command; null if no input mapping
  * @param fileApplicator   maps a multipart file onto the command; null if the command doesn't accept files
  * @param resultExtractor  extracts and converts the command result to an API DTO; null if no result
+ * @param secondaryResultExtractor extracts a second entity to publish a targeted SSE event for
+ *                         (e.g. the associated child of an association command); null if none. This
+ *                         entity is publish-only — it never enters the command response body.
  * @param commandBuilder   alternative to factoryMethod+inputApplicator: builds a fully-configured
  *                         command from the raw input object; null for standard commands
  */
@@ -62,6 +65,7 @@ public record CommandRegistration<T>(
         BiConsumer<Command, T> inputApplicator,
         BiConsumer<Command, Object> fileApplicator,
         Function<Command, Object> resultExtractor,
+        Function<Command, Object> secondaryResultExtractor,
         Function<Object, Command> commandBuilder
 ) {
 }

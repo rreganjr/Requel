@@ -25,26 +25,19 @@ import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.requel.project.ProjectScopedCommand;
-import com.rreganjr.requel.project.command.EditProjectOrDomainEntityCommand;
 import com.rreganjr.requel.service.api.CommandResult;
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
-import com.rreganjr.requel.service.stream.StreamEventPublisher;
 import com.rreganjr.repository.jpa.BeanValidationException;
 import com.rreganjr.validator.EntityValidationException;
 import jakarta.persistence.OptimisticLockException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.ReflectionUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.lang.reflect.Method;
 import java.util.Map;
 
 /**
@@ -57,22 +50,19 @@ public class CommandController {
 
     private static final Logger log = LoggerFactory.getLogger(CommandController.class);
 
-    /** Sentinel project ID used as a broadcast channel for "any project changed". */
-    private static final long PROJECT_BROADCAST_ID = 0L;
-
     private final ApiCommandFactory apiCommandFactory;
     private final CommandHandler commandHandler;
     private final ObjectMapper objectMapper;
-    private final StreamEventPublisher streamEventPublisher;
+    private final CommandEventPublisher eventPublisher;
 
     public CommandController(ApiCommandFactory apiCommandFactory,
                              CommandHandler commandHandler,
                              ObjectMapper objectMapper,
-                             StreamEventPublisher streamEventPublisher) {
+                             CommandEventPublisher eventPublisher) {
         this.apiCommandFactory = apiCommandFactory;
         this.commandHandler = commandHandler;
         this.objectMapper = objectMapper;
-        this.streamEventPublisher = streamEventPublisher;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -81,8 +71,9 @@ public class CommandController {
     @PostMapping(value = "/{commandType}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> dispatchJson(
             @PathVariable String commandType,
+            @RequestHeader(value = "X-Session-Id", required = false) String sessionId,
             @RequestBody(required = false) Map<String, Object> rawInput) {
-        return dispatch(commandType, rawInput, null);
+        return dispatch(commandType, rawInput, null, sessionId);
     }
 
     /**
@@ -92,13 +83,14 @@ public class CommandController {
     @PostMapping(value = "/{commandType}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> dispatchMultipart(
             @PathVariable String commandType,
+            @RequestHeader(value = "X-Session-Id", required = false) String sessionId,
             @RequestPart(value = "input", required = false) Map<String, Object> rawInput,
             @RequestPart(value = "file", required = false) MultipartFile file) {
-        return dispatch(commandType, rawInput, file);
+        return dispatch(commandType, rawInput, file, sessionId);
     }
 
     private ResponseEntity<?> dispatch(String commandType, Map<String, Object> rawInput,
-                                       MultipartFile file) {
+                                       MultipartFile file, String sessionId) {
         try {
             // Deserialize raw JSON to the command's input DTO type (null for commands with no input mapping yet)
             Class<?> inputType = apiCommandFactory.getInputType(commandType);
@@ -112,14 +104,15 @@ public class CommandController {
             // Execute through the handler chain
             commandHandler.execute(command);
 
-            // Notify subscribers of project-level changes so the sidebar refreshes counts
-            publishProjectChangedIfScoped(command);
-
-            // Extract result DTO via the registration's resultExtractor (null if not registered)
+            // Extract result DTOs via the registration's extractors (null if not registered)
             Object result = apiCommandFactory.extractResult(commandType, command);
+            Object secondaryResult = apiCommandFactory.extractSecondaryResult(commandType, command);
 
-            // Notify any session subscribed to this specific entity (e.g. an open editor)
-            publishEntityChangedIfPresent(result);
+            // Publish SSE events: the Project:0 broadcast (all sidebar sessions) plus targeted
+            // events for the primary and secondary entities, excluding the originating session from
+            // the targeted events so it does not reload the form it just edited. A missing header
+            // (sessionId == null) excludes nobody.
+            eventPublisher.publish(command, result, secondaryResult, sessionId);
 
             return ResponseEntity.ok(CommandResult.success(result, commandType));
 
@@ -166,63 +159,6 @@ public class CommandController {
             log.error("Command execution failed: {} - {}", commandType, e.getMessage(), e);
             return ResponseEntity.internalServerError()
                     .body(ErrorResponse.of("INTERNAL_ERROR", "An unexpected error occurred. Please try again or contact support."));
-        }
-    }
-
-    /**
-     * If the result DTO has an {@code id()} accessor (all entity record DTOs do),
-     * publish a targeted SSE event so any editor session subscribed to that entity
-     * gets a live refresh signal. The entity type is derived from the DTO class name
-     * by stripping the "Dto" suffix (e.g. {@code GoalDto} → {@code "Goal"}).
-     */
-    private void publishEntityChangedIfPresent(Object result) {
-        if (result == null) return;
-        try {
-            Method idMethod = result.getClass().getMethod("id");
-            Object idValue = idMethod.invoke(result);
-            if (!(idValue instanceof Long entityId)) return;
-            String simpleName = result.getClass().getSimpleName();
-            String entityType = simpleName.endsWith("Dto")
-                    ? simpleName.substring(0, simpleName.length() - 3)
-                    : simpleName;
-            streamEventPublisher.publishTargetUpdate(entityType, entityId, Map.of("type", "refresh"));
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            // Not an entity DTO with an id() accessor — skip silently
-        } catch (Exception e) {
-            log.warn("Failed to publish entity-changed SSE event: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * If the command is project-scoped, publish a broadcast Project event so
-     * all sidebar sessions subscribed to {@code Project:0} reload their counts.
-     * Non-project commands (e.g. user management) are silently skipped.
-     */
-    private void publishProjectChangedIfScoped(Command command) {
-        try {
-            Object entity = null;
-            String discriminant = "neither";
-            if (command instanceof ProjectScopedCommand psc) {
-                entity = psc.getProject();
-                discriminant = "ProjectScopedCommand";
-            } else if (command instanceof EditProjectOrDomainEntityCommand podCmd) {
-                entity = podCmd.getProjectOrDomain();
-                discriminant = "EditProjectOrDomainEntityCommand";
-            }
-            // Log at DEBUG so we can verify each command type is broadcasting
-            // by enabling DEBUG on this class without flooding production logs.
-            // See StreamService for the broadcast-side fan-out logging.
-            if (log.isDebugEnabled()) {
-                log.debug("publishProjectChangedIfScoped command={} discriminant={} entity={} → {}",
-                        command.getClass().getSimpleName(), discriminant,
-                        entity != null ? entity.getClass().getSimpleName() : "null",
-                        entity != null ? "BROADCAST" : "skip");
-            }
-            if (entity != null) {
-                streamEventPublisher.publishTargetUpdate("Project", PROJECT_BROADCAST_ID, Map.of("type", "refresh"));
-            }
-        } catch (Exception e) {
-            log.warn("Failed to publish project-changed SSE event: {}", e.getMessage(), e);
         }
     }
 }

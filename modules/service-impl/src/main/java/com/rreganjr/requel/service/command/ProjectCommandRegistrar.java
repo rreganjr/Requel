@@ -333,7 +333,13 @@ public class ProjectCommandRegistrar {
                     GoalContainer container = findGoalContainerById(project, i.goalContainerId(), i.containerType());
                     c.setGoalContainer(container);
                     c.setGoal(findGoalById(project, i.goalId()));
-                });
+                },
+                null,
+                cmd -> ProjectQueryController.toContainerDetailDto(
+                        ((AddGoalToGoalContainerCommand) cmd).getGoalContainer()),
+                cmd -> ProjectQueryController.toGoalDetailDto(
+                        ((AddGoalToGoalContainerCommand) cmd).getGoal()),
+                null);
 
         registry.register("RemoveGoalFromGoalContainer", RemoveGoalFromGoalContainerInput.class,
                 factory::newRemoveGoalFromGoalContainerCommand,
@@ -344,7 +350,13 @@ public class ProjectCommandRegistrar {
                     GoalContainer container = findGoalContainerById(project, i.goalContainerId(), i.containerType());
                     c.setGoalContainer(container);
                     c.setGoal(findGoalById(project, i.goalId()));
-                });
+                },
+                null,
+                cmd -> ProjectQueryController.toContainerDetailDto(
+                        ((RemoveGoalFromGoalContainerCommand) cmd).getGoalContainer()),
+                cmd -> ProjectQueryController.toGoalDetailDto(
+                        ((RemoveGoalFromGoalContainerCommand) cmd).getGoal()),
+                null);
 
         // Stories
         registry.register("EditStory", EditStoryInput.class,
@@ -396,7 +408,13 @@ public class ProjectCommandRegistrar {
                     Project project = projectRepository.findProjectByName(i.projectName());
                     c.setStoryContainer(findStoryContainerById(project, i.storyContainerId(), i.containerType()));
                     c.setStory(findStoryById(project, i.storyId()));
-                });
+                },
+                null,
+                cmd -> ProjectQueryController.toContainerDetailDto(
+                        ((AddStoryToStoryContainerCommand) cmd).getStoryContainer()),
+                cmd -> ProjectQueryController.toStoryDetailDto(
+                        ((AddStoryToStoryContainerCommand) cmd).getStory()),
+                null);
 
         registry.register("RemoveStoryFromStoryContainer", RemoveStoryFromStoryContainerInput.class,
                 factory::newRemoveStoryFromStoryContainerCommand,
@@ -406,7 +424,13 @@ public class ProjectCommandRegistrar {
                     Project project = projectRepository.findProjectByName(i.projectName());
                     c.setStoryContainer(findStoryContainerById(project, i.storyContainerId(), i.containerType()));
                     c.setStory(findStoryById(project, i.storyId()));
-                });
+                },
+                null,
+                cmd -> ProjectQueryController.toContainerDetailDto(
+                        ((RemoveStoryFromStoryContainerCommand) cmd).getStoryContainer()),
+                cmd -> ProjectQueryController.toStoryDetailDto(
+                        ((RemoveStoryFromStoryContainerCommand) cmd).getStory()),
+                null);
 
         // Actors
         registry.register("EditActor", EditActorInput.class,
@@ -436,7 +460,13 @@ public class ProjectCommandRegistrar {
                     Project project = projectRepository.findProjectByName(i.projectName());
                     c.setActorContainer(findActorContainerById(project, i.actorContainerId(), i.containerType()));
                     c.setActor(findActorById(project, i.actorId()));
-                });
+                },
+                null,
+                cmd -> ProjectQueryController.toContainerDetailDto(
+                        ((AddActorToActorContainerCommand) cmd).getActorContainer()),
+                cmd -> ProjectQueryController.toActorDetailDto(
+                        ((AddActorToActorContainerCommand) cmd).getActor()),
+                null);
 
         registry.register("RemoveActorFromActorContainer", RemoveActorFromActorContainerInput.class,
                 factory::newRemoveActorFromActorContainerCommand,
@@ -446,7 +476,13 @@ public class ProjectCommandRegistrar {
                     Project project = projectRepository.findProjectByName(i.projectName());
                     c.setActorContainer(findActorContainerById(project, i.actorContainerId(), i.containerType()));
                     c.setActor(findActorById(project, i.actorId()));
-                });
+                },
+                null,
+                cmd -> ProjectQueryController.toContainerDetailDto(
+                        ((RemoveActorFromActorContainerCommand) cmd).getActorContainer()),
+                cmd -> ProjectQueryController.toActorDetailDto(
+                        ((RemoveActorFromActorContainerCommand) cmd).getActor()),
+                null);
         registry.register("CopyActor", CopyActorInput.class,
                 factory::newCopyActorCommand,
                 (cmd, input) -> {
