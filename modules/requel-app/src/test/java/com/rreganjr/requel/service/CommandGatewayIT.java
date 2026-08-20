@@ -99,6 +99,7 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
     private Long userStakeholderId;
     private Long storyId;
     private Long actorId;
+    private Long actorId2;
     private Long useCaseId;
     private Long storyId2;
 
@@ -189,6 +190,15 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         actorCmd.setText("gateway actor-container test actor");
         actorCmd = getCommandHandler().execute(actorCmd);
         actorId = actorCmd.getActor().getId();
+
+        // A second actor that is nobody's primary actor, safe to add as a secondary member.
+        EditActorCommand actorCmd2 = getProjectCommandFactory().newEditActorCommand();
+        actorCmd2.setEditedBy(admin);
+        actorCmd2.setActorContainer(project);
+        actorCmd2.setName("gw-actor2-" + ts);
+        actorCmd2.setText("gateway secondary-actor test actor");
+        actorCmd2 = getCommandHandler().execute(actorCmd2);
+        actorId2 = actorCmd2.getActor().getId();
 
         EditUseCaseCommand useCaseCmd = getProjectCommandFactory().newEditUseCaseCommand();
         useCaseCmd.setEditedBy(admin);
@@ -330,6 +340,115 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
                 Map.of("projectName", projectName, "goalContainerId", useCaseId,
                         "goalId", goalId, "containerType", "UseCase")));
         assertEquals("AddGoalToGoalContainer", result.commandType());
+    }
+
+    // ---- issue #189: type-scoped container resolution ------------------------------------------
+    // These exercise each branch of findStoryContainerById / findActorContainerById /
+    // findGoalContainerById through the gateway. The backend coverage is measured from this Java
+    // run (JaCoCo), not the Playwright e2e suite, so the happy paths must be pinned here too.
+
+    @Test
+    void storyContainerResolvesUseCaseByExplicitType() throws Exception {
+        authenticate(editorUsername);
+        GatewayResult result = gateway.execute(new GatewayRequest("AddStoryToStoryContainer",
+                Map.of("projectName", projectName, "storyContainerId", useCaseId,
+                        "storyId", storyId, "containerType", "UseCase")));
+        assertEquals("AddStoryToStoryContainer", result.commandType());
+    }
+
+    @Test
+    void actorContainerResolvesUseCaseByExplicitType() throws Exception {
+        authenticate(editorUsername);
+        GatewayResult result = gateway.execute(new GatewayRequest("AddActorToActorContainer",
+                Map.of("projectName", projectName, "actorContainerId", useCaseId,
+                        "actorId", actorId2, "containerType", "UseCase")));
+        assertEquals("AddActorToActorContainer", result.commandType());
+    }
+
+    @Test
+    void actorContainerResolvesStoryByExplicitType() throws Exception {
+        authenticate(editorUsername);
+        GatewayResult result = gateway.execute(new GatewayRequest("AddActorToActorContainer",
+                Map.of("projectName", projectName, "actorContainerId", storyId,
+                        "actorId", actorId2, "containerType", "Story")));
+        assertEquals("AddActorToActorContainer", result.commandType());
+    }
+
+    @Test
+    void goalContainerResolvesStoryByExplicitType() throws Exception {
+        authenticate(editorUsername);
+        GatewayResult result = gateway.execute(new GatewayRequest("AddGoalToGoalContainer",
+                Map.of("projectName", projectName, "goalContainerId", storyId,
+                        "goalId", goalId, "containerType", "Story")));
+        assertEquals("AddGoalToGoalContainer", result.commandType());
+    }
+
+    @Test
+    void goalContainerResolvesActorByExplicitType() throws Exception {
+        authenticate(editorUsername);
+        GatewayResult result = gateway.execute(new GatewayRequest("AddGoalToGoalContainer",
+                Map.of("projectName", projectName, "goalContainerId", actorId,
+                        "goalId", goalId, "containerType", "Actor")));
+        assertEquals("AddGoalToGoalContainer", result.commandType());
+    }
+
+    @Test
+    void goalContainerResolvesStakeholderByExplicitType() throws Exception {
+        authenticate(editorUsername);
+        GatewayResult result = gateway.execute(new GatewayRequest("AddGoalToGoalContainer",
+                Map.of("projectName", projectName, "goalContainerId", userStakeholderId,
+                        "goalId", goalId, "containerType", "Stakeholder")));
+        assertEquals("AddGoalToGoalContainer", result.commandType());
+    }
+
+    @Test
+    void storyContainerRejectsUnknownProjectId() {
+        assertContainerRequestInvalid("AddStoryToStoryContainer",
+                Map.of("projectName", projectName, "storyContainerId", 999_999_999L,
+                        "storyId", storyId, "containerType", "Project"));
+    }
+
+    @Test
+    void actorContainerRejectsUnknownProjectId() {
+        assertContainerRequestInvalid("AddActorToActorContainer",
+                Map.of("projectName", projectName, "actorContainerId", 999_999_999L,
+                        "actorId", actorId, "containerType", "Project"));
+    }
+
+    @Test
+    void actorContainerRejectsUnknownStoryId() {
+        assertContainerRequestInvalid("AddActorToActorContainer",
+                Map.of("projectName", projectName, "actorContainerId", 999_999_999L,
+                        "actorId", actorId, "containerType", "Story"));
+    }
+
+    @Test
+    void actorContainerRejectsUnknownType() {
+        assertContainerRequestInvalid("AddActorToActorContainer",
+                Map.of("projectName", projectName, "actorContainerId", useCaseId,
+                        "actorId", actorId, "containerType", "Bogus"));
+    }
+
+    @Test
+    void goalContainerRejectsUnknownIdForEachType() {
+        // Not-found within each named type -> INVALID_INPUT (covers every branch throw), plus the
+        // terminal unknown-type throw.
+        for (String type : new String[] { "Project", "UseCase", "Story", "Actor", "Stakeholder" }) {
+            assertContainerRequestInvalid("AddGoalToGoalContainer",
+                    Map.of("projectName", projectName, "goalContainerId", 999_999_999L,
+                            "goalId", goalId, "containerType", type));
+        }
+        assertContainerRequestInvalid("AddGoalToGoalContainer",
+                Map.of("projectName", projectName, "goalContainerId", useCaseId,
+                        "goalId", goalId, "containerType", "Bogus"));
+    }
+
+    private void assertContainerRequestInvalid(String commandType, Map<String, Object> input) {
+        authenticate(editorUsername);
+        GatewayException ex = assertThrows(GatewayException.class,
+                () -> gateway.execute(new GatewayRequest(commandType, input)));
+        assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind(),
+                commandType + " " + input.get("containerType") + " should map to INVALID_INPUT");
     }
 
     @Test
