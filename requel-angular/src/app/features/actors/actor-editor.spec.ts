@@ -192,25 +192,22 @@ describe('ActorEditorComponent', () => {
     expect(comp.errorMessage()).toBe('Save failed.');
   });
 
-  // #173 required test (§10.3). The Goals step's associations bump the actor's @Version but
-  // return no entity, so the wizard has to refetch. If it did not, coming back to Details and
-  // pressing Continue would send the version captured at step 1 and 409.
+  // #173 required test (§10.3), updated for #180: the Goals step's associations bump the actor's
+  // @Version and now return the merged actor, so the wizard reads the new version from the response
+  // instead of refetching. If it did not, coming back to Details and pressing Continue would send
+  // the version captured at step 1 and 409.
   describe('wizard version contract (#173)', () => {
     it('survives create -> add goal -> back to Details -> rename -> Continue', async () => {
       fixture.detectChanges();
       await flush();
 
       let version = 0;
-      commandServiceMock.execute.mockImplementation(async (type: string) => {
-        if (type === 'EditActor') {
-          version += 1;
-          return { success: true, entity: { ...MOCK_ACTOR, id: 5, version } };
-        }
-        // Association commands return no entity - that is the whole point.
+      commandServiceMock.execute.mockImplementation(async () => {
+        // Every command here (EditActor and the goal association) merges the actor and returns it
+        // with a freshly bumped @Version (#180).
         version += 1;
-        return { success: true, entity: null };
+        return { success: true, entity: { ...MOCK_ACTOR, id: 5, version } };
       });
-      actorServiceMock.getActor.mockImplementation(async () => ({ ...MOCK_ACTOR, id: 5, version }));
 
       comp.detailsForm.controls.name.setValue('Customer');
 
@@ -300,11 +297,18 @@ describe('ActorEditorComponent', () => {
     expect(comp.errorMessage()).toBe('In use');
   });
 
-  it('onGoalSelected calls AddGoalToGoalContainer and appends to goals()', async () => {
+  it('onGoalSelected calls AddGoalToGoalContainer and applies the returned actor to goals()', async () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
     fixture.detectChanges();
     await flush();
-    commandServiceMock.execute.mockResolvedValue({ success: true });
+    actorServiceMock.getActor.mockClear();
+    commandServiceMock.execute.mockResolvedValue({
+      success: true,
+      entity: { ...MOCK_ACTOR, version: 1, goals: [
+        { id: 1, name: 'Purchase item', entityType: 'Goal' },
+        { id: 7, name: 'Avoid late fees', entityType: 'Goal' }
+      ] }
+    });
     await comp.onGoalSelected({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
     expect(commandServiceMock.execute).toHaveBeenCalledWith('AddGoalToGoalContainer', expect.objectContaining({
       projectName: 'proj1',
@@ -312,42 +316,55 @@ describe('ActorEditorComponent', () => {
       goalId: 7,
       containerType: 'Actor'
     }));
+    // Goals and version come from result.entity, not a follow-up GET.
     expect(comp.goals().some(g => g.id === 7)).toBe(true);
+    expect(comp.version).toBe(1);
+    expect(actorServiceMock.getActor).not.toHaveBeenCalled();
     expect(messageServiceMock.add).toHaveBeenCalledWith(expect.objectContaining({
       severity: 'success', summary: 'Goal added'
     }));
   });
 
-  // Regression: AddGoal/RemoveGoal merge the container (this actor), bumping its @Version,
-  // but register no result extractor - so result.entity is null and the new version can only
-  // be had by refetching. Before this, adding a goal and then saving the name gave a 409.
-  describe('stale version after a goal association', () => {
-    it('re-reads version after adding a goal', async () => {
+  // #180: AddGoal/RemoveGoal merge the container (this actor) and now return it with the bumped
+  // @Version and refreshed goals, so both come straight off result.entity - no follow-up GET.
+  describe('version and goals from the association response', () => {
+    it('takes version and goals from the response after adding a goal', async () => {
       paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
       fixture.detectChanges();
       await flush();
       expect(comp.version).toBe(0);
+      actorServiceMock.getActor.mockClear();
 
-      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
-      actorServiceMock.getActor.mockResolvedValue({ ...MOCK_ACTOR, version: 3 });
+      commandServiceMock.execute.mockResolvedValue({
+        success: true, entity: { ...MOCK_ACTOR, version: 3, goals: [
+          { id: 1, name: 'Purchase item', entityType: 'Goal' },
+          { id: 7, name: 'Avoid late fees', entityType: 'Goal' }
+        ] }
+      });
 
       await comp.onGoalSelected({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
       expect(comp.version).toBe(3);
+      expect(comp.goals().some(g => g.id === 7)).toBe(true);
+      expect(actorServiceMock.getActor).not.toHaveBeenCalled();
     });
 
-    it('re-reads version after removing a goal', async () => {
+    it('takes version and goals from the response after removing a goal', async () => {
       paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
       fixture.detectChanges();
       await flush();
+      actorServiceMock.getActor.mockClear();
 
-      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
-      actorServiceMock.getActor.mockResolvedValue({ ...MOCK_ACTOR, version: 4 });
+      commandServiceMock.execute.mockResolvedValue({
+        success: true, entity: { ...MOCK_ACTOR, version: 4, goals: [] }
+      });
 
       await comp.onRemoveGoal({ id: 1, name: 'Purchase item', entityType: 'Goal' });
       expect(comp.version).toBe(4);
+      expect(comp.goals().some(g => g.id === 1)).toBe(false);
+      expect(actorServiceMock.getActor).not.toHaveBeenCalled();
     });
 
-    it('does not discard unsaved detail edits while refreshing the version', async () => {
+    it('does not discard unsaved detail edits while applying the response', async () => {
       paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
       fixture.detectChanges();
       await flush();
@@ -356,29 +373,50 @@ describe('ActorEditorComponent', () => {
       comp.detailsForm.controls.name.setValue('Renamed but unsaved');
       comp.detailsForm.controls.name.markAsDirty();
 
-      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
-      actorServiceMock.getActor.mockResolvedValue({ ...MOCK_ACTOR, version: 9 });
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: { ...MOCK_ACTOR, version: 9 } });
       await comp.onGoalSelected({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
 
-      // The version advanced, but the in-progress edit survived - which is why the refresh
-      // is narrow instead of a full loadActor().
+      // The version advanced, but the in-progress edit survived - applyAssociationResult never
+      // touches the form.
       expect(comp.version).toBe(9);
       expect(comp.detailsForm.controls.name.value).toBe('Renamed but unsaved');
       expect(comp.hasUnsavedChanges()).toBe(true);
     });
 
-    it('leaves the held version alone when the refresh fetch fails', async () => {
+    it('ignores an out-of-order response older than the held version', async () => {
       paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
       fixture.detectChanges();
       await flush();
 
-      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
-      actorServiceMock.getActor.mockRejectedValue(new Error('network'));
-
+      // First association lands version 5 with two goals.
+      commandServiceMock.execute.mockResolvedValue({
+        success: true, entity: { ...MOCK_ACTOR, version: 5, goals: [
+          { id: 1, name: 'Purchase item', entityType: 'Goal' },
+          { id: 7, name: 'Avoid late fees', entityType: 'Goal' }
+        ] }
+      });
       await comp.onGoalSelected({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
-      // Still 0, and no error surfaced: the association itself succeeded.
-      expect(comp.version).toBe(0);
+      expect(comp.version).toBe(5);
+
+      // A stale response (version 4) from an earlier in-flight association resolves last; the guard
+      // must not roll the list or version back.
+      commandServiceMock.execute.mockResolvedValue({
+        success: true, entity: { ...MOCK_ACTOR, version: 4, goals: [] }
+      });
+      await comp.onRemoveGoal({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
+      expect(comp.version).toBe(5);
       expect(comp.goals().some(g => g.id === 7)).toBe(true);
+    });
+
+    it('leaves state unchanged when the association returns no entity', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+      fixture.detectChanges();
+      await flush();
+      const before = comp.version;
+
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
+      await comp.onGoalSelected({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
+      expect(comp.version).toBe(before);
     });
   });
 
@@ -391,11 +429,11 @@ describe('ActorEditorComponent', () => {
     expect(comp.errorMessage()).toBe('Already linked');
   });
 
-  it('onRemoveGoal calls RemoveGoalFromGoalContainer and removes from goals()', async () => {
+  it('onRemoveGoal calls RemoveGoalFromGoalContainer and applies the returned actor to goals()', async () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
     fixture.detectChanges();
     await flush();
-    commandServiceMock.execute.mockResolvedValue({ success: true });
+    commandServiceMock.execute.mockResolvedValue({ success: true, entity: { ...MOCK_ACTOR, version: 1, goals: [] } });
     await comp.onRemoveGoal({ id: 1, name: 'Purchase item', entityType: 'Goal' });
     expect(commandServiceMock.execute).toHaveBeenCalledWith('RemoveGoalFromGoalContainer', expect.objectContaining({
       goalId: 1,

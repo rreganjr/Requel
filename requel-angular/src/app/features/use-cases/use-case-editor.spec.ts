@@ -230,15 +230,15 @@ describe('UseCaseEditorComponent', () => {
   });
 
   describe('wizard version contract (#173)', () => {
-    it('re-reads version after an association, so a later save does not 409', async () => {
+    it('takes version from the association response, so a later save does not 409', async () => {
       paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
       fixture.detectChanges();
       await flush();
+      useCaseServiceMock.getUseCase.mockClear();
 
-      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
-      useCaseServiceMock.getUseCase.mockResolvedValue({ ...MOCK_USE_CASE, version: 5 });
-
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity: { ...MOCK_USE_CASE, version: 5 } });
       await comp.addGoal({ id: 7, name: 'Avoid late fees', entityType: 'Goal' });
+      expect(useCaseServiceMock.getUseCase).not.toHaveBeenCalled();
 
       commandServiceMock.execute.mockClear();
       commandServiceMock.execute.mockResolvedValue({
@@ -287,11 +287,17 @@ describe('UseCaseEditorComponent', () => {
     });
   });
 
-  it('addGoal calls AddGoalToGoalContainer and refreshes collections', async () => {
+  it('addGoal calls AddGoalToGoalContainer and applies the returned use case (no refetch)', async () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
     fixture.detectChanges();
     await flush();
-    const callsBefore = useCaseServiceMock.getUseCase.mock.calls.length;
+    useCaseServiceMock.getUseCase.mockClear();
+    commandServiceMock.execute.mockResolvedValue({
+      success: true, entity: { ...MOCK_USE_CASE, version: 1, goals: [
+        { id: 1, name: 'Buy product', entityType: 'Goal' },
+        { id: 10, name: 'New Goal', entityType: 'Goal' }
+      ] }
+    });
     await comp.addGoal({ id: 10, name: 'New Goal', entityType: 'Goal' });
     expect(commandServiceMock.execute).toHaveBeenCalledWith('AddGoalToGoalContainer', expect.objectContaining({
       projectName: 'proj1',
@@ -299,7 +305,9 @@ describe('UseCaseEditorComponent', () => {
       goalId: 10,
       containerType: 'UseCase'
     }));
-    expect(useCaseServiceMock.getUseCase.mock.calls.length).toBeGreaterThan(callsBefore);
+    expect(comp.goals().some(g => g.id === 10)).toBe(true);
+    // Applied from result.entity; no follow-up use-case GET (and no primary-scenario GET either).
+    expect(useCaseServiceMock.getUseCase).not.toHaveBeenCalled();
   });
 
   it('removeGoal calls RemoveGoalFromGoalContainer', async () => {

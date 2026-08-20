@@ -426,18 +426,19 @@ describe('StoryEditorComponent', () => {
     });
   });
 
-  // Regression #179. AddGoal/RemoveGoal/AddActor/RemoveActor all merge the container — which
-  // here is the story — so each bumps its @Version, but none of the four registers a result
-  // extractor, so result.entity is null and the new value can only be read back (#178).
-  // Before this, adding a goal and then saving the name gave a 409 the user could not avoid.
-  describe('association refresh (#179)', () => {
+  // Regression #179, updated for #180. AddGoal/RemoveGoal/AddActor/RemoveActor all merge the
+  // container — here the story — bumping its @Version. Since #178 they return the merged story as
+  // result.entity, so the component reads the new version and lists off the response instead of
+  // refetching. Before this, adding a goal and then saving the name gave a 409 the user could not
+  // avoid.
+  describe('association result (#179/#180)', () => {
     const GOAL_A = { id: 7, name: 'Avoid late fees', entityType: 'Goal' };
     const GOAL_B = { id: 8, name: 'Buy quickly', entityType: 'Goal' };
     const ACTOR_A = { id: 1, name: 'Customer', entityType: 'Actor' };
 
-    /** Association commands answer `entity: null` — that is the whole reason for the refetch. */
-    function associationSucceeds(): void {
-      commandServiceMock.execute.mockResolvedValue({ success: true, entity: null });
+    /** The association command returns the merged story as `result.entity` (#180). */
+    function associationSucceeds(entity: unknown = MOCK_STORY): void {
+      commandServiceMock.execute.mockResolvedValue({ success: true, entity });
     }
 
     /** Renames and saves, so the version the component now holds shows up on the wire. */
@@ -454,15 +455,17 @@ describe('StoryEditorComponent', () => {
       ['onRemoveGoal', GOAL_A, 6],
       ['onActorSelected', ACTOR_A, 7],
       ['onRemoveActor', ACTOR_A, 8],
-    ] as const)('%s takes the bumped version and sends it on the next save', async (method, ref, bumped) => {
+    ] as const)('%s takes the bumped version from the response and sends it on the next save', async (method, ref, bumped) => {
       await renderExisting();
-      associationSucceeds();
-      storyServiceMock.getStory.mockResolvedValue({ ...MOCK_STORY, version: bumped });
+      storyServiceMock.getStory.mockClear();
+      associationSucceeds({ ...MOCK_STORY, version: bumped });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (comp as any)[method](ref);
 
-      // Without the refresh this would still be MOCK_STORY's 4 and the save would 409.
+      // No follow-up GET: the version came off result.entity.
+      expect(storyServiceMock.getStory).not.toHaveBeenCalled();
+      // Without it this would still be MOCK_STORY's 4 and the save would 409.
       expect(await saveAndReadVersion()).toBe(bumped);
     });
 
@@ -494,26 +497,24 @@ describe('StoryEditorComponent', () => {
 
     it('takes the goals list from the response instead of patching it locally', async () => {
       await renderExisting();
-      associationSucceeds();
+      storyServiceMock.getStory.mockClear();
       // The server sorted, renamed and assigned — none of which a local patch could know.
-      storyServiceMock.getStory.mockResolvedValue({
-        ...MOCK_STORY, version: 5, goals: [GOAL_A, GOAL_B]
-      });
+      associationSucceeds({ ...MOCK_STORY, version: 5, goals: [GOAL_A, GOAL_B] });
 
       await comp.onGoalSelected(GOAL_A);
 
       expect(comp.story()?.goals).toEqual([GOAL_A, GOAL_B]);
       expect(comp.existingGoalIds()).toEqual([7, 8]);
+      expect(storyServiceMock.getStory).not.toHaveBeenCalled();
     });
 
-    it('discards an out-of-order refresh so the newer read wins', async () => {
+    it('ignores an out-of-order response so the newer one wins', async () => {
       await renderExisting();
-      associationSucceeds();
 
-      // Two removes in flight at once — two clicks on the goals table. Their GETs are held so
-      // they can be resolved in the wrong order on purpose.
-      const resolvers: Array<(story: unknown) => void> = [];
-      storyServiceMock.getStory.mockImplementation(
+      // Two removes in flight at once — two clicks on the goals table. Their command responses are
+      // held so they can be resolved in the wrong order on purpose.
+      const resolvers: Array<(result: unknown) => void> = [];
+      commandServiceMock.execute.mockImplementation(
         () => new Promise(resolve => resolvers.push(resolve))
       );
 
@@ -523,26 +524,25 @@ describe('StoryEditorComponent', () => {
       await flush();
       expect(resolvers.length).toBe(2);
 
-      // Newer read lands first, then the older one — the case the sequence guard exists for.
-      resolvers[1]({ ...MOCK_STORY, version: 9, goals: [] });
-      resolvers[0]({ ...MOCK_STORY, version: 7, goals: [GOAL_B] });
+      // Newer response lands first, then the older one — the case the version guard exists for.
+      resolvers[1]({ success: true, entity: { ...MOCK_STORY, version: 9, goals: [] } });
+      resolvers[0]({ success: true, entity: { ...MOCK_STORY, version: 7, goals: [GOAL_B] } });
       await Promise.all([first, second]);
 
-      // Unguarded, the stale snapshot would resurrect GOAL_B and roll the version back to 7.
+      // Unguarded, the stale response would resurrect GOAL_B and roll the version back to 7.
       expect(comp.story()?.goals).toEqual([]);
       expect(comp.story()?.version).toBe(9);
       expect(await saveAndReadVersion()).toBe(9);
     });
 
-    it('keeps the held version and list when the refresh itself fails', async () => {
+    it('leaves the held version and list unchanged when the response carries no entity', async () => {
       await renderExisting();
-      associationSucceeds();
-      storyServiceMock.getStory.mockRejectedValue(new Error('network'));
+      associationSucceeds(null);
 
       await comp.onGoalSelected(GOAL_A);
 
-      // A failed refresh must not block the user: nothing is surfaced, the stale version is
-      // still sent, and the 409 it earns is reported through recoverFromStaleVersion().
+      // Nothing is surfaced, the held version is still sent, and any resulting 409 is reported
+      // through recoverFromStaleVersion() on the next save.
       expect(comp.errorMessage()).toBeNull();
       expect(comp.story()?.goals).toEqual([]);
       expect(await saveAndReadVersion()).toBe(4);

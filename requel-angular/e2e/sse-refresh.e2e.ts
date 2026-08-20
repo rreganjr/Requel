@@ -158,4 +158,56 @@ test.describe('SSE live refresh', () => {
     await page.close();
   });
 
+  test('originating context adds a goal via the UI and issues no follow-up actor GET (issue #180)', async ({ adminContext, request }) => {
+    test.setTimeout(30_000);
+
+    const nonce = Date.now();
+    const projectName = `e2e-assoc-noget-${nonce}`;
+    const actorName = `NoGet Actor ${nonce}`;
+    const goalName = `NoGet Goal ${nonce}`;
+    await createProject(request, projectName, 'no-follow-up-GET source');
+    const actor = await createActor(request, projectName, actorName, 'actor text');
+    await createGoal(request, projectName, goalName, 'goal text');
+
+    const page = await adminContext.newPage();
+
+    const subscriptionPromise = page.waitForResponse(
+      r => r.url().includes('/events/stream/subscriptions') &&
+           r.request().method() === 'POST' &&
+           r.status() === 200,
+      { timeout: 15_000 }
+    );
+
+    await gotoAndWaitForGet(
+      page,
+      `/projects/${encodeURIComponent(projectName)}/actors/${actor.id}`,
+      response => response.url().includes(`/actors/${actor.id}`)
+    );
+    await expect(page.getByTestId('actor-name')).toHaveValue(actorName);
+    await subscriptionPromise;
+
+    // From here on, any GET of this actor's detail is a follow-up read we want to prove does NOT
+    // happen: #180 has the editor consume the association response, and #178 excludes the acting
+    // session from the targeted SSE event, so the originating context must not re-read the actor.
+    const detailPath = `/projects/${encodeURIComponent(projectName)}/actors/${actor.id}`;
+    let followUpActorGets = 0;
+    page.on('request', req => {
+      if (req.method() === 'GET' && req.url().includes(detailPath)) {
+        followUpActorGets += 1;
+      }
+    });
+
+    // Add the goal through the UI so the command carries this context's X-Session-Id.
+    await page.getByTestId('actor-add-goal').click();
+    await page.getByTestId('entity-selector-row').first().click();
+
+    // The goal lands in the table from result.entity...
+    await expect(page.getByTestId('actor-goal-link')).toHaveText(goalName, { timeout: 10_000 });
+
+    // ...and the acting context issued no follow-up actor GET to get there.
+    expect(followUpActorGets, 'originating context must not re-read the actor after its own association').toBe(0);
+
+    await page.close();
+  });
+
 });
