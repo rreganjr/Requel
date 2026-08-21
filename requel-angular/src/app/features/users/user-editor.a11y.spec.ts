@@ -74,7 +74,7 @@ describe('UserEditorComponent accessibility (issue #132)', () => {
       emailAddress: 'nope',
       password: 'a',
       repassword: 'b',
-      roleNames: [],
+      userRoleNames: [],
     });
     comp.form.markAsDirty();
     await comp.onSave();
@@ -133,7 +133,7 @@ describe('UserEditorComponent accessibility (issue #132)', () => {
   it('announces the roles error as an alert beside the checkboxes', async () => {
     const el = await render('new');
     comp.submitted.set(true);
-    comp.form.controls.roleNames.setValue([]);
+    comp.form.controls.userRoleNames.setValue([]);
     fixture.detectChanges();
 
     const error = el.querySelector('[data-testid="user-roles-error"]')!;

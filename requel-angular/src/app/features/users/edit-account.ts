@@ -34,15 +34,6 @@ import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-fi
 import { applyCommandErrors, clearServerErrors, passwordsMatch } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
 
-/**
- * JPA entity property name -> form control name, for {@link applyCommandErrors}.
- *
- * `UserImpl` stores the hash, so a password constraint arrives as `encryptedPassword`;
- * the form calls that field `password`. `emailAddress` and the rest already match.
- */
-const ACCOUNT_FIELD_MAP: Record<string, string> = {
-  encryptedPassword: 'password',
-};
 
 /**
  * Separator for several command-level messages sharing the one page-level banner.
@@ -312,7 +303,7 @@ export class EditAccountComponent implements OnInit, DirtyCheckable {
         return;
       }
 
-      const unresolved = applyCommandErrors(this.form, result.violations, ACCOUNT_FIELD_MAP);
+      const unresolved = applyCommandErrors(this.form, result.violations);
       if (unresolved.length) {
         this.errorMessage.set(unresolved.join(SEPARATOR));
       } else if (!result.violations?.length) {

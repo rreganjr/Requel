@@ -64,18 +64,6 @@ const SCENARIO_TYPE_OPTIONS = [
   { label: 'Exception', value: 'Exception' },
 ];
 
-/**
- * JPA entity property name -> form control name, for {@link applyCommandErrors}.
- *
- * `CommandController` reports field violations using the entity's property names, not the
- * input DTO's. `ScenarioImpl.getType()` backs what this form calls `scenarioType`, and the
- * DTO field is `scenarioTypeName` again - all three spellings resolve to the one control.
- * #176 makes the backend emit DTO field names and deletes this map.
- */
-const SCENARIO_FIELD_MAP: Record<string, string> = {
-  type: 'scenarioType',
-  scenarioTypeName: 'scenarioType',
-};
 
 /** Joins page-level violations that resolved to no control. */
 const SEPARATOR = '; ';
@@ -831,7 +819,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
 
       const result = await this.commandService.execute('EditScenario', input);
       if (!result.success) {
-        const unresolved = applyCommandErrors(this.detailsForm, result.violations, SCENARIO_FIELD_MAP);
+        const unresolved = applyCommandErrors(this.detailsForm, result.violations);
         if (unresolved.length) {
           this.errorMessage.set(unresolved.join(SEPARATOR));
         }

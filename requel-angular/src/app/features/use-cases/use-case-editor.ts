@@ -62,16 +62,6 @@ import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors'
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { CommandResult } from '../../models/command';
 
-/**
- * JPA entity property name -> form control name, for {@link applyCommandErrors}.
- *
- * `UseCaseImpl`'s inherited text field is `text`; the primary actor arrives as
- * `primaryActorName` on the DTO and resolves against the actor by name server-side.
- * #176 deletes this map.
- */
-const USE_CASE_FIELD_MAP: Record<string, string> = {
-  primaryActor: 'primaryActorName',
-};
 
 /** Joins page-level violations that resolved to no control. */
 const SEPARATOR = '; ';
@@ -805,7 +795,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
 
       const result = await this.commandService.execute('EditUseCase', input);
       if (!result.success) {
-        const unresolved = applyCommandErrors(this.detailsForm, result.violations, USE_CASE_FIELD_MAP);
+        const unresolved = applyCommandErrors(this.detailsForm, result.violations);
         if (unresolved.length) {
           this.errorMessage.set(unresolved.join(SEPARATOR));
         }

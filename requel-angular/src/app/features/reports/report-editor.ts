@@ -42,14 +42,6 @@ import { ErrorStateComponent } from '../../shared/error-state';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
-/**
- * JPA entity property name -> form control name, for {@link applyCommandErrors}.
- *
- * Empty because `ReportGeneratorImpl`'s `name` and `text` properties already match the
- * control names. Declared rather than omitted so the convention is visible: when a
- * violation arrives for a property this form calls something else, it goes here.
- */
-const REPORT_FIELD_MAP: Record<string, string> = {};
 
 @Component({
   selector: 'app-report-editor',
@@ -378,7 +370,7 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
       return;
     }
 
-    const unresolved = applyCommandErrors(this.form, result.violations, REPORT_FIELD_MAP);
+    const unresolved = applyCommandErrors(this.form, result.violations);
     if (unresolved.length) {
       this.errorMessage.set(unresolved.join(SEPARATOR));
     } else if (!result.violations?.length) {

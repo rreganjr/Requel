@@ -48,17 +48,6 @@ import {
 } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
 
-/**
- * JPA entity property name -> form control name, for {@link applyCommandErrors}.
- *
- * `UserImpl` stores a hash (`encryptedPassword`) and holds `roles`, while the form calls
- * those `password` and `roleNames`. Everything else already matches.
- */
-const USER_FIELD_MAP: Record<string, string> = {
-  encryptedPassword: 'password',
-  roles: 'roleNames',
-  userRoleNames: 'roleNames',
-};
 
 /**
  * Separator for several command-level messages sharing the one page-level banner.
@@ -172,7 +161,7 @@ const SEPARATOR = '; ';
             @for (role of availableRoles(); track role.roleName) {
               <div class="role-group" data-testid="user-role-group" [attr.data-role-name]="role.roleName">
                 <label class="checkbox-label" data-testid="user-role-label">
-                  <p-checkbox [formControl]="form.controls.roleNames" [value]="role.roleName" />
+                  <p-checkbox [formControl]="form.controls.userRoleNames" [value]="role.roleName" />
                   {{ role.displayName }}
                 </label>
                 @if (isRoleSelected(role.roleName)) {
@@ -278,7 +267,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       organizationName: new FormControl('', { nonNullable: true }),
       password: new FormControl('', { nonNullable: true }),
       repassword: new FormControl('', { nonNullable: true }),
-      roleNames: new FormControl<string[]>([], { validators: atLeastOne(), nonNullable: true }),
+      userRoleNames: new FormControl<string[]>([], { validators: atLeastOne(), nonNullable: true }),
       permissions: new FormGroup<Record<string, FormControl<string[]>>>({}),
     },
     { validators: passwordsMatch('password', 'repassword') }
@@ -342,7 +331,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    * after a save attempt — never on a create form nobody has filled in yet.
    */
   showRolesError(): boolean {
-    const control = this.form.controls.roleNames;
+    const control = this.form.controls.userRoleNames;
     return control.invalid && (control.touched || this.submitted());
   }
 
@@ -352,7 +341,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    * lives in form-errors.ts with every other validation message.
    */
   rolesErrorMessage(): string | null {
-    return firstErrorMessage(this.form.controls.roleNames);
+    return firstErrorMessage(this.form.controls.userRoleNames);
   }
 
   private applyPasswordRules(): void {
@@ -415,7 +404,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   isRoleSelected(roleName: string): boolean {
-    return this.form.controls.roleNames.value.includes(roleName);
+    return this.form.controls.userRoleNames.value.includes(roleName);
   }
 
   async onSave(): Promise<void> {
@@ -444,10 +433,10 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         phoneNumber: value.phoneNumber,
         organizationName: value.organizationName,
         editable: true,
-        userRoleNames: value.roleNames,
+        userRoleNames: value.userRoleNames,
         // Only the selected roles' permissions, so a deselected role does not ship a
         // stale permission list the server would have to ignore.
-        userRolePermissionNames: this.selectedPermissionsPayload(value.roleNames),
+        userRolePermissionNames: this.selectedPermissionsPayload(value.userRoleNames),
       };
 
       // Only include password if set
@@ -467,7 +456,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         return;
       }
 
-      const unresolved = applyCommandErrors(this.form, result.violations, USER_FIELD_MAP);
+      const unresolved = applyCommandErrors(this.form, result.violations);
       if (unresolved.length) {
         this.errorMessage.set(unresolved.join(SEPARATOR));
       } else if (!result.violations?.length) {
@@ -503,7 +492,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         emailAddress: user.emailAddress ?? '',
         phoneNumber: user.phoneNumber ?? '',
         organizationName: user.organizationName ?? '',
-        roleNames: [...user.roles],
+        userRoleNames: [...user.roles],
       },
       { emitEvent: false }
     );

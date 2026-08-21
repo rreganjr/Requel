@@ -29,6 +29,7 @@ import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.repository.jpa.BeanValidationException;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.requel.service.api.dto.EditUserInput;
 import com.rreganjr.requel.service.stream.StreamEventPublisher;
 import com.rreganjr.validator.EntityValidationException;
 import jakarta.persistence.OptimisticLockException;
@@ -247,6 +248,30 @@ class CommandControllerTest {
                 .andExpect(jsonPath("$.violations[0].message").value("must not be blank"))
                 .andExpect(jsonPath("$.violations[1].field").value("password"))
                 .andExpect(jsonPath("$.violations[1].message").value("must be at least 8 characters"));
+    }
+
+    @Test
+    void beanValidationTranslatesEntityPropertyNamesToDtoFieldNames() throws Exception {
+        // #176: entity-flush violation property names are translated to input-DTO field names via
+        // @FromEntityProperty on EditUserInput (encryptedPassword -> password, roles -> userRoleNames).
+        BeanValidationException ex = new BeanValidationException(
+                new RuntimeException("cause"),
+                String.class, null,
+                new String[]{"encryptedPassword", "roles"},
+                new String[]{"password is too weak", "at least one role is required"},
+                EntityExceptionActionType.Unknown,
+                "validation failed");
+        Command cmd = mock(Command.class);
+        doReturn(EditUserInput.class).when(apiCommandFactory).getInputType("EditUser");
+        when(apiCommandFactory.newCommand(eq("EditUser"), any(), any())).thenReturn(cmd);
+        when(commandHandler.execute(cmd)).thenThrow(ex);
+
+        mockMvc.perform(post("/api/commands/EditUser")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.violations[0].field").value("password"))
+                .andExpect(jsonPath("$.violations[1].field").value("userRoleNames"));
     }
 
     @Test

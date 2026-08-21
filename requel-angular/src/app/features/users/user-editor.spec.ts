@@ -73,7 +73,7 @@ describe('UserEditorComponent', () => {
       emailAddress: 'new@example.com',
       password: 'hunter2',
       repassword: 'hunter2',
-      roleNames: ['ProjectUserRole'],
+      userRoleNames: ['ProjectUserRole'],
       ...overrides,
     });
     comp.form.markAsDirty();
@@ -101,7 +101,7 @@ describe('UserEditorComponent', () => {
     expect(userServiceMock.getUser).toHaveBeenCalledWith('bob');
     expect(comp.form.getRawValue().username).toBe('bob');
     expect(comp.form.controls.name.value).toBe('Bob Smith');
-    expect(comp.form.controls.roleNames.value).toContain('ProjectUserRole');
+    expect(comp.form.controls.userRoleNames.value).toContain('ProjectUserRole');
   });
 
   it('onSave calls commandService.execute("EditUser") with roles and permissions', async () => {
@@ -169,8 +169,8 @@ describe('UserEditorComponent', () => {
     it('requires at least one role', async () => {
       fixture.detectChanges();
       await flush();
-      fillNewUser({ roleNames: [] });
-      expect(comp.form.controls.roleNames.hasError('atLeastOne')).toBe(true);
+      fillNewUser({ userRoleNames: [] });
+      expect(comp.form.controls.userRoleNames.hasError('atLeastOne')).toBe(true);
       expect(comp.form.invalid).toBe(true);
     });
 
@@ -321,10 +321,10 @@ describe('UserEditorComponent', () => {
       expect(comp.hasUnsavedChanges()).toBe(true);
     });
 
-    it('isRoleSelected() reads the roleNames control', async () => {
+    it('isRoleSelected() reads the userRoleNames control', async () => {
       fixture.detectChanges();
       await flush();
-      comp.form.controls.roleNames.setValue(['SystemAdminUserRole']);
+      comp.form.controls.userRoleNames.setValue(['SystemAdminUserRole']);
       expect(comp.isRoleSelected('SystemAdminUserRole')).toBe(true);
       expect(comp.isRoleSelected('ProjectUserRole')).toBe(false);
     });
@@ -348,7 +348,7 @@ describe('UserEditorComponent', () => {
       await flush();
       expect(comp.showRolesError()).toBe(false);
 
-      fillNewUser({ roleNames: [] });
+      fillNewUser({ userRoleNames: [] });
       await comp.onSave();
 
       expect(comp.showRolesError()).toBe(true);
@@ -366,7 +366,7 @@ describe('UserEditorComponent', () => {
       fillNewUser();
       commandServiceMock.execute.mockResolvedValue({
         success: false,
-        violations: [{ field: 'roles', message: 'Role assignment was rejected.' }],
+        violations: [{ field: 'userRoleNames', message: 'Role assignment was rejected.' }],
         error: 'Validation failed',
       });
 
@@ -375,7 +375,7 @@ describe('UserEditorComponent', () => {
       // A setErrors-written server error was nulled here; a validator-backed one survives.
       fixture.detectChanges();
 
-      expect(comp.form.controls.roleNames.errors).toEqual({
+      expect(comp.form.controls.userRoleNames.errors).toEqual({
         server: 'Role assignment was rejected.',
       });
       expect(
@@ -390,14 +390,14 @@ describe('UserEditorComponent', () => {
       fillNewUser();
       commandServiceMock.execute.mockResolvedValue({
         success: false,
-        violations: [{ field: 'roles', message: 'Role assignment was rejected.' }],
+        violations: [{ field: 'userRoleNames', message: 'Role assignment was rejected.' }],
         error: 'Validation failed',
       });
       await comp.onSave();
 
-      comp.form.controls.roleNames.setValue(['SystemAdminUserRole']);
+      comp.form.controls.userRoleNames.setValue(['SystemAdminUserRole']);
 
-      expect(comp.form.controls.roleNames.errors).toBeNull();
+      expect(comp.form.controls.userRoleNames.errors).toBeNull();
     });
 
     it('keeps the roles-section test hooks', async () => {
@@ -456,10 +456,10 @@ describe('UserEditorComponent', () => {
       expect(comp.errorMessage()).toBeNull();
     });
 
-    it('maps roles onto the roleNames control', async () => {
+    it('routes a userRoleNames violation onto the userRoleNames control (#176)', async () => {
       commandServiceMock.execute.mockResolvedValue({
         success: false,
-        violations: [{ field: 'roles', message: 'At least one role is required.' }],
+        violations: [{ field: 'userRoleNames', message: 'At least one role is required.' }],
         error: 'Validation failed',
       });
       fixture.detectChanges();
@@ -468,7 +468,7 @@ describe('UserEditorComponent', () => {
 
       await comp.onSave();
 
-      expect(comp.form.controls.roleNames.errors).toEqual({
+      expect(comp.form.controls.userRoleNames.errors).toEqual({
         server: 'At least one role is required.',
       });
     });

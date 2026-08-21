@@ -54,15 +54,18 @@ public class CommandController {
     private final CommandHandler commandHandler;
     private final ObjectMapper objectMapper;
     private final CommandEventPublisher eventPublisher;
+    private final EntityToDtoFieldNameResolver fieldNameResolver;
 
     public CommandController(ApiCommandFactory apiCommandFactory,
                              CommandHandler commandHandler,
                              ObjectMapper objectMapper,
-                             CommandEventPublisher eventPublisher) {
+                             CommandEventPublisher eventPublisher,
+                             EntityToDtoFieldNameResolver fieldNameResolver) {
         this.apiCommandFactory = apiCommandFactory;
         this.commandHandler = commandHandler;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
+        this.fieldNameResolver = fieldNameResolver;
     }
 
     /**
@@ -126,20 +129,25 @@ public class CommandController {
                             "error", "Conflict",
                             "message", "Entity was modified by another user. Please reload and try again."));
         } catch (EntityValidationException e) {
+            // Entity-flush violations carry JPA entity property names; translate them to the input
+            // DTO's field names so the Angular form can route them to the right control (#176).
+            Class<?> inputType = inputTypeOrNull(commandType);
             var violations = new java.util.ArrayList<CommandResult.FieldViolation>();
             if (e instanceof BeanValidationException bve) {
                 String[] propNames = bve.getEntityPropertyNames();
                 String[] fieldMessages = bve.getFieldMessages();
                 if (propNames != null) {
                     for (int i = 0; i < propNames.length; i++) {
-                        violations.add(new CommandResult.FieldViolation(propNames[i], fieldMessages[i]));
+                        violations.add(new CommandResult.FieldViolation(
+                                fieldNameResolver.toDtoField(inputType, propNames[i]), fieldMessages[i]));
                     }
                 }
             } else {
                 String[] propNames = e.getEntityPropertyNames();
                 if (propNames != null) {
                     for (String prop : propNames) {
-                        violations.add(new CommandResult.FieldViolation(prop, e.getMessage()));
+                        violations.add(new CommandResult.FieldViolation(
+                                fieldNameResolver.toDtoField(inputType, prop), e.getMessage()));
                     }
                 }
             }
@@ -159,6 +167,18 @@ public class CommandController {
             log.error("Command execution failed: {} - {}", commandType, e.getMessage(), e);
             return ResponseEntity.internalServerError()
                     .body(ErrorResponse.of("INTERNAL_ERROR", "An unexpected error occurred. Please try again or contact support."));
+        }
+    }
+
+    /**
+     * The command's input-DTO class, or {@code null} if it cannot be resolved. Used only to
+     * translate entity property names to DTO field names for validation violations (#176).
+     */
+    private Class<?> inputTypeOrNull(String commandType) {
+        try {
+            return apiCommandFactory.getInputType(commandType);
+        } catch (RuntimeException ex) {
+            return null;
         }
     }
 }

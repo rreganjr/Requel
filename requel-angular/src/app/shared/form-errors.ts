@@ -250,6 +250,17 @@ export function atLeastOne(): ValidatorFn {
 }
 
 /**
+ * The few field names the server cannot disambiguate to a single control on its own. Issue #176 made
+ * `CommandController` emit input-DTO field names (see `@FromEntityProperty`), retiring the per-editor
+ * maps; the one residue is project-editor's single `organization` control, which two DTO fields
+ * (`organizationId` + `organizationName`) feed. This shared alias routes both to it.
+ */
+const SHARED_FIELD_ALIASES: Record<string, string> = {
+  organizationId: 'organization',
+  organizationName: 'organization',
+};
+
+/**
  * Maps a failed command's field violations onto the controls of `form`.
  *
  * Each violation whose field resolves to a control sets `{ server: message }` on
@@ -263,19 +274,16 @@ export function atLeastOne(): ValidatorFn {
  * swallowed:
  *
  * ```ts
- * const unresolved = applyCommandErrors(this.form, result.violations, USER_FIELD_MAP);
+ * const unresolved = applyCommandErrors(this.form, result.violations);
  * this.errorMessage.set(unresolved.join(' ') || null);
  * ```
  *
- * Field names need mapping because `CommandController` builds them from
- * `BeanValidationException.getEntityPropertyNames()`, which is
- * `ConstraintViolation.getPropertyPath()` — **JPA entity property names**, not the
- * input DTO's. They coincide often (`name`, `text`) and diverge exactly where it
- * matters (`emailAddress` vs an `email` control, `encryptedPassword` vs
- * `password`). Pass `map` as `{ entityProperty: controlName }` for the divergent
- * ones; a missing entry degrades to page-level display rather than losing the
- * message. The longer-term fix is to have `CommandController` emit DTO field names
- * and delete the maps — see `doc/132-reactive-forms-plan.md` §4.2.
+ * Since #176, `CommandController` emits **input-DTO field names** (via `@FromEntityProperty` on
+ * the divergent DTO fields), so a violation's field usually matches a control directly and the old
+ * per-editor `{ entityProperty: controlName }` maps are gone. The one residue is a small shared
+ * alias ({@link SHARED_FIELD_ALIASES}) for project-editor's composite `organization` control, which
+ * two DTO fields (`organizationId` + `organizationName`) feed. A field that resolves to nothing
+ * still degrades to page-level display rather than losing the message.
  *
  * A dotted or indexed path (`roles[0].name`) is tried whole, then with indices
  * stripped, then as its last segment, so a nested constraint still finds its
@@ -297,8 +305,7 @@ export function atLeastOne(): ValidatorFn {
  */
 export function applyCommandErrors(
   form: FormGroup,
-  violations: FieldViolation[] | null | undefined,
-  map?: Record<string, string>
+  violations: FieldViolation[] | null | undefined
 ): string[] {
   const unresolved: string[] = [];
   if (!violations?.length) {
@@ -307,7 +314,7 @@ export function applyCommandErrors(
 
   for (const violation of violations) {
     // A null field is a command-level failure, not a field one.
-    const control = violation.field ? resolveViolationControl(form, violation.field, map) : null;
+    const control = violation.field ? resolveViolationControl(form, violation.field) : null;
     if (!control) {
       unresolved.push(violation.message);
       continue;
@@ -422,16 +429,14 @@ function isEmptySelection(value: unknown): boolean {
  */
 function resolveViolationControl(
   form: FormGroup,
-  field: string,
-  map?: Record<string, string>
+  field: string
 ): AbstractControl | null {
   const withoutIndices = field.replace(/\[\d+\]/g, '');
   const leaf = withoutIndices.split('.').pop() ?? withoutIndices;
 
   const candidates = [
-    map?.[field],
-    map?.[withoutIndices],
-    map?.[leaf],
+    SHARED_FIELD_ALIASES[field],
+    SHARED_FIELD_ALIASES[withoutIndices],
     field,
     withoutIndices,
     leaf,

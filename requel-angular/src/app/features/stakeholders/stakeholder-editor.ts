@@ -56,17 +56,6 @@ import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors'
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { CommandResult } from '../../models/command';
 
-/**
- * JPA entity property name -> form control name, for {@link applyCommandErrors}.
- *
- * The two save commands spell things differently from the entities they write:
- * `EditUserStakeholderInput` carries `username`/`teamName`, `EditNonUserStakeholderInput`
- * carries `name`/`text`. #176 deletes this map.
- */
-const STAKEHOLDER_FIELD_MAP: Record<string, string> = {
-  teamName: 'teamName',
-  text: 'text',
-};
 
 /** Joins page-level violations that resolved to no control. */
 const SEPARATOR = '; ';
@@ -768,7 +757,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       const command = isUser ? 'EditUserStakeholder' : 'EditNonUserStakeholder';
       const result = await this.commandService.execute(command, input);
       if (!result.success) {
-        const unresolved = applyCommandErrors(this.detailsForm, result.violations, STAKEHOLDER_FIELD_MAP);
+        const unresolved = applyCommandErrors(this.detailsForm, result.violations);
         if (unresolved.length) {
           this.errorMessage.set(unresolved.join(SEPARATOR));
         }

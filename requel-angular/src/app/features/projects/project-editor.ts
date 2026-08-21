@@ -52,17 +52,6 @@ import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors'
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { CommandResult } from '../../models/command';
 
-/**
- * JPA entity property name -> form control name, for {@link applyCommandErrors}.
- *
- * `EditProjectInput` carries the organization as either `organizationId` or
- * `organizationName` depending on whether the user picked an existing org or typed a new one;
- * both resolve to the single `organization` control. #176 deletes this map.
- */
-const PROJECT_FIELD_MAP: Record<string, string> = {
-  organizationId: 'organization',
-  organizationName: 'organization',
-};
 
 /** Joins page-level violations that resolved to no control. */
 const SEPARATOR = '; ';
@@ -225,7 +214,8 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
    *
    * `organization` holds either an `OrganizationDto` (picked from the list) or a raw string
    * (typed into the editable select). `onSave` splits those into `organizationId` /
-   * `organizationName`, which is why one control backs two DTO fields in PROJECT_FIELD_MAP.
+   * `organizationName`, so one control backs two DTO fields; `applyCommandErrors`' shared alias
+   * routes `organizationId`/`organizationName` violations back to this control (#176).
    */
   readonly detailsForm = new FormGroup({
     name: new FormControl('', {
@@ -410,7 +400,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
 
       const result = await this.commandService.execute('EditProject', input);
       if (!result.success) {
-        const unresolved = applyCommandErrors(this.detailsForm, result.violations, PROJECT_FIELD_MAP);
+        const unresolved = applyCommandErrors(this.detailsForm, result.violations);
         this.errorMessage.set(
           unresolved.length ? unresolved.join(SEPARATOR) : (result.error ?? 'Save failed.')
         );

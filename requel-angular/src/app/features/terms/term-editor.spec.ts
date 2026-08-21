@@ -343,10 +343,10 @@ describe('TermEditorComponent', () => {
       expect(comp.errorMessage()).toBeNull();
     });
 
-    it('maps the canonicalTerm entity property onto the canonicalTermId control', async () => {
+    it('routes a canonicalTermId violation onto the canonicalTermId control (#176)', async () => {
       termServiceMock.saveTerm.mockResolvedValue({
         success: false,
-        violations: [{ field: 'canonicalTerm', message: 'Cannot be its own canonical term.' }],
+        violations: [{ field: 'canonicalTermId', message: 'Cannot be its own canonical term.' }],
         error: 'Validation failed',
       });
       fixture.detectChanges();

@@ -298,16 +298,17 @@ describe('applyCommandErrors (issue #132)', () => {
     expect(f.touched).toBe(false);
   });
 
-  it('maps an entity property name onto a differently-named control', () => {
-    const f = form();
-    const unresolved = applyCommandErrors(
-      f,
-      [{ field: 'emailAddress', message: 'Not a valid address.' }],
-      { emailAddress: 'email' }
-    );
+  it('routes the shared organization aliases onto the single organization control (#176)', () => {
+    const f = new FormGroup({
+      name: new FormControl('', { nonNullable: true }),
+      organization: new FormControl<string | null>(null),
+    });
+    const unresolved = applyCommandErrors(f, [
+      { field: 'organizationName', message: 'Organization name is too long.' },
+    ]);
 
     expect(unresolved).toEqual([]);
-    expect(f.controls.email.errors).toEqual({ server: 'Not a valid address.' });
+    expect(f.controls.organization.errors).toEqual({ server: 'Organization name is too long.' });
   });
 
   it('falls back to the last segment of a dotted, indexed path', () => {
