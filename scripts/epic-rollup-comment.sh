@@ -24,12 +24,23 @@ DRY_RUN="${DRY_RUN:-0}"
 # Finding -> phase mapping (from doc/UI_UX_REVIEW.md "Proposed Phased Roadmap").
 phase_of() {
   case "$1" in
-    4.1|4.2|4.3|4.5|4.7)        echo 1 ;;   # quick wins & a11y blockers
-    1.1|1.2|1.3|5.5|N2|N3|N6)   echo 2 ;;   # design-system foundation (+ look-and-feel N2/N3/N6)
-    3.1|3.2|3.3|4.4|5.2|N5)     echo 3 ;;   # forms & validation (+ look-and-feel N5)
-    2.1|2.2|2.3|2.4|4.6|N1|N4)  echo 4 ;;   # IA & workflow polish (+ look-and-feel N1/N4)
-    5.1|5.3|5.4|5.6)            echo 5 ;;   # deeper architecture refactors
-    *)                          echo 0 ;;   # unmapped (should not happen)
+    4.1|4.2|4.3|4.5|4.7)              echo 1 ;;   # quick wins & a11y blockers
+    1.1|1.2|1.3|N2|N3|N6)             echo 2 ;;   # design-system foundation (+ look-and-feel N2/N3/N6)
+    3.1|3.1a|3.1b|3.2|3.3|4.4|5.2|N5) echo 3 ;;   # forms & validation (+ 3.1a/3.1b form splits, look-and-feel N5)
+    2.1|2.2|2.3|2.4|4.6|5.5|N1|N4)    echo 4 ;;   # IA & workflow polish (+ 5.5/#146 primitive adoption, look-and-feel N1/N4)
+    5.1|5.3|5.4|5.6)                  echo 5 ;;   # deeper architecture refactors
+    *)                                echo 0 ;;   # unmapped (should not happen)
+  esac
+}
+
+# Some sub-issues carry no finding-id prefix (server-side backing split out of
+# #132, see doc/132-reactive-forms-plan.md). Map those to their phase by number
+# so they don't fall into the "Unmapped" bucket. Returns empty for everything
+# else, so phase_of() (by finding id) stays the default.
+phase_by_number() {
+  case "$1" in
+    171|176) echo 3 ;;   # bean-validation (#171) + command-error field-name backing (#176) for Phase 3
+    *)       echo ""  ;;
   esac
 }
 
@@ -67,7 +78,8 @@ for p in 1 2 3 4 5 0; do
   while IFS="$TAB" read -r num title state; do
     [ -n "$num" ] || continue
     id="${title%% *}"                 # leading "N.N" / "NN" token
-    if [ "$(phase_of "$id")" = "$p" ]; then
+    pn="$(phase_by_number "$num")"    # number override for prefix-less titles (#171/#176)
+    if [ "${pn:-$(phase_of "$id")}" = "$p" ]; then
       box="[ ]"
       [ "$state" = "CLOSED" ] && box="[x]"
       section="$section- $box #$num $title
