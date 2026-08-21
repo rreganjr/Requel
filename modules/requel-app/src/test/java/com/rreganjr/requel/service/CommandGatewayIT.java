@@ -342,6 +342,22 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         assertEquals("AddGoalToGoalContainer", result.commandType());
     }
 
+    @Test
+    void unknownChildIdIsInvalidInput() {
+        authenticate(editorUsername);
+        // Valid container, but the child goal id does not exist: findGoalById throws
+        // IllegalArgumentException("Goal not found") from the input applicator while the command is
+        // built. Before #188 that fell through to EXECUTION_ERROR; it must be INVALID_INPUT so MCP
+        // maps it to INVALID_PARAMS (not INTERNAL_ERROR) and the gateway HTTP wrapper returns 400,
+        // matching the HTTP controller. This is the child-lookup gap left after #189 scoped the
+        // container lookups to EntityValidationException.
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("AddGoalToGoalContainer",
+                        Map.of("projectName", projectName, "goalContainerId", useCaseId,
+                                "goalId", 999_999_999L, "containerType", "UseCase"))));
+        assertEquals(GatewayException.Kind.INVALID_INPUT, ex.getKind());
+    }
+
     // ---- issue #189: type-scoped container resolution ------------------------------------------
     // These exercise each branch of findStoryContainerById / findActorContainerById /
     // findGoalContainerById through the gateway. The backend coverage is measured from this Java
