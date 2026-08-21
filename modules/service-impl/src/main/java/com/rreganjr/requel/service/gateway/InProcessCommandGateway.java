@@ -123,6 +123,15 @@ public class InProcessCommandGateway implements CommandGateway {
             // caller can then tell "fix your arguments" from "the command broke".
             throw new GatewayException(GatewayException.Kind.INVALID_INPUT,
                     "Input for command '" + commandType + "' is invalid: " + e.getMessage(), e);
+        } catch (IllegalArgumentException e) {
+            // An id-lookup miss (e.g. "Goal not found") thrown from a registration input applicator
+            // while the command is built. That is the caller naming something that does not exist,
+            // so INVALID_INPUT rather than EXECUTION_ERROR -- MCP then maps it to INVALID_PARAMS,
+            // not INTERNAL_ERROR, and the gateway HTTP wrapper returns 400 not 422, matching
+            // CommandController. Logged at debug because a caller error is not a server problem.
+            log.debug("Gateway command '{}' rejected invalid input: {}", commandType, e.getMessage());
+            throw new GatewayException(GatewayException.Kind.INVALID_INPUT,
+                    "Input for command '" + commandType + "' is invalid: " + e.getMessage(), e);
         } catch (Exception e) {
             log.warn("Gateway command '{}' failed: {}", commandType, e.getMessage());
             throw new GatewayException(GatewayException.Kind.EXECUTION_ERROR,
