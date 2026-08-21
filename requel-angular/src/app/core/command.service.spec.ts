@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { CommandService } from './command.service';
+import { CommandService, isNetworkError } from './command.service';
 import { CommandResult } from '../models/command';
 import { EventStreamService } from './event-stream.service';
 
@@ -86,5 +86,35 @@ describe('CommandService', () => {
     expect(req.request.headers.has('X-Session-Id')).toBe(false);
     req.flush({ success: true, entityType: 'EditGoal', entity: null, error: null, violations: null });
     await promise;
+  });
+
+  it('execute() reports a transport failure as a retryable network error (status 0)', async () => {
+    const promise = service.execute('EditGoal', { name: 'x' });
+    const req = httpMock.expectOne('/api/commands/EditGoal');
+    req.error(new ProgressEvent('error'));
+    const result = await promise;
+    expect(result.success).toBe(false);
+    expect(result.status).toBe(0);
+    expect(isNetworkError(result)).toBe(true);
+  });
+
+  describe('isNetworkError()', () => {
+    const base: CommandResult = {
+      success: false, entityType: 'X', entity: null, error: 'e', violations: null,
+    };
+    it('is true only when status is 0 (no HTTP response)', () => {
+      expect(isNetworkError({ ...base, status: 0 })).toBe(true);
+    });
+    it('is false for a 409 conflict', () => {
+      expect(isNetworkError({ ...base, status: 409 })).toBe(false);
+    });
+    it('is false for a server body failure with no status', () => {
+      expect(isNetworkError({ ...base })).toBe(false);
+    });
+    it('is false for a success result', () => {
+      expect(isNetworkError({
+        success: true, entityType: 'X', entity: {}, error: null, violations: null,
+      })).toBe(false);
+    });
   });
 });
