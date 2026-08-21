@@ -22,6 +22,7 @@ package com.rreganjr.requel.service.api.dto;
 
 import java.util.Map;
 import java.util.Set;
+import com.rreganjr.requel.service.api.FromEntityProperty;
 import com.rreganjr.validator.ValidationLimits;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Email;
@@ -36,6 +37,7 @@ public record EditUserInput(
         Integer version,
         @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String username,
+        @FromEntityProperty("encryptedPassword")
         String password,
         String repassword,
         @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
@@ -46,6 +48,7 @@ public record EditUserInput(
         @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String organizationName,
         Boolean editable,
+        @FromEntityProperty("roles")
         Set<String> userRoleNames,
         Map<String, Set<String>> userRolePermissionNames
 ) {

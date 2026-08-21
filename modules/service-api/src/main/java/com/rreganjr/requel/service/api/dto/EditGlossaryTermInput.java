@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.FromEntityProperty;
 import jakarta.validation.constraints.NotBlank;
 import com.rreganjr.validator.ValidationLimits;
 import jakarta.validation.constraints.Size;
@@ -35,6 +36,7 @@ public record EditGlossaryTermInput(
         @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
         String name,
         String text,
+        @FromEntityProperty("canonicalTerm")
         Long canonicalTermId
 ) {
 }

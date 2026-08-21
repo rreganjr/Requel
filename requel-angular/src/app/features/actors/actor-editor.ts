@@ -54,16 +54,6 @@ import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors'
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { CommandResult } from '../../models/command';
 
-/**
- * JPA entity property name -> form control name, for {@link applyCommandErrors}.
- *
- * `CommandController` reports violations using the entity's property names, so `ActorImpl`'s
- * inherited `text` is the key; `EditActorInput` spells the same field `description`, mapped
- * here too so the control resolves whichever name arrives. #176 deletes this map.
- */
-const ACTOR_FIELD_MAP: Record<string, string> = {
-  description: 'text',
-};
 
 /** Joins page-level violations that resolved to no control. */
 const SEPARATOR = '; ';
@@ -551,8 +541,9 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    * Issues `EditActor` and, on success, adopts the id and version from the response.
    *
    * The version is spent on use: every accepted `EditActor` bumps it server-side, so it is
-   * re-read from `result.entity` each time. Note the DTO spells the description field
-   * `description` while the entity property is `text` - hence ACTOR_FIELD_MAP.
+   * re-read from `result.entity` each time. The form control and entity property are both `text`
+   * while the DTO field is `description`; no server constraint targets that field today, so nothing
+   * needs routing (#176 removed the old ACTOR_FIELD_MAP).
    */
   private async saveDetails(): Promise<CommandResult<unknown>> {
     this.saving.set(true);
@@ -570,7 +561,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
       const result = await this.commandService.execute('EditActor', input);
       if (!result.success) {
-        const unresolved = applyCommandErrors(this.detailsForm, result.violations, ACTOR_FIELD_MAP);
+        const unresolved = applyCommandErrors(this.detailsForm, result.violations);
         if (unresolved.length) {
           this.errorMessage.set(unresolved.join(SEPARATOR));
         }

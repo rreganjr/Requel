@@ -44,17 +44,6 @@ import { ErrorStateComponent } from '../../shared/error-state';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
-/**
- * JPA entity property name -> form control name, for {@link applyCommandErrors}.
- *
- * `CommandController` reports violations using entity property names (see
- * `BeanValidationExceptionAdapter`), which mostly match the control names here.
- * `canonicalTerm` is the exception: the entity holds the related `GlossaryTerm`, the
- * form holds its id.
- */
-const TERM_FIELD_MAP: Record<string, string> = {
-  canonicalTerm: 'canonicalTermId',
-};
 
 /**
  * Separator for several command-level messages sharing the one page-level banner.
@@ -491,7 +480,7 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
     // Field violations land on their controls; only what could not be placed becomes a
     // page-level message, so nothing is dropped and nothing is duplicated.
-    const unresolved = applyCommandErrors(this.form, result.violations, TERM_FIELD_MAP);
+    const unresolved = applyCommandErrors(this.form, result.violations);
     if (unresolved.length) {
       this.errorMessage.set(unresolved.join(SEPARATOR));
     } else if (!result.violations?.length) {

@@ -284,10 +284,10 @@ describe('EditAccountComponent', () => {
       expect(comp.errorMessage()).toBeNull();
     });
 
-    it('maps encryptedPassword onto the password control', async () => {
+    it('routes a password violation onto the password control (#176)', async () => {
       commandServiceMock.execute.mockResolvedValue({
         success: false,
-        violations: [{ field: 'encryptedPassword', message: 'Password is not acceptable.' }],
+        violations: [{ field: 'password', message: 'Password is not acceptable.' }],
         error: 'Validation failed',
       });
       patch({ name: 'Updated', password: 'hunter2', repassword: 'hunter2' });
