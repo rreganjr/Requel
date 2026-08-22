@@ -40,7 +40,7 @@ import { AppCardComponent } from './app-card';
           <span class="p-input-icon-left search-field">
             <i class="pi pi-search"></i>
             <input pInputText [value]="searchText" [placeholder]="searchPlaceholder"
-                   aria-label="Search"
+                   [attr.aria-label]="searchAriaLabel || searchPlaceholder"
                    (input)="search.emit($any($event.target).value)" />
           </span>
         </div>
@@ -71,5 +71,8 @@ export class ListPageComponent {
   @Input() showSearch = true;
   @Input() searchText = '';
   @Input() searchPlaceholder = 'Search...';
+  /** Accessible name for the search box; falls back to the placeholder. Set a
+   * page-specific value (e.g. "Search goals") when a list enables search (#138). */
+  @Input() searchAriaLabel = '';
   @Output() search = new EventEmitter<string>();
 }

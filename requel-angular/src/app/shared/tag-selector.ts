@@ -62,7 +62,7 @@ import { SubmitErrorComponent } from './app-submit-error';
         </div>
 
         @if (canEdit) {
-          <div class="add-row" data-testid="tag-add-form">
+          <fieldset class="add-row rq-fieldset" data-testid="tag-add-form"><legend class="rq-visually-hidden">Add tag</legend>
             <input pInputText [(ngModel)]="newCategory" [attr.list]="'tagCategories-' + entityId"
                    placeholder="category (optional)" aria-label="Tag category"
                    data-testid="tag-category-input" class="cat-input" />
@@ -80,7 +80,7 @@ import { SubmitErrorComponent } from './app-submit-error';
 
             <p-button label="Add Tag" icon="pi pi-plus" size="small"
                       data-testid="tag-add" (onClick)="addTag()" />
-          </div>
+          </fieldset>
         }
       </div>
     }

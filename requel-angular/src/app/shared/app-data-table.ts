@@ -97,7 +97,8 @@ export interface RowAction<T = unknown> {
           <span class="p-input-icon-left dt-search">
             <i class="pi pi-search"></i>
             <input pInputText type="text" [(ngModel)]="searchText"
-                   [placeholder]="searchPlaceholder" aria-label="Search"
+                   [placeholder]="searchPlaceholder"
+                   [attr.aria-label]="searchAriaLabel || searchPlaceholder"
                    data-testid="data-table-search"
                    (input)="onSearch($any($event.target).value)" />
           </span>
@@ -227,6 +228,9 @@ export class AppDataTableComponent<T = Record<string, unknown>> {
   @Input() title = '';
   /** Search placeholder. */
   @Input() searchPlaceholder = 'Search...';
+  /** Accessible name for the toolbar search box; falls back to the placeholder.
+   * Set a specific value (e.g. "Search goals") when a table enables its toolbar (#138). */
+  @Input() searchAriaLabel = '';
   /** Fields the search box filters on; defaults to every column's field. */
   @Input() globalFilterFields?: string[];
   /** Accessible name for each row's `⋯` trigger. */
