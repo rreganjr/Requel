@@ -24,7 +24,7 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { CheckboxModule } from 'primeng/checkbox';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { MessageService } from 'primeng/api';
 import { TagCategoryDto } from '../../models/tag';
 import { TagService } from '../../core/tag.service';
@@ -38,14 +38,12 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
 @Component({
   selector: 'app-tag-categories',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, AppDataTableComponent, ButtonModule, InputText, CheckboxModule, MessageModule],
+  imports: [PageHeaderComponent, FormsModule, AppDataTableComponent, ButtonModule, InputText, CheckboxModule, SubmitErrorComponent],
   template: `
     <div class="tag-categories" data-testid="tag-categories">
       <div class="page-header"><app-page-header title="Global Tag Categories" /></div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="tag-categories-error" />
 
       <div class="add-row" data-testid="tag-category-add-form">
         <input pInputText [(ngModel)]="newName" placeholder="category name"

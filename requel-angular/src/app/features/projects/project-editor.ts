@@ -38,7 +38,7 @@ import { ProjectDto } from '../../models/project';
 import { OrganizationDto } from '../../models/user';
 import { ProjectService } from '../../core/project.service';
 import { UserService } from '../../core/user.service';
-import { CommandService } from '../../core/command.service';
+import { CommandService, isNetworkError } from '../../core/command.service';
 import { PermissionService } from '../../core/permission.service';
 import { TagSelectorComponent } from '../../shared/tag-selector';
 import { LoadingStateComponent } from '../../shared/loading-state';
@@ -79,7 +79,7 @@ const SEPARATOR = '; ';
         </div>
       </div>
 
-      <app-submit-error [message]="errorMessage()" testid="project-error" />
+      <app-submit-error [message]="errorMessage()" testid="project-error" [retryable]="retryable()" (retry)="onSave()" />
       <div role="status" aria-live="polite">
         @if (successMessage()) {
           <p-message severity="success" [text]="successMessage()!" />
@@ -196,6 +196,12 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly retryable = signal(false);
+  /** Sets the inline submit error and, by default, marks it non-retryable. */
+  private showError(message: string | null): void {
+    this.errorMessage.set(message);
+    this.retryable.set(false);
+  }
   readonly successMessage = signal<string | null>(null);
   // Load failures are tracked separately from save/inline errors so the
   // retryable error state replaces the form only when the initial load fails.
@@ -306,7 +312,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     const newIsNew = nameParam === 'new' || !nameParam;
     this.isNew.set(newIsNew);
     this.lastNameParam = nameParam;
-    this.errorMessage.set(null);
+    this.showError(null);
     this.successMessage.set(null);
     this.loadError.set(null);
     this.loading.set(true);
@@ -379,7 +385,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
    */
   private async saveDetails(): Promise<CommandResult<unknown>> {
     this.saving.set(true);
-    this.errorMessage.set(null);
+    this.showError(null);
     this.successMessage.set(null);
     clearServerErrors(this.detailsForm);
 
@@ -402,9 +408,10 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       const result = await this.commandService.execute('EditProject', input);
       if (!result.success) {
         const unresolved = applyCommandErrors(this.detailsForm, result.violations);
-        this.errorMessage.set(
+        this.showError(
           unresolved.length ? unresolved.join(SEPARATOR) : (result.error ?? 'Save failed.')
         );
+        this.retryable.set(isNetworkError(result));
         return result;
       }
 
@@ -455,7 +462,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
         // The save succeeded; only the route change failed. Report it rather than rejecting
         // out of onSave - the original code had this navigation inside its try/catch and
         // relied on that, so letting it escape would be a behaviour change.
-        this.errorMessage.set(
+        this.showError(
           err instanceof Error ? `Saved, but navigation failed: ${err.message}` : 'Saved, but navigation failed.'
         );
       }
@@ -477,7 +484,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       this.triggerBlobDownload(blob, `${sanitized}.xml`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to export project';
-      this.errorMessage.set(`Export failed: ${message}`);
+      this.showError(`Export failed: ${message}`);
     }
   }
 

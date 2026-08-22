@@ -21,7 +21,7 @@
 import { Component, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { UseCaseDto } from '../../models/use-case';
 import { UseCaseService } from '../../core/use-case.service';
 import { PermissionService } from '../../core/permission.service';
@@ -31,12 +31,10 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
 @Component({
   selector: 'app-use-case-list',
   standalone: true,
-  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent],
   template: `
     <app-list-page title="Use Cases" [showSearch]="false">
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="use-case-list-error" />
 
       <app-data-table [value]="useCases()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" searchPlaceholder="Search use cases..."

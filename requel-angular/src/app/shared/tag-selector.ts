@@ -27,6 +27,7 @@ import { TagCategoryDto, TagDto, tagLabel } from '../models/tag';
 import { TagService } from '../core/tag.service';
 import { AppChipComponent } from './app-chip';
 import { ErrorStateComponent } from './error-state';
+import { SubmitErrorComponent } from './app-submit-error';
 
 /**
  * Reusable tag chip/selector for any taggable entity. Shows the entity's assigned tags as
@@ -36,7 +37,7 @@ import { ErrorStateComponent } from './error-state';
 @Component({
   selector: 'app-tag-selector',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, AppChipComponent, ErrorStateComponent],
+  imports: [FormsModule, ButtonModule, InputText, AppChipComponent, ErrorStateComponent, SubmitErrorComponent],
   template: `
     @if (entityId != null) {
       <div class="tags-section" data-testid="tags-section">
@@ -46,6 +47,7 @@ import { ErrorStateComponent } from './error-state';
           <app-error-state severity="warn" [message]="loadError()!" retryLabel="Retry"
                            testid="tags-load-error" (retry)="reload()" />
         }
+        <app-submit-error [message]="actionError()" testid="tag-action-error" />
 
         <div class="chips" data-testid="tag-chips">
           @for (t of assigned(); track t.id) {
@@ -110,6 +112,8 @@ export class TagSelectorComponent implements OnChanges {
   // the previous silent swallow (issue #131).
   private _loadError = signal<string | null>(null);
   loadError = this._loadError.asReadonly();
+  private _actionError = signal<string | null>(null);
+  actionError = this._actionError.asReadonly();
 
   newCategory = '';
   newValue = '';
@@ -173,6 +177,7 @@ export class TagSelectorComponent implements OnChanges {
       this._categories.set(categories);
       this._typedCategories.set(typedCategories);
       this._loadError.set(null);
+      this._actionError.set(null);
     } catch {
       // Tags are supplemental, so a failure must not block the editor — but it is
       // no longer swallowed silently: surface a non-blocking inline warning so the
@@ -188,7 +193,7 @@ export class TagSelectorComponent implements OnChanges {
 
     const created = await this.tagService.editTag(this.projectName, category, value);
     if (!created.success || !created.entity) {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: created.error ?? 'Failed to create tag.' });
+      this._actionError.set(created.error ?? 'Failed to create tag.');
       return;
     }
     const assigned = await this.tagService.assignTag(created.entity.id, this.entityType, this.entityId);
@@ -197,7 +202,7 @@ export class TagSelectorComponent implements OnChanges {
       this.newValue = '';
       await this.load();
     } else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: assigned.error ?? 'Failed to assign tag.' });
+      this._actionError.set(assigned.error ?? 'Failed to assign tag.');
     }
   }
 

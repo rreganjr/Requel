@@ -22,7 +22,7 @@ import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ReportGeneratorDto } from '../../models/report';
 import { ReportService } from '../../core/report.service';
 import { PermissionService } from '../../core/permission.service';
@@ -32,12 +32,10 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
 @Component({
   selector: 'app-report-list',
   standalone: true,
-  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent],
   template: `
     <app-list-page title="Documents" [showSearch]="false">
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" data-testid="report-list-error" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="report-list-error" />
 
       <app-data-table [value]="reports()" [columns]="columns" [loading]="loading()"
                       [rowClickable]="false" rowTestid="report-list-row"

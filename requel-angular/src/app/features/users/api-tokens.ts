@@ -25,6 +25,7 @@ import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { SelectModule } from 'primeng/select';
 import { TokenService } from '../../core/token.service';
 import { ApiTokenDto } from '../../models/api-token';
@@ -37,7 +38,7 @@ import { ApiTokenDto } from '../../models/api-token';
 @Component({
   selector: 'app-api-tokens',
   standalone: true,
-  imports: [DatePipe, FormsModule, ButtonModule, DialogModule, InputTextModule, MessageModule,
+  imports: [DatePipe, FormsModule, ButtonModule, DialogModule, InputTextModule, MessageModule, SubmitErrorComponent,
     SelectModule],
   template: `
     <div class="api-tokens" data-testid="api-tokens">
@@ -52,8 +53,8 @@ import { ApiTokenDto } from '../../models/api-token';
       </p>
 
       <div class="message-slot">
-        @if (errorMessage()) { <p-message severity="error" [text]="errorMessage()" /> }
-        @if (successMessage()) { <p-message severity="success" [text]="successMessage()" /> }
+        <app-submit-error [message]="errorMessage()" testid="api-tokens-error" />
+        <div role="status" aria-live="polite">@if (successMessage()) { <p-message severity="success" [text]="successMessage()" /> }</div>
       </div>
 
       @if (loading()) {

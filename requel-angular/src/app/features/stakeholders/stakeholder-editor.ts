@@ -38,7 +38,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { StakeholderDto, StakeholderPermissionDto, UserStakeholderDetails } from '../../models/stakeholder';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { StakeholderService } from '../../core/stakeholder.service';
-import { CommandService } from '../../core/command.service';
+import { CommandService, isNetworkError } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { UserService } from '../../core/user.service';
 import { PermissionService } from '../../core/permission.service';
@@ -93,7 +93,7 @@ interface PermissionGroup {
         </div>
       </div>
 
-      <app-submit-error [message]="errorMessage()" testid="stakeholder-error" />
+      <app-submit-error [message]="errorMessage()" testid="stakeholder-error" [retryable]="retryable()" (retry)="onSave()" />
 
       @if (loading()) {
         <app-card>
@@ -308,6 +308,12 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   isUserType = signal(true);
   stakeholderName = signal('');
   errorMessage = signal<string | null>(null);
+  retryable = signal(false);
+  /** Sets the inline submit error and, by default, marks it non-retryable. */
+  private showError(message: string | null): void {
+    this.errorMessage.set(message);
+    this.retryable.set(false);
+  }
   /**
    * #185. The edit form renders only once the detail GET resolves, so there is no window in which
    * a user can type into a form the load is about to reset. Starts true: an edit route is loading
@@ -469,7 +475,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       const users = await this.userService.listUsers();
       this.userOptions.set(users.map(u => ({ label: u.name || u.username, value: u.username })));
     } catch {
-      this.errorMessage.set('Failed to load users.');
+      this.showError('Failed to load users.');
     }
   }
 
@@ -549,7 +555,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       if (skeleton) {
         this.loadError.set('Failed to load stakeholder.');
       } else {
-        this.errorMessage.set('Failed to load stakeholder.');
+        this.showError('Failed to load stakeholder.');
       }
     } finally {
       if (skeleton) {
@@ -583,10 +589,10 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
         this.applyAssociationResult(result.entity as StakeholderDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
       } else {
-        this.errorMessage.set(result.error ?? 'Failed to add goal.');
+        this.showError(result.error ?? 'Failed to add goal.');
       }
     } catch {
-      this.errorMessage.set('Failed to add goal.');
+      this.showError('Failed to add goal.');
     }
   }
 
@@ -602,10 +608,10 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
         this.applyAssociationResult(result.entity as StakeholderDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });
       } else {
-        this.errorMessage.set(result.error ?? 'Failed to remove goal.');
+        this.showError(result.error ?? 'Failed to remove goal.');
       }
     } catch {
-      this.errorMessage.set('Failed to remove goal.');
+      this.showError('Failed to remove goal.');
     }
   }
 
@@ -670,7 +676,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       }
       this.permissionsForm.markAsPristine();
     } catch {
-      this.errorMessage.set('Failed to load permissions.');
+      this.showError('Failed to load permissions.');
     }
   }
 
@@ -731,7 +737,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
    */
   private async saveDetails(): Promise<CommandResult<unknown>> {
     this.saving.set(true);
-    this.errorMessage.set(null);
+    this.showError(null);
     clearServerErrors(this.detailsForm);
     try {
       const raw = this.detailsForm.getRawValue();
@@ -757,7 +763,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       if (!result.success) {
         const unresolved = applyCommandErrors(this.detailsForm, result.violations);
         if (unresolved.length) {
-          this.errorMessage.set(unresolved.join(SEPARATOR));
+          this.showError(unresolved.join(SEPARATOR));
         }
         return result;
       }
@@ -819,10 +825,11 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       return;
     }
     if (await this.recoverFromStaleVersion(result)) {
-      this.errorMessage.set(STALE_VERSION_MESSAGE);
+      this.showError(STALE_VERSION_MESSAGE);
       return;
     }
-    this.errorMessage.set(result.error ?? 'Save failed.');
+    this.showError(result.error ?? 'Save failed.');
+    this.retryable.set(isNetworkError(result));
   }
 
   onDelete(): void {
@@ -843,10 +850,10 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
         this.projectService.notifyTreeChanged();
         this.router.navigate(['..'], { relativeTo: this.route });
       } else {
-        this.errorMessage.set(result.error ?? 'Delete failed.');
+        this.showError(result.error ?? 'Delete failed.');
       }
     } catch {
-      this.errorMessage.set('An unexpected error occurred.');
+      this.showError('An unexpected error occurred.');
     }
   }
 

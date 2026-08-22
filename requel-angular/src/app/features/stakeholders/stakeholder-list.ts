@@ -22,7 +22,7 @@ import { Component, OnDestroy, OnInit, TemplateRef, ViewChild, signal } from '@a
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { StakeholderDto } from '../../models/stakeholder';
 import { StakeholderService } from '../../core/stakeholder.service';
 import { PermissionService } from '../../core/permission.service';
@@ -32,12 +32,10 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
 @Component({
   selector: 'app-stakeholder-list',
   standalone: true,
-  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent],
   template: `
     <app-list-page title="Stakeholders" [showSearch]="false">
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="stakeholder-list-error" [retryable]="true" (retry)="loadStakeholders()" />
 
       <app-data-table [value]="stakeholders()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" searchPlaceholder="Search stakeholders..."

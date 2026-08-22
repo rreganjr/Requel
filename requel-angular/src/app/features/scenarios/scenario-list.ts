@@ -22,7 +22,7 @@ import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ScenarioDto } from '../../models/scenario';
 import { ScenarioService } from '../../core/scenario.service';
 import { PermissionService } from '../../core/permission.service';
@@ -32,12 +32,10 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
 @Component({
   selector: 'app-scenario-list',
   standalone: true,
-  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent],
   template: `
     <app-list-page title="Scenarios" [showSearch]="false">
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="scenario-list-error" />
 
       <app-data-table [value]="scenarios()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" [rows]="15" searchPlaceholder="Search scenarios..."
