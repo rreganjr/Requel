@@ -23,7 +23,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { SelectModule } from 'primeng/select';
 import { SlicePipe } from '@angular/common';
 import { GoalDto } from '../../models/goal';
@@ -39,12 +39,10 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
 @Component({
   selector: 'app-goal-list',
   standalone: true,
-  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, SelectModule, FormsModule, SlicePipe, AppChipComponent, EmptyStateComponent],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent, SelectModule, FormsModule, SlicePipe, AppChipComponent, EmptyStateComponent],
   template: `
     <app-list-page title="Goals" [eyebrow]="projectContext()" [showSearch]="false">
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="goal-list-error" [retryable]="true" (retry)="loadGoals()" />
 
       <app-data-table [value]="displayedGoals()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" searchPlaceholder="Search goals..."

@@ -390,6 +390,58 @@ describe('TermEditorComponent', () => {
       expect(comp.errorMessage()).toBe('Save failed.');
     });
 
+    describe('network retry (issue #133)', () => {
+      it('marks the error retryable when the save fails with a network error (status 0)', async () => {
+        termServiceMock.saveTerm.mockResolvedValue({
+          success: false, violations: null, error: 'Network error', status: 0,
+        });
+        fixture.detectChanges();
+        await flush();
+        fill('Term');
+
+        await comp.onSave();
+        fixture.detectChanges();
+
+        expect(comp.errorMessage()).toBe('Network error');
+        expect(comp.retryable()).toBe(true);
+        expect(fixture.nativeElement.querySelector('[data-testid="term-error-retry"]')).not.toBeNull();
+      });
+
+      it('leaves an ordinary (non-network) save failure non-retryable', async () => {
+        termServiceMock.saveTerm.mockResolvedValue({
+          success: false, violations: null, error: 'Save failed.', status: 400,
+        });
+        fixture.detectChanges();
+        await flush();
+        fill('Term');
+
+        await comp.onSave();
+        fixture.detectChanges();
+
+        expect(comp.retryable()).toBe(false);
+        expect(fixture.nativeElement.querySelector('[data-testid="term-error-retry"]')).toBeNull();
+      });
+
+      it('re-runs onSave when the user clicks Retry', async () => {
+        termServiceMock.saveTerm.mockResolvedValue({
+          success: false, violations: null, error: 'Network error', status: 0,
+        });
+        fixture.detectChanges();
+        await flush();
+        fill('Term');
+        await comp.onSave();
+        fixture.detectChanges();
+        expect(termServiceMock.saveTerm).toHaveBeenCalledTimes(1);
+
+        const retry = fixture.nativeElement
+          .querySelector('[data-testid="term-error-retry"] button') as HTMLButtonElement;
+        retry.click();
+        await flush();
+
+        expect(termServiceMock.saveTerm).toHaveBeenCalledTimes(2);
+      });
+    });
+
     /**
      * A server error makes its control invalid, which is what disables Save until the
      * user changes something. The trap: if onSave cleared those errors *after* its

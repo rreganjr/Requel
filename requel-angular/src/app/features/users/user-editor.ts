@@ -31,10 +31,11 @@ import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { UserDto } from '../../models/user';
 import { RoleDto } from '../../models/role';
 import { UserService } from '../../core/user.service';
-import { CommandService } from '../../core/command.service';
+import { CommandService, isNetworkError } from '../../core/command.service';
 import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
@@ -70,6 +71,7 @@ const SEPARATOR = '; ';
     CheckboxModule,
     SelectModule,
     MessageModule,
+    SubmitErrorComponent,
     LoadingStateComponent,
     ErrorStateComponent,
     AppFieldComponent,
@@ -80,12 +82,16 @@ const SEPARATOR = '; ';
     <div class="user-editor" data-testid="user-editor">
       <app-page-header [title]="isNew() ? 'New User' : 'Edit User: ' + form.controls.username.value" />
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
-      @if (successMessage()) {
-        <p-message severity="success" [text]="successMessage()!" />
-      }
+      <app-submit-error
+        [message]="errorMessage()"
+        [retryable]="retryable()"
+        (retry)="onSave()"
+        testid="user-editor-error" />
+      <div role="status" aria-live="polite">
+        @if (successMessage()) {
+          <p-message severity="success" [text]="successMessage()!" />
+        }
+      </div>
 
       @if (loading()) {
         <app-card>
@@ -227,6 +233,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   readonly saving = signal(false);
   readonly submitted = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly retryable = signal(false);
   readonly successMessage = signal<string | null>(null);
   // Load failures tracked separately from save/inline errors so the retryable
   // error state replaces the form only when the initial load fails.
@@ -421,6 +428,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     this.saving.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
+    this.retryable.set(false);
 
     try {
       const value = this.form.getRawValue();
@@ -457,6 +465,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       }
 
       const unresolved = applyCommandErrors(this.form, result.violations);
+      this.retryable.set(isNetworkError(result));
       if (unresolved.length) {
         this.errorMessage.set(unresolved.join(SEPARATOR));
       } else if (!result.violations?.length) {

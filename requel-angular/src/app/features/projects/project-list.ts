@@ -22,6 +22,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ProjectDto } from '../../models/project';
 import { ProjectService } from '../../core/project.service';
 import { AuthService } from '../../core/auth.service';
@@ -32,15 +33,13 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, FileUploadButtonComponent],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, SubmitErrorComponent, FileUploadButtonComponent],
   template: `
     <app-list-page title="Projects" [showSearch]="false">
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" data-testid="project-list-error" />
-      }
-      @if (successMessage()) {
+      <app-submit-error [message]="errorMessage()" testid="project-list-error" />
+      <div role="status" aria-live="polite">@if (successMessage()) {
         <p-message severity="success" [text]="successMessage()!" data-testid="project-list-success" />
-      }
+      }</div>
 
       <app-data-table [value]="projects()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" searchPlaceholder="Search projects..."

@@ -31,12 +31,13 @@ import { AnnotationService } from '../core/annotation.service';
 import { AppCardComponent } from './app-card';
 import { AppTagComponent } from './app-tag';
 import { ErrorStateComponent } from './error-state';
+import { SubmitErrorComponent } from './app-submit-error';
 import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
 
 @Component({
   selector: 'app-annotations-section',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule, AppCardComponent, AppTagComponent, ErrorStateComponent],
+  imports: [FormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule, AppCardComponent, AppTagComponent, ErrorStateComponent, SubmitErrorComponent],
   template: `
     @if (entityId != null) {
       <div class="annotations-section" data-testid="annotations-section">
@@ -67,6 +68,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
           <app-error-state severity="warn" [message]="loadError()!" retryLabel="Retry"
                            testid="annotations-load-error" (retry)="reload()" />
         }
+        <app-submit-error [message]="actionError()" testid="annotations-action-error" />
 
         <!-- Add Note form -->
         @if (showNoteForm()) {
@@ -279,6 +281,8 @@ export class AnnotationsSectionComponent implements OnChanges {
   // instead of the previous silent swallow (issue #131).
   private _loadError = signal<string | null>(null);
   loadError = this._loadError.asReadonly();
+  private _actionError = signal<string | null>(null);
+  actionError = this._actionError.asReadonly();
 
   showNoteForm = signal(false);
   showIssueForm = signal(false);
@@ -316,6 +320,7 @@ export class AnnotationsSectionComponent implements OnChanges {
       const data = await this.annotationService.getAnnotations(this.projectName, this.entityType, this.entityId);
       this._annotations.set(data);
       this._loadError.set(null);
+      this._actionError.set(null);
     } catch {
       // Annotations are supplemental, so a failure must not block the editor — but
       // it is no longer swallowed silently: surface a non-blocking inline warning
@@ -333,7 +338,7 @@ export class AnnotationsSectionComponent implements OnChanges {
       this.cancelNote();
       await this.load();
     } else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: result.error ?? 'Failed to add note.' });
+      this._actionError.set(result.error ?? 'Failed to add note.');
     }
   }
 
@@ -350,7 +355,7 @@ export class AnnotationsSectionComponent implements OnChanges {
       this.cancelIssue();
       await this.load();
     } else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: result.error ?? 'Failed to add issue.' });
+      this._actionError.set(result.error ?? 'Failed to add issue.');
     }
   }
 
@@ -388,7 +393,7 @@ export class AnnotationsSectionComponent implements OnChanges {
       this.newPosText = '';
       await this.load();
     } else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: result.error ?? 'Failed to add position.' });
+      this._actionError.set(result.error ?? 'Failed to add position.');
     }
   }
 
@@ -414,7 +419,7 @@ export class AnnotationsSectionComponent implements OnChanges {
       this.newArgText = '';
       await this.load();
     } else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: result.error ?? 'Failed to add argument.' });
+      this._actionError.set(result.error ?? 'Failed to add argument.');
     }
   }
 
@@ -456,7 +461,7 @@ export class AnnotationsSectionComponent implements OnChanges {
       this.messageService.add({ severity: 'success', summary: 'Issue resolved', life: 3000 });
       await this.load();
     } else {
-      this.messageService.add({ severity: 'error', summary: 'Error', detail: result.error ?? 'Failed to resolve issue.' });
+      this._actionError.set(result.error ?? 'Failed to resolve issue.');
     }
   }
 }

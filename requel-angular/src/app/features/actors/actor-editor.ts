@@ -30,13 +30,13 @@ import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { TableModule } from 'primeng/table';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ActorDto } from '../../models/actor';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { ActorService } from '../../core/actor.service';
-import { CommandService } from '../../core/command.service';
+import { CommandService, isNetworkError } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -67,7 +67,7 @@ const STALE_VERSION_MESSAGE =
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, TableModule,
-            MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
+            SubmitErrorComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent],
@@ -92,9 +92,7 @@ const STALE_VERSION_MESSAGE =
         </div>
       </div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" data-testid="actor-error" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="actor-error" [retryable]="retryable()" (retry)="onSave()" />
 
       @if (loading()) {
         <app-card>
@@ -299,6 +297,12 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   canEdit = signal(false);
   canDelete = signal(false);
   errorMessage = signal<string | null>(null);
+  retryable = signal(false);
+  /** Sets the inline submit error and, by default, marks it non-retryable. */
+  private showError(message: string | null): void {
+    this.errorMessage.set(message);
+    this.retryable.set(false);
+  }
   /**
    * #185. The edit form renders only once the detail GET resolves, so there is no window in which
    * a user can type into a form the load is about to reset. Starts true: an edit route is loading
@@ -455,7 +459,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (skeleton) {
         this.loadError.set('Failed to load actor.');
       } else {
-        this.errorMessage.set('Failed to load actor.');
+        this.showError('Failed to load actor.');
       }
     } finally {
       if (skeleton) {
@@ -547,7 +551,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    */
   private async saveDetails(): Promise<CommandResult<unknown>> {
     this.saving.set(true);
-    this.errorMessage.set(null);
+    this.showError(null);
     clearServerErrors(this.detailsForm);
     try {
       const { name, text } = this.detailsForm.getRawValue();
@@ -563,7 +567,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (!result.success) {
         const unresolved = applyCommandErrors(this.detailsForm, result.violations);
         if (unresolved.length) {
-          this.errorMessage.set(unresolved.join(SEPARATOR));
+          this.showError(unresolved.join(SEPARATOR));
         }
         return result;
       }
@@ -626,10 +630,11 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       return;
     }
     if (await this.recoverFromStaleVersion(result)) {
-      this.errorMessage.set(STALE_VERSION_MESSAGE);
+      this.showError(STALE_VERSION_MESSAGE);
       return;
     }
-    this.errorMessage.set(result.error ?? 'Save failed.');
+    this.showError(result.error ?? 'Save failed.');
+    this.retryable.set(isNetworkError(result));
   }
 
   onCopy(): void {
@@ -645,7 +650,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
           const copy = result.entity as ActorDto;
           this.router.navigate(['/projects', this.projectName, 'actors', copy.id]);
         } else {
-          this.errorMessage.set(result.error ?? 'Copy failed.');
+          this.showError(result.error ?? 'Copy failed.');
         }
       }
     });
@@ -666,7 +671,7 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
           this.detailsForm.markAsPristine();
           this.router.navigate(['/projects', this.projectName, 'actors']);
         } else {
-          this.errorMessage.set(result.error ?? 'Delete failed.');
+          this.showError(result.error ?? 'Delete failed.');
         }
       }
     });
@@ -685,10 +690,10 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.applyAssociationResult(result.entity as ActorDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal added', detail: `"${goal.name}" added successfully.` });
       } else {
-        this.errorMessage.set(result.error ?? 'Failed to add goal.');
+        this.showError(result.error ?? 'Failed to add goal.');
       }
     } catch {
-      this.errorMessage.set('Failed to add goal.');
+      this.showError('Failed to add goal.');
     }
   }
 
@@ -704,10 +709,10 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.applyAssociationResult(result.entity as ActorDto | null);
         this.messageService.add({ severity: 'info', summary: 'Goal removed', detail: `"${goal.name}" removed.` });
       } else {
-        this.errorMessage.set(result.error ?? 'Failed to remove goal.');
+        this.showError(result.error ?? 'Failed to remove goal.');
       }
     } catch {
-      this.errorMessage.set('Failed to remove goal.');
+      this.showError('Failed to remove goal.');
     }
   }
 

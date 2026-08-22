@@ -110,7 +110,22 @@ export class CommandService {
       entityType: commandType,
       error: 'Network error',
       entity: null,
-      violations: null
+      violations: null,
+      status: 0
     };
   }
+}
+
+/**
+ * True when a command failed because no HTTP response was received — a transport /
+ * network failure. `CommandService` reports these with `status === 0` (Angular's
+ * convention for a request that never reached the server), which is the one failure
+ * class worth offering the user a Retry for. Server-produced failures (validation,
+ * conflict, other 4xx/5xx) all carry their own status and are not retryable this way.
+ *
+ * Pairs with `app-submit-error`'s `retryable` input (issue #133): a host sets
+ * `[retryable]="isNetworkError(result)"` and re-runs its own action on `(retry)`.
+ */
+export function isNetworkError(result: CommandResult): boolean {
+  return result.status === 0;
 }

@@ -31,7 +31,7 @@ import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { CommandResult } from '../../models/command';
@@ -39,7 +39,7 @@ import { StoryDto } from '../../models/story';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { StoryService } from '../../core/story.service';
 import { ActorService } from '../../core/actor.service';
-import { CommandService } from '../../core/command.service';
+import { CommandService, isNetworkError } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -64,7 +64,7 @@ const STALE_VERSION_MESSAGE =
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, SelectModule,
-            TableModule, MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
+            TableModule, SubmitErrorComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent],
@@ -92,9 +92,7 @@ const STALE_VERSION_MESSAGE =
         </div>
       </div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="story-editor-error" [retryable]="retryable()" (retry)="onSave()" />
 
       @if (loading()) {
         <app-card>
@@ -335,6 +333,12 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   storyName = signal('');
   story = signal<StoryDto | null>(null);
   errorMessage = signal<string | null>(null);
+  retryable = signal(false);
+  /** Sets the inline submit error and, by default, marks it non-retryable. */
+  private showError(message: string | null): void {
+    this.errorMessage.set(message);
+    this.retryable.set(false);
+  }
   /**
    * #185. The edit form renders only once the detail GET resolves, so there is no window in which
    * a user can type into a form the load is about to reset. Starts true: an edit route is loading
@@ -513,7 +517,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (skeleton) {
         this.loadError.set('Failed to load story.');
       } else {
-        this.errorMessage.set('Failed to load story.');
+        this.showError('Failed to load story.');
       }
     } finally {
       if (skeleton) {
@@ -613,7 +617,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    */
   private async saveDetails(): Promise<CommandResult<unknown>> {
     this.saving.set(true);
-    this.errorMessage.set(null);
+    this.showError(null);
     try {
       const { name, storyType, primaryActorName, text } = this.detailsForm.getRawValue();
       const input: Record<string, unknown> = {
@@ -690,10 +694,11 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       return;
     }
     if (await this.recoverFromStaleVersion(result)) {
-      this.errorMessage.set(STALE_VERSION_MESSAGE);
+      this.showError(STALE_VERSION_MESSAGE);
       return;
     }
-    this.errorMessage.set(result.error ?? 'Save failed.');
+    this.showError(result.error ?? 'Save failed.');
+    this.retryable.set(isNetworkError(result));
   }
 
   onCopy(): void {
@@ -709,7 +714,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
           const copy = result.entity as StoryDto;
           this.router.navigate(['/projects', this.projectName, 'stories', copy.id]);
         } else {
-          this.errorMessage.set(result.error ?? 'Copy failed.');
+          this.showError(result.error ?? 'Copy failed.');
         }
       }
     });
@@ -730,7 +735,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
           this.detailsForm.markAsPristine();
           this.router.navigate(['/projects', this.projectName, 'stories']);
         } else {
-          this.errorMessage.set(result.error ?? 'Delete failed.');
+          this.showError(result.error ?? 'Delete failed.');
         }
       }
     });
@@ -749,10 +754,10 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.applyAssociationResult(result.entity as StoryDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
       } else {
-        this.errorMessage.set(result.error ?? 'Failed to add goal.');
+        this.showError(result.error ?? 'Failed to add goal.');
       }
     } catch {
-      this.errorMessage.set('Failed to add goal.');
+      this.showError('Failed to add goal.');
     }
   }
 
@@ -768,10 +773,10 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.applyAssociationResult(result.entity as StoryDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });
       } else {
-        this.errorMessage.set(result.error ?? 'Failed to remove goal.');
+        this.showError(result.error ?? 'Failed to remove goal.');
       }
     } catch {
-      this.errorMessage.set('Failed to remove goal.');
+      this.showError('Failed to remove goal.');
     }
   }
 
@@ -788,10 +793,10 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.applyAssociationResult(result.entity as StoryDto | null);
         this.messageService.add({ severity: 'success', summary: 'Actor added', detail: 'Actor added.' });
       } else {
-        this.errorMessage.set(result.error ?? 'Failed to add actor.');
+        this.showError(result.error ?? 'Failed to add actor.');
       }
     } catch {
-      this.errorMessage.set('Failed to add actor.');
+      this.showError('Failed to add actor.');
     }
   }
 
@@ -807,10 +812,10 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.applyAssociationResult(result.entity as StoryDto | null);
         this.messageService.add({ severity: 'success', summary: 'Actor removed', detail: 'Actor removed.' });
       } else {
-        this.errorMessage.set(result.error ?? 'Failed to remove actor.');
+        this.showError(result.error ?? 'Failed to remove actor.');
       }
     } catch {
-      this.errorMessage.set('Failed to remove actor.');
+      this.showError('Failed to remove actor.');
     }
   }
 

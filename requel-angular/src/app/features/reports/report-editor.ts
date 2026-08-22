@@ -28,7 +28,8 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
+import { isNetworkError } from '../../core/command.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ReportGeneratorDto } from '../../models/report';
@@ -53,7 +54,7 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
     ButtonModule,
     InputText,
     TextareaModule,
-    MessageModule,
+    SubmitErrorComponent,
     ConfirmDialogModule,
     AnnotationsSectionComponent,
     FileUploadButtonComponent,
@@ -81,9 +82,11 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
         </div>
       </div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error
+        [message]="errorMessage()"
+        [retryable]="retryable()"
+        (retry)="onSave()"
+        testid="report-error" />
 
       @if (loading()) {
         <app-card>
@@ -184,6 +187,7 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
   submitted = signal(false);
   running = signal(false);
   errorMessage = signal<string | null>(null);
+  retryable = signal(false);
   /**
    * #185. The edit form renders only once the detail GET resolves, so there is no window in which
    * a user can type into a form the load is about to reset. Starts true: an edit route is loading
@@ -343,6 +347,7 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
 
     this.saving.set(true);
     this.errorMessage.set(null);
+    this.retryable.set(false);
 
     const { name, text } = this.form.getRawValue();
     const trimmedName = name.trim();
@@ -371,6 +376,7 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
     }
 
     const unresolved = applyCommandErrors(this.form, result.violations);
+    this.retryable.set(isNetworkError(result));
     if (unresolved.length) {
       this.errorMessage.set(unresolved.join(SEPARATOR));
     } else if (!result.violations?.length) {

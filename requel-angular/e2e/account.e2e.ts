@@ -128,7 +128,7 @@ test.describe('Edit account', () => {
 
     await page.getByTestId('account-save').click();
 
-    await expect(page.locator('p-message[severity="error"]'))
+    await expect(page.getByTestId('account-editor-error'))
       .toContainText('Email is invalid; Phone is required');
 
     await page.close();
@@ -160,7 +160,7 @@ test.describe('Edit account', () => {
 
     await page.getByTestId('account-save').click();
 
-    await expect(page.locator('p-message[severity="error"]'))
+    await expect(page.getByTestId('account-editor-error'))
       .toContainText('Server rejected the change.');
 
     await page.close();
@@ -183,7 +183,7 @@ test.describe('Edit account', () => {
     await page.getByTestId('account-save').click();
 
     // catch(err) sets either err.message or 'Save failed.' — both are acceptable
-    await expect(page.locator('p-message[severity="error"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('account-editor-error')).toBeVisible({ timeout: 5000 });
 
     await page.close();
   });

@@ -27,8 +27,9 @@ import { Password } from 'primeng/password';
 import { SelectModule } from 'primeng/select';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { AuthService } from '../../core/auth.service';
-import { CommandService } from '../../core/command.service';
+import { CommandService, isNetworkError } from '../../core/command.service';
 import { UserService } from '../../core/user.service';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { applyCommandErrors, clearServerErrors, passwordsMatch } from '../../shared/form-errors';
@@ -59,6 +60,7 @@ const SEPARATOR = '; ';
     SelectModule,
     ButtonModule,
     MessageModule,
+    SubmitErrorComponent,
     AppFieldComponent,
     AppFieldControlDirective,
   ],
@@ -66,12 +68,16 @@ const SEPARATOR = '; ';
     <div class="edit-account" data-testid="account-editor">
       <app-page-header title="Edit Account" />
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
-      @if (successMessage()) {
-        <p-message severity="success" [text]="successMessage()!" />
-      }
+      <app-submit-error
+        [message]="errorMessage()"
+        [retryable]="retryable()"
+        (retry)="onSave()"
+        testid="account-editor-error" />
+      <div role="status" aria-live="polite">
+        @if (successMessage()) {
+          <p-message severity="success" [text]="successMessage()!" />
+        }
+      </div>
 
       <form [formGroup]="form" (ngSubmit)="onSave()">
         <!--
@@ -185,6 +191,7 @@ export class EditAccountComponent implements OnInit, DirtyCheckable {
   readonly saving = signal(false);
   readonly submitted = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly retryable = signal(false);
   readonly successMessage = signal<string | null>(null);
 
   readonly username = computed(() => this.authService.user()?.username ?? '');
@@ -278,6 +285,7 @@ export class EditAccountComponent implements OnInit, DirtyCheckable {
     this.saving.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
+    this.retryable.set(false);
 
     try {
       const value = this.form.getRawValue();
@@ -304,6 +312,7 @@ export class EditAccountComponent implements OnInit, DirtyCheckable {
       }
 
       const unresolved = applyCommandErrors(this.form, result.violations);
+      this.retryable.set(isNetworkError(result));
       if (unresolved.length) {
         this.errorMessage.set(unresolved.join(SEPARATOR));
       } else if (!result.violations?.length) {

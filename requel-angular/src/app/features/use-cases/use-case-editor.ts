@@ -29,7 +29,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TableModule } from 'primeng/table';
 import { TooltipModule } from 'primeng/tooltip';
@@ -44,7 +44,7 @@ import { EntityReferenceDto } from '../../models/entity-reference';
 import { UseCaseService } from '../../core/use-case.service';
 import { ActorService } from '../../core/actor.service';
 import { ScenarioService } from '../../core/scenario.service';
-import { CommandService } from '../../core/command.service';
+import { CommandService, isNetworkError } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -74,7 +74,7 @@ const STALE_VERSION_MESSAGE =
   selector: 'app-use-case-editor',
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
-            ButtonModule, InputText, TextareaModule, MessageModule,
+            ButtonModule, InputText, TextareaModule, SubmitErrorComponent,
             ConfirmDialogModule, TableModule, TooltipModule, SelectModule,
             EntitySelectorDialogComponent, AnnotationsSectionComponent,
             AppFieldComponent, AppFieldControlDirective,
@@ -101,9 +101,7 @@ const STALE_VERSION_MESSAGE =
         </div>
       </div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="use-case-error" [retryable]="retryable()" (retry)="onSave()" />
 
       @if (loading()) {
         <app-card>
@@ -519,6 +517,12 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   useCaseName = signal('');
   useCase = signal<UseCaseDto | null>(null);
   errorMessage = signal<string | null>(null);
+  retryable = signal(false);
+  /** Sets the inline submit error and, by default, marks it non-retryable. */
+  private showError(message: string | null): void {
+    this.errorMessage.set(message);
+    this.retryable.set(false);
+  }
   /**
    * #185. The edit form renders only once the detail GET resolves, so there is no window in which
    * a user can type into a form the load is about to reset. Starts true: an edit route is loading
@@ -721,7 +725,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       if (skeleton) {
         this.loadError.set('Failed to load use case.');
       } else {
-        this.errorMessage.set('Failed to load use case.');
+        this.showError('Failed to load use case.');
       }
     } finally {
       if (skeleton) {
@@ -780,7 +784,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
    */
   private async saveDetails(): Promise<CommandResult<unknown>> {
     this.saving.set(true);
-    this.errorMessage.set(null);
+    this.showError(null);
     clearServerErrors(this.detailsForm);
     try {
       const { name, primaryActorName, text } = this.detailsForm.getRawValue();
@@ -797,7 +801,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       if (!result.success) {
         const unresolved = applyCommandErrors(this.detailsForm, result.violations);
         if (unresolved.length) {
-          this.errorMessage.set(unresolved.join(SEPARATOR));
+          this.showError(unresolved.join(SEPARATOR));
         }
         return result;
       }
@@ -858,10 +862,11 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       return;
     }
     if (await this.recoverFromStaleVersion(result)) {
-      this.errorMessage.set(STALE_VERSION_MESSAGE);
+      this.showError(STALE_VERSION_MESSAGE);
       return;
     }
-    this.errorMessage.set(result.error ?? 'Save failed.');
+    this.showError(result.error ?? 'Save failed.');
+    this.retryable.set(isNetworkError(result));
   }
 
   private async refreshCollections(): Promise<void> {
@@ -884,7 +889,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
         this.primaryScenario.set(null);
       }
     } catch {
-      this.errorMessage.set('Failed to refresh.');
+      this.showError('Failed to refresh.');
     }
   }
 
@@ -922,7 +927,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       containerType: 'UseCase'
     });
     if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
-    else this.errorMessage.set(result.error ?? 'Failed to add goal.');
+    else this.showError(result.error ?? 'Failed to add goal.');
   }
 
   async removeGoal(goal: GoalDto): Promise<void> {
@@ -931,7 +936,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       containerType: 'UseCase'
     });
     if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
-    else this.errorMessage.set(result.error ?? 'Failed to remove goal.');
+    else this.showError(result.error ?? 'Failed to remove goal.');
   }
 
   async addStory(ref: EntityReferenceDto): Promise<void> {
@@ -941,7 +946,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       containerType: 'UseCase'
     });
     if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
-    else this.errorMessage.set(result.error ?? 'Failed to add story.');
+    else this.showError(result.error ?? 'Failed to add story.');
   }
 
   async removeStory(story: StoryDto): Promise<void> {
@@ -950,7 +955,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       containerType: 'UseCase'
     });
     if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
-    else this.errorMessage.set(result.error ?? 'Failed to remove story.');
+    else this.showError(result.error ?? 'Failed to remove story.');
   }
 
   async addActorToList(ref: EntityReferenceDto): Promise<void> {
@@ -960,7 +965,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       containerType: 'UseCase'
     });
     if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
-    else this.errorMessage.set(result.error ?? 'Failed to add actor.');
+    else this.showError(result.error ?? 'Failed to add actor.');
   }
 
   async removeActor(actor: ActorDto): Promise<void> {
@@ -969,13 +974,13 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       containerType: 'UseCase'
     });
     if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
-    else this.errorMessage.set(result.error ?? 'Failed to remove actor.');
+    else this.showError(result.error ?? 'Failed to remove actor.');
   }
 
   /** Save the use case — the backend auto-creates a primary scenario with the use case name. */
   async createPrimaryScenario(): Promise<void> {
     this.saving.set(true);
-    this.errorMessage.set(null);
+    this.showError(null);
     try {
       const input: Record<string, unknown> = {
         projectName: this.projectName,
@@ -993,10 +998,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
           this.router.navigate(['/projects', this.projectName, 'scenarios', saved.scenarioId]);
         }
       } else {
-        this.errorMessage.set(result.error ?? 'Failed to create primary scenario.');
+        this.showError(result.error ?? 'Failed to create primary scenario.');
       }
     } catch {
-      this.errorMessage.set('An unexpected error occurred.');
+      this.showError('An unexpected error occurred.');
     } finally {
       this.saving.set(false);
     }
@@ -1010,7 +1015,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       scenarioId: ref.id
     });
     if (result.success) await this.refreshCollections();
-    else this.errorMessage.set(result.error ?? 'Failed to set primary scenario.');
+    else this.showError(result.error ?? 'Failed to set primary scenario.');
   }
 
   async addScenario(ref: EntityReferenceDto): Promise<void> {
@@ -1021,7 +1026,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       scenarioId: ref.id
     });
     if (result.success) await this.refreshCollections();
-    else this.errorMessage.set(result.error ?? 'Failed to add scenario.');
+    else this.showError(result.error ?? 'Failed to add scenario.');
   }
 
   async removeScenario(scenario: ScenarioDto): Promise<void> {
@@ -1031,7 +1036,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       scenarioId: scenario.id
     });
     if (result.success) await this.refreshCollections();
-    else this.errorMessage.set(result.error ?? 'Failed to remove scenario.');
+    else this.showError(result.error ?? 'Failed to remove scenario.');
   }
 
   navigateTo(type: string, id: number): void {
@@ -1050,7 +1055,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
           const copy = result.entity as UseCaseDto;
           this.router.navigate(['/projects', this.projectName, 'use-cases', copy.id]);
         } else {
-          this.errorMessage.set(result.error ?? 'Copy failed.');
+          this.showError(result.error ?? 'Copy failed.');
         }
       }
     });
@@ -1067,7 +1072,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
           this.projectService.notifyTreeChanged();
           this.router.navigate(['/projects', this.projectName, 'use-cases']);
         } else {
-          this.errorMessage.set(result.error ?? 'Delete failed.');
+          this.showError(result.error ?? 'Delete failed.');
         }
       }
     });

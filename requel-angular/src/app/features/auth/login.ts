@@ -24,7 +24,7 @@ import { Router } from '@angular/router';
 import { InputText } from 'primeng/inputtext';
 import { Password } from 'primeng/password';
 import { ButtonModule } from 'primeng/button';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { AuthService } from '../../core/auth.service';
 import { AppCardComponent } from '../../shared/app-card';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
@@ -37,7 +37,7 @@ import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-fi
     InputText,
     Password,
     ButtonModule,
-    MessageModule,
+    SubmitErrorComponent,
     AppCardComponent,
     AppFieldComponent,
     AppFieldControlDirective,
@@ -48,9 +48,7 @@ import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-fi
         <h1>Requel</h1>
         <p class="subtitle">Requirements Elicitation System</p>
 
-        @if (errorMessage()) {
-          <p-message severity="error" [text]="errorMessage()!" />
-        }
+        <app-submit-error [message]="errorMessage()" testid="login-error" />
 
         <form [formGroup]="form" (ngSubmit)="onLogin()">
           <!--

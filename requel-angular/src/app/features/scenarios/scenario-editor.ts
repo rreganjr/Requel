@@ -31,6 +31,7 @@ import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TooltipModule } from 'primeng/tooltip';
@@ -39,7 +40,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { CommandResult } from '../../models/command';
 import { ScenarioDto, StepDto, EditStepInput } from '../../models/scenario';
 import { ScenarioService } from '../../core/scenario.service';
-import { CommandService } from '../../core/command.service';
+import { CommandService, isNetworkError } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -86,7 +87,7 @@ interface StepNodeData {
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, FormsModule,
             ReactiveFormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
-            MessageModule, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
+            MessageModule, SubmitErrorComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent, LoadingStateComponent,
             ErrorStateComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent],
@@ -111,9 +112,7 @@ interface StepNodeData {
         </div>
       </div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="scenario-error" [retryable]="retryable()" (retry)="onSave()" />
 
       @if (loading()) {
         <app-card>
@@ -405,6 +404,12 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   scenarioName = signal('');
   scenario = signal<ScenarioDto | null>(null);
   errorMessage = signal<string | null>(null);
+  retryable = signal(false);
+  /** Sets the inline submit error and, by default, marks it non-retryable. */
+  private showError(message: string | null): void {
+    this.errorMessage.set(message);
+    this.retryable.set(false);
+  }
   loading = signal(true);
   // Load failures tracked separately from save/SSE errors so the retryable
   // error state replaces the form only when the initial load fails.
@@ -595,7 +600,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       if (skeleton) {
         this.loadError.set('Failed to load scenario.');
       } else {
-        this.errorMessage.set('Failed to load scenario.');
+        this.showError('Failed to load scenario.');
       }
     } finally {
       if (skeleton) {
@@ -803,7 +808,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
    */
   private async saveDetails(): Promise<CommandResult<unknown>> {
     this.saving.set(true);
-    this.errorMessage.set(null);
+    this.showError(null);
     clearServerErrors(this.detailsForm);
     try {
       const { name, scenarioType, text } = this.detailsForm.getRawValue();
@@ -821,7 +826,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       if (!result.success) {
         const unresolved = applyCommandErrors(this.detailsForm, result.violations);
         if (unresolved.length) {
-          this.errorMessage.set(unresolved.join(SEPARATOR));
+          this.showError(unresolved.join(SEPARATOR));
         }
         return result;
       }
@@ -887,10 +892,11 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       return;
     }
     if (await this.recoverFromStaleVersion(result)) {
-      this.errorMessage.set(STALE_VERSION_MESSAGE);
+      this.showError(STALE_VERSION_MESSAGE);
       return;
     }
-    this.errorMessage.set(result.error ?? 'Save failed.');
+    this.showError(result.error ?? 'Save failed.');
+    this.retryable.set(isNetworkError(result));
   }
 
   onCopy(): void {
@@ -906,7 +912,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
           const copy = result.entity as ScenarioDto;
           this.router.navigate(['/projects', this.projectName, 'scenarios', copy.id]);
         } else {
-          this.errorMessage.set(result.error ?? 'Copy failed.');
+          this.showError(result.error ?? 'Copy failed.');
         }
       }
     });
@@ -928,7 +934,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
           this.stepsSaveNeeded.set(false);
           this.router.navigate(['/projects', this.projectName, 'scenarios']);
         } else {
-          this.errorMessage.set(result.error ?? 'Delete failed.');
+          this.showError(result.error ?? 'Delete failed.');
         }
       }
     });

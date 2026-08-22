@@ -22,7 +22,7 @@ import { Component, OnDestroy, OnInit, TemplateRef, ViewChild, signal } from '@a
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { SlicePipe } from '@angular/common';
 import { ActorDto } from '../../models/actor';
 import { ActorService } from '../../core/actor.service';
@@ -33,12 +33,10 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
 @Component({
   selector: 'app-actor-list',
   standalone: true,
-  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, SlicePipe],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent, SlicePipe],
   template: `
     <app-list-page title="Actors" [showSearch]="false">
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="actor-list-error" [retryable]="true" (retry)="loadActors()" />
 
       <app-data-table [value]="actors()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" searchPlaceholder="Search actors..."

@@ -26,7 +26,7 @@ import { firstValueFrom } from 'rxjs';
 import { projectApiUrl } from '../../core/api-url';
 import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ListPageComponent } from '../../shared/list-page';
 import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
 
@@ -55,12 +55,10 @@ const ENTITY_ROUTES: Record<string, string> = {
 @Component({
   selector: 'app-open-issues',
   standalone: true,
-  imports: [ListPageComponent, AppDataTableComponent, RouterLink, ButtonModule, BadgeModule, MessageModule],
+  imports: [ListPageComponent, AppDataTableComponent, RouterLink, ButtonModule, BadgeModule, SubmitErrorComponent],
   template: `
     <app-list-page title="Open Issues" [showSearch]="false">
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" data-testid="open-issues-error" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="open-issues-error" [retryable]="true" (retry)="loadIssues()" />
 
       <app-data-table [value]="issues()" [columns]="columns" [loading]="loading()"
                       [rowClickable]="false" [defaultActions]="false" [rows]="25"

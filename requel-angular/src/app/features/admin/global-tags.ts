@@ -23,7 +23,7 @@ import { PageHeaderComponent } from '../../shared/page-header';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { MessageService } from 'primeng/api';
 import { TagDto } from '../../models/tag';
 import { TagService } from '../../core/tag.service';
@@ -37,14 +37,12 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
 @Component({
   selector: 'app-global-tags',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, AppDataTableComponent, ButtonModule, InputText, MessageModule],
+  imports: [PageHeaderComponent, FormsModule, AppDataTableComponent, ButtonModule, InputText, SubmitErrorComponent],
   template: `
     <div class="global-tags" data-testid="global-tags">
       <div class="page-header"><app-page-header title="Global Tags" /></div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="global-tags-error" />
 
       <div class="add-row" data-testid="global-tag-add-form">
         <input pInputText [(ngModel)]="newCategory" placeholder="category (optional)"

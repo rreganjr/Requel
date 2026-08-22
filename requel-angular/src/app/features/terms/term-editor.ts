@@ -29,7 +29,8 @@ import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
+import { isNetworkError } from '../../core/command.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { GlossaryTermDto } from '../../models/term';
@@ -65,7 +66,7 @@ const SEPARATOR = '; ';
     TextareaModule,
     SelectModule,
     TableModule,
-    MessageModule,
+    SubmitErrorComponent,
     ConfirmDialogModule,
     AnnotationsSectionComponent,
     AppFieldComponent,
@@ -88,9 +89,11 @@ const SEPARATOR = '; ';
         </div>
       </div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" data-testid="term-error" />
-      }
+      <app-submit-error
+        [message]="errorMessage()"
+        [retryable]="retryable()"
+        (retry)="onSave()"
+        testid="term-error" />
 
       @if (loading()) {
         <app-card>
@@ -246,6 +249,7 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   saving = signal(false);
   submitted = signal(false);
   errorMessage = signal<string | null>(null);
+  retryable = signal(false);
   /**
    * #185. The edit form renders only once the detail GET resolves, so there is no window in which
    * a user can type into a form the load is about to reset. Starts true: an edit route is loading
@@ -451,6 +455,7 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
     this.saving.set(true);
     this.errorMessage.set(null);
+    this.retryable.set(false);
 
     const { name, text, canonicalTermId } = this.form.getRawValue();
     const trimmedName = name.trim();
@@ -481,6 +486,7 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     // Field violations land on their controls; only what could not be placed becomes a
     // page-level message, so nothing is dropped and nothing is duplicated.
     const unresolved = applyCommandErrors(this.form, result.violations);
+    this.retryable.set(isNetworkError(result));
     if (unresolved.length) {
       this.errorMessage.set(unresolved.join(SEPARATOR));
     } else if (!result.violations?.length) {
