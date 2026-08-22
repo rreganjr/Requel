@@ -25,7 +25,7 @@ describe('ListPageComponent', () => {
       providers: [provideNoopAnimations()],
       inputs: { title: 'T' }
     });
-    expect(screen.getByRole('textbox', { name: 'Search' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Search...' })).toBeInTheDocument();
   });
 
   it('hides the search input when showSearch is false', async () => {
@@ -33,7 +33,7 @@ describe('ListPageComponent', () => {
       providers: [provideNoopAnimations()],
       inputs: { title: 'T', showSearch: false }
     });
-    expect(screen.queryByRole('textbox', { name: 'Search' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Search...' })).not.toBeInTheDocument();
   });
 
   it('emits (search) with the typed value on input', async () => {
@@ -43,8 +43,16 @@ describe('ListPageComponent', () => {
       inputs: { title: 'T' },
       on: { search: searchSpy }
     });
-    const input = screen.getByRole('textbox', { name: 'Search' });
+    const input = screen.getByRole('textbox', { name: 'Search...' });
     fireEvent.input(input, { target: { value: 'hello' } });
     expect(searchSpy).toHaveBeenCalledWith('hello');
+  });
+
+  it('uses searchAriaLabel as the search box accessible name when provided (#138)', async () => {
+    await render(ListPageComponent, {
+      providers: [provideNoopAnimations()],
+      inputs: { title: 'T', searchAriaLabel: 'Search goals' }
+    });
+    expect(screen.getByRole('textbox', { name: 'Search goals' })).toBeInTheDocument();
   });
 });

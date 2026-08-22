@@ -45,7 +45,9 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
 
       <app-submit-error [message]="errorMessage()" testid="tag-categories-error" />
 
-      <div class="add-row" data-testid="tag-category-add-form">
+      <fieldset class="rq-fieldset" data-testid="tag-category-add-form">
+        <legend>Add tag category</legend>
+        <div class="add-row">
         <input pInputText [(ngModel)]="newName" placeholder="category name"
                aria-label="Category name" data-testid="tag-category-name" class="name-input" />
         <span class="excl">
@@ -61,6 +63,7 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
         <p-button label="Add Category" icon="pi pi-plus" data-testid="tag-category-add"
                   (onClick)="addCategory()" />
       </div>
+      </fieldset>
 
       <app-data-table [value]="categories()" [columns]="columns" [loading]="loading()"
                       [showToolbar]="false" [rowClickable]="false" testid="tag-category"

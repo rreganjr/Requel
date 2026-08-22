@@ -72,7 +72,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
 
         <!-- Add Note form -->
         @if (showNoteForm()) {
-          <div class="add-form" data-testid="annotation-note-form">
+          <fieldset class="add-form rq-fieldset" data-testid="annotation-note-form"><legend class="rq-visually-hidden">Add note</legend>
             <textarea pTextarea [(ngModel)]="newNoteText" rows="2" placeholder="Note text..."
                       aria-label="Note text" class="add-textarea"
                       data-testid="annotation-note-text"></textarea>
@@ -82,12 +82,12 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
               <p-button label="Cancel" size="small" severity="secondary" [outlined]="true"
                         (onClick)="cancelNote()" />
             </div>
-          </div>
+          </fieldset>
         }
 
         <!-- Add Issue form -->
         @if (showIssueForm()) {
-          <div class="add-form" data-testid="annotation-issue-form">
+          <fieldset class="add-form rq-fieldset" data-testid="annotation-issue-form"><legend class="rq-visually-hidden">Add issue</legend>
             <textarea pTextarea [(ngModel)]="newIssueText" rows="2" placeholder="Issue text..."
                       aria-label="Issue text" class="add-textarea"
                       data-testid="annotation-issue-text"></textarea>
@@ -101,7 +101,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
               <p-button label="Cancel" size="small" severity="secondary" [outlined]="true"
                         (onClick)="cancelIssue()" />
             </div>
-          </div>
+          </fieldset>
         }
 
         <!-- Notes list -->
@@ -190,7 +190,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
 
                 <!-- Add Argument form -->
                 @if (addArgPositionId() === pos.id) {
-                  <div class="add-form nested-form" data-testid="annotation-argument-form">
+                  <fieldset class="add-form nested-form rq-fieldset" data-testid="annotation-argument-form"><legend class="rq-visually-hidden">Add argument</legend>
                     <input pInputText [(ngModel)]="newArgText" placeholder="Argument text..."
                            data-testid="annotation-argument-text" class="add-input" />
                     <p-select [(ngModel)]="newArgSupportLevel" [options]="supportLevelOptions"
@@ -201,7 +201,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
                       <p-button label="Cancel" size="small" severity="secondary" [outlined]="true"
                                 (onClick)="addArgPositionId.set(null)" />
                     </div>
-                  </div>
+                  </fieldset>
                 }
                 @if (canEdit && addArgPositionId() !== pos.id) {
                   <p-button label="Add Argument" icon="pi pi-plus" size="small" [text]="true"
@@ -212,7 +212,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
 
             <!-- Add Position form -->
             @if (addPosIssueId() === issue.id) {
-              <div class="add-form nested-form" data-testid="annotation-position-form">
+              <fieldset class="add-form nested-form rq-fieldset" data-testid="annotation-position-form"><legend class="rq-visually-hidden">Add position</legend>
                 <input pInputText [(ngModel)]="newPosText" placeholder="Position text..."
                        data-testid="annotation-position-text" class="add-input" />
                 <div class="form-actions">
@@ -221,7 +221,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
                   <p-button label="Cancel" size="small" severity="secondary" [outlined]="true"
                             (onClick)="addPosIssueId.set(null)" />
                 </div>
-              </div>
+              </fieldset>
             }
             @if (canEdit && addPosIssueId() !== issue.id) {
               <p-button label="Add Position" icon="pi pi-plus" size="small" [text]="true"

@@ -61,6 +61,18 @@ describe('EntitySelectorDialogComponent', () => {
     expect(comp.entities().length).toBe(3);
   });
 
+  it('gives the search box an entity-specific accessible name (#138)', async () => {
+    comp.visible = true;
+    comp.projectName = 'proj1';
+    comp.entityType = 'Goal';
+    comp.ngOnChanges({ visible: new SimpleChange(false, true, false) });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    // p-dialog uses appendTo="body", so the search input renders in the document.
+    const search = document.querySelector('[data-testid="entity-selector-search"]');
+    expect(search?.getAttribute('aria-label')).toBe('Search goals');
+  });
+
   it('filters out excludeIds from loaded entities', async () => {
     comp.visible = true;
     comp.projectName = 'proj1';

@@ -57,7 +57,8 @@ import { ScenarioService } from '../core/scenario.service';
         <span class="p-input-icon-left">
           <i class="pi pi-search"></i>
           <input pInputText [(ngModel)]="searchText" placeholder="Search..."
-                 aria-label="Search" data-testid="entity-selector-search"
+                 [attr.aria-label]="'Search ' + entityType.toLowerCase() + 's'"
+                 data-testid="entity-selector-search"
                  (input)="dt.filterGlobal(searchText(), 'contains')" />
         </span>
         @if (hasTypes()) {
