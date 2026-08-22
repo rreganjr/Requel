@@ -44,7 +44,9 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
 
       <app-submit-error [message]="errorMessage()" testid="global-tags-error" />
 
-      <div class="add-row" data-testid="global-tag-add-form">
+      <fieldset class="rq-fieldset" data-testid="global-tag-add-form">
+        <legend>Add global tag</legend>
+        <div class="add-row">
         <input pInputText [(ngModel)]="newCategory" placeholder="category (optional)"
                aria-label="Tag category" data-testid="global-tag-category" class="cat-input" />
         <input pInputText [(ngModel)]="newValue" placeholder="value"
@@ -53,6 +55,7 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
         <p-button label="Add Global Tag" icon="pi pi-plus" data-testid="global-tag-add"
                   (onClick)="addTag()" />
       </div>
+      </fieldset>
 
       <app-data-table [value]="tags()" [columns]="columns" [loading]="loading()"
                       [showToolbar]="false" [rowClickable]="false" testid="global-tag"

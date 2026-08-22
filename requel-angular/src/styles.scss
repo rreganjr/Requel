@@ -270,6 +270,17 @@ html, body {
   border: 0;
 }
 
+// Grouping fieldset for compact mini-form add-rows (issue #138). Strips the
+// browser's default border/inset/min-width so the wrapped add-row looks
+// identical to before, while giving the group an accessible name via <legend>.
+.rq-fieldset {
+  border: 0; margin: 0; padding: 0; min-width: 0;
+}
+.rq-fieldset > legend {
+  padding: 0; margin: 0 0 var(--rq-space-2);
+  font: inherit; font-weight: var(--rq-font-weight-medium);
+}
+
 // -------------------------------------------------------------------------
 // PrimeNG component customizations (issue #126)
 //
