@@ -31,6 +31,7 @@ import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TooltipModule } from 'primeng/tooltip';
@@ -86,7 +87,7 @@ interface StepNodeData {
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, FormsModule,
             ReactiveFormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
-            MessageModule, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
+            MessageModule, SubmitErrorComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent, LoadingStateComponent,
             ErrorStateComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent],
@@ -111,9 +112,7 @@ interface StepNodeData {
         </div>
       </div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="scenario-error" />
 
       @if (loading()) {
         <app-card>

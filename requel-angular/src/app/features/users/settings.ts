@@ -25,6 +25,7 @@ import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { PreferencesService } from '../../core/preferences.service';
 import { AuthService } from '../../core/auth.service';
 import { UserPreferencesDto, STALENESS_OPTIONS } from '../../models/preferences';
@@ -48,6 +49,7 @@ const STALENESS_DEFAULT = 'THREE_MONTHS';
     InputNumberModule,
     SelectModule,
     MessageModule,
+    SubmitErrorComponent,
     ApiTokensComponent,
     AppFieldComponent,
     AppFieldControlDirective,
@@ -58,12 +60,12 @@ const STALENESS_DEFAULT = 'THREE_MONTHS';
         <app-page-header title="Settings" />
       </div>
 
-      @if (successMessage()) {
-        <p-message severity="success" [text]="successMessage()" />
-      }
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()" />
-      }
+      <div role="status" aria-live="polite">
+        @if (successMessage()) {
+          <p-message severity="success" [text]="successMessage()" />
+        }
+      </div>
+      <app-submit-error [message]="errorMessage()" testid="settings-error" />
 
       <form class="settings-form" [formGroup]="form" (ngSubmit)="onSave()">
         <app-field

@@ -29,6 +29,7 @@ import { TextareaModule } from 'primeng/textarea';
 import { ButtonModule } from 'primeng/button';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService } from 'primeng/api';
 import { Subscription } from 'rxjs';
@@ -60,7 +61,7 @@ const SEPARATOR = '; ';
   selector: 'app-project-editor',
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule,
-            InputText, TextareaModule, ButtonModule, SelectModule, MessageModule,
+            InputText, TextareaModule, ButtonModule, SelectModule, MessageModule, SubmitErrorComponent,
             ConfirmDialogModule, TagSelectorComponent, LoadingStateComponent, ErrorStateComponent,
             AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent],
@@ -78,12 +79,12 @@ const SEPARATOR = '; ';
         </div>
       </div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
-      @if (successMessage()) {
-        <p-message severity="success" [text]="successMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="project-error" />
+      <div role="status" aria-live="polite">
+        @if (successMessage()) {
+          <p-message severity="success" [text]="successMessage()!" />
+        }
+      </div>
 
       @if (loading()) {
         <app-card>

@@ -32,7 +32,7 @@ import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { CheckboxModule } from 'primeng/checkbox';
 import { TableModule } from 'primeng/table';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { StakeholderDto, StakeholderPermissionDto, UserStakeholderDetails } from '../../models/stakeholder';
@@ -74,7 +74,7 @@ interface PermissionGroup {
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, SelectModule,
-            CheckboxModule, MessageModule, ConfirmDialogModule, TableModule,
+            CheckboxModule, SubmitErrorComponent, ConfirmDialogModule, TableModule,
             EntitySelectorDialogComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent],
@@ -93,9 +93,7 @@ interface PermissionGroup {
         </div>
       </div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="stakeholder-error" />
 
       @if (loading()) {
         <app-card>

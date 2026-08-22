@@ -29,7 +29,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TableModule } from 'primeng/table';
 import { TooltipModule } from 'primeng/tooltip';
@@ -74,7 +74,7 @@ const STALE_VERSION_MESSAGE =
   selector: 'app-use-case-editor',
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
-            ButtonModule, InputText, TextareaModule, MessageModule,
+            ButtonModule, InputText, TextareaModule, SubmitErrorComponent,
             ConfirmDialogModule, TableModule, TooltipModule, SelectModule,
             EntitySelectorDialogComponent, AnnotationsSectionComponent,
             AppFieldComponent, AppFieldControlDirective,
@@ -101,9 +101,7 @@ const STALE_VERSION_MESSAGE =
         </div>
       </div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="use-case-error" />
 
       @if (loading()) {
         <app-card>

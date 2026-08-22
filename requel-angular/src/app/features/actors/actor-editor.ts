@@ -30,7 +30,7 @@ import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { TableModule } from 'primeng/table';
-import { MessageModule } from 'primeng/message';
+import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ActorDto } from '../../models/actor';
@@ -67,7 +67,7 @@ const STALE_VERSION_MESSAGE =
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, TableModule,
-            MessageModule, ConfirmDialogModule, EntitySelectorDialogComponent,
+            SubmitErrorComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent],
@@ -92,9 +92,7 @@ const STALE_VERSION_MESSAGE =
         </div>
       </div>
 
-      @if (errorMessage()) {
-        <p-message severity="error" [text]="errorMessage()!" data-testid="actor-error" />
-      }
+      <app-submit-error [message]="errorMessage()" testid="actor-error" />
 
       @if (loading()) {
         <app-card>
