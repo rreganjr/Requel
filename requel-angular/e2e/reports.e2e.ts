@@ -183,7 +183,7 @@ test.describe('Report generator management', () => {
     await editorPage.run();
 
     // No error message should be visible after a successful run
-    await expect(page.locator('app-report-editor p-message')).not.toBeVisible();
+    await expect(page.getByTestId('report-error')).not.toBeVisible();
 
     await page.close();
   });

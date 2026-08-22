@@ -104,12 +104,12 @@ export class ProjectEditorPage {
   }
 
   async expectError(message: string): Promise<void> {
-    await expect(this.page.locator('app-project-editor p-message[severity="error"]'))
+    await expect(this.page.getByTestId('project-error'))
       .toContainText(message);
   }
 
   async expectAnyError(): Promise<void> {
-    await expect(this.page.locator('app-project-editor p-message[severity="error"]'))
+    await expect(this.page.getByTestId('project-error'))
       .toBeVisible({ timeout: 5000 });
   }
 

@@ -15,7 +15,7 @@ export class LoginPage {
   }
 
   async expectError(message: string): Promise<void> {
-    await expect(this.page.locator('p-message')).toContainText(message);
+    await expect(this.page.getByTestId('login-error')).toContainText(message);
   }
 
   async expectRedirectedToDashboard(): Promise<void> {
