@@ -29,21 +29,31 @@ describe('TagCategoriesComponent — accessibility (issue #138)', () => {
     fixture.detectChanges();
     await flush();
     fixture.detectChanges();
-    return fixture.nativeElement as HTMLElement;
+    return fixture;
   }
 
   it('groups the add-row under a fieldset with an accessible name', async () => {
-    const el = await render();
+    const el = (await render()).nativeElement as HTMLElement;
     const fs = el.querySelector('fieldset[data-testid="tag-category-add-form"]');
     expect(fs).not.toBeNull();
     expect(fs!.querySelector('legend')?.textContent?.trim()).toBe('Add tag category');
   });
 
   it('has no axe-core violations in the add-form group', async () => {
-    const el = await render();
+    const el = (await render()).nativeElement as HTMLElement;
     // Scope to the add-form fieldset: the rest of the page (data-table) carries a
     // pre-existing empty-table-header issue that is out of scope for #138.
     const fs = el.querySelector('fieldset[data-testid="tag-category-add-form"]') as HTMLElement;
+    await expectNoAxeViolations(fs);
+  });
+  it('keeps the add-row accessible when the required message is shown', async () => {
+    const fixture = await render();
+    fixture.componentInstance.addForm.controls.name.setValue('  ');
+    await fixture.componentInstance.addCategory();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const fs = el.querySelector('fieldset[data-testid="tag-category-add-form"]') as HTMLElement;
+    expect(fs.querySelector('.rq-field-error')).not.toBeNull();
     await expectNoAxeViolations(fs);
   });
 });

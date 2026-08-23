@@ -141,7 +141,6 @@ describe('TagSelectorComponent', () => {
     await comp.addTag();
     fixture.detectChanges();
     expect(tagServiceMock.editTag).not.toHaveBeenCalled();
-    expect(comp.valueError()).toBe('Value is required.');
     const input = screen.getByTestId('tag-value-input');
     expect(input.getAttribute('aria-invalid')).toBe('true');
     expect(input.getAttribute('aria-describedby')).toBe('tag-value-error-1');

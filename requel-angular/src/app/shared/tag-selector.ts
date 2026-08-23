@@ -28,7 +28,8 @@ import { TagService } from '../core/tag.service';
 import { AppChipComponent } from './app-chip';
 import { ErrorStateComponent } from './error-state';
 import { SubmitErrorComponent } from './app-submit-error';
-import { notBlank, firstErrorMessage } from './form-errors';
+import { notBlank } from './form-errors';
+import { InlineErrorComponent } from './app-inline-error';
 
 /**
  * Reusable tag chip/selector for any taggable entity. Shows the entity's assigned tags as
@@ -38,7 +39,7 @@ import { notBlank, firstErrorMessage } from './form-errors';
 @Component({
   selector: 'app-tag-selector',
   standalone: true,
-  imports: [ReactiveFormsModule, ButtonModule, InputText, AppChipComponent, ErrorStateComponent, SubmitErrorComponent],
+  imports: [ReactiveFormsModule, ButtonModule, InputText, AppChipComponent, ErrorStateComponent, SubmitErrorComponent, InlineErrorComponent],
   template: `
     @if (entityId != null) {
       <div class="tags-section" data-testid="tags-section">
@@ -74,8 +75,8 @@ import { notBlank, firstErrorMessage } from './form-errors';
             <input pInputText formControlName="value" [attr.list]="'tagValues-' + entityId"
                    placeholder="value" aria-label="Tag value"
                    data-testid="tag-value-input" class="val-input"
-                   [attr.aria-invalid]="valueError() ? 'true' : null"
-                   [attr.aria-describedby]="valueError() ? ('tag-value-error-' + entityId) : null"
+                   [attr.aria-invalid]="valueErr.message() ? 'true' : null"
+                   [attr.aria-describedby]="valueErr.message() ? ('tag-value-error-' + entityId) : null"
                    (keyup.enter)="addTag()" />
             <datalist [id]="'tagValues-' + entityId">
               @for (v of valuesForCategory(); track v) { <option [value]="v"></option> }
@@ -83,10 +84,10 @@ import { notBlank, firstErrorMessage } from './form-errors';
 
             <p-button label="Add Tag" icon="pi pi-plus" size="small"
                       data-testid="tag-add" (onClick)="addTag()" />
-            @if (valueError()) {
-              <p class="rq-field-error" [id]="'tag-value-error-' + entityId" role="alert"
-                 data-testid="tag-value-error">{{ valueError() }}</p>
-            }
+            <app-inline-error #valueErr [control]="addForm.controls.value"
+                              [id]="'tag-value-error-' + entityId" [submitted]="submitted()"
+                              [overrides]="{ required: 'Value is required.' }"
+                              testid="tag-value-error" />
           </fieldset>
         }
       </div>
@@ -127,14 +128,7 @@ export class TagSelectorComponent implements OnChanges {
     category: new FormControl('', { nonNullable: true }),
     value: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
   });
-  private readonly submitted = signal(false);
-
-  /** Inline message for the value control, shown once touched or a submit was attempted. */
-  valueError(): string | null {
-    const control = this.addForm.controls.value;
-    if (!control.invalid || !(control.touched || this.submitted())) return null;
-    return firstErrorMessage(control, { required: 'Value is required.' });
-  }
+  protected readonly submitted = signal(false);
 
   constructor(private tagService: TagService, private messageService: MessageService) {}
 

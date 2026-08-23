@@ -51,20 +51,28 @@ describe('GlobalTagsComponent', () => {
   it('addTag() creates a global tag with null projectName and reloads', async () => {
     fixture.detectChanges();
     await flush();
-    comp.newCategory = 'projectKind';
-    comp.newValue = 'feature';
+    comp.addForm.controls.category.setValue('projectKind');
+    comp.addForm.controls.value.setValue('feature');
     await comp.addTag();
     expect(tagServiceMock.editTag).toHaveBeenCalledWith(null, 'projectKind', 'feature');
-    expect(comp.newValue).toBe('');
+    expect(comp.addForm.controls.value.value).toBe('');
     expect(tagServiceMock.getTagsForProject).toHaveBeenCalledTimes(2);
   });
 
-  it('addTag() does nothing when value is blank', async () => {
+  it('addTag() shows the required message and calls nothing when value is blank', async () => {
     fixture.detectChanges();
     await flush();
-    comp.newValue = '   ';
+    comp.addForm.controls.value.setValue('   ');
     await comp.addTag();
+    fixture.detectChanges();
     expect(tagServiceMock.editTag).not.toHaveBeenCalled();
+    const el = fixture.nativeElement as HTMLElement;
+    const input = el.querySelector('[data-testid="global-tag-value"]') as HTMLElement;
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe('global-tag-value-error');
+    const err = el.querySelector('[data-testid="global-tag-value-error"]') as HTMLElement;
+    expect(err.textContent).toContain('Value is required.');
+    expect(err.getAttribute('role')).toBe('alert');
   });
 
   it('deleteTag() deletes and reloads', async () => {

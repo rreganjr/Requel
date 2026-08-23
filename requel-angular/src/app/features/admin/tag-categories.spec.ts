@@ -50,11 +50,13 @@ describe('TagCategoriesComponent', () => {
   it('addCategory() dispatches EditTagCategory with split lists and reloads', async () => {
     fixture.detectChanges();
     await flush();
-    comp.newName = 'projectKind';
-    comp.newExclusive = true;
-    comp.newAllowedTypes = 'Project';
-    comp.newValues = 'product, feature';
-    comp.newColor = '#1d4ed8';
+    comp.addForm.setValue({
+      name: 'projectKind',
+      exclusive: true,
+      allowedTypes: 'Project',
+      values: 'product, feature',
+      color: '#1d4ed8',
+    });
     await comp.addCategory();
     expect(tagServiceMock.editTagCategory).toHaveBeenCalledWith({
       projectName: null,
@@ -64,16 +66,24 @@ describe('TagCategoriesComponent', () => {
       allowedEntityTypes: ['Project'],
       values: ['product', 'feature']
     });
-    expect(comp.newName).toBe('');
+    expect(comp.addForm.controls.name.value).toBe('');
     expect(tagServiceMock.getTypedCategories).toHaveBeenCalledTimes(2);
   });
 
-  it('addCategory() does nothing when the name is blank', async () => {
+  it('addCategory() shows the required message and calls nothing when the name is blank', async () => {
     fixture.detectChanges();
     await flush();
-    comp.newName = '   ';
+    comp.addForm.controls.name.setValue('   ');
     await comp.addCategory();
+    fixture.detectChanges();
     expect(tagServiceMock.editTagCategory).not.toHaveBeenCalled();
+    const el = fixture.nativeElement as HTMLElement;
+    const input = el.querySelector('[data-testid="tag-category-name"]') as HTMLElement;
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe('tag-category-name-error');
+    const err = el.querySelector('[data-testid="tag-category-name-error"]') as HTMLElement;
+    expect(err.textContent).toContain('Name is required.');
+    expect(err.getAttribute('role')).toBe('alert');
   });
 
   it('deleteCategory() deletes and reloads', async () => {

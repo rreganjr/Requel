@@ -20,7 +20,7 @@
  */
 import { Component, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
-import { FormsModule } from '@angular/forms';
+import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
@@ -28,6 +28,8 @@ import { MessageService } from 'primeng/api';
 import { TagDto } from '../../models/tag';
 import { TagService } from '../../core/tag.service';
 import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
+import { notBlank } from '../../shared/form-errors';
+import { InlineErrorComponent } from '../../shared/app-inline-error';
 
 /**
  * Admin surface for the global (system) tag set: tags with no owning project, shared across
@@ -37,23 +39,28 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
 @Component({
   selector: 'app-global-tags',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, AppDataTableComponent, ButtonModule, InputText, SubmitErrorComponent],
+  imports: [PageHeaderComponent, ReactiveFormsModule, AppDataTableComponent, ButtonModule, InputText, SubmitErrorComponent, InlineErrorComponent],
   template: `
     <div class="global-tags" data-testid="global-tags">
       <div class="page-header"><app-page-header title="Global Tags" /></div>
 
       <app-submit-error [message]="errorMessage()" testid="global-tags-error" />
 
-      <fieldset class="rq-fieldset" data-testid="global-tag-add-form">
+      <fieldset class="rq-fieldset" data-testid="global-tag-add-form" [formGroup]="addForm">
         <legend>Add global tag</legend>
         <div class="add-row">
-        <input pInputText [(ngModel)]="newCategory" placeholder="category (optional)"
+        <input pInputText formControlName="category" placeholder="category (optional)"
                aria-label="Tag category" data-testid="global-tag-category" class="cat-input" />
-        <input pInputText [(ngModel)]="newValue" placeholder="value"
+        <input pInputText formControlName="value" placeholder="value"
                aria-label="Tag value" data-testid="global-tag-value" class="val-input"
+               [attr.aria-invalid]="valueErr.message() ? 'true' : null"
+               [attr.aria-describedby]="valueErr.message() ? 'global-tag-value-error' : null"
                (keyup.enter)="addTag()" />
         <p-button label="Add Global Tag" icon="pi pi-plus" data-testid="global-tag-add"
                   (onClick)="addTag()" />
+        <app-inline-error #valueErr [control]="addForm.controls.value" id="global-tag-value-error"
+                          [submitted]="submitted()" [overrides]="{ required: 'Value is required.' }"
+                          testid="global-tag-value-error" />
       </div>
       </fieldset>
 
@@ -75,6 +82,7 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
     .page-header { margin-bottom: 1rem; }
     .add-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
     .cat-input, .val-input { max-width: 220px; }
+    .add-row .rq-field-error { flex-basis: 100%; margin: 0; }
   `]
 })
 export class GlobalTagsComponent implements OnInit {
@@ -82,8 +90,11 @@ export class GlobalTagsComponent implements OnInit {
   loading = signal(true);
   errorMessage = signal<string | null>(null);
 
-  newCategory = '';
-  newValue = '';
+  readonly addForm = new FormGroup({
+    category: new FormControl('', { nonNullable: true }),
+    value: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
+  });
+  protected readonly submitted = signal(false);
 
   @ViewChild('categoryCell', { static: true }) categoryCell!: TemplateRef<{ $implicit: TagDto }>;
   columns: DataTableColumn<TagDto>[] = [];
@@ -112,14 +123,18 @@ export class GlobalTagsComponent implements OnInit {
   }
 
   async addTag(): Promise<void> {
-    const value = this.newValue.trim();
-    if (!value) return;
-    const category = this.newCategory.trim() || null;
+    this.submitted.set(true);
+    if (this.addForm.invalid) {
+      this.addForm.controls.value.markAsTouched();
+      return;
+    }
+    const value = this.addForm.controls.value.value.trim();
+    const category = this.addForm.controls.category.value.trim() || null;
     const result = await this.tagService.editTag(null, category, value);
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Global tag added', life: 3000 });
-      this.newCategory = '';
-      this.newValue = '';
+      this.addForm.reset({ category: '', value: '' });
+      this.submitted.set(false);
       await this.load();
     } else {
       this.errorMessage.set(result.error ?? 'Failed to add global tag.');
