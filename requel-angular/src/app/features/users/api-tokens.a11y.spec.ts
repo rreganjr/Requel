@@ -52,4 +52,13 @@ describe('ApiTokensComponent — create-token dialog accessibility', () => {
     await openDialog();
     await expectNoAxeViolations(getOpenDialog()!);
   });
+
+  it('keeps the dialog accessible when the required name error is shown', async () => {
+    await openDialog();
+    await comp.submitCreate();
+    fixture.detectChanges();
+    const dialog = getOpenDialog()!;
+    expect(dialog.querySelector('[data-testid="pat-name-error"]')).not.toBeNull();
+    await expectNoAxeViolations(dialog);
+  });
 });

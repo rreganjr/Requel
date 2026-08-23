@@ -166,3 +166,44 @@ describe('ApiTokensComponent.deleteToken', () => {
     expect(component.successMessage()).toBe('');
   });
 });
+
+
+/**
+ * Coverage for the create flow (#134): the name field is required (validate-on-submit,
+ * inline message) and a create failure surfaces inside the dialog via `createError`,
+ * not the page-level `errorMessage` slot.
+ */
+describe('ApiTokensComponent.submitCreate', () => {
+  it('shows the required error and does not call create when the name is blank', async () => {
+    const create = vi.fn();
+    const list = vi.fn().mockResolvedValue([]);
+    const component = new ApiTokensComponent({ create, list } as unknown as TokenService);
+    component.createForm.controls.name.setValue('   ');
+    await component.submitCreate();
+    expect(create).not.toHaveBeenCalled();
+    expect(component.submitted()).toBe(true);
+    expect(component.createForm.controls.name.invalid).toBe(true);
+    expect(component.createForm.controls.name.touched).toBe(true);
+  });
+
+  it('surfaces a create failure inside the dialog (createError), not the page slot', async () => {
+    const create = vi.fn().mockRejectedValue(new Error('boom'));
+    const list = vi.fn().mockResolvedValue([]);
+    const component = new ApiTokensComponent({ create, list } as unknown as TokenService);
+    component.createForm.controls.name.setValue('claude-desktop');
+    await component.submitCreate();
+    expect(create).toHaveBeenCalledWith({ name: 'claude-desktop', expiresInDays: 90 });
+    expect(component.createError()).toBe('Failed to create token.');
+    expect(component.errorMessage()).toBe('');
+  });
+
+  it('stores the one-time plaintext token on success', async () => {
+    const create = vi.fn().mockResolvedValue({ token: 'plaintext-abc' });
+    const list = vi.fn().mockResolvedValue([]);
+    const component = new ApiTokensComponent({ create, list } as unknown as TokenService);
+    component.createForm.controls.name.setValue('claude-desktop');
+    await component.submitCreate();
+    expect(component.createdToken()).toBe('plaintext-abc');
+    expect(component.createError()).toBe('');
+  });
+});
