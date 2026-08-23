@@ -121,13 +121,33 @@ describe('TagSelectorComponent', () => {
     });
     await fixture.whenStable();
     const comp = fixture.componentInstance as TagSelectorComponent;
-    comp.newCategory = 'type';
-    comp.newValue = 'performance';
+    comp.addForm.controls.category.setValue('type');
+    comp.addForm.controls.value.setValue('performance');
     await comp.addTag();
     expect(tagServiceMock.editTag).toHaveBeenCalledWith('proj1', 'type', 'performance');
     expect(tagServiceMock.assignTag).toHaveBeenCalledWith(5, 'Goal', 1);
-    expect(comp.newValue).toBe('');
-    expect(comp.newCategory).toBe('');
+    expect(comp.addForm.controls.value.value).toBe('');
+    expect(comp.addForm.controls.category.value).toBe('');
+  });
+
+  it('addTag() with a blank value shows a required message and does not call the service', async () => {
+    const { fixture } = await render(TagSelectorComponent, {
+      providers: providers(),
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1, canEdit: true }
+    });
+    await fixture.whenStable();
+    const comp = fixture.componentInstance as TagSelectorComponent;
+    comp.addForm.controls.value.setValue('   ');
+    await comp.addTag();
+    fixture.detectChanges();
+    expect(tagServiceMock.editTag).not.toHaveBeenCalled();
+    const input = screen.getByTestId('tag-value-input');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe('tag-value-error-1');
+    const err = screen.getByTestId('tag-value-error');
+    expect(err.textContent).toContain('Value is required.');
+    expect(err.getAttribute('role')).toBe('alert');
+    expect(err.id).toBe('tag-value-error-1');
   });
 
   it('chipColor falls back to the category colour when the tag has none', async () => {

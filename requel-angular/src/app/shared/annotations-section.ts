@@ -19,7 +19,7 @@
  *
  */
 import { Component, Input, OnChanges, SimpleChanges, signal, computed } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -32,12 +32,14 @@ import { AppCardComponent } from './app-card';
 import { AppTagComponent } from './app-tag';
 import { ErrorStateComponent } from './error-state';
 import { SubmitErrorComponent } from './app-submit-error';
+import { InlineErrorComponent } from './app-inline-error';
+import { notBlank } from './form-errors';
 import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
 
 @Component({
   selector: 'app-annotations-section',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule, AppCardComponent, AppTagComponent, ErrorStateComponent, SubmitErrorComponent],
+  imports: [ReactiveFormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule, AppCardComponent, AppTagComponent, ErrorStateComponent, SubmitErrorComponent, InlineErrorComponent],
   template: `
     @if (entityId != null) {
       <div class="annotations-section" data-testid="annotations-section">
@@ -72,10 +74,15 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
 
         <!-- Add Note form -->
         @if (showNoteForm()) {
-          <fieldset class="add-form rq-fieldset" data-testid="annotation-note-form"><legend class="rq-visually-hidden">Add note</legend>
-            <textarea pTextarea [(ngModel)]="newNoteText" rows="2" placeholder="Note text..."
+          <fieldset class="add-form rq-fieldset" data-testid="annotation-note-form" [formGroup]="noteForm"><legend class="rq-visually-hidden">Add note</legend>
+            <textarea pTextarea formControlName="text" rows="2" placeholder="Note text..."
                       aria-label="Note text" class="add-textarea"
-                      data-testid="annotation-note-text"></textarea>
+                      data-testid="annotation-note-text"
+                      [attr.aria-invalid]="noteErr.message() ? 'true' : null"
+                      [attr.aria-describedby]="noteErr.message() ? 'annotation-note-error' : null"></textarea>
+            <app-inline-error #noteErr [control]="noteForm.controls.text" id="annotation-note-error"
+                              [submitted]="noteSubmitted()" [overrides]="{ required: 'Note text is required.' }"
+                              testid="annotation-note-error" />
             <div class="form-actions">
               <p-button label="Save Note" icon="pi pi-check" size="small"
                         data-testid="annotation-save-note" (onClick)="saveNote()" />
@@ -87,12 +94,17 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
 
         <!-- Add Issue form -->
         @if (showIssueForm()) {
-          <fieldset class="add-form rq-fieldset" data-testid="annotation-issue-form"><legend class="rq-visually-hidden">Add issue</legend>
-            <textarea pTextarea [(ngModel)]="newIssueText" rows="2" placeholder="Issue text..."
+          <fieldset class="add-form rq-fieldset" data-testid="annotation-issue-form" [formGroup]="issueForm"><legend class="rq-visually-hidden">Add issue</legend>
+            <textarea pTextarea formControlName="text" rows="2" placeholder="Issue text..."
                       aria-label="Issue text" class="add-textarea"
-                      data-testid="annotation-issue-text"></textarea>
+                      data-testid="annotation-issue-text"
+                      [attr.aria-invalid]="issueErr.message() ? 'true' : null"
+                      [attr.aria-describedby]="issueErr.message() ? 'annotation-issue-error' : null"></textarea>
+            <app-inline-error #issueErr [control]="issueForm.controls.text" id="annotation-issue-error"
+                              [submitted]="issueSubmitted()" [overrides]="{ required: 'Issue text is required.' }"
+                              testid="annotation-issue-error" />
             <div class="must-resolve-row">
-              <p-checkbox [(ngModel)]="newIssueMustResolve" [binary]="true" inputId="mustResolve" />
+              <p-checkbox formControlName="mustResolve" [binary]="true" inputId="mustResolve" />
               <label for="mustResolve">Must be resolved</label>
             </div>
             <div class="form-actions">
@@ -190,10 +202,15 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
 
                 <!-- Add Argument form -->
                 @if (addArgPositionId() === pos.id) {
-                  <fieldset class="add-form nested-form rq-fieldset" data-testid="annotation-argument-form"><legend class="rq-visually-hidden">Add argument</legend>
-                    <input pInputText [(ngModel)]="newArgText" placeholder="Argument text..."
-                           data-testid="annotation-argument-text" class="add-input" />
-                    <p-select [(ngModel)]="newArgSupportLevel" [options]="supportLevelOptions"
+                  <fieldset class="add-form nested-form rq-fieldset" data-testid="annotation-argument-form" [formGroup]="argumentForm"><legend class="rq-visually-hidden">Add argument</legend>
+                    <input pInputText formControlName="text" placeholder="Argument text..."
+                           data-testid="annotation-argument-text" class="add-input"
+                           [attr.aria-invalid]="argErr.message() ? 'true' : null"
+                           [attr.aria-describedby]="argErr.message() ? 'annotation-argument-error' : null" />
+                    <app-inline-error #argErr [control]="argumentForm.controls.text" id="annotation-argument-error"
+                                      [submitted]="argSubmitted()" [overrides]="{ required: 'Argument text is required.' }"
+                                      testid="annotation-argument-error" />
+                    <p-select formControlName="supportLevel" [options]="supportLevelOptions"
                               optionLabel="label" optionValue="value" placeholder="Support level" />
                     <div class="form-actions">
                       <p-button label="Save" icon="pi pi-check" size="small"
@@ -212,9 +229,14 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
 
             <!-- Add Position form -->
             @if (addPosIssueId() === issue.id) {
-              <fieldset class="add-form nested-form rq-fieldset" data-testid="annotation-position-form"><legend class="rq-visually-hidden">Add position</legend>
-                <input pInputText [(ngModel)]="newPosText" placeholder="Position text..."
-                       data-testid="annotation-position-text" class="add-input" />
+              <fieldset class="add-form nested-form rq-fieldset" data-testid="annotation-position-form" [formGroup]="positionForm"><legend class="rq-visually-hidden">Add position</legend>
+                <input pInputText formControlName="text" placeholder="Position text..."
+                       data-testid="annotation-position-text" class="add-input"
+                       [attr.aria-invalid]="posErr.message() ? 'true' : null"
+                       [attr.aria-describedby]="posErr.message() ? 'annotation-position-error' : null" />
+                <app-inline-error #posErr [control]="positionForm.controls.text" id="annotation-position-error"
+                                  [submitted]="posSubmitted()" [overrides]="{ required: 'Position text is required.' }"
+                                  testid="annotation-position-error" />
                 <div class="form-actions">
                   <p-button label="Save" icon="pi pi-check" size="small"
                             data-testid="annotation-save-position" (onClick)="savePosition(issue)" />
@@ -289,12 +311,24 @@ export class AnnotationsSectionComponent implements OnChanges {
   addPosIssueId = signal<number | null>(null);
   addArgPositionId = signal<number | null>(null);
 
-  newNoteText = '';
-  newIssueText = '';
-  newIssueMustResolve = false;
-  newPosText = '';
-  newArgText = '';
-  newArgSupportLevel = 'For';
+  readonly noteForm = new FormGroup({
+    text: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
+  });
+  readonly issueForm = new FormGroup({
+    text: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
+    mustResolve: new FormControl(false, { nonNullable: true }),
+  });
+  readonly positionForm = new FormGroup({
+    text: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
+  });
+  readonly argumentForm = new FormGroup({
+    text: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
+    supportLevel: new FormControl('For', { nonNullable: true }),
+  });
+  protected readonly noteSubmitted = signal(false);
+  protected readonly issueSubmitted = signal(false);
+  protected readonly posSubmitted = signal(false);
+  protected readonly argSubmitted = signal(false);
 
   readonly supportLevelOptions = SUPPORT_LEVEL_OPTIONS;
 
@@ -331,8 +365,12 @@ export class AnnotationsSectionComponent implements OnChanges {
   }
 
   async saveNote(): Promise<void> {
-    if (!this.newNoteText.trim() || !this.entityId) return;
-    const result = await this.annotationService.addNote(this.projectName, this.entityType, this.entityId, this.newNoteText.trim());
+    this.noteSubmitted.set(true);
+    if (this.noteForm.invalid || !this.entityId) {
+      this.noteForm.controls.text.markAsTouched();
+      return;
+    }
+    const result = await this.annotationService.addNote(this.projectName, this.entityType, this.entityId, this.noteForm.controls.text.value.trim());
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Note added', life: 3000 });
       this.cancelNote();
@@ -344,12 +382,18 @@ export class AnnotationsSectionComponent implements OnChanges {
 
   cancelNote(): void {
     this.showNoteForm.set(false);
-    this.newNoteText = '';
+    this.noteForm.reset({ text: '' });
+    this.noteSubmitted.set(false);
   }
 
   async saveIssue(): Promise<void> {
-    if (!this.newIssueText.trim() || !this.entityId) return;
-    const result = await this.annotationService.addIssue(this.projectName, this.entityType, this.entityId, this.newIssueText.trim(), this.newIssueMustResolve);
+    this.issueSubmitted.set(true);
+    if (this.issueForm.invalid || !this.entityId) {
+      this.issueForm.controls.text.markAsTouched();
+      return;
+    }
+    const raw = this.issueForm.getRawValue();
+    const result = await this.annotationService.addIssue(this.projectName, this.entityType, this.entityId, raw.text.trim(), raw.mustResolve);
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Issue added', life: 3000 });
       this.cancelIssue();
@@ -361,8 +405,8 @@ export class AnnotationsSectionComponent implements OnChanges {
 
   cancelIssue(): void {
     this.showIssueForm.set(false);
-    this.newIssueText = '';
-    this.newIssueMustResolve = false;
+    this.issueForm.reset({ text: '', mustResolve: false });
+    this.issueSubmitted.set(false);
   }
 
   async deleteNote(note: NoteDto): Promise<void> {
@@ -381,16 +425,22 @@ export class AnnotationsSectionComponent implements OnChanges {
 
   startAddPosition(issue: IssueDto): void {
     this.addPosIssueId.set(issue.id);
-    this.newPosText = '';
+    this.positionForm.reset({ text: '' });
+    this.posSubmitted.set(false);
   }
 
   async savePosition(issue: IssueDto): Promise<void> {
-    if (!this.newPosText.trim()) return;
-    const result = await this.annotationService.addPosition(this.projectName, issue.id, this.newPosText.trim());
+    this.posSubmitted.set(true);
+    if (this.positionForm.invalid) {
+      this.positionForm.controls.text.markAsTouched();
+      return;
+    }
+    const result = await this.annotationService.addPosition(this.projectName, issue.id, this.positionForm.controls.text.value.trim());
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Position added', life: 3000 });
       this.addPosIssueId.set(null);
-      this.newPosText = '';
+      this.positionForm.reset({ text: '' });
+      this.posSubmitted.set(false);
       await this.load();
     } else {
       this._actionError.set(result.error ?? 'Failed to add position.');
@@ -406,17 +456,23 @@ export class AnnotationsSectionComponent implements OnChanges {
 
   startAddArgument(pos: PositionDto): void {
     this.addArgPositionId.set(pos.id);
-    this.newArgText = '';
-    this.newArgSupportLevel = 'For';
+    this.argumentForm.reset({ text: '', supportLevel: 'For' });
+    this.argSubmitted.set(false);
   }
 
   async saveArgument(pos: PositionDto): Promise<void> {
-    if (!this.newArgText.trim()) return;
-    const result = await this.annotationService.addArgument(this.projectName, pos.id, this.newArgText.trim(), this.newArgSupportLevel);
+    this.argSubmitted.set(true);
+    if (this.argumentForm.invalid) {
+      this.argumentForm.controls.text.markAsTouched();
+      return;
+    }
+    const raw = this.argumentForm.getRawValue();
+    const result = await this.annotationService.addArgument(this.projectName, pos.id, raw.text.trim(), raw.supportLevel);
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Argument added', life: 3000 });
       this.addArgPositionId.set(null);
-      this.newArgText = '';
+      this.argumentForm.reset({ text: '', supportLevel: 'For' });
+      this.argSubmitted.set(false);
       await this.load();
     } else {
       this._actionError.set(result.error ?? 'Failed to add argument.');

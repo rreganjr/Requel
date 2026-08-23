@@ -170,44 +170,54 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
   });
 
   it('saveNote() calls addNote and reloads', async () => {
-    comp.newNoteText = 'My note';
+    comp.noteForm.controls.text.setValue('My note');
     await comp.saveNote();
     expect(annotationServiceMock.addNote).toHaveBeenCalledWith('proj1', 'Goal', 42, 'My note');
     expect(annotationServiceMock.getAnnotations).toHaveBeenCalledTimes(2); // initial load + reload
     expect(comp.showNoteForm()).toBe(false);
   });
 
-  it('saveNote() does nothing when text is blank', async () => {
-    comp.newNoteText = '   ';
+  it('saveNote() shows the required message and calls nothing when text is blank', async () => {
+    comp.showNoteForm.set(true);
+    fixture.detectChanges();
+    comp.noteForm.controls.text.setValue('   ');
     await comp.saveNote();
+    fixture.detectChanges();
     expect(annotationServiceMock.addNote).not.toHaveBeenCalled();
+    const el = fixture.nativeElement as HTMLElement;
+    const input = el.querySelector('[data-testid="annotation-note-text"]') as HTMLElement;
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe('annotation-note-error');
+    const err = el.querySelector('[data-testid="annotation-note-error"]') as HTMLElement;
+    expect(err.textContent).toContain('Note text is required.');
+    expect(err.getAttribute('role')).toBe('alert');
   });
 
   it('cancelNote() clears showNoteForm and resets text', () => {
     comp.showNoteForm.set(true);
-    comp.newNoteText = 'draft';
+    comp.noteForm.controls.text.setValue('draft');
     comp.cancelNote();
     expect(comp.showNoteForm()).toBe(false);
-    expect(comp.newNoteText).toBe('');
+    expect(comp.noteForm.controls.text.value).toBe('');
   });
 
   it('saveIssue() calls addIssue with mustResolve flag and reloads', async () => {
-    comp.newIssueText = 'My issue';
-    comp.newIssueMustResolve = true;
+    comp.issueForm.controls.text.setValue('My issue');
+    comp.issueForm.controls.mustResolve.setValue(true);
     await comp.saveIssue();
     expect(annotationServiceMock.addIssue).toHaveBeenCalledWith('proj1', 'Goal', 42, 'My issue', true);
     expect(comp.showIssueForm()).toBe(false);
-    expect(comp.newIssueMustResolve).toBe(false);
+    expect(comp.issueForm.controls.mustResolve.value).toBe(false);
   });
 
   it('cancelIssue() clears showIssueForm and resets state', () => {
     comp.showIssueForm.set(true);
-    comp.newIssueText = 'draft';
-    comp.newIssueMustResolve = true;
+    comp.issueForm.controls.text.setValue('draft');
+    comp.issueForm.controls.mustResolve.setValue(true);
     comp.cancelIssue();
     expect(comp.showIssueForm()).toBe(false);
-    expect(comp.newIssueText).toBe('');
-    expect(comp.newIssueMustResolve).toBe(false);
+    expect(comp.issueForm.controls.text.value).toBe('');
+    expect(comp.issueForm.controls.mustResolve.value).toBe(false);
   });
 
   it('deleteNote() calls annotationService.deleteNote and reloads', async () => {
@@ -222,19 +232,19 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
     expect(annotationServiceMock.getAnnotations).toHaveBeenCalledTimes(2);
   });
 
-  it('startAddPosition() sets addPosIssueId and clears newPosText', () => {
-    comp.newPosText = 'stale text';
+  it('startAddPosition() sets addPosIssueId and clears the position text', () => {
+    comp.positionForm.controls.text.setValue('stale text');
     comp.startAddPosition(MOCK_ISSUE);
     expect(comp.addPosIssueId()).toBe(10);
-    expect(comp.newPosText).toBe('');
+    expect(comp.positionForm.controls.text.value).toBe('');
   });
 
   it('savePosition() calls addPosition and clears state', async () => {
-    comp.newPosText = 'My position';
+    comp.positionForm.controls.text.setValue('My position');
     await comp.savePosition(MOCK_ISSUE);
     expect(annotationServiceMock.addPosition).toHaveBeenCalledWith('proj1', 10, 'My position');
     expect(comp.addPosIssueId()).toBeNull();
-    expect(comp.newPosText).toBe('');
+    expect(comp.positionForm.controls.text.value).toBe('');
   });
 
   it('deletePosition() calls annotationService.deletePosition', async () => {
@@ -243,21 +253,21 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
   });
 
   it('startAddArgument() sets addArgPositionId and resets fields', () => {
-    comp.newArgText = 'stale';
-    comp.newArgSupportLevel = 'Against';
+    comp.argumentForm.controls.text.setValue('stale');
+    comp.argumentForm.controls.supportLevel.setValue('Against');
     comp.startAddArgument(MOCK_POSITION);
     expect(comp.addArgPositionId()).toBe(20);
-    expect(comp.newArgText).toBe('');
-    expect(comp.newArgSupportLevel).toBe('For');
+    expect(comp.argumentForm.controls.text.value).toBe('');
+    expect(comp.argumentForm.controls.supportLevel.value).toBe('For');
   });
 
   it('saveArgument() calls addArgument and clears state', async () => {
-    comp.newArgText = 'My argument';
-    comp.newArgSupportLevel = 'Against';
+    comp.argumentForm.controls.text.setValue('My argument');
+    comp.argumentForm.controls.supportLevel.setValue('Against');
     await comp.saveArgument(MOCK_POSITION);
     expect(annotationServiceMock.addArgument).toHaveBeenCalledWith('proj1', 20, 'My argument', 'Against');
     expect(comp.addArgPositionId()).toBeNull();
-    expect(comp.newArgText).toBe('');
+    expect(comp.argumentForm.controls.text.value).toBe('');
   });
 
   it('deleteArgument() calls annotationService.deleteArgument', async () => {
@@ -299,16 +309,20 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
     expect(comp.resolveLabel('UnknownPosition')).toBe('Ignore');
   });
 
-  it('savePosition() does nothing when newPosText is blank', async () => {
-    comp.newPosText = '   ';
+  it('savePosition() shows the required error and calls nothing when text is blank', async () => {
+    comp.positionForm.controls.text.setValue('   ');
     await comp.savePosition(MOCK_ISSUE);
     expect(annotationServiceMock.addPosition).not.toHaveBeenCalled();
+    expect(comp.positionForm.controls.text.invalid).toBe(true);
+    expect(comp.positionForm.controls.text.touched).toBe(true);
   });
 
-  it('saveArgument() does nothing when newArgText is blank', async () => {
-    comp.newArgText = '   ';
+  it('saveArgument() shows the required error and calls nothing when text is blank', async () => {
+    comp.argumentForm.controls.text.setValue('   ');
     await comp.saveArgument(MOCK_POSITION);
     expect(annotationServiceMock.addArgument).not.toHaveBeenCalled();
+    expect(comp.argumentForm.controls.text.invalid).toBe(true);
+    expect(comp.argumentForm.controls.text.touched).toBe(true);
   });
 
   it('resolveIssue() does nothing when entityId is null', async () => {

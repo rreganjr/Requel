@@ -20,12 +20,14 @@
  */
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
+import { InlineErrorComponent } from '../../shared/app-inline-error';
+import { notBlank } from '../../shared/form-errors';
 import { SelectModule } from 'primeng/select';
 import { TokenService } from '../../core/token.service';
 import { ApiTokenDto } from '../../models/api-token';
@@ -38,8 +40,8 @@ import { ApiTokenDto } from '../../models/api-token';
 @Component({
   selector: 'app-api-tokens',
   standalone: true,
-  imports: [DatePipe, FormsModule, ButtonModule, DialogModule, InputTextModule, MessageModule, SubmitErrorComponent,
-    SelectModule],
+  imports: [DatePipe, ReactiveFormsModule, ButtonModule, DialogModule, InputTextModule, MessageModule, SubmitErrorComponent,
+    SelectModule, InlineErrorComponent],
   template: `
     <div class="api-tokens" data-testid="api-tokens">
       <div class="section-header">
@@ -93,19 +95,27 @@ import { ApiTokenDto } from '../../models/api-token';
                 [modal]="true" [focusOnShow]="true" closeAriaLabel="Close"
                 [style]="{ width: '32rem' }" (onHide)="onDialogHide()">
         @if (createdToken() === null) {
-          <div class="field">
-            <label for="patName">Name</label>
-            <input id="patName" pInputText [(ngModel)]="newName" data-testid="pat-name"
-                   placeholder="e.g. claude-desktop" />
-          </div>
-          <div class="field">
-            <label for="patExpiry">Expires in</label>
-            <p-select inputId="patExpiry" [options]="expiryOptions" optionLabel="label"
-                      optionValue="value" [(ngModel)]="newExpiresInDays" data-testid="pat-expiry" />
-          </div>
-          <div class="dialog-actions">
-            <p-button label="Create" icon="pi pi-check" data-testid="pat-create"
-                      [loading]="creating()" [disabled]="!newName.trim()" (onClick)="submitCreate()" />
+          <div [formGroup]="createForm">
+            <app-submit-error [message]="createError()" testid="pat-create-error" />
+            <div class="field">
+              <label for="patName">Name</label>
+              <input id="patName" pInputText formControlName="name" data-testid="pat-name"
+                     placeholder="e.g. claude-desktop"
+                     [attr.aria-invalid]="nameErr.message() ? 'true' : null"
+                     [attr.aria-describedby]="nameErr.message() ? 'pat-name-error' : null" />
+              <app-inline-error #nameErr [control]="createForm.controls.name" id="pat-name-error"
+                                [submitted]="submitted()" [overrides]="{ required: 'Name is required.' }"
+                                testid="pat-name-error" />
+            </div>
+            <div class="field">
+              <label for="patExpiry">Expires in</label>
+              <p-select inputId="patExpiry" [options]="expiryOptions" optionLabel="label"
+                        optionValue="value" formControlName="expiresInDays" data-testid="pat-expiry" />
+            </div>
+            <div class="dialog-actions">
+              <p-button label="Create" icon="pi pi-check" data-testid="pat-create"
+                        [loading]="creating()" (onClick)="submitCreate()" />
+            </div>
           </div>
         } @else {
           <p-message severity="warn"
@@ -167,8 +177,13 @@ export class ApiTokensComponent implements OnInit {
   ];
 
   createDialogVisible = false;
-  newName = '';
-  newExpiresInDays = 90;
+  /** Create-failure message, shown by app-submit-error INSIDE the dialog (not the page-level slot). */
+  readonly createError = signal('');
+  readonly submitted = signal(false);
+  readonly createForm = new FormGroup({
+    name: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
+    expiresInDays: new FormControl(90, { nonNullable: true }),
+  });
 
   constructor(private tokenService: TokenService) {}
 
@@ -189,8 +204,9 @@ export class ApiTokensComponent implements OnInit {
   }
 
   openCreate(): void {
-    this.newName = '';
-    this.newExpiresInDays = 90;
+    this.createForm.reset({ name: '', expiresInDays: 90 });
+    this.submitted.set(false);
+    this.createError.set('');
     this.createdToken.set(null);
     this.copied.set(false);
     this.successMessage.set('');
@@ -198,20 +214,24 @@ export class ApiTokensComponent implements OnInit {
   }
 
   async submitCreate(): Promise<void> {
-    if (!this.newName.trim()) {
+    this.submitted.set(true);
+    if (this.createForm.invalid) {
+      this.createForm.controls.name.markAsTouched();
       return;
     }
     this.creating.set(true);
-    this.errorMessage.set('');
+    this.createError.set('');
     try {
+      const raw = this.createForm.getRawValue();
       const response = await this.tokenService.create({
-        name: this.newName.trim(),
-        expiresInDays: this.newExpiresInDays
+        name: raw.name.trim(),
+        expiresInDays: raw.expiresInDays
       });
       this.createdToken.set(response.token);
       await this.load();
     } catch {
-      this.errorMessage.set('Failed to create token.');
+      // Surface the failure inside the dialog, where the user's focus is.
+      this.createError.set('Failed to create token.');
     } finally {
       this.creating.set(false);
     }
@@ -225,6 +245,8 @@ export class ApiTokensComponent implements OnInit {
 
   onDialogHide(): void {
     this.createdToken.set(null);
+    this.createError.set('');
+    this.submitted.set(false);
   }
 
   async revoke(token: ApiTokenDto): Promise<void> {

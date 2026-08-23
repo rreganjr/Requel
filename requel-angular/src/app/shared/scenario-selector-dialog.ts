@@ -19,7 +19,7 @@
  *
  */
 import { Component, EventEmitter, Input, OnChanges, Output, signal, SimpleChanges } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
@@ -28,6 +28,9 @@ import { SelectModule } from 'primeng/select';
 import { ScenarioDto } from '../models/scenario';
 import { ScenarioService } from '../core/scenario.service';
 import { CommandService } from '../core/command.service';
+import { SubmitErrorComponent } from './app-submit-error';
+import { InlineErrorComponent } from './app-inline-error';
+import { notBlank } from './form-errors';
 
 export interface ScenarioRef {
   id: number;
@@ -46,7 +49,7 @@ const SCENARIO_TYPE_OPTIONS = [
 @Component({
   selector: 'app-scenario-selector-dialog',
   standalone: true,
-  imports: [FormsModule, DialogModule, TableModule, ButtonModule, InputText, SelectModule],
+  imports: [FormsModule, ReactiveFormsModule, DialogModule, TableModule, ButtonModule, InputText, SelectModule, SubmitErrorComponent, InlineErrorComponent],
   template: `
     <p-dialog header="Add Sub-scenario" [(visible)]="visible" [modal]="true" [focusOnShow]="true"
               closeAriaLabel="Close" appendTo="body" [style]="{ width: '560px' }" (onHide)="onHide()"
@@ -54,28 +57,31 @@ const SCENARIO_TYPE_OPTIONS = [
 
       <!-- Inline new-scenario creation form -->
       @if (showCreateForm) {
-        <div class="create-form" data-testid="scenario-selector-create-form">
+        <div class="create-form" data-testid="scenario-selector-create-form" [formGroup]="createForm">
           <h4>New Scenario</h4>
+          <app-submit-error [message]="createError()" testid="scenario-selector-create-error" />
           <div class="create-grid">
             <label for="newScenarioName">Name</label>
-            <input id="newScenarioName" pInputText [(ngModel)]="newName"
+            <input id="newScenarioName" pInputText formControlName="name"
                    data-testid="scenario-selector-name-input"
-                   placeholder="Scenario name" />
+                   placeholder="Scenario name"
+                   [attr.aria-invalid]="nameErr.message() ? 'true' : null"
+                   [attr.aria-describedby]="nameErr.message() ? 'scenario-selector-name-error' : null" />
             <label for="newScenarioType">Type</label>
-            <p-select inputId="newScenarioType" [(ngModel)]="newType" [options]="typeOptions"
+            <p-select inputId="newScenarioType" formControlName="scenarioType" [options]="typeOptions"
                       optionLabel="label" optionValue="value" />
           </div>
+          <app-inline-error #nameErr [control]="createForm.controls.name" id="scenario-selector-name-error"
+                            [submitted]="submitted()" [overrides]="{ required: 'Name is required.' }"
+                            testid="scenario-selector-name-error" />
           <div class="create-actions">
             <p-button label="Create & Add" icon="pi pi-check" size="small"
                       data-testid="scenario-selector-create-add"
-                      [disabled]="!newName.trim()" (onClick)="onCreateAndAdd()" />
+                      (onClick)="onCreateAndAdd()" />
             <p-button label="Cancel" severity="secondary" [outlined]="true" size="small"
                       data-testid="scenario-selector-cancel-create"
-                      (onClick)="showCreateForm = false" />
+                      (onClick)="cancelCreate()" />
           </div>
-          @if (createError()) {
-            <p class="create-error" data-testid="scenario-selector-create-error">{{ createError() }}</p>
-          }
         </div>
         <hr />
       }
@@ -88,7 +94,7 @@ const SCENARIO_TYPE_OPTIONS = [
         @if (!showCreateForm) {
           <p-button label="New Scenario" icon="pi pi-plus" size="small" severity="secondary"
                     [outlined]="true" data-testid="scenario-selector-new-button"
-                    (onClick)="showCreateForm = true" />
+                    (onClick)="startCreate()" />
         }
       </div>
 
@@ -137,8 +143,11 @@ export class ScenarioSelectorDialogComponent implements OnChanges {
 
   searchText = '';
   showCreateForm = false;
-  newName = '';
-  newType = 'Primary';
+  readonly submitted = signal(false);
+  readonly createForm = new FormGroup({
+    name: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
+    scenarioType: new FormControl('Primary', { nonNullable: true }),
+  });
   typeOptions = SCENARIO_TYPE_OPTIONS;
 
   constructor(
@@ -149,8 +158,9 @@ export class ScenarioSelectorDialogComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (this.visible && (changes['visible'] || changes['projectName'])) {
       this.showCreateForm = false;
-      this.newName = '';
-      this.newType = 'Primary';
+      this.createForm.reset({ name: '', scenarioType: 'Primary' });
+      this.submitted.set(false);
+      this.createError.set(null);
       this.searchText = '';
       this.loadScenarios();
     }
@@ -176,13 +186,33 @@ export class ScenarioSelectorDialogComponent implements OnChanges {
     }
   }
 
+  startCreate(): void {
+    this.createForm.reset({ name: '', scenarioType: 'Primary' });
+    this.submitted.set(false);
+    this.createError.set(null);
+    this.showCreateForm = true;
+  }
+
+  cancelCreate(): void {
+    this.showCreateForm = false;
+    this.submitted.set(false);
+    this.createError.set(null);
+    this.createForm.reset({ name: '', scenarioType: 'Primary' });
+  }
+
   async onCreateAndAdd(): Promise<void> {
+    this.submitted.set(true);
+    if (this.createForm.invalid) {
+      this.createForm.controls.name.markAsTouched();
+      return;
+    }
     this.createError.set(null);
     try {
+      const raw = this.createForm.getRawValue();
       const result = await this.commandService.execute('EditScenario', {
         projectName: this.projectName,
-        name: this.newName.trim(),
-        scenarioTypeName: this.newType,
+        name: raw.name.trim(),
+        scenarioTypeName: raw.scenarioType,
         steps: []
       });
       if (result.success && result.entity) {

@@ -78,8 +78,8 @@ describe('ScenarioSelectorDialogComponent', () => {
 
   it('onCreateAndAdd calls commandService.execute with EditScenario command', async () => {
     comp.projectName = 'proj1';
-    comp.newName = 'New Scenario';
-    comp.newType = 'Primary';
+    comp.createForm.controls.name.setValue('New Scenario');
+    comp.createForm.controls.scenarioType.setValue('Primary');
     const selectedSpy = vi.fn();
     comp.selected.subscribe(selectedSpy);
     await comp.onCreateAndAdd();
@@ -95,8 +95,17 @@ describe('ScenarioSelectorDialogComponent', () => {
   it('onCreateAndAdd sets createError when command fails', async () => {
     commandServiceMock.execute.mockResolvedValue({ success: false, error: 'Scenario name taken' });
     comp.projectName = 'proj1';
-    comp.newName = 'Duplicate';
+    comp.createForm.controls.name.setValue('Duplicate');
     await comp.onCreateAndAdd();
     expect(comp.createError()).toBe('Scenario name taken');
+  });
+
+  it('onCreateAndAdd shows the required error and does not call the command when the name is blank', async () => {
+    comp.projectName = 'proj1';
+    comp.createForm.controls.name.setValue('   ');
+    await comp.onCreateAndAdd();
+    expect(commandServiceMock.execute).not.toHaveBeenCalled();
+    expect(comp.createForm.controls.name.invalid).toBe(true);
+    expect(comp.createForm.controls.name.touched).toBe(true);
   });
 });

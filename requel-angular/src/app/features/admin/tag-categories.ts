@@ -20,7 +20,7 @@
  */
 import { Component, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
-import { FormsModule } from '@angular/forms';
+import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -29,6 +29,8 @@ import { MessageService } from 'primeng/api';
 import { TagCategoryDto } from '../../models/tag';
 import { TagService } from '../../core/tag.service';
 import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
+import { notBlank } from '../../shared/form-errors';
+import { InlineErrorComponent } from '../../shared/app-inline-error';
 
 /**
  * Admin surface for the global typed-category set (Phase 6): categories with no owning project,
@@ -38,30 +40,35 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
 @Component({
   selector: 'app-tag-categories',
   standalone: true,
-  imports: [PageHeaderComponent, FormsModule, AppDataTableComponent, ButtonModule, InputText, CheckboxModule, SubmitErrorComponent],
+  imports: [PageHeaderComponent, ReactiveFormsModule, AppDataTableComponent, ButtonModule, InputText, CheckboxModule, SubmitErrorComponent, InlineErrorComponent],
   template: `
     <div class="tag-categories" data-testid="tag-categories">
       <div class="page-header"><app-page-header title="Global Tag Categories" /></div>
 
       <app-submit-error [message]="errorMessage()" testid="tag-categories-error" />
 
-      <fieldset class="rq-fieldset" data-testid="tag-category-add-form">
+      <fieldset class="rq-fieldset" data-testid="tag-category-add-form" [formGroup]="addForm">
         <legend>Add tag category</legend>
         <div class="add-row">
-        <input pInputText [(ngModel)]="newName" placeholder="category name"
-               aria-label="Category name" data-testid="tag-category-name" class="name-input" />
+        <input pInputText formControlName="name" placeholder="category name"
+               aria-label="Category name" data-testid="tag-category-name" class="name-input"
+               [attr.aria-invalid]="nameErr.message() ? 'true' : null"
+               [attr.aria-describedby]="nameErr.message() ? 'tag-category-name-error' : null" />
         <span class="excl">
-          <p-checkbox [(ngModel)]="newExclusive" [binary]="true" inputId="excl" />
+          <p-checkbox formControlName="exclusive" [binary]="true" inputId="excl" />
           <label for="excl">Exclusive</label>
         </span>
-        <input pInputText [(ngModel)]="newAllowedTypes" placeholder="allowed types (comma-sep)"
+        <input pInputText formControlName="allowedTypes" placeholder="allowed types (comma-sep)"
                aria-label="Allowed entity types" data-testid="tag-category-allowed" class="wide-input" />
-        <input pInputText [(ngModel)]="newValues" placeholder="values (comma-sep)"
+        <input pInputText formControlName="values" placeholder="values (comma-sep)"
                aria-label="Controlled values" data-testid="tag-category-values" class="wide-input" />
-        <input pInputText [(ngModel)]="newColor" placeholder="color"
+        <input pInputText formControlName="color" placeholder="color"
                aria-label="Category color" data-testid="tag-category-color" class="color-input" />
         <p-button label="Add Category" icon="pi pi-plus" data-testid="tag-category-add"
                   (onClick)="addCategory()" />
+        <app-inline-error #nameErr [control]="addForm.controls.name" id="tag-category-name-error"
+                          [submitted]="submitted()" [overrides]="{ required: 'Name is required.' }"
+                          testid="tag-category-name-error" />
       </div>
       </fieldset>
 
@@ -88,6 +95,7 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
     .excl { display: inline-flex; align-items: center; gap: 0.35rem; }
     .name-input, .color-input { max-width: 160px; }
     .wide-input { max-width: 220px; }
+    .add-row .rq-field-error { flex-basis: 100%; margin: 0; }
   `]
 })
 export class TagCategoriesComponent implements OnInit {
@@ -95,11 +103,14 @@ export class TagCategoriesComponent implements OnInit {
   loading = signal(true);
   errorMessage = signal<string | null>(null);
 
-  newName = '';
-  newExclusive = false;
-  newAllowedTypes = '';
-  newValues = '';
-  newColor = '';
+  readonly addForm = new FormGroup({
+    name: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
+    exclusive: new FormControl(false, { nonNullable: true }),
+    allowedTypes: new FormControl('', { nonNullable: true }),
+    values: new FormControl('', { nonNullable: true }),
+    color: new FormControl('', { nonNullable: true }),
+  });
+  protected readonly submitted = signal(false);
 
   @ViewChild('exclusiveCell', { static: true }) exclusiveCell!: TemplateRef<{ $implicit: TagCategoryDto }>;
   @ViewChild('allowedCell', { static: true }) allowedCell!: TemplateRef<{ $implicit: TagCategoryDto }>;
@@ -133,23 +144,24 @@ export class TagCategoriesComponent implements OnInit {
   }
 
   async addCategory(): Promise<void> {
-    const name = this.newName.trim();
-    if (!name) return;
+    this.submitted.set(true);
+    if (this.addForm.invalid) {
+      this.addForm.controls.name.markAsTouched();
+      return;
+    }
+    const raw = this.addForm.getRawValue();
     const result = await this.tagService.editTagCategory({
       projectName: null,
-      name,
-      exclusive: this.newExclusive,
-      color: this.newColor.trim() || null,
-      allowedEntityTypes: splitList(this.newAllowedTypes),
-      values: splitList(this.newValues),
+      name: raw.name.trim(),
+      exclusive: raw.exclusive,
+      color: raw.color.trim() || null,
+      allowedEntityTypes: splitList(raw.allowedTypes),
+      values: splitList(raw.values),
     });
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Category saved', life: 3000 });
-      this.newName = '';
-      this.newExclusive = false;
-      this.newAllowedTypes = '';
-      this.newValues = '';
-      this.newColor = '';
+      this.addForm.reset({ name: '', exclusive: false, allowedTypes: '', values: '', color: '' });
+      this.submitted.set(false);
       await this.load();
     } else {
       this.errorMessage.set(result.error ?? 'Failed to save category.');
