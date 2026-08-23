@@ -39,4 +39,27 @@ describe('AnnotationsSectionComponent — accessibility (issue #138)', () => {
     await expectNoAxeViolations(noteFs);
     await expectNoAxeViolations(issueFs);
   });
+
+  it('keeps the note / issue forms accessible when the required error is shown', async () => {
+    const { fixture } = await render(AnnotationsSectionComponent, {
+      providers: providers(),
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1, canEdit: true },
+    });
+    await fixture.whenStable();
+    const comp = fixture.componentInstance;
+    comp.showNoteForm.set(true);
+    comp.showIssueForm.set(true);
+    fixture.detectChanges();
+    await comp.saveNote();
+    await comp.saveIssue();
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const noteFs = el.querySelector('fieldset[data-testid="annotation-note-form"]') as HTMLElement;
+    const issueFs = el.querySelector('fieldset[data-testid="annotation-issue-form"]') as HTMLElement;
+    expect(noteFs.querySelector('[data-testid="annotation-note-error"]')).not.toBeNull();
+    expect(issueFs.querySelector('[data-testid="annotation-issue-error"]')).not.toBeNull();
+    await expectNoAxeViolations(noteFs);
+    await expectNoAxeViolations(issueFs);
+  });
 });
