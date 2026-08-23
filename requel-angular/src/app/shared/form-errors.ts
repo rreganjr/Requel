@@ -250,6 +250,20 @@ export function atLeastOne(): ValidatorFn {
 }
 
 /**
+ * Whitespace-aware required validator for the mini-form inline-create contract (#134).
+ * Reports the standard `required` key (so `DEFAULT_FORM_ERRORS`/app-field wording applies)
+ * when the value is null, empty, or only whitespace — matching the old `.trim()` guards the
+ * ngModel mini-forms used before they returned silently.
+ */
+export function notBlank(): ValidatorFn {
+  return control => {
+    const v = control.value;
+    const blank = v == null || (typeof v === 'string' && v.trim().length === 0);
+    return blank ? { required: true } : null;
+  };
+}
+
+/**
  * The few field names the server cannot disambiguate to a single control on its own. Issue #176 made
  * `CommandController` emit input-DTO field names (see `@FromEntityProperty`), retiring the per-editor
  * maps; the one residue is project-editor's single `organization` control, which two DTO fields

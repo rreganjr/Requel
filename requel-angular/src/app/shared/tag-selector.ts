@@ -19,7 +19,7 @@
  *
  */
 import { Component, Input, OnChanges, SimpleChanges, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { MessageService } from 'primeng/api';
@@ -28,6 +28,7 @@ import { TagService } from '../core/tag.service';
 import { AppChipComponent } from './app-chip';
 import { ErrorStateComponent } from './error-state';
 import { SubmitErrorComponent } from './app-submit-error';
+import { notBlank, firstErrorMessage } from './form-errors';
 
 /**
  * Reusable tag chip/selector for any taggable entity. Shows the entity's assigned tags as
@@ -37,7 +38,7 @@ import { SubmitErrorComponent } from './app-submit-error';
 @Component({
   selector: 'app-tag-selector',
   standalone: true,
-  imports: [FormsModule, ButtonModule, InputText, AppChipComponent, ErrorStateComponent, SubmitErrorComponent],
+  imports: [ReactiveFormsModule, ButtonModule, InputText, AppChipComponent, ErrorStateComponent, SubmitErrorComponent],
   template: `
     @if (entityId != null) {
       <div class="tags-section" data-testid="tags-section">
@@ -62,17 +63,19 @@ import { SubmitErrorComponent } from './app-submit-error';
         </div>
 
         @if (canEdit) {
-          <fieldset class="add-row rq-fieldset" data-testid="tag-add-form"><legend class="rq-visually-hidden">Add tag</legend>
-            <input pInputText [(ngModel)]="newCategory" [attr.list]="'tagCategories-' + entityId"
+          <fieldset class="add-row rq-fieldset" data-testid="tag-add-form" [formGroup]="addForm"><legend class="rq-visually-hidden">Add tag</legend>
+            <input pInputText formControlName="category" [attr.list]="'tagCategories-' + entityId"
                    placeholder="category (optional)" aria-label="Tag category"
                    data-testid="tag-category-input" class="cat-input" />
             <datalist [id]="'tagCategories-' + entityId">
               @for (c of categories(); track c) { <option [value]="c"></option> }
             </datalist>
 
-            <input pInputText [(ngModel)]="newValue" [attr.list]="'tagValues-' + entityId"
+            <input pInputText formControlName="value" [attr.list]="'tagValues-' + entityId"
                    placeholder="value" aria-label="Tag value"
                    data-testid="tag-value-input" class="val-input"
+                   [attr.aria-invalid]="valueError() ? 'true' : null"
+                   [attr.aria-describedby]="valueError() ? ('tag-value-error-' + entityId) : null"
                    (keyup.enter)="addTag()" />
             <datalist [id]="'tagValues-' + entityId">
               @for (v of valuesForCategory(); track v) { <option [value]="v"></option> }
@@ -80,6 +83,10 @@ import { SubmitErrorComponent } from './app-submit-error';
 
             <p-button label="Add Tag" icon="pi pi-plus" size="small"
                       data-testid="tag-add" (onClick)="addTag()" />
+            @if (valueError()) {
+              <p class="rq-field-error" [id]="'tag-value-error-' + entityId" role="alert"
+                 data-testid="tag-value-error">{{ valueError() }}</p>
+            }
           </fieldset>
         }
       </div>
@@ -93,6 +100,7 @@ import { SubmitErrorComponent } from './app-submit-error';
     .add-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
     .cat-input, .val-input { max-width: 200px; }
     .empty-text { color: var(--p-text-secondary-color); font-style: italic; }
+    .add-row .rq-field-error { flex-basis: 100%; margin: 0; }
   `]
 })
 export class TagSelectorComponent implements OnChanges {
@@ -115,8 +123,18 @@ export class TagSelectorComponent implements OnChanges {
   private _actionError = signal<string | null>(null);
   actionError = this._actionError.asReadonly();
 
-  newCategory = '';
-  newValue = '';
+  readonly addForm = new FormGroup({
+    category: new FormControl('', { nonNullable: true }),
+    value: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
+  });
+  private readonly submitted = signal(false);
+
+  /** Inline message for the value control, shown once touched or a submit was attempted. */
+  valueError(): string | null {
+    const control = this.addForm.controls.value;
+    if (!control.invalid || !(control.touched || this.submitted())) return null;
+    return firstErrorMessage(control, { required: 'Value is required.' });
+  }
 
   constructor(private tagService: TagService, private messageService: MessageService) {}
 
@@ -135,7 +153,7 @@ export class TagSelectorComponent implements OnChanges {
    * otherwise the distinct values already used under that category name.
    */
   valuesForCategory(): string[] {
-    const cat = this.newCategory.trim();
+    const cat = this.addForm.controls.category.value.trim();
     const typed = this.categoryFor(cat);
     if (typed && typed.values.length > 0) {
       return typed.values;
@@ -187,9 +205,13 @@ export class TagSelectorComponent implements OnChanges {
   }
 
   async addTag(): Promise<void> {
-    const value = this.newValue.trim();
-    if (!value || this.entityId == null) return;
-    const category = this.newCategory.trim() || null;
+    this.submitted.set(true);
+    if (this.addForm.invalid || this.entityId == null) {
+      this.addForm.controls.value.markAsTouched();
+      return;
+    }
+    const value = this.addForm.controls.value.value.trim();
+    const category = this.addForm.controls.category.value.trim() || null;
 
     const created = await this.tagService.editTag(this.projectName, category, value);
     if (!created.success || !created.entity) {
@@ -198,8 +220,8 @@ export class TagSelectorComponent implements OnChanges {
     }
     const assigned = await this.tagService.assignTag(created.entity.id, this.entityType, this.entityId);
     if (assigned.success) {
-      this.newCategory = '';
-      this.newValue = '';
+      this.addForm.reset({ category: '', value: '' });
+      this.submitted.set(false);
       await this.load();
     } else {
       this._actionError.set(assigned.error ?? 'Failed to assign tag.');

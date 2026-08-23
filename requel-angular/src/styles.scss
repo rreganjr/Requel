@@ -281,6 +281,16 @@ html, body {
   font: inherit; font-weight: var(--rq-font-weight-medium);
 }
 
+// Inline validation error for compact mini-form add-rows that drive the #132
+// validation contract without app-field's row chrome (issue #134). Mirrors
+// app-field's `.app-field-error` so inline and app-field errors read identically.
+.rq-field-error {
+  margin: var(--rq-space-1) 0 0;
+  color: var(--rq-field-error-fg);
+  font-size: var(--rq-text-helper-size);
+  line-height: var(--rq-text-helper-line);
+}
+
 // -------------------------------------------------------------------------
 // PrimeNG component customizations (issue #126)
 //

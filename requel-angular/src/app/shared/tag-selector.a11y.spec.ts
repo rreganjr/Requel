@@ -35,4 +35,19 @@ describe('TagSelectorComponent — accessibility (issue #138)', () => {
     expect(fs.querySelector('legend')?.textContent?.trim()).toBe('Add tag');
     await expectNoAxeViolations(fs);
   });
+
+  it('keeps the add-row accessible when the value error is shown (blank submit)', async () => {
+    const { fixture } = await render(TagSelectorComponent, {
+      providers: providers(),
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1, canEdit: true },
+    });
+    await fixture.whenStable();
+    const comp = fixture.componentInstance as TagSelectorComponent;
+    await comp.addTag();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const fs = el.querySelector('fieldset[data-testid="tag-add-form"]') as HTMLElement;
+    expect(fs.querySelector('[data-testid="tag-value-error"]')).not.toBeNull();
+    await expectNoAxeViolations(fs);
+  });
 });
