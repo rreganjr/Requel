@@ -35,7 +35,7 @@ What is *not* is its **step list**. That, plus a small dead-field cleanup, is th
 4. **Per-step name validation** (`required` + `ARTIFACT_NAME_MAX_LENGTH`), matching every other
    editor — today an empty step name is submitted to the server.
 5. **Step-detail edit dialog stays as-is** (its `editingName/Type/Text` `[(ngModel)]` scratch
-   buffer) and is migrated to a reactive mini-form in the **follow-on** (#134 family). This ticket
+   buffer) and is migrated to a reactive mini-form in the **follow-on (#202)** (#134 family). This ticket
    only rewires `applyStepEdit()` to write into the target group.
 6. **Dead-field cleanup:** remove `name`, `text`, `primaryActorName` from `use-case-editor.ts:559`
    (unreferenced since its reactive migration).
@@ -160,7 +160,7 @@ exactly; only the storage changes.
 ## 8. Out of scope → follow-on
 
 Step-detail **edit dialog** reactive-mini-form migration (`editingName/Type/Text` →
-`FormGroup`, inline validation, Apply patches the group). Tracked as the 5.2 follow-on, blocked by
+`FormGroup`, inline validation, Apply patches the group). Tracked as **#202** (the 5.2 follow-on), blocked by
 this ticket. This plan leaves the dialog working via the existing scratch buffer, with
 `applyStepEdit()` already writing into the FormArray group so the follow-on is a pure dialog-local
 change.
@@ -190,4 +190,4 @@ change.
 5. Dead legacy fields removed from `use-case-editor.ts`.
 6. Characterization tests cover inline edit, dialog Apply, drag-reorder, and the guard on dirty
    steps — passing before and after.
-7. Step-detail edit dialog migration is explicitly out of scope (follow-on).
+7. Step-detail edit dialog migration is explicitly out of scope (follow-on #202).
