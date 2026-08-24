@@ -466,4 +466,75 @@ describe('ScenarioEditorComponent', () => {
     expect(comp.errorMessage()).toBe('Conflict');
     expect(comp.saving()).toBe(false);
   });
+
+  // ── Characterization for #143 (step-list → FormArray, Option A) ────────────
+  // These pin the step-list behaviors the reactive-forms refactor must preserve. They pass on
+  // today's stepNodes()/stepsSaveNeeded() implementation; during #143 re-point the assertions
+  // at stepsForm. See doc/143-scenario-steps-formarray-plan.md (Step 0).
+  describe('step-list characterization (pre-#143)', () => {
+    it('onDrop reorders the step list and flags a save', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      expect(comp.stepNodes().map(n => n.name))
+        .toEqual(['User opens login page', 'User submits credentials']);
+
+      // Move the second step to the top.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      comp.onDrop({ previousIndex: 1, currentIndex: 0 } as any);
+
+      expect(comp.stepNodes().map(n => n.name))
+        .toEqual(['User submits credentials', 'User opens login page']);
+      expect(comp.stepsSaveNeeded()).toBe(true);
+    });
+
+    it('addStepBelow inserts a new blank step immediately after the given one', () => {
+      fixture.detectChanges();
+      comp.addStep();
+      comp.addStep();
+      comp.stepNodes()[0].name = 'first';
+      comp.stepNodes()[1].name = 'second';
+      comp.addStepBelow(comp.stepNodes()[0]);
+      expect(comp.stepNodes().map(n => n.name)).toEqual(['first', '', 'second']);
+      expect(comp.stepNodes()[1].isNew).toBe(true);
+      expect(comp.stepsSaveNeeded()).toBe(true);
+    });
+
+    it('addStepAt inserts at the requested index', () => {
+      fixture.detectChanges();
+      comp.addStep();
+      comp.stepNodes()[0].name = 'tail';
+      comp.addStepAt(0);
+      expect(comp.stepNodes().length).toBe(2);
+      expect(comp.stepNodes()[0].isNew).toBe(true);
+      expect(comp.stepNodes()[1].name).toBe('tail');
+      expect(comp.stepsSaveNeeded()).toBe(true);
+    });
+
+    it('onStepNameChange (inline blur) flags a save on a pristine form', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      expect(comp.stepsSaveNeeded()).toBe(false);
+      comp.stepNodes()[0].name = 'renamed inline';
+      comp.onStepNameChange();
+      expect(comp.stepsSaveNeeded()).toBe(true);
+      expect(comp.detailsForm.dirty).toBe(false);
+      expect(comp.hasUnsavedChanges()).toBe(true);
+    });
+
+    // CURRENT behavior that #143 AC-3 deliberately changes: an empty step name is submitted to
+    // the server today. After the FormArray adds a required-name validator, flip this to assert
+    // canSave()/stepsForm.invalid blocks the save instead.
+    it('today submits an empty step name to the server (AC-3 will change this)', async () => {
+      fixture.detectChanges();
+      await flush();
+      comp.detailsForm.controls.name.setValue('Has name');
+      comp.addStep();
+      await comp.onSave();
+      const call = commandServiceMock.execute.mock.calls.find(c => c[0] === 'EditScenario');
+      expect(call?.[1].steps).toEqual(
+        expect.arrayContaining([expect.objectContaining({ name: '' })]));
+    });
+  });
 });
