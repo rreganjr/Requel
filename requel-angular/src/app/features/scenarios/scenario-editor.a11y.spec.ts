@@ -65,7 +65,9 @@ describe('ScenarioEditorComponent — step-detail dialog accessibility', () => {
   async function openStepDialog(): Promise<void> {
     fixture.detectChanges();
     await flush();
-    comp.openStepEdit({ ...STEP });
+    comp.addStep();
+    comp.stepsForm.at(0).patchValue({ name: STEP.name, scenarioType: STEP.scenarioType, text: STEP.text });
+    comp.openStepEdit(comp.stepsForm.at(0));
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();

@@ -556,9 +556,6 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     ...this.additionalScenarios().map(s => s.id).filter((id): id is number => id != null)
   ]);
 
-  name = '';
-  text = '';
-  primaryActorName = '';
   showGoalSelector = false;
   showStorySelector = false;
   showActorSelector = false;
