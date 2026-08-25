@@ -36,13 +36,13 @@ Grouped from `doc/UI_UX_REVIEW.md` findings 1.1–5.6 plus the look-and-feel ite
 - [x] #132 — 3.1 Forms are mostly template-driven and lack consistent validation
 - [x] #171 — 3.1 server backing: bean validation `@Size`/`@Email` constraints on artifact name/text and user email inputs (blocks #132 — client caps must mirror real constraints)
 - [x] #173 — 3.1b Create-flow wizards for project, actor, stakeholder, scenario, use-case (blocked by #132)
-- [ ] #176 — 3.2 server backing: `CommandController` should report field violations using input-DTO field names, not JPA entity property names (do this before #133 — it deletes the nine per-editor rename maps and the map parameter on `applyCommandErrors`)
-- [ ] #133 — 3.2 API and command errors are surfaced inconsistently
-- [ ] #134 — 3.3 Mini-forms (annotations, tags, admin, dialogs) need the same validation contract
-- [ ] #138 — 4.4 Form labels and error associations are incomplete
-- [ ] #143 — 5.2 Signals are used, but form/state hygiene is mixed
+- [x] #176 — 3.2 server backing: `CommandController` should report field violations using input-DTO field names, not JPA entity property names (do this before #133 — it deletes the nine per-editor rename maps and the map parameter on `applyCommandErrors`)
+- [x] #133 — 3.2 API and command errors are surfaced inconsistently
+- [x] #134 — 3.3 Mini-forms (annotations, tags, admin, dialogs) need the same validation contract
+- [x] #138 — 4.4 Form labels and error associations are incomplete
+- [x] #143 — 5.2 Signals are used, but form/state hygiene is mixed
   - **Scope narrowed (2026-08):** the four editors named in Finding 5.2 (goal, use-case, user, settings) already have reactive main forms via #132/#158, with the shared dirty-check guard from #185. The only remaining 5.2 instance is `scenario-editor` step state — mutable `stepNodes` objects plus a manual `stepsSaveNeeded` flag living outside the reactive form — plus dead legacy fields (`name`/`text`/`primaryActorName`) in `use-case-editor`. The step-detail **edit dialog** is split to a follow-on (mini-form, #134 family).
-- [ ] #202 — 5.2 follow-on: scenario step-detail edit dialog reactive mini-form (blocked by #143)
+- [x] #202 — 5.2 follow-on: scenario step-detail edit dialog reactive mini-form (blocked by #143)
 
 ### Phase 4 — Information architecture and workflow adoption
 
@@ -61,4 +61,4 @@ Grouped from `doc/UI_UX_REVIEW.md` findings 1.1–5.6 plus the look-and-feel ite
 - [ ] #147 — 5.6 Bundle and dependency posture is reasonable but should be measured
 - [ ] #159 — N6 Theme switcher + dark mode via config panel (optional)
 
-**Progress: 17 / 33 complete** (Phase 1 ✅, Phase 2 ✅, Phase 3 in progress).
+**Progress: 23 / 34 complete** (Phase 1 ✅, Phase 2 ✅, Phase 3 in progress).
