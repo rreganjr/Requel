@@ -183,9 +183,7 @@ describe('ScenarioEditorComponent', () => {
     const group = stepAt(0);
     comp.openStepEdit(group);
     expect(comp.editingStep()).toBe(group);
-    comp.editingName = 'Edited Name';
-    comp.editingType = 'Alternative';
-    comp.editingText = 'Some notes';
+    comp.editForm.setValue({ name: 'Edited Name', scenarioType: 'Alternative', text: 'Some notes' });
     comp.applyStepEdit();
     expect(comp.editingStep()).toBeNull();
     expect(group.controls.name.value).toBe('Edited Name');
@@ -564,6 +562,66 @@ describe('ScenarioEditorComponent', () => {
       fixture.detectChanges();
       const err = fixture.nativeElement.querySelector('[data-testid="scenario-step-name-error"]');
       expect(err?.textContent).toContain('A step needs a name.');
+    });
+  });
+
+  describe('step-detail dialog (#202)', () => {
+    it('openStepEdit populates editForm from the group', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      const group = stepAt(0);
+      group.controls.text.setValue('some notes');
+      comp.openStepEdit(group);
+      expect(comp.editForm.getRawValue()).toEqual({
+        name: 'User opens login page', scenarioType: 'Primary', text: 'some notes',
+      });
+      expect(comp.editSubmitted()).toBe(false);
+    });
+
+    it('Apply writes editForm back to the target group and marks steps dirty', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      const group = stepAt(0);
+      comp.openStepEdit(group);
+      comp.editForm.setValue({ name: 'Renamed step', scenarioType: 'Alternative', text: 'note' });
+      comp.applyStepEdit();
+      expect(comp.editingStep()).toBeNull();
+      expect(group.controls.name.value).toBe('Renamed step');
+      expect(group.controls.scenarioType.value).toBe('Alternative');
+      expect(group.controls.text.value).toBe('note');
+      expect(comp.stepsForm.dirty).toBe(true);
+    });
+
+    it('Apply is blocked when the dialog name is blank; the group is untouched', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      const group = stepAt(0);
+      comp.stepsForm.markAsPristine();
+      comp.openStepEdit(group);
+      comp.editForm.controls.name.setValue('');
+      comp.applyStepEdit();
+      expect(comp.editingStep()).toBe(group);          // dialog stays open
+      expect(comp.editSubmitted()).toBe(true);
+      expect(comp.editForm.invalid).toBe(true);
+      expect(group.controls.name.value).toBe('User opens login page'); // unchanged
+      expect(comp.stepsForm.dirty).toBe(false);
+    });
+
+    it('Cancel (closeStepEdit) discards without touching the group', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      const group = stepAt(0);
+      comp.stepsForm.markAsPristine();
+      comp.openStepEdit(group);
+      comp.editForm.controls.name.setValue('Typed but cancelled');
+      comp.closeStepEdit();
+      expect(comp.editingStep()).toBeNull();
+      expect(group.controls.name.value).toBe('User opens login page');
+      expect(comp.stepsForm.dirty).toBe(false);
     });
   });
 });

@@ -27,7 +27,7 @@ import { Location, NgTemplateOutlet } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
-import { FormArray, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -94,7 +94,7 @@ type StepGroup = FormGroup<{
 @Component({
   selector: 'app-scenario-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, FormsModule,
+  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
             ReactiveFormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             MessageModule, SubmitErrorComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent, LoadingStateComponent,
@@ -185,17 +185,26 @@ type StepGroup = FormGroup<{
                 [modal]="true" [focusOnShow]="true" [dismissableMask]="true" closeAriaLabel="Close"
                 [style]="{ width: '32rem' }" appendTo="body" header="Step Details"
                 data-testid="scenario-step-edit-dialog">
-        <div class="dialog-grid">
-          <label for="stepEditName">Name</label>
-          <input id="stepEditName" pInputText [(ngModel)]="editingName" data-testid="scenario-step-edit-name"
+        <app-field label="Name" controlId="stepEditName" [control]="editForm.controls.name"
+                   [errorMessages]="stepNameErrors" [submitted]="editSubmitted()">
+          <input appFieldControl pInputText [formControl]="editForm.controls.name" id="stepEditName"
+                 [attr.maxlength]="nameMaxLength" data-testid="scenario-step-edit-name"
                  placeholder="Step description..." />
-          <label for="stepEditType">Type</label>
-          <p-select inputId="stepEditType" [(ngModel)]="editingType" data-testid="scenario-step-edit-type"
+        </app-field>
+
+        <app-field label="Type" controlId="stepEditType" [control]="editForm.controls.scenarioType"
+                   [submitted]="editSubmitted()">
+          <p-select appFieldControl inputId="stepEditType" data-testid="scenario-step-edit-type"
+                    [formControl]="editForm.controls.scenarioType"
                     [options]="typeOptions" optionLabel="label" optionValue="value" appendTo="body" />
-          <label for="stepEditText">Notes</label>
-          <textarea id="stepEditText" pTextarea [(ngModel)]="editingText" data-testid="scenario-step-edit-text" rows="4"
+        </app-field>
+
+        <app-field label="Notes" controlId="stepEditText" [control]="editForm.controls.text" [divider]="false"
+                   [submitted]="editSubmitted()">
+          <textarea appFieldControl pTextarea [formControl]="editForm.controls.text" id="stepEditText" rows="4"
+                    data-testid="scenario-step-edit-text"
                     placeholder="Additional details or notes..."></textarea>
-        </div>
+        </app-field>
         <div class="dialog-actions">
           <p-button label="Apply" icon="pi pi-check" size="small" data-testid="scenario-step-edit-apply"
                     (onClick)="applyStepEdit()" />
@@ -419,7 +428,6 @@ type StepGroup = FormGroup<{
     }
 
     /* Step edit dialog */
-    .dialog-grid { display: grid; grid-template-columns: 80px 1fr; gap: 0.5rem; align-items: start; }
     .dialog-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
   `]
 })
@@ -497,9 +505,23 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
 
   typeOptions = SCENARIO_TYPE_OPTIONS;
   showScenarioSelector = false;
-  editingName = '';
-  editingType = 'Primary';
-  editingText = '';
+  /**
+   * Reactive form backing the step-detail edit dialog (#202). Replaces the `editingName` /
+   * `editingType` / `editingText` ngModel scratch fields: reset from the target group on open,
+   * applied back to it on Apply. Kept separate from `stepsForm` — it's a scratch buffer, so only
+   * Apply (via markStepsDirty) touches the persisted list.
+   */
+  readonly editForm = new FormGroup({
+    name: new FormControl('', {
+      validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+      nonNullable: true,
+    }),
+    scenarioType: new FormControl('Primary', { nonNullable: true }),
+    text: new FormControl<string | null>(null),
+  });
+  /** Set true on an Apply attempt so the dialog's required message shows on an untouched field. */
+  readonly editSubmitted = signal(false);
+  readonly stepNameErrors = { required: 'A step needs a name.' };
 
   projectName = '';
   scenarioId: number | null = null;
@@ -784,20 +806,27 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   }
 
   openStepEdit(group: StepGroup): void {
+    this.editSubmitted.set(false);
+    this.editForm.reset({
+      name: group.controls.name.value,
+      scenarioType: group.controls.scenarioType.value,
+      text: group.controls.text.value,
+    });
     this.editingStep.set(group);
-    this.editingName = group.controls.name.value;
-    this.editingType = group.controls.scenarioType.value;
-    this.editingText = group.controls.text.value ?? '';
   }
 
   applyStepEdit(): void {
     const group = this.editingStep();
     if (!group) return;
-    group.patchValue({
-      name: this.editingName,
-      scenarioType: this.editingType,
-      text: this.editingText || null,
-    });
+    // Validate on click: a blank / too-long name keeps the dialog open with the message shown,
+    // rather than silently applying (mirrors onSave marking the details form touched).
+    this.editSubmitted.set(true);
+    if (this.editForm.invalid) {
+      this.editForm.markAllAsTouched();
+      return;
+    }
+    const { name, scenarioType, text } = this.editForm.getRawValue();
+    group.patchValue({ name, scenarioType, text: text || null });
     this.markStepsDirty();
     this.editingStep.set(null);
   }
