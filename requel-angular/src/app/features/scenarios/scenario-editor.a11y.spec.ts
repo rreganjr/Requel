@@ -91,6 +91,17 @@ describe('ScenarioEditorComponent — step-detail dialog accessibility', () => {
     await expectNoAxeViolations(getOpenDialog()!);
   });
 
+  it('has no axe-core violations with the name field in the error state (#202)', async () => {
+    await openStepDialog();
+    comp.editForm.controls.name.setValue('');
+    comp.editSubmitted.set(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(getOpenDialog()!.textContent).toContain('A step needs a name.');
+    await expectNoAxeViolations(getOpenDialog()!);
+  });
+
   it('closes (clears editingStep) when PrimeNG emits visibleChange(false) via Escape/mask', async () => {
     await openStepDialog();
     expect(comp.editingStep()).not.toBeNull();
