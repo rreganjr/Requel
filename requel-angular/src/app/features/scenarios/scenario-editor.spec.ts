@@ -34,6 +34,12 @@ describe('ScenarioEditorComponent', () => {
   let comp: ScenarioEditorComponent;
   let router: Router;
 
+  // #143: steps are a reactive FormArray. Read raw values via stepValues(); pass a control
+  // (StepGroup) to handlers via stepAt(); set a step's name via setStepName().
+  const stepValues = () => comp.stepsForm.getRawValue();
+  const stepAt = (i: number) => comp.stepsForm.at(i);
+  const setStepName = (i: number, name: string) => comp.stepsForm.at(i).controls.name.setValue(name);
+
   beforeEach(() => {
     paramMap$ = new BehaviorSubject(convertToParamMap({ name: 'proj1', scenarioId: 'new' }));
 
@@ -73,21 +79,21 @@ describe('ScenarioEditorComponent', () => {
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
   });
 
-  it('isNew() is true and stepNodes() empty when scenarioId param is "new"', async () => {
+  it('isNew() is true and stepsForm empty when scenarioId param is "new"', async () => {
     fixture.detectChanges();
     await flush();
     expect(comp.isNew()).toBe(true);
-    expect(comp.stepNodes().length).toBe(0);
+    expect(comp.stepsForm.length).toBe(0);
   });
 
-  it('loads scenario: scenarioName() and stepNodes() populated', async () => {
+  it('loads scenario: scenarioName() and stepsForm populated', async () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
     fixture.detectChanges();
     await flush();
     expect(scenarioServiceMock.getScenario).toHaveBeenCalledWith('proj1', 15);
     expect(comp.scenarioName()).toBe('Login Flow');
-    expect(comp.stepNodes().length).toBe(2);
-    expect(comp.stepNodes()[0].name).toBe('User opens login page');
+    expect(comp.stepsForm.length).toBe(2);
+    expect(stepValues()[0].name).toBe('User opens login page');
   });
 
   it('renders the add-step controls as real buttons that add a step', async () => {
@@ -99,29 +105,29 @@ describe('ScenarioEditorComponent', () => {
     const bottom = fixture.nativeElement.querySelector('[data-testid="scenario-add-step-bottom"]');
     expect(top.tagName).toBe('BUTTON');
     expect(bottom.tagName).toBe('BUTTON');
-    const before = comp.stepNodes().length;
+    const before = comp.stepsForm.length;
     bottom.click();
-    expect(comp.stepNodes().length).toBe(before + 1);
+    expect(comp.stepsForm.length).toBe(before + 1);
   });
 
-  it('addStep() appends a new step node and sets stepsSaveNeeded', () => {
+  it('addStep() appends a new step group and marks stepsForm dirty', () => {
     fixture.detectChanges();
-    expect(comp.stepNodes().length).toBe(0);
+    expect(comp.stepsForm.length).toBe(0);
     comp.addStep();
-    expect(comp.stepNodes().length).toBe(1);
-    expect(comp.stepNodes()[0].name).toBe('');
-    expect(comp.stepNodes()[0].isNew).toBe(true);
-    expect(comp.stepsSaveNeeded()).toBe(true);
+    expect(comp.stepsForm.length).toBe(1);
+    expect(stepValues()[0].name).toBe('');
+    expect(stepValues()[0].isNew).toBe(true);
+    expect(comp.stepsForm.dirty).toBe(true);
   });
 
-  it('removeStep() removes the given step node', () => {
+  it('removeStep() removes the given step group', () => {
     comp.addStep();
     comp.addStep();
-    expect(comp.stepNodes().length).toBe(2);
-    const stepToRemove = comp.stepNodes()[0];
-    comp.removeStep(stepToRemove);
-    expect(comp.stepNodes().length).toBe(1);
-    expect(comp.stepNodes()[0]).not.toBe(stepToRemove);
+    expect(comp.stepsForm.length).toBe(2);
+    const toRemove = stepAt(0);
+    comp.removeStep(toRemove);
+    expect(comp.stepsForm.length).toBe(1);
+    expect(stepAt(0)).not.toBe(toRemove);
   });
 
   it('onSave calls commandService.execute("EditScenario") with steps', async () => {
@@ -130,7 +136,7 @@ describe('ScenarioEditorComponent', () => {
     comp.detailsForm.controls.name.setValue('My Scenario');
     comp.detailsForm.controls.scenarioType.setValue('Alternative');
     comp.addStep();
-    comp.stepNodes()[0].name = 'Step one';
+    setStepName(0, 'Step one');
     await comp.onSave();
     expect(commandServiceMock.execute).toHaveBeenCalledWith('EditScenario', expect.objectContaining({
       projectName: 'proj1',
@@ -174,35 +180,35 @@ describe('ScenarioEditorComponent', () => {
   it('openStepEdit() sets editingStep; applyStepEdit() applies changes and clears', () => {
     fixture.detectChanges();
     comp.addStep();
-    const step = comp.stepNodes()[0];
-    comp.openStepEdit(step);
-    expect(comp.editingStep()).toBe(step);
+    const group = stepAt(0);
+    comp.openStepEdit(group);
+    expect(comp.editingStep()).toBe(group);
     comp.editingName = 'Edited Name';
     comp.editingType = 'Alternative';
     comp.editingText = 'Some notes';
     comp.applyStepEdit();
     expect(comp.editingStep()).toBeNull();
-    expect(step.name).toBe('Edited Name');
-    expect(step.scenarioType).toBe('Alternative');
-    expect(comp.stepsSaveNeeded()).toBe(true);
+    expect(group.controls.name.value).toBe('Edited Name');
+    expect(group.controls.scenarioType.value).toBe('Alternative');
+    expect(comp.stepsForm.dirty).toBe(true);
   });
 
   it('closeStepEdit() clears editingStep without applying changes', () => {
     fixture.detectChanges();
     comp.addStep();
-    comp.openStepEdit(comp.stepNodes()[0]);
+    comp.openStepEdit(stepAt(0));
     expect(comp.editingStep()).not.toBeNull();
     comp.closeStepEdit();
     expect(comp.editingStep()).toBeNull();
   });
 
-  it('onSubScenarioSelected() appends a scenario-type step node', () => {
+  it('onSubScenarioSelected() appends a scenario-type step group', () => {
     fixture.detectChanges();
     comp.onSubScenarioSelected({ id: 99, name: 'Sub Flow', scenarioType: 'Alternative' });
-    expect(comp.stepNodes().length).toBe(1);
-    expect(comp.stepNodes()[0].isScenario).toBe(true);
-    expect(comp.stepNodes()[0].name).toBe('Sub Flow');
-    expect(comp.stepsSaveNeeded()).toBe(true);
+    expect(comp.stepsForm.length).toBe(1);
+    expect(stepValues()[0].isScenario).toBe(true);
+    expect(stepValues()[0].name).toBe('Sub Flow');
+    expect(comp.stepsForm.dirty).toBe(true);
   });
 
   it('onCopy calls CopyScenario and navigates to the copy', async () => {
@@ -293,7 +299,7 @@ describe('ScenarioEditorComponent', () => {
 
       // Step 2: mutate an association, then commit.
       comp.addStep();
-      comp.stepNodes()[0].name = 'Step one';
+      setStepName(0, 'Step one');
       const step2 = { step: { key: 'steps' }, complete: vi.fn(), fail: vi.fn() };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await comp.onStepCommit(step2 as any);
@@ -370,9 +376,9 @@ describe('ScenarioEditorComponent', () => {
 
         comp.detailsForm.controls.name.setValue('Created');
         comp.addStep();
-        comp.stepNodes()[0].name = 'Step one';
-        expect(comp.stepNodes()[0].stepId).toBeNull();
-        expect(comp.stepNodes()[0].isNew).toBe(true);
+        setStepName(0, 'Step one');
+        expect(stepValues()[0].stepId).toBeNull();
+        expect(stepValues()[0].isNew).toBe(true);
 
         // The save succeeds and the refetch reports the step the server just created. That
         // refetch runs while saving() is still true, so it takes the merge path.
@@ -395,11 +401,11 @@ describe('ScenarioEditorComponent', () => {
         await comp.onStepCommit(request as any);
         await flush();
 
-        // Without the merge the node keeps stepId null and the next EditScenario recreates it.
-        expect(comp.stepNodes()).toHaveLength(1);
-        expect(comp.stepNodes()[0].stepId).toBe(77);
-        expect(comp.stepNodes()[0].isNew).toBe(false);
-        expect(comp.stepNodes()[0].name).toBe('Step one');
+        // Without the merge the group keeps stepId null and the next EditScenario recreates it.
+        expect(comp.stepsForm.length).toBe(1);
+        expect(stepValues()[0].stepId).toBe(77);
+        expect(stepValues()[0].isNew).toBe(false);
+        expect(stepValues()[0].name).toBe('Step one');
       });
 
     // Pins the known gap in the position-based merge rather than claiming it is handled: a node
@@ -412,7 +418,7 @@ describe('ScenarioEditorComponent', () => {
 
       // Two loaded steps (ids 1 and 2) plus one the user just added.
       comp.addStep();
-      comp.stepNodes()[2].name = 'Third';
+      setStepName(2, 'Third');
       comp.detailsForm.controls.name.setValue('Dirty');
       comp.detailsForm.controls.name.markAsDirty();
 
@@ -430,8 +436,8 @@ describe('ScenarioEditorComponent', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (comp as any).loadScenario(false);
 
-      expect(comp.stepNodes().map(n => n.stepId)).toEqual([1, 2, 3]);
-      expect(comp.stepNodes()[2].isNew).toBe(false);
+      expect(stepValues().map(n => n.stepId)).toEqual([1, 2, 3]);
+      expect(stepValues()[2].isNew).toBe(false);
       // The form itself is untouched - this ran with the guard closed.
       expect(comp.detailsForm.controls.name.value).toBe('Dirty');
       expect(comp.detailsForm.dirty).toBe(true);
@@ -445,15 +451,15 @@ describe('ScenarioEditorComponent', () => {
       fixture.detectChanges();
       await flush();
 
-      comp.openStepEdit(comp.stepNodes()[0]);
+      comp.openStepEdit(stepAt(0));
       const editing = comp.editingStep();
 
       events$.next({ targetType: 'Scenario', targetId: 15 });
       await flush();
 
-      // Same object identity - a wholesale stepNodes.set() would have replaced it.
+      // Same control identity - a wholesale rebuild (setStepsFromServer) would have replaced it.
       expect(comp.editingStep()).toBe(editing);
-      expect(comp.stepNodes()[0]).toBe(editing);
+      expect(stepAt(0)).toBe(editing);
     });
   });
 
@@ -465,5 +471,99 @@ describe('ScenarioEditorComponent', () => {
     await comp.onSave();
     expect(comp.errorMessage()).toBe('Conflict');
     expect(comp.saving()).toBe(false);
+  });
+
+  // ── #143: step list is a reactive FormArray (Option A) ─────────────────────
+  // Dirty/valid come from stepsForm; add / edit / remove / reorder go through the controls.
+  describe('step-list (FormArray, #143)', () => {
+    it('onDrop reorders the step list and marks stepsForm dirty', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      expect(stepValues().map(n => n.name))
+        .toEqual(['User opens login page', 'User submits credentials']);
+
+      // Move the second step to the top.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      comp.onDrop({ previousIndex: 1, currentIndex: 0 } as any);
+
+      expect(stepValues().map(n => n.name))
+        .toEqual(['User submits credentials', 'User opens login page']);
+      expect(comp.stepsForm.dirty).toBe(true);
+    });
+
+    it('addStepBelow inserts a new blank step immediately after the given one', () => {
+      fixture.detectChanges();
+      comp.addStep();
+      comp.addStep();
+      setStepName(0, 'first');
+      setStepName(1, 'second');
+      comp.addStepBelow(stepAt(0));
+      expect(stepValues().map(n => n.name)).toEqual(['first', '', 'second']);
+      expect(stepValues()[1].isNew).toBe(true);
+      expect(comp.stepsForm.dirty).toBe(true);
+    });
+
+    it('addStepAt inserts at the requested index', () => {
+      fixture.detectChanges();
+      comp.addStep();
+      setStepName(0, 'tail');
+      comp.addStepAt(0);
+      expect(comp.stepsForm.length).toBe(2);
+      expect(stepValues()[0].isNew).toBe(true);
+      expect(stepValues()[1].name).toBe('tail');
+      expect(comp.stepsForm.dirty).toBe(true);
+    });
+
+    it('onStepNameChange (inline blur) marks stepsForm dirty on a pristine form', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      expect(comp.stepsForm.dirty).toBe(false);
+      setStepName(0, 'renamed inline');
+      comp.onStepNameChange();
+      expect(comp.stepsForm.dirty).toBe(true);
+      expect(comp.detailsForm.dirty).toBe(false);
+      expect(comp.hasUnsavedChanges()).toBe(true);
+    });
+
+    // AC-3: a blank step name is now blocked by the form instead of being submitted (it used to
+    // ship an empty name straight to the server).
+    it('blocks Save when a step name is blank, and clears once it is filled (AC-3)', async () => {
+      fixture.detectChanges();
+      await flush();
+      comp.detailsForm.controls.name.setValue('Has name');
+      comp.addStep();                       // new step keeps its default empty name
+      expect(comp.stepsForm.invalid).toBe(true);
+      expect(comp.canSave()).toBe(false);
+
+      await comp.onSave();
+      expect(commandServiceMock.execute)
+        .not.toHaveBeenCalledWith('EditScenario', expect.anything());
+
+      setStepName(0, 'Now named');
+      expect(comp.stepsForm.valid).toBe(true);
+      expect(comp.canSave()).toBe(true);
+    });
+
+    it('a sub-scenario reference row cannot make stepsForm invalid (name disabled)', () => {
+      fixture.detectChanges();
+      comp.onSubScenarioSelected({ id: 42, name: 'Ref Flow', scenarioType: 'Primary' });
+      expect(stepAt(0).controls.name.disabled).toBe(true);
+      expect(comp.stepsForm.valid).toBe(true);
+      // ...and the disabled name still ships in the payload.
+      expect(stepValues()[0].name).toBe('Ref Flow');
+    });
+
+    it('shows the inline required message once a blank step name is touched (pre-submit)', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', scenarioId: '15' }));
+      fixture.detectChanges();
+      await flush();
+      comp.addStep();                                   // blank name appended
+      stepAt(comp.stepsForm.length - 1).controls.name.markAsTouched();
+      fixture.detectChanges();
+      const err = fixture.nativeElement.querySelector('[data-testid="scenario-step-name-error"]');
+      expect(err?.textContent).toContain('A step needs a name.');
+    });
   });
 });

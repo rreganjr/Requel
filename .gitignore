@@ -38,3 +38,6 @@ node_modules/
 
 # macOS Finder metadata (appears anywhere directories get browsed)
 .DS_Store
+
+# Local scratch (Claude/agent working files) — not tracked
+/tmp/

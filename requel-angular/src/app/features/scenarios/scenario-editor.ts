@@ -19,13 +19,15 @@
  *
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location, NgTemplateOutlet } from '@angular/common';
 import { Subscription } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
-import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormArray, FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
@@ -35,7 +37,7 @@ import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TooltipModule } from 'primeng/tooltip';
-import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { CommandResult } from '../../models/command';
 import { ScenarioDto, StepDto, EditStepInput } from '../../models/scenario';
@@ -49,6 +51,7 @@ import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
+import { InlineErrorComponent } from '../../shared/app-inline-error';
 import {
   AppFormWizardComponent,
   AppWizardStepComponent,
@@ -73,14 +76,20 @@ const SEPARATOR = '; ';
 const STALE_VERSION_MESSAGE =
   'This scenario was changed elsewhere. Your copy has been refreshed - review the values and continue.';
 
-interface StepNodeData {
-  stepId: number | null;
-  name: string;
-  text: string | null;
-  scenarioType: string;
-  isScenario: boolean;
-  isNew: boolean;
-}
+/**
+ * One scenario step as a reactive group (#143). The editable fields (`name`, `scenarioType`,
+ * `text`) carry validators; `stepId` / `isScenario` / `isNew` are metadata controls that ride
+ * inside the group so a reorder moves a step's identity with it. `getRawValue()` emits all six —
+ * including the disabled `name` on sub-scenario reference rows — so the submit payload is unchanged.
+ */
+type StepGroup = FormGroup<{
+  stepId: FormControl<number | null>;
+  name: FormControl<string>;
+  text: FormControl<string | null>;
+  scenarioType: FormControl<string>;
+  isScenario: FormControl<boolean>;
+  isNew: FormControl<boolean>;
+}>;
 
 @Component({
   selector: 'app-scenario-editor',
@@ -90,7 +99,7 @@ interface StepNodeData {
             MessageModule, SubmitErrorComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent, LoadingStateComponent,
             ErrorStateComponent, AppFieldComponent, AppFieldControlDirective,
-            AppFormWizardComponent, AppWizardStepComponent],
+            AppFormWizardComponent, AppWizardStepComponent, InlineErrorComponent],
   providers: [ConfirmationService],
   template: `
     <div class="scenario-editor" data-testid="scenario-editor">
@@ -271,7 +280,7 @@ interface StepNodeData {
                 <i class="pi pi-plus" aria-hidden="true"></i> Add step
               </button>
             }
-            @for (step of stepNodes(); track step; let stepIndex = $index) {
+            @for (group of stepsForm.controls; track group; let stepIndex = $index) {
               <div cdkDrag class="step-row" data-testid="scenario-step-row"
                    [attr.data-step-index]="stepIndex">
                 @if (canEdit()) {
@@ -280,40 +289,52 @@ interface StepNodeData {
                     <i class="pi pi-bars"></i>
                   </span>
                 }
-                @if (step.isScenario) {
+                @if (group.controls.isScenario.value) {
                   <i class="pi pi-sitemap step-icon"></i>
                   <a class="entity-link step-name"
                      data-testid="scenario-step-link"
-                     [routerLink]="['/projects', projectName, 'scenarios', step.stepId!]">{{ step.name }}</a>
-                  <span class="step-type-badge">{{ step.scenarioType }}</span>
+                     [routerLink]="['/projects', projectName, 'scenarios', group.controls.stepId.value!]">{{ group.controls.name.value }}</a>
+                  <span class="step-type-badge">{{ group.controls.scenarioType.value }}</span>
                   @if (canEdit()) {
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
-                              data-testid="scenario-step-remove" [ariaLabel]="'Remove ' + step.name + ' from scenario'"
+                              data-testid="scenario-step-remove" [ariaLabel]="'Remove ' + group.controls.name.value + ' from scenario'"
                               size="small" pTooltip="Remove from scenario"
-                              (onClick)="removeStep(step)" />
+                              (onClick)="removeStep(group)" />
                   }
                 } @else {
-                  <input pInputText [(ngModel)]="step.name"
+                  <input pInputText [formControl]="group.controls.name"
                          class="step-name-input"
                          data-testid="scenario-step-name"
                          placeholder="Step description..."
-                         [disabled]="!canEdit()"
+                         [attr.aria-label]="'Step ' + (stepIndex + 1) + ' description'"
+                         [attr.maxlength]="nameMaxLength"
+                         [readonly]="!canEdit()"
+                         [attr.aria-invalid]="stepNameErr.message() ? 'true' : null"
+                         [attr.aria-describedby]="stepNameErr.message() ? 'scenario-step-name-error-' + stepIndex : null"
                          (keydown)="$event.stopPropagation()"
                          (blur)="onStepNameChange()" />
                   @if (canEdit()) {
                     <p-button icon="pi pi-pencil" [text]="true" size="small"
                               data-testid="scenario-step-edit" ariaLabel="Edit step details"
                               pTooltip="Edit details" tooltipPosition="top"
-                              (onClick)="openStepEdit(step)" />
+                              (onClick)="openStepEdit(group)" />
                     <p-button icon="pi pi-plus" severity="secondary" [text]="true"
                               data-testid="scenario-step-add-below" ariaLabel="Add step below"
                               size="small" pTooltip="Add step below" tooltipPosition="top"
-                              (onClick)="addStepBelow(step)" />
+                              (onClick)="addStepBelow(group)" />
                     <p-button icon="pi pi-times" severity="danger" [text]="true"
                               data-testid="scenario-step-remove" ariaLabel="Remove step"
                               size="small" pTooltip="Remove step" tooltipPosition="top"
-                              (onClick)="removeStep(step)" />
+                              (onClick)="removeStep(group)" />
                   }
+                  <!-- Shared #134 inline contract: shows once the control is touched or a submit was
+                       attempted. app-inline-error reads touched inside its OWN change detection, so
+                       the touched read stays out of this template's checkNoChanges pass. -->
+                  <app-inline-error #stepNameErr [control]="group.controls.name"
+                                    [id]="'scenario-step-name-error-' + stepIndex"
+                                    [submitted]="submitted()"
+                                    [overrides]="{ required: 'A step needs a name.' }"
+                                    testid="scenario-step-name-error" />
                 }
                 <!-- CDK drag placeholder styling -->
                 <div *cdkDragPlaceholder class="step-row-placeholder"></div>
@@ -326,7 +347,7 @@ interface StepNodeData {
             }
           </div>
 
-          @if (stepsSaveNeeded()) {
+          @if (stepsDirty()) {
             <div class="steps-save-note">
               <p-message severity="info"
                          [text]="isNew()
@@ -352,11 +373,14 @@ interface StepNodeData {
     /* Step list */
     .step-list { border: 1px solid var(--p-surface-200); border-radius: 6px; }
     .step-row {
-      display: flex; align-items: center; gap: 0.5rem;
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
       padding: 0.4rem 0.5rem;
       border-bottom: 1px solid var(--p-surface-100);
       background: var(--p-surface-0);
     }
+    /* Inline per-step required message drops to its own line under the input. */
+    app-inline-error { display: block; }
+    .step-row app-inline-error:has(p) { flex-basis: 100%; margin-left: 1.75rem; }
     .step-row:last-child { border-bottom: none; }
     .step-row.cdk-drag-animating { transition: transform 250ms cubic-bezier(0,0,0.2,1); }
     .step-list.cdk-drop-list-dragging .step-row:not(.cdk-drag-placeholder) { transition: transform 250ms cubic-bezier(0,0,0.2,1); }
@@ -418,9 +442,24 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   submitted = signal(false);
   canEdit = signal(false);
   canDelete = signal(false);
-  stepsSaveNeeded = signal(false);
-  stepNodes = signal<StepNodeData[]>([]);
-  editingStep = signal<StepNodeData | null>(null);
+  /**
+   * The scenario's step list as a reactive array (#143). Replaces the `stepNodes` signal and the
+   * manual `stepsSaveNeeded` flag: dirty/valid now come from the form itself. Kept a sibling of
+   * `detailsForm` (not nested) so the create wizard's Details step gates on `detailsForm` alone.
+   */
+  readonly stepsForm = new FormArray<StepGroup>([]);
+
+  /**
+   * `stepsForm.dirty` projected as a signal, for the template's unsaved-steps note only. Reading
+   * the raw getter in an `@if` tripped NG0100 in the create wizard — the value settles a tick
+   * after a step is added — and a signal is glitch-free across change detection. All logic
+   * (hasUnsavedChanges / canSave) still reads `stepsForm` directly.
+   */
+  protected readonly stepsDirty = toSignal(
+    this.stepsForm.events.pipe(map(() => this.stepsForm.dirty)),
+    { initialValue: false },
+  );
+  editingStep = signal<StepGroup | null>(null);
 
   /**
    * Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). Bound with
@@ -499,8 +538,8 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
         this.wizardStep = 'details';
         this.submitted.set(false);
         this.detailsForm.reset({ name: '', scenarioType: 'Primary', text: '' });
-        this.stepNodes.set([]);
-        this.stepsSaveNeeded.set(false);
+        this.stepsForm.clear();
+        this.stepsForm.markAsPristine();
         // New scenarios don't load — resolve the loading/error state so the
         // form renders immediately instead of the skeleton.
         this.loading.set(false);
@@ -520,16 +559,17 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   }
 
   /**
-   * Steps live outside the form - they are local nodes submitted wholesale with EditScenario -
-   * so the dirty check is the form's own state OR a pending step change.
+   * Dirty check across both reactive forms (#143). The step list is a sibling `FormArray`, so an
+   * add / edit / remove / reorder shows up as `stepsForm.dirty` — no separate flag to keep in sync.
    */
   hasUnsavedChanges(): boolean {
-    return this.detailsForm.dirty || this.stepsSaveNeeded();
+    return this.detailsForm.dirty || this.stepsForm.dirty;
   }
 
-  /** Edit-mode Save: blocked on invalid, unchanged, or in-flight. */
+  /** Edit-mode Save: blocked on invalid details OR an invalid step, unchanged, or in-flight. */
   canSave(): boolean {
-    return this.detailsForm.valid && this.hasUnsavedChanges() && !this.saving();
+    return this.detailsForm.valid && this.stepsForm.valid
+      && this.hasUnsavedChanges() && !this.saving();
   }
 
   ngOnDestroy(): void {
@@ -592,8 +632,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
         scenarioType: s.scenarioType ?? 'Primary',
         text: s.text ?? '',
       });
-      this.stepsSaveNeeded.set(false);
-      this.stepNodes.set(this.stepsToNodes(s.steps ?? []));
+      this.setStepsFromServer(s.steps ?? []);
     } catch {
       // A background refresh failure shows a non-blocking message; an initial
       // load failure shows the retryable error state in place of the form.
@@ -621,10 +660,10 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
    * Copy server-assigned ids onto the nodes the user is already holding, instead of replacing the
    * array wholesale.
    *
-   * `stepNodes` is not display state like `actor-editor`'s tables - it is editable state submitted
+   * `stepsForm` is not display state like `actor-editor`'s tables - it is editable state submitted
    * with `EditScenario`, so it can go neither inside the guard nor outside it. The post-save
    * refetch exists precisely so newly created steps pick up their ids; if the user types during it
-   * the guard skips `stepNodes.set(...)` and those nodes keep `stepId: null` / `isNew: true`, and
+   * the guard skips `setStepsFromServer(...)` and those groups keep `stepId: null` / `isNew: true`, and
    * the next `EditScenario` sends them as new again - duplicating them server-side.
    *
    * Only id-less nodes are filled in, and matching is by position, which is how `EditScenario`
@@ -635,95 +674,132 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
    * the client does not have for a step the server has never seen.
    */
   private mergeStepIds(steps: StepDto[]): void {
-    this.stepNodes.update(nodes => nodes.map((node, i) => {
+    this.stepsForm.controls.forEach((group, i) => {
       const step = steps[i];
-      if (!step || node.stepId != null) {
-        return node;
+      if (!step || group.controls.stepId.value != null) {
+        return;
       }
-      return { ...node, stepId: step.id, isNew: false };
-    }));
+      // Reconciliation, not a user edit: patch quietly and do NOT touch pristine/dirty, so a
+      // mid-refetch edit is neither lost nor made to look already-saved.
+      group.patchValue({ stepId: step.id, isNew: false }, { emitEvent: false });
+    });
   }
 
-  private stepsToNodes(steps: StepDto[]): StepNodeData[] {
-    return steps.map(step => ({
-      stepId: step.id,
-      name: step.name,
-      text: step.text ?? null,
-      scenarioType: step.scenarioType ?? this.detailsForm.controls.scenarioType.value,
-      isScenario: step.isScenario,
-      isNew: false
-    }));
+  /** Rebuild the step array from server state and settle it to pristine. */
+  private setStepsFromServer(steps: StepDto[]): void {
+    this.stepsForm.clear();
+    for (const step of steps) {
+      this.stepsForm.push(this.makeStepGroup({
+        stepId: step.id,
+        name: step.name,
+        text: step.text ?? null,
+        scenarioType: step.scenarioType ?? this.detailsForm.controls.scenarioType.value,
+        isScenario: step.isScenario,
+        isNew: false,
+      }));
+    }
+    this.stepsForm.markAsPristine();
   }
 
   onStepNameChange(): void {
-    this.stepsSaveNeeded.set(true);
+    this.markStepsDirty();
   }
 
   excludeScenarioIds(): number[] {
     const ids: number[] = [];
     if (this.scenarioId) ids.push(this.scenarioId);
-    for (const step of this.stepNodes()) {
+    for (const step of this.stepsForm.getRawValue()) {
       if (step.isScenario && step.stepId != null) ids.push(step.stepId);
     }
     return ids;
   }
 
-  private newStepNode(): StepNodeData {
-    return {
+  /**
+   * Build a step group. Sub-scenario reference rows render as a link, not an input, and their name
+   * is server-provided — disable the `name` control so a reference can never make `stepsForm`
+   * invalid; `getRawValue()` still emits it, so the submit payload is unchanged.
+   */
+  private makeStepGroup(data: {
+    stepId: number | null; name: string; text: string | null;
+    scenarioType: string; isScenario: boolean; isNew: boolean;
+  }): StepGroup {
+    const name = new FormControl(data.name, {
+      validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
+      nonNullable: true,
+    });
+    if (data.isScenario) name.disable();
+    return new FormGroup({
+      stepId: new FormControl<number | null>(data.stepId),
+      name,
+      text: new FormControl<string | null>(data.text),
+      scenarioType: new FormControl(data.scenarioType, { nonNullable: true }),
+      isScenario: new FormControl(data.isScenario, { nonNullable: true }),
+      isNew: new FormControl(data.isNew, { nonNullable: true }),
+    });
+  }
+
+  private newStepGroup(): StepGroup {
+    return this.makeStepGroup({
       stepId: null, name: '', text: null,
       scenarioType: this.detailsForm.controls.scenarioType.value,
-      isScenario: false, isNew: true
-    };
+      isScenario: false, isNew: true,
+    });
+  }
+
+  /**
+   * Structural changes to a `FormArray` (push / insert / removeAt / reorder) do not mark it dirty
+   * on their own, so add / remove / reorder call this. Inline field edits dirty their control.
+   */
+  private markStepsDirty(): void {
+    this.stepsForm.markAsDirty();
   }
 
   addStep(): void {
-    this.stepNodes.update(steps => [...steps, this.newStepNode()]);
-    this.stepsSaveNeeded.set(true);
+    this.stepsForm.push(this.newStepGroup());
+    this.markStepsDirty();
   }
 
   addStepAt(index: number): void {
-    const steps = [...this.stepNodes()];
-    steps.splice(index, 0, this.newStepNode());
-    this.stepNodes.set(steps);
-    this.stepsSaveNeeded.set(true);
+    this.stepsForm.insert(index, this.newStepGroup());
+    this.markStepsDirty();
   }
 
-  addStepBelow(step: StepNodeData): void {
-    const steps = [...this.stepNodes()];
-    const idx = steps.indexOf(step);
-    steps.splice(idx + 1, 0, this.newStepNode());
-    this.stepNodes.set(steps);
-    this.stepsSaveNeeded.set(true);
+  addStepBelow(group: StepGroup): void {
+    const idx = this.stepsForm.controls.indexOf(group);
+    this.stepsForm.insert(idx + 1, this.newStepGroup());
+    this.markStepsDirty();
   }
 
-  removeStep(step: StepNodeData): void {
-    this.stepNodes.update(steps => steps.filter(s => s !== step));
-    this.stepsSaveNeeded.set(true);
+  removeStep(group: StepGroup): void {
+    const idx = this.stepsForm.controls.indexOf(group);
+    if (idx >= 0) this.stepsForm.removeAt(idx);
+    this.markStepsDirty();
   }
 
-  onDrop(event: CdkDragDrop<StepNodeData[]>): void {
-    const steps = [...this.stepNodes()];
-    moveItemInArray(steps, event.previousIndex, event.currentIndex);
-    this.stepNodes.set(steps);
-    this.stepsSaveNeeded.set(true);
+  onDrop(event: CdkDragDrop<StepGroup[]>): void {
+    const group = this.stepsForm.at(event.previousIndex);
+    this.stepsForm.removeAt(event.previousIndex);
+    this.stepsForm.insert(event.currentIndex, group);
+    this.markStepsDirty();
   }
 
-  openStepEdit(step: StepNodeData): void {
-    this.editingStep.set(step);
-    this.editingName = step.name;
-    this.editingType = step.scenarioType;
-    this.editingText = step.text ?? '';
+  openStepEdit(group: StepGroup): void {
+    this.editingStep.set(group);
+    this.editingName = group.controls.name.value;
+    this.editingType = group.controls.scenarioType.value;
+    this.editingText = group.controls.text.value ?? '';
   }
 
   applyStepEdit(): void {
-    const step = this.editingStep();
-    if (!step) return;
-    step.name = this.editingName;
-    step.scenarioType = this.editingType;
-    step.text = this.editingText || null;
-    this.stepNodes.set([...this.stepNodes()]);
+    const group = this.editingStep();
+    if (!group) return;
+    group.patchValue({
+      name: this.editingName,
+      scenarioType: this.editingType,
+      text: this.editingText || null,
+    });
+    this.markStepsDirty();
     this.editingStep.set(null);
-    this.stepsSaveNeeded.set(true);
   }
 
   closeStepEdit(): void {
@@ -744,16 +820,16 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
 
   onSubScenarioSelected(ref: ScenarioRef): void {
     this.showScenarioSelector = false;
-    this.stepNodes.update(steps => [...steps, {
+    this.stepsForm.push(this.makeStepGroup({
       stepId: ref.id, name: ref.name, text: null,
       scenarioType: ref.scenarioType ?? this.detailsForm.controls.scenarioType.value,
-      isScenario: true, isNew: false
-    }]);
-    this.stepsSaveNeeded.set(true);
+      isScenario: true, isNew: false,
+    }));
+    this.markStepsDirty();
   }
 
   private buildStepInputs(): EditStepInput[] {
-    return this.stepNodes().map(step => ({
+    return this.stepsForm.getRawValue().map(step => ({
       stepId: step.stepId,
       name: step.name,
       text: step.text || null,
@@ -771,6 +847,12 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
    */
   async onStepCommit(request: WizardCommitRequest): Promise<void> {
     this.submitted.set(true);
+    if (this.detailsForm.invalid || this.stepsForm.invalid) {
+      this.detailsForm.markAllAsTouched();
+      this.stepsForm.markAllAsTouched();
+      request.fail('Please fix the highlighted fields.');
+      return;
+    }
     const result = await this.saveDetails();
 
     if (result.success) {
@@ -843,7 +925,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
         this.scenarioName.set(saved.name);
       }
       this.detailsForm.markAsPristine();
-      this.stepsSaveNeeded.set(false);
+      this.stepsForm.markAsPristine();
       this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Scenario saved.' });
 
       // Refetch so new steps pick up their server-assigned ids, and so the SSE subscription
@@ -882,8 +964,9 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   /** Edit-mode Save. */
   async onSave(): Promise<void> {
     this.submitted.set(true);
-    if (this.detailsForm.invalid) {
+    if (this.detailsForm.invalid || this.stepsForm.invalid) {
       this.detailsForm.markAllAsTouched();
+      this.stepsForm.markAllAsTouched();
       return;
     }
 
@@ -931,7 +1014,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
           this.projectService.notifyTreeChanged();
           // Nothing left to guard against - don't let the dirty check block the exit.
           this.detailsForm.markAsPristine();
-          this.stepsSaveNeeded.set(false);
+          this.stepsForm.markAsPristine();
           this.router.navigate(['/projects', this.projectName, 'scenarios']);
         } else {
           this.showError(result.error ?? 'Delete failed.');
