@@ -39,6 +39,13 @@ elif [[ -z "$RETRO" ]]; then
   fi
 fi
 
+# Epics are rollup containers — their sub-issues carry the effort — so they never
+# get a retro, even if one was passed on the command line or auto-computed above.
+if is_epic "$ISSUE"; then
+  [[ -n "$RETRO" ]] && echo "==> #$ISSUE is an Epic — epics don't carry a retro; ignoring it."
+  RETRO=""
+fi
+
 NUM=$(resolve_project_number)
 if [[ -z "$NUM" ]]; then
   echo "ERROR: no project titled '$PROJECT_TITLE'. Run: ./setup-project.sh $RELEASE" >&2
