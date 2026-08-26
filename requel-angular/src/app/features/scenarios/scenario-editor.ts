@@ -19,6 +19,7 @@
  *
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { EditorActionsComponent } from '../../shared/editor-actions';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
@@ -94,7 +95,7 @@ type StepGroup = FormGroup<{
 @Component({
   selector: 'app-scenario-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
+  imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
             ReactiveFormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             MessageModule, SubmitErrorComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent, LoadingStateComponent,
@@ -106,6 +107,7 @@ type StepGroup = FormGroup<{
       <div class="page-header">
         <app-page-header [title]="isNew() ? 'New Scenario' : scenarioName()" />
         <div class="page-actions">
+          <app-editor-actions [projectName]="projectName" />
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="scenario-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew()) {

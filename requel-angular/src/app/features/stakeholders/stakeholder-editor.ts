@@ -19,6 +19,7 @@
  *
  */
 import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
+import { EditorActionsComponent } from '../../shared/editor-actions';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -72,7 +73,7 @@ interface PermissionGroup {
 @Component({
   selector: 'app-stakeholder-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule,
+  imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, SelectModule,
             CheckboxModule, SubmitErrorComponent, ConfirmDialogModule, TableModule,
             EntitySelectorDialogComponent, AppFieldComponent, AppFieldControlDirective,
@@ -84,6 +85,7 @@ interface PermissionGroup {
       <div class="page-header">
         <app-page-header [title]="isNew() ? (isUserType() ? 'Add User Stakeholder' : 'Add Non-User Stakeholder') : stakeholderName()" />
         <div class="page-actions">
+          <app-editor-actions [projectName]="projectName" />
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
                     [outlined]="true" (onClick)="onBack()" />
           @if (canDelete() && !isNew()) {

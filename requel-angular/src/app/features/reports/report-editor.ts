@@ -19,6 +19,7 @@
  *
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { EditorActionsComponent } from '../../shared/editor-actions';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -47,7 +48,7 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 @Component({
   selector: 'app-report-editor',
   standalone: true,
-  imports: [
+  imports: [EditorActionsComponent, 
     PageHeaderComponent,
     AppCardComponent,
     ReactiveFormsModule,
@@ -69,6 +70,7 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
       <div class="page-header">
         <app-page-header [title]="isNew() ? 'New Document' : reportName()" />
         <div class="page-actions">
+          <app-editor-actions [projectName]="projectName" />
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="report-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew() && canDelete()) {

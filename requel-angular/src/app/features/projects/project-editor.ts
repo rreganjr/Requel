@@ -30,8 +30,6 @@ import { ButtonModule } from 'primeng/button';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ConfirmationService } from 'primeng/api';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { ProjectDto } from '../../models/project';
@@ -62,10 +60,9 @@ const SEPARATOR = '; ';
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule,
             InputText, TextareaModule, ButtonModule, SelectModule, MessageModule, SubmitErrorComponent,
-            ConfirmDialogModule, TagSelectorComponent, LoadingStateComponent, ErrorStateComponent,
+            TagSelectorComponent, LoadingStateComponent, ErrorStateComponent,
             AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent],
-  providers: [ConfirmationService],
   template: `
     <div class="project-editor" data-testid="project-editor">
       <div class="page-header">
@@ -178,7 +175,6 @@ const SEPARATOR = '; ';
       </ng-template>
     </div>
 
-    <p-confirmDialog />
   `,
   styles: [`
     .project-editor { max-width: 800px; }
@@ -245,8 +241,6 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   );
 
   private paramSub!: Subscription;
-  private pendingNavName: string | null = null;
-  private switchingProject = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -254,8 +248,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     private projectService: ProjectService,
     private userService: UserService,
     private commandService: CommandService,
-    private permissionService: PermissionService,
-    private confirmationService: ConfirmationService
+    private permissionService: PermissionService
   ) {}
 
   ngOnInit(): void {
@@ -264,29 +257,10 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
 
     // React to route param changes (handles sidebar project clicks)
     this.paramSub = this.route.paramMap.subscribe(params => {
-      const nameParam = params.get('name');
-      const newIsNew = nameParam === 'new' || !nameParam;
-
-      // If form is dirty, confirm before switching
-      if (this.detailsForm.dirty && !newIsNew) {
-        this.pendingNavName = nameParam;
-        this.confirmationService.confirm({
-          message: 'You have unsaved changes. Save before switching?',
-          header: 'Unsaved Changes',
-          icon: 'pi pi-exclamation-triangle',
-          acceptLabel: 'Save & Switch',
-          rejectLabel: 'Cancel',
-          accept: () => this.saveAndSwitch(),
-          reject: () => {
-            // Stay on current form — navigate back to original
-            this.pendingNavName = null;
-            this.router.navigate(['/projects', this.originalName()], { replaceUrl: true });
-          }
-        });
-        return;
-      }
-
-      this.loadProject(nameParam);
+      // Leaving a dirty editor is handled uniformly by dirtyCheckGuard
+      // (CanDeactivate). The old in-editor "Save & Switch" flow was removed with
+      // the #154 route move — nothing navigates editor→editor anymore.
+      this.loadProject(params.get('name'));
     });
   }
 
@@ -439,8 +413,8 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   }
 
   /**
-   * Edit-mode Save. Renaming changes the route identity, so a successful rename navigates -
-   * except while `saveAndSwitch` is driving, which is about to navigate somewhere else anyway.
+   * Edit-mode Save. Renaming changes the route identity, so a successful rename
+   * navigates to the editor at the new name.
    */
   async onSave(): Promise<void> {
     this.submitted.set(true);
@@ -455,9 +429,9 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       return;
     }
     const name = this.detailsForm.controls.name.value;
-    if (name !== previousName && !this.switchingProject) {
+    if (name !== previousName) {
       try {
-        await this.router.navigate(['/projects', name]);
+        await this.router.navigate(['/projects', name, 'edit']);
       } catch (err: unknown) {
         // The save succeeded; only the route change failed. Report it rather than rejecting
         // out of onSave - the original code had this navigation inside its try/catch and
@@ -525,17 +499,4 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     });
   }
 
-  private async saveAndSwitch(): Promise<void> {
-    this.switchingProject = true;
-    try {
-      await this.onSave();
-      if (!this.errorMessage() && this.pendingNavName) {
-        const target = this.pendingNavName;
-        this.pendingNavName = null;
-        await this.loadProject(target);
-      }
-    } finally {
-      this.switchingProject = false;
-    }
-  }
 }

@@ -19,6 +19,7 @@
  *
  */
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { EditorActionsComponent } from '../../shared/editor-actions';
 import { NgTemplateOutlet } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
@@ -62,7 +63,7 @@ const STALE_VERSION_MESSAGE =
 @Component({
   selector: 'app-story-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
+  imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, SubmitErrorComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, AppFieldComponent, AppFieldControlDirective,
@@ -74,6 +75,7 @@ const STALE_VERSION_MESSAGE =
       <div class="page-header">
         <app-page-header [title]="isNew() ? 'New Story' : storyName()" />
         <div class="page-actions">
+          <app-editor-actions [projectName]="projectName" />
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
                     data-testid="story-back"
                     [outlined]="true" (onClick)="onBack()" />
