@@ -29,6 +29,7 @@ import { ToastModule } from 'primeng/toast';
 import { AuthService } from '../../core/auth.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { SidebarNavComponent } from '../../shared/sidebar-nav';
+import { BreadcrumbComponent } from '../../shared/breadcrumb';
 import { MenuItem, MessageService } from 'primeng/api';
 
 /**
@@ -61,14 +62,14 @@ function persistSidebarCollapsed(collapsed: boolean): void {
  * search / account / sidebar-toggle on the right) over a collapsible sidebar
  * and the main content canvas. See doc/128-154-app-shell-plan.md.
  *
- * The breadcrumb region is reserved here and rendered by <app-breadcrumb> in
- * the #128 dynamic-breadcrumb step; PR1 ships the region empty so no coarse
- * static labels are shown in the interim.
+ * The breadcrumb region hosts <app-breadcrumb>, which builds the trail from the
+ * current URL. Project and section labels are dynamic; resolving an artifact's
+ * name by id (vs. its type label) is the #128 resolver step.
  */
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, ButtonModule, MenuModule, ToastModule, SidebarNavComponent],
+  imports: [RouterOutlet, RouterLink, ButtonModule, MenuModule, ToastModule, SidebarNavComponent, BreadcrumbComponent],
   providers: [MessageService],
   template: `
     <p-toast />
@@ -98,8 +99,9 @@ function persistSidebarCollapsed(collapsed: boolean): void {
               <i class="pi pi-arrow-left" aria-hidden="true"></i>
             </button>
           }
-          <!-- Breadcrumb region (filled by <app-breadcrumb> in the #128 step). -->
-          <div class="breadcrumb-region" data-testid="breadcrumb-region"></div>
+          <div class="breadcrumb-region" data-testid="breadcrumb-region">
+            <app-breadcrumb />
+          </div>
         </div>
 
         <div class="header-right">
