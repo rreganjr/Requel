@@ -65,7 +65,7 @@ export class UserListComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     this.columns = [
-      { field: 'username', header: 'Username', sortable: true },
+      { field: 'username', header: 'Username', sortable: true, link: u => ['/users', u.username] },
       { field: 'name', header: 'Name', sortable: true },
       { field: 'emailAddress', header: 'Email', sortable: true },
       { field: 'organizationName', header: 'Organization', sortable: true },

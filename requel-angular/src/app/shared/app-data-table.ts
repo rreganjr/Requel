@@ -22,6 +22,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import {
   Component, ContentChild, EventEmitter, Input, Output, TemplateRef, ViewChild
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -47,6 +48,12 @@ export interface DataTableColumn<T = unknown> {
   cellTemplate?: TemplateRef<{ $implicit: T }>;
   /** Optional class applied to the `<td>` (e.g. a width/truncation helper). */
   class?: string;
+  /**
+   * When present and it returns a non-null commands array, the default cell
+   * renders `<a [routerLink]="link(row)">value</a>` (a real, right/middle-click
+   * -able link); when it returns null/undefined it falls back to plain text.
+   */
+  link?: (row: T) => unknown[] | null | undefined;
 }
 
 /**
@@ -87,7 +94,7 @@ export interface RowAction<T = unknown> {
   standalone: true,
   imports: [
     TableModule, MenuModule, ButtonModule, InputText, FormsModule,
-    NgTemplateOutlet, EmptyStateComponent
+    NgTemplateOutlet, RouterLink, EmptyStateComponent
   ],
   template: `
     @if (showToolbar) {
@@ -147,6 +154,9 @@ export interface RowAction<T = unknown> {
               @if (col.cellTemplate) {
                 <ng-container [ngTemplateOutlet]="col.cellTemplate"
                               [ngTemplateOutletContext]="{ $implicit: row }" />
+              } @else if (col.link && col.link(row); as link) {
+                <a class="dt-link" [routerLink]="link"
+                   (click)="$event.stopPropagation()">{{ getValue(row, col.field) }}</a>
               } @else {
                 {{ getValue(row, col.field) }}
               }
@@ -197,6 +207,9 @@ export interface RowAction<T = unknown> {
     .dt-toolbar-right { display: flex; align-items: center; gap: var(--rq-space-2); }
     .dt-search { display: inline-flex; align-items: center; }
     .dt-row--clickable { cursor: pointer; }
+    .dt-link { color: var(--p-primary-color); text-decoration: underline; cursor: pointer; }
+    .dt-link:hover { opacity: 0.8; }
+    .dt-link:focus-visible { outline: 2px solid var(--p-primary-color); outline-offset: 2px; border-radius: var(--rq-radius-sm, 3px); }
     .dt-select-col { width: 3rem; text-align: center; }
     .dt-actions-col { width: 3rem; text-align: right; }
   `]

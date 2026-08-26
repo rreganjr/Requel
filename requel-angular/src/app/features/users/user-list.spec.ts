@@ -61,4 +61,23 @@ describe('UserListComponent', () => {
     comp.onRowSelect({ data: MOCK_USERS[0] });
     expect(spy).toHaveBeenCalledWith(['/users', 'alice']);
   });
+
+  it('renders the name as a real link and still navigates on row click (issue #129)', async () => {
+    const spy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+
+    // AC #2 - the name cell is a real link to the detail route
+    const link = el.querySelector('tbody tr.dt-row a.dt-link') as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    expect(link.textContent?.trim()).toBe('alice');
+    expect(link.getAttribute('href')).toBe('/users/alice');
+
+    // AC #3 - whole-row click still navigates to the same target (kept as a convenience)
+    const row = el.querySelector('tbody tr.dt-row') as HTMLElement;
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(spy).toHaveBeenCalledWith(['/users', 'alice']);
+  });
 });

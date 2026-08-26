@@ -85,7 +85,7 @@ export class StakeholderListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.columns = [
-      { field: 'name', header: 'Name', sortable: true },
+      { field: 'name', header: 'Name', sortable: true, link: s => ['/projects', this.projectName, 'stakeholders', s.id] },
       { field: 'type', header: 'Type', sortable: true, cellTemplate: this.typeCell },
       { field: 'userDetails.teamName', header: 'Team' },
       { field: 'userDetails.emailAddress', header: 'Email' },

@@ -76,7 +76,7 @@ export class ProjectListComponent implements OnInit {
   readonly canCreateProjects = signal(false);
 
   columns: DataTableColumn<ProjectDto>[] = [
-    { field: 'name', header: 'Name', sortable: true },
+    { field: 'name', header: 'Name', sortable: true, link: p => ['/projects', p.name] },
     { field: 'organizationName', header: 'Organization', sortable: true },
     { field: 'status', header: 'Status', sortable: true },
     { field: 'createdBy', header: 'Created By', sortable: true },

@@ -62,7 +62,7 @@ export class ScenarioListComponent implements OnInit, OnDestroy {
   canEdit = signal(false);
 
   columns: DataTableColumn<ScenarioDto>[] = [
-    { field: 'name', header: 'Name', sortable: true },
+    { field: 'name', header: 'Name', sortable: true, link: s => ['/projects', this.projectName, 'scenarios', s.id] },
     { field: 'scenarioType', header: 'Type', sortable: true },
     { field: 'createdBy', header: 'Created By', sortable: true }
   ];

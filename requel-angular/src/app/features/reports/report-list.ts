@@ -74,7 +74,7 @@ export class ReportListComponent implements OnInit, OnDestroy {
   canEdit = signal(false);
 
   columns: DataTableColumn<ReportGeneratorDto>[] = [
-    { field: 'name', header: 'Name', sortable: true },
+    { field: 'name', header: 'Name', sortable: true, link: r => ['/projects', this.projectName, 'reports', r.id] },
     { field: 'createdBy', header: 'Created By', sortable: true }
   ];
 

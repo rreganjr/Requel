@@ -87,7 +87,7 @@ export class ActorListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.columns = [
-      { field: 'name', header: 'Name', sortable: true },
+      { field: 'name', header: 'Name', sortable: true, link: a => ['/projects', this.projectName, 'actors', a.id] },
       { field: 'text', header: 'Description', cellTemplate: this.textCell },
       { field: 'createdBy', header: 'Created By', sortable: true }
     ];

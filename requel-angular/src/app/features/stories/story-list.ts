@@ -89,7 +89,7 @@ export class StoryListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.columns = [
-      { field: 'name', header: 'Name', sortable: true },
+      { field: 'name', header: 'Name', sortable: true, link: s => ['/projects', this.projectName, 'stories', s.id] },
       { field: 'storyType', header: 'Type', sortable: true },
       { field: 'text', header: 'Text', cellTemplate: this.textCell },
       { field: 'createdBy', header: 'Created By', sortable: true }
