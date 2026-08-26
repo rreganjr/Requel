@@ -21,6 +21,7 @@
 import { Routes } from '@angular/router';
 import { dirtyCheckGuard } from '../../core/dirty-check.guard';
 import { routeData } from '../../core/route-data';
+import { artifactNameResolver } from '../../core/resolvers/artifact-name.resolver';
 
 /**
  * Project list + every project-scoped route. `projects/:name` (the project editor) MUST stay LAST:
@@ -45,6 +46,7 @@ export const projectRoutes: Routes = [
     path: 'projects/:name/stakeholders/:stakeholderId',
     title: 'Stakeholder',
     data: routeData({ section: 'project', artifactType: 'stakeholder' }),
+    resolve: { entityName: artifactNameResolver },
     loadComponent: () => import('../stakeholders/stakeholder-editor').then(m => m.StakeholderEditorComponent),
     canDeactivate: [dirtyCheckGuard],
   },
@@ -59,6 +61,7 @@ export const projectRoutes: Routes = [
     path: 'projects/:name/goals/:goalId',
     title: 'Goal',
     data: routeData({ section: 'project', artifactType: 'goal' }),
+    resolve: { entityName: artifactNameResolver },
     loadComponent: () => import('../goals/goal-editor').then(m => m.GoalEditorComponent),
     canDeactivate: [dirtyCheckGuard],
   },
@@ -73,6 +76,7 @@ export const projectRoutes: Routes = [
     path: 'projects/:name/stories/:storyId',
     title: 'Story',
     data: routeData({ section: 'project', artifactType: 'story' }),
+    resolve: { entityName: artifactNameResolver },
     loadComponent: () => import('../stories/story-editor').then(m => m.StoryEditorComponent),
     canDeactivate: [dirtyCheckGuard],
   },
@@ -87,6 +91,7 @@ export const projectRoutes: Routes = [
     path: 'projects/:name/actors/:actorId',
     title: 'Actor',
     data: routeData({ section: 'project', artifactType: 'actor' }),
+    resolve: { entityName: artifactNameResolver },
     loadComponent: () => import('../actors/actor-editor').then(m => m.ActorEditorComponent),
     canDeactivate: [dirtyCheckGuard],
   },
@@ -101,6 +106,7 @@ export const projectRoutes: Routes = [
     path: 'projects/:name/scenarios/:scenarioId',
     title: 'Scenario',
     data: routeData({ section: 'project', artifactType: 'scenario' }),
+    resolve: { entityName: artifactNameResolver },
     loadComponent: () => import('../scenarios/scenario-editor').then(m => m.ScenarioEditorComponent),
     canDeactivate: [dirtyCheckGuard],
   },
@@ -115,6 +121,7 @@ export const projectRoutes: Routes = [
     path: 'projects/:name/use-cases/:useCaseId',
     title: 'Use case',
     data: routeData({ section: 'project', artifactType: 'use-case' }),
+    resolve: { entityName: artifactNameResolver },
     loadComponent: () => import('../use-cases/use-case-editor').then(m => m.UseCaseEditorComponent),
     canDeactivate: [dirtyCheckGuard],
   },
@@ -129,6 +136,7 @@ export const projectRoutes: Routes = [
     path: 'projects/:name/terms/:termId',
     title: 'Term',
     data: routeData({ section: 'project', artifactType: 'term' }),
+    resolve: { entityName: artifactNameResolver },
     loadComponent: () => import('../terms/term-editor').then(m => m.TermEditorComponent),
     canDeactivate: [dirtyCheckGuard],
   },
@@ -143,6 +151,7 @@ export const projectRoutes: Routes = [
     path: 'projects/:name/reports/:reportId',
     title: 'Report',
     data: routeData({ section: 'project', artifactType: 'report' }),
+    resolve: { entityName: artifactNameResolver },
     loadComponent: () => import('../reports/report-editor').then(m => m.ReportEditorComponent),
     canDeactivate: [dirtyCheckGuard],
   },

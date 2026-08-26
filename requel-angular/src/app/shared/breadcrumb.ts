@@ -163,7 +163,16 @@ export class BreadcrumbComponent {
       crumbs.push({ label, url: '/' + prefix.join('/'), current: false });
     }
 
-    if (crumbs.length) crumbs[crumbs.length - 1].current = true;
+    if (crumbs.length) {
+      crumbs[crumbs.length - 1].current = true;
+
+      // Upgrade the leaf from its type label ("Goal") to the entity's name
+      // ("Login flow") when an editor route resolved one (#154 resolver step).
+      const entityName = this.leafEntityName();
+      if (entityName) {
+        crumbs[crumbs.length - 1] = { ...crumbs[crumbs.length - 1], label: entityName };
+      }
+    }
     return crumbs;
   }
 
@@ -171,6 +180,18 @@ export class BreadcrumbComponent {
   private shellChildren(): Route[] {
     const shell = this.router.config.find(r => r.path === '' && !!r.children);
     return shell?.children ?? [];
+  }
+
+  /**
+   * The `entityName` resolved onto the deepest active route (artifact editors,
+   * via artifactNameResolver). Read from the live snapshot, which carries the
+   * resolved value by the NavigationEnd that triggers a rebuild.
+   */
+  private leafEntityName(): string | null {
+    let route = this.router.routerState.snapshot.root;
+    while (route.firstChild) route = route.firstChild;
+    const value = route.data?.['entityName'];
+    return typeof value === 'string' && value.length ? value : null;
   }
 
   /** Full-path match of a URL prefix against a flat route, `:param` = wildcard. */
