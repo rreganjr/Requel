@@ -33,7 +33,16 @@ export class RequelTitleStrategy extends TitleStrategy {
   }
 
   override updateTitle(snapshot: RouterStateSnapshot): void {
-    const routeTitle = this.buildTitle(snapshot);
+    // Prefer an entity name resolved onto the deepest route (artifact editors,
+    // via artifactNameResolver) over the static route title (#154).
+    const routeTitle = this.resolvedEntityName(snapshot) ?? this.buildTitle(snapshot);
     this.title.setTitle(routeTitle ? `${routeTitle} · Requel` : 'Requel');
+  }
+
+  private resolvedEntityName(snapshot: RouterStateSnapshot): string | null {
+    let route = snapshot.root;
+    while (route?.firstChild) route = route.firstChild;
+    const value = route?.data?.['entityName'];
+    return typeof value === 'string' && value.length ? value : null;
   }
 }

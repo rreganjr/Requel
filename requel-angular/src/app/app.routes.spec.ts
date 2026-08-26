@@ -63,6 +63,24 @@ describe('app routes (#142)', () => {
     }
   });
 
+  // #154 (moved from #128): artifact editor routes resolve the entity's name for
+  // the breadcrumb leaf + document title. The project editor is excluded - its name
+  // is already the :name URL segment.
+  it('attaches artifactNameResolver (resolve.entityName) to every artifact editor, not the project editor', () => {
+    const ARTIFACT_EDITORS = [
+      'projects/:name/stakeholders/:stakeholderId', 'projects/:name/goals/:goalId',
+      'projects/:name/stories/:storyId', 'projects/:name/actors/:actorId',
+      'projects/:name/scenarios/:scenarioId', 'projects/:name/use-cases/:useCaseId',
+      'projects/:name/terms/:termId', 'projects/:name/reports/:reportId',
+    ];
+    for (const p of ARTIFACT_EDITORS) {
+      const r = byPath(p) as Route & { resolve?: Record<string, unknown> };
+      expect(typeof r?.resolve?.['entityName'], `resolver on ${p}`).toBe('function');
+    }
+    const projectEditor = byPath('projects/:name') as Route & { resolve?: Record<string, unknown> };
+    expect(projectEditor?.resolve?.['entityName'], 'project editor needs no resolver').toBeUndefined();
+  });
+
   it('matches projects/:name (project editor) AFTER its /:name/* children', () => {
     const editorIdx = children.findIndex(c => c.path === 'projects/:name');
     expect(editorIdx).toBeGreaterThan(-1);

@@ -24,4 +24,21 @@ describe('RequelTitleStrategy (#142)', () => {
     strategy.updateTitle({} as RouterStateSnapshot);
     expect(title.getTitle()).toBe('Requel');
   });
+
+  it('prefers an entity name resolved onto the deepest route (#154)', () => {
+    // buildTitle would return the static type label; the resolved name wins.
+    vi.spyOn(strategy, 'buildTitle').mockReturnValue('Goal');
+    const snapshot = {
+      root: { firstChild: { firstChild: null, data: { entityName: 'Login flow' } } },
+    } as unknown as RouterStateSnapshot;
+    strategy.updateTitle(snapshot);
+    expect(title.getTitle()).toBe('Login flow · Requel');
+  });
+
+  it('uses the static title when no entity name was resolved', () => {
+    vi.spyOn(strategy, 'buildTitle').mockReturnValue('Goals');
+    const snapshot = { root: { firstChild: null, data: {} } } as unknown as RouterStateSnapshot;
+    strategy.updateTitle(snapshot);
+    expect(title.getTitle()).toBe('Goals · Requel');
+  });
 });

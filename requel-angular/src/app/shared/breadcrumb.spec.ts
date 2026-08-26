@@ -100,3 +100,51 @@ describe('BreadcrumbComponent', () => {
     expect(current!.tagName).toBe('SPAN');
   });
 });
+
+
+describe('BreadcrumbComponent — resolved entity name (#154)', () => {
+  const RESOLVED_ROUTES = [
+    {
+      path: '', children: [
+        { path: 'projects', title: 'Projects', component: DummyComponent },
+        { path: 'projects/:name', title: 'Project', component: DummyComponent },
+        { path: 'projects/:name/goals', title: 'Goals', component: DummyComponent },
+        {
+          path: 'projects/:name/goals/:goalId', title: 'Goal', component: DummyComponent,
+          resolve: { entityName: () => 'Login flow' },
+        },
+      ],
+    },
+  ];
+
+  let router: Router;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fixture: any;
+  let comp: BreadcrumbComponent;
+
+  beforeEach(async () => {
+    TestBed.configureTestingModule({
+      imports: [BreadcrumbComponent],
+      providers: [provideRouter(RESOLVED_ROUTES)],
+    });
+    router = TestBed.inject(Router);
+    fixture = TestBed.createComponent(BreadcrumbComponent);
+    comp = fixture.componentInstance;
+    await router.navigateByUrl('/');
+    fixture.detectChanges();
+  });
+
+  it('upgrades the editor leaf from its type label to the resolved entity name', async () => {
+    await router.navigateByUrl('/projects/Acme/goals/12');
+    fixture.detectChanges();
+    const labels = comp.crumbs().map(c => c.label);
+    expect(labels).toEqual(['Projects', 'Acme', 'Goals', 'Login flow']);
+    expect(comp.crumbs().at(-1)!.current).toBe(true);
+  });
+
+  it('leaves the section crumb (no resolver) as its static label', async () => {
+    await router.navigateByUrl('/projects/Acme/goals');
+    fixture.detectChanges();
+    expect(comp.crumbs().map(c => c.label)).toEqual(['Projects', 'Acme', 'Goals']);
+  });
+});
