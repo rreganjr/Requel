@@ -27,6 +27,7 @@ const MOCK_PROJECT: ProjectDto = {
 };
 
 const SIDEBAR_EXPANDED_KEY = 'requel_sidebar_expanded_projects';
+const SIDEBAR_GROUPS_KEY = 'requel_sidebar_groups';
 
 describe('SidebarNavComponent', () => {
   let authServiceMock: { user: ReturnType<typeof signal<UserDto | null>> };
@@ -42,6 +43,7 @@ describe('SidebarNavComponent', () => {
     // Each test starts with a clean expanded-state store so tests don't
     // leak the persisted set into one another.
     localStorage.removeItem(SIDEBAR_EXPANDED_KEY);
+    localStorage.removeItem(SIDEBAR_GROUPS_KEY);
   });
 
   function setup(user: UserDto | null = null) {
@@ -126,21 +128,47 @@ describe('SidebarNavComponent', () => {
     expect(openIssuesNode?.label).toBe('Open Issues');
   });
 
-  it('activePanels() includes both "admin" and "projects" for SystemAdminUserRole', () => {
+  // ----- group open/closed state (#154) --------------------------------
+  // Which groups RENDER is gated by isAdmin()/hasProjectRole() (@if); which
+  // rendered groups are OPEN is a persisted user choice under
+  // `requel_sidebar_groups`, independent of role and of the project-tree and
+  // whole-sidebar-collapse stores.
+
+  it('openGroups() defaults to all groups open when nothing is persisted', () => {
     setup(makeUser(['SystemAdminUserRole']));
-    expect(comp.activePanels()).toContain('admin');
-    expect(comp.activePanels()).toContain('projects');
+    expect(comp.openGroups()).toEqual(['admin', 'projects']);
   });
 
-  it('activePanels() includes only "projects" for ProjectUserRole', () => {
-    setup(makeUser(['ProjectUserRole']));
-    expect(comp.activePanels()).not.toContain('admin');
-    expect(comp.activePanels()).toContain('projects');
+  it('openGroups() seeds from the persisted set', () => {
+    localStorage.setItem(SIDEBAR_GROUPS_KEY, JSON.stringify(['projects']));
+    setup(makeUser(['SystemAdminUserRole']));
+    expect(comp.openGroups()).toEqual(['projects']);
   });
 
-  it('activePanels() is empty when user has no roles', () => {
-    setup(makeUser([]));
-    expect(comp.activePanels()).toEqual([]);
+  it('onGroupsChange persists the open set to localStorage', () => {
+    setup(makeUser(['SystemAdminUserRole']));
+    comp.onGroupsChange(['admin']);
+    expect(comp.openGroups()).toEqual(['admin']);
+    expect(JSON.parse(localStorage.getItem(SIDEBAR_GROUPS_KEY)!)).toEqual(['admin']);
+  });
+
+  it('onGroupsChange normalizes a single (non-array) value to an array', () => {
+    setup(makeUser(['SystemAdminUserRole']));
+    comp.onGroupsChange('projects');
+    expect(comp.openGroups()).toEqual(['projects']);
+  });
+
+  it('treats a corrupted groups value as the all-open default', () => {
+    localStorage.setItem(SIDEBAR_GROUPS_KEY, '{not json');
+    setup(makeUser(['SystemAdminUserRole']));
+    expect(comp.openGroups()).toEqual(['admin', 'projects']);
+  });
+
+  it('renders a labelled "Primary" navigation landmark', () => {
+    const fixture = setup(makeUser(['ProjectUserRole']));
+    fixture.detectChanges();
+    const nav = fixture.nativeElement.querySelector('nav[aria-label="Primary"]');
+    expect(nav).not.toBeNull();
   });
 
   it('loading() is false after loadProjects completes', async () => {

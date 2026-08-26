@@ -63,6 +63,15 @@ issue_state() {   # usage: issue_state 43
   gh issue view "$1" --repo "$REPO" --json state --jq '.state' 2>/dev/null
 }
 
+# True (exit 0) if the issue carries the "Epic" label. Epics are rollup/container
+# issues — their child sub-issues carry the effort — so they never earn a retro
+# (or an initial estimate). Any epic, present or future, is caught by the label,
+# so nothing here is hardcoded to #124.
+is_epic() {   # usage: is_epic 124 && echo "it's an epic"
+  gh issue view "$1" --repo "$REPO" --json labels \
+    --jq 'any(.labels[]?; .name=="Epic")' 2>/dev/null | grep -qx true
+}
+
 # Distinct days with a commit referencing issues/<n> (this repo puts the full issue
 # URL on commit line 1, so match the URL form with a word boundary).
 commit_days() {   # usage: commit_days 43

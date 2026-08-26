@@ -31,6 +31,12 @@ gh project item-list "$NUM" --owner "$OWNER" --format json \
         if [[ -n "$RETRO" ]]; then
           printf "%-9s #%-5s %-7s %-6s %-6s %s\n" "VIOLATION" "$NUMBER" "open" "$RETRO" "-" "clear it"
         fi
+      elif is_epic "$NUMBER"; then
+        if [[ -n "$RETRO" ]]; then
+          printf "%-9s #%-5s %-7s %-6s %-6s %s\n" "EPIC" "$NUMBER" "closed" "$RETRO" "-" "clear it (epic)"
+        else
+          printf "%-9s #%-5s %-7s %-6s %-6s %s\n" "EPIC" "$NUMBER" "closed" "-" "-" "skip (container)"
+        fi
       else
         CALC=$(snap_fib "$(commit_days "$NUMBER")")
         if [[ -z "$RETRO" ]]; then
@@ -46,3 +52,4 @@ gh project item-list "$NUM" --owner "$OWNER" --format json \
 echo
 echo "VIOLATION -> ./clear-open-retros.sh $RELEASE --apply   |   MISSING -> ./backfill-points.sh $RELEASE"
 echo "(DRIFT is informational: the recorded retro differs from the current commit-day calc.)"
+echo "(EPIC is skipped: epics are rollup containers; their sub-issues carry the retro.)"

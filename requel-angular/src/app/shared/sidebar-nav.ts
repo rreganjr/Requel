@@ -19,7 +19,7 @@
  *
  */
 import { Component, computed, OnDestroy, OnInit, signal, untracked, ViewChild, ElementRef } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AccordionModule } from 'primeng/accordion';
 import { ButtonModule } from 'primeng/button';
@@ -38,6 +38,36 @@ import { FileUploadButtonComponent } from './file-upload-button';
  * the tree) and a full page refresh both retain the user's open projects.
  */
 const SIDEBAR_EXPANDED_PROJECTS_KEY = 'requel_sidebar_expanded_projects';
+
+/**
+ * localStorage key for which sidebar groups (accordion panels) the user has
+ * left open. Distinct from `requel_sidebar_expanded_projects` (project tree)
+ * and `requel_sidebar_collapsed` (whole-sidebar toggle, owned by the layout).
+ * Default when unset: all groups open, matching the pre-#154 behaviour.
+ */
+const SIDEBAR_GROUPS_KEY = 'requel_sidebar_groups';
+const DEFAULT_OPEN_GROUPS = ['admin', 'projects'];
+
+function loadOpenGroups(): string[] {
+  try {
+    const raw = localStorage.getItem(SIDEBAR_GROUPS_KEY);
+    if (raw === null) return [...DEFAULT_OPEN_GROUPS];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [...DEFAULT_OPEN_GROUPS];
+    return parsed.filter((s): s is string => typeof s === 'string');
+  } catch {
+    return [...DEFAULT_OPEN_GROUPS];
+  }
+}
+
+function persistOpenGroups(groups: string[]): void {
+  try {
+    localStorage.setItem(SIDEBAR_GROUPS_KEY, JSON.stringify(groups));
+  } catch {
+    // Storage may be unavailable (private mode, quota). Group state is a UX
+    // nicety, not data - drop the persistence silently.
+  }
+}
 
 function loadExpandedProjectNames(): Set<string> {
   try {
@@ -70,9 +100,11 @@ function persistExpandedProjectNames(names: Set<string>): void {
 @Component({
   selector: 'app-sidebar-nav',
   standalone: true,
-  imports: [AccordionModule, ButtonModule, TreeModule, BadgeModule, RouterLink, FileUploadButtonComponent],
+  imports: [AccordionModule, ButtonModule, TreeModule, BadgeModule, RouterLink, RouterLinkActive, FileUploadButtonComponent],
   template: `
-    <p-accordion [multiple]="true" [value]="activePanels()">
+    <nav aria-label="Primary" class="sidebar-nav-root">
+    <p-accordion [multiple]="true" [value]="openGroups()"
+                 (valueChange)="onGroupsChange($event)">
 
       @if (isAdmin()) {
         <p-accordion-panel value="admin">
@@ -81,16 +113,16 @@ function persistExpandedProjectNames(names: Set<string>): void {
           </p-accordion-header>
           <p-accordion-content>
             <div class="panel-actions">
-              <a routerLink="/users" class="sidebar-link" aria-label="List users">
+              <a routerLink="/users" routerLinkActive="active" class="sidebar-link" aria-label="List users">
                 <i class="pi pi-list"></i> List Users
               </a>
-              <a routerLink="/users/new" class="sidebar-link" aria-label="Create user">
+              <a routerLink="/users/new" routerLinkActive="active" class="sidebar-link" aria-label="Create user">
                 <i class="pi pi-plus"></i> Create User
               </a>
-              <a routerLink="/global-tags" class="sidebar-link" aria-label="Manage global tags">
+              <a routerLink="/global-tags" routerLinkActive="active" class="sidebar-link" aria-label="Manage global tags">
                 <i class="pi pi-tags"></i> Global Tags
               </a>
-              <a routerLink="/tag-categories" class="sidebar-link" aria-label="Manage tag categories">
+              <a routerLink="/tag-categories" routerLinkActive="active" class="sidebar-link" aria-label="Manage tag categories">
                 <i class="pi pi-sitemap"></i> Tag Categories
               </a>
             </div>
@@ -114,7 +146,7 @@ function persistExpandedProjectNames(names: Set<string>): void {
                                         inputTestid="sidebar-import-input"
                                         (fileSelected)="onImportFile($event)" />
               }
-              <a routerLink="/projects" class="sidebar-link" aria-label="List projects">
+              <a routerLink="/projects" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" class="sidebar-link" aria-label="List projects">
                 <i class="pi pi-list"></i> List
               </a>
             </div>
@@ -134,6 +166,7 @@ function persistExpandedProjectNames(names: Set<string>): void {
       }
 
     </p-accordion>
+    </nav>
   `,
   styles: [`
     .panel-header {
@@ -168,6 +201,15 @@ function persistExpandedProjectNames(names: Set<string>): void {
     .sidebar-link:hover {
       background: var(--p-surface-100);
     }
+
+    /* Active-item highlight (#154). routerLinkActive marks the current route. */
+    .sidebar-link.active {
+      background: var(--p-highlight-background, var(--p-surface-100));
+      color: var(--p-primary-color);
+      font-weight: var(--rq-font-weight-semibold, 600);
+    }
+
+    .sidebar-nav-root { display: block; }
 
     .tree-loading {
       padding: 0.5rem;
@@ -214,12 +256,20 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
     return isAdmin || (user?.permissions?.includes('createProjects') ?? false);
   });
 
-  readonly activePanels = computed(() => {
-    const panels: string[] = [];
-    if (this.isAdmin()) panels.push('admin');
-    if (this.hasProjectRole()) panels.push('projects');
-    return panels;
-  });
+  /**
+   * Which sidebar groups are open. Seeded from localStorage so the user's
+   * open/closed choice survives a reload, and updated by the accordion's
+   * valueChange so the persisted set stays in sync. Defaults to all-open.
+   */
+  readonly openGroups = signal<string[]>(loadOpenGroups());
+
+  onGroupsChange(value: unknown): void {
+    const groups = Array.isArray(value)
+      ? value.map(v => String(v))
+      : value != null ? [String(value)] : [];
+    this.openGroups.set(groups);
+    persistOpenGroups(groups);
+  }
 
   /**
    * Build tree nodes: each project is a parent node, entity groups are children.

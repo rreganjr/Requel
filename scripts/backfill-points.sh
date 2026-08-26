@@ -30,6 +30,10 @@ fi
 
 for n in $ISSUES; do
   echo; echo "### issue #$n"
+  if is_epic "$n"; then
+    echo "    Epic — rollup container, skipping (no points, no retro)."
+    continue
+  fi
   "$DIR/set-points.sh" "$n" 0
 done
 

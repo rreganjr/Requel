@@ -46,7 +46,7 @@ Grouped from `doc/UI_UX_REVIEW.md` findings 1.1–5.6 plus the look-and-feel ite
 
 ### Phase 4 — Information architecture and workflow adoption
 
-- [ ] #142 — 5.1 Standalone/lazy routes are good, but route groups need structure
+- [x] #142 — 5.1 Standalone/lazy routes are good, but route groups need structure
 - [ ] #154 — N1 App shell: top bar + grouped collapsible sidebar
 - [ ] #128 — 2.1 Navigation is complete but project context is hidden in the sidebar
 - [ ] #129 — 2.2 List/detail patterns are inconsistent and over-rely on row selection
@@ -61,4 +61,4 @@ Grouped from `doc/UI_UX_REVIEW.md` findings 1.1–5.6 plus the look-and-feel ite
 - [ ] #147 — 5.6 Bundle and dependency posture is reasonable but should be measured
 - [ ] #159 — N6 Theme switcher + dark mode via config panel (optional)
 
-**Progress: 23 / 34 complete** (Phase 1 ✅, Phase 2 ✅, Phase 3 in progress).
+**Progress: 24 / 34 complete** (Phase 1 ✅, Phase 2 ✅, Phase 3 in progress).
