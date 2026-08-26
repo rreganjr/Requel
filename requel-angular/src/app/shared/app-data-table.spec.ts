@@ -267,6 +267,19 @@ describe('AppDataTableComponent link column (issue #129)', () => {
     expect(seen).toEqual([]);
   });
 
+  it('still emits rowClick when a non-link cell in the row is clicked', () => {
+    const { fixture, comp } = make();
+    const seen: Row[] = [];
+    comp.rowClick.subscribe((r: Row) => seen.push(r));
+    fixture.detectChanges();
+
+    const firstRow = fixture.nativeElement.querySelectorAll('tbody tr.dt-row')[0] as HTMLElement;
+    const plainCell = Array.from(firstRow.querySelectorAll('td'))
+      .find(td => td.textContent?.trim() === 'alice')!;
+    plainCell.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(seen).toEqual([ROWS[0]]);
+  });
+
   it('falls back to plain text when the link factory returns null', () => {
     const { fixture, comp } = make();
     comp.columns = [
