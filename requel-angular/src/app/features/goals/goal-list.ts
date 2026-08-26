@@ -144,7 +144,7 @@ export class GoalListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.columns = [
-      { field: 'name', header: 'Name', sortable: true },
+      { field: 'name', header: 'Name', sortable: true, link: g => ['/projects', this.projectName, 'goals', g.id] },
       { field: 'text', header: 'Text', cellTemplate: this.textCell, class: 'text-col' },
       { field: 'tags', header: 'Tags', cellTemplate: this.tagsCell },
       { field: 'createdBy', header: 'Created By', sortable: true }

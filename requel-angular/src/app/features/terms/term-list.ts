@@ -89,7 +89,7 @@ export class TermListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.columns = [
-      { field: 'name', header: 'Term', sortable: true },
+      { field: 'name', header: 'Term', sortable: true, link: t => ['/projects', this.projectName, 'terms', t.id] },
       { field: 'text', header: 'Definition', cellTemplate: this.textCell },
       { field: 'canonicalTermName', header: 'Canonical Term', sortable: true, cellTemplate: this.canonicalCell },
       { field: 'createdBy', header: 'Created By', sortable: true }

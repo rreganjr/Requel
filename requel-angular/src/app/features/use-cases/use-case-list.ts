@@ -79,7 +79,7 @@ export class UseCaseListComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     this.columns = [
-      { field: 'name', header: 'Name', sortable: true },
+      { field: 'name', header: 'Name', sortable: true, link: uc => ['/projects', this.projectName, 'use-cases', uc.id] },
       { field: 'primaryActorName', header: 'Primary Actor', cellTemplate: this.primaryActorCell },
       { field: 'createdBy', header: 'Created By', sortable: true }
     ];

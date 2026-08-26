@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { Menu } from 'primeng/menu';
+import { provideRouter } from '@angular/router';
 import { AppDataTableComponent, DataTableColumn, RowAction } from './app-data-table';
 
 interface Row {
@@ -219,5 +220,62 @@ describe('AppDataTableComponent template overrides', () => {
     const custom = el.querySelectorAll('[data-testid="custom-action"]');
     expect(custom.length).toBe(ROWS.length);
     expect(custom[0].textContent?.trim()).toBe('Do Alpha');
+  });
+});
+
+describe('AppDataTableComponent link column (issue #129)', () => {
+  const LINK_COLUMNS: DataTableColumn<Row>[] = [
+    { field: 'name', header: 'Name', link: r => ['/projects', r.name] },
+    { field: 'createdBy', header: 'Created By' }
+  ];
+
+  function make() {
+    TestBed.configureTestingModule({
+      imports: [AppDataTableComponent],
+      providers: [provideNoopAnimations(), provideRouter([{ path: '**', children: [] }])]
+    });
+    const fixture = TestBed.createComponent(AppDataTableComponent<Row>);
+    const comp = fixture.componentInstance;
+    comp.value = ROWS;
+    comp.columns = LINK_COLUMNS;
+    return { fixture, comp };
+  }
+
+  it('renders a name cell as a real routerLink anchor, other cells stay plain text', () => {
+    const { fixture } = make();
+    fixture.detectChanges();
+    const firstRow = fixture.nativeElement.querySelectorAll('tbody tr')[0] as HTMLElement;
+
+    const link = firstRow.querySelector('a.dt-link') as HTMLAnchorElement | null;
+    expect(link).not.toBeNull();
+    expect(link!.textContent?.trim()).toBe('Alpha');
+    expect(link!.getAttribute('href')).toBe('/projects/Alpha');
+
+    const createdCell = Array.from(firstRow.querySelectorAll('td'))
+      .find(td => td.textContent?.trim() === 'alice');
+    expect(createdCell?.querySelector('a')).toBeNull();
+  });
+
+  it('does not emit rowClick when the name link is clicked (stopPropagation)', () => {
+    const { fixture, comp } = make();
+    const seen: Row[] = [];
+    comp.rowClick.subscribe((r: Row) => seen.push(r));
+    fixture.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('a.dt-link') as HTMLAnchorElement;
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(seen).toEqual([]);
+  });
+
+  it('falls back to plain text when the link factory returns null', () => {
+    const { fixture, comp } = make();
+    comp.columns = [
+      { field: 'name', header: 'Name', link: () => null },
+      { field: 'createdBy', header: 'Created By' }
+    ];
+    fixture.detectChanges();
+    const firstRow = fixture.nativeElement.querySelectorAll('tbody tr')[0] as HTMLElement;
+    expect(firstRow.querySelector('a.dt-link')).toBeNull();
+    expect(firstRow.textContent).toContain('Alpha');
   });
 });
