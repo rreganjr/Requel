@@ -19,10 +19,14 @@ https://github.com/rreganjr/Requel/issues/38
 ```
 
 Claude (re)writes `commit.md` to describe the current change before each commit. `commit.md` is
-gitignored (`/commit.md`) and is **never committed** — it is only the source for the commit message
-and PR body, consumed via `git commit -F commit.md` and `gh pr create --body-file commit.md` (or
-copy/pasted into the VS Code commit box). So `commit.md` is never staged; stage only the changed
-source files.
+gitignored (`/commit.md`) and is **never committed** — it is the source for the commit message,
+consumed via `git commit -F commit.md` (or copy/pasted into the VS Code commit box). When the PR
+body should differ from the commit message (a PR summary, scope notes, a "Closes #<n>"), write it
+to `pr.md` — also gitignored (`/pr.md`), also never staged — and pass it as `gh pr create
+--body-file pr.md`. **Refresh `pr.md`/`commit.md` immediately before the command that consumes it**;
+a stale reuse (e.g. last ticket's `pr.md`) is an easy and embarrassing mistake. Stage only the
+changed source files — never `git add commit.md`/`pr.md`, and never `git add -A` (it would sweep
+them in).
 
 Never commit unless explicitly told to commit
 
@@ -49,51 +53,102 @@ Never use `TL;DR` I hate that abbreviation, use `Summary`
 
 ### Development Workflow
 
-Each release such as `release/2.0` has a github project, all issues for the release get added to the project. we use 'Story Point' and 'Story Point Retro' custom fields to track effort. 
+Each release such as `release/2.0` has a GitHub project (**Requel 2.0**, `github.com/users/rreganjr/projects/2`); all issues for the release are added to it. We use the **Story Points** (estimate) and **Story Point Retro** (actual, filled after merge) custom fields to track effort.
 
-Every change is tied to a GitHub issue and lands via a ticket branch and a PR — never commit straight onto `release/2.0`. Steps that create or change Git/GitHub state (branch, commit, push, PR, issue edits) are always run by the developer, never by Claude. Claude prepares them — writes `commit.md`, works out the exact `git` / `gh` invocation, checks the tree is in the state the command assumes — and hands the commands over to paste. See the "let's commit / let's push" rule above.
+Every change is tied to a GitHub issue and lands via a ticket branch and a PR — never commit straight onto `release/2.0`. **Steps that create or change Git/GitHub state (branch, commit, push, PR, issue edits, project-field edits, merges) are always run by the developer, never by Claude.** Claude prepares them — reviews, plans, writes `commit.md`, works out the exact `git`/`gh` invocation, checks the tree is in the state the command assumes — and hands the commands over to paste. See the "let's commit / let's push" rule above.
 
-1. **Issue** — start from a GitHub issue. If none exists, Claude drafts the `gh issue create` command and the body; the developer runs it. Same for `gh issue comment` when recording decisions or progress.
-2. **Branch (at the start of work)** — cut a branch from `release/2.0` named
-   `<issue-number>-<short-slug>` (e.g. `87-pat-delete`, matching the existing `73-api-tokens` /
-   `77-spring-ai-provider-port` convention). Do all edits on that branch.
-3. **Implement, then verify (manual gate — must pass before committing):**
-   - Backend: `mvn clean verify` is green.
-   - Frontend (when `requel-angular/` changed): `cd requel-angular && npm test -- --watch=false` is green.
-     (`npm test` runs `ng test`; the `--` forwards `--watch=false`. Always give the npm form,
-     not a bare `ng` command.)
+**The ticket lifecycle, every time:**
 
-   Do not commit until the relevant suite passes.
-4. **Commit message** — write it to `commit.md` in the format above. Include a closing keyword
-   (`Closes #<n>` / `Fixes #<n>`) so merging the PR closes the issue; reference related issues by URL.
-5. **Commit + push** — Claude hands over the `git add` / `git commit -F commit.md` /
-   `git push -u origin <branch>` lines; the developer runs them on the ticket branch.
-6. **PR** — Claude hands over the `gh pr create --base release/2.0` line, always with a `--title`
-   (`<issue#>: <concise summary>`) and the `commit.md` content as the body via `--body-file`.
-   PRs are squash-merged.
+1. **Review the ticket for completeness** — before any code. Pull the issue and read it against the current state of the tree (ACs may have drifted as sibling tickets merged). Surface open questions and get decisions before planning. Claude does the review; the developer runs the read-only pull:
+   ```bash
+   gh issue view <n> --repo rreganjr/Requel --json number,title,body,labels,state > tmp/issue-<n>.json
+   ```
+   Report: is it still needed, have the ACs changed, any blockers/decisions needed. Ask the open questions and wait for answers.
+2. **Write an implementation plan** — a house-style doc at `doc/<n>-<slug>-plan.md` (scope/locked decisions, contracts, step-by-step, test plan, out-of-scope, risks, AC mapping). All plans/reviews/notes live in `doc/`. Get a thumbs-up on the plan (and on any risky decisions, e.g. a route move) before coding. For a large ticket, split into stacked sub-PRs in the plan (§ "Stacked PRs" below).
+3. **Branch (at the start of work)** — cut from `release/2.0`, named `<issue-number>-<short-slug>` (e.g. `142-route-groups`, `128-154-app-shell`). All edits on that branch. (Claude may create the branch over the device bridge with `git switch -c` / `git checkout -b` — those don't leave a lock — but never `git branch -D`, `git rebase`, `git stash`, or anything else that writes refs/index over the bridge; hand those to the developer.)
+4. **Implement.** Keep a per-ticket verify script at `tmp/<n>-verify.sh` (gitignored) that runs the exact gates below, so the developer runs one command.
+5. **Verify — the gate. All relevant suites must pass before committing:**
+   - **Java (backend):** `mvn clean verify` green — whenever any `modules/**` changed.
+   - **JS unit (frontend):** whenever `requel-angular/**` changed. Run **once, non-watch** — vitest defaults to an interactive watch that stops at a `q` prompt, so always pass `--watch=false` and export `CI=1`:
+     ```bash
+     cd requel-angular
+     CI=1 npx ng test --watch=false --include='src/app/**/<the-specs-you-touched>.spec.ts'
+     # or the whole suite: CI=1 npm test -- --watch=false
+     ```
+   - **Typecheck** (fast, catches template/wiring errors unit tests miss): `npx tsc -p tsconfig.app.json --noEmit && npx tsc -p tsconfig.spec.json --noEmit`, and for route/lazy/template changes a dev build: `npx ng build --configuration development`.
+   - **e2e (Playwright):** required whenever routing, navigation, page objects, or user-visible flows changed — the unit suite will *not* catch a broken route or a page-object locator. e2e needs the full stack, so it normally runs in **CI**; read a failed run's report instead of guessing:
+     ```bash
+     # from the CI e2e coverage JSON, list the failing cases + locations
+     python3 - <<'EOF'
+     import json; d=json.load(open("e2ecoverage.json"))
+     def walk(ns):
+       for n in ns:
+         if n.get('status')=='failed' and '.e2e.ts' in str(n.get('location','')):
+           print(n['location'], '::', n.get('title'))
+         for k in ('subs','rows','children'):
+           if isinstance(n.get(k),list): walk(n[k])
+     walk(d['rows'])
+     EOF
+     ```
+     When the route/behavior changed **intentionally**, updating the e2e that encoded the old behavior is correct (not a regression); when the change was meant to be behavior-preserving, a red e2e is a real regression — fix the code, not the test.
+   Do not commit until the relevant suites pass.
+6. **Commit message** — (re)write `commit.md` in the format under **Process Instructions**, with a closing keyword (`Closes #<n>`). `commit.md` is gitignored and never staged.
+7. **Commit + push** — Claude hands over `git add <changed files>` (name them; never `git add -A`, which would sweep in `commit.md`/`pr.md`), `git commit -F commit.md`, `git push -u origin <branch>`. When the PR body differs from the commit message, write it to `pr.md` (also gitignored) and refresh it *before* the `gh pr create`/`gh pr edit` — a stale `pr.md` is an easy mistake.
+8. **PR** — Claude hands over `gh pr create --base release/2.0 --head <branch>`, always with `--title` (`<issue#>: <concise summary>`) and `--body-file pr.md`. PRs are squash-merged.
+9. **Merge** — developer merges once CI (including e2e) is green. `--admin` overrides branch protection on `release/2.0` when needed; auto-merge is disabled on this repo.
+10. **Close the issue** — `release/2.0` is not the default branch, so `Closes #<n>` does **not** auto-close on merge. After merge:
+    ```bash
+    gh issue close <n> --repo rreganjr/Requel --reason completed       --comment "Merged to release/2.0 via #<pr>."
+    ```
+11. **Sync the epic rollup** (for tickets under a rollup like #124):
+    ```bash
+    bash scripts/reorder-ui-ux-subissues.sh --sync-checks --comment
+    ```
+    It reconciles the rollup doc's checkboxes/progress from **issue-closed state** (not PR-merged state), so run it *after* step 10.
+12. **Story Point Retro** — record actual effort in the project's **Story Point Retro** field so estimate-vs-actual stays honest:
+    ```bash
+    OWNER=rreganjr; NUM=2; REPO=rreganjr/Requel
+    PROJECT_ID=$(gh project view "$NUM" --owner "$OWNER" --format json | jq -r '.id')
+    RETRO_ID=$(gh project field-list "$NUM" --owner "$OWNER" --format json              | jq -r '.fields[] | select(.name=="Story Point Retro") | .id')
+    ITEM_ID=$(gh project item-add "$NUM" --owner "$OWNER"              --url "https://github.com/$REPO/issues/<n>" --format json | jq -r '.id')
+    gh project item-edit --project-id "$PROJECT_ID" --id "$ITEM_ID" --field-id "$RETRO_ID" --number <actual>
+    ```
+    (`--project-id` wants the `PVT_…` node ID; needs a `project`-scoped token — `gh auth refresh -s project` if `field-list` 403s.)
 
-**Auto-close caveat:** the repo's default branch is `master`, but PRs target `release/2.0`. GitHub auto-closes an issue from `Closes #<n>` only when the PR merges into the **default** branch, so merging into `release/2.0` does **not** close the issue. Always close it explicitly after merge:
-`gh issue close <n> --comment "Merged to release/2.0 via #<pr>."`
+**Stacked PRs (large tickets split into sub-PRs).** Split a big ticket in the plan (e.g. `128-154-app-shell` → chrome, breadcrumb, resolver, workspace). Each sub-PR is its own branch; base each on the one below (`--base <lower-branch>`) or on `release/2.0` if the lower one already merged. **Merge bottom-up, and rebase the next branch after each squash-merge** — because squash rewrites SHAs, a plain `git rebase release/2.0` replays the already-merged commits and conflicts. Use `--onto` with the *old* tip of the branch that just merged:
+```bash
+# after the branch below (old tip <OLD_BASE_TIP>) squash-merged into release/2.0:
+git checkout release/2.0 && git pull
+git rebase --onto release/2.0 <OLD_BASE_TIP> <this-branch>
+git push --force-with-lease
+gh pr edit <pr> --repo rreganjr/Requel --base release/2.0
+```
+Prefer merging each sub-PR as it goes green rather than letting the stack grow deep.
 
-Command reference — all of these are run by the developer, in the developer's environment, not
-Claude's sandbox. Claude fills in the placeholders and hands them over:
+**Device-bridge git caveat.** Over the Cowork bridge Claude cannot delete files, so any git command that takes `.git/*.lock` (notably `git status`, `git branch -D`, an interrupted `checkout`/`rebase`) leaves the lock behind and blocks the developer's terminal. Claude therefore: uses only read-only plumbing (`git show`, `git rev-parse`, `git ls-files`, `git log`) or `diff <(git show ref:path) path`, avoids `git status`, and hands **all** state-changing git to the developer. If a lock is stranded, the developer clears it: `rm -f .git/index.lock .git/*.lock .git/refs/**/*.lock`.
+
+**Auto-close caveat:** the repo's default branch is `master`, but PRs target `release/2.0`. GitHub auto-closes an issue from `Closes #<n>` only when the PR merges into the **default** branch, so merging into `release/2.0` does **not** close the issue — always do step 10 explicitly.
+
+Command reference — all run by the developer, in the developer's environment, not Claude's sandbox. Claude fills placeholders and hands them over:
 
 ```bash
-# 1. Issue (if none): gh issue create --repo rreganjr/Requel --title "..." --body "..."
-# 2. Branch from release/2.0 at the start of work:
-git switch -c <issue#>-<slug> release/2.0
-# 3. Verify before committing (must pass):
-mvn clean verify                                 # backend
-cd requel-angular && npm test -- --watch=false   # frontend, only if requel-angular/ changed
-# 4. Write commit.md with a "Closes #<n>" line. commit.md is gitignored (/commit.md) — it is the
-#    message source for the commit/PR body, NOT a committed file, so do not `git add` it.
-# 5. Commit + push (stage only the changed source files):
+# 0. Review:  gh issue view <n> --repo rreganjr/Requel --json number,title,body,labels,state > tmp/issue-<n>.json
+# 1. Plan:    doc/<n>-<slug>-plan.md  (then get sign-off)
+# 2. Branch:  git switch -c <issue#>-<slug> release/2.0
+# 3. Verify (must pass — run what the change touched):
+mvn clean verify                                              # backend (modules/**)
+cd requel-angular && CI=1 npm test -- --watch=false           # frontend unit (requel-angular/**)
+# e2e runs in CI; read a failed run's e2ecoverage.json (see step 5 above)
+# 4. commit.md with a "Closes #<n>" line (gitignored — never `git add` it)
+# 5. Commit + push (stage only changed source files):
 git add <changed files> && git commit -F commit.md && git push -u origin <issue#>-<slug>
-# 6. PR (always pass --title):
-gh pr create --repo rreganjr/Requel --base release/2.0 --head <issue#>-<slug> \
-  --title "<issue#>: <concise summary>" --body-file commit.md
-# after squash-merge (release/2.0 is not default, so close manually):
-gh issue close <n> --repo rreganjr/Requel --comment "Merged to release/2.0 via #<pr>."
+# 6. PR (always --title; body from pr.md, refreshed first):
+gh pr create --repo rreganjr/Requel --base release/2.0 --head <issue#>-<slug>   --title "<issue#>: <concise summary>" --body-file pr.md
+# 7. After squash-merge (release/2.0 is not default → close manually):
+gh issue close <n> --repo rreganjr/Requel --reason completed --comment "Merged to release/2.0 via #<pr>."
+# 8. Rollup + retro:
+bash scripts/reorder-ui-ux-subissues.sh --sync-checks --comment
+#    (then set Story Point Retro on project #2 — see step 12)
 ```
 
 Recovery — work accidentally committed onto `release/2.0`:
