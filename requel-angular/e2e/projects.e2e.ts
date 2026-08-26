@@ -520,9 +520,12 @@ test.describe('Project management', () => {
     await page.close();
   });
 
-  test('dirty project switch via sidebar accepts Save & Switch and loads the target project', async ({ adminContext, request }) => {
+  test('dirty editor + sidebar project click → confirm discards and loads the target overview', async ({ adminContext, request }) => {
+    // #154 retired the in-editor "Save & Switch" flow: the sidebar now navigates
+    // to the target's workspace OVERVIEW, so leaving a dirty editor goes through
+    // the uniform dirtyCheckGuard (native confirm), not a Save & Switch dialog.
     const originalName = `e2e-switch-orig-${Date.now()}`;
-    const renamedName = `${originalName}-renamed`;
+    const modifiedName = `${originalName}-modified`;
     const targetName = `e2e-switch-target-${Date.now()}`;
     await createProject(request, originalName, 'Switch source project');
     await createProject(request, targetName, 'Switch target project');
@@ -535,20 +538,20 @@ test.describe('Project management', () => {
     await projectsPage.openEditor(originalName);
     await editorPage.waitForLoad(originalName);
 
-    await editorPage.fillName(renamedName);
+    await editorPage.fillName(modifiedName);
 
+    // Accept the unsaved-changes confirm → discard and navigate.
+    page.once('dialog', dialog => dialog.accept());
     const sidebarTree = page.getByTestId('sidebar-tree');
     await sidebarTree.getByText(targetName, { exact: true }).click();
 
-    await expect(page.getByRole('button', { name: 'Save & Switch' })).toBeVisible();
-    await page.getByRole('button', { name: 'Save & Switch' }).click();
-
-    // The sidebar navigates to the target's workspace overview (#154), not its editor.
+    // Lands on the target's workspace overview; the rename was discarded.
     await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(targetName)}$`));
     await expect(page.getByTestId('project-workspace')).toContainText(targetName);
 
     await projectsPage.goto();
-    await projectsPage.expectProjectInTable(renamedName);
+    await projectsPage.expectProjectInTable(originalName);
+    await projectsPage.expectProjectNotInTable(modifiedName);
     await projectsPage.expectProjectInTable(targetName);
 
     await page.close();
