@@ -53,7 +53,7 @@ Never use `TL;DR` I hate that abbreviation, use `Summary`
 
 ### Development Workflow
 
-Each release such as `release/2.0` has a GitHub project (**Requel 2.0**, `github.com/users/rreganjr/projects/2`); all issues for the release are added to it. We use the **Story Points** (estimate) and **Story Point Retro** (actual, filled after merge) custom fields to track effort.
+Each release such as `release/2.0` has a GitHub project (**Requel 2.0**, `github.com/users/rreganjr/projects/2`); all issues for the release are added to it. We use the **Story Points** (estimate) and **Story Points (Retro)** (actual, filled after merge) custom fields to track effort.
 
 Every change is tied to a GitHub issue and lands via a ticket branch and a PR — never commit straight onto `release/2.0`. **Steps that create or change Git/GitHub state (branch, commit, push, PR, issue edits, project-field edits, merges) are always run by the developer, never by Claude.** Claude prepares them — reviews, plans, writes `commit.md`, works out the exact `git`/`gh` invocation, checks the tree is in the state the command assumes — and hands the commands over to paste. See the "let's commit / let's push" rule above.
 
@@ -105,11 +105,11 @@ Every change is tied to a GitHub issue and lands via a ticket branch and a PR �
     bash scripts/reorder-ui-ux-subissues.sh --sync-checks --comment
     ```
     It reconciles the rollup doc's checkboxes/progress from **issue-closed state** (not PR-merged state), so run it *after* step 10.
-12. **Story Point Retro** — record actual effort in the project's **Story Point Retro** field so estimate-vs-actual stays honest:
+12. **Story Points (Retro)** — record actual effort in the project's **Story Points (Retro)** field so estimate-vs-actual stays honest:
     ```bash
     OWNER=rreganjr; NUM=2; REPO=rreganjr/Requel
     PROJECT_ID=$(gh project view "$NUM" --owner "$OWNER" --format json | jq -r '.id')
-    RETRO_ID=$(gh project field-list "$NUM" --owner "$OWNER" --format json              | jq -r '.fields[] | select(.name=="Story Point Retro") | .id')
+    RETRO_ID=$(gh project field-list "$NUM" --owner "$OWNER" --limit 100 --format json              | jq -r '.fields[] | select(.name=="Story Points (Retro)") | .id')
     ITEM_ID=$(gh project item-add "$NUM" --owner "$OWNER"              --url "https://github.com/$REPO/issues/<n>" --format json | jq -r '.id')
     gh project item-edit --project-id "$PROJECT_ID" --id "$ITEM_ID" --field-id "$RETRO_ID" --number <actual>
     ```
@@ -148,7 +148,7 @@ gh pr create --repo rreganjr/Requel --base release/2.0 --head <issue#>-<slug>   
 gh issue close <n> --repo rreganjr/Requel --reason completed --comment "Merged to release/2.0 via #<pr>."
 # 8. Rollup + retro:
 bash scripts/reorder-ui-ux-subissues.sh --sync-checks --comment
-#    (then set Story Point Retro on project #2 — see step 12)
+#    (then set Story Points (Retro) on project #2 — see step 12)
 ```
 
 Recovery — work accidentally committed onto `release/2.0`:
