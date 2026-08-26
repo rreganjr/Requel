@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { LayoutComponent } from './layout';
 import { AuthService } from '../../core/auth.service';
 import { EventStreamService } from '../../core/event-stream.service';
@@ -11,6 +11,9 @@ import { SidebarNavComponent } from '../../shared/sidebar-nav';
 // sidebar's data services / SSE subscriptions.
 @Component({ selector: 'app-sidebar-nav', standalone: true, template: '' })
 class SidebarNavStubComponent {}
+
+@Component({ selector: 'app-route-stub', standalone: true, template: '' })
+class RouteStubComponent {}
 
 describe('LayoutComponent accessibility (issue #135)', () => {
   function createFixture() {
@@ -130,5 +133,37 @@ describe('LayoutComponent top bar (issue #154)', () => {
     const toggle = el.querySelector('[data-testid="sidebar-toggle"]')!;
     expect(toggle.getAttribute('aria-controls')).toBe('app-sidebar');
     expect(el.querySelector('#app-sidebar')).toBeTruthy();
+  });
+
+  // Regression guard (dirty-guard.e2e.ts): every artifact editor has its own
+  // <p-button label="Back">, and the e2e drives it with
+  // getByRole('button', { name: 'Back' }) - a case-insensitive SUBSTRING match.
+  // If the top-bar back button's accessible name contains "back" it becomes a
+  // second match and the click hits a strict-mode violation. So the global
+  // button must be named distinctly (browser-history back, not "back to list").
+  it('names the top-bar back button without the substring "back"', async () => {
+    TestBed.configureTestingModule({
+      imports: [LayoutComponent],
+      providers: [
+        provideNoopAnimations(),
+        provideRouter([{ path: 'somewhere', component: RouteStubComponent }]),
+        { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
+        { provide: EventStreamService, useValue: { connect: vi.fn() } }
+      ]
+    });
+    TestBed.overrideComponent(LayoutComponent, {
+      remove: { imports: [SidebarNavComponent] },
+      add: { imports: [SidebarNavStubComponent] }
+    });
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(LayoutComponent);
+    await router.navigateByUrl('/somewhere');   // off the shell root → showBack() is true
+    fixture.detectChanges();
+
+    const back = fixture.nativeElement.querySelector('[data-testid="back-button"]');
+    expect(back, 'back button should render off the shell root').toBeTruthy();
+    const name = (back.getAttribute('aria-label') ?? '').toLowerCase();
+    expect(name.length).toBeGreaterThan(0);
+    expect(name).not.toContain('back');
   });
 });

@@ -89,8 +89,11 @@ function persistSidebarCollapsed(collapsed: boolean): void {
             <span class="header-title">REQUEL</span>
           </a>
           @if (showBack()) {
+            <!-- Distinct a11y name from the editors' own "Back" buttons (back to
+                 list) - this is browser-history back. Keeps getByRole name:'Back'
+                 unambiguous for AT and e2e. -->
             <button type="button" class="icon-btn back-btn"
-                    aria-label="Go back" data-testid="back-button"
+                    aria-label="Go to previous page" data-testid="back-button"
                     (click)="goBack()">
               <i class="pi pi-arrow-left" aria-hidden="true"></i>
             </button>
