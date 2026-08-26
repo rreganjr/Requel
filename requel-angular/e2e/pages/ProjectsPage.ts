@@ -36,6 +36,17 @@ export class ProjectsPage extends BaseListPage {
     await this.clickTableRow(name, `**/projects/${encodeURIComponent(name)}`);
   }
 
+  /**
+   * Open a project's editor: click the row → workspace overview (#154), then the
+   * overview's Edit action → /projects/:name/edit. Editing tests use this; a plain
+   * clickProject now lands on the overview, not the editor.
+   */
+  async openEditor(name: string): Promise<void> {
+    await this.clickProject(name);
+    await this.page.getByTestId('workspace-edit').click();
+    await this.page.waitForURL(`**/projects/${encodeURIComponent(name)}/edit`);
+  }
+
   async expectCreateActionsVisible(): Promise<void> {
     await expect(this.page.getByTestId('project-list-new-project')).toBeVisible();
     await expect(this.page.getByTestId('project-list-import-button')).toBeVisible();

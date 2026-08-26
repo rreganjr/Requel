@@ -135,6 +135,14 @@ existing surface alias) and set `.main-content { background: var(--rq-canvas-bg)
   + URL. Project and section labels are dynamic (project name is the `:name` param; section from
   the list route's static title); an artifact *editor* leaf shows its type label ("Goal"), and a
   bare numeric id is never rendered. No route change. Wired into PR1's reserved region.
+> PR 3a / 3b status (2026-08-26): shipped as two PRs. **3a** = entity-name resolver +
+> breadcrumb-leaf/title upgrade (merged). **3b** = the `/projects/:name` -> `/edit` route move
+> (with an explicit `projects/new`), the `ProjectWorkspaceComponent` overview (counts + open-issues
+> summary + derived next actions; "recent changes" dropped - no history source), and project-aware
+> editor-header actions via a shared `app-editor-actions` (Overview + Open issues) across the 8
+> artifact editors. e2e updated: `clickProject` -> workspace overview, new `openEditor` for the
+> editor, and stay-on-editor URL assertions gain `/edit`.
+
 - **PR 3 — route move + overview + editor headers + entity name (#128 + §2):** `/projects/:name` →
   overview / editor → `/projects/:name/edit`, `app.routes.spec.ts` updated; `ProjectWorkspaceComponent`;
   editor-header action groups; `artifactNameResolver` upgrades the breadcrumb leaf from type label to

@@ -280,7 +280,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
           reject: () => {
             // Stay on current form — navigate back to original
             this.pendingNavName = null;
-            this.router.navigate(['/projects', this.originalName()], { replaceUrl: true });
+            this.router.navigate(['/projects', this.originalName(), 'edit'], { replaceUrl: true });
           }
         });
         return;
@@ -457,7 +457,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     const name = this.detailsForm.controls.name.value;
     if (name !== previousName && !this.switchingProject) {
       try {
-        await this.router.navigate(['/projects', name]);
+        await this.router.navigate(['/projects', name, 'edit']);
       } catch (err: unknown) {
         // The save succeeded; only the route change failed. Report it rather than rejecting
         // out of onSave - the original code had this navigation inside its try/catch and

@@ -272,7 +272,7 @@ test.describe('Project management', () => {
     const editorPage = new ProjectEditorPage(page);
 
     await projectsPage.goto();
-    await projectsPage.clickProject(sourceName);
+    await projectsPage.openEditor(sourceName);
     await editorPage.waitForLoad(sourceName);
 
     const exportUrlRegex = new RegExp(
@@ -354,13 +354,13 @@ test.describe('Project management', () => {
     const editorPage = new ProjectEditorPage(page);
 
     await projectsPage.goto();
-    await projectsPage.clickProject(originalName);
+    await projectsPage.openEditor(originalName);
     await editorPage.waitForLoad(originalName);
 
     await editorPage.fillName(newName);
     await editorPage.save();
 
-    await page.waitForURL(`**/projects/${encodeURIComponent(newName)}`);
+    await page.waitForURL(`**/projects/${encodeURIComponent(newName)}/edit`);
 
     await projectsPage.goto();
     await projectsPage.expectProjectInTable(newName);
@@ -395,14 +395,14 @@ test.describe('Project management', () => {
     });
 
     await projectsPage.goto();
-    await projectsPage.clickProject(projectName);
+    await projectsPage.openEditor(projectName);
     await editorPage.waitForLoad(projectName);
 
     await editorPage.fillDescription('trigger validation failure');
     await editorPage.save();
 
     await editorPage.expectError('Project name is already used; Organization is required');
-    await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(projectName)}$`));
+    await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(projectName)}/edit$`));
 
     await page.close();
   });
@@ -430,14 +430,14 @@ test.describe('Project management', () => {
     });
 
     await projectsPage.goto();
-    await projectsPage.clickProject(projectName);
+    await projectsPage.openEditor(projectName);
     await editorPage.waitForLoad(projectName);
 
     await editorPage.fillDescription('trigger generic failure');
     await editorPage.save();
 
     await editorPage.expectError('Server rejected the project update.');
-    await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(projectName)}$`));
+    await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(projectName)}/edit$`));
 
     await page.close();
   });
@@ -455,14 +455,14 @@ test.describe('Project management', () => {
     });
 
     await projectsPage.goto();
-    await projectsPage.clickProject(projectName);
+    await projectsPage.openEditor(projectName);
     await editorPage.waitForLoad(projectName);
 
     await editorPage.fillDescription('trigger network failure');
     await editorPage.save();
 
     await editorPage.expectAnyError();
-    await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(projectName)}$`));
+    await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(projectName)}/edit$`));
 
     await page.close();
   });
@@ -476,7 +476,7 @@ test.describe('Project management', () => {
     const editorPage = new ProjectEditorPage(page);
 
     await projectsPage.goto();
-    await projectsPage.clickProject(projectName);
+    await projectsPage.openEditor(projectName);
     await editorPage.waitForLoad(projectName);
 
     await editorPage.fillName('should-not-be-saved');
@@ -503,7 +503,7 @@ test.describe('Project management', () => {
     const editorPage = new ProjectEditorPage(page);
 
     await projectsPage.goto();
-    await projectsPage.clickProject(projectName);
+    await projectsPage.openEditor(projectName);
     await editorPage.waitForLoad(projectName);
 
     // Mark the form dirty
@@ -515,7 +515,7 @@ test.describe('Project management', () => {
     await page.getByRole('button', { name: 'Cancel' }).click();
 
     // Should still be on the project editor URL
-    await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(projectName)}$`));
+    await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(projectName)}/edit$`));
 
     await page.close();
   });
@@ -532,7 +532,7 @@ test.describe('Project management', () => {
     const editorPage = new ProjectEditorPage(page);
 
     await projectsPage.goto();
-    await projectsPage.clickProject(originalName);
+    await projectsPage.openEditor(originalName);
     await editorPage.waitForLoad(originalName);
 
     await editorPage.fillName(renamedName);
@@ -543,8 +543,9 @@ test.describe('Project management', () => {
     await expect(page.getByRole('button', { name: 'Save & Switch' })).toBeVisible();
     await page.getByRole('button', { name: 'Save & Switch' }).click();
 
+    // The sidebar navigates to the target's workspace overview (#154), not its editor.
     await expect(page).toHaveURL(new RegExp(`/projects/${encodeURIComponent(targetName)}$`));
-    await expect(page.locator('#name')).toHaveValue(targetName);
+    await expect(page.getByTestId('project-workspace')).toContainText(targetName);
 
     await projectsPage.goto();
     await projectsPage.expectProjectInTable(renamedName);

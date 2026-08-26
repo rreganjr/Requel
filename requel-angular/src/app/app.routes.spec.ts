@@ -11,7 +11,7 @@ const byPath = (p: string) => children.find(c => c.path === p);
 const EXPECTED = [
   '', 'account', 'settings',
   'users', 'users/:username', 'global-tags', 'tag-categories',
-  'projects',
+  'projects', 'projects/new',
   'projects/:name/stakeholders', 'projects/:name/stakeholders/:stakeholderId',
   'projects/:name/goals', 'projects/:name/goals/:goalId',
   'projects/:name/stories', 'projects/:name/stories/:storyId',
@@ -21,12 +21,13 @@ const EXPECTED = [
   'projects/:name/terms', 'projects/:name/terms/:termId',
   'projects/:name/reports', 'projects/:name/reports/:reportId',
   'projects/:name/open-issues',
+  'projects/:name/edit',
   'projects/:name',
 ];
 
 const ADMIN = ['users', 'users/:username', 'global-tags', 'tag-categories'];
 const EDITORS = [
-  'account', 'users/:username', 'projects/:name',
+  'account', 'users/:username', 'projects/new', 'projects/:name/edit',
   'projects/:name/stakeholders/:stakeholderId', 'projects/:name/goals/:goalId',
   'projects/:name/stories/:storyId', 'projects/:name/actors/:actorId',
   'projects/:name/scenarios/:scenarioId', 'projects/:name/use-cases/:useCaseId',
