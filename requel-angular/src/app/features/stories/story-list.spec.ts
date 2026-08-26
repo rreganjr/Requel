@@ -86,4 +86,22 @@ describe('StoryListComponent', () => {
     expect(comp.errorMessage()).toBe('Failed to load stories.');
     expect(comp.loading()).toBe(false);
   });
+
+  it('renders the name as a real link and still navigates on row click (issue #129)', async () => {
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+
+    // AC #2 - the name cell is a real link to the detail route
+    const link = el.querySelector('tbody tr.dt-row a.dt-link') as HTMLAnchorElement;
+    expect(link).not.toBeNull();
+    expect(link.textContent?.trim()).toBe('User logs in');
+    expect(link.getAttribute('href')).toBe('/projects/proj1/stories/10');
+
+    // AC #3 - whole-row click still navigates to the same target (kept as a convenience)
+    const row = el.querySelector('tbody tr.dt-row') as HTMLElement;
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'stories', 10]);
+  });
 });
