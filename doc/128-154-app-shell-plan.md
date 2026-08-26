@@ -129,14 +129,20 @@ existing surface alias) and set `.main-content { background: var(--rq-canvas-bg)
 
 ## 9. Step-by-step (stacked PRs, each to `release/2.0`, squash-merged)
 
-- **PR 1 — chrome (#154):** top bar (back + breadcrumb **static** slot + collapse), grouped
-  collapsible sidebar + persistence, canvas token, landmarks/a11y. Breadcrumb renders static
-  labels only (data already exists from #142).
-- **PR 2 — dynamic breadcrumb + route move (#128 + §2):** resolvers, breadcrumb upgraded to
-  dynamic, `/projects/:name` → overview / editor → `/projects/:name/edit`, `app.routes.spec.ts`
-  updated, `RequelTitleStrategy` picks up resolved titles.
-- **PR 3 — workspace overview + editor headers (#128):** `ProjectWorkspaceComponent` + editor
-  action groups.
+- **PR 1 — chrome (#154) [merged/open]:** top bar (back + collapse + a *reserved, empty*
+  breadcrumb region), grouped collapsible sidebar + persistence, canvas token, landmarks/a11y.
+- **PR 2 — breadcrumb (#154/#128):** `app-breadcrumb` builds the trail from the flat route config
+  + URL. Project and section labels are dynamic (project name is the `:name` param; section from
+  the list route's static title); an artifact *editor* leaf shows its type label ("Goal"), and a
+  bare numeric id is never rendered. No route change. Wired into PR1's reserved region.
+- **PR 3 — route move + overview + editor headers + entity name (#128 + §2):** `/projects/:name` →
+  overview / editor → `/projects/:name/edit`, `app.routes.spec.ts` updated; `ProjectWorkspaceComponent`;
+  editor-header action groups; `artifactNameResolver` upgrades the breadcrumb leaf from type label to
+  the entity's name and `RequelTitleStrategy` picks up the resolved title.
+
+  > Re-split note: the dynamic breadcrumb was originally bundled with the resolvers + route move in
+  > PR2. The resolvers (and the route move, which needs the overview component) moved to PR3 so each
+  > PR stays independently verifiable; the breadcrumb still ships dynamic for project + section in PR2.
 
 Each PR references the issue(s) whose ACs it advances; #128 and #154 close when their ACs are all
 met (see §11).
