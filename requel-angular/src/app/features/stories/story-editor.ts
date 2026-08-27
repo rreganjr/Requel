@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { EditorActionsComponent } from '../../shared/editor-actions';
 import { NgTemplateOutlet } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
@@ -31,7 +31,6 @@ import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
-import { TableModule } from 'primeng/table';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -45,6 +44,7 @@ import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
+import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { LoadingStateComponent } from '../../shared/loading-state';
@@ -65,7 +65,8 @@ const STALE_VERSION_MESSAGE =
   standalone: true,
   imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, SelectModule,
-            TableModule, SubmitErrorComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
+            SubmitErrorComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
+            RelationshipSectionComponent,
             AnnotationsSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent],
@@ -239,83 +240,37 @@ const STALE_VERSION_MESSAGE =
       </ng-template>
 
       <ng-template #goalsSection let-heading="heading">
-        <div class="section">
-          <div class="section-header">
-            @if (heading) {
-              <h2 class="rq-section-title">Goals</h2>
-            }
-            @if (canEdit() && storyId != null) {
-              <p-button label="Add Goal" icon="pi pi-plus" size="small"
-                        data-testid="story-add-goal"
-                        (onClick)="showGoalSelector = true" />
-            }
-          </div>
-
-          @if (storyId == null) {
-            <p class="empty-text">Save the story's details first to add goals.</p>
-          } @else if (story()?.goals?.length) {
-            <p-table [value]="story()!.goals!" [rows]="10" data-testid="story-goals-table">
-              <ng-template #header>
-                <tr>
-                  <th>Name</th>
-                  @if (canEdit()) { <th class="col-actions"></th> }
-                </tr>
-              </ng-template>
-              <ng-template #body let-g>
-                <tr data-testid="story-goal-row">
-                  <td><a class="entity-link" data-testid="story-goal-link" [routerLink]="['/projects', projectName, 'goals', g.id]">{{ g.name }}</a></td>
-                  @if (canEdit()) {
-                    <td><p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                                  data-testid="story-remove-goal" [ariaLabel]="'Remove goal ' + g.name"
-                                  (onClick)="onRemoveGoal(g)" /></td>
-                  }
-                </tr>
-              </ng-template>
-            </p-table>
-          } @else {
-            <p class="empty-text">No goals associated.</p>
-          }
-        </div>
+        <app-relationship-section #storyGoalsSection
+          title="Goals" [showHeading]="heading"
+          [items]="story()?.goals ?? []" [headers]="['Name']"
+          [canAdd]="canEdit() && storyId != null"
+          addLabel="Add Goal" addTestid="story-add-goal"
+          removeTestid="story-remove-goal" rowTestid="story-goal-row" testid="story-goals"
+          emptyText="No goals associated."
+          unsavedHint="Save the story's details first to add goals."
+          [removeAriaLabel]="goalRemoveAria" [trackBy]="refTrackBy"
+          (add)="showGoalSelector = true" (remove)="onRemoveGoal($event)">
+          <ng-template #row let-g>
+            <td><a class="entity-link" data-testid="story-goal-link" [routerLink]="['/projects', projectName, 'goals', g.id]">{{ g.name }}</a></td>
+          </ng-template>
+        </app-relationship-section>
       </ng-template>
 
       <ng-template #actorsSection let-heading="heading">
-        <div class="section">
-          <div class="section-header">
-            @if (heading) {
-              <h2 class="rq-section-title">Additional Actors</h2>
-            }
-            @if (canEdit() && storyId != null) {
-              <p-button label="Add Actor" icon="pi pi-plus" size="small"
-                        data-testid="story-add-actor"
-                        (onClick)="showActorSelector = true" />
-            }
-          </div>
-
-          @if (storyId == null) {
-            <p class="empty-text">Save the story's details first to add actors.</p>
-          } @else if (story()?.actors?.length) {
-            <p-table [value]="story()!.actors!" [rows]="10" data-testid="story-additional-actors-table">
-              <ng-template #header>
-                <tr>
-                  <th>Name</th>
-                  @if (canEdit()) { <th class="col-actions"></th> }
-                </tr>
-              </ng-template>
-              <ng-template #body let-a>
-                <tr data-testid="story-additional-actor-row">
-                  <td><a class="entity-link" data-testid="story-additional-actor-link" [routerLink]="['/projects', projectName, 'actors', a.id]">{{ a.name }}</a></td>
-                  @if (canEdit()) {
-                    <td><p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                                  data-testid="story-remove-additional-actor" [ariaLabel]="'Remove actor ' + a.name"
-                                  (onClick)="onRemoveActor(a)" /></td>
-                  }
-                </tr>
-              </ng-template>
-            </p-table>
-          } @else {
-            <p class="empty-text">No actors associated.</p>
-          }
-        </div>
+        <app-relationship-section #storyActorsSection
+          title="Additional Actors" [showHeading]="heading"
+          [items]="story()?.actors ?? []" [headers]="['Name']"
+          [canAdd]="canEdit() && storyId != null"
+          addLabel="Add Actor" addTestid="story-add-actor"
+          removeTestid="story-remove-additional-actor" rowTestid="story-additional-actor-row" testid="story-additional-actors"
+          emptyText="No actors associated."
+          unsavedHint="Save the story's details first to add actors."
+          [removeAriaLabel]="actorRemoveAria" [trackBy]="refTrackBy"
+          (add)="showActorSelector = true" (remove)="onRemoveActor($event)">
+          <ng-template #row let-a>
+            <td><a class="entity-link" data-testid="story-additional-actor-link" [routerLink]="['/projects', projectName, 'actors', a.id]">{{ a.name }}</a></td>
+          </ng-template>
+        </app-relationship-section>
       </ng-template>
     </div>
   `,
@@ -743,6 +698,13 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     });
   }
 
+  @ViewChild('storyGoalsSection') storyGoalsSection?: RelationshipSectionComponent<EntityReferenceDto>;
+  @ViewChild('storyActorsSection') storyActorsSection?: RelationshipSectionComponent<EntityReferenceDto>;
+  /** Accessible names + row identity for the relationship lists. */
+  goalRemoveAria = (g: EntityReferenceDto): string => 'Remove goal ' + g.name;
+  actorRemoveAria = (a: EntityReferenceDto): string => 'Remove actor ' + a.name;
+  refTrackBy = (x: EntityReferenceDto) => x.id;
+
   async onGoalSelected(ref: EntityReferenceDto): Promise<void> {
     this.showGoalSelector = false;
     try {
@@ -755,6 +717,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (result.success) {
         this.applyAssociationResult(result.entity as StoryDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
+        this.storyGoalsSection?.announceAdded(ref.name);
       } else {
         this.showError(result.error ?? 'Failed to add goal.');
       }
@@ -774,6 +737,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (result.success) {
         this.applyAssociationResult(result.entity as StoryDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });
+        this.storyGoalsSection?.announceRemoved(goalRef.name);
       } else {
         this.showError(result.error ?? 'Failed to remove goal.');
       }
@@ -794,6 +758,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (result.success) {
         this.applyAssociationResult(result.entity as StoryDto | null);
         this.messageService.add({ severity: 'success', summary: 'Actor added', detail: 'Actor added.' });
+        this.storyActorsSection?.announceAdded(ref.name);
       } else {
         this.showError(result.error ?? 'Failed to add actor.');
       }
@@ -813,6 +778,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       if (result.success) {
         this.applyAssociationResult(result.entity as StoryDto | null);
         this.messageService.add({ severity: 'success', summary: 'Actor removed', detail: 'Actor removed.' });
+        this.storyActorsSection?.announceRemoved(actorRef.name);
       } else {
         this.showError(result.error ?? 'Failed to remove actor.');
       }
