@@ -18,11 +18,11 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { EditorActionsComponent } from '../../shared/editor-actions';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -32,7 +32,6 @@ import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { CheckboxModule } from 'primeng/checkbox';
-import { TableModule } from 'primeng/table';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -45,6 +44,7 @@ import { UserService } from '../../core/user.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
+import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
@@ -73,9 +73,9 @@ interface PermissionGroup {
 @Component({
   selector: 'app-stakeholder-editor',
   standalone: true,
-  imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule,
+  imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule, RouterLink,
             ButtonModule, InputText, TextareaModule, SelectModule,
-            CheckboxModule, SubmitErrorComponent, ConfirmDialogModule, TableModule,
+            CheckboxModule, SubmitErrorComponent, ConfirmDialogModule, RelationshipSectionComponent,
             EntitySelectorDialogComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent],
@@ -240,50 +240,20 @@ interface PermissionGroup {
       </ng-template>
 
       <ng-template #goalsSection let-heading="heading">
-        <div class="section">
-          <div class="section-header">
-            @if (heading) {
-              <h2 class="rq-section-title">Goals</h2>
-            }
-            @if (canEditGoals() && stakeholderId != null) {
-              <p-button label="Add Goal" icon="pi pi-plus" size="small"
-                        data-testid="stakeholder-add-goal"
-                        [text]="true" (onClick)="showGoalSelector = true" />
-            }
-          </div>
-
-          @if (stakeholderId == null) {
-            <p class="empty-text">Save the stakeholder's details first to add goals.</p>
-          } @else {
-            <p-table [value]="goals()" [rowHover]="true">
-              <ng-template #header>
-                <tr>
-                  <th>Name</th>
-                  @if (canEditGoals()) {
-                    <!-- An empty <th> is an axe empty-table-header violation. -->
-                    <th class="col-actions"><span class="rq-visually-hidden">Actions</span></th>
-                  }
-                </tr>
-              </ng-template>
-              <ng-template #body let-g>
-                <tr>
-                  <td class="entity-link" (click)="onGoalClick(g)">{{ g.name }}</td>
-                  @if (canEditGoals()) {
-                    <td>
-                      <p-button icon="pi pi-times" severity="danger" [text]="true"
-                                data-testid="stakeholder-remove-goal"
-                                [ariaLabel]="'Remove goal ' + g.name"
-                                size="small" (onClick)="onRemoveGoal(g)" />
-                    </td>
-                  }
-                </tr>
-              </ng-template>
-              <ng-template #emptymessage>
-                <tr><td [attr.colspan]="canEditGoals() ? 2 : 1" class="empty-text">No goals assigned.</td></tr>
-              </ng-template>
-            </p-table>
-          }
-        </div>
+        <app-relationship-section
+          title="Goals" [showHeading]="heading"
+          [items]="goals()" [headers]="['Name']"
+          [canAdd]="canEditGoals() && stakeholderId != null"
+          addLabel="Add Goal" addTestid="stakeholder-add-goal"
+          removeTestid="stakeholder-remove-goal" rowTestid="stakeholder-goal-row" testid="stakeholder-goals"
+          emptyText="No goals assigned."
+          unsavedHint="Save the stakeholder's details first to add goals."
+          [removeAriaLabel]="goalRemoveAria" [trackBy]="goalTrackBy"
+          (add)="showGoalSelector = true" (remove)="onRemoveGoal($event)">
+          <ng-template #row let-g>
+            <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', g.id]">{{ g.name }}</a></td>
+          </ng-template>
+        </app-relationship-section>
       </ng-template>
     </div>
   `,
@@ -334,6 +304,11 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   submitted = signal(false);
 
   showGoalSelector = false;
+  @ViewChild(RelationshipSectionComponent) goalsSection?: RelationshipSectionComponent<EntityReferenceDto>;
+  /** Accessible name for each goal's remove button. */
+  goalRemoveAria = (g: EntityReferenceDto): string => 'Remove goal ' + g.name;
+  /** Row identity for the goals list. */
+  goalTrackBy = (g: EntityReferenceDto) => g.id;
 
   /** Column order of the permission matrix; was an inline array literal in the template. */
   readonly permissionTypes = ['Edit', 'Delete', 'Grant'];
@@ -590,6 +565,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       if (result.success) {
         this.applyAssociationResult(result.entity as StakeholderDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal added', detail: 'Goal added.' });
+        this.goalsSection?.announceAdded(goal.name);
       } else {
         this.showError(result.error ?? 'Failed to add goal.');
       }
@@ -609,6 +585,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       if (result.success) {
         this.applyAssociationResult(result.entity as StakeholderDto | null);
         this.messageService.add({ severity: 'success', summary: 'Goal removed', detail: 'Goal removed.' });
+        this.goalsSection?.announceRemoved(goal.name);
       } else {
         this.showError(result.error ?? 'Failed to remove goal.');
       }

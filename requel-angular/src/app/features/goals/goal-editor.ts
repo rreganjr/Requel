@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, ElementRef, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { EditorActionsComponent } from '../../shared/editor-actions';
 import { NgTemplateOutlet } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
@@ -44,6 +44,7 @@ import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
+import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { TagSelectorComponent } from '../../shared/tag-selector';
 import { AppCardComponent } from '../../shared/app-card';
@@ -67,6 +68,7 @@ const STALE_VERSION_MESSAGE =
   imports: [EditorActionsComponent, PageHeaderComponent, RouterLink, FormsModule, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, SubmitErrorComponent, DialogModule, ConfirmDialogModule, EntitySelectorDialogComponent,
+            RelationshipSectionComponent,
             AnnotationsSectionComponent, TagSelectorComponent, AppCardComponent, AppFieldComponent,
             AppFieldControlDirective, AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent],
@@ -249,46 +251,24 @@ const STALE_VERSION_MESSAGE =
       </ng-template>
 
       <ng-template #relationsSection let-heading="heading">
-        <div class="section">
-          <div class="section-header">
-            @if (heading) {
-              <h2 class="rq-section-title">This Goal's Relations</h2>
-            }
-            @if (canEdit() && goalId != null) {
-              <p-button #addRelationBtn label="Add Relation" icon="pi pi-plus" size="small" data-testid="goal-add-relation"
-                        (onClick)="showRelationSelector = true" />
-            }
-          </div>
+        <app-relationship-section
+          title="This Goal's Relations" [showHeading]="heading"
+          [items]="goal()?.relationsFromThisGoal ?? []" [headers]="['Goal', 'Type']"
+          [canAdd]="canEdit() && goalId != null"
+          addLabel="Add Relation" addTestid="goal-add-relation"
+          removeTestid="goal-remove-relation" rowTestid="goal-relation-row" testid="goal-relations"
+          emptyText="No relations defined."
+          unsavedHint="Save the goal's details first to add relations."
+          [removeAriaLabel]="relationRemoveAria" [trackBy]="relationTrackBy"
+          (add)="showRelationSelector = true" (remove)="onDeleteRelation($event)">
+          <ng-template #row let-r>
+            <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', r.goalId]">{{ r.goalName }}</a></td>
+            <td>{{ r.relationType }}</td>
+          </ng-template>
+        </app-relationship-section>
 
-          @if (goalId == null) {
-            <p class="empty-text">Save the goal's details first to add relations.</p>
-          } @else if (goal()?.relationsFromThisGoal?.length) {
-            <p-table [value]="goal()!.relationsFromThisGoal!" [rows]="10">
-              <ng-template #header>
-                <tr>
-                  <th>Goal</th>
-                  <th>Type</th>
-                  @if (canEdit()) { <th class="col-actions"></th> }
-                </tr>
-              </ng-template>
-              <ng-template #body let-r>
-                <tr data-testid="goal-relation-row">
-                  <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', r.goalId]">{{ r.goalName }}</a></td>
-                  <td>{{ r.relationType }}</td>
-                  @if (canEdit()) {
-                    <td><p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
-                                  data-testid="goal-remove-relation" [ariaLabel]="'Remove relation to ' + r.goalName"
-                                  (onClick)="onDeleteRelation(r)" /></td>
-                  }
-                </tr>
-              </ng-template>
-            </p-table>
-          } @else {
-            <p class="empty-text">No relations defined.</p>
-          }
-
-          <!-- Incoming relations (other goals relate to this one) -->
-          @if (goal()?.relationsToThisGoal?.length) {
+        @if (goal()?.relationsToThisGoal?.length) {
+          <div class="section">
             <h3>Related To This Goal</h3>
             <p-table [value]="goal()!.relationsToThisGoal!" [rows]="10">
               <ng-template #header>
@@ -304,8 +284,8 @@ const STALE_VERSION_MESSAGE =
                 </tr>
               </ng-template>
             </p-table>
-          }
-        </div>
+          </div>
+        }
       </ng-template>
     </div>
   `,
@@ -353,7 +333,11 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     return ref ? `Relation to "${ref.name}"` : '';
   });
 
-  @ViewChild('addRelationBtn', { read: ElementRef }) addRelationBtn?: ElementRef<HTMLElement>;
+  @ViewChild(RelationshipSectionComponent) relationSection?: RelationshipSectionComponent<GoalRelationDto>;
+  /** Accessible name for each relation's remove button. */
+  relationRemoveAria = (r: GoalRelationDto): string => 'Remove relation to ' + r.goalName;
+  /** Row identity for the relations list. */
+  relationTrackBy = (r: GoalRelationDto): number => r.id;
 
   /**
    * Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). Bound with
@@ -710,7 +694,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
    */
   onRelationDialogHide(): void {
     this.pendingRelationGoal.set(null);
-    this.addRelationBtn?.nativeElement.querySelector('button')?.focus();
+    this.relationSection?.focusAdd();
   }
 
   async onConfirmRelation(): Promise<void> {
@@ -729,6 +713,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Relation added', detail: 'Goal relation added.' });
       await this.loadGoal(false);
+      this.relationSection?.announceAdded(ref.name);
     } else {
       this.showError(result.error ?? 'Failed to add relation.');
     }
@@ -743,6 +728,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Relation removed', detail: 'Goal relation removed.' });
       await this.loadGoal(false);
+      this.relationSection?.announceRemoved(relation.goalName);
     } else {
       this.showError(result.error ?? 'Failed to delete relation.');
     }

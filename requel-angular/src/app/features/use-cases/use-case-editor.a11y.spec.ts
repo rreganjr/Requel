@@ -137,8 +137,8 @@ describe('UseCaseEditorComponent - create wizard accessibility', () => {
     await clickContinue(wizard);
     expect(comp.wizardStep).toBe('goals-stories');
     // Both tables must be rendered or the axe pass proves nothing about them.
-    expect(wizard.querySelector('[data-testid="use-case-goals-table"]')).not.toBeNull();
-    expect(wizard.querySelector('[data-testid="use-case-stories-table"]')).not.toBeNull();
+    expect(wizard.querySelector('[data-testid="use-case-goals"]')).not.toBeNull();
+    expect(wizard.querySelector('[data-testid="use-case-stories"]')).not.toBeNull();
     await expectNoAxeViolations(wizard);
   });
 
@@ -148,7 +148,7 @@ describe('UseCaseEditorComponent - create wizard accessibility', () => {
     await clickContinue(wizard);
     await clickContinue(wizard);
     expect(comp.wizardStep).toBe('actors');
-    expect(wizard.querySelector('[data-testid="use-case-actors-table"]')).not.toBeNull();
+    expect(wizard.querySelector('[data-testid="use-case-actors"]')).not.toBeNull();
     await expectNoAxeViolations(wizard);
   });
 

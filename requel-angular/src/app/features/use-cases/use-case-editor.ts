@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { EditorActionsComponent } from '../../shared/editor-actions';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
@@ -50,6 +50,7 @@ import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
+import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { LoadingStateComponent } from '../../shared/loading-state';
@@ -76,7 +77,7 @@ const STALE_VERSION_MESSAGE =
   standalone: true,
   imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, SubmitErrorComponent,
-            ConfirmDialogModule, TableModule, TooltipModule, SelectModule,
+            ConfirmDialogModule, TableModule, TooltipModule, SelectModule, RelationshipSectionComponent,
             EntitySelectorDialogComponent, AnnotationsSectionComponent,
             AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
@@ -324,177 +325,83 @@ const STALE_VERSION_MESSAGE =
         </div>
 
         @if (useCaseId != null) {
-          <div class="section">
-            <div class="section-header">
-              <h3>Additional Scenarios</h3>
-              @if (canEdit()) {
-                <p-button label="Add Scenario" icon="pi pi-plus" size="small"
-                          data-testid="use-case-add-scenario"
-                          severity="secondary" [outlined]="true"
-                          (onClick)="showScenarioSelector = true" />
-              }
-            </div>
-            <p-table [value]="additionalScenarios()" styleClass="p-datatable-sm"
-                     data-testid="use-case-scenarios-table" [rowHover]="true">
-              <ng-template pTemplate="header">
-                <tr><th>Name</th><th>Type</th>
-                  <!-- An empty <th> is an axe empty-table-header violation. -->
-                  <th class="col-actions"><span class="rq-visually-hidden">Actions</span></th></tr>
-              </ng-template>
-              <ng-template pTemplate="body" let-s>
-                <tr data-testid="use-case-scenario-row">
-                  <td><a class="entity-link" data-testid="use-case-scenario-link"
-                         [routerLink]="['/projects', projectName, 'scenarios', s.id]">{{ s.name }}</a></td>
-                  <td>{{ s.scenarioType }}</td>
-                  <td>
-                    @if (canEdit()) {
-                      <p-button icon="pi pi-times" severity="danger" [text]="true"
-                                data-testid="use-case-remove-scenario" [ariaLabel]="'Remove scenario ' + s.name"
-                                size="small" pTooltip="Remove scenario"
-                                (onClick)="removeScenario(s)" />
-                    }
-                  </td>
-                </tr>
-              </ng-template>
-              <ng-template pTemplate="emptymessage">
-                <tr><td colspan="3" class="text-center">No additional scenarios.</td></tr>
-              </ng-template>
-            </p-table>
-          </div>
+          <app-relationship-section #ucScenariosSection
+            title="Additional Scenarios" [showHeading]="true" [headingLevel]="3"
+            [items]="additionalScenarios()" [headers]="['Name', 'Type']"
+            [canAdd]="canEdit()"
+            addLabel="Add Scenario" addTestid="use-case-add-scenario"
+            removeTestid="use-case-remove-scenario" rowTestid="use-case-scenario-row" testid="use-case-scenarios"
+            emptyText="No additional scenarios."
+            [removeAriaLabel]="scenarioRemoveAria" [trackBy]="refTrackBy"
+            (add)="showScenarioSelector = true" (remove)="removeScenario($event)">
+            <ng-template #row let-s>
+              <td><a class="entity-link" data-testid="use-case-scenario-link"
+                     [routerLink]="['/projects', projectName, 'scenarios', s.id]">{{ s.name }}</a></td>
+              <td>{{ s.scenarioType }}</td>
+            </ng-template>
+          </app-relationship-section>
         }
       </ng-template>
 
       <ng-template #goalsSection let-heading="heading">
-        <div class="section">
-          <div class="section-header">
-            @if (heading) { <h3>Goals</h3> }
-            @if (canEdit() && useCaseId != null) {
-              <p-button label="Add Goal" icon="pi pi-plus" size="small"
-                        data-testid="use-case-add-goal"
-                        severity="secondary" [outlined]="true"
-                        (onClick)="showGoalSelector = true" />
-            }
-          </div>
-          @if (useCaseId == null) {
-            <p class="text-center">Save the use case's details first to add goals.</p>
-          } @else {
-            <p-table [value]="goals()" styleClass="p-datatable-sm"
-                     data-testid="use-case-goals-table" [rowHover]="canEdit()">
-              <ng-template pTemplate="header">
-                <tr><th>Name</th>
-                  <th class="col-actions"><span class="rq-visually-hidden">Actions</span></th></tr>
-              </ng-template>
-              <ng-template pTemplate="body" let-goal>
-                <tr data-testid="use-case-goal-row">
-                  <td>
-                    <a class="entity-link" data-testid="use-case-goal-link"
-                       [routerLink]="['/projects', projectName, 'goals', goal.id]">{{ goal.name }}</a>
-                  </td>
-                  <td>
-                    @if (canEdit()) {
-                      <p-button icon="pi pi-times" severity="danger" [text]="true"
-                                data-testid="use-case-remove-goal" [ariaLabel]="'Remove goal ' + goal.name"
-                                size="small" pTooltip="Remove goal"
-                                (onClick)="removeGoal(goal)" />
-                    }
-                  </td>
-                </tr>
-              </ng-template>
-              <ng-template pTemplate="emptymessage">
-                <tr><td colspan="2" class="text-center">No goals.</td></tr>
-              </ng-template>
-            </p-table>
-          }
-        </div>
+        <app-relationship-section #ucGoalsSection
+          title="Goals" [showHeading]="heading" [headingLevel]="3"
+          [items]="goals()" [headers]="['Name']"
+          [canAdd]="canEdit() && useCaseId != null"
+          addLabel="Add Goal" addTestid="use-case-add-goal"
+          removeTestid="use-case-remove-goal" rowTestid="use-case-goal-row" testid="use-case-goals"
+          emptyText="No goals."
+          unsavedHint="Save the use case's details first to add goals."
+          [removeAriaLabel]="ucGoalRemoveAria" [trackBy]="refTrackBy"
+          (add)="showGoalSelector = true" (remove)="removeGoal($event)">
+          <ng-template #row let-goal>
+            <td>
+              <a class="entity-link" data-testid="use-case-goal-link"
+                 [routerLink]="['/projects', projectName, 'goals', goal.id]">{{ goal.name }}</a>
+            </td>
+          </ng-template>
+        </app-relationship-section>
       </ng-template>
 
       <ng-template #storiesSection let-heading="heading">
-        <div class="section">
-          <div class="section-header">
-            @if (heading) { <h3>Stories</h3> }
-            @if (canEdit() && useCaseId != null) {
-              <p-button label="Add Story" icon="pi pi-plus" size="small"
-                        data-testid="use-case-add-story"
-                        severity="secondary" [outlined]="true"
-                        (onClick)="showStorySelector = true" />
-            }
-          </div>
-          @if (useCaseId == null) {
-            <p class="text-center">Save the use case's details first to add stories.</p>
-          } @else {
-            <p-table [value]="stories()" styleClass="p-datatable-sm"
-                     data-testid="use-case-stories-table" [rowHover]="canEdit()">
-              <ng-template pTemplate="header">
-                <tr><th>Name</th><th>Type</th>
-                  <th class="col-actions"><span class="rq-visually-hidden">Actions</span></th></tr>
-              </ng-template>
-              <ng-template pTemplate="body" let-story>
-                <tr data-testid="use-case-story-row">
-                  <td>
-                    <a class="entity-link" data-testid="use-case-story-link"
-                       [routerLink]="['/projects', projectName, 'stories', story.id]">{{ story.name }}</a>
-                  </td>
-                  <td>{{ story.storyType }}</td>
-                  <td>
-                    @if (canEdit()) {
-                      <p-button icon="pi pi-times" severity="danger" [text]="true"
-                                data-testid="use-case-remove-story" [ariaLabel]="'Remove story ' + story.name"
-                                size="small" pTooltip="Remove story"
-                                (onClick)="removeStory(story)" />
-                    }
-                  </td>
-                </tr>
-              </ng-template>
-              <ng-template pTemplate="emptymessage">
-                <tr><td colspan="3" class="text-center">No stories.</td></tr>
-              </ng-template>
-            </p-table>
-          }
-        </div>
+        <app-relationship-section #ucStoriesSection
+          title="Stories" [showHeading]="heading" [headingLevel]="3"
+          [items]="stories()" [headers]="['Name', 'Type']"
+          [canAdd]="canEdit() && useCaseId != null"
+          addLabel="Add Story" addTestid="use-case-add-story"
+          removeTestid="use-case-remove-story" rowTestid="use-case-story-row" testid="use-case-stories"
+          emptyText="No stories."
+          unsavedHint="Save the use case's details first to add stories."
+          [removeAriaLabel]="ucStoryRemoveAria" [trackBy]="refTrackBy"
+          (add)="showStorySelector = true" (remove)="removeStory($event)">
+          <ng-template #row let-story>
+            <td>
+              <a class="entity-link" data-testid="use-case-story-link"
+                 [routerLink]="['/projects', projectName, 'stories', story.id]">{{ story.name }}</a>
+            </td>
+            <td>{{ story.storyType }}</td>
+          </ng-template>
+        </app-relationship-section>
       </ng-template>
 
       <ng-template #actorsSection let-heading="heading">
-        <div class="section">
-          <div class="section-header">
-            @if (heading) { <h3>Additional Actors</h3> }
-            @if (canEdit() && useCaseId != null) {
-              <p-button label="Add Actor" icon="pi pi-plus" size="small"
-                        data-testid="use-case-add-actor"
-                        severity="secondary" [outlined]="true"
-                        (onClick)="showActorSelector = true" />
-            }
-          </div>
-          @if (useCaseId == null) {
-            <p class="text-center">Save the use case's details first to add actors.</p>
-          } @else {
-            <p-table [value]="actors()" styleClass="p-datatable-sm"
-                     data-testid="use-case-actors-table" [rowHover]="canEdit()">
-              <ng-template pTemplate="header">
-                <tr><th>Name</th>
-                  <th class="col-actions"><span class="rq-visually-hidden">Actions</span></th></tr>
-              </ng-template>
-              <ng-template pTemplate="body" let-actor>
-                <tr data-testid="use-case-actor-row">
-                  <td>
-                    <a class="entity-link" data-testid="use-case-actor-link"
-                       [routerLink]="['/projects', projectName, 'actors', actor.id]">{{ actor.name }}</a>
-                  </td>
-                  <td>
-                    @if (canEdit()) {
-                      <p-button icon="pi pi-times" severity="danger" [text]="true"
-                                data-testid="use-case-remove-actor" [ariaLabel]="'Remove actor ' + actor.name"
-                                size="small" pTooltip="Remove actor"
-                                (onClick)="removeActor(actor)" />
-                    }
-                  </td>
-                </tr>
-              </ng-template>
-              <ng-template pTemplate="emptymessage">
-                <tr><td colspan="2" class="text-center">No additional actors.</td></tr>
-              </ng-template>
-            </p-table>
-          }
-        </div>
+        <app-relationship-section #ucActorsSection
+          title="Additional Actors" [showHeading]="heading" [headingLevel]="3"
+          [items]="actors()" [headers]="['Name']"
+          [canAdd]="canEdit() && useCaseId != null"
+          addLabel="Add Actor" addTestid="use-case-add-actor"
+          removeTestid="use-case-remove-actor" rowTestid="use-case-actor-row" testid="use-case-actors"
+          emptyText="No additional actors."
+          unsavedHint="Save the use case's details first to add actors."
+          [removeAriaLabel]="ucActorRemoveAria" [trackBy]="refTrackBy"
+          (add)="showActorSelector = true" (remove)="removeActor($event)">
+          <ng-template #row let-actor>
+            <td>
+              <a class="entity-link" data-testid="use-case-actor-link"
+                 [routerLink]="['/projects', projectName, 'actors', actor.id]">{{ actor.name }}</a>
+            </td>
+          </ng-template>
+        </app-relationship-section>
       </ng-template>
     </div>
   `,
@@ -919,14 +826,27 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     this.additionalScenarios.set(entity.additionalScenarios ?? []);
   }
 
+  @ViewChild('ucScenariosSection') ucScenariosSection?: RelationshipSectionComponent<ScenarioDto>;
+  @ViewChild('ucGoalsSection') ucGoalsSection?: RelationshipSectionComponent<GoalDto>;
+  @ViewChild('ucStoriesSection') ucStoriesSection?: RelationshipSectionComponent<StoryDto>;
+  @ViewChild('ucActorsSection') ucActorsSection?: RelationshipSectionComponent<ActorDto>;
+  /** Accessible names + row identity for the relationship lists. */
+  scenarioRemoveAria = (x: { name: string }) => 'Remove scenario ' + x.name;
+  ucGoalRemoveAria = (x: { name: string }) => 'Remove goal ' + x.name;
+  ucStoryRemoveAria = (x: { name: string }) => 'Remove story ' + x.name;
+  ucActorRemoveAria = (x: { name: string }) => 'Remove actor ' + x.name;
+  refTrackBy = (x: { id: number | null }) => x.id;
+
   async addGoal(ref: EntityReferenceDto): Promise<void> {
     this.showGoalSelector = false;
     const result = await this.commandService.execute('AddGoalToGoalContainer', {
       projectName: this.projectName, goalContainerId: this.useCaseId, goalId: ref.id,
       containerType: 'UseCase'
     });
-    if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
-    else this.showError(result.error ?? 'Failed to add goal.');
+    if (result.success) {
+      this.applyAssociationResult(result.entity as UseCaseDto | null);
+      this.ucGoalsSection?.announceAdded(ref.name);
+    } else this.showError(result.error ?? 'Failed to add goal.');
   }
 
   async removeGoal(goal: GoalDto): Promise<void> {
@@ -934,8 +854,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       projectName: this.projectName, goalContainerId: this.useCaseId, goalId: goal.id,
       containerType: 'UseCase'
     });
-    if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
-    else this.showError(result.error ?? 'Failed to remove goal.');
+    if (result.success) {
+      this.applyAssociationResult(result.entity as UseCaseDto | null);
+      this.ucGoalsSection?.announceRemoved(goal.name);
+    } else this.showError(result.error ?? 'Failed to remove goal.');
   }
 
   async addStory(ref: EntityReferenceDto): Promise<void> {
@@ -944,8 +866,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       projectName: this.projectName, storyContainerId: this.useCaseId, storyId: ref.id,
       containerType: 'UseCase'
     });
-    if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
-    else this.showError(result.error ?? 'Failed to add story.');
+    if (result.success) {
+      this.applyAssociationResult(result.entity as UseCaseDto | null);
+      this.ucStoriesSection?.announceAdded(ref.name);
+    } else this.showError(result.error ?? 'Failed to add story.');
   }
 
   async removeStory(story: StoryDto): Promise<void> {
@@ -953,8 +877,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       projectName: this.projectName, storyContainerId: this.useCaseId, storyId: story.id,
       containerType: 'UseCase'
     });
-    if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
-    else this.showError(result.error ?? 'Failed to remove story.');
+    if (result.success) {
+      this.applyAssociationResult(result.entity as UseCaseDto | null);
+      this.ucStoriesSection?.announceRemoved(story.name);
+    } else this.showError(result.error ?? 'Failed to remove story.');
   }
 
   async addActorToList(ref: EntityReferenceDto): Promise<void> {
@@ -963,8 +889,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       projectName: this.projectName, actorContainerId: this.useCaseId, actorId: ref.id,
       containerType: 'UseCase'
     });
-    if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
-    else this.showError(result.error ?? 'Failed to add actor.');
+    if (result.success) {
+      this.applyAssociationResult(result.entity as UseCaseDto | null);
+      this.ucActorsSection?.announceAdded(ref.name);
+    } else this.showError(result.error ?? 'Failed to add actor.');
   }
 
   async removeActor(actor: ActorDto): Promise<void> {
@@ -972,8 +900,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       projectName: this.projectName, actorContainerId: this.useCaseId, actorId: actor.id,
       containerType: 'UseCase'
     });
-    if (result.success) this.applyAssociationResult(result.entity as UseCaseDto | null);
-    else this.showError(result.error ?? 'Failed to remove actor.');
+    if (result.success) {
+      this.applyAssociationResult(result.entity as UseCaseDto | null);
+      this.ucActorsSection?.announceRemoved(actor.name);
+    } else this.showError(result.error ?? 'Failed to remove actor.');
   }
 
   /** Save the use case — the backend auto-creates a primary scenario with the use case name. */
@@ -1024,8 +954,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       useCaseId: this.useCaseId,
       scenarioId: ref.id
     });
-    if (result.success) await this.refreshCollections();
-    else this.showError(result.error ?? 'Failed to add scenario.');
+    if (result.success) {
+      await this.refreshCollections();
+      this.ucScenariosSection?.announceAdded(ref.name);
+    } else this.showError(result.error ?? 'Failed to add scenario.');
   }
 
   async removeScenario(scenario: ScenarioDto): Promise<void> {
@@ -1034,8 +966,10 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       useCaseId: this.useCaseId,
       scenarioId: scenario.id
     });
-    if (result.success) await this.refreshCollections();
-    else this.showError(result.error ?? 'Failed to remove scenario.');
+    if (result.success) {
+      await this.refreshCollections();
+      this.ucScenariosSection?.announceRemoved(scenario.name);
+    } else this.showError(result.error ?? 'Failed to remove scenario.');
   }
 
   navigateTo(type: string, id: number): void {
