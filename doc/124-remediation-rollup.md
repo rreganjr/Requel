@@ -50,7 +50,7 @@ Grouped from `doc/UI_UX_REVIEW.md` findings 1.1–5.6 plus the look-and-feel ite
 - [x] #154 — N1 App shell: top bar + grouped collapsible sidebar
 - [x] #128 — 2.1 Navigation is complete but project context is hidden in the sidebar
 - [x] #129 — 2.2 List/detail patterns are inconsistent and over-rely on row selection
-- [ ] #130 — 2.3 Dialog and relationship flows need clearer progression
+- [x] #130 — 2.3 Dialog and relationship flows need clearer progression
 - [ ] #140 — 4.6 Async and SSE updates are not announced
 - [ ] #146 — 5.5 Shared components exist but are too thin for the app's repeated patterns
 
@@ -61,4 +61,4 @@ Grouped from `doc/UI_UX_REVIEW.md` findings 1.1–5.6 plus the look-and-feel ite
 - [ ] #147 — 5.6 Bundle and dependency posture is reasonable but should be measured
 - [ ] #159 — N6 Theme switcher + dark mode via config panel (optional)
 
-**Progress: 27 / 34 complete** (Phase 1 ✅, Phase 2 ✅, Phase 3 in progress).
+**Progress: 28 / 34 complete** (Phase 1 ✅, Phase 2 ✅, Phase 3 in progress).
