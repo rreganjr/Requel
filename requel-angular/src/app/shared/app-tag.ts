@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { RQ_TONE_ICON, RqTagVariant, RqTone } from './severity';
 
 /**
@@ -44,6 +44,7 @@ import { RQ_TONE_ICON, RqTagVariant, RqTone } from './severity';
  * - `label` — the visible tag text (required for the colour-only-signal guarantee).
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-tag',
   standalone: true,
   template: `

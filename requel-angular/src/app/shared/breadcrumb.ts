@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Route, Router, RouterLink } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
@@ -47,6 +47,7 @@ interface Crumb {
  * shown as a crumb.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-breadcrumb',
   standalone: true,
   imports: [RouterLink],

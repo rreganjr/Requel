@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 
 /**
  * Shared page-title primitive. Renders the single <h1> for a route so every page
@@ -39,6 +39,7 @@ import { Component, Input } from '@angular/core';
  * shell), which compose this primitive.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-page-header',
   standalone: true,
   template: `

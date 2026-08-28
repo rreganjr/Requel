@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed } from '@angular/core';
+import { Component, computed, ChangeDetectionStrategy } from '@angular/core';
 import { AuthService } from '../../core/auth.service';
 import { PageHeaderComponent } from '../../shared/page-header';
 
@@ -27,6 +27,7 @@ import { PageHeaderComponent } from '../../shared/page-header';
  * the project list / workspace view in Phase 1.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-dashboard',
   standalone: true,
   imports: [PageHeaderComponent],

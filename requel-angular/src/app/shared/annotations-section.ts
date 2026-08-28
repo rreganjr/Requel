@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, Input, OnChanges, SimpleChanges, signal, computed } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -37,6 +37,7 @@ import { notBlank } from './form-errors';
 import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-annotations-section',
   standalone: true,
   imports: [ReactiveFormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule, AppCardComponent, AppTagComponent, ErrorStateComponent, SubmitErrorComponent, InlineErrorComponent],

@@ -19,9 +19,7 @@
  *
  */
 import { NgTemplateOutlet } from '@angular/common';
-import {
-  Component, ContentChild, EventEmitter, Input, Output, TemplateRef, ViewChild
-} from '@angular/core';
+import { Component, ContentChild, EventEmitter, Input, Output, TemplateRef, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MenuItem } from 'primeng/api';
@@ -90,6 +88,7 @@ export interface RowAction<T = unknown> {
  * the `empty*` inputs) unless an `[empty]` template is projected.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-data-table',
   standalone: true,
   imports: [

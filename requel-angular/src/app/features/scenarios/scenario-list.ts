@@ -18,9 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ScenarioDto } from '../../models/scenario';
@@ -30,6 +30,7 @@ import { ListPageComponent } from '../../shared/list-page';
 import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-scenario-list',
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent],
@@ -55,7 +56,7 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
   `,
   styles: []
 })
-export class ScenarioListComponent implements OnInit, OnDestroy {
+export class ScenarioListComponent implements OnInit {
   scenarios = signal<ScenarioDto[]>([]);
   loading = signal(false);
   errorMessage = signal<string | null>(null);
@@ -71,7 +72,7 @@ export class ScenarioListComponent implements OnInit, OnDestroy {
   ];
 
   projectName = '';
-  private paramSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private route: ActivatedRoute,
@@ -81,16 +82,12 @@ export class ScenarioListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.paramSub = this.route.paramMap.subscribe(async params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       await this.permissionService.loadForProject(this.projectName);
       this.canEdit.set(this.permissionService.canEdit('Scenario'));
       this.loadScenarios();
     });
-  }
-
-  ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
   }
 
   private async loadScenarios(): Promise<void> {

@@ -18,10 +18,11 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-import { Subscription, firstValueFrom } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { BadgeModule } from 'primeng/badge';
 import { PageHeaderComponent } from '../../shared/page-header';
@@ -52,6 +53,7 @@ interface NextAction {
  * there is no history/audit source to back it, and a faked feed would mislead.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-project-workspace',
   standalone: true,
   imports: [RouterLink, ButtonModule, BadgeModule, PageHeaderComponent, SubmitErrorComponent],
@@ -157,7 +159,7 @@ interface NextAction {
     .ws-loading { color: var(--p-text-secondary-color); }
   `]
 })
-export class ProjectWorkspaceComponent implements OnInit, OnDestroy {
+export class ProjectWorkspaceComponent implements OnInit {
   readonly loading = signal(true);
   readonly errorMessage = signal<string | null>(null);
   readonly project = signal<ProjectDto | null>(null);
@@ -165,7 +167,7 @@ export class ProjectWorkspaceComponent implements OnInit, OnDestroy {
   readonly mustResolveCount = signal(0);
   projectName = '';
 
-  private sub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly counts = computed<CountCard[]>(() => {
     const p = this.project();
@@ -208,14 +210,10 @@ export class ProjectWorkspaceComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.sub = this.route.paramMap.subscribe(params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       this.projectName = params.get('name') ?? '';
       void this.load();
     });
-  }
-
-  ngOnDestroy(): void {
-    this.sub?.unsubscribe();
   }
 
   async load(): Promise<void> {

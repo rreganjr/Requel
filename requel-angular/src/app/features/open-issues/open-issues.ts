@@ -18,9 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { projectApiUrl } from '../../core/api-url';
@@ -53,6 +53,7 @@ const ENTITY_ROUTES: Record<string, string> = {
 };
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-open-issues',
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, RouterLink, ButtonModule, BadgeModule, SubmitErrorComponent],
@@ -98,7 +99,7 @@ const ENTITY_ROUTES: Record<string, string> = {
     .optional { color: var(--p-text-secondary-color); }
   `]
 })
-export class OpenIssuesComponent implements OnInit, OnDestroy {
+export class OpenIssuesComponent implements OnInit {
   issues = signal<OpenIssueDto[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
@@ -109,7 +110,7 @@ export class OpenIssuesComponent implements OnInit, OnDestroy {
   columns: DataTableColumn<OpenIssueDto>[] = [];
 
   private projectName = '';
-  private paramSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private route: ActivatedRoute,
@@ -124,17 +125,13 @@ export class OpenIssuesComponent implements OnInit, OnDestroy {
       { field: 'issueText', header: 'Issue', sortable: true },
       { field: 'mustBeResolved', header: 'Required', cellTemplate: this.requiredCell }
     ];
-    this.paramSub = this.route.paramMap.subscribe(params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {
         this.projectName = name;
         this.loadIssues();
       }
     });
-  }
-
-  ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
   }
 
   async loadIssues(): Promise<void> {

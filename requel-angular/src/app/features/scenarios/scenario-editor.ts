@@ -18,14 +18,14 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EditorActionsComponent } from '../../shared/editor-actions';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location, NgTemplateOutlet } from '@angular/common';
-import { Subscription } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -95,6 +95,7 @@ type StepGroup = FormGroup<{
 }>;
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-scenario-editor',
   standalone: true,
   imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
@@ -535,8 +536,8 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   projectName = '';
   scenarioId: number | null = null;
   private version: number | null = null;
-  private paramSub?: Subscription;
-  private sseSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
+  private sseBound = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -553,7 +554,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   ) {}
 
   ngOnInit(): void {
-    this.paramSub = this.route.paramMap.subscribe(async params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       const idParam = params.get('scenarioId') ?? '';
       const newIsNew = idParam === 'new';
@@ -617,11 +618,9 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   }
 
   ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
     if (this.scenarioId) {
       void this.eventStreamService.removeSubscription('Scenario', this.scenarioId);
     }
-    this.sseSub?.unsubscribe();
   }
 
   /** Re-run the initial load; wired to the error state's (retry) output. */
@@ -690,9 +689,12 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
         this.loading.set(false);
       }
     }
-    if (this.scenarioId && !this.sseSub) {
+    if (this.scenarioId && !this.sseBound) {
       void this.eventStreamService.addSubscription('Scenario', this.scenarioId);
-      this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
+      this.sseBound = true;
+      this.eventStreamService.events$
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(envelope => {
         if (envelope.targetType !== 'Scenario' || envelope.targetId !== this.scenarioId) return;
         if (envelope.eventType === 'TargetDeleted') {
           this.announcer.announce('This scenario was deleted in another session.');

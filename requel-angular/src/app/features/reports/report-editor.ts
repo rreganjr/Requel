@@ -18,12 +18,12 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EditorActionsComponent } from '../../shared/editor-actions';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -44,8 +44,8 @@ import { ErrorStateComponent } from '../../shared/error-state';
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
-
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-report-editor',
   standalone: true,
   imports: [EditorActionsComponent, 
@@ -181,7 +181,7 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
     .form-actions { margin-block: var(--rq-space-4) var(--rq-space-6); }
   `]
 })
-export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
+export class ReportEditorComponent implements OnInit, DirtyCheckable {
   report = signal<ReportGeneratorDto | null>(null);
   reportName = signal('');
   reportId = signal<number | null>(null);
@@ -221,7 +221,7 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
   canEdit = signal(false);
   canDelete = signal(false);
 
-  private paramSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private route: ActivatedRoute,
@@ -237,7 +237,7 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
   }
 
   ngOnInit(): void {
-    this.paramSub = this.route.paramMap.subscribe(async params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       const idParam = params.get('reportId');
       const newIsNew = !idParam || idParam === 'new';
@@ -268,10 +268,6 @@ export class ReportEditorComponent implements OnInit, OnDestroy, DirtyCheckable 
   /** Derived from the form, so there is no change-tracker to keep in step (#132). */
   hasUnsavedChanges(): boolean {
     return this.form.dirty;
-  }
-
-  ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
   }
 
   /**

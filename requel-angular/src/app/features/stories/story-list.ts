@@ -18,9 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { SlicePipe } from '@angular/common';
@@ -31,6 +31,7 @@ import { ListPageComponent } from '../../shared/list-page';
 import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-story-list',
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent, SlicePipe],
@@ -63,7 +64,7 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
       text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
   `]
 })
-export class StoryListComponent implements OnInit, OnDestroy {
+export class StoryListComponent implements OnInit {
   stories = signal<StoryDto[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
@@ -78,7 +79,7 @@ export class StoryListComponent implements OnInit, OnDestroy {
   ];
 
   private projectName = '';
-  private paramSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private route: ActivatedRoute,
@@ -94,7 +95,7 @@ export class StoryListComponent implements OnInit, OnDestroy {
       { field: 'text', header: 'Text', cellTemplate: this.textCell },
       { field: 'createdBy', header: 'Created By', sortable: true }
     ];
-    this.paramSub = this.route.paramMap.subscribe(async params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {
         this.projectName = name;
@@ -104,10 +105,6 @@ export class StoryListComponent implements OnInit, OnDestroy {
         this.loadStories();
       }
     });
-  }
-
-  ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
   }
 
   async loadStories(): Promise<void> {

@@ -18,7 +18,8 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, ChangeDetectorRef, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl } from '@angular/forms';
 import { FormErrorOverrides, firstErrorMessage } from './form-errors';
 
@@ -46,6 +47,7 @@ import { FormErrorOverrides, firstErrorMessage } from './form-errors';
  * ```
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-inline-error',
   standalone: true,
   template: `
@@ -55,8 +57,20 @@ import { FormErrorOverrides, firstErrorMessage } from './form-errors';
   `,
 })
 export class InlineErrorComponent {
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private _control!: AbstractControl;
   /** The control whose validity drives the message. */
-  @Input({ required: true }) control!: AbstractControl;
+  @Input({ required: true })
+  set control(c: AbstractControl) {
+    this._control = c;
+    // OnPush: the message is derived from FormControl state (touched/validity),
+    // which is not a signal — mark for check whenever the control emits.
+    c?.events?.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.cdr.markForCheck());
+  }
+  get control(): AbstractControl {
+    return this._control;
+  }
   /** Stable id for the message element, so the input can point `aria-describedby` at it. */
   @Input({ required: true }) id!: string;
   /** Optional test id stamped on the message element. */
