@@ -18,9 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, OnDestroy, OnInit, signal, untracked, ViewChild, ElementRef } from '@angular/core';
+import { Component, computed, OnInit, signal, untracked, ViewChild, ElementRef, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { AccordionModule } from 'primeng/accordion';
 import { ButtonModule } from 'primeng/button';
 import { TreeModule } from 'primeng/tree';
@@ -99,6 +99,7 @@ function persistExpandedProjectNames(names: Set<string>): void {
  * See doc/UI_DESIGN_GUIDE.md section 3.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-sidebar-nav',
   standalone: true,
   imports: [AccordionModule, ButtonModule, TreeModule, BadgeModule, RouterLink, RouterLinkActive, FileUploadButtonComponent],
@@ -221,7 +222,7 @@ function persistExpandedProjectNames(names: Set<string>): void {
     /* .sidebar-tree PrimeNG p-tree overrides live in global styles.scss (#126). */
   `]
 })
-export class SidebarNavComponent implements OnInit, OnDestroy {
+export class SidebarNavComponent implements OnInit {
 
   readonly loading = signal(false);
   private readonly projects = signal<ProjectDto[]>([]);
@@ -292,8 +293,7 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
   });
 
   @ViewChild('importInput') importInput!: ElementRef<HTMLInputElement>;
-  private treeSub?: Subscription;
-  private sseProjectSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private authService: AuthService,
@@ -307,9 +307,10 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
     if (this.hasProjectRole()) {
       await this.loadProjects();
     }
-    this.treeSub = this.projectService.onTreeChanged.subscribe(() => this.loadProjects());
+    this.projectService.onTreeChanged.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadProjects());
     // Reload project counts when any project-scoped command succeeds (SSE broadcast)
-    this.sseProjectSub = this.eventStreamService.events$
+    this.eventStreamService.events$
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(envelope => {
         if (envelope.targetType === 'Project') {
           this.loadProjects();
@@ -318,10 +319,6 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
       });
   }
 
-  ngOnDestroy(): void {
-    this.treeSub?.unsubscribe();
-    this.sseProjectSub?.unsubscribe();
-  }
 
   onNewProject(): void {
     this.router.navigate(['/projects', 'new']);

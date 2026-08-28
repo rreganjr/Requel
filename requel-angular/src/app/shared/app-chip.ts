@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { RqTone } from './severity';
 
 /**
@@ -43,6 +43,7 @@ import { RqTone } from './severity';
  * - `removeTestid` — optional data-testid forwarded to the remove button.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-chip',
   standalone: true,
   template: `

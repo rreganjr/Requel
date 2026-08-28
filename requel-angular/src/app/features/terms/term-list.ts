@@ -18,9 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { SlicePipe } from '@angular/common';
@@ -31,6 +31,7 @@ import { ListPageComponent } from '../../shared/list-page';
 import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-term-list',
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent, SlicePipe],
@@ -64,7 +65,7 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
       text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
   `]
 })
-export class TermListComponent implements OnInit, OnDestroy {
+export class TermListComponent implements OnInit {
   terms = signal<GlossaryTermDto[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
@@ -78,7 +79,7 @@ export class TermListComponent implements OnInit, OnDestroy {
   ];
 
   private projectName = '';
-  private paramSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private route: ActivatedRoute,
@@ -94,7 +95,7 @@ export class TermListComponent implements OnInit, OnDestroy {
       { field: 'canonicalTermName', header: 'Canonical Term', sortable: true, cellTemplate: this.canonicalCell },
       { field: 'createdBy', header: 'Created By', sortable: true }
     ];
-    this.paramSub = this.route.paramMap.subscribe(async params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {
         this.projectName = name;
@@ -103,10 +104,6 @@ export class TermListComponent implements OnInit, OnDestroy {
         this.loadTerms();
       }
     });
-  }
-
-  ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
   }
 
   async loadTerms(): Promise<void> {

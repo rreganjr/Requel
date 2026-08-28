@@ -18,17 +18,8 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import {
-  AfterContentInit,
-  Component,
-  ContentChildren,
-  ElementRef,
-  Input,
-  OnChanges,
-  OnDestroy,
-  QueryList,
-} from '@angular/core';
-import { Subscription } from 'rxjs';
+import { AfterContentInit, Component, ContentChildren, ElementRef, Input, OnChanges, OnDestroy, QueryList, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AppFieldComponent } from './app-field';
 
 /** Marks a projected row so the global `.app-field-group` rules can reach it. */
@@ -77,6 +68,7 @@ const LAST_ROW_CLASS = 'rq-field-cell-last-row';
  *   resize listener. `:host` establishes the query container below.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-field-group',
   standalone: true,
   template: `
@@ -112,7 +104,7 @@ export class AppFieldGroupComponent implements AfterContentInit, OnChanges, OnDe
   @ContentChildren(AppFieldComponent, { read: ElementRef })
   private cells?: QueryList<ElementRef<HTMLElement>>;
 
-  private subscription?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
 
   /** `columns`, coerced and floored at 1. */
   get columnCount(): number {
@@ -123,7 +115,7 @@ export class AppFieldGroupComponent implements AfterContentInit, OnChanges, OnDe
   ngAfterContentInit(): void {
     this.markCells();
     // Rows behind @if / @for arrive and leave after content init.
-    this.subscription = this.cells?.changes.subscribe(() => this.markCells());
+    this.cells?.changes.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.markCells());
   }
 
   ngOnChanges(): void {
@@ -134,7 +126,6 @@ export class AppFieldGroupComponent implements AfterContentInit, OnChanges, OnDe
   }
 
   ngOnDestroy(): void {
-    this.subscription?.unsubscribe();
     // The rows belong to the caller's template and can outlive this group, so
     // leave nothing of ours on them — same contract app-field keeps for the ARIA
     // attributes it stamps.

@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 
 /**
  * Shared loading placeholder (issue #131, UI/UX review Finding 2.4). Renders a
@@ -44,6 +44,7 @@ import { Component, Input } from '@angular/core';
  * - `testid` — `data-testid` for the wrapper (default "loading-state").
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-loading-state',
   standalone: true,
   template: `

@@ -18,21 +18,8 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import {
-  AfterContentInit,
-  Component,
-  ContentChild,
-  ContentChildren,
-  ElementRef,
-  EventEmitter,
-  Input,
-  Output,
-  QueryList,
-  TemplateRef,
-  ViewChild,
-  ViewChildren,
-  signal,
-} from '@angular/core';
+import { AfterContentInit, Component, ContentChild, ContentChildren, ElementRef, EventEmitter, Input, Output, QueryList, TemplateRef, ViewChild, ViewChildren, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormGroup } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -64,6 +51,7 @@ let nextWizardId = 0;
  * there is none.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-wizard-step',
   standalone: true,
   template: '',
@@ -147,6 +135,7 @@ export interface WizardCommitRequest {
  * advancing and losing the user's edit.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-form-wizard',
   standalone: true,
   imports: [ButtonModule, NgTemplateOutlet, AppCardComponent],
@@ -155,7 +144,7 @@ export interface WizardCommitRequest {
       <div class="app-wizard">
         <nav class="app-wizard-nav" [attr.aria-label]="navLabel">
           <ol class="app-wizard-steps">
-            @for (step of stepList; track step.key; let i = $index) {
+            @for (step of stepList(); track step.key; let i = $index) {
               <li class="app-wizard-step">
                 <button
                   #navButton
@@ -357,7 +346,9 @@ export class AppFormWizardComponent implements AfterContentInit {
   readonly focusedIndex = signal(0);
 
   /** Snapshot of the declared steps, resolved once content has initialised. */
-  stepList: AppWizardStepComponent[] = [];
+  readonly stepList = signal<AppWizardStepComponent[]>([]);
+
+  private readonly destroyRef = inject(DestroyRef);
 
   private readonly uid = `rq-wizard-${++nextWizardId}`;
 
@@ -366,24 +357,24 @@ export class AppFormWizardComponent implements AfterContentInit {
   }
 
   ngAfterContentInit(): void {
-    this.stepList = this.stepQuery.toArray();
-    this.stepQuery.changes.subscribe(() => {
-      this.stepList = this.stepQuery.toArray();
+    this.stepList.set(this.stepQuery.toArray());
+    this.stepQuery.changes.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.stepList.set(this.stepQuery.toArray());
     });
-    if (!this.activeKey && this.stepList.length) {
-      this.activeKey = this.stepList[0].key;
+    if (!this.activeKey && this.stepList().length) {
+      this.activeKey = this.stepList()[0].key;
     }
     this.focusedIndex.set(this.activeIndex());
   }
 
   /** Index of the active step; an unknown key falls back to the first step. */
   activeIndex(): number {
-    const index = this.stepList.findIndex(step => step.key === this.activeKey);
+    const index = this.stepList().findIndex(step => step.key === this.activeKey);
     return index < 0 ? 0 : index;
   }
 
   activeStep(): AppWizardStepComponent | undefined {
-    return this.stepList[this.activeIndex()];
+    return this.stepList()[this.activeIndex()];
   }
 
   isActive(index: number): boolean {
@@ -391,7 +382,7 @@ export class AppFormWizardComponent implements AfterContentInit {
   }
 
   isLastStep(index: number): boolean {
-    return index === this.stepList.length - 1;
+    return index === this.stepList().length - 1;
   }
 
   isStepComplete(step: AppWizardStepComponent): boolean {
@@ -407,7 +398,7 @@ export class AppFormWizardComponent implements AfterContentInit {
     if (index <= this.activeIndex()) {
       return false;
     }
-    return this.stepList
+    return this.stepList()
       .slice(0, index)
       .some(step => !step.optional && !this.isStepComplete(step));
   }
@@ -469,7 +460,7 @@ export class AppFormWizardComponent implements AfterContentInit {
   }
 
   private advance(): void {
-    const next = this.stepList[this.activeIndex() + 1];
+    const next = this.stepList()[this.activeIndex() + 1];
     if (!next) {
       this.finished.emit();
       return;
@@ -486,7 +477,7 @@ export class AppFormWizardComponent implements AfterContentInit {
 
   /** Step-nav activation (click, Enter, Space). Locked steps are inert. */
   onNavActivate(index: number): void {
-    const step = this.stepList[index];
+    const step = this.stepList()[index];
     if (!step || this.isStepLocked(index) || this.busy()) {
       return;
     }
@@ -499,7 +490,7 @@ export class AppFormWizardComponent implements AfterContentInit {
    * activating, via the native button.
    */
   onNavKeydown(event: KeyboardEvent, index: number): void {
-    const last = this.stepList.length - 1;
+    const last = this.stepList().length - 1;
     let target: number | null = null;
 
     switch (event.key) {

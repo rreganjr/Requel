@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, TemplateRef, ViewChild, signal } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, signal, ChangeDetectionStrategy } from '@angular/core';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -37,6 +37,7 @@ import { InlineErrorComponent } from '../../shared/app-inline-error';
  * additionally gated server-side by SystemAdminUserRole.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-global-tags',
   standalone: true,
   imports: [PageHeaderComponent, ReactiveFormsModule, AppDataTableComponent, ButtonModule, InputText, SubmitErrorComponent, InlineErrorComponent],

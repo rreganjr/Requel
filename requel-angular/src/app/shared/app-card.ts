@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 
 /**
  * Shared card / content-surface primitive (issue #156). The single white
@@ -46,6 +46,7 @@ import { Component, Input } from '@angular/core';
  * the one card — they must not become nested `app-card`s.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-card',
   standalone: true,
   template: `

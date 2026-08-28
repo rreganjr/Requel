@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, EventEmitter, Input, OnChanges, Output, signal, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, signal, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule, FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
@@ -47,6 +47,7 @@ const SCENARIO_TYPE_OPTIONS = [
 ];
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-scenario-selector-dialog',
   standalone: true,
   imports: [FormsModule, ReactiveFormsModule, DialogModule, TableModule, ButtonModule, InputText, SelectModule, SubmitErrorComponent, InlineErrorComponent],

@@ -18,12 +18,13 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { InputText } from 'primeng/inputtext';
 import { PageHeaderComponent } from './page-header';
 import { AppCardComponent } from './app-card';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-list-page',
   standalone: true,
   imports: [PageHeaderComponent, InputText, AppCardComponent],

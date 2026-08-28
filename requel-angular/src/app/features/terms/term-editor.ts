@@ -18,11 +18,11 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EditorActionsComponent } from '../../shared/editor-actions';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -58,6 +58,7 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 const SEPARATOR = '; ';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-term-editor',
   standalone: true,
   imports: [EditorActionsComponent, 
@@ -297,8 +298,8 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   canEdit = signal(false);
   canDelete = signal(false);
 
-  private paramSub?: Subscription;
-  private sseSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
+  private sseBound = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -316,7 +317,7 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   ngOnInit(): void {
-    this.paramSub = this.route.paramMap.subscribe(async params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       const idParam = params.get('termId');
       const newIsNew = !idParam || idParam === 'new';
@@ -368,12 +369,10 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
     const id = this.termId();
     if (id) {
       void this.eventStreamService.removeSubscription('GlossaryTerm', id);
     }
-    this.sseSub?.unsubscribe();
   }
 
   private async loadCanonicalOptions(excludeId: number | null): Promise<void> {
@@ -451,9 +450,12 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.loading.set(false);
       }
     }
-    if (id && !this.sseSub) {
+    if (id && !this.sseBound) {
       void this.eventStreamService.addSubscription('GlossaryTerm', id);
-      this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
+      this.sseBound = true;
+      this.eventStreamService.events$
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(envelope => {
         if (envelope.targetType !== 'GlossaryTerm' || envelope.targetId !== id) return;
         if (envelope.eventType === 'TargetDeleted') {
           this.announcer.announce('This term was deleted in another session.');

@@ -18,9 +18,9 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ReportGeneratorDto } from '../../models/report';
@@ -30,6 +30,7 @@ import { ListPageComponent } from '../../shared/list-page';
 import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-report-list',
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent],
@@ -66,7 +67,7 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
     .action-cell { display: flex; gap: 0.25rem; justify-content: flex-end; }
   `]
 })
-export class ReportListComponent implements OnInit, OnDestroy {
+export class ReportListComponent implements OnInit {
   reports = signal<ReportGeneratorDto[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
@@ -79,7 +80,7 @@ export class ReportListComponent implements OnInit, OnDestroy {
   ];
 
   private projectName = '';
-  private paramSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private route: ActivatedRoute,
@@ -89,7 +90,7 @@ export class ReportListComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.paramSub = this.route.paramMap.subscribe(async params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       const name = params.get('name') ?? '';
       if (name !== this.projectName) {
         this.projectName = name;
@@ -98,10 +99,6 @@ export class ReportListComponent implements OnInit, OnDestroy {
         this.loadReports();
       }
     });
-  }
-
-  ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
   }
 
   async loadReports(): Promise<void> {

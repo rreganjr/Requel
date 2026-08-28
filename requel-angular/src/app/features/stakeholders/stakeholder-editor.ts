@@ -18,13 +18,13 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EditorActionsComponent } from '../../shared/editor-actions';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
-import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormControl, FormGroup, FormRecord, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -73,6 +73,7 @@ interface PermissionGroup {
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-stakeholder-editor',
   standalone: true,
   imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule, RouterLink,
@@ -355,8 +356,8 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   projectName = '';
   stakeholderId: number | null = null;
   private version: number | null = null;
-  private paramSub?: Subscription;
-  private sseSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
+  private sseBound = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -373,7 +374,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   ) {}
 
   ngOnInit(): void {
-    this.paramSub = this.route.paramMap.subscribe(async params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       await this.permissionService.loadForProject(this.projectName);
       this.canDelete.set(this.permissionService.canDelete('Stakeholder'));
@@ -459,11 +460,9 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   }
 
   ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
     if (this.stakeholderId) {
       void this.eventStreamService.removeSubscription('Stakeholder', this.stakeholderId);
     }
-    this.sseSub?.unsubscribe();
   }
 
   private async loadUsers(): Promise<void> {
@@ -558,9 +557,12 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
         this.loading.set(false);
       }
     }
-    if (this.stakeholderId && !this.sseSub) {
+    if (this.stakeholderId && !this.sseBound) {
       void this.eventStreamService.addSubscription('Stakeholder', this.stakeholderId);
-      this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
+      this.sseBound = true;
+      this.eventStreamService.events$
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(envelope => {
         if (envelope.targetType !== 'Stakeholder' || envelope.targetId !== this.stakeholderId) return;
         if (envelope.eventType === 'TargetDeleted') {
           this.announcer.announce('This stakeholder was deleted in another session.');

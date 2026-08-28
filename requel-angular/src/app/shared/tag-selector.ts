@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, Input, OnChanges, SimpleChanges, signal } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormGroup, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
@@ -37,6 +37,7 @@ import { InlineErrorComponent } from './app-inline-error';
  * fed by the project's existing tags/categories. Mirrors the annotations-section pattern.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-tag-selector',
   standalone: true,
   imports: [ReactiveFormsModule, ButtonModule, InputText, AppChipComponent, ErrorStateComponent, SubmitErrorComponent, InlineErrorComponent],

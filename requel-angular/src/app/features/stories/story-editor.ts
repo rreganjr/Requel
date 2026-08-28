@@ -18,13 +18,13 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EditorActionsComponent } from '../../shared/editor-actions';
 import { NgTemplateOutlet } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -63,6 +63,7 @@ const STALE_VERSION_MESSAGE =
   'This story was changed elsewhere. Your copy has been refreshed — review the values and continue.';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-story-editor',
   standalone: true,
   imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
@@ -357,8 +358,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   projectName = '';
   storyId: number | null = null;
   private version: number | null = null;
-  private paramSub?: Subscription;
-  private sseSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
+  private sseBound = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -375,7 +376,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   ) {}
 
   ngOnInit(): void {
-    this.paramSub = this.route.paramMap.subscribe(async params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       const idParam = params.get('storyId') ?? '';
       const newIsNew = idParam === 'new';
@@ -435,11 +436,9 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
     if (this.storyId) {
       void this.eventStreamService.removeSubscription('Story', this.storyId);
     }
-    this.sseSub?.unsubscribe();
   }
 
   /**
@@ -500,9 +499,12 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.loading.set(false);
       }
     }
-    if (this.storyId && !this.sseSub) {
+    if (this.storyId && !this.sseBound) {
       void this.eventStreamService.addSubscription('Story', this.storyId);
-      this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
+      this.sseBound = true;
+      this.eventStreamService.events$
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(envelope => {
         if (envelope.targetType !== 'Story' || envelope.targetId !== this.storyId) return;
         if (envelope.eventType === 'TargetDeleted') {
           this.announcer.announce('This story was deleted in another session.');

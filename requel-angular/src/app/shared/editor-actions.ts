@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
@@ -28,6 +28,7 @@ import { RouterLink } from '@angular/router';
  * own "Back" (to its list) and the top-bar breadcrumb cover the rest.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-editor-actions',
   standalone: true,
   imports: [RouterLink],

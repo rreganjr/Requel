@@ -18,11 +18,11 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { InputText } from 'primeng/inputtext';
@@ -49,7 +49,6 @@ import {
 } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '../../shared/validation-limits';
 
-
 /**
  * Separator for several command-level messages sharing the one page-level banner.
  * Semicolons, not spaces: two sentence fragments run together ("Email is invalid Phone
@@ -59,6 +58,7 @@ import { ARTIFACT_NAME_MAX_LENGTH, PASSWORD_MAX_LENGTH } from '../../shared/vali
 const SEPARATOR = '; ';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-user-editor',
   standalone: true,
   imports: [
@@ -226,7 +226,7 @@ const SEPARATOR = '; ';
     .actions { display: flex; gap: var(--rq-space-2); }
   `]
 })
-export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
+export class UserEditorComponent implements OnInit, DirtyCheckable {
 
   readonly isNew = signal(true);
   readonly loading = signal(true);
@@ -290,7 +290,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   readonly organizations = signal<{label: string; value: string}[]>([]);
   readonly orgOptions = computed(() => this.organizations());
 
-  private paramSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private route: ActivatedRoute,
@@ -300,7 +300,7 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   ) {}
 
   ngOnInit(): void {
-    this.paramSub = this.route.paramMap.subscribe(params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const usernameParam = params.get('username');
       this.isNew.set(usernameParam === 'new' || !usernameParam);
       this.loadData(usernameParam);
@@ -310,10 +310,6 @@ export class UserEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   /** Derived from the form, so there is no NgForm ViewChild to reach through (#132). */
   hasUnsavedChanges(): boolean {
     return this.form.dirty;
-  }
-
-  ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
   }
 
   /** Re-run the last attempted load; wired to the error state's (retry) output. */

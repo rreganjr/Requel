@@ -18,7 +18,8 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -30,7 +31,6 @@ import { ButtonModule } from 'primeng/button';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
-import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { ProjectDto } from '../../models/project';
 import { OrganizationDto } from '../../models/user';
@@ -51,11 +51,11 @@ import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors'
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { CommandResult } from '../../models/command';
 
-
 /** Joins page-level violations that resolved to no control. */
 const SEPARATOR = '; ';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-project-editor',
   standalone: true,
   imports: [PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule,
@@ -183,7 +183,7 @@ const SEPARATOR = '; ';
     .actions { display: flex; gap: 0.5rem; }
   `]
 })
-export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
+export class ProjectEditorComponent implements OnInit, DirtyCheckable {
 
   readonly isNew = signal(true);
   readonly submitted = signal(false);
@@ -240,7 +240,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     this.organizations().map(org => ({ label: org.name, value: org }))
   );
 
-  private paramSub!: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private route: ActivatedRoute,
@@ -256,7 +256,7 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     this.userService.listOrganizations().then(orgs => this.organizations.set(orgs));
 
     // React to route param changes (handles sidebar project clicks)
-    this.paramSub = this.route.paramMap.subscribe(params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       // Leaving a dirty editor is handled uniformly by dirtyCheckGuard
       // (CanDeactivate). The old in-editor "Save & Switch" flow was removed with
       // the #154 route move — nothing navigates editor→editor anymore.
@@ -271,10 +271,6 @@ export class ProjectEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   /** Edit-mode Save: blocked on invalid, unchanged, or in-flight. */
   canSave(): boolean {
     return this.detailsForm.valid && this.detailsForm.dirty && !this.saving();
-  }
-
-  ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
   }
 
   /** Re-run the last attempted load; wired to the error state's (retry) output. */

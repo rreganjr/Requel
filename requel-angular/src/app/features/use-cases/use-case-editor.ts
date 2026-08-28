@@ -18,13 +18,13 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EditorActionsComponent } from '../../shared/editor-actions';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Location, NgTemplateOutlet } from '@angular/common';
-import { Subscription } from 'rxjs';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -75,6 +75,7 @@ const STALE_VERSION_MESSAGE =
   'This use case was changed elsewhere. Your copy has been refreshed - review the values and continue.';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-use-case-editor',
   standalone: true,
   imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
@@ -504,8 +505,8 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   projectName = '';
   useCaseId: number | null = null;
   private version: number | null = null;
-  private paramSub?: Subscription;
-  private sseSub?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
+  private sseBound = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -524,7 +525,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   ) {}
 
   ngOnInit(): void {
-    this.paramSub = this.route.paramMap.subscribe(async params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       await this.permissionService.loadForProject(this.projectName);
       this.canEdit.set(this.permissionService.canEdit('UseCase'));
@@ -580,11 +581,9 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   }
 
   ngOnDestroy(): void {
-    this.paramSub?.unsubscribe();
     if (this.useCaseId) {
       void this.eventStreamService.removeSubscription('UseCase', this.useCaseId);
     }
-    this.sseSub?.unsubscribe();
   }
 
   /**
@@ -657,9 +656,12 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
         this.loading.set(false);
       }
     }
-    if (this.useCaseId && !this.sseSub) {
+    if (this.useCaseId && !this.sseBound) {
       void this.eventStreamService.addSubscription('UseCase', this.useCaseId);
-      this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
+      this.sseBound = true;
+      this.eventStreamService.events$
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(envelope => {
         if (envelope.targetType !== 'UseCase' || envelope.targetId !== this.useCaseId) return;
         if (envelope.eventType === 'TargetDeleted') {
           this.announcer.announce('This use case was deleted in another session.');

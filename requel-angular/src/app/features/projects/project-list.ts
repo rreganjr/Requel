@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { MessageModule } from 'primeng/message';
@@ -31,6 +31,7 @@ import { FileUploadButtonComponent } from '../../shared/file-upload-button';
 import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-project-list',
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, SubmitErrorComponent, FileUploadButtonComponent],

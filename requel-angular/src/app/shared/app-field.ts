@@ -18,17 +18,8 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import {
-  AfterContentChecked,
-  AfterContentInit,
-  ContentChild,
-  Component,
-  Directive,
-  ElementRef,
-  Input,
-  OnDestroy,
-  inject,
-} from '@angular/core';
+import { AfterContentChecked, AfterContentInit, ContentChild, Component, Directive, ElementRef, Input, OnDestroy, inject, ChangeDetectionStrategy, ChangeDetectorRef, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl } from '@angular/forms';
 import { FormErrorOverrides, firstErrorMessage, isRequired } from './form-errors';
 
@@ -101,6 +92,7 @@ export class AppFieldControlDirective {
  * radius or type literals.
  */
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-field',
   standalone: true,
   template: `
@@ -179,7 +171,19 @@ export class AppFieldComponent implements AfterContentInit, AfterContentChecked,
    * marker, `aria-invalid` and `aria-required`. Optional so a row can host a
    * display-only or not-yet-migrated control.
    */
-  @Input() control?: AbstractControl | null;
+  private readonly cdr = inject(ChangeDetectorRef);
+  private readonly fieldDestroyRef = inject(DestroyRef);
+  private _control?: AbstractControl | null;
+  @Input()
+  set control(c: AbstractControl | null | undefined) {
+    this._control = c ?? undefined;
+    // OnPush: error/required state is derived from FormControl state, not a
+    // signal — mark for check whenever the control emits a change.
+    c?.events?.pipe(takeUntilDestroyed(this.fieldDestroyRef)).subscribe(() => this.cdr.markForCheck());
+  }
+  get control(): AbstractControl | null | undefined {
+    return this._control;
+  }
 
   /** Hairline divider below the row. Off for the last row in a group. */
   @Input() divider = true;
