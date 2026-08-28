@@ -39,9 +39,22 @@ export class EventStreamService implements OnDestroy {
   readonly sessionId = signal<string | null>(null);
   readonly isConnected = computed(() => this.connectionState() === 'open');
 
+  /**
+   * Error from the most recent add/removeSubscription call, or null when the
+   * last one succeeded. Lets the UX surface a subscription that didn't take.
+   */
+  readonly lastSubscriptionError = signal<string | null>(null);
+
   /** Observable of all received stream events */
   private readonly eventsSubject = new Subject<StreamEventEnvelope>();
   readonly events$ = this.eventsSubject.asObservable();
+
+  /**
+   * Single source of truth for the subscriptions that must be (re)established on
+   * every (re)connect. Seeded by connect() and kept current by add/remove, so a
+   * subscription added at runtime survives a reconnect (see scheduleReconnect).
+   */
+  private readonly liveSubscriptions = new Set<string>();
 
   private abortController: AbortController | null = null;
   private generation = 0;
@@ -57,9 +70,13 @@ export class EventStreamService implements OnDestroy {
    */
   connect(subscriptions: string[] = []): void {
     this.disconnect();
+    this.liveSubscriptions.clear();
+    for (const sub of subscriptions) {
+      this.liveSubscriptions.add(sub);
+    }
     this.generation++;
     this.reconnectAttempt = 0;
-    this.startConnection(this.generation, subscriptions);
+    this.startConnection(this.generation);
   }
 
   /**
@@ -87,39 +104,73 @@ export class EventStreamService implements OnDestroy {
   /**
    * Add a subscription to the current session.
    */
-  async addSubscription(targetType: string, targetId: number): Promise<void> {
+  async addSubscription(targetType: string, targetId: number): Promise<boolean> {
     const sid = this.sessionId();
-    if (!sid) return;
+    if (!sid) {
+      this.lastSubscriptionError.set('Cannot subscribe: no active stream session');
+      return false;
+    }
 
+    const key = `${targetType}:${targetId}`;
     const token = this.authService.token();
-    await fetch(`${environment.apiBaseUrl}/events/stream/subscriptions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Session-Id': sid,
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({ targetType, targetId })
-    });
+    try {
+      const response = await fetch(`${environment.apiBaseUrl}/events/stream/subscriptions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Id': sid,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ targetType, targetId })
+      });
+      if (!response.ok) {
+        this.lastSubscriptionError.set(`Subscribe failed (${response.status}) for ${key}`);
+        return false;
+      }
+      this.liveSubscriptions.add(key);
+      this.lastSubscriptionError.set(null);
+      return true;
+    } catch {
+      this.lastSubscriptionError.set(`Subscribe request failed for ${key}`);
+      return false;
+    }
   }
 
   /**
    * Remove a subscription from the current session.
    */
-  async removeSubscription(targetType: string, targetId: number): Promise<void> {
+  async removeSubscription(targetType: string, targetId: number): Promise<boolean> {
     const sid = this.sessionId();
-    if (!sid) return;
+    if (!sid) {
+      this.lastSubscriptionError.set('Cannot unsubscribe: no active stream session');
+      return false;
+    }
 
+    const key = `${targetType}:${targetId}`;
     const token = this.authService.token();
-    await fetch(`${environment.apiBaseUrl}/events/stream/subscriptions`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Session-Id': sid,
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({ targetType, targetId })
-    });
+    try {
+      const response = await fetch(`${environment.apiBaseUrl}/events/stream/subscriptions`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Id': sid,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ targetType, targetId })
+      });
+      if (!response.ok) {
+        // Keep the key: server state is unknown, so replaying it on the next
+        // reconnect is the safe default.
+        this.lastSubscriptionError.set(`Unsubscribe failed (${response.status}) for ${key}`);
+        return false;
+      }
+      this.liveSubscriptions.delete(key);
+      this.lastSubscriptionError.set(null);
+      return true;
+    } catch {
+      this.lastSubscriptionError.set(`Unsubscribe request failed for ${key}`);
+      return false;
+    }
   }
 
   ngOnDestroy(): void {
@@ -127,14 +178,17 @@ export class EventStreamService implements OnDestroy {
     this.eventsSubject.complete();
   }
 
-  private async startConnection(gen: number, subscriptions: string[]): Promise<void> {
+  private async startConnection(gen: number): Promise<void> {
     if (gen !== this.generation) return;
 
-    this.connectionState.set('connecting');
+    // A first attempt is 'connecting'; a retry (reconnectAttempt > 0) is
+    // 'degraded' so the UX can distinguish "establishing" from "recovering".
+    this.connectionState.set(this.reconnectAttempt === 0 ? 'connecting' : 'degraded');
     this.abortController = new AbortController();
 
     const params = new URLSearchParams();
-    for (const sub of subscriptions) {
+    // Replay the CURRENT live subscription set (initial + any added at runtime).
+    for (const sub of this.liveSubscriptions) {
       params.append('subscribe', sub);
     }
     const sid = this.sessionId();
@@ -144,7 +198,7 @@ export class EventStreamService implements OnDestroy {
 
     const token = this.authService.token();
     if (!token) {
-      this.connectionState.set('error');
+      this.connectionState.set('degraded');
       return;
     }
 
@@ -164,18 +218,18 @@ export class EventStreamService implements OnDestroy {
       if (gen !== this.generation) return;
       this.connectionState.set('open');
       this.reconnectAttempt = 0;
-      await this.readStream(gen, response.body, subscriptions);
+      await this.readStream(gen, response.body);
 
     } catch (err: unknown) {
       if (gen !== this.generation) return;
       if (err instanceof DOMException && err.name === 'AbortError') return;
 
-      this.connectionState.set('error');
-      this.scheduleReconnect(gen, subscriptions);
+      this.connectionState.set('degraded');
+      this.scheduleReconnect(gen);
     }
   }
 
-  private async readStream(gen: number, body: ReadableStream<Uint8Array>, subscriptions: string[]): Promise<void> {
+  private async readStream(gen: number, body: ReadableStream<Uint8Array>): Promise<void> {
     const reader = body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -204,7 +258,7 @@ export class EventStreamService implements OnDestroy {
 
     if (gen === this.generation) {
       this.connectionState.set('closed');
-      this.scheduleReconnect(gen, subscriptions);
+      this.scheduleReconnect(gen);
     }
   }
 
@@ -235,15 +289,14 @@ export class EventStreamService implements OnDestroy {
         break;
       }
       case 'SESSION_EXPIRED':
-        this.disconnect();
-        this.authService.logout();
+        this.expireSession();
         break;
       default:
         this.eventsSubject.next(envelope);
     }
   }
 
-  private scheduleReconnect(gen: number, subscriptions: string[]): void {
+  private scheduleReconnect(gen: number): void {
     if (gen !== this.generation) return;
 
     const delay = Math.min(
@@ -254,9 +307,30 @@ export class EventStreamService implements OnDestroy {
 
     this.reconnectTimer = setTimeout(() => {
       if (gen === this.generation) {
-        this.startConnection(gen, subscriptions);
+        this.startConnection(gen);
       }
     }, delay);
+  }
+
+  /**
+   * Tear down the connection after the server reports the auth session expired.
+   * Like disconnect(), but lands on 'expired' (no auto-retry) so the shell can
+   * prompt the user to sign in again, and logs the user out.
+   */
+  private expireSession(): void {
+    this.generation++;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+    this.liveSubscriptions.clear();
+    this.sessionId.set(null);
+    this.connectionState.set('expired');
+    this.authService.logout();
   }
 
   private async closeServerConnection(sid: string): Promise<void> {

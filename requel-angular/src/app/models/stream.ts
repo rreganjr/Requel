@@ -18,7 +18,22 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-export type StreamConnectionState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
+/**
+ * SSE connection lifecycle state.
+ * - `idle`: not connected and not attempting (initial, or after an explicit disconnect).
+ * - `connecting`: the initial connection attempt is in flight.
+ * - `open`: the stream is live and delivering events.
+ * - `degraded`: the connection dropped or failed and is being retried with backoff.
+ * - `closed`: the server gracefully ended the stream (transient, before a retry).
+ * - `expired`: the auth session ended (SESSION_EXPIRED); no automatic retry.
+ */
+export type StreamConnectionState =
+  | 'idle'
+  | 'connecting'
+  | 'open'
+  | 'degraded'
+  | 'closed'
+  | 'expired';
 
 export type StreamEventType = 'Session' | 'Data' | 'TargetDeleted' | 'SESSION_EXPIRED';
 
