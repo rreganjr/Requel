@@ -6,6 +6,22 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script>
+    // #159 pre-boot theme guard: apply the .rq-dark class before Angular loads
+    // so a dark-preferring reload never flashes light. Mirrors ThemeService's
+    // mode logic (light | dark | system); the service is the source of truth
+    // once it starts. Only handles light/dark — the accent is applied on boot.
+    (function () {
+      try {
+        var m = localStorage.getItem('requel_theme');
+        var dark = m === 'dark' ||
+          ((m === 'system' || !m) &&
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) { document.documentElement.classList.add('rq-dark'); }
+      } catch (e) { /* storage blocked: fall through to light */ }
+    })();
+  </script>
 </head>
 <body>
   <app-root></app-root>
