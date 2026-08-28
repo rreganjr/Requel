@@ -292,20 +292,24 @@ export class LayoutComponent implements OnInit {
     this.router = router;
     this.announcer = announcer;
 
-    // #140: announce SSE connection transitions politely (paused/restored). Skips the
-    // initial establishment; only announces 'restored' after a real pause.
-    let prevConnected = this.eventStreamService.isConnected();
-    let wasPaused = false;
+    // #140/#145: announce SSE connection transitions politely, using the richer
+    // connection-state model so the cause is clear. Skips the initial
+    // establishment; 'closed' stays silent (a transient blip before a retry).
+    let prevState = this.eventStreamService.connectionState();
+    let wasInterrupted = false;
     effect(() => {
-      const connected = this.eventStreamService.isConnected();
-      if (connected === prevConnected) return;
-      prevConnected = connected;
-      if (!connected) {
-        this.announcer.announce('Live updates paused.');
-        wasPaused = true;
-      } else if (wasPaused) {
+      const state = this.eventStreamService.connectionState();
+      if (state === prevState) return;
+      prevState = state;
+      if (state === 'degraded') {
+        this.announcer.announce('Live updates interrupted. Reconnecting.');
+        wasInterrupted = true;
+      } else if (state === 'expired') {
+        this.announcer.announce('Session expired. Please sign in again.');
+        wasInterrupted = false;
+      } else if (state === 'open' && wasInterrupted) {
         this.announcer.announce('Live updates restored.');
-        wasPaused = false;
+        wasInterrupted = false;
       }
     });
 

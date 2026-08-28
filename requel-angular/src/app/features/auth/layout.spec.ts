@@ -1,10 +1,12 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router } from '@angular/router';
 import { LayoutComponent } from './layout';
 import { AuthService } from '../../core/auth.service';
 import { EventStreamService } from '../../core/event-stream.service';
+import { AnnouncerService } from '../../core/announcer.service';
+import { StreamConnectionState } from '../../models/stream';
 import { SidebarNavComponent } from '../../shared/sidebar-nav';
 
 // Lightweight stand-in for the sidebar so the layout can render without the
@@ -23,7 +25,7 @@ describe('LayoutComponent accessibility (issue #135)', () => {
         provideNoopAnimations(),
         provideRouter([]),
         { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
-        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false } }
+        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false, connectionState: () => 'idle' } }
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {
@@ -70,7 +72,7 @@ describe('LayoutComponent top bar (issue #154)', () => {
         provideNoopAnimations(),
         provideRouter([]),
         { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
-        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false } }
+        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false, connectionState: () => 'idle' } }
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {
@@ -148,7 +150,7 @@ describe('LayoutComponent top bar (issue #154)', () => {
         provideNoopAnimations(),
         provideRouter([{ path: 'somewhere', component: RouteStubComponent }]),
         { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
-        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false } }
+        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false, connectionState: () => 'idle' } }
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {
@@ -165,5 +167,76 @@ describe('LayoutComponent top bar (issue #154)', () => {
     const name = (back.getAttribute('aria-label') ?? '').toLowerCase();
     expect(name.length).toBeGreaterThan(0);
     expect(name).not.toContain('back');
+  });
+});
+
+
+// ----- #145 live-update announcements ---------------------------------------
+describe('LayoutComponent live-update announcements (issue #145)', () => {
+  function createFixture(
+    state: WritableSignal<StreamConnectionState>,
+    announce: (msg: string) => void
+  ) {
+    TestBed.configureTestingModule({
+      imports: [LayoutComponent],
+      providers: [
+        provideNoopAnimations(),
+        provideRouter([]),
+        { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
+        {
+          provide: EventStreamService,
+          useValue: {
+            connect: vi.fn(),
+            isConnected: () => state() === 'open',
+            connectionState: state
+          }
+        },
+        { provide: AnnouncerService, useValue: { announce } }
+      ]
+    });
+    TestBed.overrideComponent(LayoutComponent, {
+      remove: { imports: [SidebarNavComponent] },
+      add: { imports: [SidebarNavStubComponent] }
+    });
+    const fixture = TestBed.createComponent(LayoutComponent);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('announces "interrupted" on degraded and "restored" when it returns to open', () => {
+    const state = signal<StreamConnectionState>('open');
+    const announce = vi.fn();
+    const fixture = createFixture(state, announce);
+
+    state.set('degraded');
+    fixture.detectChanges();
+    expect(announce).toHaveBeenCalledWith('Live updates interrupted. Reconnecting.');
+
+    announce.mockClear();
+    state.set('open');
+    fixture.detectChanges();
+    expect(announce).toHaveBeenCalledWith('Live updates restored.');
+  });
+
+  it('announces session expiry (and not "restored") when the session expires', () => {
+    const state = signal<StreamConnectionState>('open');
+    const announce = vi.fn();
+    const fixture = createFixture(state, announce);
+
+    state.set('expired');
+    fixture.detectChanges();
+    expect(announce).toHaveBeenCalledWith('Session expired. Please sign in again.');
+  });
+
+  it('stays silent on initial establishment and the transient closed blip', () => {
+    const state = signal<StreamConnectionState>('connecting');
+    const announce = vi.fn();
+    const fixture = createFixture(state, announce);
+
+    state.set('open');   // initial establishment - no prior interruption
+    fixture.detectChanges();
+    state.set('closed'); // transient blip before a retry
+    fixture.detectChanges();
+    expect(announce).not.toHaveBeenCalled();
   });
 });
