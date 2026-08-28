@@ -32,6 +32,8 @@ import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
+import { UpdateBannerComponent } from '../../shared/app-update-banner';
+import { AnnouncerService } from '../../core/announcer.service';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -71,7 +73,7 @@ const STALE_VERSION_MESSAGE =
             RelationshipSectionComponent,
             AnnotationsSectionComponent, TagSelectorComponent, AppCardComponent, AppFieldComponent,
             AppFieldControlDirective, AppFormWizardComponent, AppWizardStepComponent,
-            LoadingStateComponent, ErrorStateComponent],
+            LoadingStateComponent, ErrorStateComponent, UpdateBannerComponent],
   providers: [ConfirmationService],
   template: `
     <div class="goal-editor" data-testid="goal-editor">
@@ -95,6 +97,11 @@ const STALE_VERSION_MESSAGE =
       </div>
 
       <app-submit-error [message]="errorMessage()" testid="goal-editor-error" [retryable]="retryable()" (retry)="onSave()" />
+      @if (updateAvailable()) {
+        <app-update-banner message="This goal was changed elsewhere. Your unsaved changes are preserved."
+                           testid="goal-update-banner"
+                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
+      }
 
       @if (loading()) {
         <app-card>
@@ -326,6 +333,8 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   canDelete = signal(false);
   /** True once a save/commit has been attempted, so untouched invalid fields explain themselves. */
   submitted = signal(false);
+  /** A cross-session update arrived while the form was dirty (#140): show the reload banner. */
+  updateAvailable = signal(false);
   pendingRelationGoal = signal<EntityReferenceDto | null>(null);
   relationDialogVisible = signal(false);
   relationDialogHeader = computed(() => {
@@ -384,7 +393,8 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
     private messageService: MessageService,
-    private eventStreamService: EventStreamService
+    private eventStreamService: EventStreamService,
+    private announcer: AnnouncerService
   ) {}
 
   ngOnInit(): void {
@@ -462,6 +472,14 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     void this.loadGoal();
   }
 
+  /** Discard local edits and re-apply the latest server state (from the update banner, #140). */
+  async reloadFromExternalChange(): Promise<void> {
+    this.updateAvailable.set(false);
+    this.detailsForm.markAsPristine();
+    await this.loadGoal(false);
+    this.announcer.announce('Goal reloaded.');
+  }
+
   /**
    * @param skeleton show the loading skeleton and the retryable error state. Suppressed for every
    *                 background caller - SSE refresh, post-save refetch, 409 recovery and the
@@ -498,8 +516,19 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     if (this.goalId && !this.sseSub) {
       void this.eventStreamService.addSubscription('Goal', this.goalId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
-        if (envelope.targetType === 'Goal' && envelope.targetId === this.goalId) {
-          void this.loadGoal(false);
+        if (envelope.targetType !== 'Goal' || envelope.targetId !== this.goalId) return;
+        if (envelope.eventType === 'TargetDeleted') {
+          this.announcer.announce('This goal was deleted in another session.');
+          return;
+        }
+        // Server suppresses self-echo (X-Session-Id), so this is a cross-session change.
+        const dirty = this.hasUnsavedChanges();
+        void this.loadGoal(false);
+        if (dirty) {
+          this.updateAvailable.set(true);
+          this.announcer.announce('This goal was changed elsewhere. Your unsaved changes are preserved.');
+        } else {
+          this.announcer.announceThrottled('Goal:' + this.goalId, 'This goal was updated.');
         }
       });
     }

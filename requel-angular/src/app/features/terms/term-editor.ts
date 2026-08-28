@@ -31,6 +31,8 @@ import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
+import { UpdateBannerComponent } from '../../shared/app-update-banner';
+import { AnnouncerService } from '../../core/announcer.service';
 import { isNetworkError } from '../../core/command.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -67,7 +69,7 @@ const SEPARATOR = '; ';
     TextareaModule,
     SelectModule,
     TableModule,
-    SubmitErrorComponent,
+    SubmitErrorComponent, UpdateBannerComponent,
     ConfirmDialogModule,
     AnnotationsSectionComponent,
     AppFieldComponent,
@@ -96,6 +98,12 @@ const SEPARATOR = '; ';
         [retryable]="retryable()"
         (retry)="onSave()"
         testid="term-error" />
+
+      @if (updateAvailable()) {
+        <app-update-banner message="This term was changed elsewhere. Your unsaved changes are preserved."
+                           testid="term-update-banner"
+                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
+      }
 
       @if (loading()) {
         <app-card>
@@ -299,7 +307,8 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     private permissionService: PermissionService,
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
-    private eventStreamService: EventStreamService
+    private eventStreamService: EventStreamService,
+    private announcer: AnnouncerService
   ) {}
 
   isNew(): boolean {
@@ -341,6 +350,19 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   }
 
   /** Derived from the form, so there is no change-tracker to keep in step (#132). */
+  /** A cross-session update arrived while dirty (#140): show the reload banner. */
+  updateAvailable = signal(false);
+
+  /** Discard local edits and re-apply the latest server state (from the update banner, #140). */
+  async reloadFromExternalChange(): Promise<void> {
+    this.updateAvailable.set(false);
+    this.form.markAsPristine();
+    if (this.lastTermId != null) {
+      await this.loadTerm(this.lastTermId, false);
+    }
+    this.announcer.announce('Term reloaded.');
+  }
+
   hasUnsavedChanges(): boolean {
     return this.form.dirty;
   }
@@ -432,8 +454,18 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     if (id && !this.sseSub) {
       void this.eventStreamService.addSubscription('GlossaryTerm', id);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
-        if (envelope.targetType === 'GlossaryTerm' && envelope.targetId === id) {
-          void this.loadTerm(id, false);
+        if (envelope.targetType !== 'GlossaryTerm' || envelope.targetId !== id) return;
+        if (envelope.eventType === 'TargetDeleted') {
+          this.announcer.announce('This term was deleted in another session.');
+          return;
+        }
+        const dirty = this.hasUnsavedChanges();
+        void this.loadTerm(id, false);
+        if (dirty) {
+          this.updateAvailable.set(true);
+          this.announcer.announce('This term was changed elsewhere. Your unsaved changes are preserved.');
+        } else {
+          this.announcer.announceThrottled('GlossaryTerm:' + id, 'This term was updated.');
         }
       });
     }

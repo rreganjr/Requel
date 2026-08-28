@@ -23,7 +23,7 @@ describe('LayoutComponent accessibility (issue #135)', () => {
         provideNoopAnimations(),
         provideRouter([]),
         { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
-        { provide: EventStreamService, useValue: { connect: vi.fn() } }
+        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false } }
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {
@@ -70,7 +70,7 @@ describe('LayoutComponent top bar (issue #154)', () => {
         provideNoopAnimations(),
         provideRouter([]),
         { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
-        { provide: EventStreamService, useValue: { connect: vi.fn() } }
+        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false } }
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {
@@ -148,7 +148,7 @@ describe('LayoutComponent top bar (issue #154)', () => {
         provideNoopAnimations(),
         provideRouter([{ path: 'somewhere', component: RouteStubComponent }]),
         { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
-        { provide: EventStreamService, useValue: { connect: vi.fn() } }
+        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false } }
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {

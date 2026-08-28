@@ -35,6 +35,8 @@ import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { MessageModule } from 'primeng/message';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
+import { UpdateBannerComponent } from '../../shared/app-update-banner';
+import { AnnouncerService } from '../../core/announcer.service';
 import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TooltipModule } from 'primeng/tooltip';
@@ -97,7 +99,7 @@ type StepGroup = FormGroup<{
   standalone: true,
   imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
             ReactiveFormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
-            MessageModule, SubmitErrorComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
+            MessageModule, SubmitErrorComponent, UpdateBannerComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent, LoadingStateComponent,
             ErrorStateComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent, InlineErrorComponent],
@@ -124,6 +126,11 @@ type StepGroup = FormGroup<{
       </div>
 
       <app-submit-error [message]="errorMessage()" testid="scenario-error" [retryable]="retryable()" (retry)="onSave()" />
+      @if (updateAvailable()) {
+        <app-update-banner message="This scenario was changed elsewhere. Your unsaved changes are preserved."
+                           testid="scenario-update-banner"
+                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
+      }
 
       @if (loading()) {
         <app-card>
@@ -541,7 +548,8 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
     private messageService: MessageService,
-    private eventStreamService: EventStreamService
+    private eventStreamService: EventStreamService,
+    private announcer: AnnouncerService
   ) {}
 
   ngOnInit(): void {
@@ -586,6 +594,18 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
    * Dirty check across both reactive forms (#143). The step list is a sibling `FormArray`, so an
    * add / edit / remove / reorder shows up as `stepsForm.dirty` — no separate flag to keep in sync.
    */
+  /** A cross-session update arrived while dirty (#140): show the reload banner. */
+  updateAvailable = signal(false);
+
+  /** Discard local edits and re-apply the latest server state (from the update banner, #140). */
+  async reloadFromExternalChange(): Promise<void> {
+    this.updateAvailable.set(false);
+    this.detailsForm.markAsPristine();
+    this.stepsForm.markAsPristine();
+    await this.loadScenario(false);
+    this.announcer.announce('Scenario reloaded.');
+  }
+
   hasUnsavedChanges(): boolean {
     return this.detailsForm.dirty || this.stepsForm.dirty;
   }
@@ -673,8 +693,18 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     if (this.scenarioId && !this.sseSub) {
       void this.eventStreamService.addSubscription('Scenario', this.scenarioId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
-        if (envelope.targetType === 'Scenario' && envelope.targetId === this.scenarioId) {
-          void this.loadScenario(false);
+        if (envelope.targetType !== 'Scenario' || envelope.targetId !== this.scenarioId) return;
+        if (envelope.eventType === 'TargetDeleted') {
+          this.announcer.announce('This scenario was deleted in another session.');
+          return;
+        }
+        const dirty = this.hasUnsavedChanges();
+        void this.loadScenario(false);
+        if (dirty) {
+          this.updateAvailable.set(true);
+          this.announcer.announce('This scenario was changed elsewhere. Your unsaved changes are preserved.');
+        } else {
+          this.announcer.announceThrottled('Scenario:' + this.scenarioId, 'This scenario was updated.');
         }
       });
     }
