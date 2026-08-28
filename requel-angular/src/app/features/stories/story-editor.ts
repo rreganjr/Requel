@@ -32,6 +32,8 @@ import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
+import { UpdateBannerComponent } from '../../shared/app-update-banner';
+import { AnnouncerService } from '../../core/announcer.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { CommandResult } from '../../models/command';
@@ -65,7 +67,7 @@ const STALE_VERSION_MESSAGE =
   standalone: true,
   imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, RouterLink, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, SelectModule,
-            SubmitErrorComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
+            SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
             RelationshipSectionComponent,
             AnnotationsSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
@@ -96,6 +98,11 @@ const STALE_VERSION_MESSAGE =
       </div>
 
       <app-submit-error [message]="errorMessage()" testid="story-editor-error" [retryable]="retryable()" (retry)="onSave()" />
+      @if (updateAvailable()) {
+        <app-update-banner message="This story was changed elsewhere. Your unsaved changes are preserved."
+                           testid="story-update-banner"
+                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
+      }
 
       @if (loading()) {
         <app-card>
@@ -363,7 +370,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
     private messageService: MessageService,
-    private eventStreamService: EventStreamService
+    private eventStreamService: EventStreamService,
+    private announcer: AnnouncerService
   ) {}
 
   ngOnInit(): void {
@@ -404,6 +412,17 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.loadStory();
       }
     });
+  }
+
+  /** A cross-session update arrived while the form was dirty (#140): show the reload banner. */
+  updateAvailable = signal(false);
+
+  /** Discard local edits and re-apply the latest server state (from the update banner, #140). */
+  async reloadFromExternalChange(): Promise<void> {
+    this.updateAvailable.set(false);
+    this.detailsForm.markAsPristine();
+    await this.loadStory(false);
+    this.announcer.announce('Story reloaded.');
   }
 
   hasUnsavedChanges(): boolean {
@@ -484,8 +503,18 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     if (this.storyId && !this.sseSub) {
       void this.eventStreamService.addSubscription('Story', this.storyId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
-        if (envelope.targetType === 'Story' && envelope.targetId === this.storyId) {
-          void this.loadStory(false);
+        if (envelope.targetType !== 'Story' || envelope.targetId !== this.storyId) return;
+        if (envelope.eventType === 'TargetDeleted') {
+          this.announcer.announce('This story was deleted in another session.');
+          return;
+        }
+        const dirty = this.hasUnsavedChanges();
+        void this.loadStory(false);
+        if (dirty) {
+          this.updateAvailable.set(true);
+          this.announcer.announce('This story was changed elsewhere. Your unsaved changes are preserved.');
+        } else {
+          this.announcer.announceThrottled('Story:' + this.storyId, 'This story was updated.');
         }
       });
     }

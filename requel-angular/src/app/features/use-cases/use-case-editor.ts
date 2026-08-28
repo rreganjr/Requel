@@ -31,6 +31,8 @@ import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
+import { UpdateBannerComponent } from '../../shared/app-update-banner';
+import { AnnouncerService } from '../../core/announcer.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TableModule } from 'primeng/table';
 import { TooltipModule } from 'primeng/tooltip';
@@ -76,7 +78,7 @@ const STALE_VERSION_MESSAGE =
   selector: 'app-use-case-editor',
   standalone: true,
   imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
-            ButtonModule, InputText, TextareaModule, SubmitErrorComponent,
+            ButtonModule, InputText, TextareaModule, SubmitErrorComponent, UpdateBannerComponent,
             ConfirmDialogModule, TableModule, TooltipModule, SelectModule, RelationshipSectionComponent,
             EntitySelectorDialogComponent, AnnotationsSectionComponent,
             AppFieldComponent, AppFieldControlDirective,
@@ -105,6 +107,11 @@ const STALE_VERSION_MESSAGE =
       </div>
 
       <app-submit-error [message]="errorMessage()" testid="use-case-error" [retryable]="retryable()" (retry)="onSave()" />
+      @if (updateAvailable()) {
+        <app-update-banner message="This use case was changed elsewhere. Your unsaved changes are preserved."
+                           testid="use-case-update-banner"
+                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
+      }
 
       @if (loading()) {
         <app-card>
@@ -512,7 +519,8 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
     private messageService: MessageService,
-    private eventStreamService: EventStreamService
+    private eventStreamService: EventStreamService,
+    private announcer: AnnouncerService
   ) {}
 
   ngOnInit(): void {
@@ -549,6 +557,17 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
         await this.loadUseCase();
       }
     });
+  }
+
+  /** A cross-session update arrived while the form was dirty (#140): show the reload banner. */
+  updateAvailable = signal(false);
+
+  /** Discard local edits and re-apply the latest server state (from the update banner, #140). */
+  async reloadFromExternalChange(): Promise<void> {
+    this.updateAvailable.set(false);
+    this.detailsForm.markAsPristine();
+    await this.loadUseCase(false);
+    this.announcer.announce('Use case reloaded.');
   }
 
   hasUnsavedChanges(): boolean {
@@ -641,8 +660,18 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     if (this.useCaseId && !this.sseSub) {
       void this.eventStreamService.addSubscription('UseCase', this.useCaseId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
-        if (envelope.targetType === 'UseCase' && envelope.targetId === this.useCaseId) {
-          void this.loadUseCase(false);
+        if (envelope.targetType !== 'UseCase' || envelope.targetId !== this.useCaseId) return;
+        if (envelope.eventType === 'TargetDeleted') {
+          this.announcer.announce('This use case was deleted in another session.');
+          return;
+        }
+        const dirty = this.hasUnsavedChanges();
+        void this.loadUseCase(false);
+        if (dirty) {
+          this.updateAvailable.set(true);
+          this.announcer.announce('This use case was changed elsewhere. Your unsaved changes are preserved.');
+        } else {
+          this.announcer.announceThrottled('UseCase:' + this.useCaseId, 'This use case was updated.');
         }
       });
     }

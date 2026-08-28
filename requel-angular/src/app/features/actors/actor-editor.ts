@@ -32,6 +32,8 @@ import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { TableModule } from 'primeng/table';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
+import { UpdateBannerComponent } from '../../shared/app-update-banner';
+import { AnnouncerService } from '../../core/announcer.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ActorDto } from '../../models/actor';
@@ -69,7 +71,7 @@ const STALE_VERSION_MESSAGE =
   standalone: true,
   imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, TableModule, RelationshipSectionComponent,
-            SubmitErrorComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
+            SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule, EntitySelectorDialogComponent,
             AnnotationsSectionComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent],
@@ -96,6 +98,11 @@ const STALE_VERSION_MESSAGE =
       </div>
 
       <app-submit-error [message]="errorMessage()" testid="actor-error" [retryable]="retryable()" (retry)="onSave()" />
+      @if (updateAvailable()) {
+        <app-update-banner message="This actor was changed elsewhere. Your unsaved changes are preserved."
+                           testid="actor-update-banner"
+                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
+      }
 
       @if (loading()) {
         <app-card>
@@ -334,7 +341,8 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
     private messageService: MessageService,
-    private eventStreamService: EventStreamService
+    private eventStreamService: EventStreamService,
+    private announcer: AnnouncerService
   ) {}
 
   ngOnInit(): void {
@@ -372,6 +380,17 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.loadActor();
       }
     });
+  }
+
+  /** A cross-session update arrived while the form was dirty (#140): show the reload banner. */
+  updateAvailable = signal(false);
+
+  /** Discard local edits and re-apply the latest server state (from the update banner, #140). */
+  async reloadFromExternalChange(): Promise<void> {
+    this.updateAvailable.set(false);
+    this.detailsForm.markAsPristine();
+    await this.loadActor(false);
+    this.announcer.announce('Actor reloaded.');
   }
 
   hasUnsavedChanges(): boolean {
@@ -445,8 +464,18 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     if (this.actorId && !this.sseSub) {
       void this.eventStreamService.addSubscription('Actor', this.actorId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
-        if (envelope.targetType === 'Actor' && envelope.targetId === this.actorId) {
-          void this.loadActor(false);
+        if (envelope.targetType !== 'Actor' || envelope.targetId !== this.actorId) return;
+        if (envelope.eventType === 'TargetDeleted') {
+          this.announcer.announce('This actor was deleted in another session.');
+          return;
+        }
+        const dirty = this.hasUnsavedChanges();
+        void this.loadActor(false);
+        if (dirty) {
+          this.updateAvailable.set(true);
+          this.announcer.announce('This actor was changed elsewhere. Your unsaved changes are preserved.');
+        } else {
+          this.announcer.announceThrottled('Actor:' + this.actorId, 'This actor was updated.');
         }
       });
     }

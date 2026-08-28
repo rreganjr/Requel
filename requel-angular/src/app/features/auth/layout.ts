@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, OnInit, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Location } from '@angular/common';
 import { NavigationEnd, Router, RouterOutlet, RouterLink } from '@angular/router';
@@ -28,6 +28,7 @@ import { MenuModule } from 'primeng/menu';
 import { ToastModule } from 'primeng/toast';
 import { AuthService } from '../../core/auth.service';
 import { EventStreamService } from '../../core/event-stream.service';
+import { AnnouncerService } from '../../core/announcer.service';
 import { SidebarNavComponent } from '../../shared/sidebar-nav';
 import { BreadcrumbComponent } from '../../shared/breadcrumb';
 import { MenuItem, MessageService } from 'primeng/api';
@@ -253,6 +254,7 @@ export class LayoutComponent implements OnInit {
 
   private readonly authService: AuthService;
   private readonly eventStreamService: EventStreamService;
+  private readonly announcer: AnnouncerService;
   private readonly location: Location;
   private readonly router: Router;
 
@@ -281,12 +283,31 @@ export class LayoutComponent implements OnInit {
     authService: AuthService,
     eventStreamService: EventStreamService,
     location: Location,
-    router: Router
+    router: Router,
+    announcer: AnnouncerService
   ) {
     this.authService = authService;
     this.eventStreamService = eventStreamService;
     this.location = location;
     this.router = router;
+    this.announcer = announcer;
+
+    // #140: announce SSE connection transitions politely (paused/restored). Skips the
+    // initial establishment; only announces 'restored' after a real pause.
+    let prevConnected = this.eventStreamService.isConnected();
+    let wasPaused = false;
+    effect(() => {
+      const connected = this.eventStreamService.isConnected();
+      if (connected === prevConnected) return;
+      prevConnected = connected;
+      if (!connected) {
+        this.announcer.announce('Live updates paused.');
+        wasPaused = true;
+      } else if (wasPaused) {
+        this.announcer.announce('Live updates restored.');
+        wasPaused = false;
+      }
+    });
 
     this.currentUrl = toSignal(
       this.router.events.pipe(

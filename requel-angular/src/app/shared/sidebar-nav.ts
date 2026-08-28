@@ -28,6 +28,7 @@ import { BadgeModule } from 'primeng/badge';
 import { TreeNode } from 'primeng/api';
 import { AuthService } from '../core/auth.service';
 import { EventStreamService } from '../core/event-stream.service';
+import { AnnouncerService } from '../core/announcer.service';
 import { ProjectService } from '../core/project.service';
 import { ProjectDto, ProjectTreeNode } from '../models/project';
 import { FileUploadButtonComponent } from './file-upload-button';
@@ -298,7 +299,8 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private eventStreamService: EventStreamService,
     private projectService: ProjectService,
-    private router: Router
+    private router: Router,
+    private announcer: AnnouncerService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -311,6 +313,7 @@ export class SidebarNavComponent implements OnInit, OnDestroy {
       .subscribe(envelope => {
         if (envelope.targetType === 'Project') {
           this.loadProjects();
+          this.announcer.announceThrottled('sidebar-projects', 'Project list updated.');
         }
       });
   }

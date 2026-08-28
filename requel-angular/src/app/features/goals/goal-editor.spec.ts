@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
-import { BehaviorSubject, EMPTY } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { GoalEditorComponent } from './goal-editor';
 import { GoalService } from '../../core/goal.service';
@@ -10,6 +10,8 @@ import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
+import { AnnouncerService } from '../../core/announcer.service';
+import { StreamEventEnvelope } from '../../models/stream';
 import { AppWizardStepComponent, WizardCommitRequest } from '../../shared/app-form-wizard';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 
@@ -46,7 +48,9 @@ describe('GoalEditorComponent', () => {
   let commandServiceMock: { execute: ReturnType<typeof vi.fn> };
   let projectServiceMock: { notifyTreeChanged: ReturnType<typeof vi.fn> };
   let permissionServiceMock: { loadForProject: ReturnType<typeof vi.fn>; canEdit: ReturnType<typeof vi.fn>; canDelete: ReturnType<typeof vi.fn> };
-  let eventStreamServiceMock: { events$: typeof EMPTY; addSubscription: ReturnType<typeof vi.fn>; removeSubscription: ReturnType<typeof vi.fn> };
+  let events$: Subject<StreamEventEnvelope>;
+  let eventStreamServiceMock: { events$: Subject<StreamEventEnvelope>; addSubscription: ReturnType<typeof vi.fn>; removeSubscription: ReturnType<typeof vi.fn> };
+  let announcerMock: { announce: ReturnType<typeof vi.fn>; announceThrottled: ReturnType<typeof vi.fn> };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fixture: any;
   let comp: GoalEditorComponent;
@@ -69,11 +73,13 @@ describe('GoalEditorComponent', () => {
       canEdit: vi.fn().mockReturnValue(true),
       canDelete: vi.fn().mockReturnValue(true)
     };
+    events$ = new Subject<StreamEventEnvelope>();
     eventStreamServiceMock = {
-      events$: EMPTY,
+      events$,
       addSubscription: vi.fn().mockResolvedValue(undefined),
       removeSubscription: vi.fn().mockResolvedValue(undefined)
     };
+    announcerMock = { announce: vi.fn(), announceThrottled: vi.fn() };
 
     TestBed.configureTestingModule({
       imports: [GoalEditorComponent],
@@ -92,6 +98,7 @@ describe('GoalEditorComponent', () => {
         { provide: ProjectService, useValue: projectServiceMock },
         { provide: PermissionService, useValue: permissionServiceMock },
         { provide: EventStreamService, useValue: eventStreamServiceMock },
+        { provide: AnnouncerService, useValue: announcerMock },
         { provide: MessageService, useValue: { add: vi.fn() } }
       ]
     });
@@ -564,4 +571,52 @@ describe('GoalEditorComponent', () => {
       expect((comp as any).version).toBe(9);
   });
 
+  describe('SSE announcements (#140)', () => {
+    it('a cross-session update while the form is dirty shows the banner and announces it', async () => {
+      await renderExisting();
+      comp.detailsForm.setValue({ name: 'my local edit', text: 'x' });
+      comp.detailsForm.markAsDirty();
+
+      events$.next({ eventType: 'Data', targetType: 'Goal', targetId: 10, payload: null });
+      await flush();
+
+      expect(comp.updateAvailable()).toBe(true);
+      expect(announcerMock.announce).toHaveBeenCalledWith(
+        'This goal was changed elsewhere. Your unsaved changes are preserved.');
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="goal-update-banner"]')).not.toBeNull();
+    });
+
+    it('a cross-session update while the form is clean announces (throttled) and shows no banner', async () => {
+      await renderExisting();
+      expect(comp.hasUnsavedChanges()).toBe(false);
+
+      events$.next({ eventType: 'Data', targetType: 'Goal', targetId: 10, payload: null });
+      await flush();
+
+      expect(comp.updateAvailable()).toBe(false);
+      expect(announcerMock.announceThrottled).toHaveBeenCalledWith('Goal:10', 'This goal was updated.');
+    });
+
+    it('a TargetDeleted event announces deletion', async () => {
+      await renderExisting();
+      events$.next({ eventType: 'TargetDeleted', targetType: 'Goal', targetId: 10, payload: null });
+      await flush();
+      expect(announcerMock.announce).toHaveBeenCalledWith('This goal was deleted in another session.');
+    });
+
+    it('reloadFromExternalChange clears the banner and re-applies server state', async () => {
+      await renderExisting();
+      comp.updateAvailable.set(true);
+      comp.detailsForm.setValue({ name: 'my local edit', text: 'x' });
+      comp.detailsForm.markAsDirty();
+      goalServiceMock.getGoal.mockResolvedValue({ ...MOCK_GOAL, name: 'Server Name', version: 3 });
+
+      await comp.reloadFromExternalChange();
+      await flush();
+
+      expect(comp.updateAvailable()).toBe(false);
+      expect(comp.detailsForm.getRawValue().name).toBe('Server Name');
+    });
+  });
 });

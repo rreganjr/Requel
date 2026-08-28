@@ -33,6 +33,8 @@ import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
 import { CheckboxModule } from 'primeng/checkbox';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
+import { UpdateBannerComponent } from '../../shared/app-update-banner';
+import { AnnouncerService } from '../../core/announcer.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { StakeholderDto, StakeholderPermissionDto, UserStakeholderDetails } from '../../models/stakeholder';
@@ -75,7 +77,7 @@ interface PermissionGroup {
   standalone: true,
   imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule, RouterLink,
             ButtonModule, InputText, TextareaModule, SelectModule,
-            CheckboxModule, SubmitErrorComponent, ConfirmDialogModule, RelationshipSectionComponent,
+            CheckboxModule, SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule, RelationshipSectionComponent,
             EntitySelectorDialogComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent],
@@ -96,6 +98,11 @@ interface PermissionGroup {
       </div>
 
       <app-submit-error [message]="errorMessage()" testid="stakeholder-error" [retryable]="retryable()" (retry)="onSave()" />
+      @if (updateAvailable()) {
+        <app-update-banner message="This stakeholder was changed elsewhere. Your unsaved changes are preserved."
+                           testid="stakeholder-update-banner"
+                           (reload)="reloadFromExternalChange()" (dismiss)="updateAvailable.set(false)" />
+      }
 
       @if (loading()) {
         <app-card>
@@ -361,7 +368,8 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
     private messageService: MessageService,
-    private eventStreamService: EventStreamService
+    private eventStreamService: EventStreamService,
+    private announcer: AnnouncerService
   ) {}
 
   ngOnInit(): void {
@@ -406,6 +414,17 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
    * Permissions live in their own form, so dirtiness is either half. `detailsForm.dirty` alone
    * would miss a user who only ticked a permission box.
    */
+  /** A cross-session update arrived while the form was dirty (#140): show the reload banner. */
+  updateAvailable = signal(false);
+
+  /** Discard local edits and re-apply the latest server state (from the update banner, #140). */
+  async reloadFromExternalChange(): Promise<void> {
+    this.updateAvailable.set(false);
+    this.detailsForm.markAsPristine();
+    await this.loadStakeholder(false);
+    this.announcer.announce('Stakeholder reloaded.');
+  }
+
   hasUnsavedChanges(): boolean {
     return this.detailsForm.dirty || this.permissionsForm.dirty;
   }
@@ -542,8 +561,18 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
     if (this.stakeholderId && !this.sseSub) {
       void this.eventStreamService.addSubscription('Stakeholder', this.stakeholderId);
       this.sseSub = this.eventStreamService.events$.subscribe(envelope => {
-        if (envelope.targetType === 'Stakeholder' && envelope.targetId === this.stakeholderId) {
-          void this.loadStakeholder(false);
+        if (envelope.targetType !== 'Stakeholder' || envelope.targetId !== this.stakeholderId) return;
+        if (envelope.eventType === 'TargetDeleted') {
+          this.announcer.announce('This stakeholder was deleted in another session.');
+          return;
+        }
+        const dirty = this.hasUnsavedChanges();
+        void this.loadStakeholder(false);
+        if (dirty) {
+          this.updateAvailable.set(true);
+          this.announcer.announce('This stakeholder was changed elsewhere. Your unsaved changes are preserved.');
+        } else {
+          this.announcer.announceThrottled('Stakeholder:' + this.stakeholderId, 'This stakeholder was updated.');
         }
       });
     }
