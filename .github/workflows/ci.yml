@@ -92,13 +92,15 @@ jobs:
           --batch-mode --no-transfer-progress
           -Dstyle.color=always
 
-      # The frontend-maven-plugin only invokes `ng build`, not `ng test`.
-      # Run the Vitest unit suite separately using the host-installed Node.
+      # The frontend-maven-plugin only invokes `ng build`, not `ng test` or
+      # `ng lint`. Run the ESLint import guard (#147) and the Vitest unit suite
+      # separately using the host-installed Node, sharing one `npm ci`.
       # `--no-watch` makes the runner exit after one pass (default is watch).
-      - name: Angular unit tests (Vitest)
+      - name: Angular lint + unit tests (Vitest)
         working-directory: requel-angular
         run: |
           npm ci
+          npm run lint
           npm test -- --no-watch
 
       - name: Upload JaCoCo coverage
