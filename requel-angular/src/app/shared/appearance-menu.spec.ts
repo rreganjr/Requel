@@ -1,3 +1,4 @@
+import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { AppearanceMenuComponent } from './appearance-menu';
@@ -71,6 +72,7 @@ describe('AppearanceMenuComponent (issue #159)', () => {
     darkRadio.checked = true;
     darkRadio.dispatchEvent(new Event('change'));
     fixture.detectChanges();
+    TestBed.inject(ApplicationRef).tick(); // flush the root-service persist effect
     expect(theme.mode()).toBe('dark');
     expect(localStorage.getItem('requel_theme')).toBe('dark');
   });
@@ -83,6 +85,7 @@ describe('AppearanceMenuComponent (issue #159)', () => {
     emerald.checked = true;
     emerald.dispatchEvent(new Event('change'));
     fixture.detectChanges();
+    TestBed.inject(ApplicationRef).tick(); // flush the root-service persist effect
     expect(theme.primary()).toBe('emerald');
     expect(localStorage.getItem('requel_primary')).toBe('emerald');
   });

@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ApplicationRef, Component, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { updatePrimaryPalette } from '@primeuix/themes';
 import { ThemeService } from './theme.service';
@@ -27,11 +27,20 @@ describe('ThemeService (issue #159)', () => {
     vi.stubGlobal('matchMedia', vi.fn(() => mql));
   }
 
+  // Deterministically flush the ThemeService's root-injector effects. A component
+  // fixture's detectChanges() runs that component's change detection but does not
+  // reliably flush an effect created in a root-provided service, so drive an
+  // ApplicationRef tick, which does.
+  function flush(): void {
+    TestBed.inject(ApplicationRef).tick();
+  }
+
   function render() {
     TestBed.configureTestingModule({ imports: [HostComponent] });
     const fixture = TestBed.createComponent(HostComponent);
-    fixture.detectChanges(); // flush the service's effects
-    return { fixture, theme: fixture.componentInstance.theme };
+    fixture.detectChanges();
+    flush();
+    return { theme: fixture.componentInstance.theme };
   }
 
   beforeEach(() => {
@@ -54,19 +63,19 @@ describe('ThemeService (issue #159)', () => {
   });
 
   it('adds .rq-dark and persists when the mode is set to dark', () => {
-    const { fixture, theme } = render();
+    const { theme } = render();
     theme.setMode('dark');
-    fixture.detectChanges();
+    flush();
     expect(document.documentElement.classList.contains('rq-dark')).toBe(true);
     expect(localStorage.getItem('requel_theme')).toBe('dark');
   });
 
   it('removes .rq-dark for light mode', () => {
-    const { fixture, theme } = render();
+    const { theme } = render();
     theme.setMode('dark');
-    fixture.detectChanges();
+    flush();
     theme.setMode('light');
-    fixture.detectChanges();
+    flush();
     expect(document.documentElement.classList.contains('rq-dark')).toBe(false);
   });
 
@@ -79,10 +88,10 @@ describe('ThemeService (issue #159)', () => {
 
   it('reacts live to an OS preference change while in system mode', () => {
     stubMatchMedia(false);
-    const { fixture, theme } = render();
+    const { theme } = render();
     expect(theme.isDark()).toBe(false);
     listeners.forEach(cb => cb({ matches: true }));
-    fixture.detectChanges();
+    flush();
     expect(theme.isDark()).toBe(true);
   });
 
@@ -95,10 +104,10 @@ describe('ThemeService (issue #159)', () => {
   });
 
   it('applies and persists the primary palette on change', () => {
-    const { fixture, theme } = render();
+    const { theme } = render();
     vi.mocked(updatePrimaryPalette).mockClear();
     theme.setPrimary('emerald');
-    fixture.detectChanges();
+    flush();
     expect(updatePrimaryPalette).toHaveBeenCalled();
     expect(localStorage.getItem('requel_primary')).toBe('emerald');
   });
