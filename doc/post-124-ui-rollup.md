@@ -7,8 +7,8 @@ each PR squash-merges to `release/2.0`.
 
 **This doc is the single source of truth for build order.** `scripts/reorder-post-124-ui-subissues.sh`
 reads the order of the `- [ ] #NNN` lines below, top to bottom, and reorders the epic's
-sub-issues (and `--sync-checks` re-derives the boxes) to match. The `#TBD` markers are filled
-with real issue numbers by `tmp/create-post-124-ui.sh` at creation time.
+sub-issues (and `--sync-checks` re-derives the boxes) to match. The epic is #219; its
+sub-issues (#220–226) are listed below.
 
 ### Phase 1 — Bug fixes
 
