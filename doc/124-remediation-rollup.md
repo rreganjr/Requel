@@ -58,7 +58,7 @@ Grouped from `doc/UI_UX_REVIEW.md` findings 1.1–5.6 plus the look-and-feel ite
 
 - [x] #144 — 5.3 Change detection and subscriptions are not modernized
 - [x] #145 — 5.4 SSE service is thoughtful but disconnected from UX and app-level state
-- [ ] #147 — 5.6 Bundle and dependency posture is reasonable but should be measured
-- [ ] #159 — N6 Theme switcher + dark mode via config panel (optional)
+- [x] #147 — 5.6 Bundle and dependency posture is reasonable but should be measured
+- [x] #159 — N6 Theme switcher + dark mode via config panel (optional)
 
-**Progress: 32 / 34 complete** (Phase 1 ✅, Phase 2 ✅, Phase 3 in progress).
+**Progress: 34 / 34 complete** (Phase 1 ✅, Phase 2 ✅, Phase 3 in progress).
