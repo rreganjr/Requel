@@ -146,9 +146,48 @@ export const RequelPreset = definePreset(Aura, {
           borderColor: '{slate.200}',
           hoverBackground: '{slate.50}'
         }
+      },
+      // Dark scheme (#159 / N6). Activated by `.rq-dark` (darkModeSelector in
+      // app.config.ts). Surfaces map the slate ramp so backgrounds are dark and
+      // ELEVATION is preserved — card (surface-0 = slate-900) sits a step lighter
+      // than the canvas (surface-50 = slate-950), mirroring light's white-card-on-
+      // gray-canvas. Primary lightens to blue-400 with dark contrast text so the
+      // button stays AA on dark. Text inverts to the light slate stops; secondary
+      // holds at slate-300 to stay AA on the dark surfaces it is used over.
+      dark: {
+        primary: {
+          color: '{blue.400}',
+          contrastColor: '{slate.950}',
+          hoverColor: '{blue.300}',
+          activeColor: '{blue.200}'
+        },
+        surface: {
+          0: '{slate.900}',
+          50: '{slate.950}',
+          100: '{slate.800}',
+          200: '{slate.700}',
+          300: '{slate.600}',
+          400: '{slate.500}',
+          500: '{slate.400}',
+          600: '{slate.300}',
+          700: '{slate.200}',
+          800: '{slate.100}',
+          900: '{slate.50}',
+          950: '{slate.0}'
+        },
+        text: {
+          color: '{slate.100}',
+          hoverColor: '{slate.0}',
+          mutedColor: '{slate.400}',
+          hoverMutedColor: '{slate.300}',
+          secondaryColor: '{slate.300}'
+        },
+        content: {
+          background: '{slate.900}',
+          borderColor: '{slate.700}',
+          hoverBackground: '{slate.800}'
+        }
       }
-      // dark: deferred to #159 (N6). Aura's built-in dark tokens remain the
-      // fallback under `.rq-dark` until the Requel dark ramp is authored.
     }
   },
   components: {

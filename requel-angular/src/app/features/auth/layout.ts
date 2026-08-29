@@ -31,6 +31,7 @@ import { EventStreamService } from '../../core/event-stream.service';
 import { AnnouncerService } from '../../core/announcer.service';
 import { SidebarNavComponent } from '../../shared/sidebar-nav';
 import { BreadcrumbComponent } from '../../shared/breadcrumb';
+import { AppearanceMenuComponent } from '../../shared/appearance-menu';
 import { MenuItem, MessageService } from 'primeng/api';
 
 /**
@@ -71,7 +72,7 @@ function persistSidebarCollapsed(collapsed: boolean): void {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, ButtonModule, MenuModule, ToastModule, SidebarNavComponent, BreadcrumbComponent],
+  imports: [RouterOutlet, RouterLink, ButtonModule, MenuModule, ToastModule, SidebarNavComponent, BreadcrumbComponent, AppearanceMenuComponent],
   providers: [MessageService],
   template: `
     <p-toast />
@@ -112,6 +113,7 @@ function persistSidebarCollapsed(collapsed: boolean): void {
                   title="Search (coming soon)" data-testid="header-search">
             <i class="pi pi-search" aria-hidden="true"></i>
           </button>
+          <app-appearance-menu />
           <p-button [text]="true" icon="pi pi-bars"
                     [label]="'Menu'" class="account-trigger"
                     (onClick)="accountMenu.toggle($event)" />

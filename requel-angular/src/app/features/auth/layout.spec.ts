@@ -8,11 +8,15 @@ import { EventStreamService } from '../../core/event-stream.service';
 import { AnnouncerService } from '../../core/announcer.service';
 import { StreamConnectionState } from '../../models/stream';
 import { SidebarNavComponent } from '../../shared/sidebar-nav';
+import { AppearanceMenuComponent } from '../../shared/appearance-menu';
 
 // Lightweight stand-in for the sidebar so the layout can render without the
 // sidebar's data services / SSE subscriptions.
 @Component({ selector: 'app-sidebar-nav', standalone: true, template: '' })
 class SidebarNavStubComponent {}
+
+@Component({ selector: 'app-appearance-menu', standalone: true, template: '' })
+class AppearanceMenuStubComponent {}
 
 @Component({ selector: 'app-route-stub', standalone: true, template: '' })
 class RouteStubComponent {}
@@ -29,8 +33,8 @@ describe('LayoutComponent accessibility (issue #135)', () => {
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {
-      remove: { imports: [SidebarNavComponent] },
-      add: { imports: [SidebarNavStubComponent] }
+      remove: { imports: [SidebarNavComponent, AppearanceMenuComponent] },
+      add: { imports: [SidebarNavStubComponent, AppearanceMenuStubComponent] }
     });
     const fixture = TestBed.createComponent(LayoutComponent);
     fixture.detectChanges();
@@ -76,8 +80,8 @@ describe('LayoutComponent top bar (issue #154)', () => {
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {
-      remove: { imports: [SidebarNavComponent] },
-      add: { imports: [SidebarNavStubComponent] }
+      remove: { imports: [SidebarNavComponent, AppearanceMenuComponent] },
+      add: { imports: [SidebarNavStubComponent, AppearanceMenuStubComponent] }
     });
     const fixture = TestBed.createComponent(LayoutComponent);
     fixture.detectChanges();
@@ -154,8 +158,8 @@ describe('LayoutComponent top bar (issue #154)', () => {
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {
-      remove: { imports: [SidebarNavComponent] },
-      add: { imports: [SidebarNavStubComponent] }
+      remove: { imports: [SidebarNavComponent, AppearanceMenuComponent] },
+      add: { imports: [SidebarNavStubComponent, AppearanceMenuStubComponent] }
     });
     const router = TestBed.inject(Router);
     const fixture = TestBed.createComponent(LayoutComponent);
@@ -195,8 +199,8 @@ describe('LayoutComponent live-update announcements (issue #145)', () => {
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {
-      remove: { imports: [SidebarNavComponent] },
-      add: { imports: [SidebarNavStubComponent] }
+      remove: { imports: [SidebarNavComponent, AppearanceMenuComponent] },
+      add: { imports: [SidebarNavStubComponent, AppearanceMenuStubComponent] }
     });
     const fixture = TestBed.createComponent(LayoutComponent);
     fixture.detectChanges();

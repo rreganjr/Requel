@@ -8,6 +8,7 @@
 // Components must read from these tokens, not from hard-coded literals.
 // See src/app/theme/README.md.
 :root {
+  color-scheme: light;
   // Base font: Figtree at 14px (denser than PrimeNG's 16px default).
   --rq-font-family: 'Figtree Variable', 'Figtree', system-ui, -apple-system,
     'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -189,6 +190,35 @@
 
   // Make PrimeNG components inherit Figtree (font-family is not set by Aura).
   --p-font-family: var(--rq-font-family);
+}
+
+/* #159 - dark scheme token overrides. Most --rq-* tokens are --p-* aliases and
+   flip automatically via the preset's dark colorScheme; only tokens carrying a
+   literal color or a light-surface assumption are overridden here. No
+   component-local dark CSS lives outside this block (AC1). */
+.rq-dark {
+  color-scheme: dark;
+
+  /* The header stays deep primary-blue in both modes, so its foreground must
+     stay light - --p-surface-0 flips to a dark slate in dark mode, so re-pin. */
+  --rq-header-fg: #f8fafc;
+
+  /* Cards lift off the darker canvas with a stronger shadow; the near-white
+     light-mode shadow would be invisible on dark surfaces. */
+  --rq-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
+
+  /* Severity chips: the light pastel ramps are primitive stops that do not flip,
+     so map them to a subtle translucent tint with a light (AA on dark) foreground. */
+  --rq-tag-primary-bg: rgba(96, 165, 250, 0.16);
+  --rq-tag-primary-fg: #93c5fd;
+  --rq-tag-success-bg: rgba(52, 211, 153, 0.16);
+  --rq-tag-success-fg: #6ee7b7;
+  --rq-tag-info-bg: rgba(56, 189, 248, 0.16);
+  --rq-tag-info-fg: #7dd3fc;
+  --rq-tag-warning-bg: rgba(251, 191, 36, 0.16);
+  --rq-tag-warning-fg: #fcd34d;
+  --rq-tag-danger-bg: rgba(248, 113, 113, 0.16);
+  --rq-tag-danger-fg: #fca5a5;
 }
 
 html, body {

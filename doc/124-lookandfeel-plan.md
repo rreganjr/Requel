@@ -247,11 +247,13 @@ it for a representative create flow (e.g. new Goal or Story).
 nav keyboard-operable; one create flow migrated end-to-end.
 *Concretizes #132 + #146.*
 
-### N6 — (Optional) Theme switcher + dark mode via config panel · priority:low
-Add a config panel (gear in the top bar) to toggle light/dark and optionally the primary
-color, backed by the preset's dark token set.
+### N6 — Theme switcher + dark mode via config panel · priority:low · **shipped in v2.0**
+A palette button in the top bar opens an appearance panel to toggle light / dark /
+**system** and pick the primary accent, backed by the preset's dark token set.
+Implemented in #159: `ThemeService` + a preset `dark` colorScheme + `.rq-dark` token
+overrides + `shared/appearance-menu.ts`, persisted to localStorage with a pre-boot FOUC guard.
 **Acceptance.** Dark mode reads entirely from tokens; preference persists; contrast
-passes AA in both modes (#141). Defer if out of scope for v2.0.
+passes AA in both modes (#141). **Included in v2.0** (AC4 — release-scope decision: ship it).
 
 ## 5. Sequencing
 

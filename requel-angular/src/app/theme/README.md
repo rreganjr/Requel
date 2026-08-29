@@ -70,11 +70,19 @@ Defined in `src/styles.scss`:
 
 ## Dark mode
 
-This preset defines the **light** color scheme only. `app.config.ts` wires a
-`darkModeSelector: '.rq-dark'` hook so dark mode can be added later without
-re-theming; `surface-950` (`#020617`) is reserved as the eventual dark base. The
-full dark token set and a theme switcher are tracked in #159 (N6). Until then,
-toggling `.rq-dark` falls back to Aura's built-in dark tokens.
+Both **light and dark** color schemes are defined here (#159 / N6).
+`app.config.ts` wires `darkModeSelector: '.rq-dark'`; `ThemeService`
+(`core/theme.service.ts`) toggles that class from the user's mode
+(light / dark / **system**, following `prefers-color-scheme`) and swaps the
+primary accent, persisting both to `localStorage` and restoring on load. A
+pre-boot script in `index.html` applies the class before Angular starts, so a
+dark reload never flashes light. The dark surface ramp keeps light's elevation
+(card a step lighter than canvas); primary lightens to `blue-400` with dark
+contrast text to stay AA. The few app tokens that carry literal colors or assume
+a light surface (`--rq-header-fg`, the card shadow, the severity chips) get
+explicit `.rq-dark` overrides in `styles.scss`; everything else rides the
+`--p-*` aliases. The appearance panel lives in `shared/appearance-menu.ts`.
+**Shipped in v2.0.**
 
 ## Scope note
 
