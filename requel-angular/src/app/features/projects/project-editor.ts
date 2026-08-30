@@ -158,7 +158,7 @@ const SEPARATOR = '; ';
         <app-field label="Description" controlId="description" [control]="detailsForm.controls.description"
                    [divider]="false" [submitted]="submitted()">
           <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.description" id="description"
-                    [rows]="5" [autoResize]="true" data-testid="project-description"></textarea>
+                    rows="4" [autoResize]="true" data-testid="project-description"></textarea>
         </app-field>
       </ng-template>
 

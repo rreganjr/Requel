@@ -147,7 +147,7 @@ const SEPARATOR = '; ';
                 pTextarea
                 appFieldControl
                 formControlName="text"
-                rows="5"
+                rows="4" [autoResize]="true"
                 placeholder="Definition of this term"
               ></textarea>
             </app-field>

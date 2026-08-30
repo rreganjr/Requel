@@ -238,7 +238,7 @@ interface PermissionGroup {
 
           <app-field label="Description" controlId="text" [control]="detailsForm.controls.text" [divider]="false"
                      [submitted]="submitted()">
-            <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4"
+            <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4" [autoResize]="true"
                       placeholder="Description of this stakeholder"
                       data-testid="stakeholder-text"></textarea>
           </app-field>

@@ -240,7 +240,7 @@ const STALE_VERSION_MESSAGE =
 
         <app-field label="Text" [control]="detailsForm.controls.text" [divider]="false"
                    [submitted]="submitted()">
-          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" rows="8"
+          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" rows="4" [autoResize]="true"
                     placeholder="Story text" data-testid="story-text"></textarea>
         </app-field>
       </ng-template>
