@@ -269,7 +269,7 @@ const STALE_VERSION_MESSAGE =
 
         <app-field label="Description" controlId="text" [control]="detailsForm.controls.text" [divider]="false"
                    [submitted]="submitted()">
-          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4"
+          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4" [autoResize]="true"
                     placeholder="Use case description" data-testid="use-case-text"></textarea>
         </app-field>
       </ng-template>

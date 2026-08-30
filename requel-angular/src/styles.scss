@@ -437,6 +437,26 @@ html, body {
 .w-full { width: 100%; }
 
 // -------------------------------------------------------------------------
+// Form textareas (issue #222, F1)
+//
+// One central default so every form textarea is full width with a consistent,
+// comfortable start height — replacing the narrow browser default and the
+// per-editor width/rows that used to vary field to field. Prose textareas also
+// opt into PrimeNG [autoResize] in their templates so they grow with content;
+// this min-height is the floor under that (and gives the non-autoResize XSLT
+// code field a sane minimum too).
+// -------------------------------------------------------------------------
+textarea[pTextarea] {
+  width: 100%;
+  box-sizing: border-box;
+}
+// Comfortable floor for editor form fields only (app-field). Left off the
+// compact annotation quick-add textareas so they keep their small footprint.
+app-field textarea[pTextarea] {
+  min-height: 5.5rem;
+}
+
+// -------------------------------------------------------------------------
 // Reduced motion (issue #141, WCAG 2.2 SC 2.3.3 Animation from Interactions)
 //
 // Users who set the OS "reduce motion" preference get animations and

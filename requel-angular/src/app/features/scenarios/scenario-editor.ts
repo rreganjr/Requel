@@ -209,7 +209,7 @@ type StepGroup = FormGroup<{
 
         <app-field label="Notes" controlId="stepEditText" [control]="editForm.controls.text" [divider]="false"
                    [submitted]="editSubmitted()">
-          <textarea appFieldControl pTextarea [formControl]="editForm.controls.text" id="stepEditText" rows="4"
+          <textarea appFieldControl pTextarea [formControl]="editForm.controls.text" id="stepEditText" rows="4" [autoResize]="true"
                     data-testid="scenario-step-edit-text"
                     placeholder="Additional details or notes..."></textarea>
         </app-field>
@@ -268,7 +268,7 @@ type StepGroup = FormGroup<{
 
         <app-field label="Description" controlId="text" [control]="detailsForm.controls.text" [divider]="false"
                    [submitted]="submitted()">
-          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4"
+          <textarea appFieldControl pTextarea [formControl]="detailsForm.controls.text" id="text" rows="4" [autoResize]="true"
                     placeholder="Scenario description" data-testid="scenario-text"></textarea>
         </app-field>
       </ng-template>
