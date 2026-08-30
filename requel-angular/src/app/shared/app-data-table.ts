@@ -91,6 +91,7 @@ export interface RowAction<T = unknown> {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-data-table',
   standalone: true,
+  host: { '[class.dt-fill]': '!!scrollHeight' },
   imports: [
     TableModule, MenuModule, ButtonModule, InputText, FormsModule,
     NgTemplateOutlet, RouterLink, EmptyStateComponent
@@ -115,6 +116,7 @@ export interface RowAction<T = unknown> {
 
     <p-table #dt [value]="value" [loading]="loading" [rowHover]="true"
              [paginator]="paginator" [rows]="rows"
+             [scrollable]="!!scrollHeight" [scrollHeight]="scrollHeight || undefined"
              [dataKey]="dataKey" [sortField]="sortField" [sortOrder]="sortOrder"
              [selectionMode]="null"
              [(selection)]="selection" (selectionChange)="onSelectionChange($event)"
@@ -211,6 +213,11 @@ export interface RowAction<T = unknown> {
     .dt-link:focus-visible { outline: 2px solid var(--p-primary-color); outline-offset: 2px; border-radius: var(--rq-radius-sm, 3px); }
     .dt-select-col { width: 3rem; text-align: center; }
     .dt-actions-col { width: 3rem; text-align: right; }
+    /* Fill mode (#221): host + PrimeNG table flex to fill the bounded-height
+       parent so scrollHeight="flex" scrolls the body between header/paginator. */
+    :host.dt-fill { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+    :host.dt-fill ::ng-deep .p-datatable { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+    :host.dt-fill ::ng-deep .p-datatable-table-container { flex: 1 1 auto; min-height: 0; }
   `]
 })
 export class AppDataTableComponent<T = Record<string, unknown>> {
@@ -224,6 +231,14 @@ export class AppDataTableComponent<T = Record<string, unknown>> {
   @Input() paginator = true;
   /** Page size. */
   @Input() rows = 20;
+  /**
+   * Opt-in scroll height for the table body. When set (e.g. "flex"), the table
+   * becomes `scrollable` so the header row and paginator stay put and only the
+   * data rows scroll between them. "flex" needs a bounded-height flex-column
+   * ancestor chain (see app-card [fill] / list-page [fill]). Unset = today's
+   * non-scrollable table, so dialog/sub-panel usages are unaffected. (#221)
+   */
+  @Input() scrollHeight?: string;
   /** Optional initial sort column. */
   @Input() sortField?: string;
   /** Initial sort direction (1 = ascending, -1 = descending). */

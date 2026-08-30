@@ -32,8 +32,8 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule],
   template: `
-    <app-list-page title="Users" [showSearch]="false">
-      <app-data-table [value]="users()" [columns]="columns" [loading]="loading()"
+    <app-list-page title="Users" [fill]="true" [showSearch]="false">
+      <app-data-table scrollHeight="flex" [value]="users()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" searchPlaceholder="Search users..."
                       [globalFilterFields]="['username', 'name', 'emailAddress', 'organizationName']"
                       testid="user-list" (rowClick)="onRowSelect({ data: $event })"
@@ -49,7 +49,11 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
 
     <ng-template #rolesCell let-user>{{ user.roles.join(', ') }}</ng-template>
   `,
-  styles: []
+  styles: [`
+    /* Fill mode (#221): claim main-content's height so the data-table body
+       scrolls between a pinned header and the paginator. */
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  `]
 })
 export class UserListComponent implements OnInit {
 

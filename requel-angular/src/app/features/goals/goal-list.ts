@@ -42,10 +42,10 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent, SelectModule, FormsModule, SlicePipe, AppChipComponent, EmptyStateComponent],
   template: `
-    <app-list-page title="Goals" [eyebrow]="projectContext()" [showSearch]="false">
+    <app-list-page title="Goals" [eyebrow]="projectContext()" [fill]="true" [showSearch]="false">
       <app-submit-error [message]="errorMessage()" testid="goal-list-error" [retryable]="true" (retry)="loadGoals()" />
 
-      <app-data-table [value]="displayedGoals()" [columns]="columns" [loading]="loading()"
+      <app-data-table scrollHeight="flex" [value]="displayedGoals()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" searchPlaceholder="Search goals..."
                       [globalFilterFields]="['name', 'text', 'createdBy']" testid="goal-list"
                       (rowClick)="openGoal($event)">
@@ -85,6 +85,9 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
     </ng-template>
   `,
   styles: [`
+    /* Fill mode (#221): claim main-content's height so the data-table body
+       scrolls between a pinned header and the paginator. */
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
     .goal-toolbar-actions { display: flex; align-items: center; gap: var(--rq-space-2); }
     .text-preview { display: inline-block; max-width: 400px; overflow: hidden;
       text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }

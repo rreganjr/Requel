@@ -1,6 +1,17 @@
+import { Component } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { render, screen, fireEvent } from '@testing-library/angular';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ListPageComponent } from './list-page';
+
+@Component({
+  standalone: true,
+  imports: [ListPageComponent],
+  template: `<app-list-page title="T" [fill]="fill"></app-list-page>`
+})
+class FillHostComponent {
+  fill = false;
+}
 
 describe('ListPageComponent', () => {
   it('renders the title in the page header', async () => {
@@ -54,5 +65,22 @@ describe('ListPageComponent', () => {
       inputs: { title: 'T', searchAriaLabel: 'Search goals' }
     });
     expect(screen.getByRole('textbox', { name: 'Search goals' })).toBeInTheDocument();
+  });
+  it('adds lp-fill on the host and fills the card when [fill] is true (#221)', () => {
+    TestBed.configureTestingModule({ imports: [FillHostComponent], providers: [provideNoopAnimations()] });
+    const fixture = TestBed.createComponent(FillHostComponent);
+    fixture.componentInstance.fill = true;
+    fixture.detectChanges();
+    const host = fixture.nativeElement.querySelector('app-list-page') as HTMLElement;
+    expect(host.classList.contains('lp-fill')).toBe(true);
+    expect(host.querySelector('app-card')?.classList.contains('app-card--fill')).toBe(true);
+  });
+
+  it('does not add lp-fill by default (#221)', () => {
+    TestBed.configureTestingModule({ imports: [FillHostComponent], providers: [provideNoopAnimations()] });
+    const fixture = TestBed.createComponent(FillHostComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement.querySelector('app-list-page') as HTMLElement;
+    expect(host.classList.contains('lp-fill')).toBe(false);
   });
 });

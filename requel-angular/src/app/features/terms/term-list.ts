@@ -36,10 +36,10 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent, SlicePipe],
   template: `
-    <app-list-page title="Terms" [showSearch]="false">
+    <app-list-page title="Terms" [fill]="true" [showSearch]="false">
       <app-submit-error [message]="errorMessage()" testid="term-list-error" [retryable]="true" (retry)="loadTerms()" />
 
-      <app-data-table [value]="terms()" [columns]="columns" [loading]="loading()"
+      <app-data-table scrollHeight="flex" [value]="terms()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" searchPlaceholder="Search terms..."
                       [globalFilterFields]="['name', 'text', 'canonicalTermName', 'createdBy']"
                       testid="term-list" (rowClick)="onRowSelect({ data: $event })"
@@ -61,6 +61,9 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
     <ng-template #canonicalCell let-t>{{ t.canonicalTermName ?? '—' }}</ng-template>
   `,
   styles: [`
+    /* Fill mode (#221): claim main-content's height so the data-table body
+       scrolls between a pinned header and the paginator. */
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
     .text-preview { display: inline-block; max-width: 350px; overflow: hidden;
       text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
   `]

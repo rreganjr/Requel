@@ -27,6 +27,7 @@ import { AppCardComponent } from './app-card';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-list-page',
   standalone: true,
+  host: { '[class.lp-fill]': 'fill' },
   imports: [PageHeaderComponent, InputText, AppCardComponent],
   template: `
     <div class="list-page-wrap">
@@ -46,7 +47,7 @@ import { AppCardComponent } from './app-card';
           </span>
         </div>
       }
-      <app-card><ng-content /></app-card>
+      <app-card [fill]="fill"><ng-content /></app-card>
     </div>
   `,
   // Compact, consistent list-page toolbar (issue #127): the title/actions row
@@ -63,6 +64,9 @@ import { AppCardComponent } from './app-card';
       margin-bottom: var(--rq-space-4);
     }
     .search-field { display: inline-flex; align-items: center; }
+    /* Fill mode (#221): page + wrap flex-column so the card can claim height. */
+    :host.lp-fill { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+    :host.lp-fill .list-page-wrap { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
   `]
 })
 export class ListPageComponent {
@@ -70,6 +74,12 @@ export class ListPageComponent {
   /** Optional context line (project name / artifact type) shown above the title. */
   @Input() eyebrow = '';
   @Input() showSearch = true;
+  /**
+   * Opt-in fill mode (#221): make the page a bounded-height flex column so the
+   * card (and a scrollable table inside it) fills the viewport and scrolls its
+   * own body. Forwarded to app-card. Default false = normal auto-height page.
+   */
+  @Input() fill = false;
   @Input() searchText = '';
   @Input() searchPlaceholder = 'Search...';
   /** Accessible name for the search box; falls back to the placeholder. Set a

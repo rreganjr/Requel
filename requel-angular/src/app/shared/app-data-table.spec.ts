@@ -291,4 +291,16 @@ describe('AppDataTableComponent link column (issue #129)', () => {
     expect(firstRow.querySelector('a.dt-link')).toBeNull();
     expect(firstRow.textContent).toContain('Alpha');
   });
+  it('opts into scrollable fill mode (dt-fill host class) via [scrollHeight] (#221)', () => {
+    const { fixture, comp } = make();
+    comp.scrollHeight = 'flex';
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).classList.contains('dt-fill')).toBe(true);
+  });
+
+  it('has no dt-fill (default, non-scrollable) when [scrollHeight] is unset (#221)', () => {
+    const { fixture } = make();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).classList.contains('dt-fill')).toBe(false);
+  });
 });

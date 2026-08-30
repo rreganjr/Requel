@@ -34,10 +34,10 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent],
   template: `
-    <app-list-page title="Use Cases" [showSearch]="false">
+    <app-list-page title="Use Cases" [fill]="true" [showSearch]="false">
       <app-submit-error [message]="errorMessage()" testid="use-case-list-error" />
 
-      <app-data-table [value]="useCases()" [columns]="columns" [loading]="loading()"
+      <app-data-table scrollHeight="flex" [value]="useCases()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" searchPlaceholder="Search use cases..."
                       [globalFilterFields]="['name', 'primaryActorName', 'createdBy']"
                       testid="use-case-list" (rowClick)="onSelect({ data: $event })"
@@ -55,7 +55,11 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
 
     <ng-template #primaryActorCell let-uc>{{ uc.primaryActorName ?? '—' }}</ng-template>
   `,
-  styles: []
+  styles: [`
+    /* Fill mode (#221): claim main-content's height so the data-table body
+       scrolls between a pinned header and the paginator. */
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  `]
 })
 export class UseCaseListComponent implements OnInit {
   useCases = signal<UseCaseDto[]>([]);

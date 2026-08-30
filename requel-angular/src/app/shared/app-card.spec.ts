@@ -27,6 +27,15 @@ class TitledHostComponent {
   title = 'Details';
 }
 
+@Component({
+  standalone: true,
+  imports: [AppCardComponent],
+  template: `<app-card [fill]="fill"><p>Body</p></app-card>`
+})
+class FillHostComponent {
+  fill = false;
+}
+
 describe('AppCardComponent (issue #156)', () => {
   it('renders the card surface and projected body content', () => {
     TestBed.configureTestingModule({ imports: [BodyHostComponent] });
@@ -60,5 +69,21 @@ describe('AppCardComponent (issue #156)', () => {
     expect(h2?.textContent?.trim()).toBe('Details');
     expect(h2?.classList.contains('rq-section-title')).toBe(true);
     expect(el.querySelector('[data-testid="card-action"]')?.textContent?.trim()).toBe('New');
+  });
+  it('adds the app-card--fill host class when [fill] is true (#221)', () => {
+    TestBed.configureTestingModule({ imports: [FillHostComponent] });
+    const fixture = TestBed.createComponent(FillHostComponent);
+    fixture.componentInstance.fill = true;
+    fixture.detectChanges();
+    const card = fixture.nativeElement.querySelector('app-card') as HTMLElement;
+    expect(card.classList.contains('app-card--fill')).toBe(true);
+  });
+
+  it('has no app-card--fill host class by default (#221)', () => {
+    TestBed.configureTestingModule({ imports: [FillHostComponent] });
+    const fixture = TestBed.createComponent(FillHostComponent);
+    fixture.detectChanges();
+    const card = fixture.nativeElement.querySelector('app-card') as HTMLElement;
+    expect(card.classList.contains('app-card--fill')).toBe(false);
   });
 });

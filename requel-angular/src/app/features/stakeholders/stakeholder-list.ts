@@ -35,10 +35,10 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent],
   template: `
-    <app-list-page title="Stakeholders" [showSearch]="false">
+    <app-list-page title="Stakeholders" [fill]="true" [showSearch]="false">
       <app-submit-error [message]="errorMessage()" testid="stakeholder-list-error" [retryable]="true" (retry)="loadStakeholders()" />
 
-      <app-data-table [value]="stakeholders()" [columns]="columns" [loading]="loading()"
+      <app-data-table scrollHeight="flex" [value]="stakeholders()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" searchPlaceholder="Search stakeholders..."
                       [globalFilterFields]="['name', 'type', 'userDetails.emailAddress', 'userDetails.teamName']"
                       testid="stakeholder-list" (rowClick)="onRowSelect({ data: $event })"
@@ -59,6 +59,9 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
     <ng-template #typeCell let-s>{{ s.type === 'user' ? 'User' : 'Non-User' }}</ng-template>
   `,
   styles: [`
+    /* Fill mode (#221): claim main-content's height so the data-table body
+       scrolls between a pinned header and the paginator. */
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
     .stakeholder-toolbar-actions { display: flex; align-items: center; gap: var(--rq-space-2); }
   `]
 })

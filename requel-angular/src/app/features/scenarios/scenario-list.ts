@@ -35,10 +35,10 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent],
   template: `
-    <app-list-page title="Scenarios" [showSearch]="false">
+    <app-list-page title="Scenarios" [fill]="true" [showSearch]="false">
       <app-submit-error [message]="errorMessage()" testid="scenario-list-error" />
 
-      <app-data-table [value]="scenarios()" [columns]="columns" [loading]="loading()"
+      <app-data-table scrollHeight="flex" [value]="scenarios()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" [rows]="15" searchPlaceholder="Search scenarios..."
                       [globalFilterFields]="['name', 'scenarioType', 'createdBy']"
                       testid="scenario-list" (rowClick)="onSelect({ data: $event })"
@@ -54,7 +54,11 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
       </app-data-table>
     </app-list-page>
   `,
-  styles: []
+  styles: [`
+    /* Fill mode (#221): claim main-content's height so the data-table body
+       scrolls between a pinned header and the paginator. */
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  `]
 })
 export class ScenarioListComponent implements OnInit {
   scenarios = signal<ScenarioDto[]>([]);

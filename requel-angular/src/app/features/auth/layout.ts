@@ -151,7 +151,10 @@ function persistSidebarCollapsed(collapsed: boolean): void {
     .layout {
       display: flex;
       flex-direction: column;
-      min-height: 100vh;
+      /* Fixed to the viewport so the shell (header + sidebar) stays put and the
+         main content area owns the scroll — the bounded height an opt-in fill
+         page needs to scroll its own body instead of growing the page (#221). */
+      height: 100vh;
     }
 
     .app-header {
@@ -246,6 +249,12 @@ function persistSidebarCollapsed(collapsed: boolean): void {
 
     .main-content {
       flex: 1;
+      min-height: 0;
+      /* A flex column so an opt-in fill page (e.g. a scrollable list, #221) can
+         claim the height and scroll its own body. A single non-fill child keeps
+         its natural height and this container still scrolls it when tall. */
+      display: flex;
+      flex-direction: column;
       overflow-y: auto;
       padding: 1.5rem;
       /* Light blue-gray canvas; list/editor content sits on white cards. */

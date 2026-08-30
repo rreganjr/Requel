@@ -35,10 +35,10 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule, SubmitErrorComponent],
   template: `
-    <app-list-page title="Documents" [showSearch]="false">
+    <app-list-page title="Documents" [fill]="true" [showSearch]="false">
       <app-submit-error [message]="errorMessage()" testid="report-list-error" />
 
-      <app-data-table [value]="reports()" [columns]="columns" [loading]="loading()"
+      <app-data-table scrollHeight="flex" [value]="reports()" [columns]="columns" [loading]="loading()"
                       [rowClickable]="false" rowTestid="report-list-row"
                       searchPlaceholder="Search documents..."
                       [globalFilterFields]="['name', 'createdBy']" testid="report-list"
@@ -64,6 +64,9 @@ import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-ta
     </app-list-page>
   `,
   styles: [`
+    /* Fill mode (#221): claim main-content's height so the data-table body
+       scrolls between a pinned header and the paginator. */
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
     .action-cell { display: flex; gap: 0.25rem; justify-content: flex-end; }
   `]
 })

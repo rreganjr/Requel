@@ -58,10 +58,10 @@ const ENTITY_ROUTES: Record<string, string> = {
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, RouterLink, ButtonModule, BadgeModule, SubmitErrorComponent],
   template: `
-    <app-list-page title="Open Issues" [showSearch]="false">
+    <app-list-page title="Open Issues" [fill]="true" [showSearch]="false">
       <app-submit-error [message]="errorMessage()" testid="open-issues-error" [retryable]="true" (retry)="loadIssues()" />
 
-      <app-data-table [value]="issues()" [columns]="columns" [loading]="loading()"
+      <app-data-table scrollHeight="flex" [value]="issues()" [columns]="columns" [loading]="loading()"
                       [rowClickable]="false" [defaultActions]="false" [rows]="25"
                       sortField="entityType" [sortOrder]="1" searchPlaceholder="Search issues..."
                       [globalFilterFields]="['entityType', 'entityName', 'issueText']"
@@ -91,6 +91,9 @@ const ENTITY_ROUTES: Record<string, string> = {
     </ng-template>
   `,
   styles: [`
+    /* Fill mode (#221): claim main-content's height so the data-table body
+       scrolls between a pinned header and the paginator. */
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
     .entity-link { color: var(--p-primary-color); cursor: pointer; text-decoration: underline; }
     .entity-link:hover { opacity: 0.8; }
     /* red-700 (not red-500) so the small bold text clears WCAG AA 4.5:1 on the

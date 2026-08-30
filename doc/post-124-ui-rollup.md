@@ -12,7 +12,7 @@ sub-issues (#220–226) are listed below.
 
 ### Phase 1 — Bug fixes
 
-- [ ] #220 — I7 Breadcrumb project-link fix + editor quick-nav decision (B1, B2) — 2
+- [x] #220 — I7 Breadcrumb project-link fix + editor quick-nav decision (B1, B2) — 2
 
 ### Phase 2 — Shared primitives
 
@@ -32,4 +32,4 @@ sub-issues (#220–226) are listed below.
 
 - [ ] #226 — I6 Annotations: collapse/expand (A1) — 3
 
-**Progress: 0 / 7 complete** (proposed 24 points total).
+**Progress: 1 / 7 complete** (proposed 24 points total).

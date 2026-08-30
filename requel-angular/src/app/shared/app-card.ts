@@ -49,6 +49,7 @@ import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-card',
   standalone: true,
+  host: { '[class.app-card--fill]': 'fill' },
   template: `
     <section class="app-card">
       @if (title) {
@@ -75,9 +76,20 @@ import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
     }
     .app-card-title { margin: 0; }
     .app-card-actions { display: flex; align-items: center; gap: var(--rq-space-2); }
+    /* Fill mode (#221): host/card/body flex-column so a scrollable child fills. */
+    :host.app-card--fill { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+    :host.app-card--fill .app-card { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+    :host.app-card--fill .app-card-body { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
   `]
 })
 export class AppCardComponent {
   /** Optional section heading for the card (rendered as an <h2>). */
   @Input() title = '';
+  /**
+   * Opt-in fill mode (#221): the card and its body become a bounded-height flex
+   * column so a scrollable child (e.g. app-data-table scrollHeight="flex") fills
+   * the surface and scrolls internally. Default false = the normal auto-height
+   * surface, so editor/annotations/login cards are unaffected.
+   */
+  @Input() fill = false;
 }

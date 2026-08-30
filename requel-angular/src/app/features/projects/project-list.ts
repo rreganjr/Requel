@@ -36,13 +36,13 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
   standalone: true,
   imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, SubmitErrorComponent, FileUploadButtonComponent],
   template: `
-    <app-list-page title="Projects" [showSearch]="false">
+    <app-list-page title="Projects" [fill]="true" [showSearch]="false">
       <app-submit-error [message]="errorMessage()" testid="project-list-error" />
       <div role="status" aria-live="polite">@if (successMessage()) {
         <p-message severity="success" [text]="successMessage()!" data-testid="project-list-success" />
       }</div>
 
-      <app-data-table [value]="projects()" [columns]="columns" [loading]="loading()"
+      <app-data-table scrollHeight="flex" [value]="projects()" [columns]="columns" [loading]="loading()"
                       [rowActions]="rowActions" searchPlaceholder="Search projects..."
                       [globalFilterFields]="['name', 'organizationName', 'status', 'createdBy']"
                       testid="project-list" (rowClick)="onRowSelect({ data: $event })"
@@ -63,6 +63,9 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
     </app-list-page>
   `,
   styles: [`
+    /* Fill mode (#221): claim main-content's height so the data-table body
+       scrolls between a pinned header and the paginator. */
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
     .project-toolbar-actions { display: flex; align-items: center; gap: var(--rq-space-2); }
   `]
 })
