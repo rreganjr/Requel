@@ -8,7 +8,7 @@ each PR squash-merges to `release/2.0`.
 **This doc is the single source of truth for build order.** `scripts/reorder-post-124-ui-subissues.sh`
 reads the order of the `- [ ] #NNN` lines below, top to bottom, and reorders the epic's
 sub-issues (and `--sync-checks` re-derives the boxes) to match. The epic is #219; its
-sub-issues (#220–226) are listed below.
+sub-issues (#220–226, plus I8 added later) are listed below.
 
 ### Phase 1 — Bug fixes
 
@@ -32,4 +32,8 @@ sub-issues (#220–226) are listed below.
 
 - [ ] #226 — I6 Annotations: collapse/expand (A1) — 3
 
-**Progress: 4 / 7 complete** (proposed 24 points total).
+### Phase 6 — Table/list polish
+
+- [ ] #TBD — I8 Search icon: migrate the three search boxes to PrimeNG 21 IconField (D2) — 2
+
+**Progress: 4 / 8 complete** (proposed 26 points total).

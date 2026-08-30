@@ -66,7 +66,7 @@ Priorities below are proposed (my read), to be confirmed at triage.
 
 ## Triage / grouping
 
-**Deferred:** D2 (search-box icon spacing) → gather into a small "table/list polish" ticket at the end of the epic, alongside any other minor table tweaks found later.
+**Deferred → I8 (Phase 6):** D2 (search-box icon spacing) is its own end-of-epic "table/list polish" ticket. Scope grew from the two noted surfaces to **three** — the data-table toolbar (`.dt-search`), the list-page search (`.search-field`), and the entity-selector dialog search — all sharing the dead `p-input-icon-left` wrapper. Fix is a migration of all three to PrimeNG 21 `IconField`/`InputIcon` (the idiomatic v21 replacement), not the CSS-overlay patch first sketched in the D2 row above.
 
 Split follows the #124 convention of focused, per-component ticket branches (rather than
 one sprawling PR). Six candidate issues. Shared-primitive fixes are called out because
