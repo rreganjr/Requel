@@ -66,6 +66,8 @@ Priorities below are proposed (my read), to be confirmed at triage.
 
 ## Triage / grouping
 
+**Deferred:** D2 (search-box icon spacing) → gather into a small "table/list polish" ticket at the end of the epic, alongside any other minor table tweaks found later.
+
 Split follows the #124 convention of focused, per-component ticket branches (rather than
 one sprawling PR). Six candidate issues. Shared-primitive fixes are called out because
 they pay off across many screens.

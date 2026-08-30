@@ -358,6 +358,89 @@ html, body {
   background: transparent;
 }
 
+// Sidebar accordion per-section scroll (issue #224, S1)
+//
+// The sidebar is a fixed-height flex column (see layout .sidebar); the accordion
+// fills it so each open group scrolls its own body instead of the whole sidebar
+// scrolling. Short groups (Admin) keep their natural height; the Projects group
+// (unbounded project tree) claims the leftover height and scrolls internally,
+// with New/Import/List pinned above the tree.
+//
+// Global (not component-local) for the same reason as the rules above: these
+// select PrimeNG's own accordion elements, which carry no component
+// encapsulation attribute. Scoped under .sidebar-nav-root so only this nav is
+// affected.
+//
+// Collapse note: once .p-accordion is display:flex, PrimeNG 21's motion no
+// longer clips a closed panel (the content's flex-basis reads max-content,
+// ignoring the collapsed grid track), so inactive groups are forced to
+// header-only height here. Open panels are untouched, so PrimeNG's open
+// animation still plays.
+.sidebar-nav-root .p-accordion {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.sidebar-nav-root .p-accordionpanel {
+  flex: 0 0 auto;
+}
+
+.sidebar-nav-root .p-accordionpanel:not(.p-accordionpanel-active) > .p-accordioncontent {
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+// PrimeNG's p-motion wrapper animates open/close via inline visibility +
+// max-height, but under this flex layout its measurement never runs, leaving an
+// OPEN panel stuck at the closed values (visibility:hidden; max-height:0). Force
+// the open state for active groups; PrimeNG's own inline values, reinforced by
+// the inactive-content rule above, keep inactive groups collapsed.
+.sidebar-nav-root .p-accordionpanel-active > .p-accordioncontent p-motion {
+  visibility: visible !important;
+  max-height: none !important;
+}
+
+.sidebar-nav-root .p-accordionpanel[value="projects"].p-accordionpanel-active {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.sidebar-nav-root .p-accordionpanel[value="projects"].p-accordionpanel-active > .p-accordioncontent {
+  flex: 1 1 0;
+  min-height: 0;
+  // Fill the group's flex height rather than the motion-measured content height.
+  grid-template-rows: 1fr !important;
+}
+
+.sidebar-nav-root .p-accordionpanel[value="projects"].p-accordionpanel-active p-motion,
+.sidebar-nav-root .p-accordionpanel[value="projects"].p-accordionpanel-active .p-accordioncontent-wrapper {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-nav-root .p-accordionpanel[value="projects"].p-accordionpanel-active .p-accordioncontent-content {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+// New/Import/List stay pinned; the tree below takes the leftover height and scrolls.
+.sidebar-nav-root .p-accordionpanel[value="projects"].p-accordionpanel-active .p-accordioncontent-content .panel-actions {
+  flex: 0 0 auto;
+}
+
+.sidebar-nav-root .p-accordionpanel[value="projects"].p-accordionpanel-active .p-accordioncontent-content p-tree {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 // Entity-selector dialog type filter keeps a stable minimum width.
 .type-filter-select {
   min-width: 130px;

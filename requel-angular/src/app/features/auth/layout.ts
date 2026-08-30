@@ -237,7 +237,11 @@ function persistSidebarCollapsed(collapsed: boolean): void {
     .sidebar {
       width: 280px;
       flex-shrink: 0;
-      overflow-y: auto;
+      /* A fixed-height flex column so each nav group scrolls its own body
+         instead of the whole sidebar scrolling (#224). */
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
       border-right: 1px solid var(--p-surface-200);
       background: var(--p-surface-0);
     }
