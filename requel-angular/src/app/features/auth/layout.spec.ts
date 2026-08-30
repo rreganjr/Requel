@@ -91,12 +91,11 @@ describe('LayoutComponent top bar (issue #154)', () => {
   beforeEach(() => localStorage.removeItem(SIDEBAR_COLLAPSED_KEY));
   afterEach(() => localStorage.removeItem(SIDEBAR_COLLAPSED_KEY));
 
-  it('renders the top-bar regions: sidebar toggle, disabled search, account menu', () => {
+  it('renders the top-bar regions: sidebar toggle, account menu, breadcrumb', () => {
     const el: HTMLElement = createFixture().nativeElement;
     expect(el.querySelector('[data-testid="sidebar-toggle"]')).toBeTruthy();
-    const search = el.querySelector<HTMLButtonElement>('[data-testid="header-search"]');
-    expect(search).toBeTruthy();
-    expect(search!.disabled).toBe(true);
+    // The disabled "Search (coming soon)" placeholder was removed (#223, T3).
+    expect(el.querySelector('[data-testid="header-search"]')).toBeNull();
     expect(el.querySelector('.account-trigger')).toBeTruthy();
     // Breadcrumb region is reserved (filled dynamically in the #128 step).
     expect(el.querySelector('[data-testid="breadcrumb-region"]')).toBeTruthy();
