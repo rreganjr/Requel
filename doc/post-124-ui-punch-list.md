@@ -43,6 +43,7 @@ Priorities below are proposed (my read), to be confirmed at triage.
 | # | What's wrong | Notes / likely cause | Priority | Issue |
 |---|---|---|---|---|
 | D1 | On the user/project list pages the table runs past the window height, so the paging footer is below the fold — have to scroll down to reach paging | `p-table` renders the full page of rows with the paginator below it and no `scrollable`/`scrollHeight`. Fix matches your instinct: make the table `scrollable` with `scrollHeight="flex"` so the header row and paginator stay put and only the data rows scroll between them — row count per page stays fixed, only the visible window scrolls. | high | |
+| D2 | The search-box magnifying-glass icon has no space before the input and sits outside it (touching), on the table toolbar and the list-page search | Legacy `p-input-icon-left` wrapper (in `app-data-table` `.dt-search` and `list-page` `.search-field`) is a no-op in PrimeNG 21 (replaced by IconField/InputIcon), so the `<i>` renders flush-left of the input (gap 0px). Fix: overlay the icon inside the input via CSS (wrapper `position:relative`; icon `position:absolute; left:~0.75rem; pointer-events:none`; input `padding-left:~2.25rem`) in both wrappers — restores the intended in-field search look. | low | |
 
 ### Form fields — textareas (shared: `app-field` / editors)
 

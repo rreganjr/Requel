@@ -21,7 +21,7 @@ sub-issues (#220–226) are listed below.
 
 ### Phase 3 — App shell & scroll/viewport model
 
-- [ ] #223 — I2 App shell / top bar polish: sticky header, CDK announcer visually-hidden fix, remove search (L4, T2, T3) — 3
+- [x] #223 — I2 App shell / top bar polish: sticky header, CDK announcer visually-hidden fix, remove search (L4, T2, T3) — 3
 - [ ] #224 — I3 Sidebar: per-section scroll regions (S1) — 5
 
 ### Phase 4 — Screen polish
@@ -32,4 +32,4 @@ sub-issues (#220–226) are listed below.
 
 - [ ] #226 — I6 Annotations: collapse/expand (A1) — 3
 
-**Progress: 3 / 7 complete** (proposed 24 points total).
+**Progress: 4 / 7 complete** (proposed 24 points total).
