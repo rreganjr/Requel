@@ -17,7 +17,7 @@ sub-issues (#220–226) are listed below.
 ### Phase 2 — Shared primitives
 
 - [x] #221 — I4 Data-table: scrollable body with pinned header + paginator (D1; shared, ~13 list pages) — 3
-- [ ] #222 — I5 Textarea sizing default (F1; shared app-field / global styles) — 3
+- [x] #222 — I5 Textarea sizing default (F1; shared app-field / global styles) — 3
 
 ### Phase 3 — App shell & scroll/viewport model
 
@@ -32,4 +32,4 @@ sub-issues (#220–226) are listed below.
 
 - [ ] #226 — I6 Annotations: collapse/expand (A1) — 3
 
-**Progress: 2 / 7 complete** (proposed 24 points total).
+**Progress: 3 / 7 complete** (proposed 24 points total).
