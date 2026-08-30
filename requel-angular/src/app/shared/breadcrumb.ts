@@ -25,6 +25,8 @@ import { filter, map, startWith } from 'rxjs';
 
 interface Crumb {
   label: string;
+  /** routerLink command array of DECODED segments (router encodes once). */
+  commands: string[];
   url: string;
   current: boolean;
 }
@@ -60,7 +62,7 @@ interface Crumb {
               @if (crumb.current) {
                 <span class="breadcrumb-current" aria-current="page">{{ crumb.label }}</span>
               } @else {
-                <a class="breadcrumb-link" [routerLink]="crumb.url">{{ crumb.label }}</a>
+                <a class="breadcrumb-link" [routerLink]="crumb.commands">{{ crumb.label }}</a>
               }
               @if (!last) {
                 <span class="breadcrumb-sep" aria-hidden="true">›</span>
@@ -148,7 +150,8 @@ export class BreadcrumbComponent {
 
       const pattern = (route.path ?? '').split('/').filter(Boolean);
       const lastPattern = pattern[pattern.length - 1] ?? '';
-      const value = safeDecode(prefix[i - 1]);
+      const decoded = prefix.map(safeDecode);
+      const value = decoded[i - 1];
       const staticLabel = this.staticLabel(route);
 
       let label: string;
@@ -161,7 +164,10 @@ export class BreadcrumbComponent {
         label = staticLabel ?? value;
       }
 
-      crumbs.push({ label, url: '/' + prefix.join('/'), current: false });
+      // routerLink takes a commands ARRAY of *decoded* segments so the router
+      // encodes each exactly once. Binding a pre-joined already-encoded string
+      // double-encoded names with spaces/parens and broke the workspace load.
+      crumbs.push({ label, commands: ['/', ...decoded], url: '/' + decoded.join('/'), current: false });
     }
 
     if (crumbs.length) {

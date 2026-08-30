@@ -20,7 +20,6 @@
  */
 import { Component, OnDestroy, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { EditorActionsComponent } from '../../shared/editor-actions';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -61,7 +60,7 @@ const SEPARATOR = '; ';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-term-editor',
   standalone: true,
-  imports: [EditorActionsComponent, 
+  imports: [
     PageHeaderComponent,
     AppCardComponent,
     ReactiveFormsModule,
@@ -84,7 +83,6 @@ const SEPARATOR = '; ';
       <div class="page-header">
         <app-page-header [title]="isNew() ? 'New Glossary Term' : termName()" />
         <div class="page-actions">
-          <app-editor-actions [projectName]="projectName" />
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="term-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew() && canDelete()) {

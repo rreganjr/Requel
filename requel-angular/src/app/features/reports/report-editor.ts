@@ -20,7 +20,6 @@
  */
 import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { EditorActionsComponent } from '../../shared/editor-actions';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -48,7 +47,7 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-report-editor',
   standalone: true,
-  imports: [EditorActionsComponent, 
+  imports: [
     PageHeaderComponent,
     AppCardComponent,
     ReactiveFormsModule,
@@ -70,7 +69,6 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
       <div class="page-header">
         <app-page-header [title]="isNew() ? 'New Document' : reportName()" />
         <div class="page-actions">
-          <app-editor-actions [projectName]="projectName" />
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="report-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew() && canDelete()) {
