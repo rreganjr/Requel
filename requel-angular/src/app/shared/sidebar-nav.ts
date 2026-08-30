@@ -211,7 +211,22 @@ function persistExpandedProjectNames(names: Set<string>): void {
       font-weight: var(--rq-font-weight-semibold, 600);
     }
 
-    .sidebar-nav-root { display: block; }
+    /* #224 — the sidebar is a fixed-height column (see layout .sidebar); the
+       nav host and its root fill it so the accordion (styled in global
+       styles.scss) can give each open group its own scroll. */
+    :host {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .sidebar-nav-root {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
 
     .tree-loading {
       padding: 0.5rem;
