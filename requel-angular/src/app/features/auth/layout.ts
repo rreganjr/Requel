@@ -108,11 +108,6 @@ function persistSidebarCollapsed(collapsed: boolean): void {
         </div>
 
         <div class="header-right">
-          <button type="button" class="icon-btn search-placeholder"
-                  disabled aria-label="Search (coming soon)"
-                  title="Search (coming soon)" data-testid="header-search">
-            <i class="pi pi-search" aria-hidden="true"></i>
-          </button>
           <app-appearance-menu />
           <p-button [text]="true" icon="pi pi-bars"
                     [label]="'Menu'" class="account-trigger"

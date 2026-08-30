@@ -296,7 +296,11 @@ html, body {
 // readable label for assistive tech without showing it on screen. Standard
 // clip-rect pattern; do not use `display:none`/`visibility:hidden` (those hide
 // from AT too).
-.rq-visually-hidden {
+// `.cdk-visually-hidden` is included so Angular CDK's LiveAnnouncer polite
+// region is clipped too — without it the announcer text (e.g. "Project list
+// updated.") renders on-screen because the CDK a11y styles were never bundled (#223, L4).
+.rq-visually-hidden,
+.cdk-visually-hidden {
   position: absolute !important;
   width: 1px; height: 1px;
   padding: 0; margin: -1px;
