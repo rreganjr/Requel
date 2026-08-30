@@ -20,7 +20,6 @@
  */
 import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { EditorActionsComponent } from '../../shared/editor-actions';
 import { NgTemplateOutlet } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -68,7 +67,7 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-goal-editor',
   standalone: true,
-  imports: [EditorActionsComponent, PageHeaderComponent, RouterLink, FormsModule, ReactiveFormsModule, NgTemplateOutlet,
+  imports: [PageHeaderComponent, RouterLink, FormsModule, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, SelectModule,
             TableModule, SubmitErrorComponent, DialogModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             RelationshipSectionComponent,
@@ -81,7 +80,6 @@ const STALE_VERSION_MESSAGE =
       <div class="page-header">
         <app-page-header [title]="isNew() ? 'New Goal' : goalName()" />
         <div class="page-actions">
-          <app-editor-actions [projectName]="projectName" />
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary" data-testid="goal-back"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew()) {

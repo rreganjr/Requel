@@ -80,6 +80,24 @@ describe('BreadcrumbComponent', () => {
     expect(labels()).toEqual(['Projects', 'My Proj', 'Goals']);
   });
 
+  it('links a project name with spaces and parens single-encoded (no double-encoding)', async () => {
+    // Regression for #220 / B1: the breadcrumb used to join already-encoded URL
+    // segments into a string and bind it as routerLink, so the router encoded it a
+    // second time (%20 -> %2520) and the workspace failed to load "Imported Project (10)".
+    await go('/projects/My%20Proj%20%2810%29/goals');
+    expect(labels()).toEqual(['Projects', 'My Proj (10)', 'Goals']);
+
+    // routerLink is a command array of DECODED segments, so the router encodes once.
+    expect(comp.crumbs()[1].commands).toEqual(['/', 'projects', 'My Proj (10)']);
+
+    // The rendered href is single-encoded: it carries no %25 (the double-encode
+    // signature), and decoding it once returns the real path.
+    const links = fixture.nativeElement.querySelectorAll('a.breadcrumb-link');
+    const projectHref = links[1].getAttribute('href') as string;
+    expect(projectHref).not.toContain('%25');
+    expect(decodeURIComponent(projectHref)).toBe('/projects/My Proj (10)');
+  });
+
   it('falls back to a single crumb for a shallow route', async () => {
     await go('/settings');
     expect(labels()).toEqual(['Settings']);

@@ -20,7 +20,6 @@
  */
 import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { EditorActionsComponent } from '../../shared/editor-actions';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -78,7 +77,7 @@ const STALE_VERSION_MESSAGE =
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-use-case-editor',
   standalone: true,
-  imports: [EditorActionsComponent, PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
+  imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, SubmitErrorComponent, UpdateBannerComponent,
             ConfirmDialogModule, TableModule, TooltipModule, SelectModule, RelationshipSectionComponent,
             EntitySelectorDialogComponent, AnnotationsSectionComponent,
@@ -91,7 +90,6 @@ const STALE_VERSION_MESSAGE =
       <div class="page-header">
         <app-page-header [title]="isNew() ? 'New Use Case' : useCaseName()" />
         <div class="page-actions">
-          <app-editor-actions [projectName]="projectName" />
           <p-button label="Back" icon="pi pi-arrow-left" severity="secondary"
                     [outlined]="true" (onClick)="onBack()" />
           @if (!isNew()) {
