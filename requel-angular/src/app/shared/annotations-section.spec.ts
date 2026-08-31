@@ -332,4 +332,63 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
     await comp.resolveIssue(MOCK_ISSUE, MOCK_POSITION);
     expect(annotationServiceMock.resolveIssue).not.toHaveBeenCalled();
   });
+
+  it('toggleIssue() collapses and expands a single issue body (#226)', async () => {
+    annotationServiceMock.getAnnotations.mockResolvedValue({
+      notes: [],
+      issues: [{ ...MOCK_ISSUE, positions: [MOCK_POSITION] }]
+    });
+    comp.reload();
+    await flush();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(comp.isCollapsed(10)).toBe(false);
+    expect(el.querySelector('[data-testid="annotation-position"]')).not.toBeNull();
+
+    comp.toggleIssue(10);
+    fixture.detectChanges();
+    expect(comp.isCollapsed(10)).toBe(true);
+    // body hidden, but the issue row itself still shows
+    expect(el.querySelector('[data-testid="annotation-position"]')).toBeNull();
+    expect(el.textContent).toContain('An issue');
+
+    comp.toggleIssue(10);
+    fixture.detectChanges();
+    expect(comp.isCollapsed(10)).toBe(false);
+    expect(el.querySelector('[data-testid="annotation-position"]')).not.toBeNull();
+  });
+
+  it('toggleAll() collapses every issue then expands them (#226)', async () => {
+    annotationServiceMock.getAnnotations.mockResolvedValue({
+      notes: [],
+      issues: [
+        { ...MOCK_ISSUE, id: 10, positions: [MOCK_POSITION] },
+        { ...MOCK_ISSUE, id: 11, text: 'Second issue', positions: [{ ...MOCK_POSITION, id: 21 }] }
+      ]
+    });
+    comp.reload();
+    await flush();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(comp.allIssuesCollapsed()).toBe(false);
+    expect(el.querySelectorAll('[data-testid="annotation-position"]').length).toBe(2);
+
+    comp.toggleAll();
+    fixture.detectChanges();
+    expect(comp.allIssuesCollapsed()).toBe(true);
+    expect(comp.isCollapsed(10)).toBe(true);
+    expect(comp.isCollapsed(11)).toBe(true);
+    expect(el.querySelectorAll('[data-testid="annotation-position"]').length).toBe(0);
+
+    comp.toggleAll();
+    fixture.detectChanges();
+    expect(comp.allIssuesCollapsed()).toBe(false);
+    expect(el.querySelectorAll('[data-testid="annotation-position"]').length).toBe(2);
+  });
+
+  it('collapse-all button is absent and allIssuesCollapsed() false with no issues (#226)', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    expect(comp.allIssuesCollapsed()).toBe(false);
+    expect(el.querySelector('[data-testid="annotation-collapse-all"]')).toBeNull();
+  });
 });
