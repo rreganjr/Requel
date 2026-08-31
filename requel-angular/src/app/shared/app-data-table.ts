@@ -25,6 +25,8 @@ import { FormsModule } from '@angular/forms';
 import { MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
+import { IconField } from 'primeng/iconfield';
+import { InputIcon } from 'primeng/inputicon';
 import { Menu, MenuModule } from 'primeng/menu';
 import { Table, TableModule } from 'primeng/table';
 import { EmptyStateComponent } from './empty-state';
@@ -93,7 +95,7 @@ export interface RowAction<T = unknown> {
   standalone: true,
   host: { '[class.dt-fill]': '!!scrollHeight' },
   imports: [
-    TableModule, MenuModule, ButtonModule, InputText, FormsModule,
+    TableModule, MenuModule, ButtonModule, InputText, IconField, InputIcon, FormsModule,
     NgTemplateOutlet, RouterLink, EmptyStateComponent
   ],
   template: `
@@ -101,14 +103,14 @@ export interface RowAction<T = unknown> {
       <div class="dt-toolbar">
         @if (title) { <h2 class="rq-section-title dt-title">{{ title }}</h2> }
         <div class="dt-toolbar-right">
-          <span class="p-input-icon-left dt-search">
-            <i class="pi pi-search"></i>
+          <p-iconfield>
+            <p-inputicon styleClass="pi pi-search" />
             <input pInputText type="text" [(ngModel)]="searchText"
                    [placeholder]="searchPlaceholder"
                    [attr.aria-label]="searchAriaLabel || searchPlaceholder"
                    data-testid="data-table-search"
                    (input)="onSearch($any($event.target).value)" />
-          </span>
+          </p-iconfield>
           <ng-content select="[toolbarActions]" />
         </div>
       </div>
@@ -206,7 +208,6 @@ export interface RowAction<T = unknown> {
     }
     .dt-title { margin: 0; }
     .dt-toolbar-right { display: flex; align-items: center; gap: var(--rq-space-2); }
-    .dt-search { display: inline-flex; align-items: center; }
     .dt-row--clickable { cursor: pointer; }
     .dt-link { color: var(--p-primary-color); text-decoration: underline; cursor: pointer; }
     .dt-link:hover { opacity: 0.8; }

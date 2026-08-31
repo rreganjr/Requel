@@ -20,6 +20,8 @@
  */
 import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { InputText } from 'primeng/inputtext';
+import { IconField } from 'primeng/iconfield';
+import { InputIcon } from 'primeng/inputicon';
 import { PageHeaderComponent } from './page-header';
 import { AppCardComponent } from './app-card';
 
@@ -28,7 +30,7 @@ import { AppCardComponent } from './app-card';
   selector: 'app-list-page',
   standalone: true,
   host: { '[class.lp-fill]': 'fill' },
-  imports: [PageHeaderComponent, InputText, AppCardComponent],
+  imports: [PageHeaderComponent, InputText, IconField, InputIcon, AppCardComponent],
   template: `
     <div class="list-page-wrap">
       <div class="page-header">
@@ -39,12 +41,12 @@ import { AppCardComponent } from './app-card';
       </div>
       @if (showSearch) {
         <div class="list-toolbar">
-          <span class="p-input-icon-left search-field">
-            <i class="pi pi-search"></i>
+          <p-iconfield>
+            <p-inputicon styleClass="pi pi-search" />
             <input pInputText [value]="searchText" [placeholder]="searchPlaceholder"
                    [attr.aria-label]="searchAriaLabel || searchPlaceholder"
                    (input)="search.emit($any($event.target).value)" />
-          </span>
+          </p-iconfield>
         </div>
       }
       <app-card [fill]="fill"><ng-content /></app-card>
@@ -63,7 +65,6 @@ import { AppCardComponent } from './app-card';
       display: flex; align-items: center; gap: var(--rq-space-2);
       margin-bottom: var(--rq-space-4);
     }
-    .search-field { display: inline-flex; align-items: center; }
     /* Fill mode (#221): page + wrap flex-column so the card can claim height. */
     :host.lp-fill { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
     :host.lp-fill .list-page-wrap { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }

@@ -24,6 +24,8 @@ import { DialogModule } from 'primeng/dialog';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
+import { IconField } from 'primeng/iconfield';
+import { InputIcon } from 'primeng/inputicon';
 import { SelectModule } from 'primeng/select';
 import { EntityReferenceDto } from '../models/entity-reference';
 import { GoalService } from '../core/goal.service';
@@ -49,19 +51,19 @@ import { ScenarioService } from '../core/scenario.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-entity-selector-dialog',
   standalone: true,
-  imports: [FormsModule, DialogModule, TableModule, ButtonModule, InputText, SelectModule],
+  imports: [FormsModule, DialogModule, TableModule, ButtonModule, InputText, IconField, InputIcon, SelectModule],
   template: `
     <p-dialog [header]="'Select ' + entityType" [(visible)]="visible" data-testid="entity-selector-dialog"
               [modal]="true" [focusOnShow]="true" closeAriaLabel="Close" appendTo="body"
               [style]="{ width: '500px' }" (onHide)="closed.emit()">
       <div class="search-bar">
-        <span class="p-input-icon-left">
-          <i class="pi pi-search"></i>
+        <p-iconfield>
+          <p-inputicon styleClass="pi pi-search" />
           <input pInputText [(ngModel)]="searchText" placeholder="Search..."
                  [attr.aria-label]="'Search ' + entityType.toLowerCase() + 's'"
                  data-testid="entity-selector-search"
                  (input)="dt.filterGlobal(searchText(), 'contains')" />
-        </span>
+        </p-iconfield>
         @if (hasTypes()) {
           <p-select [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event)"
                     [options]="typeOptions()" optionLabel="label" optionValue="value"
