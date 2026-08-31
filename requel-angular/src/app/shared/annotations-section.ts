@@ -55,16 +55,26 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
             NB: no backticks in this comment - the template is a TS template literal.
           -->
           <h2 class="rq-section-title">Annotations</h2>
-          @if (canEdit) {
-            <div class="action-buttons">
-              <p-button label="Add Note" icon="pi pi-comment" size="small" severity="secondary"
-                        data-testid="annotation-add-note"
-                        [outlined]="true" (onClick)="showNoteForm.set(true)" />
-              <p-button label="Add Issue" icon="pi pi-exclamation-triangle" size="small" severity="warn"
-                        data-testid="annotation-add-issue"
-                        [outlined]="true" (onClick)="showIssueForm.set(true)" />
-            </div>
-          }
+          <div class="header-actions">
+            @if (annotations().issues.length > 0) {
+              <p-button [label]="allIssuesCollapsed() ? 'Expand all' : 'Collapse all'"
+                        [icon]="allIssuesCollapsed() ? 'pi pi-angle-down' : 'pi pi-angle-up'"
+                        size="small" severity="secondary" [text]="true"
+                        data-testid="annotation-collapse-all"
+                        [ariaLabel]="allIssuesCollapsed() ? 'Expand all issues' : 'Collapse all issues'"
+                        (onClick)="toggleAll()" />
+            }
+            @if (canEdit) {
+              <div class="action-buttons">
+                <p-button label="Add Note" icon="pi pi-comment" size="small" severity="secondary"
+                          data-testid="annotation-add-note"
+                          [outlined]="true" (onClick)="showNoteForm.set(true)" />
+                <p-button label="Add Issue" icon="pi pi-exclamation-triangle" size="small" severity="warn"
+                          data-testid="annotation-add-issue"
+                          [outlined]="true" (onClick)="showIssueForm.set(true)" />
+              </div>
+            }
+          </div>
         </div>
 
         @if (loadError()) {
@@ -136,8 +146,14 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
         <!-- Issues list -->
         @for (issue of annotations().issues; track issue.id) {
           <div class="annotation issue-item" data-testid="annotation-issue"
-               [attr.data-resolved]="issue.resolved" [class.resolved]="issue.resolved">
+               [attr.data-resolved]="issue.resolved" [class.resolved]="issue.resolved"
+               [class.collapsed]="isCollapsed(issue.id)">
             <div class="annotation-row">
+              <p-button [icon]="isCollapsed(issue.id) ? 'pi pi-angle-right' : 'pi pi-angle-down'"
+                        [text]="true" size="small" severity="secondary"
+                        data-testid="annotation-toggle-issue"
+                        [ariaLabel]="isCollapsed(issue.id) ? 'Expand issue' : 'Collapse issue'"
+                        (onClick)="toggleIssue(issue.id)" />
               <app-tag data-testid="annotation-issue-badge"
                        [tone]="issue.resolved ? 'success' : 'warning'"
                        [icon]="issue.resolved ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'"
@@ -153,6 +169,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
                           (onClick)="deleteIssue(issue)" />
               }
             </div>
+            @if (!isCollapsed(issue.id)) {
             @if (issue.resolved && issue.resolvedByPosition) {
               <div class="resolution-row">
                 <span class="resolution-label">Resolution:</span>
@@ -250,6 +267,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
               <p-button label="Add Position" icon="pi pi-plus" size="small" [text]="true"
                         (onClick)="startAddPosition(issue)" />
             }
+            }
           </div>
         }
 
@@ -264,6 +282,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
     .annotations-section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
     .section-header h2 { margin: 0; }
+    .header-actions { display: flex; align-items: center; gap: 0.5rem; }
     .action-buttons { display: flex; gap: 0.5rem; }
 
     .add-form { background: var(--p-surface-50, #f8f9fa); border: 1px solid var(--p-surface-200); border-radius: 6px; padding: 0.75rem; margin-bottom: 0.75rem; }
@@ -287,7 +306,10 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
     .resolution-label { font-weight: 600; color: var(--rq-tag-success-fg); white-space: nowrap; }
     .resolution-text { color: var(--p-text-color); font-style: italic; }
 
-    .annotation-text { flex: 1; }
+    .annotation-text { flex: 1; min-width: 0; }
+    /* Collapsed issue (#226): the row is one line and the text ellipsizes. */
+    .issue-item.collapsed .annotation-row { flex-wrap: nowrap; }
+    .issue-item.collapsed .annotation-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .annotation-creator { font-size: 0.75rem; color: var(--p-text-secondary-color); white-space: nowrap; }
     .empty-text { color: var(--p-text-secondary-color); font-style: italic; }
   `]
@@ -311,6 +333,40 @@ export class AnnotationsSectionComponent implements OnChanges {
   showIssueForm = signal(false);
   addPosIssueId = signal<number | null>(null);
   addArgPositionId = signal<number | null>(null);
+
+  /**
+   * Ids of issues collapsed in the disclosure layer (#226, A1). Default empty =
+   * every issue expanded, matching the pre-#226 behavior. Stale ids for deleted
+   * issues are harmless (membership-only) and ignored by allIssuesCollapsed.
+   */
+  private readonly collapsedIssueIds = signal<Set<number>>(new Set());
+
+  isCollapsed(issueId: number): boolean {
+    return this.collapsedIssueIds().has(issueId);
+  }
+
+  toggleIssue(issueId: number): void {
+    const next = new Set(this.collapsedIssueIds());
+    if (!next.delete(issueId)) next.add(issueId);
+    this.collapsedIssueIds.set(next);
+  }
+
+  /** True when there is at least one issue and all of them are collapsed. */
+  readonly allIssuesCollapsed = computed(() => {
+    const issues = this.annotations().issues;
+    if (issues.length === 0) return false;
+    const collapsed = this.collapsedIssueIds();
+    return issues.every(i => collapsed.has(i.id));
+  });
+
+  /** Collapse every issue, or expand all when they are already collapsed. */
+  toggleAll(): void {
+    if (this.allIssuesCollapsed()) {
+      this.collapsedIssueIds.set(new Set());
+    } else {
+      this.collapsedIssueIds.set(new Set(this.annotations().issues.map(i => i.id)));
+    }
+  }
 
   readonly noteForm = new FormGroup({
     text: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
