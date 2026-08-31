@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, ChangeDetectionStrategy, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { InputText } from 'primeng/inputtext';
@@ -46,8 +46,11 @@ import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-fi
   template: `
     <div class="login-container">
       <app-card class="login-card">
-        <h1>Requel</h1>
-        <p class="subtitle">Requirements Elicitation System</p>
+        <div class="login-brand">
+          <img class="login-logo" src="images/logo_robot.png" alt="" />
+          <h1 class="login-wordmark">Requel</h1>
+        </div>
+        <p class="login-tagline">Requirements Elicitation System</p>
 
         <app-submit-error [message]="errorMessage()" testid="login-error" />
 
@@ -66,6 +69,7 @@ import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-fi
             [divider]="false"
           >
             <input
+              #usernameInput
               pInputText
               appFieldControl
               id="username"
@@ -109,22 +113,50 @@ import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-fi
         display: flex;
         justify-content: center;
         align-items: center;
-        min-height: 100vh;
-        background: var(--p-surface-ground);
+        box-sizing: border-box;
+        /* Center in the viewport with breathing room. dvh (not vh) so mobile browser
+           chrome doesn't push the content past the viewport and force a stray
+           scrollbar (L1, L2); border-box keeps the padding inside that height.
+           overflow:auto so once the window is shorter/narrower than the card + its
+           min-width floor, the viewport scrolls instead of the card distorting (L3). */
+        min-height: 100dvh;
+        padding: var(--rq-space-6);
+        overflow: auto;
+        /* Muted, editor-style canvas so the white card reads as raised (L8). */
+        background: var(--rq-canvas-bg);
       }
       /* The surface (bg, padding, border, radius, shadow) comes from app-card
-         (issue #156); only the login-specific width constraint stays here. */
+         (issue #156); only the login-specific width constraints stay here. The
+         min-width floor stops the card collapsing as the window shrinks (L3). */
       .login-card {
         display: block;
         width: 100%;
+        min-width: 20rem;
         max-width: 400px;
       }
-      h1 {
-        margin: 0 0 var(--rq-space-1);
-        text-align: center;
-        font-size: var(--rq-text-h1-size);
+      /* Robot logo + "Requel" wordmark on one line, tagline beneath (L5, L7). */
+      .login-brand {
+        display: flex;
+        /* baseline so the logo's bottom sits on the wordmark's baseline (its
+           feet line up with the bottom of the letters), not floating centered. */
+        align-items: baseline;
+        justify-content: center;
+        gap: var(--rq-space-3);
+        margin-bottom: var(--rq-space-1);
       }
-      .subtitle {
+      .login-logo {
+        height: 2.5rem;
+        width: auto;
+      }
+      .login-wordmark {
+        margin: 0;
+        font-size: 2.75rem;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: 0.02em;
+        color: var(--p-text-color);
+      }
+      .login-tagline {
         text-align: center;
         color: var(--p-text-muted-color);
         margin: 0 0 var(--rq-space-6);
@@ -139,7 +171,7 @@ import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-fi
     `,
   ],
 })
-export class LoginComponent {
+export class LoginComponent implements AfterViewInit {
   /**
    * Both fields are required, which is the whole client-side contract — the server
    * decides whether the credentials are *correct*, and that answer arrives as a
@@ -153,6 +185,13 @@ export class LoginComponent {
   readonly submitted = signal(false);
   readonly loading = signal(false);
   readonly errorMessage = signal<string | null>(null);
+
+  @ViewChild('usernameInput') private usernameInput?: ElementRef<HTMLInputElement>;
+
+  /** Land the cursor in the username field on load so a user can type straight away. */
+  ngAfterViewInit(): void {
+    this.usernameInput?.nativeElement.focus();
+  }
 
   constructor(
     private authService: AuthService,

@@ -446,6 +446,18 @@ html, body {
   min-width: 130px;
 }
 
+// p-password full-width inner input (issue #225, L6)
+//
+// PrimeNG's <p-password> renders its own inner <input class="p-password-input">.
+// A width:100% on the host wrapper (set wherever p-password is used in a form field)
+// reaches the wrapper but NOT that inner input, so the field renders about half width
+// and looks shorter than the plain inputs beside it. Make the inner input fill the
+// host. Global so login, edit-account, and user-editor all benefit; the show/hide
+// toggle is absolutely positioned, so widening the input keeps it at the right edge.
+p-password .p-password-input {
+  width: 100%;
+}
+
 // -------------------------------------------------------------------------
 // Form row group (issue #172)
 //
