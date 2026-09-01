@@ -780,7 +780,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   /** Route for a referring container row, or null when its type has no editor route. */
   referrerLink(r: EntityReferenceDto): unknown[] | null {
     const seg: Record<string, string> = {
-      UseCase: 'use-cases', Story: 'stories', Actor: 'actors', Goal: 'goals', Stakeholder: 'stakeholders',
+      UseCase: 'use-cases', Story: 'stories', Actor: 'actors', Goal: 'goals',
+      Stakeholder: 'stakeholders', UserStakeholder: 'stakeholders', NonUserStakeholder: 'stakeholders',
     };
     const path = r.entityType ? seg[r.entityType] : undefined;
     return path && r.id != null ? ['/projects', this.projectName, path, r.id] : null;

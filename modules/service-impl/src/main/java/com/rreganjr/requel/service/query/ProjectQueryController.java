@@ -1038,6 +1038,13 @@ public class ProjectQueryController {
      * GoalContainer doesn't expose getId() — we check concrete types.
      */
     private static EntityReferenceDto toEntityReference(GoalContainer container) {
+        // A UserStakeholder has no entered name — its label comes from getDisplayName()
+        // (which falls back to the linked user's display name), so getName() alone is blank.
+        if (container instanceof Stakeholder stakeholder) {
+            return new EntityReferenceDto(
+                    stakeholder.getProjectOrDomainEntityInterface().getSimpleName(),
+                    stakeholder.getId(), stakeholder.getDisplayName());
+        }
         if (container instanceof ProjectOrDomainEntity entity) {
             String typeName = entity.getProjectOrDomainEntityInterface().getSimpleName();
             return new EntityReferenceDto(typeName, entity.getId(), entity.getName());
