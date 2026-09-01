@@ -147,31 +147,36 @@ export class ActorEditorPage {
 
   // ── Referenced By helpers ──
 
+  // #24 replaced the two read-only referenced-by tables (actor-refby-usecase / -story) with one
+  // combined, editable "Referenced By" section, so both rows now share actor-referrer-row /
+  // actor-referrer-link and are matched by the (unique, timestamped) entity name.
   async clickReferencedByUseCase(name: string): Promise<void> {
-    await this.page.getByTestId('actor-refby-usecase-row')
-      .filter({ hasText: name })
-      .getByTestId('actor-refby-usecase-link')
-      .first()
-      .click();
+    await this.clickReferrer(name);
   }
 
   async clickReferencedByStory(name: string): Promise<void> {
-    await this.page.getByTestId('actor-refby-story-row')
+    await this.clickReferrer(name);
+  }
+
+  private async clickReferrer(name: string): Promise<void> {
+    await this.page.getByTestId('actor-referrer-row')
       .filter({ hasText: name })
-      .getByTestId('actor-refby-story-link')
+      .getByTestId('actor-referrer-link')
       .first()
       .click();
   }
 
   async expectReferencedByUseCase(name: string): Promise<void> {
-    await expect(
-      this.page.getByTestId('actor-refby-usecase-row').filter({ hasText: name }).first()
-    ).toBeVisible();
+    await this.expectReferrer(name);
   }
 
   async expectReferencedByStory(name: string): Promise<void> {
+    await this.expectReferrer(name);
+  }
+
+  private async expectReferrer(name: string): Promise<void> {
     await expect(
-      this.page.getByTestId('actor-refby-story-row').filter({ hasText: name }).first()
+      this.page.getByTestId('actor-referrer-row').filter({ hasText: name }).first()
     ).toBeVisible();
   }
 }
