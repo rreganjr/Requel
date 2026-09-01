@@ -48,22 +48,48 @@ errors on `from 'primeng'`. Run it locally with `npm run lint`; CI runs it too
 scoped to this one guardrail so it stays green on the existing code; broadening
 the ruleset is its own future lint-adoption task.
 
-## Baseline (production, 2026-08-28)
+## Baseline (production, 2026-08-31, after #217)
 Captured with `npm run build:stats`:
 
-- **Initial total: 929.59 kB raw / 217.46 kB estimated transfer** — within both
-  budgets (warning 1 MB, error 2 MB).
-- Largest lazy chunks: ~290.6 kB (shared vendor chunk, unnamed), scenario-editor
-  97.8 kB, the SSR/`browser` chunk 67.8 kB, use-case-editor 32.4 kB, and the
-  remaining feature editors 15–22 kB each.
+- **Initial total: 722.14 kB raw / 172.98 kB estimated transfer** — ~72% of the
+  1 MB warning budget, ~278 kB of headroom.
+- Largest lazy chunks: ~283.8 kB (shared vendor chunk, unnamed — see below),
+  the authenticated shell chunk (layout + sidebar, now lazy), scenario-editor
+  ~95 kB, the SSR/`browser` chunk ~66 kB, use-case-editor ~32 kB, and the
+  remaining feature editors 13–22 kB each.
 
-**Watch item:** the initial bundle sits at ~91% of the 1 MB warning budget, so
-there is little headroom. See AC4 below.
+### How #217 restored the headroom
+The prior baseline (929.59 kB on 2026-08-28, and ~976 kB by the end of the
+Post-#124 UI-polish epic) carried the **entire authenticated shell in the initial
+bundle**: `app.routes.ts` statically imported `LayoutComponent` and
+`DashboardComponent`, pulling the sidebar Tree, accordion, scroller, top-bar Menu,
+Toast, and the appearance-menu Dialog into first paint — even for a logged-out user
+at the login form. Making **layout + dashboard lazy** (`loadComponent`) while keeping
+**login eager** moved that shell into a chunk that loads at login. One-line-per-route
+change, −254 kB initial, no UX cost (login still paints instantly; the shell chunk
+loads on the login → dashboard navigation).
+
+**Convention:** keep the authenticated shell and every feature route lazy. Only the
+login route (first paint) and the framework/theme providers belong in the initial
+bundle. A new eager `component:` on a route is a bundle decision — prefer
+`loadComponent`.
+
+### The ~284 kB shared lazy vendor chunk
+Investigated under #217. It is `primeng/table` (~95 kB) + **`primeng/datepicker`
+(~81 kB)** + `@primeuix/styles` (~48 kB) + paginator/selectbutton/togglebutton/
+radiobutton + table icons, shared by ~22 list/editor routes. The datepicker is the
+fattest piece and has **zero direct app usage** — PrimeNG's Table imports it
+transitively for its column-filter UI, so it cannot be split out at the app level
+without PrimeNG-internal changes. It is lazy (never in the initial bundle), so it does
+not affect the gated budget; left as a documented finding rather than a risky split.
 
 ## Findings become follow-ups (AC4)
 When a build shows a chunk crossing a budget — or trending toward one — file a
 GitHub issue with a **concrete target**, don't just note it here. Current state:
 nothing is over budget, but the initial bundle's thin headroom is worth a
 tracked follow-up (target: restore headroom by investigating the ~290 kB shared
-lazy vendor chunk and keeping initial under ~850 kB). That follow-up is proposed
-alongside this ticket; link it here once filed.
+lazy vendor chunk and keeping initial under ~850 kB). That follow-up was filed as
+**#217 and is now resolved** — see the baseline section above: initial is back to
+722 kB (well under 850) by lazy-loading the authenticated shell, and the shared
+lazy vendor chunk was investigated (its bulk is `datepicker`, pulled transitively by
+`table`; lazy, not app-removable).

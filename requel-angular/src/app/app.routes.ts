@@ -22,8 +22,6 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/auth.guard';
 import { routeData } from './core/route-data';
 import { LoginComponent } from './features/auth/login';
-import { LayoutComponent } from './features/auth/layout';
-import { DashboardComponent } from './features/auth/dashboard';
 import { accountRoutes } from './features/users/account.routes';
 import { adminRoutes } from './features/admin/admin.routes';
 import { projectRoutes } from './features/projects/projects.routes';
@@ -38,12 +36,12 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent, title: 'Sign in', data: routeData({ section: 'account' }) },
   {
     path: '',
-    component: LayoutComponent,
+    loadComponent: () => import('./features/auth/layout').then(m => m.LayoutComponent),
     canActivate: [authGuard],
     children: [
       {
         path: '',
-        component: DashboardComponent,
+        loadComponent: () => import('./features/auth/dashboard').then(m => m.DashboardComponent),
         title: 'Dashboard',
         data: routeData({ section: 'dashboard', breadcrumb: 'Dashboard' }),
       },
