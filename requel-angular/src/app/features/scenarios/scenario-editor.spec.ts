@@ -18,7 +18,7 @@ const MOCK_STEPS = [
 
 const MOCK_SCENARIO = {
   id: 15, version: 0, name: 'Login Flow', text: 'The login scenario.',
-  scenarioType: 'Primary', steps: MOCK_STEPS, createdBy: null
+  scenarioType: 'Primary', steps: MOCK_STEPS, createdBy: null, referencedBy: []
 };
 
 const flush = () => new Promise(r => setTimeout(r, 0));
@@ -284,7 +284,7 @@ describe('ScenarioEditorComponent', () => {
         entity: { ...created, version: nextVersion++ }
       }));
       scenarioServiceMock.getScenario.mockImplementation(async () => ({
-        ...created, version: nextVersion - 1, steps: []
+        ...created, version: nextVersion - 1, steps: [], referencedBy: []
       }));
 
       comp.detailsForm.controls.name.setValue('Created');

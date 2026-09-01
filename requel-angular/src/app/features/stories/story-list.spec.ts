@@ -8,9 +8,9 @@ import { PermissionService } from '../../core/permission.service';
 
 const MOCK_STORIES = [
   { id: 10, version: 0, name: 'User logs in', text: 'A user logs in.', storyType: 'Success' as const,
-    primaryActorName: 'Customer', createdBy: null, goals: null, actors: null },
+    primaryActorName: 'Customer', createdBy: null, goals: null, actors: null, referencedBy: null },
   { id: 11, version: 0, name: 'Login fails', text: 'Bad credentials.', storyType: 'Exception' as const,
-    primaryActorName: 'Customer', createdBy: null, goals: null, actors: null }
+    primaryActorName: 'Customer', createdBy: null, goals: null, actors: null, referencedBy: null }
 ];
 
 const flush = () => new Promise(r => setTimeout(r, 0));

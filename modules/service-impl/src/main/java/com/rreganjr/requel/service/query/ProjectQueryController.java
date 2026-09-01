@@ -58,6 +58,7 @@ import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.StakeholderPermission;
 import com.rreganjr.requel.project.Story;
+import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.ExportProjectCommand;
@@ -662,7 +663,7 @@ public class ProjectQueryController {
                 story.getStoryType().name(),
                 story.getCreatedBy() != null ? story.getCreatedBy().getDisplayName() : null,
                 story.getPrimaryActor() != null ? story.getPrimaryActor().getName() : null,
-                null, null);
+                null, null, null);
     }
 
     public static StoryDto toStoryDetailDto(Story story) {
@@ -676,12 +677,18 @@ public class ProjectQueryController {
                 .sorted(Comparator.comparing(EntityReferenceDto::name))
                 .toList();
 
+        List<EntityReferenceDto> referencedBy = story.getReferers().stream()
+                .map(ProjectQueryController::toEntityReference)
+                .sorted(Comparator.comparing(EntityReferenceDto::entityType)
+                        .thenComparing(EntityReferenceDto::name))
+                .toList();
+
         return new StoryDto(
                 story.getId(), story.getVersion(), story.getName(), story.getText(),
                 story.getStoryType().name(),
                 story.getCreatedBy() != null ? story.getCreatedBy().getDisplayName() : null,
                 story.getPrimaryActor() != null ? story.getPrimaryActor().getName() : null,
-                goals, actors);
+                goals, actors, referencedBy);
     }
 
     // ── Actor DTO mappers ─────────────────────────────────────────────
@@ -719,7 +726,7 @@ public class ProjectQueryController {
                 scenario.getId(), scenario.getVersion(), scenario.getName(), scenario.getText(),
                 scenario.getType() != null ? scenario.getType().name() : null,
                 scenario.getCreatedBy() != null ? scenario.getCreatedBy().getDisplayName() : null,
-                null);
+                null, null);
     }
 
     public static ScenarioDto toScenarioDetailDto(Scenario scenario) {
@@ -735,11 +742,20 @@ public class ProjectQueryController {
                     isScenario,
                     isScenario ? step.getId() : null));
         }
+        List<EntityReferenceDto> referencedBy = List.of();
+        if (scenario.getProjectOrDomain() instanceof Project project) {
+            referencedBy = project.getUseCases().stream()
+                    .filter(uc -> uc.getAdditionalScenarios().stream()
+                            .anyMatch(s -> s.getId().equals(scenario.getId())))
+                    .map(uc -> new EntityReferenceDto("UseCase", uc.getId(), uc.getName()))
+                    .sorted(Comparator.comparing(EntityReferenceDto::name))
+                    .toList();
+        }
         return new ScenarioDto(
                 scenario.getId(), scenario.getVersion(), scenario.getName(), scenario.getText(),
                 scenario.getType() != null ? scenario.getType().name() : null,
                 scenario.getCreatedBy() != null ? scenario.getCreatedBy().getDisplayName() : null,
-                steps);
+                steps, referencedBy);
     }
 
     public static UseCaseDto toUseCaseSummaryDto(UseCase uc) {
@@ -771,14 +787,14 @@ public class ProjectQueryController {
                         s.getStoryType() != null ? s.getStoryType().name() : null,
                         s.getCreatedBy() != null ? s.getCreatedBy().getDisplayName() : null,
                         s.getPrimaryActor() != null ? s.getPrimaryActor().getName() : null,
-                        null, null))
+                        null, null, null))
                 .sorted(Comparator.comparing(StoryDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
         List<ScenarioDto> additionalScenarios = uc.getAdditionalScenarios().stream()
                 .map(s -> new ScenarioDto(s.getId(), s.getVersion(), s.getName(), s.getText(),
                         s.getType() != null ? s.getType().name() : null,
                         s.getCreatedBy() != null ? s.getCreatedBy().getDisplayName() : null,
-                        null))
+                        null, null))
                 .sorted(Comparator.comparing(ScenarioDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
         return new UseCaseDto(
@@ -1022,6 +1038,22 @@ public class ProjectQueryController {
      * GoalContainer doesn't expose getId() — we check concrete types.
      */
     private static EntityReferenceDto toEntityReference(GoalContainer container) {
+        if (container instanceof ProjectOrDomainEntity entity) {
+            String typeName = entity.getProjectOrDomainEntityInterface().getSimpleName();
+            return new EntityReferenceDto(typeName, entity.getId(), entity.getName());
+        }
+        if (container instanceof ProjectOrDomain pod) {
+            return new EntityReferenceDto("Project", pod.getId(), pod.getName());
+        }
+        // Fallback for unknown container types
+        return new EntityReferenceDto("Unknown", null, container.getDescription());
+    }
+
+    /**
+     * Convert a StoryContainer referer to an EntityReferenceDto.
+     * StoryContainer doesn't expose getId() — we check concrete types.
+     */
+    private static EntityReferenceDto toEntityReference(StoryContainer container) {
         if (container instanceof ProjectOrDomainEntity entity) {
             String typeName = entity.getProjectOrDomainEntityInterface().getSimpleName();
             return new EntityReferenceDto(typeName, entity.getId(), entity.getName());

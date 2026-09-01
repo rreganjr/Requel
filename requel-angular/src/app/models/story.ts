@@ -30,4 +30,5 @@ export interface StoryDto {
   primaryActorName: string | null;
   goals: EntityReferenceDto[] | null;
   actors: EntityReferenceDto[] | null;
+  referencedBy: EntityReferenceDto[] | null;
 }

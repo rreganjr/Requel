@@ -37,6 +37,7 @@ import java.util.List;
  * @param primaryActorName  name of the primary actor, or null if none
  * @param goals             associated goals (detail view only)
  * @param actors            additional actors (detail view only)
+ * @param referencedBy      containers that reference this story (detail view only)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record StoryDto(
@@ -48,6 +49,7 @@ public record StoryDto(
         String createdBy,
         String primaryActorName,
         List<EntityReferenceDto> goals,
-        List<EntityReferenceDto> actors
+        List<EntityReferenceDto> actors,
+        List<EntityReferenceDto> referencedBy
 ) {
 }

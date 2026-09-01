@@ -8,9 +8,9 @@ import { PermissionService } from '../../core/permission.service';
 
 const MOCK_SCENARIOS = [
   { id: 5, version: 0, name: 'Login Flow', text: 'User logs in.', scenarioType: 'Primary',
-    createdBy: null, steps: null },
+    createdBy: null, steps: null, referencedBy: null },
   { id: 6, version: 0, name: 'Logout Flow', text: 'User logs out.', scenarioType: 'Primary',
-    createdBy: null, steps: null }
+    createdBy: null, steps: null, referencedBy: null }
 ];
 
 const flush = () => new Promise(r => setTimeout(r, 0));

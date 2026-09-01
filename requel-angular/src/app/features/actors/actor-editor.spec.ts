@@ -469,10 +469,35 @@ describe('ActorEditorComponent', () => {
     fixture.detectChanges();
     await flush();
     fixture.detectChanges();
-    const uc = fixture.nativeElement.querySelector('[data-testid="actor-refby-usecase-link"]');
-    const st = fixture.nativeElement.querySelector('[data-testid="actor-refby-story-link"]');
-    expect(uc.getAttribute('href')).toBe('/projects/proj1/use-cases/30');
-    expect(st.getAttribute('href')).toBe('/projects/proj1/stories/40');
+    const links = Array.from(
+      fixture.nativeElement.querySelectorAll('[data-testid="actor-referrer-link"]')
+    ) as HTMLAnchorElement[];
+    const hrefs = links.map(a => a.getAttribute('href'));
+    expect(hrefs).toContain('/projects/proj1/use-cases/30');
+    expect(hrefs).toContain('/projects/proj1/stories/40');
+  });
+
+  it('referencedByAll() combines the use-case and story referrers into one list', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    expect(comp.referencedByAll().map(r => r.id)).toEqual([30, 40]);
+  });
+
+  it('reverse-add: adds this actor into the picked container, then reloads', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    actorServiceMock.getActor.mockClear();
+    // The reverse command merges the CONTAINER, not the actor, so the handler must reload the actor.
+    commandServiceMock.execute.mockResolvedValue({ success: true, entity: { id: 999 } });
+    await comp.onReferrerSelected({ entityType: 'UseCase', id: 8, name: 'Checkout' });
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('AddActorToActorContainer', expect.objectContaining({
+      projectName: 'proj1', actorContainerId: 8, actorId: 5, containerType: 'UseCase'
+    }));
+    expect(actorServiceMock.getActor).toHaveBeenCalledWith('proj1', 5);
   });
 
   it('onBack navigates back to actor list', () => {

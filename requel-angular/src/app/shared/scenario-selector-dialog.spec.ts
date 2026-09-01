@@ -6,9 +6,9 @@ import { ScenarioService } from '../core/scenario.service';
 import { CommandService } from '../core/command.service';
 
 const MOCK_SCENARIOS = [
-  { id: 1, version: 0, name: 'Main flow', text: null, scenarioType: 'Primary', createdBy: null, steps: null },
-  { id: 2, version: 0, name: 'Alt flow', text: null, scenarioType: 'Alternative', createdBy: null, steps: null },
-  { id: 3, version: 0, name: 'Error flow', text: null, scenarioType: 'Exception', createdBy: null, steps: null },
+  { id: 1, version: 0, name: 'Main flow', text: null, scenarioType: 'Primary', createdBy: null, steps: null, referencedBy: null },
+  { id: 2, version: 0, name: 'Alt flow', text: null, scenarioType: 'Alternative', createdBy: null, steps: null, referencedBy: null },
+  { id: 3, version: 0, name: 'Error flow', text: null, scenarioType: 'Exception', createdBy: null, steps: null, referencedBy: null },
 ];
 
 describe('ScenarioSelectorDialogComponent', () => {
@@ -23,7 +23,7 @@ describe('ScenarioSelectorDialogComponent', () => {
     commandServiceMock = {
       execute: vi.fn().mockResolvedValue({
         success: true,
-        entity: { id: 99, version: 0, name: 'New Scenario', text: null, scenarioType: 'Primary', createdBy: null, steps: null }
+        entity: { id: 99, version: 0, name: 'New Scenario', text: null, scenarioType: 'Primary', createdBy: null, steps: null, referencedBy: null }
       })
     };
 
