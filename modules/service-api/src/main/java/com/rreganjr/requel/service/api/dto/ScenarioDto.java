@@ -31,5 +31,6 @@ public record ScenarioDto(
     String text,
     String scenarioType,
     String createdBy,
-    List<StepDto> steps
+    List<StepDto> steps,
+    List<EntityReferenceDto> referencedBy
 ) {}

@@ -145,7 +145,7 @@ describe('UseCaseEditorComponent', () => {
       actors: [{ id: 1, version: 0, name: 'Customer', text: null, createdBy: null,
         goals: null, referencedByUseCases: null, referencedByStories: null }],
       additionalScenarios: [{ id: 99, version: 0, name: 'Exception flow', text: null,
-        scenarioType: 'Exception', createdBy: null, steps: null }]
+        scenarioType: 'Exception', createdBy: null, steps: null, referencedBy: null }]
     };
     useCaseServiceMock.getUseCase.mockResolvedValue(fullUseCase);
     paramMap$.next(convertToParamMap({ name: 'proj1', useCaseId: '30' }));
@@ -342,7 +342,7 @@ describe('UseCaseEditorComponent', () => {
     fixture.detectChanges();
     await flush();
     const story = { id: 5, version: 0, name: 'Happy path', text: 'text',
-      storyType: 'Success' as const, createdBy: null, primaryActorName: null, goals: null, actors: null };
+      storyType: 'Success' as const, createdBy: null, primaryActorName: null, goals: null, actors: null, referencedBy: null };
     await comp.removeStory(story);
     expect(commandServiceMock.execute).toHaveBeenCalledWith('RemoveStoryFromStoryContainer', expect.objectContaining({
       storyContainerId: 30,

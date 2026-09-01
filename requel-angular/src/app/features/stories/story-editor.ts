@@ -161,6 +161,8 @@ const STALE_VERSION_MESSAGE =
                       [ngTemplateOutletContext]="{ heading: true }" />
         <ng-container [ngTemplateOutlet]="actorsSection"
                       [ngTemplateOutletContext]="{ heading: true }" />
+        <ng-container [ngTemplateOutlet]="referencedBySection"
+                      [ngTemplateOutletContext]="{ heading: true }" />
       }
 
       <app-entity-selector-dialog
@@ -178,6 +180,15 @@ const STALE_VERSION_MESSAGE =
         [excludeIds]="existingActorIds()"
         (selected)="onActorSelected($event)"
         (closed)="showActorSelector = false" />
+
+      <app-entity-selector-dialog
+        [visible]="showReferrerSelector"
+        [projectName]="projectName"
+        entityType="UseCase"
+        title="Add to Use Case"
+        [excludeIds]="existingReferrerIds()"
+        (selected)="onReferrerSelected($event)"
+        (closed)="showReferrerSelector = false" />
 
       <!--
         Annotations render against a persisted entity, so they stay outside the wizard
@@ -278,6 +289,29 @@ const STALE_VERSION_MESSAGE =
           </ng-template>
         </app-relationship-section>
       </ng-template>
+
+      <ng-template #referencedBySection let-heading="heading">
+        <app-relationship-section #storyReferencedBySection
+          title="Referenced By" [showHeading]="heading"
+          [items]="story()?.referencedBy ?? []" [headers]="['Type', 'Name']"
+          [canAdd]="canEdit() && storyId != null"
+          addLabel="Add to Use Case" addTestid="story-add-referrer"
+          removeTestid="story-remove-referrer" rowTestid="story-referrer-row" testid="story-referenced-by"
+          emptyText="Not referenced by anything yet."
+          [removeAriaLabel]="referrerRemoveAria" [trackBy]="refTrackBy"
+          (add)="showReferrerSelector = true" (remove)="onRemoveReferrer($event)">
+          <ng-template #row let-r>
+            <td>{{ r.entityType }}</td>
+            <td>
+              @if (referrerLink(r); as link) {
+                <a class="entity-link" data-testid="story-referrer-link" [routerLink]="link">{{ r.name }}</a>
+              } @else {
+                {{ r.name }}
+              }
+            </td>
+          </ng-template>
+        </app-relationship-section>
+      </ng-template>
     </div>
   `,
   styles: [`
@@ -348,6 +382,7 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   showGoalSelector = false;
   showActorSelector = false;
+  showReferrerSelector = false;
   storyTypeOptions = [
     { label: 'Success', value: 'Success' },
     { label: 'Exception', value: 'Exception' }
@@ -556,6 +591,12 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       .map(a => a.id!);
   }
 
+  existingReferrerIds(): number[] {
+    return (this.story()?.referencedBy ?? [])
+      .filter(r => r.id != null)
+      .map(r => r.id!);
+  }
+
   /**
    * Runs the commit for the wizard's current step.
    *
@@ -729,10 +770,22 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   @ViewChild('storyGoalsSection') storyGoalsSection?: RelationshipSectionComponent<EntityReferenceDto>;
   @ViewChild('storyActorsSection') storyActorsSection?: RelationshipSectionComponent<EntityReferenceDto>;
+  @ViewChild('storyReferencedBySection') storyReferencedBySection?: RelationshipSectionComponent<EntityReferenceDto>;
   /** Accessible names + row identity for the relationship lists. */
   goalRemoveAria = (g: EntityReferenceDto): string => 'Remove goal ' + g.name;
   actorRemoveAria = (a: EntityReferenceDto): string => 'Remove actor ' + a.name;
+  referrerRemoveAria = (r: EntityReferenceDto): string => 'Remove reference from ' + r.name;
   refTrackBy = (x: EntityReferenceDto) => x.id;
+
+  /** Route for a referring container row, or null when its type has no editor route. */
+  referrerLink(r: EntityReferenceDto): unknown[] | null {
+    const seg: Record<string, string> = {
+      UseCase: 'use-cases', Story: 'stories', Actor: 'actors', Goal: 'goals',
+      Stakeholder: 'stakeholders', UserStakeholder: 'stakeholders', NonUserStakeholder: 'stakeholders',
+    };
+    const path = r.entityType ? seg[r.entityType] : undefined;
+    return path && r.id != null ? ['/projects', this.projectName, path, r.id] : null;
+  }
 
   async onGoalSelected(ref: EntityReferenceDto): Promise<void> {
     this.showGoalSelector = false;
@@ -813,6 +866,53 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       }
     } catch {
       this.showError('Failed to remove actor.');
+    }
+  }
+
+  /**
+   * Reverse-add: add THIS story to the picked container (a use case). The
+   * AddStoryToStoryContainer command merges the CONTAINER, not the story, so its
+   * response is the container DTO — we reload the story to refresh `referencedBy`
+   * rather than adopting `result.entity`.
+   */
+  async onReferrerSelected(ref: EntityReferenceDto): Promise<void> {
+    this.showReferrerSelector = false;
+    try {
+      const result = await this.commandService.execute('AddStoryToStoryContainer', {
+        projectName: this.projectName,
+        storyContainerId: ref.id,
+        storyId: this.storyId,
+        containerType: ref.entityType ?? 'UseCase'
+      });
+      if (result.success) {
+        await this.loadStory(false);
+        this.messageService.add({ severity: 'success', summary: 'Reference added', detail: 'Reference added.' });
+        this.storyReferencedBySection?.announceAdded(ref.name);
+      } else {
+        this.showError(result.error ?? 'Failed to add reference.');
+      }
+    } catch {
+      this.showError('Failed to add reference.');
+    }
+  }
+
+  async onRemoveReferrer(ref: EntityReferenceDto): Promise<void> {
+    try {
+      const result = await this.commandService.execute('RemoveStoryFromStoryContainer', {
+        projectName: this.projectName,
+        storyContainerId: ref.id,
+        storyId: this.storyId,
+        containerType: ref.entityType ?? 'UseCase'
+      });
+      if (result.success) {
+        await this.loadStory(false);
+        this.messageService.add({ severity: 'success', summary: 'Reference removed', detail: 'Reference removed.' });
+        this.storyReferencedBySection?.announceRemoved(ref.name);
+      } else {
+        this.showError(result.error ?? 'Failed to remove reference.');
+      }
+    } catch {
+      this.showError('Failed to remove reference.');
     }
   }
 

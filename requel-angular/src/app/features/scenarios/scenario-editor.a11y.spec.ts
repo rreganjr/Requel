@@ -118,7 +118,7 @@ describe('ScenarioEditorComponent — step-detail dialog accessibility', () => {
 // including with a field in the error state, which is where a missing/duplicated label or an
 // unassociated message actually shows up. The dialog suite above covers the edit surface.
 const CREATED = {
-  id: 7, version: 2, name: 'Created scenario', text: '', scenarioType: 'Primary', steps: [],
+  id: 7, version: 2, name: 'Created scenario', text: '', scenarioType: 'Primary', steps: [], referencedBy: [],
 };
 
 describe('ScenarioEditorComponent - create wizard accessibility', () => {

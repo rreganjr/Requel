@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
@@ -49,6 +49,9 @@ import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { ScenarioSelectorDialogComponent, ScenarioRef } from '../../shared/scenario-selector-dialog';
+import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
+import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
+import { EntityReferenceDto } from '../../models/entity-reference';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
@@ -102,7 +105,8 @@ type StepGroup = FormGroup<{
             MessageModule, SubmitErrorComponent, UpdateBannerComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
             ScenarioSelectorDialogComponent, AnnotationsSectionComponent, LoadingStateComponent,
             ErrorStateComponent, AppFieldComponent, AppFieldControlDirective,
-            AppFormWizardComponent, AppWizardStepComponent, InlineErrorComponent],
+            AppFormWizardComponent, AppWizardStepComponent, InlineErrorComponent,
+            EntitySelectorDialogComponent, RelationshipSectionComponent],
   providers: [ConfirmationService],
   template: `
     <div class="scenario-editor" data-testid="scenario-editor">
@@ -186,6 +190,8 @@ type StepGroup = FormGroup<{
 
         <ng-container [ngTemplateOutlet]="stepsSection"
                       [ngTemplateOutletContext]="{ heading: true }" />
+        <ng-container [ngTemplateOutlet]="referencedBySection"
+                      [ngTemplateOutletContext]="{ heading: true }" />
       }
 
       <!-- Step detail edit dialog -->
@@ -227,6 +233,38 @@ type StepGroup = FormGroup<{
         [excludeIds]="excludeScenarioIds()"
         (selected)="onSubScenarioSelected($event)"
         (closed)="showScenarioSelector = false" />
+
+      <app-entity-selector-dialog
+        [visible]="showReferrerSelector"
+        [projectName]="projectName"
+        entityType="UseCase"
+        title="Add to Use Case"
+        [excludeIds]="existingReferrerIds()"
+        (selected)="onReferrerSelected($event)"
+        (closed)="showReferrerSelector = false" />
+
+      <ng-template #referencedBySection let-heading="heading">
+        <app-relationship-section #scenarioReferencedBySection
+          title="Referenced By" [showHeading]="heading"
+          [items]="scenario()?.referencedBy ?? []" [headers]="['Type', 'Name']"
+          [canAdd]="canEdit() && scenarioId != null"
+          addLabel="Add to Use Case" addTestid="scenario-add-referrer"
+          removeTestid="scenario-remove-referrer" rowTestid="scenario-referrer-row" testid="scenario-referenced-by"
+          emptyText="Not referenced by any use case yet."
+          [removeAriaLabel]="referrerRemoveAria" [trackBy]="refTrackBy"
+          (add)="showReferrerSelector = true" (remove)="onRemoveReferrer($event)">
+          <ng-template #row let-r>
+            <td>{{ r.entityType }}</td>
+            <td>
+              @if (referrerLink(r); as link) {
+                <a class="entity-link" data-testid="scenario-referrer-link" [routerLink]="link">{{ r.name }}</a>
+              } @else {
+                {{ r.name }}
+              }
+            </td>
+          </ng-template>
+        </app-relationship-section>
+      </ng-template>
 
       <!--
         Annotations render against a persisted entity, so they stay outside the wizard and
@@ -513,6 +551,7 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
 
   typeOptions = SCENARIO_TYPE_OPTIONS;
   showScenarioSelector = false;
+  showReferrerSelector = false;
   /**
    * Reactive form backing the step-detail edit dialog (#202). Replaces the `editingName` /
    * `editingType` / `editingText` ngModel scratch fields: reset from the target group on open,
@@ -1082,6 +1121,70 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
         }
       }
     });
+  }
+
+  @ViewChild('scenarioReferencedBySection') scenarioReferencedBySection?: RelationshipSectionComponent<EntityReferenceDto>;
+  referrerRemoveAria = (r: EntityReferenceDto): string => 'Remove reference from ' + r.name;
+  refTrackBy = (x: EntityReferenceDto) => x.id;
+
+  /** Route for a referring container row, or null when its type has no editor route. */
+  referrerLink(r: EntityReferenceDto): unknown[] | null {
+    const seg: Record<string, string> = {
+      UseCase: 'use-cases', Story: 'stories', Actor: 'actors', Goal: 'goals',
+      Stakeholder: 'stakeholders', UserStakeholder: 'stakeholders', NonUserStakeholder: 'stakeholders',
+    };
+    const path = r.entityType ? seg[r.entityType] : undefined;
+    return path && r.id != null ? ['/projects', this.projectName, path, r.id] : null;
+  }
+
+  existingReferrerIds(): number[] {
+    return (this.scenario()?.referencedBy ?? [])
+      .filter(r => r.id != null)
+      .map(r => r.id!);
+  }
+
+  /**
+   * Reverse-add: add THIS scenario to the picked use case (as an additional scenario).
+   * AddScenarioToUseCase merges the use case, not the scenario, so we reload the scenario
+   * to refresh `referencedBy` rather than adopting `result.entity`.
+   */
+  async onReferrerSelected(ref: EntityReferenceDto): Promise<void> {
+    this.showReferrerSelector = false;
+    try {
+      const result = await this.commandService.execute('AddScenarioToUseCase', {
+        projectName: this.projectName,
+        useCaseId: ref.id,
+        scenarioId: this.scenarioId
+      });
+      if (result.success) {
+        await this.loadScenario(false);
+        this.messageService.add({ severity: 'success', summary: 'Reference added', detail: 'Reference added.' });
+        this.scenarioReferencedBySection?.announceAdded(ref.name);
+      } else {
+        this.showError(result.error ?? 'Failed to add reference.');
+      }
+    } catch {
+      this.showError('Failed to add reference.');
+    }
+  }
+
+  async onRemoveReferrer(ref: EntityReferenceDto): Promise<void> {
+    try {
+      const result = await this.commandService.execute('RemoveScenarioFromUseCase', {
+        projectName: this.projectName,
+        useCaseId: ref.id,
+        scenarioId: this.scenarioId
+      });
+      if (result.success) {
+        await this.loadScenario(false);
+        this.messageService.add({ severity: 'success', summary: 'Reference removed', detail: 'Reference removed.' });
+        this.scenarioReferencedBySection?.announceRemoved(ref.name);
+      } else {
+        this.showError(result.error ?? 'Failed to remove reference.');
+      }
+    } catch {
+      this.showError('Failed to remove reference.');
+    }
   }
 
   onBack(): void {

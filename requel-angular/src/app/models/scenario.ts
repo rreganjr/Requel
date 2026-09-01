@@ -18,6 +18,8 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
+import { EntityReferenceDto } from './entity-reference';
+
 export interface StepDto {
   id: number;
   version: number;
@@ -36,6 +38,7 @@ export interface ScenarioDto {
   scenarioType: string | null;
   createdBy: string | null;
   steps: StepDto[] | null;
+  referencedBy: EntityReferenceDto[] | null;
 }
 
 export interface EditStepInput {

@@ -29,7 +29,6 @@ import { ButtonModule } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { SelectModule } from 'primeng/select';
-import { TableModule } from 'primeng/table';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { UpdateBannerComponent } from '../../shared/app-update-banner';
 import { AnnouncerService } from '../../core/announcer.service';
@@ -69,7 +68,7 @@ const STALE_VERSION_MESSAGE =
   standalone: true,
   imports: [PageHeaderComponent, RouterLink, FormsModule, ReactiveFormsModule, NgTemplateOutlet,
             ButtonModule, InputText, TextareaModule, SelectModule,
-            TableModule, SubmitErrorComponent, DialogModule, ConfirmDialogModule, EntitySelectorDialogComponent,
+            SubmitErrorComponent, DialogModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             RelationshipSectionComponent,
             AnnotationsSectionComponent, TagSelectorComponent, AppCardComponent, AppFieldComponent,
             AppFieldControlDirective, AppFormWizardComponent, AppWizardStepComponent,
@@ -158,26 +157,28 @@ const STALE_VERSION_MESSAGE =
         <ng-container [ngTemplateOutlet]="relationsSection"
                       [ngTemplateOutletContext]="{ heading: true }" />
 
-        @if (goal()?.referencedBy?.length) {
-          <div class="section">
-            <!-- h2: these sections sit directly under the page's single h1. -->
-            <h2 class="rq-section-title">Referenced By</h2>
-            <p-table [value]="goal()!.referencedBy!" [rows]="10">
-              <ng-template #header>
-                <tr>
-                  <th>Type</th>
-                  <th>Name</th>
-                </tr>
-              </ng-template>
-              <ng-template #body let-ref>
-                <tr>
-                  <td>{{ ref.entityType }}</td>
-                  <td>{{ ref.name }}</td>
-                </tr>
-              </ng-template>
-            </p-table>
-          </div>
-        }
+        <app-relationship-section #goalReferencedBySection
+          title="Referenced By" [colWidths]="relColWidths"
+          description="Actors, stakeholders, stories and use cases that reference this goal."
+          [items]="goal()?.referencedBy ?? []" [headers]="['Name', 'Type']"
+          [canAdd]="canEdit() && goalId != null"
+          addLabel="Add Reference" addTestid="goal-add-referrer"
+          removeTestid="goal-remove-referrer" rowTestid="goal-referrer-row" testid="goal-referenced-by"
+          emptyText="Not referenced by anything yet."
+          unsavedHint="Save the goal's details first to add references."
+          [removeAriaLabel]="referrerRemoveAria" [trackBy]="refTrackBy"
+          (add)="showReferrerSelector = true" (remove)="onRemoveReferrer($event)">
+          <ng-template #row let-r>
+            <td>
+              @if (referrerLink(r); as link) {
+                <a class="entity-link" data-testid="goal-referrer-link" [routerLink]="link">{{ r.name }}</a>
+              } @else {
+                {{ r.name }}
+              }
+            </td>
+            <td>{{ r.entityType }}</td>
+          </ng-template>
+        </app-relationship-section>
 
         <ng-container [ngTemplateOutlet]="tagsSection" />
       }
@@ -202,6 +203,16 @@ const STALE_VERSION_MESSAGE =
         [excludeIds]="excludeGoalIds()"
         (selected)="onRelationGoalSelected($event)"
         (closed)="showRelationSelector = false" />
+
+      <!-- Add Reference (reverse-association) Dialog -->
+      <app-entity-selector-dialog
+        [visible]="showReferrerSelector"
+        [projectName]="projectName"
+        [entityTypes]="goalReferrerTypes"
+        title="Add Reference"
+        [excludeIds]="existingReferrerIds()"
+        (selected)="onReferrerSelected($event)"
+        (closed)="showReferrerSelector = false" />
 
       <!-- Relation Type Dialog -->
       <p-dialog [visible]="relationDialogVisible()" (visibleChange)="relationDialogVisible.set($event)"
@@ -257,8 +268,9 @@ const STALE_VERSION_MESSAGE =
       </ng-template>
 
       <ng-template #relationsSection let-heading="heading">
-        <app-relationship-section
-          title="This Goal's Relations" [showHeading]="heading"
+        <app-relationship-section #goalRelationSection
+          title="This Goal's Relations" [showHeading]="heading" [colWidths]="relColWidths"
+          description="This goal supports or conflicts with other goals."
           [items]="goal()?.relationsFromThisGoal ?? []" [headers]="['Goal', 'Type']"
           [canAdd]="canEdit() && goalId != null"
           addLabel="Add Relation" addTestid="goal-add-relation"
@@ -273,25 +285,19 @@ const STALE_VERSION_MESSAGE =
           </ng-template>
         </app-relationship-section>
 
-        @if (goal()?.relationsToThisGoal?.length) {
-          <div class="section">
-            <h3>Related To This Goal</h3>
-            <p-table [value]="goal()!.relationsToThisGoal!" [rows]="10">
-              <ng-template #header>
-                <tr>
-                  <th>Goal</th>
-                  <th>Type</th>
-                </tr>
-              </ng-template>
-              <ng-template #body let-r>
-                <tr>
-                  <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', r.goalId]">{{ r.goalName }}</a></td>
-                  <td>{{ r.relationType }}</td>
-                </tr>
-              </ng-template>
-            </p-table>
-          </div>
-        }
+        <app-relationship-section
+          title="Related To This Goal" [headingLevel]="3" [colWidths]="relColWidths"
+          description="Other goals that support or conflict with this goal."
+          [items]="goal()?.relationsToThisGoal ?? []" [headers]="['Goal', 'Type']"
+          [canAdd]="false" [canRemove]="false"
+          rowTestid="goal-related-to-row" testid="goal-related-to"
+          emptyText="No goals relate to this one."
+          [trackBy]="relationTrackBy">
+          <ng-template #row let-r>
+            <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', r.goalId]">{{ r.goalName }}</a></td>
+            <td>{{ r.relationType }}</td>
+          </ng-template>
+        </app-relationship-section>
       </ng-template>
     </div>
   `,
@@ -341,7 +347,25 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     return ref ? `Relation to "${ref.name}"` : '';
   });
 
-  @ViewChild(RelationshipSectionComponent) relationSection?: RelationshipSectionComponent<GoalRelationDto>;
+  @ViewChild('goalRelationSection') relationSection?: RelationshipSectionComponent<GoalRelationDto>;
+  @ViewChild('goalReferencedBySection') goalReferencedBySection?: RelationshipSectionComponent<EntityReferenceDto>;
+  /** Reverse-association: types this goal can be added into. Project is a container too, but
+   *  belongs to no picker — it is the implicit fallback. */
+  readonly goalReferrerTypes = ['Actor', 'Stakeholder', 'Story', 'UseCase'];
+  referrerRemoveAria = (r: EntityReferenceDto): string => 'Remove reference from ' + r.name;
+  refTrackBy = (r: EntityReferenceDto) => r.id;
+  /** Shared column widths so all three relation sections line up (Name auto, Type fixed). */
+  readonly relColWidths = ['', '12rem'];
+
+  /** Route for a referring container row, or null when its type has no editor route. */
+  referrerLink(r: EntityReferenceDto): unknown[] | null {
+    const seg: Record<string, string> = {
+      UseCase: 'use-cases', Story: 'stories', Actor: 'actors', Goal: 'goals',
+      Stakeholder: 'stakeholders', UserStakeholder: 'stakeholders', NonUserStakeholder: 'stakeholders',
+    };
+    const path = r.entityType ? seg[r.entityType] : undefined;
+    return path && r.id != null ? ['/projects', this.projectName, path, r.id] : null;
+  }
   /** Accessible name for each relation's remove button. */
   relationRemoveAria = (r: GoalRelationDto): string => 'Remove relation to ' + r.goalName;
   /** Row identity for the relations list. */
@@ -371,6 +395,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   wizardStep = 'details';
 
   showRelationSelector = false;
+  showReferrerSelector = false;
   newRelationType = 'Supports';
   relationTypeOptions = [
     { label: 'Supports', value: 'Supports' },
@@ -542,6 +567,12 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       ids.push(...g.relationsFromThisGoal.map(r => r.goalId));
     }
     return ids;
+  }
+
+  existingReferrerIds(): number[] {
+    return (this.goal()?.referencedBy ?? [])
+      .filter(r => r.id != null)
+      .map(r => r.id!);
   }
 
   /**
@@ -760,6 +791,52 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       this.relationSection?.announceRemoved(relation.goalName);
     } else {
       this.showError(result.error ?? 'Failed to delete relation.');
+    }
+  }
+
+  /**
+   * Reverse-add: add THIS goal into the picked container (actor / stakeholder / story / use case).
+   * AddGoalToGoalContainer merges the CONTAINER, not the goal, so its response is the container
+   * DTO — we reload the goal to refresh `referencedBy` rather than adopting `result.entity`.
+   */
+  async onReferrerSelected(ref: EntityReferenceDto): Promise<void> {
+    this.showReferrerSelector = false;
+    try {
+      const result = await this.commandService.execute('AddGoalToGoalContainer', {
+        projectName: this.projectName,
+        goalContainerId: ref.id,
+        goalId: this.goalId,
+        containerType: ref.entityType
+      });
+      if (result.success) {
+        await this.loadGoal(false);
+        this.messageService.add({ severity: 'success', summary: 'Reference added', detail: 'Reference added.' });
+        this.goalReferencedBySection?.announceAdded(ref.name);
+      } else {
+        this.showError(result.error ?? 'Failed to add reference.');
+      }
+    } catch {
+      this.showError('Failed to add reference.');
+    }
+  }
+
+  async onRemoveReferrer(ref: EntityReferenceDto): Promise<void> {
+    try {
+      const result = await this.commandService.execute('RemoveGoalFromGoalContainer', {
+        projectName: this.projectName,
+        goalContainerId: ref.id,
+        goalId: this.goalId,
+        containerType: ref.entityType
+      });
+      if (result.success) {
+        await this.loadGoal(false);
+        this.messageService.add({ severity: 'success', summary: 'Reference removed', detail: 'Reference removed.' });
+        this.goalReferencedBySection?.announceRemoved(ref.name);
+      } else {
+        this.showError(result.error ?? 'Failed to remove reference.');
+      }
+    } catch {
+      this.showError('Failed to remove reference.');
     }
   }
 

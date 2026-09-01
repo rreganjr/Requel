@@ -19,7 +19,7 @@ const MOCK_ACTORS = [
 
 const MOCK_STORY = {
   id: 20, version: 4, name: 'User logs in', text: 'A user logs in with credentials.',
-  storyType: 'Success', primaryActorName: 'Customer', goals: [], actors: []
+  storyType: 'Success', primaryActorName: 'Customer', goals: [], actors: [], referencedBy: []
 };
 
 const flush = () => new Promise(r => setTimeout(r, 0));

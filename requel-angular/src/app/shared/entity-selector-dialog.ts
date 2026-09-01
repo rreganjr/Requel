@@ -32,6 +32,8 @@ import { GoalService } from '../core/goal.service';
 import { StoryService } from '../core/story.service';
 import { ActorService } from '../core/actor.service';
 import { ScenarioService } from '../core/scenario.service';
+import { StakeholderService } from '../core/stakeholder.service';
+import { UseCaseService } from '../core/use-case.service';
 
 /**
  * Shared dialog for selecting an entity from a project.
@@ -53,7 +55,7 @@ import { ScenarioService } from '../core/scenario.service';
   standalone: true,
   imports: [FormsModule, DialogModule, TableModule, ButtonModule, InputText, IconField, InputIcon, SelectModule],
   template: `
-    <p-dialog [header]="'Select ' + entityType" [(visible)]="visible" data-testid="entity-selector-dialog"
+    <p-dialog [header]="title || ('Select ' + entityType)" [(visible)]="visible" data-testid="entity-selector-dialog"
               [modal]="true" [focusOnShow]="true" closeAriaLabel="Close" appendTo="body"
               [style]="{ width: '500px' }" (onHide)="closed.emit()">
       <div class="search-bar">
@@ -107,6 +109,14 @@ export class EntitySelectorDialogComponent implements OnChanges {
   @Input() visible = false;
   @Input() projectName = '';
   @Input() entityType = 'Goal';
+  /**
+   * Multi-type mode: when non-empty, the picker loads every listed entity type into
+   * one list and tags each row with its type so the built-in type-filter dropdown lets
+   * the user narrow by type. Used by the "Referenced By" reverse-association (#24).
+   */
+  @Input() entityTypes?: string[];
+  /** Optional dialog header override (defaults to "Select {entityType}"). */
+  @Input() title?: string;
   @Input() excludeIds: number[] = [];
   /** typeName values to hide entirely from the list (e.g. ['Primary'] when one already exists). */
   @Input() excludeTypes: string[] = [];
@@ -138,11 +148,13 @@ export class EntitySelectorDialogComponent implements OnChanges {
     private goalService: GoalService,
     private storyService: StoryService,
     private actorService: ActorService,
-    private scenarioService: ScenarioService
+    private scenarioService: ScenarioService,
+    private stakeholderService: StakeholderService,
+    private useCaseService: UseCaseService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (this.visible && (changes['visible'] || changes['projectName'] || changes['entityType'])) {
+    if (this.visible && (changes['visible'] || changes['projectName'] || changes['entityType'] || changes['entityTypes'])) {
       this.loadEntities();
     }
   }
@@ -152,31 +164,17 @@ export class EntitySelectorDialogComponent implements OnChanges {
     this.searchText.set('');
     this.typeFilter.set('');
     try {
-      let refs: EntityReferenceDto[] = [];
       const excludeSet = new Set(this.excludeIds);
       const excludeTypeSet = new Set(this.excludeTypes);
+      const multi = (this.entityTypes?.length ?? 0) > 0;
+      const types = multi ? this.entityTypes! : [this.entityType];
 
-      switch (this.entityType) {
-        case 'Goal': {
-          const goals = await this.goalService.listGoals(this.projectName);
-          refs = goals.map(g => ({ entityType: 'Goal', id: g.id, name: g.name }));
-          break;
-        }
-        case 'Story': {
-          const stories = await this.storyService.listStories(this.projectName);
-          refs = stories.map(s => ({ entityType: 'Story', id: s.id, name: s.name }));
-          break;
-        }
-        case 'Actor': {
-          const actors = await this.actorService.listActors(this.projectName);
-          refs = actors.map(a => ({ entityType: 'Actor', id: a.id, name: a.name }));
-          break;
-        }
-        case 'Scenario': {
-          const scenarios = await this.scenarioService.listScenarios(this.projectName);
-          refs = scenarios.map(s => ({ entityType: 'Scenario', id: s.id, name: s.name, typeName: s.scenarioType ?? undefined }));
-          break;
-        }
+      let refs: EntityReferenceDto[] = [];
+      for (const type of types) {
+        const part = await this.loadRefsForType(type);
+        // Multi-type mode: tag each row with its entity type so the type-filter
+        // dropdown (hasTypes/typeOptions) lets the user narrow by type.
+        refs = refs.concat(multi ? part.map(r => ({ ...r, typeName: r.entityType })) : part);
       }
 
       const includeTypeSet = new Set(this.includeTypes);
@@ -188,6 +186,38 @@ export class EntitySelectorDialogComponent implements OnChanges {
       ));
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  /** Load the selectable entities for a single type as lightweight references. */
+  private async loadRefsForType(type: string): Promise<EntityReferenceDto[]> {
+    switch (type) {
+      case 'Goal': {
+        const goals = await this.goalService.listGoals(this.projectName);
+        return goals.map(g => ({ entityType: 'Goal', id: g.id, name: g.name }));
+      }
+      case 'Story': {
+        const stories = await this.storyService.listStories(this.projectName);
+        return stories.map(s => ({ entityType: 'Story', id: s.id, name: s.name }));
+      }
+      case 'Actor': {
+        const actors = await this.actorService.listActors(this.projectName);
+        return actors.map(a => ({ entityType: 'Actor', id: a.id, name: a.name }));
+      }
+      case 'Scenario': {
+        const scenarios = await this.scenarioService.listScenarios(this.projectName);
+        return scenarios.map(s => ({ entityType: 'Scenario', id: s.id, name: s.name, typeName: s.scenarioType ?? undefined }));
+      }
+      case 'Stakeholder': {
+        const stakeholders = await this.stakeholderService.listStakeholders(this.projectName);
+        return stakeholders.map(s => ({ entityType: 'Stakeholder', id: s.id, name: s.name }));
+      }
+      case 'UseCase': {
+        const useCases = await this.useCaseService.listUseCases(this.projectName);
+        return useCases.map(u => ({ entityType: 'UseCase', id: u.id, name: u.name }));
+      }
+      default:
+        return [];
     }
   }
 

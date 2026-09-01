@@ -413,6 +413,39 @@ describe('GoalEditorComponent', () => {
     }));
   });
 
+  it('reverse-add: adds this goal into the picked container, then reloads to refresh referencedBy', async () => {
+    await renderExisting();
+    goalServiceMock.getGoal.mockClear();
+    // The reverse command merges the CONTAINER, not the goal, so the handler must reload the goal.
+    commandServiceMock.execute.mockResolvedValue({ success: true, entity: { id: 999 } });
+    await comp.onReferrerSelected({ entityType: 'Actor', id: 7, name: 'Shopper' });
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('AddGoalToGoalContainer', expect.objectContaining({
+      projectName: 'proj1', goalContainerId: 7, goalId: 10, containerType: 'Actor'
+    }));
+    expect(goalServiceMock.getGoal).toHaveBeenCalledWith('proj1', 10);
+  });
+
+  it('reverse-remove: removes the reference, then reloads to refresh referencedBy', async () => {
+    await renderExisting();
+    goalServiceMock.getGoal.mockClear();
+    commandServiceMock.execute.mockResolvedValue({ success: true, entity: { id: 999 } });
+    await comp.onRemoveReferrer({ entityType: 'UseCase', id: 8, name: 'Checkout' });
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('RemoveGoalFromGoalContainer', expect.objectContaining({
+      projectName: 'proj1', goalContainerId: 8, goalId: 10, containerType: 'UseCase'
+    }));
+    expect(goalServiceMock.getGoal).toHaveBeenCalledWith('proj1', 10);
+  });
+
+  it('links a user-stakeholder referrer to the stakeholders route', async () => {
+    await renderExisting();
+    // The container type comes through as the concrete interface name (UserStakeholder /
+    // NonUserStakeholder), both of which resolve to the shared stakeholders editor route.
+    expect(comp.referrerLink({ entityType: 'UserStakeholder', id: 3, name: 'Dr. Smith' }))
+      .toEqual(['/projects', 'proj1', 'stakeholders', 3]);
+    expect(comp.referrerLink({ entityType: 'NonUserStakeholder', id: 4, name: 'Payer' }))
+      .toEqual(['/projects', 'proj1', 'stakeholders', 4]);
+  });
+
   it('keeps the SSE guard from clobbering unsaved edits but still takes the new version', async () => {
     await renderExisting();
     comp.detailsForm.controls.name.setValue('Local edit');

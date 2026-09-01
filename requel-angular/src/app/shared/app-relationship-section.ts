@@ -53,11 +53,16 @@ import { ButtonModule } from 'primeng/button';
     <div class="rq-rel-section" [attr.data-testid]="testid">
       <div class="rq-rel-header">
         @if (showHeading) {
-          @if (headingLevel === 3) {
-            <h3 class="rq-section-title">{{ title }}</h3>
-          } @else {
-            <h2 class="rq-section-title">{{ title }}</h2>
-          }
+          <div class="rq-rel-titles">
+            @if (headingLevel === 3) {
+              <h3 class="rq-section-title">{{ title }}</h3>
+            } @else {
+              <h2 class="rq-section-title">{{ title }}</h2>
+            }
+            @if (description) {
+              <p class="rq-rel-description" [attr.data-testid]="testid + '-description'">{{ description }}</p>
+            }
+          </div>
         }
         @if (canAdd) {
           <p-button #addButton [label]="addLabel" icon="pi pi-plus" size="small"
@@ -70,13 +75,21 @@ import { ButtonModule } from 'primeng/button';
       } @else if (!items.length) {
         <p class="rq-rel-empty" [attr.data-testid]="testid + '-empty'">{{ emptyText }}</p>
       } @else {
-        <table class="rq-rel-table">
+        <table class="rq-rel-table" [class.rq-rel-fixed]="!!colWidths?.length">
+          @if (colWidths?.length) {
+            <colgroup>
+              @for (w of colWidths; track $index) { <col [style.width]="w || null" /> }
+              <col class="rq-rel-actions-col" />
+            </colgroup>
+          }
           <thead>
             <tr>
               @for (h of headers; track h) { <th scope="col">{{ h }}</th> }
-              <th scope="col" class="rq-rel-actions-col">
-                <span class="rq-visually-hidden">Actions</span>
-              </th>
+              @if (canRemove) {
+                <th scope="col" class="rq-rel-actions-col">
+                  <span class="rq-visually-hidden">Actions</span>
+                </th>
+              }
             </tr>
           </thead>
           <tbody>
@@ -84,13 +97,15 @@ import { ButtonModule } from 'primeng/button';
               <tr [attr.data-testid]="rowTestid">
                 <ng-container [ngTemplateOutlet]="rowTemplate"
                               [ngTemplateOutletContext]="{ $implicit: item }" />
-                <td class="rq-rel-actions-col">
-                  <p-button icon="pi pi-trash" [text]="true" [rounded]="true"
-                            severity="danger" size="small"
-                            [attr.data-testid]="removeTestid"
-                            [ariaLabel]="removeAriaLabel(item)"
-                            (onClick)="remove.emit(item)" />
-                </td>
+                @if (canRemove) {
+                  <td class="rq-rel-actions-col">
+                    <p-button icon="pi pi-trash" [text]="true" [rounded]="true"
+                              severity="danger" size="small"
+                              [attr.data-testid]="removeTestid"
+                              [ariaLabel]="removeAriaLabel(item)"
+                              (onClick)="remove.emit(item)" />
+                  </td>
+                }
               </tr>
             }
           </tbody>
@@ -108,12 +123,24 @@ import { ButtonModule } from 'primeng/button';
       gap: var(--rq-space-4, 1rem); margin-bottom: var(--rq-space-2, 0.5rem); flex-wrap: wrap;
     }
     .rq-rel-header .rq-section-title { margin: 0; }
+    .rq-rel-titles { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+    .rq-rel-description { margin: 0; font-size: 0.8125rem; font-weight: 400; color: var(--p-text-muted-color, #6b7280); }
     .rq-rel-table { width: 100%; border-collapse: collapse; }
+    .rq-rel-table.rq-rel-fixed { table-layout: fixed; }
+    .rq-rel-table.rq-rel-fixed td { overflow-wrap: anywhere; }
     .rq-rel-table th, .rq-rel-table td {
-      text-align: left; padding: var(--rq-space-2, 0.5rem);
+      text-align: left; padding: var(--rq-space-2, 0.5rem); vertical-align: middle;
       border-bottom: 1px solid var(--p-content-border-color, #e5e7eb);
     }
     .rq-rel-actions-col { width: 3rem; text-align: right; }
+    /* The icon remove button otherwise renders taller than a text row, adding an
+       "empty row" gap in editable lists that the read-only (canRemove=false) list
+       doesn't have. Zero the cell padding and compact the button so every list
+       shares one tight row rhythm. !important beats PrimeNG's p-button-sm sizing. */
+    .rq-rel-table td.rq-rel-actions-col { padding-top: 0; padding-bottom: 0; }
+    .rq-rel-actions-col ::ng-deep .p-button {
+      width: 1.5rem !important; height: 1.5rem !important; padding: 0 !important;
+    }
     .rq-rel-hint, .rq-rel-empty { color: var(--p-text-muted-color, #6b7280); margin: 0.5rem 0; }
     .rq-visually-hidden {
       position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -134,6 +161,14 @@ export class RelationshipSectionComponent<T = unknown> {
   @Input() headers: string[] = [];
   /** Gates the Add button; host passes `canEdit() && entityId != null`. */
   @Input() canAdd = false;
+  /** When false, the section is read-only: no actions column, no per-row remove button. */
+  @Input() canRemove = true;
+  /** Optional CSS widths per data column (parallel to headers; '' = auto). When set, the
+   *  table uses a fixed layout and reserves the actions column, so sibling sections whose
+   *  columns share these widths line up even when one is read-only. */
+  @Input() colWidths?: string[];
+  /** Optional muted sub-title under the heading explaining what the list contains. */
+  @Input() description?: string;
   /** Add button label. */
   @Input() addLabel = 'Add';
   /** data-testid forwarded to the Add button (preserve existing e2e selectors). */
