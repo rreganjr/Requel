@@ -115,9 +115,16 @@ export class GoalEditorPage {
 
   async delete(): Promise<void> {
     await this.page.getByTestId('goal-delete').click();
-    // PrimeNG p-confirmDialog accept button
-    await this.page.getByRole('button', { name: 'Yes' }).click();
-    await this.page.waitForLoadState('domcontentloaded');
+    // Register the response waiter before clicking Yes — the DeleteGoal call fires immediately on
+    // confirm. Without it, a slow response lets the caller's waitForURL race the client-side
+    // navigation (flaky "delete goal → removed from list"). Mirrors copy() below.
+    const [response] = await Promise.all([
+      this.page.waitForResponse(r => r.url().includes('/api/commands/DeleteGoal')),
+      this.page.getByRole('button', { name: 'Yes' }).click(),
+    ]);
+    if (!response.ok()) {
+      throw new Error(`DeleteGoal failed: ${response.status()} ${await response.text()}`);
+    }
   }
 
   async copy(): Promise<void> {
