@@ -339,6 +339,80 @@ class ProjectQueryControllerTest {
     }
 
     // -------------------------------------------------------------------------
+    // referencedBy mapping (issue #24) — reverse-association labels for the
+    // "Referenced By" sections. These pin the referer → EntityReferenceDto mapping
+    // for each container kind so the row always carries a resolvable name.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void toGoalDetailDtoResolvesUserStakeholderReferrerName() {
+        // A UserStakeholder has no entered name; toEntityReference(GoalContainer) must use
+        // getDisplayName() (falls back to the linked user), else the row shows a Type with no Name.
+        Goal goal = stubGoal(50L, "Reduce churn");
+        UserStakeholder ref = stubUserStakeholder(9L, "Dr. Smith");
+        doReturn(UserStakeholder.class).when(ref).getProjectOrDomainEntityInterface();
+        when(goal.getReferers()).thenReturn(Set.<com.rreganjr.requel.project.GoalContainer>of(ref));
+
+        com.rreganjr.requel.service.api.dto.GoalDto dto = ProjectQueryController.toGoalDetailDto(goal);
+
+        assertEquals(1, dto.referencedBy().size());
+        assertEquals("UserStakeholder", dto.referencedBy().get(0).entityType());
+        assertEquals("Dr. Smith", dto.referencedBy().get(0).name());
+    }
+
+    @Test
+    void toStoryDetailDtoIncludesUseCaseReferrer() {
+        Story story = stubStory(60L, "Login");
+        when(story.getGoals()).thenReturn(Collections.emptySet());
+        when(story.getActors()).thenReturn(Collections.emptySet());
+        UseCase uc = stubUseCase(61L, "Checkout");
+        when(story.getReferers()).thenReturn(Set.<com.rreganjr.requel.project.StoryContainer>of(uc));
+
+        com.rreganjr.requel.service.api.dto.StoryDto dto = ProjectQueryController.toStoryDetailDto(story);
+
+        assertEquals(1, dto.referencedBy().size());
+        assertEquals("UseCase", dto.referencedBy().get(0).entityType());
+        assertEquals("Checkout", dto.referencedBy().get(0).name());
+    }
+
+    @Test
+    void toStoryDetailDtoMapsProjectReferrerToProjectType() {
+        // The project itself is a StoryContainer (project-level stories), taking the
+        // ProjectOrDomain arm of toEntityReference rather than the entity arm.
+        Story story = stubStory(62L, "Signup");
+        when(story.getGoals()).thenReturn(Collections.emptySet());
+        when(story.getActors()).thenReturn(Collections.emptySet());
+        Project owning = mock(Project.class);
+        when(owning.getId()).thenReturn(1L);
+        when(owning.getName()).thenReturn("TestProject");
+        when(story.getReferers()).thenReturn(Set.<com.rreganjr.requel.project.StoryContainer>of(owning));
+
+        com.rreganjr.requel.service.api.dto.StoryDto dto = ProjectQueryController.toStoryDetailDto(story);
+
+        assertEquals(1, dto.referencedBy().size());
+        assertEquals("Project", dto.referencedBy().get(0).entityType());
+        assertEquals("TestProject", dto.referencedBy().get(0).name());
+    }
+
+    @Test
+    void toScenarioDetailDtoIncludesUseCaseThatAddsIt() {
+        // Scenario has no back-reference to its use cases; the referer list is found by scanning
+        // the project's use cases for one whose additionalScenarios contains this scenario.
+        Scenario scenario = stubScenario(70L, "Alt flow");
+        Project owning = mock(Project.class);
+        when(scenario.getProjectOrDomain()).thenReturn(owning);
+        UseCase uc = stubUseCase(71L, "Checkout");
+        when(uc.getAdditionalScenarios()).thenReturn(Set.of(scenario));
+        when(owning.getUseCases()).thenReturn(Set.of(uc));
+
+        com.rreganjr.requel.service.api.dto.ScenarioDto dto = ProjectQueryController.toScenarioDetailDto(scenario);
+
+        assertEquals(1, dto.referencedBy().size());
+        assertEquals("UseCase", dto.referencedBy().get(0).entityType());
+        assertEquals("Checkout", dto.referencedBy().get(0).name());
+    }
+
+    // -------------------------------------------------------------------------
     // Stories
     // -------------------------------------------------------------------------
 
