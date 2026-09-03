@@ -70,41 +70,35 @@ PKCE, consent, and the `mcp` scope.
 > registration. If a client can *only* self-register anonymously and can't be configured otherwise,
 > use the PAT path instead.
 
-### Codex over OAuth (native Streamable) — the #98 target recipe
+### Codex over OAuth (native Streamable) — confirmed recipe
 
-Codex speaks native remote MCP over OAuth, but **only over Streamable HTTP** — which Requel now
-serves. No `mcp-remote` bridge and no PAT.
+Codex speaks native remote MCP over OAuth on **Streamable HTTP**, which Requel serves. Codex performs
+**anonymous** Dynamic Client Registration and cannot be handed a pre-registered `client_id`, so it
+relies on the loopback-restricted anonymous DCR path added in #238. No `mcp-remote` bridge, no PAT,
+and no manual client registration.
 
-1. Start Requel with the AS + DCR enabled and a registrar secret:
-   `--requel.oauth.dcr.enabled=true --requel.oauth.dcr.registrar-client-secret=<secret>`
+1. Start Requel with the anonymous-loopback DCR path enabled. The **dev profile turns this on**
+   (`requel.oauth.dcr.allow-anonymous-loopback=true`), so `--spring.profiles.active=dev` is enough;
+   otherwise pass `--requel.oauth.dcr.allow-anonymous-loopback=true`. (#238 also advertises
+   `registration_endpoint` in the RFC 8414 `oauth-authorization-server` metadata — without it Codex
+   reports "Dynamic client registration not supported" and never POSTs.)
 
-2. Add the server and start the login:
+2. Add the server and log in (ensure no `REQUEL_TOKEN` is set, so Codex authenticates via OAuth rather
+   than sending a bearer):
 
    ```bash
    codex mcp add --transport http requel http://localhost:8080/api/mcp
    codex mcp login requel
    ```
 
-3. **Register a client for Codex's callback.** Codex's OAuth attempts anonymous DCR, which Requel's
-   gated `/connect/register` rejects, so pre-register a client whose `redirect_uris` match Codex's
-   loopback callback. Codex's `mcp_oauth_callback_url` appends a server-specific callback id, so the
-   **exact** `redirect_uri` must be read from a first login attempt (the browser URL / the server's
-   `invalid_redirect_uri` error), then registered:
+   Codex discovers `/connect/register`, self-registers (anonymous, loopback callback), then opens a
+   browser for your Requel login + one-time consent; on success `requel` shows connected and the tools
+   appear. The registered client is public/PKCE, scope `mcp`, consent-required — the same policy as
+   gated DCR.
 
-   ```bash
-   INIT=$(curl -s -u requel-registrar:<secret> -X POST http://localhost:8080/oauth2/token \
-     -d grant_type=client_credentials -d scope=client.create | jq -r .access_token)
-   curl -s -X POST http://localhost:8080/connect/register \
-     -H "Authorization: Bearer $INIT" -H 'Content-Type: application/json' \
-     -d '{"client_name":"codex","redirect_uris":["<EXACT redirect_uri Codex used>"],"grant_types":["authorization_code","refresh_token"]}' | jq -r .client_id
-   ```
-   Do NOT send a `scope` field — Spring AS validates it against the initial token (`client.create`
-   only) and stamps the client with scope `mcp` automatically. Configure Codex with the returned
-   `client_id` and its fixed `mcp_oauth_callback_port`, then re-run `codex mcp login requel`.
-
-> ⚠ **Runtime-verify:** the exact `redirect_uri` / callback port Codex uses and whether it accepts a
-> pre-registered `client_id` are environment-specific — confirm from a first login attempt and record
-> the values here for your setup.
+> Verified working (issue #238): `codex mcp login requel` with no PAT and no pre-registration. If a
+> future Codex build changes its callback host/path such that the loopback check rejects it, read the
+> `redirect_uri` from the first login attempt and confirm it is a `127.0.0.1`/`localhost` loopback URI.
 
 ### Claude Code over OAuth — confirmed recipe
 
