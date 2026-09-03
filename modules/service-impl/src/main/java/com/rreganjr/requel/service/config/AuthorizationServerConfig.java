@@ -22,6 +22,7 @@ package com.rreganjr.requel.service.config;
 
 import com.rreganjr.requel.service.auth.OAuth2ConsentController;
 import com.rreganjr.requel.service.auth.OAuth2LoginPageController;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
@@ -157,21 +158,29 @@ public class AuthorizationServerConfig {
         return environment.getProperty("requel.oauth.dcr.registrar-client-secret", "");
     }
 
+    /** Allow anonymous DCR for loopback clients (issue #238); default false (gated-only, #83 behavior). */
+    private boolean allowAnonymousLoopbackDcr() {
+        return environment.getProperty("requel.oauth.dcr.allow-anonymous-loopback", Boolean.class, false);
+    }
+
     /** Log the resolved OAuth flags at startup so seeding behavior is diagnosable (issue #83). */
     @jakarta.annotation.PostConstruct
     void logResolvedOAuthConfig() {
         String secret = registrarClientSecret();
         log.info("OAuth AS config resolved: seed-dev-client={}, seed-cli-client={}, dcr.enabled={}, "
-                + "dcr.registrar-client-id={}, registrar-secret-set={}, issuer='{}'",
+                + "dcr.registrar-client-id={}, registrar-secret-set={}, dcr.allow-anonymous-loopback={}, "
+                + "issuer='{}'",
                 seedDevClient(), seedCliClient(), dcrEnabled(), registrarClientId(),
-                (secret != null && !secret.isBlank()), issuer());
+                (secret != null && !secret.isBlank()), allowAnonymousLoopbackDcr(), issuer());
     }
 
     // ---- Chain 1: authorization-server endpoints -------------------------------------------------
 
     @Bean
     @Order(1)
-    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http,
+            RegisteredClientRepository registeredClientRepository,
+            ObjectMapper objectMapper) throws Exception {
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer =
                 OAuth2AuthorizationServerConfigurer.authorizationServer();
 
@@ -187,6 +196,26 @@ public class AuthorizationServerConfig {
                 // Custom consent page (issue #83: consent required for all MCP clients).
                 .authorizationEndpoint(authorizationEndpoint ->
                         authorizationEndpoint.consentPage(OAuth2ConsentController.CONSENT_PAGE_URI))
+                // Advertise registration_endpoint in the RFC 8414 authorization-server metadata
+                // (issue #238). Spring AS lists it only in the OIDC openid-configuration document,
+                // but MCP clients (e.g. Codex) read /.well-known/oauth-authorization-server to decide
+                // whether DCR is available; without it they report "Dynamic client registration not
+                // supported" and never POST to /connect/register. Only advertised when DCR is
+                // actually usable (gated registrar or loopback-anonymous). The endpoint URL is
+                // derived from the request-resolved token_endpoint so it stays correct per-issuer.
+                .authorizationServerMetadataEndpoint(metadata -> metadata
+                    .authorizationServerMetadataCustomizer(builder -> {
+                        if (dcrEnabled() || allowAnonymousLoopbackDcr()) {
+                            builder.claims(claims -> {
+                                Object tokenEndpoint = claims.get("token_endpoint");
+                                if (tokenEndpoint instanceof String te && te.endsWith("/oauth2/token")) {
+                                    claims.put("registration_endpoint",
+                                            te.substring(0, te.length() - "/oauth2/token".length())
+                                                    + "/connect/register");
+                                }
+                            });
+                        }
+                    }))
             )
             .authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
             // Unauthenticated browser requests to AS endpoints redirect to the AS login page.
@@ -197,6 +226,18 @@ public class AuthorizationServerConfig {
                     new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
             // Accept the AS's own JWTs at the OIDC userinfo endpoint.
             .oauth2ResourceServer(resourceServer -> resourceServer.jwt(Customizer.withDefaults()));
+
+        // Loopback-restricted anonymous DCR (issue #238): when enabled, intercept an anonymous
+        // POST /connect/register from a loopback peer and register a loopback MCP client directly,
+        // reusing the same policy as gated DCR. Placed before the bearer filter so the anonymous
+        // request is handled before the resource-server auth would reject it; any request carrying a
+        // bearer (the gated / initial-access-token path) passes through untouched. Off => not added,
+        // so behavior is byte-identical to #83.
+        if (allowAnonymousLoopbackDcr()) {
+            http.addFilterBefore(
+                    new AnonymousLoopbackDcrFilter(registeredClientRepository, objectMapper),
+                    org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class);
+        }
 
         return http.build();
     }
@@ -498,45 +539,56 @@ public class AuthorizationServerConfig {
 
         @Override
         public RegisteredClient convert(OidcClientRegistration clientRegistration) {
-            // Spring AS's built-in OidcClientRegistration -> RegisteredClient converter is not public
-            // API, so build the client directly and impose Requel's policy: public (PKCE) loopback
-            // native-app client, consent required, scope=mcp, 1h/30d rotating tokens.
-            List<String> redirectUris = clientRegistration.getRedirectUris();
-            if (redirectUris == null || redirectUris.isEmpty()) {
-                throw new OAuth2AuthenticationException(new OAuth2Error(
-                        "invalid_redirect_uri",
-                        "At least one loopback redirect URI is required", null));
-            }
-            for (String redirectUri : redirectUris) {
-                if (!isLoopbackRedirectUri(redirectUri)) {
-                    throw new OAuth2AuthenticationException(new OAuth2Error(
-                            "invalid_redirect_uri",
-                            "Only loopback redirect URIs (127.0.0.1, [::1], localhost) are allowed",
-                            null));
-                }
-            }
-            String clientName = clientRegistration.getClientName();
-            RegisteredClient.Builder builder = RegisteredClient.withId(UUID.randomUUID().toString())
-                    .clientId(UUID.randomUUID().toString())
-                    .clientIdIssuedAt(Instant.now())
-                    .clientName(clientName != null ? clientName : "mcp-client")
-                    // Public, PKCE-only (loopback native app) — no client secret issued.
-                    .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
-                    .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                    .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                    .scope("mcp")
-                    .clientSettings(ClientSettings.builder()
-                            .requireProofKey(true)
-                            .requireAuthorizationConsent(true)
-                            .build())
-                    .tokenSettings(defaultTokenSettings());
-            redirectUris.forEach(builder::redirectUri);
-            return builder.build();
+            // Delegate to the shared policy so gated DCR and loopback-anonymous DCR (issue #238)
+            // register byte-identical clients (public/PKCE, consent, scope=mcp, 1h/30d, loopback-only).
+            return buildLoopbackMcpClient(
+                    clientRegistration.getClientName(), clientRegistration.getRedirectUris());
         }
     }
 
+    /**
+     * Shared DCR client policy (issue #83 + #238): builds a public (PKCE) loopback native-app client
+     * with consent required, scope {@code mcp}, and the standard 1h/30d rotating tokens, after
+     * validating that every redirect URI is loopback. Used by both the gated OIDC DCR converter and
+     * the loopback-anonymous registration filter, so the two paths produce identical clients. Throws
+     * {@link OAuth2AuthenticationException} with {@code invalid_redirect_uri} on an empty or
+     * non-loopback redirect set (callers translate it to their response). Package-visible so the
+     * filter (same package) and a unit test can call it without booting the AS.
+     */
+    static RegisteredClient buildLoopbackMcpClient(String clientName, List<String> redirectUris) {
+        if (redirectUris == null || redirectUris.isEmpty()) {
+            throw new OAuth2AuthenticationException(new OAuth2Error(
+                    "invalid_redirect_uri",
+                    "At least one loopback redirect URI is required", null));
+        }
+        for (String redirectUri : redirectUris) {
+            if (!isLoopbackRedirectUri(redirectUri)) {
+                throw new OAuth2AuthenticationException(new OAuth2Error(
+                        "invalid_redirect_uri",
+                        "Only loopback redirect URIs (127.0.0.1, [::1], localhost) are allowed",
+                        null));
+            }
+        }
+        RegisteredClient.Builder builder = RegisteredClient.withId(UUID.randomUUID().toString())
+                .clientId(UUID.randomUUID().toString())
+                .clientIdIssuedAt(Instant.now())
+                .clientName(clientName != null ? clientName : "mcp-client")
+                // Public, PKCE-only (loopback native app) — no client secret issued.
+                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                .scope("mcp")
+                .clientSettings(ClientSettings.builder()
+                        .requireProofKey(true)
+                        .requireAuthorizationConsent(true)
+                        .build())
+                .tokenSettings(defaultTokenSettings());
+        redirectUris.forEach(builder::redirectUri);
+        return builder.build();
+    }
+
     /** Loopback per OAuth 2.1 native-app guidance: 127.0.0.1, [::1]/::1, or localhost. */
-    private static boolean isLoopbackRedirectUri(String redirectUri) {
+    static boolean isLoopbackRedirectUri(String redirectUri) {
         try {
             String host = URI.create(redirectUri).getHost();
             return host != null && (host.equals("127.0.0.1") || host.equals("[::1]")

@@ -212,8 +212,16 @@ build it unless a client forces it.
 | B | dev-client code+PKCE → SSE handshake | ✅ pass | access_token sub=admin, scope=mcp; /api/mcp/sse accepted it |
 | C | DCR register + loopback reject | ✅ pass | register (no scope in request → forced mcp); non-loopback → invalid_redirect_uri |
 | D | Claude Code (VS Code) | ✅ (1) pre-registered client | `claude mcp add --client-id --callback-port 8899`; `/mcp` authenticate → browser login+consent → connected |
+| D | Codex CLI | ✅ (2) anonymous loopback DCR (#238) | `codex mcp login requel` with no PAT and no pre-registration → discovers `/connect/register` (now advertised in the RFC 8414 metadata) → anonymous register → browser login+consent → connected |
 | D | Cursor | ☐ (1) / ☐ (2) / ☐ (3) | not yet tested |
 | D | Claude Desktop / Cowork | ☐ (1) / ☐ (2) / ☐ (3) | not yet tested |
 
-**Anonymous-DCR shim needed?** ✅ no — Claude Code accepts a pre-registered client_id, so gated DCR is
-sufficient; PAT remains for headless. (Re-evaluate only if a future client can do anonymous DCR *only*.)
+**Anonymous-DCR shim needed?** ✅ **yes — shipped in #238.** Codex CLI does anonymous DCR *only* and
+cannot be handed a pre-registered client_id or an initial access token, so gated DCR was not sufficient
+for it. #238 added a loopback-restricted anonymous `/connect/register` path (opt-in
+`requel.oauth.dcr.allow-anonymous-loopback`, on in the dev profile) **and** advertises
+`registration_endpoint` in the RFC 8414 `oauth-authorization-server` metadata (Spring AS listed it
+only in the OIDC doc, which Codex does not read) — without that, Codex reported "Dynamic client
+registration not supported" before ever POSTing. Verified: `codex mcp login requel` now connects with
+no PAT and no pre-registration. Claude Code still works via its pre-registered client_id (gated path);
+PAT remains the headless/CI option.
