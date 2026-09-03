@@ -62,6 +62,7 @@ import com.rreganjr.requel.project.command.DeleteReportGeneratorCommand;
 import com.rreganjr.requel.project.command.EditReportGeneratorCommand;
 import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
+import com.rreganjr.requel.project.command.DeleteProjectCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
 import com.rreganjr.requel.project.command.DeleteScenarioCommand;
@@ -99,6 +100,7 @@ import com.rreganjr.requel.service.api.dto.CopyStoryInput;
 import com.rreganjr.requel.service.api.dto.CopyUseCaseInput;
 import com.rreganjr.requel.service.api.dto.DeleteActorInput;
 import com.rreganjr.requel.service.api.dto.DeleteScenarioInput;
+import com.rreganjr.requel.service.api.dto.DeleteProjectInput;
 import com.rreganjr.requel.service.api.dto.DeleteGoalInput;
 import com.rreganjr.requel.service.api.dto.DeleteGoalRelationInput;
 import com.rreganjr.requel.service.api.dto.DeleteStakeholderInput;
@@ -199,6 +201,17 @@ public class ProjectCommandRegistrar {
                     }
                 },
                 cmd -> toDto(((ImportProjectCommand) cmd).getProject()));
+
+        registry.register("DeleteProject", DeleteProjectInput.class,
+                factory::newDeleteProjectCommand,
+                (cmd, input) -> {
+                    DeleteProjectCommand c = (DeleteProjectCommand) cmd;
+                    DeleteProjectInput i = (DeleteProjectInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    c.setProject(project);
+                    // Caller's version drives the optimistic-lock check (issue #108).
+                    c.setExpectedVersion(i.version());
+                });
 
         // Stakeholders
         registry.register("EditUserStakeholder", EditUserStakeholderInput.class,

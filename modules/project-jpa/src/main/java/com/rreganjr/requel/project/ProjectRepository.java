@@ -177,6 +177,15 @@ public interface ProjectRepository extends Repository {
 	public Set<StakeholderPermission> findAvailableStakeholderPermissions();
 
 	/**
+	 * @param permission
+	 *            a stakeholder permission definition.
+	 * @return every {@link UserStakeholder} that has been granted the supplied
+	 *         permission (used to backfill {@code Project[Delete]} to existing
+	 *         project owners, issue #240).
+	 */
+	public Set<UserStakeholder> findUserStakeholdersWithPermission(StakeholderPermission permission);
+
+	/**
 	 * TODO: is this needed because the project or domain already holds its
 	 * terms. Get a glossary term for the given project or domain.
 	 * 

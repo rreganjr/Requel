@@ -33,6 +33,12 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public EditProjectCommand newEditProjectCommand();
 
 	/**
+	 * @return a new DeleteProjectCommand for deleting a project and all of its
+	 *         contents (issue #240).
+	 */
+	public DeleteProjectCommand newDeleteProjectCommand();
+
+	/**
 	 * @return a new ExportProjectCommand for exporting a project to xml.
 	 */
 	public ExportProjectCommand newExportProjectCommand();

@@ -157,7 +157,8 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 Goal.class, Actor.class, Story.class, UseCase.class,
                 Scenario.class, GlossaryTerm.class, Stakeholder.class,
                 ReportGenerator.class, Annotation.class);
-        // Note: Project has no Delete permission — intentionally excluded
+        // Note: Project[Delete] exists (issue #240) but is intentionally NOT granted to
+        // the deleter persona here, so deleter-level tests keep their meaning.
         addStakeholder(testProject, deleterUsername, allDeletePermissions);
 
         addStakeholder(testProject, granterUsername,
