@@ -1,0 +1,16 @@
+-- Make command_audit_log.project_id a SOFT cross-module reference to pods(id), consistent with
+-- every other project_id -> pods reference in the schema: assistant_runs / assistant_findings
+-- (V8) and tags / tag_categories (V13) all keep project_id as an indexed column WITHOUT a hard
+-- foreign key (V13 documents why).
+--
+-- The original hard FK from V4 (fk_audit_project, default ON DELETE RESTRICT) blocks the
+-- DeleteProject command (#240, surfaced by #241): the audit rows written for a project's own
+-- commands reference that project, so MySQL refuses to delete the pods row. (H2 test runs never
+-- caught this — Flyway is disabled under test and the JPA schema has no such FK, so it only bites
+-- against MySQL in e2e/production.)
+--
+-- Dropping the constraint lets a project be deleted while the audit trail — including the
+-- DeleteProject event itself — survives with its historical project_id intact. The column and the
+-- idx_audit_project_time index are unchanged (that index also served the FK, so nothing is
+-- orphaned).
+ALTER TABLE command_audit_log DROP FOREIGN KEY fk_audit_project;
