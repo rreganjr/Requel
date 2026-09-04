@@ -23,7 +23,7 @@ const MOCK_PROJECT: ProjectDto = {
   organizationName: null, createdBy: null, status: null,
   stakeholderCount: 2, goalCount: 3, storyCount: 1,
   actorCount: 4, scenarioCount: 5, useCaseCount: 0,
-  glossaryTermCount: 2, reportGeneratorCount: 1
+  glossaryTermCount: 2, reportGeneratorCount: 1, canDelete: false
 };
 
 const SIDEBAR_EXPANDED_KEY = 'requel_sidebar_expanded_projects';

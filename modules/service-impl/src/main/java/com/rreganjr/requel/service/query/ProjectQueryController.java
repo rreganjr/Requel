@@ -57,6 +57,7 @@ import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.StakeholderPermission;
+import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryContainer;
 import com.rreganjr.requel.project.UseCase;
@@ -137,7 +138,7 @@ public class ProjectQueryController {
             projects = Collections.emptySet();
         }
         return projects.stream()
-                .map(this::toDto)
+                .map(p -> toDto(p, user))
                 .sorted(Comparator.comparing(ProjectDto::name))
                 .toList();
     }
@@ -165,8 +166,8 @@ public class ProjectQueryController {
     public ResponseEntity<ProjectDto> getProject(@PathVariable String name) {
         try {
             Project project = projectRepository.findProjectByName(name);
-            requireProjectAccess(project);
-            return ResponseEntity.ok(toDto(project));
+            User user = requireProjectAccess(project);
+            return ResponseEntity.ok(toDto(project, user));
         } catch (NoSuchProjectException e) {
             return ResponseEntity.notFound().build();
         } catch (AuthorizationException e) {
@@ -539,6 +540,25 @@ public class ProjectQueryController {
         return null;
     }
 
+    /**
+     * True iff the given user holds the Project[Delete] stakeholder permission on
+     * this project. Mirrors the gate enforced by the DeleteProject command (#240)
+     * so the UI never offers a Delete action the backend would reject with 403.
+     */
+    private boolean callerHoldsProjectDelete(Project project, User user) {
+        UserStakeholder stakeholder = findUserStakeholder(project, user);
+        if (stakeholder == null) {
+            return false;
+        }
+        for (StakeholderPermission perm : stakeholder.getStakeholderPermissions()) {
+            if (Project.class.equals(perm.getEntityType())
+                    && perm.getPermissionType() == StakeholderPermissionType.Delete) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private <T extends ProjectOrDomainEntity> ProjectTreeNodeDto treeGroup(String groupName,
                                              Collection<? extends T> items,
                                              java.util.function.Function<T, String> nameExtractor) {
@@ -601,7 +621,7 @@ public class ProjectQueryController {
         );
     }
 
-    private ProjectDto toDto(Project project) {
+    private ProjectDto toDto(Project project, User user) {
         return new ProjectDto(
                 project.getId(),
                 project.getVersion(),
@@ -617,7 +637,8 @@ public class ProjectQueryController {
                 project.getUseCases().size(),
                 project.getScenarios().size(),
                 project.getGlossaryTerms().size(),
-                project.getReportGenerators().size()
+                project.getReportGenerators().size(),
+                callerHoldsProjectDelete(project, user)
         );
     }
 

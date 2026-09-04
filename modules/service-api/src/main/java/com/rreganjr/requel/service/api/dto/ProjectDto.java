@@ -38,6 +38,7 @@ public record ProjectDto(
         int useCaseCount,
         int scenarioCount,
         int glossaryTermCount,
-        int reportGeneratorCount
+        int reportGeneratorCount,
+        boolean canDelete
 ) {
 }
