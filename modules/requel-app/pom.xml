@@ -104,7 +104,7 @@
                     <workingDirectory>${project.basedir}/../../requel-angular</workingDirectory>
                     <!-- Install Node into target/ so it is not committed to source control -->
                     <installDirectory>${project.build.directory}</installDirectory>
-                    <nodeVersion>v22.12.0</nodeVersion>
+                    <nodeVersion>v22.22.3</nodeVersion>
                     <skip>${skipAngularBuild}</skip>
                 </configuration>
                 <executions>

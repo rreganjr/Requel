@@ -24,7 +24,7 @@ env:
   # nlp-jpa packages ~210MB of NLP data into its jar; maven-jar-plugin
   # assembles it in memory and OOMs on the CI default heap. Externalizing
   # that data is tracked separately; this raises the heap in the meantime.
-  MAVEN_OPTS: -Xmx4g
+  MAVEN_OPTS: -Xmx6g
 
 jobs:
   release:

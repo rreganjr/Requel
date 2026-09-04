@@ -539,25 +539,18 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
 
     // -------------------------------------------------------------------------
     // DeleteProject — requires Project[Delete] (issue #240)
-    // The deleter/editor/noaccess personas intentionally lack Project[Delete], so
-    // all three are refused (403) and the shared fixture project is untouched. The
-    // success path is covered by admin deleting a throwaway project it created.
+    // The deleter and no-access personas lack Project[Delete] (deleter has no
+    // Project[Edit], so the #240 backfill never grants it Delete; no-access is not a
+    // stakeholder at all), so both are refused (403) and the shared fixture project is
+    // untouched. NOTE: the editor persona holds Project[Edit], so the backfill DOES
+    // grant it Project[Delete] - it can delete, and is deliberately not tested here.
+    // The success path is covered by admin deleting a throwaway project it created.
     // -------------------------------------------------------------------------
 
     @Test
     void deleterCannotDeleteProject() throws Exception {
         mockMvc.perform(post("/api/commands/DeleteProject")
                         .header("Authorization", "Bearer " + deleterToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(deleteProjectJson(testProjectName)))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void editorCannotDeleteProject() throws Exception {
-        // Editor holds Project[Edit] but not Project[Delete].
-        mockMvc.perform(post("/api/commands/DeleteProject")
-                        .header("Authorization", "Bearer " + editorToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(deleteProjectJson(testProjectName)))
                 .andExpect(status().isForbidden());

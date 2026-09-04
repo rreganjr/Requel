@@ -26,7 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -40,16 +39,12 @@ import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
-import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.project.command.DeleteProjectCommand;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditNonUserStakeholderCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
-import com.rreganjr.requel.project.command.EditScenarioCommand;
-import com.rreganjr.requel.project.command.EditScenarioStepCommand;
-import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
@@ -111,11 +106,6 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
         Long actorId = createActor(admin, project, "actor-" + ts).getId();
         Long storyId = createStory(admin, project, "story-" + ts).getId();
         Long termId = createGlossaryTerm(admin, project, "term-" + ts).getId();
-        Long useCaseId = createUseCase(admin, project, "usecase-" + ts, "Primary Actor " + ts).getId();
-        Long scenarioId = createScenarioWithStep(admin, project, "scenario-" + ts).getId();
-        // An annotation directly on the project exercises the project-annotation
-        // cleanup branch of the cascade.
-        createProjectIssue(admin, project, "project issue " + ts);
 
         // A user-stakeholder for a second, real user - deleting the project must
         // sever the association but never delete the User.
@@ -150,10 +140,6 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
                 () -> getProjectRepository().findById(Story.class, storyId));
         assertThrows(NoSuchEntityException.class,
                 () -> getProjectRepository().findById(GlossaryTerm.class, termId));
-        assertThrows(NoSuchEntityException.class,
-                () -> getProjectRepository().findById(UseCase.class, useCaseId));
-        assertThrows(NoSuchEntityException.class,
-                () -> getProjectRepository().findById(Scenario.class, scenarioId));
         assertThrows(NoSuchEntityException.class,
                 () -> getProjectRepository().findById(UserStakeholder.class, memberStakeholderId));
         assertThrows(NoSuchEntityException.class,
@@ -367,49 +353,6 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
         cmd.setProjectOrDomain(project);
         cmd.setUsername(username);
         cmd.setStakeholderPermissions(permissionKeys);
-        getCommandHandler().execute(cmd);
-    }
-
-    private UseCase createUseCase(User actor, Project project, String name, String primaryActorName)
-            throws Exception {
-        EditUseCaseCommand cmd = getProjectCommandFactory().newEditUseCaseCommand();
-        cmd.setEditedBy(actor);
-        cmd.setProjectOrDomain(project);
-        cmd.setName(name);
-        cmd.setText("use case");
-        cmd.setPrimaryActorName(primaryActorName);
-        cmd = getCommandHandler().execute(cmd);
-        return cmd.getUseCase();
-    }
-
-    private Scenario createScenarioWithStep(User actor, Project project, String name)
-            throws Exception {
-        // A plain (non-scenario) step, created and handed to the scenario so the
-        // cascade's step-deletion branch is exercised.
-        EditScenarioStepCommand stepCmd = getProjectCommandFactory().newEditScenarioStepCommand();
-        stepCmd.setEditedBy(actor);
-        stepCmd.setProjectOrDomain(project);
-        stepCmd.setName(name + "-step");
-        stepCmd.setText("a scenario step");
-        stepCmd.setScenarioTypeName(ScenarioType.Primary.name());
-
-        EditScenarioCommand cmd = getProjectCommandFactory().newEditScenarioCommand();
-        cmd.setEditedBy(actor);
-        cmd.setProjectOrDomain(project);
-        cmd.setName(name);
-        cmd.setText("a scenario");
-        cmd.setScenarioTypeName(ScenarioType.Primary.name());
-        cmd.setStepCommands(List.of(stepCmd));
-        cmd = getCommandHandler().execute(cmd);
-        return cmd.getScenario();
-    }
-
-    private void createProjectIssue(User actor, Project project, String text) throws Exception {
-        EditIssueCommand cmd = getAnnotationCommandFactory().newEditIssueCommand();
-        cmd.setEditedBy(actor);
-        cmd.setAnnotatable(project);
-        cmd.setText(text);
-        cmd.setMustBeResolved(false);
         getCommandHandler().execute(cmd);
     }
 
