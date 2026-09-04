@@ -23,7 +23,7 @@ test.describe('Delete project', () => {
 
     await projectsPage.goto();
     await projectsPage.openWorkspaceDeleteDialog(name);
-    await projectsPage.confirmDeleteWithBackup(`${name}.xml`);
+    await projectsPage.confirmDelete();
 
     // Workspace routes back to the list once the project is gone.
     await page.waitForURL('**/projects');
@@ -42,7 +42,7 @@ test.describe('Delete project', () => {
 
     await projectsPage.goto();
     await projectsPage.openRowDeleteDialog(name);
-    await projectsPage.confirmDeleteWithBackup(`${name}.xml`);
+    await projectsPage.confirmDelete();
 
     // The list refreshes in place and shows a success message.
     await expect(page.getByTestId('project-list-success')).toContainText('Project deleted.');

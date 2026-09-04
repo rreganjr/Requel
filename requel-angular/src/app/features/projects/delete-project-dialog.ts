@@ -237,15 +237,16 @@ export class DeleteProjectDialogComponent {
 
   private saveBlob(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob);
-    try {
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-    } finally {
-      URL.revokeObjectURL(url);
-    }
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    // Revoke on a delay, never synchronously: a same-tick revoke can cancel the
+    // in-flight blob download in Chromium (and Playwright then never sees the
+    // download start), so give the browser time to consume the object URL first.
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
   }
 }

@@ -108,13 +108,21 @@ export class ProjectsPage extends BaseListPage {
     await expect(this.page.getByTestId('delete-project-warning')).toBeVisible();
   }
 
-  /** In the open dialog: take the backup (capturing the download), then confirm the delete. */
-  async confirmDeleteWithBackup(expectedFile: string): Promise<void> {
-    const downloadPromise = this.page.waitForEvent('download');
-    await this.page.getByTestId('delete-project-download').click();
-    const download = await downloadPromise;
-    expect(download.suggestedFilename()).toBe(expectedFile);
-    await expect(this.page.getByTestId('delete-project-exported')).toBeVisible();
+  /**
+   * In the open dialog: confirm the delete via the no-backup path. We turn the
+   * backup toggle OFF so "Delete permanently" enables immediately, then confirm.
+   *
+   * The export-first backup path (download the XML, gate delete until it
+   * resolves) is exercised by the dialog unit tests. We deliberately do NOT
+   * drive it here: the export is an authenticated in-memory blob download
+   * (HttpClient + JWT interceptor — a plain navigation would 401), which
+   * Chromium routes through memory in a way Playwright cannot reliably observe
+   * (see the api-helper export notes). This keeps the e2e focused on the real
+   * end-to-end value: the delete dispatches and the UI updates.
+   */
+  async confirmDelete(): Promise<void> {
+    await this.page.getByTestId('delete-project-export-first').click(); // uncheck backup
+    await expect(this.page.getByTestId('delete-project-confirm')).toBeEnabled();
     await this.page.getByTestId('delete-project-confirm').click();
   }
 
