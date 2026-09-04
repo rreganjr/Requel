@@ -201,8 +201,9 @@ class ProjectQueryControllerTest {
 
     @Test
     void getProjectReportsCanDeleteWhenStakeholderHoldsProjectDelete() throws Exception {
-        when(stakeholder.getStakeholderPermissions()).thenReturn(
-                Set.of(stubStakeholderPermission(Project.class, StakeholderPermissionType.Delete)));
+        StakeholderPermission deletePerm =
+                stubStakeholderPermission(Project.class, StakeholderPermissionType.Delete);
+        when(stakeholder.getStakeholderPermissions()).thenReturn(Set.of(deletePerm));
 
         mockMvc.perform(get("/api/projects/TestProject"))
                 .andExpect(status().isOk())
@@ -211,8 +212,9 @@ class ProjectQueryControllerTest {
 
     @Test
     void getProjectReportsCanDeleteFalseWithoutProjectDelete() throws Exception {
-        when(stakeholder.getStakeholderPermissions()).thenReturn(
-                Set.of(stubStakeholderPermission(Project.class, StakeholderPermissionType.Edit)));
+        StakeholderPermission editPerm =
+                stubStakeholderPermission(Project.class, StakeholderPermissionType.Edit);
+        when(stakeholder.getStakeholderPermissions()).thenReturn(Set.of(editPerm));
 
         mockMvc.perform(get("/api/projects/TestProject"))
                 .andExpect(status().isOk())
