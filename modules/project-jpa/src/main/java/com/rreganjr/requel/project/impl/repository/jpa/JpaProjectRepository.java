@@ -219,6 +219,14 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 	}
 
 	@Override
+	public Set<UserStakeholder> findUserStakeholdersWithPermission(StakeholderPermission permission) {
+		Query query = getEntityManager().createQuery(
+				"select s from UserStakeholderImpl s where :permission member of s.stakeholderPermissions");
+		query.setParameter("permission", permission);
+		return new HashSet<UserStakeholder>(query.getResultList());
+	}
+
+	@Override
 	public Set<Scenario> findScenariosUsedByUseCase(UseCase usecase) {
 		try {
 			// TODO: use named query so it can be configured externally

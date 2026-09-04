@@ -43,6 +43,7 @@ import com.rreganjr.requel.project.command.DeleteActorCommand;
 import com.rreganjr.requel.project.command.DeleteGlossaryTermCommand;
 import com.rreganjr.requel.project.command.DeleteGoalCommand;
 import com.rreganjr.requel.project.command.DeleteGoalRelationCommand;
+import com.rreganjr.requel.project.command.DeleteProjectCommand;
 import com.rreganjr.requel.project.command.DeleteReportGeneratorCommand;
 import com.rreganjr.requel.project.command.DeleteScenarioCommand;
 import com.rreganjr.requel.project.command.DeleteScenarioStepCommand;
@@ -95,6 +96,12 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	@Override
 	public EditProjectCommand newEditProjectCommand() {
 		return (EditProjectCommand) getCreationStrategy().newInstance(EditProjectCommandImpl.class);
+	}
+
+	@Override
+	public DeleteProjectCommand newDeleteProjectCommand() {
+		return (DeleteProjectCommand) getCreationStrategy().newInstance(
+				DeleteProjectCommandImpl.class);
 	}
 
 	@Override

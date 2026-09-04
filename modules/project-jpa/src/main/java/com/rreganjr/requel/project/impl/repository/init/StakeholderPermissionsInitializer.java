@@ -44,6 +44,7 @@ import com.rreganjr.requel.project.StakeholderPermission;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
+import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.impl.StakeholderPermissionImpl;
 
 /**
@@ -78,6 +79,30 @@ public class StakeholderPermissionsInitializer extends AbstractSystemInitializer
 				permission = projectRepository.persist(permission);
 			}
 		}
+
+		backfillProjectDeletePermission();
+	}
+
+	/**
+	 * Grant {@code Project[Delete]} to every existing {@link UserStakeholder} that
+	 * already holds {@code Project[Edit]} (issue #240). New project creators and
+	 * {@code SystemAdmin} are covered without this; the backfill lets owners of
+	 * projects created before the permission existed delete their own projects.
+	 * Idempotent - holders that already have it are skipped.
+	 */
+	private void backfillProjectDeletePermission() {
+		StakeholderPermission projectEdit = projectRepository.findStakeholderPermission(
+				Project.class, StakeholderPermissionType.Edit);
+		StakeholderPermission projectDelete = projectRepository.findStakeholderPermission(
+				Project.class, StakeholderPermissionType.Delete);
+		for (UserStakeholder stakeholder : projectRepository
+				.findUserStakeholdersWithPermission(projectEdit)) {
+			if (!stakeholder.getStakeholderPermissions().contains(projectDelete)) {
+				log.debug("backfilling Project[Delete] to " + stakeholder);
+				stakeholder.grantStakeholderPermission(projectDelete);
+				projectRepository.merge(stakeholder);
+			}
+		}
 	}
 
 	private Collection<StakeholderPermission> getPermissionTypes() {
@@ -86,6 +111,8 @@ public class StakeholderPermissionsInitializer extends AbstractSystemInitializer
 				.add(new StakeholderPermissionImpl(Project.class, StakeholderPermissionType.Edit));
 		entityTypes.add(new StakeholderPermissionImpl(Project.class,
 				StakeholderPermissionType.Grant));
+		entityTypes.add(new StakeholderPermissionImpl(Project.class,
+				StakeholderPermissionType.Delete));
 
 		entityTypes.add(new StakeholderPermissionImpl(Annotation.class,
 				StakeholderPermissionType.Edit));

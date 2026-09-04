@@ -157,7 +157,8 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 Goal.class, Actor.class, Story.class, UseCase.class,
                 Scenario.class, GlossaryTerm.class, Stakeholder.class,
                 ReportGenerator.class, Annotation.class);
-        // Note: Project has no Delete permission — intentionally excluded
+        // Note: Project[Delete] exists (issue #240) but is intentionally NOT granted to
+        // the deleter persona here, so deleter-level tests keep their meaning.
         addStakeholder(testProject, deleterUsername, allDeletePermissions);
 
         addStakeholder(testProject, granterUsername,
@@ -537,6 +538,56 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
     }
 
     // -------------------------------------------------------------------------
+    // DeleteProject — requires Project[Delete] (issue #240)
+    // The deleter and no-access personas lack Project[Delete] (deleter has no
+    // Project[Edit], so the #240 backfill never grants it Delete; no-access is not a
+    // stakeholder at all), so both are refused (403) and the shared fixture project is
+    // untouched. NOTE: the editor persona holds Project[Edit], so the backfill DOES
+    // grant it Project[Delete] - it can delete, and is deliberately not tested here.
+    // The success path is covered by admin deleting a throwaway project it created.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void deleterCannotDeleteProject() throws Exception {
+        mockMvc.perform(post("/api/commands/DeleteProject")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteProjectJson(testProjectName)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void noAccessCannotDeleteProject() throws Exception {
+        mockMvc.perform(post("/api/commands/DeleteProject")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteProjectJson(testProjectName)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminCanDeleteOwnProjectViaGateway() throws Exception {
+        // Admin creates a throwaway project (creator auto-holds Project[Delete]) and
+        // deletes it through the gateway — exercises the DeleteProject registrar binder,
+        // DeleteProjectInput deserialization, and the full command dispatch. No version
+        // sent -> the optimistic-lock check is skipped, so this is a clean success.
+        User admin = getUserRepository().findUserByUsername("admin");
+        String throwaway = "auth-del-gw-" + System.currentTimeMillis();
+        EditProjectCommand create = getProjectCommandFactory().newEditProjectCommand();
+        create.setEditedBy(admin);
+        create.setName(throwaway);
+        create.setText("gateway delete coverage");
+        create.setOrganizationName("AuthDelGwOrg-" + throwaway);
+        getCommandHandler().execute(create);
+
+        mockMvc.perform(post("/api/commands/DeleteProject")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(deleteProjectJson(throwaway)))
+                .andExpect(status().isOk());
+    }
+
+    // -------------------------------------------------------------------------
     // EditUser — requires SystemAdminUserRole (not a stakeholder permission)
     // This is the only project command gated on a system role, not a project permission.
     // TDD: admin→200, editor(project user only)→403
@@ -790,6 +841,11 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 "projectName", testProjectName,
                 "name", testProjectName,
                 "description", "updated description"));
+    }
+
+    private String deleteProjectJson(String projectName) throws Exception {
+        // version omitted -> null -> optimistic-lock check skipped
+        return objectMapper.writeValueAsString(Map.of("projectName", projectName));
     }
 
     private String editUserJson(String username) throws Exception {
