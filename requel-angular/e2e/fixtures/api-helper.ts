@@ -150,8 +150,18 @@ export async function deleteProject(
   api: APIRequestContext,
   projectName: string
 ): Promise<void> {
+  // Best-effort teardown: a failed cleanup delete must never fail an otherwise
+  // passing test (the specs' own afterEach cleanups already swallow errors the
+  // same way). DeleteProject has cascade/session bugs for richer entity graphs
+  // (orphan scenarios, and a detached-IssueImpl session-contamination 500 when a
+  // use-case with actors/annotations is deleted) tracked in the #240 cascade
+  // hardening ticket; a leaked e2e-* project is harmless.
   const token = await getAdminToken(api);
-  await command(api, token, 'DeleteProject', { projectName });
+  try {
+    await command(api, token, 'DeleteProject', { projectName });
+  } catch (err) {
+    console.warn(`[e2e cleanup] deleteProject(${projectName}) failed; leaving project behind: ${err}`);
+  }
 }
 
 /**
