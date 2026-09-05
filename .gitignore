@@ -41,3 +41,5 @@ node_modules/
 
 # Local scratch (Claude/agent working files) — not tracked
 /tmp/
+# Cowork SendUserFile deliverables land here; plans/docs belong in doc/ instead.
+/Claude outputs/

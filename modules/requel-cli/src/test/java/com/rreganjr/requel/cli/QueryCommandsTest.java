@@ -50,7 +50,7 @@ class QueryCommandsTest {
 
     private static ProjectDto project(String name) {
         return new ProjectDto(1L, 0, name, "A demo project", "Org", "ron", "ACTIVE",
-                2, 3, 4, 5, 6, 7, 8, 0);
+                2, 3, 4, 5, 6, 7, 8, 0, false);
     }
 
     @Test

@@ -8,7 +8,8 @@ const MOCK_PROJECT: ProjectDto = {
   id: 1, version: 0, name: 'My Project', description: null, organizationName: 'Acme',
   createdBy: 'admin', status: null,
   stakeholderCount: 0, goalCount: 2, storyCount: 0, actorCount: 0,
-  useCaseCount: 0, scenarioCount: 0, glossaryTermCount: 0, reportGeneratorCount: 0
+  useCaseCount: 0, scenarioCount: 0, glossaryTermCount: 0, reportGeneratorCount: 0,
+  canDelete: false
 };
 
 describe('ProjectService', () => {

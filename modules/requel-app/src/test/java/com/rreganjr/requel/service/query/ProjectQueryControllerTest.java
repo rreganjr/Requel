@@ -199,6 +199,28 @@ class ProjectQueryControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void getProjectReportsCanDeleteWhenStakeholderHoldsProjectDelete() throws Exception {
+        StakeholderPermission deletePerm =
+                stubStakeholderPermission(Project.class, StakeholderPermissionType.Delete);
+        when(stakeholder.getStakeholderPermissions()).thenReturn(Set.of(deletePerm));
+
+        mockMvc.perform(get("/api/projects/TestProject"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.canDelete").value(true));
+    }
+
+    @Test
+    void getProjectReportsCanDeleteFalseWithoutProjectDelete() throws Exception {
+        StakeholderPermission editPerm =
+                stubStakeholderPermission(Project.class, StakeholderPermissionType.Edit);
+        when(stakeholder.getStakeholderPermissions()).thenReturn(Set.of(editPerm));
+
+        mockMvc.perform(get("/api/projects/TestProject"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.canDelete").value(false));
+    }
+
     // -------------------------------------------------------------------------
     // Goals
     // -------------------------------------------------------------------------

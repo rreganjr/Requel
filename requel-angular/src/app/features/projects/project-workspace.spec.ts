@@ -6,6 +6,7 @@ import { of, BehaviorSubject } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { ProjectWorkspaceComponent } from './project-workspace';
 import { ProjectService } from '../../core/project.service';
+import { PermissionService } from '../../core/permission.service';
 import { ProjectDto } from '../../models/project';
 
 function makeProject(over: Partial<ProjectDto> = {}): ProjectDto {
@@ -21,6 +22,7 @@ function makeProject(over: Partial<ProjectDto> = {}): ProjectDto {
 describe('ProjectWorkspaceComponent (#154)', () => {
   let getProject: ReturnType<typeof vi.fn>;
   let httpGet: ReturnType<typeof vi.fn>;
+  let canDeleteFn: ReturnType<typeof vi.fn>;
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
   function setup() {
@@ -33,6 +35,10 @@ describe('ProjectWorkspaceComponent (#154)', () => {
         { provide: ActivatedRoute, useValue: { paramMap: paramMap$.asObservable() } },
         { provide: ProjectService, useValue: { getProject } },
         { provide: HttpClient, useValue: { get: httpGet } },
+        { provide: PermissionService, useValue: {
+          loadForProject: vi.fn().mockResolvedValue(undefined),
+          canDelete: canDeleteFn,
+        } },
       ],
     });
     const fixture = TestBed.createComponent(ProjectWorkspaceComponent);
@@ -44,6 +50,7 @@ describe('ProjectWorkspaceComponent (#154)', () => {
   beforeEach(() => {
     getProject = vi.fn().mockResolvedValue(makeProject({ goalCount: 3, stakeholderCount: 2 }));
     httpGet = vi.fn().mockReturnValue(of([]));
+    canDeleteFn = vi.fn().mockReturnValue(false);
   });
 
   it('renders a count card per artifact type with the project counts', async () => {
@@ -104,5 +111,32 @@ describe('ProjectWorkspaceComponent (#154)', () => {
     await flush();
     fixture.detectChanges();
     expect(fixture.componentInstance.errorMessage()).toBe('Failed to load the project workspace.');
+  });
+
+  it('hides the Delete action when the user lacks Project[Delete]', async () => {
+    canDeleteFn = vi.fn().mockReturnValue(false);
+    const fixture = setup();
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.canDelete()).toBe(false);
+    expect(fixture.nativeElement.querySelector('[data-testid="workspace-delete"]')).toBeNull();
+  });
+
+  it('shows the Delete action and opens the dialog when the user holds Project[Delete]', async () => {
+    canDeleteFn = vi.fn().mockReturnValue(true);
+    const fixture = setup();
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    expect(canDeleteFn).toHaveBeenCalledWith('Project');
+    const del = fixture.nativeElement.querySelector('[data-testid="workspace-delete"]');
+    expect(del).not.toBeNull();
+
+    // Assert the state onDeleteProject sets, without re-rendering (the dialog
+    // child pulls CommandService/EventStreamService, out of scope for this spec).
+    fixture.componentInstance.onDeleteProject();
+    expect(fixture.componentInstance.deleteVisible()).toBe(true);
+    expect(fixture.componentInstance.deleteTarget()).toEqual({ name: 'Acme', version: 0 });
   });
 });

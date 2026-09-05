@@ -88,6 +88,48 @@ export class ProjectsPage extends BaseListPage {
   async expectNoProjectsMessage(): Promise<void> {
     await expect(this.page.getByTestId('project-list-empty')).toContainText('No projects yet');
   }
+
+  // --- Delete project flow (#241) ---
+
+  /** Open the row `...` menu for a project and click Delete, opening the dialog. */
+  async openRowDeleteDialog(name: string): Promise<void> {
+    await this.searchFor(name);
+    const row = this.tableRowsWithText(name).first();
+    await expect(row).toBeVisible();
+    await row.getByTestId('data-table-row-actions').click();
+    await this.page.getByRole('menuitem', { name: 'Delete' }).click();
+    await expect(this.page.getByTestId('delete-project-warning')).toBeVisible();
+  }
+
+  /** Open a project's workspace overview, then its header Delete action. */
+  async openWorkspaceDeleteDialog(name: string): Promise<void> {
+    await this.clickProject(name);
+    await this.page.getByTestId('workspace-delete').click();
+    await expect(this.page.getByTestId('delete-project-warning')).toBeVisible();
+  }
+
+  /**
+   * In the open dialog: confirm the delete via the no-backup path. We turn the
+   * backup toggle OFF so "Delete permanently" enables immediately, then confirm.
+   *
+   * The export-first backup path (download the XML, gate delete until it
+   * resolves) is exercised by the dialog unit tests. We deliberately do NOT
+   * drive it here: the export is an authenticated in-memory blob download
+   * (HttpClient + JWT interceptor — a plain navigation would 401), which
+   * Chromium routes through memory in a way Playwright cannot reliably observe
+   * (see the api-helper export notes). This keeps the e2e focused on the real
+   * end-to-end value: the delete dispatches and the UI updates.
+   */
+  async confirmDelete(): Promise<void> {
+    await this.page.getByTestId('delete-project-export-first').click(); // uncheck backup
+    await expect(this.page.getByTestId('delete-project-confirm')).toBeEnabled();
+    await this.page.getByTestId('delete-project-confirm').click();
+  }
+
+  async cancelDeleteDialog(): Promise<void> {
+    await this.page.getByTestId('delete-project-cancel').click();
+    await expect(this.page.getByTestId('delete-project-warning')).toHaveCount(0);
+  }
 }
 
 export class ProjectEditorPage {

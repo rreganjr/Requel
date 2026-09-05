@@ -141,15 +141,27 @@ export async function createProject(
 }
 
 /**
- * Note: there is no DeleteProject command in the backend.
- * Test projects named e2e-* will accumulate — they can be removed manually via the admin UI.
- * This function is a no-op kept here as a placeholder.
+ * Delete a project by name via the backend DeleteProject command (#240). Cleans up
+ * e2e-* fixture projects and drives the delete path directly. Omits the optimistic
+ * `version` (the backend skips the lock check when it is absent) so callers need not
+ * track it. Admin-authenticated, like the other helpers here.
  */
 export async function deleteProject(
-  _api: APIRequestContext,
-  _projectName: string
+  api: APIRequestContext,
+  projectName: string
 ): Promise<void> {
-  // DeleteProject is not implemented in the backend; nothing to do.
+  // Best-effort teardown: a failed cleanup delete must never fail an otherwise
+  // passing test (the specs' own afterEach cleanups already swallow errors the
+  // same way). DeleteProject has cascade/session bugs for richer entity graphs
+  // (orphan scenarios, and a detached-IssueImpl session-contamination 500 when a
+  // use-case with actors/annotations is deleted) tracked in the #240 cascade
+  // hardening ticket; a leaked e2e-* project is harmless.
+  const token = await getAdminToken(api);
+  try {
+    await command(api, token, 'DeleteProject', { projectName });
+  } catch (err) {
+    console.warn(`[e2e cleanup] deleteProject(${projectName}) failed; leaving project behind: ${err}`);
+  }
 }
 
 /**

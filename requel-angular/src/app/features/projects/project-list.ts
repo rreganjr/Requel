@@ -29,12 +29,13 @@ import { AuthService } from '../../core/auth.service';
 import { ListPageComponent } from '../../shared/list-page';
 import { FileUploadButtonComponent } from '../../shared/file-upload-button';
 import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/app-data-table';
+import { DeleteProjectDialogComponent, DeleteProjectTarget } from './delete-project-dialog';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-project-list',
   standalone: true,
-  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, SubmitErrorComponent, FileUploadButtonComponent],
+  imports: [ListPageComponent, AppDataTableComponent, ButtonModule, MessageModule, SubmitErrorComponent, FileUploadButtonComponent, DeleteProjectDialogComponent],
   template: `
     <app-list-page title="Projects" [fill]="true" [showSearch]="false">
       <app-submit-error [message]="errorMessage()" testid="project-list-error" />
@@ -61,6 +62,12 @@ import { AppDataTableComponent, DataTableColumn, RowAction } from '../../shared/
         </div>
       </app-data-table>
     </app-list-page>
+
+    @if (deleteVisible()) {
+      <app-delete-project-dialog [project]="deleteTarget()"
+                                 [visible]="deleteVisible()" (visibleChange)="deleteVisible.set($event)"
+                                 (deleted)="onProjectDeleted()" />
+    }
   `,
   styles: [`
     /* Fill mode (#221): claim main-content's height so the data-table body
@@ -90,8 +97,12 @@ export class ProjectListComponent implements OnInit {
     { field: 'useCaseCount', header: 'Use Cases' }
   ];
   rowActions: RowAction<ProjectDto>[] = [
-    { label: 'Open', icon: 'pi pi-eye', command: p => this.onRowSelect({ data: p }) }
+    { label: 'Open', icon: 'pi pi-eye', command: p => this.onRowSelect({ data: p }) },
+    { label: 'Delete', icon: 'pi pi-trash', visible: p => p.canDelete, command: p => this.onDeleteProject(p) }
   ];
+
+  readonly deleteTarget = signal<DeleteProjectTarget | null>(null);
+  readonly deleteVisible = signal(false);
 
   constructor(
     private projectService: ProjectService,
@@ -117,6 +128,17 @@ export class ProjectListComponent implements OnInit {
     if (project) {
       this.router.navigate(['/projects', project.name]);
     }
+  }
+
+  onDeleteProject(project: ProjectDto): void {
+    this.deleteTarget.set({ name: project.name, version: project.version });
+    this.deleteVisible.set(true);
+  }
+
+  async onProjectDeleted(): Promise<void> {
+    this.errorMessage.set(null);
+    this.successMessage.set('Project deleted.');
+    await this.loadProjects();
   }
 
   async onImportFile(file: File): Promise<void> {

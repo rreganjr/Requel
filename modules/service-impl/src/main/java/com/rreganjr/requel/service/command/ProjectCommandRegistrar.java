@@ -964,7 +964,10 @@ public class ProjectCommandRegistrar {
                 project.getUseCases().size(),
                 project.getScenarios().size(),
                 project.getGlossaryTerms().size(),
-                project.getReportGenerators().size()
+                project.getReportGenerators().size(),
+                // canDelete is only meaningful on the list query (ProjectQueryController),
+                // which resolves the caller; command-result DTOs report false.
+                false
         );
     }
 }

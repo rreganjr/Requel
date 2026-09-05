@@ -20,7 +20,7 @@
  */
 import { Component, OnInit, computed, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
@@ -28,8 +28,10 @@ import { BadgeModule } from 'primeng/badge';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ProjectService } from '../../core/project.service';
+import { PermissionService } from '../../core/permission.service';
 import { ProjectDto } from '../../models/project';
 import { projectApiUrl } from '../../core/api-url';
+import { DeleteProjectDialogComponent, DeleteProjectTarget } from './delete-project-dialog';
 
 interface CountCard {
   label: string;
@@ -56,15 +58,21 @@ interface NextAction {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-project-workspace',
   standalone: true,
-  imports: [RouterLink, ButtonModule, BadgeModule, PageHeaderComponent, SubmitErrorComponent],
+  imports: [RouterLink, ButtonModule, BadgeModule, PageHeaderComponent, SubmitErrorComponent, DeleteProjectDialogComponent],
   template: `
     <div class="project-workspace" data-testid="project-workspace">
       <div class="ws-header">
         <app-page-header [title]="projectName" eyebrow="Project" />
-        <a class="p-button p-button-outlined" [routerLink]="['/projects', projectName, 'edit']"
-           data-testid="workspace-edit">
-          <i class="pi pi-pencil" aria-hidden="true"></i> Edit project
-        </a>
+        <div class="ws-header-actions">
+          <a class="p-button p-button-outlined" [routerLink]="['/projects', projectName, 'edit']"
+             data-testid="workspace-edit">
+            <i class="pi pi-pencil" aria-hidden="true"></i> Edit project
+          </a>
+          @if (canDelete()) {
+            <p-button label="Delete project" icon="pi pi-trash" severity="danger" [outlined]="true"
+                      data-testid="workspace-delete" (onClick)="onDeleteProject()" />
+          }
+        </div>
       </div>
 
       <app-submit-error [message]="errorMessage()" testid="workspace-error"
@@ -120,6 +128,12 @@ interface NextAction {
         </div>
       }
     </div>
+
+    @if (deleteVisible()) {
+      <app-delete-project-dialog [project]="deleteTarget()"
+                                 [visible]="deleteVisible()" (visibleChange)="deleteVisible.set($event)"
+                                 (deleted)="onProjectDeleted()" />
+    }
   `,
   styles: [`
     :host { display: block; }
@@ -127,6 +141,7 @@ interface NextAction {
       display: flex; align-items: flex-start; justify-content: space-between;
       gap: var(--rq-space-4); margin-bottom: var(--rq-space-6);
     }
+    .ws-header-actions { display: flex; align-items: center; gap: var(--rq-space-2); }
     .count-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
       gap: var(--rq-space-4); margin-bottom: var(--rq-space-6);
@@ -165,6 +180,9 @@ export class ProjectWorkspaceComponent implements OnInit {
   readonly project = signal<ProjectDto | null>(null);
   readonly openIssueCount = signal(0);
   readonly mustResolveCount = signal(0);
+  readonly canDelete = signal(false);
+  readonly deleteTarget = signal<DeleteProjectTarget | null>(null);
+  readonly deleteVisible = signal(false);
   projectName = '';
 
   private readonly destroyRef = inject(DestroyRef);
@@ -206,6 +224,8 @@ export class ProjectWorkspaceComponent implements OnInit {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly projectService: ProjectService,
+    private readonly permissionService: PermissionService,
+    private readonly router: Router,
     private readonly http: HttpClient,
   ) {}
 
@@ -221,17 +241,44 @@ export class ProjectWorkspaceComponent implements OnInit {
     this.loading.set(true);
     this.errorMessage.set(null);
     try {
-      const [project, issues] = await Promise.all([
+      const [project, issues, canDelete] = await Promise.all([
         this.projectService.getProject(this.projectName),
         this.loadOpenIssues(),
+        this.loadCanDelete(),
       ]);
       this.project.set(project);
+      this.canDelete.set(canDelete);
       this.openIssueCount.set(issues.length);
       this.mustResolveCount.set(issues.filter(i => i.mustBeResolved).length);
     } catch {
       this.errorMessage.set('Failed to load the project workspace.');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  onDeleteProject(): void {
+    const project = this.project();
+    if (!project) return;
+    this.deleteTarget.set({ name: project.name, version: project.version });
+    this.deleteVisible.set(true);
+  }
+
+  onProjectDeleted(): void {
+    this.router.navigate(['/projects']);
+  }
+
+  /**
+   * Resolve whether the current user may delete this project. Defensive: a
+   * permissions hiccup hides the Delete action rather than blanking the whole
+   * workspace (mirrors how open-issues degrades).
+   */
+  private async loadCanDelete(): Promise<boolean> {
+    try {
+      await this.permissionService.loadForProject(this.projectName);
+      return this.permissionService.canDelete('Project');
+    } catch {
+      return false;
     }
   }
 
