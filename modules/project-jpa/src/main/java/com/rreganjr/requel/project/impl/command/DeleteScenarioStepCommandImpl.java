@@ -113,6 +113,8 @@ public class DeleteScenarioStepCommandImpl extends AbstractEditProjectCommand im
 		for (Scenario scenarioReferer : scenarioReferers) {
 			scenarioReferer.getSteps().remove(scenarioStep);
 		}
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(scenarioStep, editedBy);
 		getRepository().delete(scenarioStep);
 	}
 

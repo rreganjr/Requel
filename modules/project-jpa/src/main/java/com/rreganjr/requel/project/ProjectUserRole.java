@@ -108,8 +108,10 @@ public class ProjectUserRole extends AbstractUserRole {
 	/**
 	 * @return
 	 */
-	@ManyToMany(targetEntity = ProjectImpl.class, cascade = { CascadeType.PERSIST,
-			CascadeType.REFRESH }, fetch = FetchType.EAGER)
+	// #247: no REFRESH cascade - refreshing a role must not reload every active project and
+	// everything under them (see AbstractProjectOrDomainEntity.getProjectOrDomain).
+	@ManyToMany(targetEntity = ProjectImpl.class, cascade = { CascadeType.PERSIST },
+			fetch = FetchType.EAGER)
 	@SortNatural
 	public Set<Project> getActiveProjects() {
 		return activeProjects;

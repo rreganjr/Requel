@@ -29,6 +29,7 @@ import org.hibernate.StaleObjectStateException;
 import org.hibernate.exception.LockAcquisitionException;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.repository.Repository;
@@ -58,6 +59,17 @@ public class RetryOnLockFailuresCommandHandler implements CommandHandler {
 	}
 
 	public <T extends Command> T execute(T command) throws Exception {
+		// #247: retry only at the OUTERMOST command. Cascade sub-commands (DeleteProject ->
+		// DeleteGoal -> RemoveAnnotationFromAnnotatable, ...) run through this same handler
+		// chain but join the caller's transaction (REQUIRED); once a deadlock or lock-wait
+		// timeout has rolled back that transaction on the database side, re-running the
+		// inner command only repeats doomed work inside a rollback-only transaction and
+		// multiplies the lock traffic (the e2e log showed eight nested retries in 300 ms).
+		// Let the failure propagate to the outer command, whose own retry starts a fresh
+		// transaction.
+		if (TransactionSynchronizationManager.isActualTransactionActive()) {
+			return commandHandler.execute(command);
+		}
 		int retries = 0;
 		Throwable[] thrown = new Throwable[3];
 		while (true) {

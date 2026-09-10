@@ -24,8 +24,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
-import org.hibernate.Hibernate;
-
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Annotation;
@@ -102,17 +100,21 @@ public class RemoveAnnotationFromAnnotatableCommandImpl extends AbstractEditComm
 
 		// Hibernate 6.5 bug: @ManyToAny collection removal generates invalid SQL for the
 		// annotation_annotatable join table.  Work around by deleting the join-table row via
-		// a native query, then detaching + reloading the annotation so Hibernate's dirty-
-		// tracking doesn't attempt its own (broken) flush of the @ManyToAny collection.
+		// a native query (below) and never mutating the @ManyToAny collection in Java.
 		JpaAnnotationRepository jpaRepo = (JpaAnnotationRepository) getAnnotationRepository();
 		jakarta.persistence.PersistenceUnitUtil puu = jpaRepo.getEntityManager()
 				.getEntityManagerFactory().getPersistenceUnitUtil();
 		Long annotationId = (Long) puu.getIdentifier(annotation);
 		Long annotatableId = (Long) puu.getIdentifier(annotatable);
 		jpaRepo.removeAnnotatableFromAnnotationJoinTable(annotationId, annotatableId);
-		jpaRepo.getEntityManager().detach(annotation);
-		annotation = (Annotation) jpaRepo.getEntityManager()
-				.find(Hibernate.getClass(annotation), annotationId);
+		// #247: keep the annotation MANAGED after the native join-table delete instead of
+		// detaching it. Detaching left a detached IssueImpl/NoteImpl still reachable through
+		// other managed cascade-PERSIST collections during a multi-entity delete (e.g.
+		// DeleteProject/DeleteUseCase), so the next auto-flush threw "detached entity passed
+		// to persist: IssueImpl". refresh() reloads the annotation's @ManyToAny state from the
+		// DB (join row now gone) while keeping it attached, mirroring the working
+		// RemoveActorFromActorContainerCommandImpl.
+		jpaRepo.getEntityManager().refresh(annotation);
 
 		// if an annotation has no annotatables it is deleted
 		if (annotation.getAnnotatables().isEmpty()) {

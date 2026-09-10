@@ -102,6 +102,8 @@ public class DeleteReportGeneratorCommandImpl extends AbstractEditProjectCommand
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		reportGenerator.getProjectOrDomain().getReportGenerators().remove(reportGenerator);
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(reportGenerator, editedBy);
 		getRepository().delete(reportGenerator);
 	}
 

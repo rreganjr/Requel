@@ -106,8 +106,16 @@ public class RemoveStoryFromStoryContainerCommandImpl extends AbstractEditProjec
 		jpaRepo.removeStoryContainerFromStoryJoinTable(storyId, containerId);
 		jpaRepo.getEntityManager().refresh(removedStory);
 
-		removingContainer.getStories().remove(removedStory);
-		removingContainer = getRepository().merge(removingContainer);
+		// #247: inside a cascade the container may already have been removed in this
+		// transaction (its @ManyToAny referer row was left behind by an earlier native detach),
+		// in which case get() handed back the removed instance. Mutating and merge()-ing a removed
+		// entity makes Hibernate re-persist it, and the commit then fails with
+		// "persistent instance references an unsaved transient instance". The join row is gone
+		// either way, so leave the removed container alone.
+		if (jpaRepo.getEntityManager().contains(removingContainer)) {
+			removingContainer.getStories().remove(removedStory);
+			removingContainer = getRepository().merge(removingContainer);
+		}
 		setStory(removedStory);
 		setStoryContainer(removingContainer);
 	}

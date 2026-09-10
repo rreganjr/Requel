@@ -118,7 +118,16 @@ public class DeleteScenarioCommandImpl extends AbstractEditProjectCommand implem
 			// TODO: delete the usecase or set a new empty scenario on the
 			// usecase.
 		}
+		// #247: a scenario may also be an ADDITIONAL (alternative/exception) scenario of any
+		// use case in the project (usecase_scenarios, owned by the use case, no inverse
+		// mapping). Those join rows carry an FK to the scenario row, so detach it from every
+		// such use case before the delete, or MySQL refuses the delete.
+		for (UseCase usecase : scenario.getProjectOrDomain().getUseCases()) {
+			usecase.getAdditionalScenarios().remove(scenario);
+		}
 		scenario.getProjectOrDomain().getScenarios().remove(scenario);
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(scenario, editedBy);
 		getRepository().delete(scenario);
 	}
 

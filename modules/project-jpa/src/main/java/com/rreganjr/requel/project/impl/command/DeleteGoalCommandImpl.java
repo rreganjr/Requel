@@ -131,6 +131,8 @@ public class DeleteGoalCommandImpl extends AbstractEditProjectCommand implements
 			deleteGoalRelationCommand.setGoalRelation(goalRelation);
 			getCommandHandler().execute(deleteGoalRelationCommand);
 		}
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(goal, editedBy);
 		getRepository().delete(goal);
 	}
 

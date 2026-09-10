@@ -135,7 +135,7 @@ public class LexicalSpellingDispatchTest extends AbstractIntegrationTestCase {
 		assertEquals("QUEUED", queued.getStatus());
 
 		// Drive the worker synchronously (production runs it on the async executor).
-		assistantRunWorker.runInNewTransaction(queued.getRunId());
+		assistantRunWorker.run(queued.getRunId());
 
 		AssistantRunEntity completed = assistantRunRepository.findById(queued.getId())
 				.orElseThrow(() -> new AssertionError("assistant run row vanished"));
@@ -452,7 +452,7 @@ public class LexicalSpellingDispatchTest extends AbstractIntegrationTestCase {
 						&& "QUEUED".equals(run.getStatus()))
 				.reduce((first, second) -> second)
 				.orElseThrow(() -> new AssertionError("no QUEUED assistant run for the goal"));
-		assistantRunWorker.runInNewTransaction(queued.getRunId());
+		assistantRunWorker.run(queued.getRunId());
 	}
 
 	private long countUnknownWordIssues(Long goalId) {

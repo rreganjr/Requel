@@ -126,6 +126,8 @@ public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand im
 
 		}
 		glossaryTerm.getProjectOrDomain().getGlossaryTerms().remove(glossaryTerm);
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(glossaryTerm, getEditedBy());
 		getRepository().delete(glossaryTerm);
 	}
 

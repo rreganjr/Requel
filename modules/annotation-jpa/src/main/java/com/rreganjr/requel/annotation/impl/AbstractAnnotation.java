@@ -47,6 +47,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
@@ -173,7 +174,12 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
     @AnyKeyJavaClass(Long.class)
 	@JoinTable(name = "annotation_annotatable",
 			joinColumns = @JoinColumn(name = "annotation_id"),
-			inverseJoinColumns = @JoinColumn(name = "annotatable_id")
+			inverseJoinColumns = @JoinColumn(name = "annotatable_id"),
+			// #247: mirrors Flyway V16 so schema-generated (H2) databases match MySQL. Deletes by
+			// annotated entity (DELETE ... WHERE annotatable_id = ?) must be index-range scans;
+			// without this they full-scan and X-lock the whole join table under InnoDB.
+			indexes = @Index(name = "idx_annotation_annotatable_annotatable",
+					columnList = "annotatable_id, annotatable_type")
 	)
 	public Set<Annotatable> getAnnotatables() {
 		return annotatables;

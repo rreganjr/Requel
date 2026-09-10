@@ -116,7 +116,11 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 	}
 
 	@XmlTransient
-	@ManyToOne(targetEntity = AbstractProjectOrDomain.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, optional = false)
+	// #247: no REFRESH cascade upward. refresh(entity) used to reload its project, the
+	// project's creator, that user's roles and, through ProjectUserRole.activeProjects, every
+	// project that user is on - the whole database, one select per row (300k statements in a
+	// single DeleteProject). A refresh reloads the entity and what it owns, nothing above it.
+	@ManyToOne(targetEntity = AbstractProjectOrDomain.class, cascade = { CascadeType.PERSIST }, optional = false)
 //	@JoinColumn(name="projectordomain_id", insertable = false, updatable = false)
 	@JoinColumn(name="projectordomain_id")
 	public ProjectOrDomain getProjectOrDomain() {

@@ -39,7 +39,7 @@ import com.rreganjr.requel.assistant.api.UserRef;
 class AssistantRunWorkerTest {
 
 	@Test
-	void runInNewTransactionReloadsTargetAndAppliesMatchingAssistantResult() {
+	void runReloadsTargetAndAppliesMatchingAssistantResult() {
 		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
 		AssistantRunRecord record = runStore.queueRun(request());
 		RecordingApplicator applicator = new RecordingApplicator();
@@ -48,7 +48,7 @@ class AssistantRunWorkerTest {
 				new SimpleAssistantRegistry(List.of(assistant)), applicator,
 				List.of(new StringTargetLoader()));
 
-		worker.runInNewTransaction(record.runId());
+		worker.run(record.runId());
 
 		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
 				updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED));
@@ -68,11 +68,98 @@ class AssistantRunWorkerTest {
 				new SimpleAssistantRegistry(List.of(new DefaultTaskAssistant())), applicator,
 				List.of(new StringTargetLoader()));
 
-		worker.runInNewTransaction(record.runId());
+		worker.run(record.runId());
 
 		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
 				updated.status()).isEqualTo(AssistantRunStatus.SKIPPED));
 		assertThat(applicator.appliedResults).isEmpty();
+	}
+
+	/**
+	 * #247: the apply phase re-checks the target. A target deleted while the (slow)
+	 * analysis ran must not have findings written for it - that insert would hit the
+	 * FK of a row that no longer exists.
+	 */
+	@Test
+	void findingsAreDiscardedWhenTargetDisappearsBetweenAnalyzeAndApply() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		RecordingApplicator applicator = new RecordingApplicator();
+		VanishingTargetLoader loader = new VanishingTargetLoader();
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new StringAssistant())), applicator,
+				List.of(loader));
+
+		worker.run(record.runId());
+
+		assertThat(loader.loads).isEqualTo(2);
+		assertThat(applicator.appliedResults).isEmpty();
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
+				updated.status()).isEqualTo(AssistantRunStatus.SKIPPED));
+	}
+
+	/**
+	 * #247: analysis and apply run in separate transactions, analysis first and
+	 * committed before apply begins.
+	 */
+	@Test
+	void analyzeTransactionCompletesBeforeApplyTransactionStarts() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		List<String> phases = new java.util.ArrayList<>();
+		RecordingApplicator applicator = new RecordingApplicator() {
+			@Override
+			public AppliedAssistantResult apply(AssistantContext context, AssistantResult result,
+					CleanupPolicy cleanupPolicy, EntityRef dispatchTarget) {
+				phases.add("apply-body");
+				return super.apply(context, result, cleanupPolicy, dispatchTarget);
+			}
+		};
+		org.springframework.transaction.support.TransactionOperations analyzeTx = phaseRecorder(
+				phases, "analyze");
+		org.springframework.transaction.support.TransactionOperations applyTx = phaseRecorder(
+				phases, "apply");
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new StringAssistant())), applicator,
+				List.of(new StringTargetLoader()), java.time.Clock.systemUTC(), analyzeTx,
+				applyTx);
+
+		worker.run(record.runId());
+
+		assertThat(phases).containsExactly("analyze-begin", "analyze-commit", "apply-begin",
+				"apply-body", "apply-commit");
+		assertThat(applicator.appliedResults).hasSize(1);
+	}
+
+	private static org.springframework.transaction.support.TransactionOperations phaseRecorder(
+			List<String> phases, String name) {
+		return new org.springframework.transaction.support.TransactionOperations() {
+			@Override
+			public <T> T execute(
+					org.springframework.transaction.support.TransactionCallback<T> action) {
+				phases.add(name + "-begin");
+				T result = action.doInTransaction(
+						new org.springframework.transaction.support.SimpleTransactionStatus());
+				phases.add(name + "-commit");
+				return result;
+			}
+		};
+	}
+
+	/** Loads the target once, then reports it gone (deleted mid-run). */
+	private static final class VanishingTargetLoader implements AssistantTargetLoader {
+		private int loads;
+
+		@Override
+		public boolean supports(EntityRef targetRef) {
+			return "Goal".equals(targetRef.entityType());
+		}
+
+		@Override
+		public Optional<Object> loadTarget(EntityRef targetRef) {
+			loads++;
+			return (loads == 1) ? Optional.of("target") : Optional.empty();
+		}
 	}
 
 	private AnalysisRequest request() {
@@ -138,7 +225,7 @@ class AssistantRunWorkerTest {
 		}
 	}
 
-	private static final class RecordingApplicator implements AssistantResultApplicator {
+	private static class RecordingApplicator implements AssistantResultApplicator {
 		private final List<AssistantResult> appliedResults = new java.util.ArrayList<AssistantResult>();
 
 		@Override
