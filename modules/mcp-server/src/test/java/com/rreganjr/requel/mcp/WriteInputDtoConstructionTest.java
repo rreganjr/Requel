@@ -55,6 +55,7 @@ class WriteInputDtoConstructionTest {
 			"DeleteIssueInput",
 			"DeleteNoteInput",
 			"DeletePositionInput",
+			"DeleteProjectInput",
 			"DeleteReportGeneratorInput",
 			"DeleteScenarioInput",
 			"DeleteStakeholderInput",

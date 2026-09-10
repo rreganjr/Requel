@@ -48,6 +48,7 @@ import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
+import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.project.impl.StakeholderPermissionImpl;
 import com.rreganjr.requel.service.api.CommandRegistration;
 import com.rreganjr.requel.service.api.CommandRegistry;
@@ -514,6 +515,61 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         assertEquals("v2", goal.getText(), "loaded-state edit should apply the latest write");
     }
 
+    // ---- DeleteProject (issue #242) -------------------------------------------------------------
+
+    /**
+     * Issue #242 AC: an allowlisted {@code DeleteProject} dispatched through the gateway by a
+     * stakeholder holding {@code Project[Delete]} actually deletes the project.
+     * <p>
+     * Deliberately operates on its own throwaway project rather than the class fixture's
+     * {@code projectName}, which every other test in this class shares — test order must never let
+     * a delete pull the fixture out from under them.
+     */
+    @Test
+    void deleteProjectExecutesForAStakeholderWithProjectDelete() throws Exception {
+        long ts = System.nanoTime();
+        String targetName = "gw-del-ok-" + ts;
+        String username = "gw-del-ok-user-" + ts;
+        Project target = createProject(targetName);
+        createUser(username);
+        addUserStakeholder(target, username,
+                keys(StakeholderPermissionType.Delete, Project.class));
+
+        authenticate(username);
+        GatewayResult result = gateway.execute(
+                new GatewayRequest("DeleteProject", Map.of("projectName", targetName)));
+
+        assertEquals("DeleteProject", result.commandType());
+        assertThrows(NoSuchProjectException.class,
+                () -> getProjectRepository().findProjectByName(targetName),
+                "the project should be gone after a gateway DeleteProject");
+    }
+
+    /**
+     * Issue #242 AC: a caller without {@code Project[Delete]} is rejected at the <em>command</em>
+     * layer, not merely hidden from the tool list. The policy allows the command type — this
+     * stakeholder even holds {@code Project[Edit]} — so an UNAUTHORIZED outcome here can only have
+     * come from {@code AuthorizingCommandHandler} checking the per-stakeholder permission, and the
+     * project must survive.
+     */
+    @Test
+    void deleteProjectIsRejectedForAStakeholderWithoutProjectDelete() throws Exception {
+        long ts = System.nanoTime();
+        String targetName = "gw-del-denied-" + ts;
+        String username = "gw-del-denied-user-" + ts;
+        Project target = createProject(targetName);
+        createUser(username);
+        addUserStakeholder(target, username, keys(StakeholderPermissionType.Edit, Project.class));
+
+        authenticate(username);
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("DeleteProject", Map.of("projectName", targetName))));
+
+        assertEquals(GatewayException.Kind.UNAUTHORIZED, ex.getKind());
+        assertNotNull(getProjectRepository().findProjectByName(targetName),
+                "a rejected DeleteProject must leave the project intact");
+    }
+
     // ---- policy surface ------------------------------------------------------------------------
 
     @Test
@@ -571,6 +627,18 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         cmd.setUsername(username);
         cmd.setStakeholderPermissions(permissionKeys);
         getCommandHandler().execute(cmd);
+    }
+
+    /** A throwaway project owned by admin, for tests that destroy what they operate on. */
+    private Project createProject(String name) throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        EditProjectCommand cmd = getProjectCommandFactory().newEditProjectCommand();
+        cmd.setEditedBy(admin);
+        cmd.setName(name);
+        cmd.setText("gateway DeleteProject test project");
+        cmd.setOrganizationName("GwDelOrg-" + name);
+        cmd = getCommandHandler().execute(cmd);
+        return cmd.getProject();
     }
 
     @SafeVarargs

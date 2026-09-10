@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.gateway.CommandDescriptor;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
+import com.rreganjr.requel.service.api.dto.DeleteProjectInput;
 import com.rreganjr.requel.service.gateway.GatewayPolicyConfig;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -87,5 +88,34 @@ public class McpToolCatalogLockstepIT extends AbstractIntegrationTestCase {
 		// The generic escape hatch is always present alongside the typed tools.
 		assertThat(writeService.toolDescriptors()).extracting(McpToolDescriptor::name)
 				.contains(McpWriteService.RUN_COMMAND);
+	}
+
+	/**
+	 * Issue #242: {@code DeleteProject} is exposed on the write gateway. The assertions above are
+	 * set-general, so this pins the ticket's own AC against the real allowlist and the real wired
+	 * catalog: on the allowlist, in the catalog (which is what the REST {@code /descriptors}
+	 * endpoint and therefore the {@code requel-cli} command list read), advertised as a typed tool,
+	 * and dispatchable through the generic {@code runCommand} — with its schema derived from
+	 * {@link DeleteProjectInput}.
+	 */
+	@Test
+	public void deleteProjectIsExposedAsATypedToolAndOnTheAllowlist() {
+		assertThat(GatewayPolicyConfig.ALLOWED)
+				.as("DeleteProject must be on the gateway allowlist").contains("DeleteProject");
+		assertThat(GatewayPolicyConfig.DENIED)
+				.as("DeleteProject is project-scoped, not identity/file-transfer")
+				.doesNotContain("DeleteProject");
+
+		assertThat(catalog.find("DeleteProject"))
+				.as("the catalog is what /descriptors and requel-cli enumerate").isPresent();
+		CommandDescriptor descriptor = catalog.find("DeleteProject").orElseThrow();
+		assertThat(descriptor.inputType())
+				.as("the typed tool's JSON schema is derived from this DTO")
+				.isEqualTo(DeleteProjectInput.class);
+
+		assertThat(writeService.toolDescriptors()).extracting(McpToolDescriptor::name)
+				.contains("DeleteProject");
+		assertThat(writeService.handles("DeleteProject"))
+				.as("runCommand and the typed tool both dispatch it").isTrue();
 	}
 }
