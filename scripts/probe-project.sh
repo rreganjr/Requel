@@ -25,7 +25,7 @@ echo
 echo "=== field names ==="
 gh project field-list "$NUM" --owner "$OWNER" --format json | jq -r '.fields[] | "\(.name)\t(\(.type))"'
 
-ITEMS=$(gh project item-list "$NUM" --owner "$OWNER" --format json)
+ITEMS=$(gh project item-list "$NUM" --owner "$OWNER" --limit "$ITEM_LIMIT" --format json)
 
 echo
 echo "=== per-item: #number  status  | guessed keys: 'story points' / 'story points (retro)' ==="

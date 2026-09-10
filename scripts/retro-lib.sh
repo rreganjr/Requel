@@ -29,6 +29,13 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Override the location with REQUEL_PROJECT_TOKEN_FILE.
 PROJECT_TOKEN_FILE="${REQUEL_PROJECT_TOKEN_FILE:-$HOME/.config/gh-tokens/rreganjr-projects}"
 
+# --- board paging ------------------------------------------------------------
+# `gh project item-list` defaults to 30 items and truncates SILENTLY - no warning,
+# no error, just a short list. A board past 30 items therefore audits as clean while
+# the newest work is invisible (#240/#241/#242/#247 were all missing from the 2.0
+# audit for exactly this reason). Every item-list call passes this.
+ITEM_LIMIT="${REQUEL_ITEM_LIMIT:-500}"
+
 _project_token() {
   if [ ! -r "$PROJECT_TOKEN_FILE" ]; then
     echo "ERROR: no ProjectsV2 token at $PROJECT_TOKEN_FILE" >&2

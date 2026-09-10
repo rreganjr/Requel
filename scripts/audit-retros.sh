@@ -22,7 +22,7 @@ printf "%-9s %-6s %-7s %-6s %-6s %s\n" "STATUS" "ISSUE" "STATE" "RETRO" "CALC" "
 
 violations=0 missing=0 drift=0 ok=0
 
-gh project item-list "$NUM" --owner "$OWNER" --format json \
+gh project item-list "$NUM" --owner "$OWNER" --limit "$ITEM_LIMIT" --format json \
   | jq -r '.items[] | select(.content.type=="Issue")
            | [(.content.number), (.["story Points (Retro)"] // "")] | @tsv' \
   | while IFS=$'\t' read -r NUMBER RETRO; do
