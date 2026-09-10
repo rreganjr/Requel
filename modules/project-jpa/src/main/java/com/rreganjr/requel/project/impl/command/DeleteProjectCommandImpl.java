@@ -39,6 +39,7 @@ import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.annotation.command.DeleteAnnotationGroupCommand;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
@@ -82,9 +83,11 @@ import com.rreganjr.requel.user.UserRepository;
  * annotations and teams and deletes the project row.
  *
  * <p>
- * Delete order is reference-safe: steps and scenarios (which detach from their
- * using use-cases) before use-cases; containers before the goals/actors/stories
- * they hold; glossary terms after the entities that refer to them.
+ * Delete order is reference-safe: use-cases (which delete their own scenarios and
+ * steps, #247) before the remaining steps and scenarios; containers before the
+ * goals/actors/stories they hold; glossary terms after the entities that refer to
+ * them. Every entity delete ends with a database-state sweep of its annotation
+ * links (#247) so a background assistant cannot leave an FK-violating join row.
  *
  * @author ron
  */
@@ -147,7 +150,17 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 		// them belongs to the tagging module (it owns TagRepository, which project-jpa
 		// does not depend on) - a follow-up, not this command.
 
-		// 1) Scenarios and steps. Delete plain (non-scenario) steps first, then
+		// 1) Use-cases first (#247). DeleteUseCase deletes the use-case's own primary and
+		// additional scenarios (and their steps) with it: scenarios a use case owns are not
+		// reliably reachable from project.getScenarios(), and one that IS also there must
+		// not be deleted while usecases.scenario_id / usecase_scenarios still reference it.
+		for (UseCase useCase : new HashSet<UseCase>(project.getUseCases())) {
+			DeleteUseCaseCommand command = getProjectCommandFactory().newDeleteUseCaseCommand();
+			command.setUseCase(useCase);
+			executeExempt(command, editedBy);
+		}
+
+		// 2) Remaining scenarios and steps. Delete plain (non-scenario) steps first, then
 		// every scenario-typed entity (top-level plus any nested as a step).
 		// Walk scenarios and their steps via the domain interfaces (the impl's
 		// getAllScenariosAndSteps() is not exposed on Project).
@@ -179,13 +192,6 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 		for (Scenario scenario : scenarios) {
 			DeleteScenarioCommand command = getProjectCommandFactory().newDeleteScenarioCommand();
 			command.setScenario(scenario);
-			executeExempt(command, editedBy);
-		}
-
-		// 2) Use-cases (their contained scenarios are already gone).
-		for (UseCase useCase : new HashSet<UseCase>(project.getUseCases())) {
-			DeleteUseCaseCommand command = getProjectCommandFactory().newDeleteUseCaseCommand();
-			command.setUseCase(useCase);
 			executeExempt(command, editedBy);
 		}
 
@@ -242,6 +248,7 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 			ProjectTeam managedTeam = getRepository().get(team);
 			managedTeam.getMembers().clear();
 			project.getTeams().remove(team);
+			removeAllAnnotationsBeforeDelete(managedTeam, editedBy);
 			getRepository().delete(managedTeam);
 		}
 
@@ -255,7 +262,21 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 			getCommandHandler().execute(command);
 		}
 
-		// 11) Finally, the project row itself.
+		// 11) Whatever is still grouped under the project: annotations an assistant filed
+		// against an entity deleted before its findings were applied, or left unlinked by
+		// earlier bugs. annotations.grouping_object_id is an @Any with no foreign key, so a
+		// survivor is an orphan row - and, if it was loaded during the cascade, a commit
+		// failure ("references an unsaved transient instance of 'null'"). #247.
+		DeleteAnnotationGroupCommand deleteAnnotationGroup = getAnnotationCommandFactory()
+				.newDeleteAnnotationGroupCommand();
+		deleteAnnotationGroup.setGroupingObject(project);
+		deleteAnnotationGroup.setEditedBy(editedBy);
+		((AuthorizationExemptable) deleteAnnotationGroup).setAuthorizationExempt(true);
+		getCommandHandler().execute(deleteAnnotationGroup);
+
+		// 12) Finally, the project row itself (#247: after a database-state sweep of any
+		// annotation linked to the project since it was loaded).
+		removeAllAnnotationsBeforeDelete(project, editedBy);
 		getRepository().delete(project);
 	}
 

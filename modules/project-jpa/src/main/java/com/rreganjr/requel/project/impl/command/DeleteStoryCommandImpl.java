@@ -144,8 +144,18 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 		if (story.getPrimaryActor() != null) {
 			getProjectRepository().removeActorContainerFromActorJoinTable(
 					story.getPrimaryActor().getId(), story.getId());
+			// #247: like RemoveActorFromActorContainer, reload the actor after the native
+			// delete so its @ManyToAny referers no longer hold this (about to be removed) story
+			// - a stale element would make DeleteActor later merge() a removed container.
+			Actor primaryActor = getRepository().get(story.getPrimaryActor());
+			if (getRepository() instanceof com.rreganjr.repository.jpa.AbstractJpaRepository jpaRepo
+					&& jpaRepo.getEntityManager().contains(primaryActor)) {
+				jpaRepo.getEntityManager().refresh(primaryActor);
+			}
 		}
 		story.getProjectOrDomain().getStories().remove(story);
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(story, editedBy);
 		getRepository().delete(story);
 	}
 

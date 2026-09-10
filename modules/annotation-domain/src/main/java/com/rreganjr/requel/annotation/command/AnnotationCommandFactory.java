@@ -85,6 +85,20 @@ public interface AnnotationCommandFactory extends CommandFactory {
 	public RemoveAnnotationFromAnnotatableCommand newRemoveAnnotationFromAnnotatableCommand();
 
 	/**
+	 * @return a new RemoveAllAnnotationsFromAnnotatableCommand that unlinks an
+	 *         entity about to be deleted from every annotation (database state,
+	 *         not session state) and deletes the annotations left orphaned
+	 *         (issue #247).
+	 */
+	public RemoveAllAnnotationsFromAnnotatableCommand newRemoveAllAnnotationsFromAnnotatableCommand();
+
+	/**
+	 * @return a new DeleteAnnotationGroupCommand that deletes every annotation grouped
+	 *         under an object (a project about to be deleted), links first. Issue #247.
+	 */
+	public DeleteAnnotationGroupCommand newDeleteAnnotationGroupCommand();
+
+	/**
 	 * @return a new DeleteNoteCommand for deleting a note from the system and
 	 *         cleaning up all references from annotatable objects.
 	 */

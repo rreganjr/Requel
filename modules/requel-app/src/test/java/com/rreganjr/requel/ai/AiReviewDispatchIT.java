@@ -114,7 +114,7 @@ public class AiReviewDispatchIT extends AbstractIntegrationTestCase {
 		assertEquals("REQUIREMENTS_REVIEW", queued.getTaskType(),
 				"the manual trigger should set the run's task type");
 
-		assistantRunWorker.runInNewTransaction(queued.getRunId());
+		assistantRunWorker.run(queued.getRunId());
 
 		AssistantRunEntity completed = assistantRunRepository.findById(queued.getId())
 				.orElseThrow(() -> new AssertionError("review run row vanished"));

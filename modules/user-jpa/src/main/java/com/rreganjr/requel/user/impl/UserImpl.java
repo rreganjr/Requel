@@ -381,8 +381,10 @@ public class UserImpl implements User, Serializable {
 
 	@XmlElementWrapper(name = "userRoles", namespace = "http://www.rreganjr.com/requel")
 	@XmlElementRef(type = AbstractUserRole.class)
+	// #247: no REFRESH cascade into the roles - a ProjectUserRole's activeProjects fans out
+	// to every project the user is on (see AbstractProjectOrDomainEntity.getProjectOrDomain).
 	@OneToMany(targetEntity = AbstractUserRole.class, cascade = { CascadeType.MERGE,
-			CascadeType.PERSIST, CascadeType.REFRESH }, fetch = FetchType.EAGER)
+			CascadeType.PERSIST }, fetch = FetchType.EAGER)
 	@JoinTable(name = "users_user_roles", joinColumns = { @JoinColumn(name = "user_id") },
             inverseJoinColumns = { @JoinColumn(name = "role_id") })
 	@Size(min = 1, message = "one or more roles must be selected.")

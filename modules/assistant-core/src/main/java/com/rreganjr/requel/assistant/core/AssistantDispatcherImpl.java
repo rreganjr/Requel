@@ -61,7 +61,7 @@ public class AssistantDispatcherImpl implements AssistantDispatcher {
 			taskExecutor.execute(new Runnable() {
 				@Override
 				public void run() {
-					runWorker.runInNewTransaction(record.runId());
+					runWorker.run(record.runId());
 				}
 			});
 		} catch (TaskRejectedException e) {

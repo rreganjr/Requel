@@ -109,8 +109,16 @@ public class RemoveGoalFromGoalContainerCommandImpl extends AbstractEditProjectC
 		jpaRepo.removeGoalContainerFromGoalJoinTable(goalId, containerId);
 		jpaRepo.getEntityManager().refresh(removedGoal);
 
-		removingContainer.getGoals().remove(removedGoal);
-		removingContainer = getRepository().merge(removingContainer);
+		// #247: inside a cascade the container may already have been removed in this
+		// transaction (its @ManyToAny referer row was left behind by an earlier native detach),
+		// in which case get() handed back the removed instance. Mutating and merge()-ing a removed
+		// entity makes Hibernate re-persist it, and the commit then fails with
+		// "persistent instance references an unsaved transient instance". The join row is gone
+		// either way, so leave the removed container alone.
+		if (jpaRepo.getEntityManager().contains(removingContainer)) {
+			removingContainer.getGoals().remove(removedGoal);
+			removingContainer = getRepository().merge(removingContainer);
+		}
 		setGoal(removedGoal);
 		setGoalContainer(removingContainer);
 	}

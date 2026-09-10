@@ -162,4 +162,52 @@ public interface AnnotationRepository extends Repository {
 	 * @param annotatableId the id of the annotatable entity to unlink
 	 */
 	void removeAnnotatableFromAnnotationJoinTable(Long annotationId, Long annotatableId);
+
+	/**
+	 * #247: unlink an annotatable entity from <em>every</em> annotation with two
+	 * index-backed native deletes, executed in the current transaction against the
+	 * database's <em>current</em> state rather than the session's snapshot.
+	 * <p>
+	 * Clears both halves of the (doubly-mapped) relationship: the entity-owned
+	 * {@code <table>_annotations} join table (derived from the entity's
+	 * {@code annotations} collection mapping) and the annotation-owned
+	 * {@code annotation_annotatable} {@code @ManyToAny} table, restricted to the
+	 * entity's registered discriminator(s) so an Actor and a Goal that share a
+	 * numeric id never clear each other's links.
+	 * <p>
+	 * Why native: when an entity is deleted, Hibernate skips the join-table delete
+	 * for a collection whose loaded snapshot was empty. A background assistant that
+	 * commits an annotation link between the entity's load and its delete therefore
+	 * leaves a row that fails the FK ({@code goals_annotations}, ...) - the e2e 409s.
+	 * Call this immediately before {@code delete(entity)}, after the Java-side
+	 * annotation removal loop has run.
+	 *
+	 * @param annotatable
+	 *            the managed annotatable entity about to be deleted.
+	 * @return the ids of the annotations that were still linked to the entity in
+	 *         {@code annotation_annotatable}; the caller decides whether any of them
+	 *         are now orphans (no remaining annotatables) and should be deleted.
+	 */
+	java.util.List<Long> unlinkAllAnnotations(Annotatable annotatable);
+
+	/**
+	 * #247: every annotation whose {@code groupingObject} is the given object (a
+	 * project), whether or not it still annotates anything.
+	 *
+	 * @param groupingObject
+	 *            the grouping object.
+	 * @return the ids of the annotations grouped under it, from the database.
+	 */
+	java.util.List<Long> findAnnotationIdsByGroupingObject(Object groupingObject);
+
+	/**
+	 * #247: delete every {@code annotation_annotatable} row of an annotation natively,
+	 * against the database's current state, so the annotation can be deleted without
+	 * Hibernate resolving links whose target rows may already be gone.
+	 *
+	 * @param annotationId
+	 *            the annotation's id.
+	 * @return the number of link rows deleted.
+	 */
+	int unlinkAnnotation(Long annotationId);
 }

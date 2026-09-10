@@ -114,6 +114,8 @@ public class DeleteStakeholderCommandImpl extends AbstractEditProjectCommand imp
 		for (Goal goal : stakeholder.getGoals()) {
 			goal.getReferers().remove(stakeholder);
 		}
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(stakeholder, getEditedBy());
 		getRepository().delete(stakeholder);
 	}
 }

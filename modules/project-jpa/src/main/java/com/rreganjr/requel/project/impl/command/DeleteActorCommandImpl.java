@@ -45,6 +45,8 @@ import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.DeleteActorCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.command.RemoveGoalFromGoalContainerCommand;
 import com.rreganjr.requel.project.command.RemoveActorFromActorContainerCommand;
 import com.rreganjr.requel.project.impl.AddActorPosition;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -94,26 +96,12 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 		Actor actor = getRepository().get(getActor());
 		User editedBy = getRepository().get(getEditedBy());
 
-		// Proactively clear annotation join rows for this actor to avoid FK RESTRICT errors.
-		try {
-			if (getRepository() instanceof com.rreganjr.repository.jpa.AbstractJpaRepository jpaRepo) {
-				Object actorId = jpaRepo.getEntityManager().getEntityManagerFactory()
-						.getPersistenceUnitUtil().getIdentifier(actor);
-				if (actorId != null) {
-					// Some rows were written with short discriminators (e.g. "Actor") and others with
-					// the FQN. Use a broad delete by id to guarantee cleanup regardless of the stored
-					// discriminator value.
-					jpaRepo.getEntityManager()
-							.createNativeQuery(
-									"delete from annotation_annotatable where annotatable_id = :id")
-							.setParameter("id", actorId)
-							.executeUpdate();
-					jpaRepo.getEntityManager().flush();
-				}
-			}
-		} catch (Exception ex) {
-			log.warn("Failed early cleanup of annotation_annotatable rows for actor", ex);
-		}
+		// #247: the former "proactive" native DELETE FROM annotation_annotatable WHERE
+		// annotatable_id = ? that lived here was removed. It full-scanned and X-locked the
+		// whole join table (no index on annotatable_id; two concurrent actor deletes
+		// deadlocked each other in the e2e suite) and, lacking annotatable_type, also unlinked
+		// every other entity type sharing the actor's numeric id. The typed, index-backed
+		// sweep now runs in removeAllAnnotationsBeforeDelete() right before delete(actor).
 
 		Set<Annotation> annotations = new HashSet<Annotation>(actor.getAnnotations());
 		for (Annotation annotation : annotations) {
@@ -129,6 +117,19 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 			if (term.getReferers().contains(actor)) {
 				term.getReferers().remove(actor);
 			}
+		}
+		// #247: an actor is a GoalContainer (actor_goals). Detach its goals first, or each goal's
+		// @ManyToAny referers (goals_goalcontainers, no DB FK) keeps pointing at the deleted
+		// actor and a later DeleteGoal merge()s a removed container.
+		Set<Goal> heldGoals = new HashSet<Goal>(actor.getGoals());
+		for (Goal goal : heldGoals) {
+			RemoveGoalFromGoalContainerCommand removeGoalFromGoalContainerCommand = getProjectCommandFactory()
+					.newRemoveGoalFromGoalContainerCommand();
+			removeGoalFromGoalContainerCommand.setEditedBy(editedBy);
+			((com.rreganjr.platform.command.AuthorizationExemptable) removeGoalFromGoalContainerCommand).setAuthorizationExempt(true);
+			removeGoalFromGoalContainerCommand.setGoal(goal);
+			removeGoalFromGoalContainerCommand.setGoalContainer(actor);
+			getCommandHandler().execute(removeGoalFromGoalContainerCommand);
 		}
 		Set<ActorContainer> actorReferers = new HashSet<ActorContainer>(actor.getReferers());
 		for (ActorContainer actorContainer : actorReferers) {
@@ -170,6 +171,8 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 		getRepository().flush();
 
 		actor.getProjectOrDomain().getActors().remove(actor);
+		// #247: clear any annotation link committed since this entity was loaded.
+		removeAllAnnotationsBeforeDelete(actor, editedBy);
 		getRepository().delete(actor);
 	}
 

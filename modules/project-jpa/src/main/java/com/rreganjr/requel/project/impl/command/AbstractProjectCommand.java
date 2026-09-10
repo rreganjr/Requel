@@ -21,7 +21,10 @@
 package com.rreganjr.requel.project.impl.command;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.requel.annotation.command.RemoveAllAnnotationsFromAnnotatableCommand;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
@@ -87,5 +90,30 @@ public abstract class AbstractProjectCommand extends AbstractUserCommand
 
 	protected CommandHandler getCommandHandler() {
 		return commandHandler;
+	}
+
+	/**
+	 * #247: the last step before {@code getRepository().delete(entity)} in every
+	 * project-entity delete. Unlinks the entity from every annotation using the
+	 * database's current state (index-backed native deletes) and deletes the
+	 * annotations left orphaned, so an annotation a background assistant linked to
+	 * the entity after this command loaded it cannot fail the delete with a
+	 * {@code <table>_annotations} foreign-key violation. Runs auth-exempt as an
+	 * intrinsic sub-step of the already-authorized delete (#75).
+	 *
+	 * @param entity
+	 *            the managed entity about to be deleted.
+	 * @param editedBy
+	 *            the acting user.
+	 * @throws Exception
+	 */
+	protected void removeAllAnnotationsBeforeDelete(Annotatable entity, User editedBy)
+			throws Exception {
+		RemoveAllAnnotationsFromAnnotatableCommand command = getAnnotationCommandFactory()
+				.newRemoveAllAnnotationsFromAnnotatableCommand();
+		command.setAnnotatable(entity);
+		command.setEditedBy(editedBy);
+		((AuthorizationExemptable) command).setAuthorizationExempt(true);
+		getCommandHandler().execute(command);
 	}
 }

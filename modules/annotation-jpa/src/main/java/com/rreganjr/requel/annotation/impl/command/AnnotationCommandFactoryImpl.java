@@ -44,6 +44,8 @@ import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
 import com.rreganjr.requel.annotation.command.EditNoteCommand;
 import com.rreganjr.requel.annotation.command.EditPositionCommand;
+import com.rreganjr.requel.annotation.command.DeleteAnnotationGroupCommand;
+import com.rreganjr.requel.annotation.command.RemoveAllAnnotationsFromAnnotatableCommand;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.annotation.command.ResolveIssueCommand;
 import com.rreganjr.requel.annotation.impl.AddWordToDictionaryPosition;
@@ -186,6 +188,18 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 	public RemoveAnnotationFromAnnotatableCommand newRemoveAnnotationFromAnnotatableCommand() {
 		return (RemoveAnnotationFromAnnotatableCommand) getCreationStrategy().newInstance(
 				RemoveAnnotationFromAnnotatableCommandImpl.class);
+	}
+
+	@Override
+	public RemoveAllAnnotationsFromAnnotatableCommand newRemoveAllAnnotationsFromAnnotatableCommand() {
+		return (RemoveAllAnnotationsFromAnnotatableCommand) getCreationStrategy().newInstance(
+				RemoveAllAnnotationsFromAnnotatableCommandImpl.class);
+	}
+
+	@Override
+	public DeleteAnnotationGroupCommand newDeleteAnnotationGroupCommand() {
+		return (DeleteAnnotationGroupCommand) getCreationStrategy().newInstance(
+				DeleteAnnotationGroupCommandImpl.class);
 	}
 
 	@Override

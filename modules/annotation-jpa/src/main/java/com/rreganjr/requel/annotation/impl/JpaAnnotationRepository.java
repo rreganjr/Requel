@@ -20,6 +20,21 @@
  */
 package com.rreganjr.requel.annotation.impl;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.hibernate.Hibernate;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.metamodel.spi.MappingMetamodelImplementor;
+import org.hibernate.persister.collection.CollectionPersister;
+import org.hibernate.persister.entity.EntityPersister;
+import org.hibernate.persister.entity.Joinable;
+
+import com.rreganjr.requel.annotation.spi.AnnotatableTypeRegistry;
 import com.rreganjr.validator.InvalidStateException;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.OptimisticLockException;
@@ -257,6 +272,127 @@ public class JpaAnnotationRepository extends AbstractJpaRepository implements An
 				.setParameter("annId", annotationId)
 				.setParameter("aId", annotatableId)
 				.executeUpdate();
+	}
+
+	private AnnotatableTypeRegistry annotatableTypeRegistry;
+
+	/**
+	 * The discriminator registry the {@code @ManyToAny} mapping is built from (see
+	 * ProjectAnnotatableMetadataContributor); optional so the repository still
+	 * constructs in slices without the annotatable types registered.
+	 */
+	@Autowired(required = false)
+	public void setAnnotatableTypeRegistry(AnnotatableTypeRegistry annotatableTypeRegistry) {
+		this.annotatableTypeRegistry = annotatableTypeRegistry;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public List<Long> unlinkAllAnnotations(Annotatable annotatable) {
+		Object entity = attach(getEntityManager(), annotatable);
+		Class<?> entityClass = Hibernate.getClass(entity);
+		Long annotatableId = (Long) getEntityManager().getEntityManagerFactory()
+				.getPersistenceUnitUtil().getIdentifier(entity);
+		if (annotatableId == null) {
+			return Collections.emptyList();
+		}
+		Set<String> discriminators = annotatableDiscriminators(entityClass);
+
+		// 1) the @ManyToAny side (annotation_annotatable), restricted by type: the
+		// annotatable_id column is shared across entity types.
+		List<Number> linked = getEntityManager()
+				.createNativeQuery("SELECT annotation_id FROM annotation_annotatable"
+						+ " WHERE annotatable_id = :aId AND annotatable_type IN (:types)")
+				.setParameter("aId", annotatableId)
+				.setParameter("types", discriminators)
+				.getResultList();
+		getEntityManager()
+				.createNativeQuery("DELETE FROM annotation_annotatable"
+						+ " WHERE annotatable_id = :aId AND annotatable_type IN (:types)")
+				.setParameter("aId", annotatableId)
+				.setParameter("types", discriminators)
+				.executeUpdate();
+
+		// 2) the entity-owned @ManyToMany side (<table>_annotations), located through the
+		// mapping so table and key column names are never hand-maintained here.
+		SessionFactoryImplementor sessionFactory = getEntityManager().getEntityManagerFactory()
+				.unwrap(SessionFactoryImplementor.class);
+		MappingMetamodelImplementor metamodel = sessionFactory.getMappingMetamodel();
+		EntityPersister entityDescriptor = metamodel.getEntityDescriptor(entityClass);
+		CollectionPersister annotations = metamodel
+				.findCollectionDescriptor(entityDescriptor.getEntityName() + ".annotations");
+		if ((annotations instanceof Joinable joinable) && !annotations.isInverse()) {
+			String table = joinable.getTableName();
+			String[] keyColumns = joinable.getKeyColumnNames();
+			if (keyColumns.length == 1) {
+				getEntityManager()
+						.createNativeQuery("DELETE FROM " + table + " WHERE " + keyColumns[0] + " = :aId")
+						.setParameter("aId", annotatableId)
+						.executeUpdate();
+			} else {
+				log.warn("unlinkAllAnnotations: composite key on " + table + " for "
+						+ entityClass.getName() + "; entity-side join rows not cleared");
+			}
+		} else if (annotations == null) {
+			log.debug("unlinkAllAnnotations: no 'annotations' collection mapped on "
+					+ entityClass.getName());
+		}
+
+		List<Long> ids = new ArrayList<Long>(linked.size());
+		for (Number id : linked) {
+			ids.add(Long.valueOf(id.longValue()));
+		}
+		return ids;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public List<Long> findAnnotationIdsByGroupingObject(Object groupingObject) {
+		Object managed = groupingObject;
+		if (!getEntityManager().contains(managed)) {
+			managed = attach(getEntityManager(), managed);
+		}
+		List<Number> ids = getEntityManager()
+				.createQuery("select annotation.id from AbstractAnnotation as annotation "
+						+ "where annotation.groupingObject = :groupingObject")
+				.setParameter("groupingObject", managed)
+				.getResultList();
+		List<Long> result = new ArrayList<Long>(ids.size());
+		for (Number id : ids) {
+			result.add(Long.valueOf(id.longValue()));
+		}
+		return result;
+	}
+
+	@Override
+	public int unlinkAnnotation(Long annotationId) {
+		return getEntityManager()
+				.createNativeQuery("DELETE FROM annotation_annotatable WHERE annotation_id = :annId")
+				.setParameter("annId", annotationId)
+				.executeUpdate();
+	}
+
+	/**
+	 * Every discriminator value a row for this entity may carry in
+	 * {@code annotatable_type}: the registered value for its concrete class, those of
+	 * any registered supertype (a Scenario row may be typed "Scenario" or "Step"), and
+	 * the class names themselves for rows written before the registry existed.
+	 */
+	private Set<String> annotatableDiscriminators(Class<?> entityClass) {
+		Set<String> discriminators = new LinkedHashSet<String>();
+		if (annotatableTypeRegistry != null) {
+			for (Map.Entry<String, Class<? extends Annotatable>> registered : annotatableTypeRegistry
+					.getRegisteredAnnotatableTypes().entrySet()) {
+				if (registered.getValue().isAssignableFrom(entityClass)) {
+					discriminators.add(registered.getKey());
+				}
+			}
+		}
+		for (Class<?> c = entityClass; (c != null) && !Object.class.equals(c); c = c.getSuperclass()) {
+			discriminators.add(c.getName());
+			discriminators.add(c.getSimpleName());
+		}
+		return discriminators;
 	}
 
 	@Override
