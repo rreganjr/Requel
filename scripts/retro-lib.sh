@@ -72,10 +72,18 @@ is_epic() {   # usage: is_epic 124 && echo "it's an epic"
     --jq 'any(.labels[]?; .name=="Epic")' 2>/dev/null | grep -qx true
 }
 
-# Distinct days with a commit referencing issues/<n> (this repo puts the full issue
-# URL on commit line 1, so match the URL form with a word boundary).
+# Distinct days with a commit that claims issue <n> as its own work: the full issue
+# URL at the START OF A LINE. Line 1 of every ticket commit here is that URL, and a
+# GitHub squash merge re-emits it as "* <url>", so both forms count.
+#
+# The line anchor is load-bearing. Matching the URL anywhere in the message also
+# counts a commit that merely *mentions* the issue in prose - a tooling commit whose
+# body explains what went wrong with #26 scored a work-day against #26 and pushed it
+# into DRIFT. Anchoring changes no other count on the 2.0 board (verified across every
+# issue on it, calibration cases #38=39, #43=10, #69=4, #73=3 included).
 commit_days() {   # usage: commit_days 43
-  git -C "$REPO_DIR" log --all -E --grep="issues/$1(\$|[^0-9])" \
+  git -C "$REPO_DIR" log --all -E \
+    --grep="^(\* )?https://github\.com/$REPO/issues/$1(\$|[^0-9])" \
     --format='%ad' --date=short 2>/dev/null | sort -u | grep -c . || true
 }
 

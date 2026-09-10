@@ -142,6 +142,10 @@ Suggested prompt:
 
 - Commit convention is the **full issue URL**, not `#N`. Grepping `#38` misses everything and false-matches
   `issues/40`; always match `issues/N` with a word boundary (the lib does this).
+- Match the URL **at the start of a line**, not anywhere in the message (the lib does this too). Line 1 of a
+  ticket commit is the URL and a GitHub squash re-emits it as `* <url>`, so both count — while a commit that
+  merely *mentions* the issue in prose does not. A tooling commit explaining the #26 problem scored a day
+  against #26 until the anchor was added.
 - Migration work (#38) was committed incrementally, not squashed — 82 commits across 39 days all carry the
   `issues/38` URL, so the commit-day count captures it correctly.
 - Commit-days can **double-count** a calendar day across two issues touched the same day. Fine per-issue;
