@@ -58,16 +58,103 @@ gh() {
   fi
 }
 
-# Look up the project NUMBER for PROJECT_TITLE. Empty if it doesn't exist yet.
+# --- lookup caching ----------------------------------------------------------
+# GraphQL is billed at 5,000 points/hour and these scripts used to spend that on
+# repetition: set-points.sh re-resolved the project and re-listed every field on
+# EVERY issue, and audit-retros.sh asked for each item's state and labels one call
+# at a time. A single audit ran ~215 calls and a full backfill several hundred, so
+# an evening's work hit the limit mid-run.
+#
+# Every lookup below is resolved once and reused. The answers are exported, so a
+# child process (backfill-points.sh -> set-points.sh) inherits them rather than
+# re-resolving per issue. Override any of them in the environment to skip the
+# lookup entirely.
+#
+# CACHING AND SUBSHELLS: a cache set inside `$(...)` dies with that subshell, so
+# reading these as `X=$(project_id)` caches nothing on its own. Every script
+# therefore WARMS the lookups with plain calls (`project_id >/dev/null`) in its own
+# shell first; after that the `$(...)` reads and any loop below cost nothing, and
+# child processes inherit the exported values.
+
+# Project NUMBER for PROJECT_TITLE. Empty if the project doesn't exist yet.
 resolve_project_number() {
-  gh project list --owner "$OWNER" --format json \
-    | jq -r --arg t "$PROJECT_TITLE" '.projects[] | select(.title==$t) | .number' | head -1
+  if [ -z "${REQUEL_PROJECT_NUM:-}" ]; then
+    REQUEL_PROJECT_NUM="$(gh project list --owner "$OWNER" --format json \
+      | jq -r --arg t "$PROJECT_TITLE" '.projects[] | select(.title==$t) | .number' | head -1)"
+    export REQUEL_PROJECT_NUM
+  fi
+  echo "$REQUEL_PROJECT_NUM"
+}
+
+# Project NODE id (PVT_…), which item-edit wants.
+project_id() {
+  if [ -z "${REQUEL_PROJECT_ID:-}" ]; then
+    # Plain call, not $(resolve_project_number): a substitution would resolve the
+    # number in a subshell and throw the cached value away, costing a second
+    # `project list` when field_id resolves it again.
+    resolve_project_number >/dev/null
+    REQUEL_PROJECT_ID="$(gh project view "$REQUEL_PROJECT_NUM" --owner "$OWNER" \
+      --format json | jq -r '.id')"
+    export REQUEL_PROJECT_ID
+  fi
+  echo "$REQUEL_PROJECT_ID"
+}
+
+# Field NODE id by field name. The field list is fetched at most once per process;
+# the two fields these scripts write are additionally cached in exported vars.
+field_id() {      # usage: field_id "Story Points (Retro)"
+  local name="$1" var=""
+  case "$name" in
+    "Story Points")         var=REQUEL_SP_FIELD_ID ;;
+    "Story Points (Retro)") var=REQUEL_RETRO_FIELD_ID ;;
+  esac
+  if [ -n "$var" ] && [ -n "${!var:-}" ]; then
+    echo "${!var}"
+    return
+  fi
+  if [ -z "${REQUEL_FIELDS_JSON:-}" ]; then
+    resolve_project_number >/dev/null
+    REQUEL_FIELDS_JSON="$(gh project field-list "$REQUEL_PROJECT_NUM" --owner "$OWNER" \
+      --limit 100 --format json)"
+  fi
+  local id
+  id="$(jq -r --arg n "$name" '.fields[] | select(.name==$n) | .id' <<<"$REQUEL_FIELDS_JSON" \
+    | head -1)"
+  if [ -n "$var" ]; then
+    printf -v "$var" '%s' "$id"
+    export "$var"
+  fi
+  echo "$id"
+}
+
+# One query for every issue's state and labels, cached in a TSV that child
+# processes inherit via REQUEL_ISSUE_INDEX. Replaces two gh calls per issue.
+# Written to TMPDIR and deliberately not deleted: a child would otherwise remove
+# the file its parent is still reading. It is a few KB and TMPDIR is transient.
+load_issue_index() {
+  if [ -n "${REQUEL_ISSUE_INDEX:-}" ] && [ -r "${REQUEL_ISSUE_INDEX}" ]; then
+    return
+  fi
+  REQUEL_ISSUE_INDEX="$(mktemp "${TMPDIR:-/tmp}/requel-issue-index.XXXXXX")"
+  export REQUEL_ISSUE_INDEX
+  gh issue list --repo "$REPO" --state all --limit 1000 --json number,state,labels \
+    | jq -r '.[] | [ (.number|tostring),
+                     (.state|ascii_upcase),
+                     (if any(.labels[]?; .name=="Epic") then "epic" else "-" end) ] | @tsv' \
+    > "$REQUEL_ISSUE_INDEX"
+}
+
+# Column 2 = state, column 3 = epic marker. Empty when the number is not an issue
+# in this repo (a PR number, say) — callers treat that as "not closed".
+_issue_index_field() {   # usage: _issue_index_field 43 2
+  load_issue_index
+  awk -F'\t' -v n="$1" -v c="$2" '$1 == n { print $c; exit }' "$REQUEL_ISSUE_INDEX"
 }
 
 # Issue state: "OPEN" or "CLOSED" (uppercase). Used to gate retro writes —
 # an issue must be done before it earns a retro value.
 issue_state() {   # usage: issue_state 43
-  gh issue view "$1" --repo "$REPO" --json state --jq '.state' 2>/dev/null
+  _issue_index_field "$1" 2
 }
 
 # True (exit 0) if the issue carries the "Epic" label. Epics are rollup/container
@@ -75,8 +162,7 @@ issue_state() {   # usage: issue_state 43
 # (or an initial estimate). Any epic, present or future, is caught by the label,
 # so nothing here is hardcoded to #124.
 is_epic() {   # usage: is_epic 124 && echo "it's an epic"
-  gh issue view "$1" --repo "$REPO" --json labels \
-    --jq 'any(.labels[]?; .name=="Epic")' 2>/dev/null | grep -qx true
+  [ "$(_issue_index_field "$1" 3)" = "epic" ]
 }
 
 # Distinct days with a commit that claims issue <n> as its own work: the full issue

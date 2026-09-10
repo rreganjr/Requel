@@ -20,6 +20,11 @@ NUM=$(resolve_project_number)
 echo "==> Auditing '$PROJECT_TITLE' (#$NUM). Key: gh lowercases only the first letter -> 'story Points (Retro)'."
 printf "%-9s %-6s %-7s %-6s %-6s %s\n" "STATUS" "ISSUE" "STATE" "RETRO" "CALC" "FLAG"
 
+# Build the issue index once, here, before the pipeline below: its `while` body is
+# a subshell and each `$(issue_state …)` inside it is another, so without this the
+# index would be rebuilt for every board item.
+load_issue_index
+
 violations=0 missing=0 drift=0 ok=0
 
 gh project item-list "$NUM" --owner "$OWNER" --limit "$ITEM_LIMIT" --format json \

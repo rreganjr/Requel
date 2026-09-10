@@ -21,6 +21,11 @@ ISSUE="${1:?usage: set-points.sh <issue#> <initial> [retro]}"
 POINTS="${2:?usage: set-points.sh <issue#> <initial> [retro]}"
 RETRO="${3:-}"
 
+# Warm the shared issue index in THIS shell before reading it through `$(...)`,
+# which would otherwise build it in a subshell and throw it away. Under
+# backfill-points.sh it is already in the environment and this is a no-op.
+load_issue_index
+
 # Retro is only for finished work. Check state up front; if the issue is still
 # open, we never set a retro value (initial Story Points may still be set).
 STATE=$(issue_state "$ISSUE")
@@ -56,14 +61,24 @@ if [[ -z "$NUM" ]]; then
   exit 1
 fi
 
-PROJECT_ID=$(gh project view "$NUM" --owner "$OWNER" --format json | jq -r '.id')
-FIELDS=$(gh project field-list "$NUM" --owner "$OWNER" --format json)
-SP_ID=$(echo "$FIELDS" | jq -r '.fields[] | select(.name=="Story Points") | .id')
-RETRO_ID=$(echo "$FIELDS" | jq -r '.fields[] | select(.name=="Story Points (Retro)") | .id')
+# Warm these in this shell too, for the same reason, then read them. Cached in
+# retro-lib and inherited from a parent backfill run, so a loop over many issues
+# resolves the project and its fields once rather than once per issue.
+project_id >/dev/null
+field_id "Story Points" >/dev/null
+field_id "Story Points (Retro)" >/dev/null
+PROJECT_ID=$(project_id)
+SP_ID=$(field_id "Story Points")
+RETRO_ID=$(field_id "Story Points (Retro)")
 [[ -z "$SP_ID" || "$SP_ID" == "null" ]] && { echo "ERROR: 'Story Points' field missing in '$PROJECT_TITLE'." >&2; exit 1; }
 
-ITEM_ID=$(gh project item-add "$NUM" --owner "$OWNER" \
-  --url "https://github.com/$REPO/issues/$ISSUE" --format json | jq -r '.id')
+# A caller that already knows the board item id passes it in REQUEL_ITEM_ID;
+# otherwise item-add returns it (and is a no-op when the issue is already there).
+ITEM_ID="${REQUEL_ITEM_ID:-}"
+if [[ -z "$ITEM_ID" ]]; then
+  ITEM_ID=$(gh project item-add "$NUM" --owner "$OWNER" \
+    --url "https://github.com/$REPO/issues/$ISSUE" --format json | jq -r '.id')
+fi
 
 echo "==> #$ISSUE in '$PROJECT_TITLE': Story Points (initial) = $POINTS"
 gh project item-edit --project-id "$PROJECT_ID" --id "$ITEM_ID" --field-id "$SP_ID" --number "$POINTS"

@@ -53,6 +53,14 @@ fi
 # One board read for the whole run: what is already recorded decides what we touch.
 BOARD=$(gh project item-list "$PROJECT_NUM" --owner "$OWNER" --limit "$ITEM_LIMIT" --format json)
 
+# Resolve every shared lookup once, before the loop. These export, so each
+# set-points.sh child inherits them instead of re-resolving the project, the field
+# list and the issue's state on every single issue.
+project_id >/dev/null
+field_id "Story Points" >/dev/null
+field_id "Story Points (Retro)" >/dev/null
+load_issue_index
+
 # Current value of a board field for an issue, or "" when the issue is not on the
 # board or the field is unset. A recorded 0 comes back as "0", not "" — zero is a
 # value (an issue closed with no committed work), so it must not read as missing.
@@ -60,6 +68,14 @@ board_field() {   # usage: board_field 240 "story Points (Retro)"
   jq -r --argjson n "$1" --arg f "$2" \
     '[.items[] | select(.content.type=="Issue" and .content.number==$n) | (.[$f] // null)]
      | if length == 0 or .[0] == null then "" else (.[0] | tostring) end' <<<"$BOARD"
+}
+
+# Board item id for an issue, or "" when it is not on the board yet. Handing this
+# to set-points.sh saves an item-add round trip per issue.
+board_item_id() { # usage: board_item_id 240
+  jq -r --argjson n "$1" \
+    '[.items[] | select(.content.type=="Issue" and .content.number==$n) | .id]
+     | if length == 0 then "" else .[0] end' <<<"$BOARD"
 }
 
 filled=0 skipped=0 epics=0
@@ -82,7 +98,7 @@ for n in $ISSUES; do
   # Preserve whatever estimate is on the board; 0 only when there is none.
   INITIAL=$(board_field "$n" "story Points")
   [[ -z "$INITIAL" ]] && INITIAL=0
-  "$DIR/set-points.sh" "$n" "$INITIAL"
+  REQUEL_ITEM_ID="$(board_item_id "$n")" "$DIR/set-points.sh" "$n" "$INITIAL"
   filled=$((filled + 1))
 done
 
