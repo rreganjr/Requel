@@ -269,6 +269,7 @@ The Angular SPA is backed by a hybrid CQRS API:
 - **Annotation decoupling:** The annotation module must not import project implementation classes; use the registry pattern
 - **Module dependencies flow downward:** domain modules never depend on JPA modules
 - **Project XML compatibility:** Import/export must satisfy `doc/samples/project.xsd`; changes to JAXB mappings need round-trip regression tests
+- **No upward `CascadeType.REFRESH`:** never cascade REFRESH from a child to its parent/owner (entity → project, anything → user, role → projects). `em.refresh(entity)` follows every REFRESH edge; one upward edge turned a refresh into a reload of the whole database (#247: 300k statements per DeleteProject). Refresh reloads the entity and what it owns, nothing above it.
 
 ## Key Documentation
 
@@ -285,4 +286,12 @@ The Angular SPA is backed by a hybrid CQRS API:
 - **JUnit 5 (Jupiter)** — fully migrated from JUnit 4; 59 test classes, all using `org.junit.jupiter.api`
 - Tests in `modules/requel-app/src/test/` cover commands, REST API (MockMvc), repositories, authorization, and JAXB round-trips
 - Surefire configured with `failIfNoTests=false` — modules without tests still build
-- Key test classes: `AuthorizationIT` (28 authorization scenarios), `ProjectXmlStreamingRoundTripIT`, `ProjectUserCreationIT`, `AnnotationAnyMappingTest`
+- Key test classes: `AuthorizationIT` (28 authorization scenarios), `ProjectXmlStreamingRoundTripIT`, `ProjectUserCreationIT`, `AnnotationAnyMappingTest`, `DeleteProjectIT` / `DeleteProjectMySqlIT` (delete cascades on H2 and on Testcontainers MySQL), `DeleteCascadeIT`
+
+### Writing tests
+
+- **One H2 database per Spring context, shared by every IT in the run.** `@SpringBootTest` contexts are cached, so a test class sees whatever rows and auto-increment counters earlier classes left behind. Never assume an id value, an empty table, or "the second row I create".
+- **Ids from different tables collide.** Tables are per-table auto-increment (`stories`, `usecases`, `goals`, … all start at 1), so `storyId == useCaseId` is a normal event whose timing depends on which test classes ran before yours. A fixture that needs "an id that is NOT also an X id" must create rows until the condition holds (see `CommandGatewayIT`'s `storyId2` loop), not check it once and hope — adding an unrelated IT to the suite shifted the counters and failed CI on #248.
+- **Manufacture race outcomes with `JdbcTemplate`.** Code that only matters under concurrency (a link written between a delete's load and its flush, a dangling `annotation_annotatable` row) is never reached by a single-threaded test; insert or delete the join rows natively to create the end state, then run the command (`DeleteCascadeIT`, `DeleteProjectIT`).
+- **H2 is not MySQL.** `create-drop` has no Flyway schema, no InnoDB locking and no leftover data, so FK order, lock waits and orphan-row failures only show on MySQL: extend the H2 IT with a `@Testcontainers` subclass (`DeleteProjectMySqlIT` pattern) for anything that touches deletes or join tables.
+- **A green Playwright run proves little on its own.** The e2e `deleteProject` helper is best-effort and swallows failures; after an e2e run grep the app log for `Command execution failed`, `TransientObject`, `Lock wait timeout` (must be 0) and compare `Deadlock found` with `succeeded after retry` (must match).
