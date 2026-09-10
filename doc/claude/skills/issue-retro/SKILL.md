@@ -123,7 +123,9 @@ Ask the user to approve, adjust, or drop rows. Offer all-or-subset. Honour scale
 ./scripts/set-points.sh <issue#> 0 <retro>    # override the computed retro
 ```
 `set-points.sh` writes to the project for the current `REQUEL_RELEASE`. To backfill an entire release at
-once: `./scripts/backfill-points.sh <release>` (loops the milestone's closed issues).
+once: `./scripts/backfill-points.sh <release>` (loops the milestone's closed issues). Backfill only fills
+gaps — it skips issues that already carry a retro, and passes each issue's existing initial estimate back
+through rather than zeroing it. Use `--recompute` to deliberately re-derive retros that are already set.
 Leave **initial** Story Points at **0** unless the user gives an actual pre-work estimate.
 
 ### 6. Summarize

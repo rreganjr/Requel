@@ -110,7 +110,7 @@ Every change is tied to a GitHub issue and lands via a ticket branch and a PR �
     ./scripts/audit-retros.sh 2.0                 # read-only: VIOLATION / MISSING / DRIFT / OK
     ./scripts/set-points.sh <n> 0                 # one issue: initial 0, retro auto-computed
     ./scripts/set-points.sh <n> 0 <retro>         # same, overriding the computed retro
-    ./scripts/backfill-points.sh 2.0              # every closed issue in milestone v2.0
+    ./scripts/backfill-points.sh 2.0              # fill every closed v2.0 issue that has no retro yet
     ./scripts/clear-open-retros.sh 2.0 --apply    # clear retros set on still-open issues
     ```
     **The retro number is measured, not judged:** `retro = snap_fib(commit_days(n))`, where `commit_days` counts distinct days with a commit carrying `https://github.com/rreganjr/Requel/issues/<n>` (line 1 of every commit here). The scale is ~1 working day = 1 point, snapped to Fibonacci. Calibration: #40 = 1d → 1, #73 = 3d → 3, #69 = 4d → 5, #43 = 10d → 8, #38 = 39d → 34. Override only deliberately — a value that differs from the calc shows as **DRIFT** on every later audit, and a one-day ticket pointed at 5 is worth five of #38's days on the same board.
@@ -121,6 +121,7 @@ Every change is tied to a GitHub issue and lands via a ticket branch and a PR �
     - **Retro is closed-only.** `set-points.sh` *silently* drops the retro on an open issue (it still writes the initial estimate), so run step 10 before step 12 and check the output for a `Story Points (Retro) = ` line rather than assuming the write happened.
     - **The second argument is always written.** `./scripts/set-points.sh <n> 0` sets initial Story Points to **0**. If the issue carries a real pre-work estimate, pass that number instead of `0` or you will erase it.
     - **Epics never carry a retro.** `is_epic` strips it from anything labelled `Epic`; the sub-issues carry the effort.
+    - **Backfill fills, it does not overwrite.** `backfill-points.sh` skips any issue that already has a retro (a deliberate override is not a gap) and passes each issue's existing initial estimate back through instead of zeroing it. `--recompute` re-derives set values on purpose; estimates are preserved either way.
     - **The two scripts see different sets.** `audit-retros.sh` walks the *project board*, so an issue never added to it is invisible there; `backfill-points.sh` selects by *milestone* `v<release>`, so an issue missing its milestone is invisible to that. `set-points.sh` adds the issue to the board itself, which is how a stray one gets on.
 
 **Stacked PRs (large tickets split into sub-PRs).** Split a big ticket in the plan (e.g. `128-154-app-shell` → chrome, breadcrumb, resolver, workspace). Each sub-PR is its own branch; base each on the one below (`--base <lower-branch>`) or on `release/2.0` if the lower one already merged. **Merge bottom-up, and rebase the next branch after each squash-merge** — because squash rewrites SHAs, a plain `git rebase release/2.0` replays the already-merged commits and conflicts. Use `--onto` with the *old* tip of the branch that just merged:
