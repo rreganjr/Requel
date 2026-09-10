@@ -23,6 +23,7 @@ package com.rreganjr.requel.mcp;
 import com.rreganjr.requel.gateway.CommandDescriptor;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
 import com.rreganjr.requel.service.api.dto.AddGoalToGoalContainerInput;
+import com.rreganjr.requel.service.api.dto.DeleteProjectInput;
 import com.rreganjr.requel.service.api.dto.EditGoalInput;
 import com.rreganjr.requel.service.api.dto.EditIssueInput;
 import com.rreganjr.requel.service.api.dto.EditNoteInput;
@@ -36,16 +37,22 @@ import java.util.Optional;
  * A small, representative {@link GatewayCommandCatalog} for MCP unit tests: a handful of the real
  * allowlisted command types wired to their real input DTOs, so tool-name and schema generation is
  * exercised against genuine records without booting a Spring context.
+ * <p>
+ * Includes {@code DeleteProject} (issue #242) so the write flag, tool naming and schema derivation
+ * are exercised against a destructive command, not only edit-shaped ones.
  */
 final class McpTestCatalog {
 
 	private McpTestCatalog() {
 	}
 
-	/** A representative catalog covering create/edit, association, and annotation commands. */
+	/**
+	 * A representative catalog covering create/edit, delete, association, and annotation commands.
+	 */
 	static GatewayCommandCatalog sample() {
 		Map<String, CommandDescriptor> byType = new LinkedHashMap<>();
 		add(byType, "EditProject", EditProjectInput.class, "Edit Project");
+		add(byType, "DeleteProject", DeleteProjectInput.class, "Delete Project");
 		add(byType, "EditGoal", EditGoalInput.class, "Edit Goal");
 		add(byType, "AddGoalToGoalContainer", AddGoalToGoalContainerInput.class,
 				"Add Goal To Goal Container");

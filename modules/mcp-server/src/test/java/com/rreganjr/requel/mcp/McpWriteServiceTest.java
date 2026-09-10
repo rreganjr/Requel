@@ -87,6 +87,41 @@ class McpWriteServiceTest {
 				.hasMessageContaining("disabled");
 	}
 
+	/**
+	 * Issue #242 AC: with writes disabled, {@code DeleteProject} is neither offered nor
+	 * dispatchable — the flag is the coarse off switch for the whole write surface, and a
+	 * whole-project delete is the one it most needs to hold for.
+	 */
+	@Test
+	void deleteProjectAbsentAndRejectedWhenWritesDisabled() {
+		McpWriteService disabled = new McpWriteService(new RecordingGateway(), catalog,
+				objectMapper, false);
+		assertThat(disabled.toolDescriptors()).extracting(McpToolDescriptor::name)
+				.doesNotContain("DeleteProject");
+		assertThatThrownBy(() -> disabled.call("DeleteProject", json("{\"projectName\":\"P\"}")))
+				.isInstanceOf(McpInvalidParamsException.class)
+				.hasMessageContaining("disabled");
+		// The generic escape hatch cannot be used to smuggle it past the flag either.
+		assertThatThrownBy(() -> disabled.call(McpWriteService.RUN_COMMAND,
+				json("{\"commandType\":\"DeleteProject\",\"input\":{\"projectName\":\"P\"}}")))
+				.isInstanceOf(McpInvalidParamsException.class)
+				.hasMessageContaining("disabled");
+	}
+
+	/** Issue #242: with writes enabled the typed tool forwards its arguments unchanged. */
+	@Test
+	void deleteProjectTypedToolForwardsProjectNameAndVersion() {
+		RecordingGateway gw = new RecordingGateway();
+		McpWriteService svc = new McpWriteService(gw, catalog, objectMapper, true);
+
+		svc.call("DeleteProject", json("{\"projectName\":\"P\",\"version\":3}"));
+
+		assertThat(gw.last.commandType()).isEqualTo("DeleteProject");
+		assertThat(asMap(gw.last.input()))
+				.containsEntry("projectName", "P")
+				.containsEntry("version", 3);
+	}
+
 	@Test
 	void readServiceOmitsWriteToolsWhenDisabled() {
 		McpReadService readOnly = new McpReadService(new StubProjectQueryGateway(), objectMapper);
@@ -102,7 +137,7 @@ class McpWriteServiceTest {
 		McpWriteService enabled = new McpWriteService(new RecordingGateway(), catalog,
 				objectMapper, true);
 		assertThat(enabled.toolDescriptors()).extracting(McpToolDescriptor::name)
-				.contains("runCommand", "EditProject", "EditGoal",
+				.contains("runCommand", "EditProject", "DeleteProject", "EditGoal",
 						"AddGoalToGoalContainer", "EditNote", "EditIssue",
 						McpWriteService.UPSERT_GOAL);
 	}

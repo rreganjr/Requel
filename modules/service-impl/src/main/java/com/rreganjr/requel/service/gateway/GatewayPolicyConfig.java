@@ -50,8 +50,10 @@ public class GatewayPolicyConfig {
      * absent.
      */
     public static final Set<String> ALLOWED = Set.of(
-            // Project
-            "EditProject",
+            // Project (DeleteProject removes the whole project and its children; the gateway
+            // only decides exposure — Project[Delete] is enforced per stakeholder at the command
+            // layer, issue #242)
+            "EditProject", "DeleteProject",
             // Stakeholders (non-user only; DeleteStakeholder additionally input-guarded)
             "EditNonUserStakeholder", "DeleteStakeholder",
             // Goals

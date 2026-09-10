@@ -87,4 +87,29 @@ class McpWriteCatalogLockstepTest {
 		assertThat(required).containsExactlyInAnyOrder("projectName", "name");
 		assertThat(required).doesNotContain("goalId", "text", "version");
 	}
+
+	/**
+	 * Issue #242: the {@code DeleteProject} typed tool is generated from
+	 * {@code DeleteProjectInput(projectName, version)} — the project to delete plus the caller's
+	 * optimistic-lock expectation, and nothing else. A tool that accepted extra arguments, or that
+	 * made {@code projectName} optional, would be a whole-project delete waiting to fire on the
+	 * wrong input.
+	 */
+	@Test
+	@SuppressWarnings("unchecked")
+	void deleteProjectToolExposesOnlyTheProjectNameAndVersion() {
+		McpToolDescriptor deleteProject = writes.toolDescriptors().stream()
+				.filter(t -> t.name().equals("DeleteProject")).findFirst().orElseThrow();
+
+		var properties =
+				(java.util.Map<String, Object>) deleteProject.inputSchema().get("properties");
+		assertThat(properties).containsOnlyKeys("projectName", "version");
+		assertThat(properties.get("projectName")).isEqualTo(java.util.Map.of("type", "string"));
+		assertThat(properties.get("version")).isEqualTo(java.util.Map.of("type", "integer"));
+		assertThat(deleteProject.inputSchema()).containsEntry("additionalProperties", false);
+
+		// @NotBlank projectName is required; version is optional (absent = no version check).
+		var required = (java.util.List<String>) deleteProject.inputSchema().get("required");
+		assertThat(required).containsExactly("projectName");
+	}
 }
