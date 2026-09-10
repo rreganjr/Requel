@@ -208,6 +208,21 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         useCaseCmd.setPrimaryActorName(actorCmd.getActor().getName());
         useCaseCmd = getCommandHandler().execute(useCaseCmd);
         useCaseId = useCaseCmd.getUseCase().getId();
+
+        // Ids are per-table auto-increment, so whether storyId2 collides with useCaseId depends
+        // on how many stories and use cases earlier test classes created in the shared context
+        // (it did, at 5, once DeleteCascadeIT joined the suite). The #189 regression test needs
+        // a story id that is NOT a use case id, so keep adding stories until it has one.
+        for (int extra = 0; storyId2.equals(useCaseId); extra++) {
+            EditStoryCommand storyCmdN = getProjectCommandFactory().newEditStoryCommand();
+            storyCmdN.setEditedBy(admin);
+            storyCmdN.setStoryContainer(project);
+            storyCmdN.setName("gw-story2-" + ts + "-" + extra);
+            storyCmdN.setText("story whose id is not also a use case id");
+            storyCmdN.setStoryTypeName(StoryType.Success.name());
+            storyCmdN = getCommandHandler().execute(storyCmdN);
+            storyId2 = storyCmdN.getStory().getId();
+        }
     }
 
     @AfterEach
