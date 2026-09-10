@@ -105,15 +105,21 @@ Every change is tied to a GitHub issue and lands via a ticket branch and a PR �
     bash scripts/reorder-ui-ux-subissues.sh --sync-checks --comment
     ```
     It reconciles the rollup doc's checkboxes/progress from **issue-closed state** (not PR-merged state), so run it *after* step 10.
-12. **Story Points (Retro)** — record actual effort in the project's **Story Points (Retro)** field so estimate-vs-actual stays honest:
+12. **Story Points (Retro)** — record actual effort so estimate-vs-actual stays honest. **Use the scripts; never hand-run `gh project`.** The fine-grained `GH_TOKEN` this tree exports can read ProjectsV2 but cannot write it (`item-add`/`item-edit` fail with *"Resource not accessible by personal access token"*), and `gh auth refresh` cannot add scopes to an env token. `scripts/retro-lib.sh` solves this by wrapping `gh` so that `gh project` calls — and only those — use the classic `project`-scoped PAT at `~/.config/gh-tokens/rreganjr-projects`, leaving `gh issue` and git on the ambient token.
     ```bash
-    OWNER=rreganjr; NUM=2; REPO=rreganjr/Requel
-    PROJECT_ID=$(gh project view "$NUM" --owner "$OWNER" --format json | jq -r '.id')
-    RETRO_ID=$(gh project field-list "$NUM" --owner "$OWNER" --limit 100 --format json              | jq -r '.fields[] | select(.name=="Story Points (Retro)") | .id')
-    ITEM_ID=$(gh project item-add "$NUM" --owner "$OWNER"              --url "https://github.com/$REPO/issues/<n>" --format json | jq -r '.id')
-    gh project item-edit --project-id "$PROJECT_ID" --id "$ITEM_ID" --field-id "$RETRO_ID" --number <actual>
+    ./scripts/audit-retros.sh 2.0                 # read-only: VIOLATION / MISSING / DRIFT / OK
+    ./scripts/set-points.sh <n> 0                 # one issue: initial 0, retro auto-computed
+    ./scripts/set-points.sh <n> 0 <retro>         # same, overriding the computed retro
+    ./scripts/backfill-points.sh 2.0              # every closed issue in milestone v2.0
+    ./scripts/clear-open-retros.sh 2.0 --apply    # clear retros set on still-open issues
     ```
-    (`--project-id` wants the `PVT_…` node ID; needs a `project`-scoped token — `gh auth refresh -s project` if `field-list` 403s.)
+    **The retro number is measured, not judged:** `retro = snap_fib(commit_days(n))`, where `commit_days` counts distinct days with a commit carrying `https://github.com/rreganjr/Requel/issues/<n>` (line 1 of every commit here). The scale is ~1 working day = 1 point, snapped to Fibonacci. Calibration: #40 = 1d → 1, #73 = 3d → 3, #69 = 4d → 5, #43 = 10d → 8, #38 = 39d → 34. Override only deliberately — a value that differs from the calc shows as **DRIFT** on every later audit, and a one-day ticket pointed at 5 is worth five of #38's days on the same board.
+
+    Four gotchas, each of which has already bitten:
+    - **Retro is closed-only.** `set-points.sh` *silently* drops the retro on an open issue (it still writes the initial estimate), so run step 10 before step 12 and check the output for a `Story Points (Retro) = ` line rather than assuming the write happened.
+    - **The second argument is always written.** `./scripts/set-points.sh <n> 0` sets initial Story Points to **0**. If the issue carries a real pre-work estimate, pass that number instead of `0` or you will erase it.
+    - **Epics never carry a retro.** `is_epic` strips it from anything labelled `Epic`; the sub-issues carry the effort.
+    - **The two scripts see different sets.** `audit-retros.sh` walks the *project board*, so an issue never added to it is invisible there; `backfill-points.sh` selects by *milestone* `v<release>`, so an issue missing its milestone is invisible to that. `set-points.sh` adds the issue to the board itself, which is how a stray one gets on.
 
 **Stacked PRs (large tickets split into sub-PRs).** Split a big ticket in the plan (e.g. `128-154-app-shell` → chrome, breadcrumb, resolver, workspace). Each sub-PR is its own branch; base each on the one below (`--base <lower-branch>`) or on `release/2.0` if the lower one already merged. **Merge bottom-up, and rebase the next branch after each squash-merge** — because squash rewrites SHAs, a plain `git rebase release/2.0` replays the already-merged commits and conflicts. Use `--onto` with the *old* tip of the branch that just merged:
 ```bash
@@ -148,7 +154,7 @@ gh pr create --repo rreganjr/Requel --base release/2.0 --head <issue#>-<slug>   
 gh issue close <n> --repo rreganjr/Requel --reason completed --comment "Merged to release/2.0 via #<pr>."
 # 8. Rollup + retro:
 bash scripts/reorder-ui-ux-subissues.sh --sync-checks --comment
-#    (then set Story Points (Retro) on project #2 — see step 12)
+#    (then record actual effort: ./scripts/set-points.sh <n> 0   — see step 12)
 ```
 
 Recovery — work accidentally committed onto `release/2.0`:
