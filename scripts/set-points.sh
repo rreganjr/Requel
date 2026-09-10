@@ -31,11 +31,15 @@ if [[ "${STATE^^}" != "CLOSED" ]]; then
   RETRO=""
 elif [[ -z "$RETRO" ]]; then
   DAYS=$(commit_days "$ISSUE")
+  RETRO=$(snap_fib "$DAYS")
   if [[ "${DAYS:-0}" -gt 0 ]]; then
-    RETRO=$(snap_fib "$DAYS")
     echo "==> Auto-retro for #$ISSUE: $DAYS commit-day(s) -> $RETRO"
   else
-    echo "==> No commits reference issues/$ISSUE; leaving retro unset"
+    # Closed with no commit referencing it: a config/board/duplicate close, or a
+    # fix that rode along under another issue. That is 0 effort, not unknown
+    # effort — record it, so the issue reads OK on the audit instead of sitting
+    # as MISSING forever with no script able to resolve it.
+    echo "==> No commits reference issues/$ISSUE; closed without committed work -> retro 0"
   fi
 fi
 

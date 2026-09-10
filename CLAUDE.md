@@ -115,6 +115,8 @@ Every change is tied to a GitHub issue and lands via a ticket branch and a PR �
     ```
     **The retro number is measured, not judged:** `retro = snap_fib(commit_days(n))`, where `commit_days` counts distinct days with a commit carrying `https://github.com/rreganjr/Requel/issues/<n>` (line 1 of every commit here). The scale is ~1 working day = 1 point, snapped to Fibonacci. Calibration: #40 = 1d → 1, #73 = 3d → 3, #69 = 4d → 5, #43 = 10d → 8, #38 = 39d → 34. Override only deliberately — a value that differs from the calc shows as **DRIFT** on every later audit, and a one-day ticket pointed at 5 is worth five of #38's days on the same board.
 
+    **Zero is a legitimate retro.** An issue closed with no commit referencing it — a duplicate, a board/config fix, or work that rode along under another issue — scores **0**, and `set-points.sh` writes that 0 rather than leaving the field blank. A blank retro means "not yet scored" and stays MISSING on every audit; a recorded 0 means "closed, cost nothing" and reads OK.
+
     Four gotchas, each of which has already bitten:
     - **Retro is closed-only.** `set-points.sh` *silently* drops the retro on an open issue (it still writes the initial estimate), so run step 10 before step 12 and check the output for a `Story Points (Retro) = ` line rather than assuming the write happened.
     - **The second argument is always written.** `./scripts/set-points.sh <n> 0` sets initial Story Points to **0**. If the issue carries a real pre-work estimate, pass that number instead of `0` or you will erase it.

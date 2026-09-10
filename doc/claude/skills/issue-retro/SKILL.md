@@ -50,6 +50,10 @@ point**, snapped to Fibonacci. Idle gaps drop out automatically — only days wi
 - **Field to write:** **Story Points (Retro)** only. Do **not** touch the initial **Story Points** field —
   it's the pre-work estimate and stays **0** unless the developer gives a real upfront number.
 - **Retro method:** `retro = snap_fib(commit_days(issue))`. See `retro-lib.sh`.
+- **Zero-commit issues score 0, not blank.** `snap_fib 0` is `0`, and `set-points.sh` records it.
+  A closed issue with no commit referencing it (duplicate, board/config fix, or work that landed
+  under another issue) cost nothing and should read as `0`; a blank retro means *not yet scored*
+  and stays MISSING on every audit.
 - **Epics:** umbrella issues spanning many phases (e.g. **#38**, Echo2→Angular, ~39 commit-days → 34) blow
   past the normal ceiling. Flag them; offer 34 or leave blank/tag rather than treating them as a story.
 - **Review gate:** always present proposed numbers and get explicit approval before any write. Only a

@@ -80,8 +80,12 @@ commit_days() {   # usage: commit_days 43
 }
 
 # Snap a day count to the nearest Fibonacci rung (ties round up).
-snap_fib() {      # usage: snap_fib 4 -> 5
-  local d="$1"; local fib=(1 2 3 5 8 13 21 34 55 89); local best=0 bd=999999 diff
+# Zero is a value, not a rung: an issue closed with no committed work scores 0,
+# so callers can record "done, cost nothing" instead of leaving the field blank.
+snap_fib() {      # usage: snap_fib 4 -> 5 ; snap_fib 0 -> 0
+  local d="$1"
+  [ "${d:-0}" -le 0 ] && { echo 0; return; }
+  local fib=(1 2 3 5 8 13 21 34 55 89); local best=0 bd=999999 diff
   for f in "${fib[@]}"; do
     diff=$(( f > d ? f - d : d - f ))
     if [ "$diff" -lt "$bd" ] || { [ "$diff" -eq "$bd" ] && [ "$f" -gt "$best" ]; }; then
