@@ -17,8 +17,14 @@
         <docker.image.prefix>rreganjr</docker.image.prefix>
         <!-- Docker image name must be lowercase -->
         <docker.image.name>requel</docker.image.name>
-        <!-- Set -DskipAngularBuild=true for fast iterative Java-only builds -->
+        <!-- Set -DskipAngularBuild=true for fast iterative Java-only builds. This skips
+             running `ng build`; the copy of requel-angular/dist into the app's static
+             resources is gated separately by skipAngularCopy below, so an existing dist is
+             still picked up. Skipping both left target/classes/static empty and the running
+             app serving nothing. -->
         <skipAngularBuild>false</skipAngularBuild>
+        <!-- Set -DskipAngularCopy=true only to deliberately build the app WITHOUT a frontend. -->
+        <skipAngularCopy>false</skipAngularCopy>
         <!-- Override for coverage packaging, for example Angular development config -->
         <angularBuildArguments>run build</angularBuildArguments>
     </properties>
@@ -150,7 +156,7 @@
                             <goal>copy-resources</goal>
                         </goals>
                         <configuration>
-                            <skip>${skipAngularBuild}</skip>
+                            <skip>${skipAngularCopy}</skip>
                             <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
                             <resources>
                                 <resource>
