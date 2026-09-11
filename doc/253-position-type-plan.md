@@ -203,6 +203,21 @@ mvn -pl modules/requel-app -am test -Dtest='GatewayPositionTypeIT,ResolveIssueCo
 mvn clean verify
 ```
 
+## What verification changed
+
+The plan's test design survived; three fixture assumptions in it did not, and each is now commented
+in the test rather than left as tribal knowledge.
+
+- **A subclass position cannot hang off a plain issue.** `EditAddWordToDictionaryPositionCommandImpl:58`
+  and `EditAddActorToProjectPositionCommandImpl:80` both cast the issue to `LexicalIssue` and read
+  its `word`. So the subclass case is a separate test that builds a lexical issue the way spell-check
+  analysis does, and the `EditIssue` nesting case uses two plain positions instead.
+- **Position texts must be unique within a grouping object.** `EditPositionCommandImpl.execute`
+  looks up an existing position by text and, on the found path, throws the result away and
+  dereferences a null. Pre-existing and unrelated to this ticket — filed as #281.
+- **The read-path test needs `@Transactional`.** `AnnotationQueryController` walks a lazy
+  `annotations` collection; called in-process it has no session. `TagApiIT` solves this the same way.
+
 ## Revised AC mapping
 
 | AC | Covered by |

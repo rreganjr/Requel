@@ -89,6 +89,40 @@ class IssueContextPackBuilderTest {
 		assertThat(pack.projectOpenIssues().get(0).target().entityType()).isEqualTo("Goal");
 	}
 
+	/**
+	 * {@code simpleType} prefers the entity's declared domain interface and falls back to its class
+	 * when that is absent. The fallback goes through {@code ProxyTypes} rather than
+	 * {@code getClass()}, because an entity reaching a context pack came from a repository or a
+	 * command getter and is proxied — {@code getClass().getSimpleName()} there would put a
+	 * generated name like "GoalImpl$$EnhancerByCGLIB$$1f1035a5" in front of an assistant
+	 * (issue #253).
+	 */
+	@Test
+	void fallsBackToTheEntityClassWhenNoDomainInterfaceIsDeclared() {
+		Issue issue = stubIssue(201L, 1, "ambiguous", false);
+		Goal target = mock(Goal.class);
+		when(target.getId()).thenReturn(42L);
+		when(target.getVersion()).thenReturn(1);
+		when(target.getAnnotations()).thenReturn(orderedSet(issue));
+		when(target.getProjectOrDomainEntityInterface()).thenReturn(null);
+
+		Project project = mock(Project.class);
+		when(project.getId()).thenReturn(7L);
+		when(project.getVersion()).thenReturn(1);
+		when(project.getAnnotations()).thenReturn(Set.of());
+		Set<ProjectOrDomainEntity> entities = new LinkedHashSet<>();
+		entities.add(target);
+		when(project.getProjectEntities()).thenReturn(entities);
+
+		IssueContextPack pack = builder.build(project, target);
+
+		assertThat(pack.target().entityId()).isEqualTo(42L);
+		assertThat(pack.target().entityType())
+				.as("the fallback must still name the entity, and never leak a generated suffix")
+				.startsWith("Goal")
+				.doesNotContain("$$");
+	}
+
 	private static Issue stubIssue(long id, int version, String text, boolean resolved) {
 		Issue issue = mock(Issue.class);
 		when(issue.getId()).thenReturn(id);

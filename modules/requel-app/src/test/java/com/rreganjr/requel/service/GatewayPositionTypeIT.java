@@ -311,9 +311,9 @@ public class GatewayPositionTypeIT extends AbstractIntegrationTestCase {
 	 * <p>
 	 * Uniqueness is not incidental: {@code EditPositionCommandImpl.execute} looks for an existing
 	 * position with the same text in the same grouping object and, when it finds one, throws away
-	 * the result of the lookup and then dereferences a null — a separate defect, filed on its own.
-	 * Reusing one text across these tests would fail them for a reason that has nothing to do with
-	 * positionType.
+	 * the result of the lookup and then dereferences a null (issue #281). Reusing one text across
+	 * these tests would fail them for a reason that has nothing to do with positionType; when #281
+	 * is fixed, this helper and the per-test tags it takes can go.
 	 */
 	private String positionText(String tag) {
 		return "cost is " + DOLLARS + " per seat [" + projectName + "-" + tag + "]";

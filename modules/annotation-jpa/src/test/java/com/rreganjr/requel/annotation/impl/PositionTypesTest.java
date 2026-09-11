@@ -127,6 +127,62 @@ class PositionTypesTest {
 		assertBareName("Position", PositionTypes.typeNameOf(proxy));
 	}
 
+	// ---- falling between the tiers -------------------------------------------------------------
+
+	/** A proxy that cannot name its entity must not stop resolution there. */
+	@Test
+	void aHibernateProxyWithoutAnEntityNameFallsThroughToTheDiscriminator() {
+		LazyInitializer initializer = mock(LazyInitializer.class);
+		when(initializer.getEntityName()).thenReturn(null);
+		PositionImpl position = mock(PositionImpl.class,
+				withSettings().extraInterfaces(HibernateProxy.class));
+		when(((HibernateProxy) position).getHibernateLazyInitializer()).thenReturn(initializer);
+		when(position.getType()).thenReturn(ADD_ACTOR);
+
+		assertBareName("AddActorPosition", PositionTypes.typeNameOf(position));
+	}
+
+	/** A Position that is neither proxied nor a PositionImpl still has to resolve. */
+	@Test
+	void aPositionThatIsNotAPositionImplResolvesFromItsClass() {
+		Position position = mock(Position.class);
+
+		assertBareName("Position", PositionTypes.typeNameOf(position));
+	}
+
+	// ---- the pretty-name edges -----------------------------------------------------------------
+
+	/**
+	 * The belt-and-braces guard. No caller should reach {@code prettyName} with a generated name —
+	 * the tiers above exist so that it cannot — but if one ever does, the API is not where it
+	 * surfaces.
+	 */
+	@Test
+	void aGeneratedNameIsTruncatedRatherThanPublished() {
+		PositionImpl position = new PositionImpl();
+		position.setType(ADD_ACTOR + "$$EnhancerByCGLIB$$1f1035a5");
+
+		assertBareName("AddActorPosition", PositionTypes.typeNameOf(position));
+	}
+
+	/** A type named exactly "Impl" keeps its name rather than being stripped to nothing. */
+	@Test
+	void aNameThatIsOnlyTheImplSuffixSurvives() {
+		PositionImpl position = new PositionImpl();
+		position.setType("com.rreganjr.requel.annotation.impl.Impl");
+
+		assertEquals("Impl", PositionTypes.typeNameOf(position));
+	}
+
+	/** A discriminator with no package at all. */
+	@Test
+	void anUnqualifiedDiscriminatorIsUsedAsIs() {
+		PositionImpl position = new PositionImpl();
+		position.setType("AddActorPosition");
+
+		assertBareName("AddActorPosition", PositionTypes.typeNameOf(position));
+	}
+
 	// ---- helpers -------------------------------------------------------------------------------
 
 	/**

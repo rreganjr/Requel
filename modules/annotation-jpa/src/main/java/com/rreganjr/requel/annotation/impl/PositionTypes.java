@@ -97,9 +97,9 @@ public final class PositionTypes {
 				return discriminator;
 			}
 		}
-		// 3. a transient position that has not been given a discriminator yet
-		Class<?> userClass = ProxyTypes.userClassOf(position);
-		return userClass == null ? null : userClass.getName();
+		// 3. a transient position that has not been given a discriminator yet. userClassOf only
+		// answers null for a null argument, and position is non-null by here.
+		return ProxyTypes.userClassOf(position).getName();
 	}
 
 	/**

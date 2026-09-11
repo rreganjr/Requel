@@ -33,6 +33,10 @@ import org.springframework.util.ClassUtils;
  * proxy. Either one answers {@code getClass().getSimpleName()} with a generated name carrying a
  * build-specific hash, so any code deriving a durable string from an entity's class must come
  * through here first (issue #253).
+ * <p>
+ * Only the type is exposed, deliberately: an unwrap-the-object helper was written alongside this
+ * one and had no callers, and an uninitialized Hibernate proxy should not be loaded just to ask
+ * what it is.
  *
  * @author ron
  */
@@ -40,35 +44,6 @@ public final class ProxyTypes {
 
 	private ProxyTypes() {
 		// static helpers only
-	}
-
-	/**
-	 * Peel off both proxy families and return the underlying entity.
-	 * <p>
-	 * Note this <em>initializes</em> an uninitialized Hibernate proxy, because the caller has asked
-	 * for the object itself. Use {@link #userClassOf(Object)} when only the type is needed — that
-	 * reads the persistent class without triggering a load.
-	 *
-	 * @param candidate
-	 *            possibly an EntityProxy, a Hibernate proxy, a plain entity, or null
-	 * @return the underlying entity, or the argument unchanged when it is not a proxy
-	 */
-	public static Object unwrap(Object candidate) {
-		if (candidate == null) {
-			return null;
-		}
-		Object entity = EntityProxyInterceptor.unwrap(candidate);
-		if (entity == null) {
-			entity = candidate;
-		}
-		if (entity instanceof HibernateProxy) {
-			Object implementation = ((HibernateProxy) entity).getHibernateLazyInitializer()
-					.getImplementation();
-			if (implementation != null) {
-				entity = implementation;
-			}
-		}
-		return entity;
 	}
 
 	/**
