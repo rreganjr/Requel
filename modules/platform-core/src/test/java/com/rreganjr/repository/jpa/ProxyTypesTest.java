@@ -51,6 +51,10 @@ class ProxyTypesTest {
 	public static class Entity {
 	}
 
+	/** A second type, so "the wrapped entity wins" is distinguishable from "the proxy's own class". */
+	public static class OtherEntity {
+	}
+
 	@Test
 	void nullResolvesToNullRatherThanThrowing() {
 		assertNull(ProxyTypes.userClassOf(null));
@@ -77,8 +81,11 @@ class ProxyTypesTest {
 	@Test
 	void anEntityProxyResolvesThroughItsInterceptorToTheWrappedEntity() {
 		Entity entity = new Entity();
+		// Subclassing OtherEntity rather than the wrapped type, so the assertion below can only
+		// pass by reading the interceptor. (Subclassing Object would fail outright: CGLIB cannot
+		// define a class in a sealed java.lang without --add-opens.)
 		Enhancer enhancer = new Enhancer();
-		enhancer.setSuperclass(Object.class);
+		enhancer.setSuperclass(OtherEntity.class);
 		enhancer.setCallback(new EntityProxyInterceptor(null, null, entity, 0, 0));
 		Object proxy = enhancer.create();
 
