@@ -27,9 +27,11 @@ load_issue_index
 
 violations=0 missing=0 drift=0 ok=0
 
-gh project item-list "$NUM" --owner "$OWNER" --limit "$ITEM_LIMIT" --format json \
-  | jq -r '.items[] | select(.content.type=="Issue")
-           | [(.content.number), (.["story Points (Retro)"] // "")] | @tsv' \
+BOARD=$(gh project item-list "$NUM" --owner "$OWNER" --limit "$ITEM_LIMIT" --format json)
+warn_if_truncated "$BOARD"
+
+jq -r '.items[] | select(.content.type=="Issue")
+       | [(.content.number), (.["story Points (Retro)"] // "")] | @tsv' <<<"$BOARD" \
   | while IFS=$'\t' read -r NUMBER RETRO; do
       STATE=$(issue_state "$NUMBER")
       if [[ "${STATE^^}" != "CLOSED" ]]; then

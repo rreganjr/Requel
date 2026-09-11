@@ -34,7 +34,27 @@ PROJECT_TOKEN_FILE="${REQUEL_PROJECT_TOKEN_FILE:-$HOME/.config/gh-tokens/rreganj
 # no error, just a short list. A board past 30 items therefore audits as clean while
 # the newest work is invisible (#240/#241/#242/#247 were all missing from the 2.0
 # audit for exactly this reason). Every item-list call passes this.
+#
+# Raising the limit is FREE, and this was measured rather than assumed: a 2.0 audit
+# costs 208 GraphQL points with --limit 200 and 208 with --limit 500. gh pages
+# item-list at 100 items, each pulling fieldValues(first:100) - 10,000 nodes, so 100
+# points per page - and stops once it runs out of items. The 107-item board is two
+# pages either way; --limit only decides when paging stops. So set it high enough
+# that truncation stays unlikely, and let warn_if_truncated catch the rest.
 ITEM_LIMIT="${REQUEL_ITEM_LIMIT:-500}"
+
+# Loudly flag a board read that hit the limit. Silence is what made the 30-item
+# default so expensive to diagnose; a truncated read must never look like a clean one.
+warn_if_truncated() {   # usage: warn_if_truncated "$BOARD"
+  local total have
+  total="$(jq -r '.totalCount // 0' <<<"$1")"
+  have="$(jq -r '.items | length' <<<"$1")"
+  if [ "${total:-0}" -gt "${have:-0}" ]; then
+    echo "WARNING: the board holds $total items but only $have were read" >&2
+    echo "         (REQUEL_ITEM_LIMIT=$ITEM_LIMIT). RESULTS BELOW ARE INCOMPLETE -" >&2
+    echo "         re-run with REQUEL_ITEM_LIMIT=$((total + 50))." >&2
+  fi
+}
 
 _project_token() {
   if [ ! -r "$PROJECT_TOKEN_FILE" ]; then

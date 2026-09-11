@@ -52,6 +52,7 @@ if [[ -z "$PROJECT_NUM" ]]; then
 fi
 # One board read for the whole run: what is already recorded decides what we touch.
 BOARD=$(gh project item-list "$PROJECT_NUM" --owner "$OWNER" --limit "$ITEM_LIMIT" --format json)
+warn_if_truncated "$BOARD"
 
 # Resolve every shared lookup once, before the loop. These export, so each
 # set-points.sh child inherits them instead of re-resolving the project, the field

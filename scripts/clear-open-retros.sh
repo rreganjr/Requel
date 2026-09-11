@@ -25,10 +25,12 @@ echo "==> Scanning '$PROJECT_TITLE' for OPEN issues with a retro value..."
 # emit "itemId<TAB>issueNumber<TAB>retro" for issue items that have a retro set
 # NOTE: gh lowercases only the FIRST letter of a field name in --format json,
 # so "Story Points (Retro)" -> key "story Points (Retro)" (capital P).
-gh project item-list "$NUM" --owner "$OWNER" --limit "$ITEM_LIMIT" --format json \
-  | jq -r '.items[] | select(.content.type=="Issue")
-           | select((.["story Points (Retro)"] // "") != "")
-           | "\(.id)\t\(.content.number)\t\(.["story Points (Retro)"])"' \
+BOARD=$(gh project item-list "$NUM" --owner "$OWNER" --limit "$ITEM_LIMIT" --format json)
+warn_if_truncated "$BOARD"
+
+jq -r '.items[] | select(.content.type=="Issue")
+       | select((.["story Points (Retro)"] // "") != "")
+       | "\(.id)\t\(.content.number)\t\(.["story Points (Retro)"])"' <<<"$BOARD" \
   | while IFS=$'\t' read -r ITEM_ID NUMBER RETRO; do
       STATE=$(issue_state "$NUMBER")
       [[ "${STATE^^}" == "CLOSED" ]] && continue
