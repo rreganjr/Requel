@@ -38,6 +38,7 @@ import com.rreganjr.requel.annotation.impl.ArgumentImpl;
 import com.rreganjr.requel.annotation.impl.IssueImpl;
 import com.rreganjr.requel.annotation.impl.NoteImpl;
 import com.rreganjr.requel.annotation.impl.PositionImpl;
+import com.rreganjr.requel.annotation.impl.PositionTypes;
 import com.rreganjr.requel.annotation.spi.AnnotatableTypeRegistry;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.service.api.CommandRegistry;
@@ -281,8 +282,10 @@ public class AnnotationCommandRegistrar {
                 .sorted(Comparator.naturalOrder())
                 .map(AnnotationCommandRegistrar::toArgumentDto)
                 .toList();
-        // Simple class name used by the UI to label and dispatch the correct resolve variant.
-        String positionType = position.getClass().getSimpleName();
+        // Resolved from the persisted discriminator, never from getClass() — the position here is
+        // always CGLIB-wrapped (Command.get* is inside DomainObjectWrappingAdvice's pointcut), and
+        // a generated class name is neither stable nor meaningful to a client (issue #253).
+        String positionType = PositionTypes.typeNameOf(position);
         return new PositionDto(
                 position.getId(),
                 0,

@@ -29,6 +29,7 @@ import java.util.Objects;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.rreganjr.repository.jpa.ProxyTypes;
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
@@ -160,6 +161,10 @@ public class IssueContextPackBuilder {
 
 	private static String simpleType(ProjectOrDomainEntity entity) {
 		Class<?> iface = entity.getProjectOrDomainEntityInterface();
-		return iface != null ? iface.getSimpleName() : entity.getClass().getSimpleName();
+		// The fallback goes through ProxyTypes: entities reaching a context pack come from a
+		// repository or a command getter and are proxied, so getClass() here would put a generated
+		// name in front of an assistant (issue #253).
+		return iface != null ? iface.getSimpleName()
+				: ProxyTypes.userClassOf(entity).getSimpleName();
 	}
 }
