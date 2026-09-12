@@ -29,6 +29,7 @@ import jakarta.validation.constraints.Size;
 public record EditScenarioInput(
     @NotBlank String projectName,
     Long scenarioId,
+    @NotBlank
     @Size(max = ValidationLimits.ARTIFACT_NAME_MAX, message = ValidationLimits.LENGTH_MESSAGE)
     String name,
     String text,
