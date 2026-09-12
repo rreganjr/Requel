@@ -109,11 +109,15 @@ public class EditPositionCommandImpl extends AbstractEditCommand implements Edit
 		Issue issue = getRepository().get(getIssue());
 		PositionImpl position = (PositionImpl) getPosition();
 		if (position == null) {
-			// look for existing position that matches the text and
-			// reference it with the issue.
+			// Look for an existing position that matches the text and reference it with the
+			// issue: PositionImpl.issues is a @ManyToMany, so one position answering several
+			// issues is the design, not a collision. Keeping the lookup's result is the whole
+			// point — dropping it left `position` null on the found path, and the add below
+			// then threw a NullPointerException (issue #281).
 			if (issue != null) {
 				try {
-					getAnnotationRepository().findPosition(issue.getGroupingObject(), getText());
+					position = (PositionImpl) getAnnotationRepository()
+							.findPosition(issue.getGroupingObject(), getText());
 				} catch (NoSuchEntityException e) {
 					position = getRepository().persist(new PositionImpl(getText(), editedBy));
 				}
