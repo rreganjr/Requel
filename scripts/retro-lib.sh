@@ -185,6 +185,34 @@ is_epic() {   # usage: is_epic 124 && echo "it's an epic"
   [ "$(_issue_index_field "$1" 3)" = "epic" ]
 }
 
+# --- acknowledged retro overrides -------------------------------------------
+# A recorded retro that differs from the calc is a deliberate override (CLAUDE.md:
+# "Override only deliberately"). Left alone it reports DRIFT on every later audit,
+# so the flag goes quiet through familiarity rather than through review. Listing it
+# in retro-overrides.tsv pins the value that WAS reviewed: the audit can then say
+# "differs, and someone looked" and keep DRIFT meaning "differs, and nobody has".
+#
+# The acknowledgement is (issue, value). If the board later holds a different retro
+# the ack no longer applies and the row drifts again — silencing one reviewed number
+# is the point; silencing an issue forever is not.
+RETRO_OVERRIDES_FILE="${RETRO_OVERRIDES_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/retro-overrides.tsv}"
+
+_retro_override_field() {   # usage: _retro_override_field 43 2
+  [ -r "$RETRO_OVERRIDES_FILE" ] || return 0
+  awk -F'\t' -v n="$1" -v c="$2" '$1 !~ /^#/ && $1 == n { print $c; exit }' \
+    "$RETRO_OVERRIDES_FILE"
+}
+
+# The acknowledged retro for an issue, or empty when there is no acknowledgement.
+retro_override() {          # usage: retro_override 43
+  _retro_override_field "$1" 2
+}
+
+# Why it was acknowledged, for the audit to print.
+retro_override_reason() {   # usage: retro_override_reason 43
+  _retro_override_field "$1" 3
+}
+
 # Distinct days with a commit that claims issue <n> as its own work: the full issue
 # URL at the START OF A LINE. Line 1 of every ticket commit here is that URL, and a
 # GitHub squash merge re-emits it as "* <url>", so both forms count.

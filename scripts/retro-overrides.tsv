@@ -1,0 +1,29 @@
+# retro-overrides.tsv — retro values that differ from the commit-day calc on purpose.
+#
+# The calc (snap_fib(commit_days(n)), see retro-lib.sh) measures distinct days with a
+# commit claiming the issue. That under-counts work that was thought through over days
+# but committed in one sitting, and it cannot see days a ticket sat while other work took
+# priority. Where the recorded number came from judgment instead, record it here and the
+# audit reports OVERRIDE rather than DRIFT.
+#
+# The VALUE is part of the acknowledgement, not just the issue number: if the board later
+# holds a different retro, it drifts again and wants a fresh look. Deliberately narrow —
+# this silences one reviewed number, never an issue forever.
+#
+# Tab-separated: issue<TAB>acknowledged retro<TAB>reason. Added by issue #282.
+# Seeded 2026-09-12 from the 13 DRIFT rows then on the 2.0 board; sharpen a reason when
+# you know the specific one.
+
+43	13	the 11 commit-days this points scale was calibrated from are no longer in history
+129	2	recorded by judgment; the commit history under-counts the work
+130	5	recorded by judgment; the commit history under-counts the work
+139	2	recorded by judgment; the commit history under-counts the work
+140	4	recorded by judgment; the commit history under-counts the work
+144	4	recorded by judgment; the commit history under-counts the work
+147	2	recorded by judgment; the commit history under-counts the work
+159	3	recorded by judgment; the commit history under-counts the work
+238	5	recorded by judgment; the commit history under-counts the work
+240	5	recorded by judgment; the commit history under-counts the work
+241	3	recorded by judgment; the commit history under-counts the work
+242	2	recorded by judgment; the commit history under-counts the work
+247	5	recorded by judgment; the commit history under-counts the work
