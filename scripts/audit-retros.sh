@@ -50,8 +50,8 @@ jq -r '.items[] | select(.content.type=="Issue")
         if [[ -z "$RETRO" ]]; then
           printf "%-9s #%-5s %-7s %-6s %-6s %s\n" "MISSING" "$NUMBER" "closed" "-" "$CALC" "backfill"
         elif [[ "$RETRO" != "$CALC" ]]; then
-          ACK=$(retro_override "$NUMBER")
-          if [[ -n "$ACK" && "$ACK" == "$RETRO" ]]; then
+          ACKNOWLEDGED=$(retro_override "$NUMBER")
+          if [[ -n "$ACKNOWLEDGED" && "$ACKNOWLEDGED" == "$RETRO" ]]; then
             printf "%-9s #%-5s %-7s %-6s %-6s %s\n" "OVERRIDE" "$NUMBER" "closed" "$RETRO" "$CALC" \
                    "$(retro_override_reason "$NUMBER")"
           else

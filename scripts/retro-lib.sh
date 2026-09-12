@@ -193,7 +193,7 @@ is_epic() {   # usage: is_epic 124 && echo "it's an epic"
 # "differs, and someone looked" and keep DRIFT meaning "differs, and nobody has".
 #
 # The acknowledgement is (issue, value). If the board later holds a different retro
-# the ack no longer applies and the row drifts again — silencing one reviewed number
+# the acknowledgement no longer applies and the row drifts again — silencing one reviewed number
 # is the point; silencing an issue forever is not.
 RETRO_OVERRIDES_FILE="${RETRO_OVERRIDES_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/retro-overrides.tsv}"
 
