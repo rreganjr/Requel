@@ -3,7 +3,8 @@
 # audit-retros.sh — read-only health check of a release's project board. Flags:
 #   [VIOLATION] open issue that has a retro value         (should be cleared)
 #   [MISSING]   closed issue with no retro value          (backfill candidate)
-#   [DRIFT]     closed issue whose retro != commit-day calc (worth a look)
+#   [DRIFT]     closed issue whose retro != calc, unacknowledged  (worth a look)
+#   [OVERRIDE]  closed issue whose retro != calc, acknowledged in retro-overrides.tsv
 #   [OK]        closed issue whose retro matches the calc
 # Changes nothing. Use clear-open-retros.sh / backfill-points.sh to act on it.
 #
@@ -49,7 +50,13 @@ jq -r '.items[] | select(.content.type=="Issue")
         if [[ -z "$RETRO" ]]; then
           printf "%-9s #%-5s %-7s %-6s %-6s %s\n" "MISSING" "$NUMBER" "closed" "-" "$CALC" "backfill"
         elif [[ "$RETRO" != "$CALC" ]]; then
-          printf "%-9s #%-5s %-7s %-6s %-6s %s\n" "DRIFT" "$NUMBER" "closed" "$RETRO" "$CALC" "review"
+          ACKNOWLEDGED=$(retro_override "$NUMBER")
+          if [[ -n "$ACKNOWLEDGED" && "$ACKNOWLEDGED" == "$RETRO" ]]; then
+            printf "%-9s #%-5s %-7s %-6s %-6s %s\n" "OVERRIDE" "$NUMBER" "closed" "$RETRO" "$CALC" \
+                   "$(retro_override_reason "$NUMBER")"
+          else
+            printf "%-9s #%-5s %-7s %-6s %-6s %s\n" "DRIFT" "$NUMBER" "closed" "$RETRO" "$CALC" "review"
+          fi
         else
           printf "%-9s #%-5s %-7s %-6s %-6s %s\n" "OK" "$NUMBER" "closed" "$RETRO" "$CALC" ""
         fi
@@ -58,5 +65,7 @@ jq -r '.items[] | select(.content.type=="Issue")
 
 echo
 echo "VIOLATION -> ./clear-open-retros.sh $RELEASE --apply   |   MISSING -> ./backfill-points.sh $RELEASE"
-echo "(DRIFT is informational: the recorded retro differs from the current commit-day calc.)"
+echo "(DRIFT: the recorded retro differs from the calc and is not acknowledged -> review it,"
+echo " then record the reviewed value in scripts/retro-overrides.tsv to settle it.)"
+echo "(OVERRIDE: differs on purpose, acknowledged. A different value on the board drifts again.)"
 echo "(EPIC is skipped: epics are rollup containers; their sub-issues carry the retro.)"
