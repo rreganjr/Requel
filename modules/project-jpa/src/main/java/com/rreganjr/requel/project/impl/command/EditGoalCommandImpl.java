@@ -120,18 +120,22 @@ public class EditGoalCommandImpl extends AbstractEditProjectOrDomainEntityComman
 		}
 		projectOrDomain = getRepository().get(projectOrDomain);
 
-		// check for uniqueness
-		try {
-			Goal existing = getProjectRepository().findGoalByProjectOrDomainAndName(
-					projectOrDomain, getName());
-			if (goalImpl == null) {
-				throw EntityException.uniquenessConflict(Goal.class, existing,
-						EditGoalCommand.FIELD_NAME, EntityExceptionActionType.Creating);
-			} else if (!existing.equals(goalImpl)) {
-				throw EntityException.uniquenessConflict(Goal.class, existing,
-						EditGoalCommand.FIELD_NAME, EntityExceptionActionType.Updating);
+		// Check for uniqueness. Skipped when no name was supplied: a null name means "leave it
+		// as it is", and the finder trims the name (issue #251). EditUseCaseCommandImpl and
+		// EditActorCommandImpl already guard this way.
+		if ((getName() != null) && !getName().trim().isEmpty()) {
+			try {
+				Goal existing = getProjectRepository().findGoalByProjectOrDomainAndName(
+						projectOrDomain, getName());
+				if (goalImpl == null) {
+					throw EntityException.uniquenessConflict(Goal.class, existing,
+							EditGoalCommand.FIELD_NAME, EntityExceptionActionType.Creating);
+				} else if (!existing.equals(goalImpl)) {
+					throw EntityException.uniquenessConflict(Goal.class, existing,
+							EditGoalCommand.FIELD_NAME, EntityExceptionActionType.Updating);
+				}
+			} catch (NoSuchEntityException e) {
 			}
-		} catch (NoSuchEntityException e) {
 		}
 
 		if (goalImpl == null) {
@@ -141,7 +145,9 @@ public class EditGoalCommandImpl extends AbstractEditProjectOrDomainEntityComman
 			// Enforce the caller-supplied optimistic-lock version (issue #108); reloads the
 			// goal and fails cleanly if it changed since the caller loaded it.
 			goalImpl = checkExpectedVersion(goalImpl);
-			goalImpl.setName(getName());
+			if (getName() != null) {
+				goalImpl.setName(getName());
+			}
 			goalImpl.setText(getText());
 		}
 		if (goalContainer != null) {

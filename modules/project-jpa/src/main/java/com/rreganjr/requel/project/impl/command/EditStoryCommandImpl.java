@@ -150,18 +150,22 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		}
 		projectOrDomain = getRepository().get(projectOrDomain);
 
-		// check for uniqueness
-		try {
-			Story existing = getProjectRepository().findStoryByProjectOrDomainAndName(
-					projectOrDomain, getName());
-			if (storyImpl == null) {
-				throw EntityException.uniquenessConflict(Story.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Creating);
-			} else if (!existing.equals(storyImpl)) {
-				throw EntityException.uniquenessConflict(Story.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Updating);
+		// Check for uniqueness. Skipped when no name was supplied: a null name means "leave it
+		// as it is", and the finder trims the name (issue #251). EditUseCaseCommandImpl and
+		// EditActorCommandImpl already guard this way.
+		if ((getName() != null) && !getName().trim().isEmpty()) {
+			try {
+				Story existing = getProjectRepository().findStoryByProjectOrDomainAndName(
+						projectOrDomain, getName());
+				if (storyImpl == null) {
+					throw EntityException.uniquenessConflict(Story.class, existing, FIELD_NAME,
+							EntityExceptionActionType.Creating);
+				} else if (!existing.equals(storyImpl)) {
+					throw EntityException.uniquenessConflict(Story.class, existing, FIELD_NAME,
+							EntityExceptionActionType.Updating);
+				}
+			} catch (NoSuchEntityException e) {
 			}
-		} catch (NoSuchEntityException e) {
 		}
 
 		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
@@ -184,7 +188,9 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 					new StoryImpl(projectOrDomain, editedBy, getName(), getText(), getStoryType()));
 			storyImpl.setPrimaryActor(resolvedPrimaryActor);
 		} else {
-			storyImpl.setName(getName());
+			if (getName() != null) {
+				storyImpl.setName(getName());
+			}
 			storyImpl.setText(getText());
 			storyImpl.setStoryType(getStoryType());
 			// Mirror UseCase pattern: merge first so the entity is managed, then set actor

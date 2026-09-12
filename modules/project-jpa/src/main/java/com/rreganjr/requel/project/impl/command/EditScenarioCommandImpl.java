@@ -104,18 +104,22 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 		ScenarioImpl scenarioImpl = (ScenarioImpl) getScenario();
 		ProjectOrDomain projectOrDomain = getRepository().get(getProjectOrDomain());
 
-		// check for uniqueness
-		try {
-			Scenario existing = getProjectRepository().findScenarioByProjectOrDomainAndName(
-					projectOrDomain, getName());
-			if (scenarioImpl == null) {
-				throw EntityException.uniquenessConflict(Scenario.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Creating);
-			} else if (!existing.equals(scenarioImpl)) {
-				throw EntityException.uniquenessConflict(Scenario.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Updating);
+		// Check for uniqueness. Skipped when no name was supplied: a null name means "leave it
+		// as it is", and the finder trims the name (issue #251). EditUseCaseCommandImpl and
+		// EditActorCommandImpl already guard this way.
+		if ((getName() != null) && !getName().trim().isEmpty()) {
+			try {
+				Scenario existing = getProjectRepository().findScenarioByProjectOrDomainAndName(
+						projectOrDomain, getName());
+				if (scenarioImpl == null) {
+					throw EntityException.uniquenessConflict(Scenario.class, existing, FIELD_NAME,
+							EntityExceptionActionType.Creating);
+				} else if (!existing.equals(scenarioImpl)) {
+					throw EntityException.uniquenessConflict(Scenario.class, existing, FIELD_NAME,
+							EntityExceptionActionType.Updating);
+				}
+			} catch (NoSuchEntityException e) {
 			}
-		} catch (NoSuchEntityException e) {
 		}
 
 		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
@@ -126,7 +130,9 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 					new ScenarioImpl(projectOrDomain, editedBy, getName(), getText(),
 							getScenarioType()));
 		} else {
-			scenarioImpl.setName(getName());
+			if (getName() != null) {
+				scenarioImpl.setName(getName());
+			}
 			scenarioImpl.setText(getText());
 			scenarioImpl.setType(getScenarioType());
 		}
