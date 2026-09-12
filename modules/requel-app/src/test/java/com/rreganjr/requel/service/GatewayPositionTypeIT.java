@@ -84,10 +84,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class GatewayPositionTypeIT extends AbstractIntegrationTestCase {
 
 	/**
-	 * The substring a careless assertion would trip over. Nothing in the fix rewrites text, and
-	 * these fixtures are what prove it.
+	 * The substring a careless assertion would trip over. Nothing in the positionType resolution
+	 * rewrites text, and these fixtures are what prove it.
 	 */
 	private static final String DOLLARS = "$$";
+
+	/** Any position text here carries {@link #DOLLARS}; that is the only thing special about it. */
+	private static final String PRICED = "cost is " + DOLLARS + " per seat";
+
+	/**
+	 * The subclass test renames an existing position, so its text must not collide with any other
+	 * position in this project: EditPosition looks an existing position up by text with
+	 * getSingleResult(), and two matches throw NonUniqueResultException. Issue #284 makes that
+	 * lookup deterministic and de-duplicates; this constant can go with it.
+	 */
+	private static final String PRICED_PER_WORD = "cost is " + DOLLARS + " per dictionary word";
 
 	@Autowired
 	private CommandGateway gateway;
@@ -153,7 +164,7 @@ public class GatewayPositionTypeIT extends AbstractIntegrationTestCase {
 		Long issueId = createIssue("an issue whose position is plain");
 
 		GatewayResult result = gateway.execute(new GatewayRequest("EditPosition", Map.of(
-				"projectName", projectName, "issueId", issueId, "text", positionText("plain"))));
+				"projectName", projectName, "issueId", issueId, "text", PRICED)));
 
 		PositionDto position = (PositionDto) result.result();
 		assertNotNull(position);
@@ -172,9 +183,10 @@ public class GatewayPositionTypeIT extends AbstractIntegrationTestCase {
 		String text = "an issue with two positions";
 		Long issueId = createIssue(text);
 		gateway.execute(new GatewayRequest("EditPosition", Map.of(
-				"projectName", projectName, "issueId", issueId, "text", positionText("nested-a"))));
+				"projectName", projectName, "issueId", issueId, "text", PRICED)));
 		gateway.execute(new GatewayRequest("EditPosition", Map.of(
-				"projectName", projectName, "issueId", issueId, "text", positionText("nested-b"))));
+				"projectName", projectName, "issueId", issueId,
+				"text", "or " + DOLLARS + " per user")));
 
 		// Re-dispatching EditIssue on the existing issue returns it with its positions nested.
 		GatewayResult result = gateway.execute(new GatewayRequest("EditIssue",
@@ -183,6 +195,8 @@ public class GatewayPositionTypeIT extends AbstractIntegrationTestCase {
 
 		IssueDto issue = (IssueDto) result.result();
 		assertNotNull(issue);
+		// Two texts because two distinct positions are wanted: matching text is reused rather
+		// than duplicated (issue #281), which would leave one position here.
 		assertEquals(2, issue.positions().size());
 		assertEquals(Set.of("Position"), positionTypesOf(issue));
 		assertNoProxyNames(result);
@@ -204,7 +218,7 @@ public class GatewayPositionTypeIT extends AbstractIntegrationTestCase {
 		// issueId is @NotNull on EditPositionInput, so an edit-by-id carries both.
 		GatewayResult result = gateway.execute(new GatewayRequest("EditPosition",
 				Map.of("projectName", projectName, "issueId", fixture.issueId(),
-						"positionId", fixture.positionId(), "text", positionText("subclass"))));
+						"positionId", fixture.positionId(), "text", PRICED_PER_WORD)));
 
 		PositionDto position = (PositionDto) result.result();
 		assertNotNull(position);
@@ -217,7 +231,7 @@ public class GatewayPositionTypeIT extends AbstractIntegrationTestCase {
 	void textIsNeverRewrittenAndNeverTripsTheProxyAssertions() throws Exception {
 		authenticate(editorUsername);
 		Long issueId = createIssue("an issue whose position text contains dollars");
-		String text = positionText("dollars");
+		String text = PRICED;
 
 		GatewayResult result = gateway.execute(new GatewayRequest("EditPosition",
 				Map.of("projectName", projectName, "issueId", issueId, "text", text)));
@@ -245,7 +259,7 @@ public class GatewayPositionTypeIT extends AbstractIntegrationTestCase {
 		String text = "an issue read back over the query controller";
 		Long issueId = createIssue(text);
 		gateway.execute(new GatewayRequest("EditPosition", Map.of(
-				"projectName", projectName, "issueId", issueId, "text", positionText("query"))));
+				"projectName", projectName, "issueId", issueId, "text", PRICED)));
 		// A lexical issue on the same goal, carrying a subclass position, so the read model under
 		// assertion holds both shapes.
 		addWordToDictionaryPosition("elicitation", "add 'elicitation' to the dictionary");
@@ -304,19 +318,6 @@ public class GatewayPositionTypeIT extends AbstractIntegrationTestCase {
 	private Set<String> positionTypesOf(IssueDto issue) {
 		return issue.positions().stream().map(PositionDto::positionType)
 				.collect(Collectors.toSet());
-	}
-
-	/**
-	 * A position text carrying {@link #DOLLARS}, unique within this project's grouping object.
-	 * <p>
-	 * Uniqueness is not incidental: {@code EditPositionCommandImpl.execute} looks for an existing
-	 * position with the same text in the same grouping object and, when it finds one, throws away
-	 * the result of the lookup and then dereferences a null (issue #281). Reusing one text across
-	 * these tests would fail them for a reason that has nothing to do with positionType; when #281
-	 * is fixed, this helper and the per-test tags it takes can go.
-	 */
-	private String positionText(String tag) {
-		return "cost is " + DOLLARS + " per seat [" + projectName + "-" + tag + "]";
 	}
 
 	private Long createIssue(String text) throws Exception {
