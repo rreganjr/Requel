@@ -52,6 +52,272 @@ the orphans already in production databases.
 | that IT already pins a short lock wait | `DeleteProjectMySqlIT.java` `connection-init-sql` → `SET SESSION innodb_lock_wait_timeout = 10` |
 | next Flyway version is `V17` | `ls db/migration` → highest is `V16` |
 
+## Where this ticket came from
+
+Issue #279 was written off an earlier investigation, which lived on the
+`279-orphan-assistant-annotations` branch as `doc/279-orphan-assistant-annotations-plan.md`
+plus two scripts in the (gitignored) `tmp/`. That branch is being deleted now that this one
+supersedes it, so the parts worth keeping are folded in below — they are the only record of
+what the bug actually looked like in a database, and they caught two data-loss bugs in the
+first draft of `V17`.
+
+### Evidence from a dev database
+
+**32 orphan rows**, spanning **six deleted projects** and six days of e2e runs. Every one:
+
+- `annotation_type` = `LexicalIssue`
+- `source` = `ASSISTANT:legacy-lexical*` (the `source` column added in `V8__assistant_runs.sql`)
+- `grouping_object_type` = `'Project'`
+- `grouping_object_id` resolving nowhere
+
+That last pair is what makes `V17`'s `grouping_object_type = 'Project'` filter the right one:
+the observed orphans really are project-grouped, not grouped under a goal or story that the
+pods-only check would have mis-flagged. **26 of the 32** still carried an
+`annotation_annotatable` row pointing at a deleted entity; the six newest carried none.
+
+### The open question this plan does not answer
+
+The earlier plan's *first* task was to establish why those 26 have link rows at all, given
+that the applicator already skips actions whose annotatable "did not resolve". Two candidate
+explanations, and it warned they lead to different fixes:
+
+1. the target resolved through a stale first-level-cache / detached reference rather than a
+   fresh read; or
+2. those rows were written *before* the delete, and only their **group** sweep was missed.
+
+This work does not settle it, and does not need to: the gate means nothing is written at all
+once the project row is gone, whichever branch `resolveAnnotatable` took, and `V17` collects
+both shapes. But if the answer is (2), the cause is a separate defect in the sweep that
+nothing here touches. Worth its own issue rather than being quietly closed with this one.
+
+### Where this plan diverges from the earlier one
+
+| earlier plan | here | why |
+| --- | --- | --- |
+| guard in `CommandBackedAssistantResultApplicator`, per action | gate in `AssistantRunWorker.apply()`, once per run | one level up: it covers every action including the first, and satisfies that plan's own risk note about not putting an existence read inside a loop over actions |
+| re-resolve `projectRef` as a freshness *check* | take the project row's **write lock**, which also answers the question | a check alone is still racy — the delete can commit between the check and the inserts |
+| reuse `AssistantTargetLoader` as the seam | new `AssistantProjectGate` SPI | the loader answers "does this target exist", not "hold this row". The module constraint it was protecting (`assistant-core` must not depend on `project-jpa`) is respected either way |
+| mark in-flight runs cancelled in `DeleteProjectCommandImpl` | not done | you chose the lock over a cancellation registry when we locked decisions; the lock subsumes it |
+| lean toward a checked-in script + `RELEASE.md` note rather than Flyway | Flyway `V17` | your call, made deliberately — noting the earlier reasoning existed |
+
+### What the scripts caught
+
+`tmp/delete-orphan-annotations.sql` below is the hand-written sweep `V17` was eventually
+written to replace. Reading it *after* writing `V17` found two ways the migration could have
+destroyed live data, both since fixed:
+
+1. **A broken group was the only deletion condition.** An annotation filed under a deleted
+   project but still annotating a *live* entity was collected, taking a live entity's
+   annotation with it. `V17` now also requires that nothing live still references it.
+2. **`resolved_by_position_id` was cleared on any annotation pointing at a doomed position**,
+   including surviving ones — silently erasing a live annotation's recorded resolution to make
+   room for the delete. Positions that still resolve a surviving annotation are now excluded
+   from the orphan set instead.
+
+The type-blind style is deliberate and carried into `V17`: an id must be absent from *every*
+table it could name, which errs toward keeping rows. `AbstractAnnotation` declares no
+`@AnyDiscriminatorValue`, so the `*_type` strings are Hibernate defaults and not worth
+trusting for a destructive operation.
+
+### `tmp/orphan-annotations-diagnose.sql`
+
+Read-only. Still the right tool for answering "did this actually work" against a real
+database, before and after the migration — run it on a dev or staging copy and expect query 3
+to return 0.
+
+```sql
+-- Diagnose the 32 rows the previous script's "orphan annotations" check reported.
+-- Read-only. mysql -h 127.0.0.1 -P 3307 -u root -p'pa33w0rd' requel < tmp/orphan-annotations-diagnose.sql
+
+-- 1. What kind of grouping object do they claim? This is the key question: if
+--    grouping_object_type is a Project/ProjectOrDomain type, they are real
+--    leftovers. If it names a UseCase/Story/etc, the pods-only check was simply
+--    the wrong check and they may be fine.
+SELECT a.grouping_object_type,
+       a.annotation_type,
+       COUNT(*)             AS n,
+       MIN(a.date_created)  AS oldest,
+       MAX(a.date_created)  AS newest
+FROM annotations a
+WHERE NOT EXISTS (SELECT 1 FROM pods p WHERE p.id = a.grouping_object_id)
+GROUP BY a.grouping_object_type, a.annotation_type
+ORDER BY n DESC;
+
+-- 2. Does the grouping object resolve in ANY project-scoped table?
+SELECT a.id,
+       a.annotation_type,
+       a.grouping_object_type,
+       a.grouping_object_id,
+       a.source,
+       a.date_created,
+       CASE
+         WHEN EXISTS (SELECT 1 FROM actors       t WHERE t.id = a.grouping_object_id) THEN 'actors'
+         WHEN EXISTS (SELECT 1 FROM goals        t WHERE t.id = a.grouping_object_id) THEN 'goals'
+         WHEN EXISTS (SELECT 1 FROM scenarios    t WHERE t.id = a.grouping_object_id) THEN 'scenarios'
+         WHEN EXISTS (SELECT 1 FROM stories      t WHERE t.id = a.grouping_object_id) THEN 'stories'
+         WHEN EXISTS (SELECT 1 FROM usecases     t WHERE t.id = a.grouping_object_id) THEN 'usecases'
+         WHEN EXISTS (SELECT 1 FROM terms        t WHERE t.id = a.grouping_object_id) THEN 'terms'
+         WHEN EXISTS (SELECT 1 FROM reports      t WHERE t.id = a.grouping_object_id) THEN 'reports'
+         WHEN EXISTS (SELECT 1 FROM stakeholders t WHERE t.id = a.grouping_object_id) THEN 'stakeholders'
+         WHEN EXISTS (SELECT 1 FROM teams        t WHERE t.id = a.grouping_object_id) THEN 'teams'
+         ELSE 'NOWHERE'
+       END                                                                   AS grouping_object_found_in,
+       (SELECT COUNT(*) FROM annotation_annotatable aa WHERE aa.annotation_id = a.id) AS annotatable_rows,
+       (SELECT COUNT(*) FROM position_issue pi WHERE pi.issue_id = a.id)              AS position_rows,
+       LEFT(COALESCE(a.text, ''), 60)                                                 AS text_head
+FROM annotations a
+WHERE NOT EXISTS (SELECT 1 FROM pods p WHERE p.id = a.grouping_object_id)
+ORDER BY a.id;
+
+-- 3. Of their annotation_annotatable rows, how many point at something alive?
+--    0 live means the annotations are dangling on both ends.
+SELECT COUNT(*) AS annotatable_rows_pointing_at_live_entity
+FROM annotation_annotatable aa
+JOIN annotations a ON a.id = aa.annotation_id
+WHERE NOT EXISTS (SELECT 1 FROM pods p WHERE p.id = a.grouping_object_id)
+  AND (   EXISTS (SELECT 1 FROM pods         t WHERE t.id = aa.annotatable_id)
+       OR EXISTS (SELECT 1 FROM actors       t WHERE t.id = aa.annotatable_id)
+       OR EXISTS (SELECT 1 FROM goals        t WHERE t.id = aa.annotatable_id)
+       OR EXISTS (SELECT 1 FROM scenarios    t WHERE t.id = aa.annotatable_id)
+       OR EXISTS (SELECT 1 FROM stories      t WHERE t.id = aa.annotatable_id)
+       OR EXISTS (SELECT 1 FROM usecases     t WHERE t.id = aa.annotatable_id)
+       OR EXISTS (SELECT 1 FROM terms        t WHERE t.id = aa.annotatable_id)
+       OR EXISTS (SELECT 1 FROM reports      t WHERE t.id = aa.annotatable_id)
+       OR EXISTS (SELECT 1 FROM stakeholders t WHERE t.id = aa.annotatable_id)
+       OR EXISTS (SELECT 1 FROM teams        t WHERE t.id = aa.annotatable_id)
+       OR EXISTS (SELECT 1 FROM goal_relations t WHERE t.id = aa.annotatable_id));
+```
+
+### `tmp/delete-orphan-annotations.sql`
+
+Superseded by `V17` for the cleanup itself. Kept here for its candidate-set query, which is
+the part `V17` adopted, and because its dry-run/verify scaffolding is useful for rehearsing
+the migration against a copy of a real database before release.
+
+```sql
+-- ===========================================================================
+-- delete-orphan-annotations.sql
+--
+-- Sweep annotations that are dangling on BOTH ends: their @Any grouping object
+-- no longer exists, AND none of their annotation_annotatable rows point at a
+-- live entity. This is the #247 leftover class -- annotations.grouping_object_id
+-- has no foreign key, so a row whose project (or whose entity) was deleted
+-- before the annotation was linked just stays behind.
+--
+-- Deliberately type-blind: it never reads grouping_object_type or
+-- annotatable_type (AbstractAnnotation declares no @AnyDiscriminatorValue, so
+-- those strings are Hibernate defaults and not worth guessing). Instead an id
+-- must be absent from EVERY table it could possibly name. That is conservative
+-- in the safe direction: an id that collides with a live row in an unrelated
+-- table is kept, never deleted.
+--
+--   mysql -h 127.0.0.1 -P 3307 -u root -p'pa33w0rd' requel \
+--     < tmp/delete-orphan-annotations.sql
+--
+-- TRIAL RUN: change COMMIT to ROLLBACK. Foreign key checks stay ON.
+-- ===========================================================================
+
+DROP TABLE IF EXISTS zz_orphan_annotations, zz_orphan_positions;
+
+-- ---------------------------------------------------------------------------
+-- 0. Candidate set.
+-- ---------------------------------------------------------------------------
+CREATE TABLE zz_orphan_annotations (id BIGINT PRIMARY KEY);
+
+INSERT INTO zz_orphan_annotations (id)
+SELECT a.id
+FROM annotations a
+WHERE NOT EXISTS (SELECT 1 FROM pods           t WHERE t.id = a.grouping_object_id)
+  AND NOT EXISTS (SELECT 1 FROM actors         t WHERE t.id = a.grouping_object_id)
+  AND NOT EXISTS (SELECT 1 FROM goals          t WHERE t.id = a.grouping_object_id)
+  AND NOT EXISTS (SELECT 1 FROM goal_relations t WHERE t.id = a.grouping_object_id)
+  AND NOT EXISTS (SELECT 1 FROM scenarios      t WHERE t.id = a.grouping_object_id)
+  AND NOT EXISTS (SELECT 1 FROM stories        t WHERE t.id = a.grouping_object_id)
+  AND NOT EXISTS (SELECT 1 FROM usecases       t WHERE t.id = a.grouping_object_id)
+  AND NOT EXISTS (SELECT 1 FROM terms          t WHERE t.id = a.grouping_object_id)
+  AND NOT EXISTS (SELECT 1 FROM reports        t WHERE t.id = a.grouping_object_id)
+  AND NOT EXISTS (SELECT 1 FROM stakeholders   t WHERE t.id = a.grouping_object_id)
+  AND NOT EXISTS (SELECT 1 FROM teams          t WHERE t.id = a.grouping_object_id)
+  -- ...and nothing alive is still annotated by it.
+  AND NOT EXISTS (
+        SELECT 1 FROM annotation_annotatable aa
+        WHERE aa.annotation_id = a.id
+          AND (   EXISTS (SELECT 1 FROM pods           t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM actors         t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM goals          t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM goal_relations t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM scenarios      t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM stories        t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM usecases       t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM terms          t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM reports        t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM stakeholders   t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM teams          t WHERE t.id = aa.annotatable_id)))
+  -- ...and no surviving entity-side join row still owns it.
+  AND NOT EXISTS (SELECT 1 FROM project_annotations        j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM actors_annotations         j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM goals_annotations          j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM goal_relations_annotations j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM scenarios_annotations      j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM stories_annotations        j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM usecases_annotations       j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM terms_annotations          j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM reports_annotations        j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM stakeholders_annotations   j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM teams_annotations          j WHERE j.annotations_id = a.id);
+
+-- Positions reachable only from those issues, and not still referenced as the
+-- resolution of a surviving annotation.
+CREATE TABLE zz_orphan_positions (id BIGINT PRIMARY KEY);
+INSERT INTO zz_orphan_positions (id)
+SELECT DISTINCT pi.position_id
+FROM position_issue pi
+WHERE pi.issue_id IN (SELECT id FROM zz_orphan_annotations)
+  AND pi.position_id NOT IN (
+        SELECT position_id FROM position_issue
+        WHERE issue_id NOT IN (SELECT id FROM zz_orphan_annotations))
+  AND pi.position_id NOT IN (
+        SELECT resolved_by_position_id FROM annotations
+        WHERE resolved_by_position_id IS NOT NULL
+          AND id NOT IN (SELECT id FROM zz_orphan_annotations));
+
+-- ---------------------------------------------------------------------------
+-- 1. Dry run.
+-- ---------------------------------------------------------------------------
+SELECT 'orphan annotations' AS entity, COUNT(*) AS n FROM zz_orphan_annotations
+UNION ALL SELECT 'their positions', COUNT(*) FROM zz_orphan_positions
+UNION ALL SELECT 'their arguments', COUNT(*) FROM arguments WHERE position_id IN (SELECT id FROM zz_orphan_positions);
+
+SELECT a.id, a.annotation_type, a.grouping_object_type, a.grouping_object_id,
+       a.source, a.date_created, LEFT(COALESCE(a.text, ''), 60) AS text_head
+FROM annotations a JOIN zz_orphan_annotations o ON o.id = a.id
+ORDER BY a.id;
+
+-- ---------------------------------------------------------------------------
+-- 2. Delete.
+-- ---------------------------------------------------------------------------
+START TRANSACTION;
+
+DELETE FROM annotation_annotatable WHERE annotation_id IN (SELECT id FROM zz_orphan_annotations);
+DELETE FROM position_issue         WHERE issue_id      IN (SELECT id FROM zz_orphan_annotations)
+                                      OR position_id   IN (SELECT id FROM zz_orphan_positions);
+DELETE FROM annotations            WHERE id            IN (SELECT id FROM zz_orphan_annotations);
+DELETE FROM arguments              WHERE position_id   IN (SELECT id FROM zz_orphan_positions);
+DELETE FROM positions              WHERE id            IN (SELECT id FROM zz_orphan_positions);
+
+COMMIT;
+
+-- ---------------------------------------------------------------------------
+-- 3. Verify. Both should be 0.
+-- ---------------------------------------------------------------------------
+SELECT 'annotations left' AS check_name, COUNT(*) AS n
+  FROM annotations WHERE id IN (SELECT id FROM zz_orphan_annotations)
+UNION ALL SELECT 'positions left', COUNT(*)
+  FROM positions   WHERE id IN (SELECT id FROM zz_orphan_positions);
+
+DROP TABLE IF EXISTS zz_orphan_annotations, zz_orphan_positions;
+```
+
 ## Locked decisions (yours)
 
 1. **Lock**, not a cancellation registry.
@@ -277,9 +543,21 @@ behind an index worth having permanently: `grouping_object_id` is the soft FK th
 bug hinges on, and `findAnnotationIdsByGroupingObject` (used by
 `DeleteAnnotationGroupCommand`, i.e. on every project delete) filters on exactly it.
 
-The resolving set is **`annotations` whose `grouping_object_type = 'Project'` and whose
-`grouping_object_id` is not an `id` in `pods`** — `V2__identity_cleanup.sql:228` already
-normalized the type value from the FQCN to `'Project'`, so the short form is correct.
+An annotation is only collected when it is dangling on **every** end — a broken group alone
+is not grounds for deleting a row (see "What the scripts caught" above). All three must hold:
+
+1. `grouping_object_type = 'Project'` and `grouping_object_id` is not an `id` in `pods`.
+   `V2__identity_cleanup.sql:228` already normalized the type value from the FQCN to
+   `'Project'`, and the 32 observed orphans all carried it, so the short form is correct.
+2. no `annotation_annotatable` row of its own points at a row that still exists in any of the
+   eleven annotatable tables — type-blind, so an id must be absent from *every* table it could
+   name.
+3. no `<entity>_annotations` join row still owns it. Those carry real foreign keys, so a row
+   here means a live entity claims the annotation.
+
+Condition 3 makes the eleven `<entity>_annotations` deletes below unreachable by construction.
+They are kept only so the final delete cannot be blocked by a row that appears between the two
+statements, and the migration's comment says exactly that rather than implying they do work.
 
 Delete order, driven by the FKs that actually exist:
 
@@ -292,10 +570,14 @@ Delete order, driven by the FKs that actually exist:
    the delete, so they are swept.
 4. `position_issue` — FK `issue_id` → `annotations`; then any `positions` row left with no
    remaining `position_issue` rows. **Positions are shared** (`PositionImpl.issues` is a
-   `@ManyToMany`), so a position answering a live issue as well must survive; the
-   `NOT EXISTS` guard is the whole point.
-5. `annotations` — clear `resolved_by_position_id` on the orphan rows first (self-referential
-   FK into `positions`), then delete the orphan rows.
+   `@ManyToMany`), so two guards apply: a position answering a live issue as well must
+   survive, *and* so must one that is still the recorded `resolved_by_position_id` of a
+   surviving annotation.
+5. `annotations` — clear `resolved_by_position_id`, scoped to rows that are themselves being
+   deleted. That scoping is the fix for the second data-loss bug: clearing it on *any* row
+   pointing at a doomed position would erase a live annotation's resolution. With the guard in
+   4, no surviving row can point at a doomed position anyway; the `UPDATE` exists only because
+   MySQL checks the FK per statement.
 
 Written to be **idempotent** and to be a no-op on a clean database, in the V16 house style:
 a long comment explaining the pathology, then the statements.
@@ -353,13 +635,15 @@ Added to the subclass so they do not run on H2, and needing no new context or co
   ordering is what proves the lock is actually taken before the cascade; a lock-order
   regression fails fast rather than hanging CI, because the class already pins
   `innodb_lock_wait_timeout` to 10s.
-- `v17CleansOrphanAnnotationsButKeepsPositionsAnsweringLiveIssues` — Flyway has already run
-  `V17` against an empty schema by the time tests execute, so it cleaned nothing there. Seed
-  an orphan annotation, a link row, a position that only answers it, and a **shared**
-  position that also answers a live issue; re-execute `V17`'s statements read off the
-  classpath (so the test cannot drift from what ships) and assert the orphans are gone while
-  the shared position and its live issue remain. This is what makes the migration testable
-  at all — H2 runs with **Flyway disabled** (`create-drop`), so it is never exercised there.
+- `v17CleansOrphansButKeepsAnythingStillReferencedByLiveRows` — Flyway has already run `V17`
+  against an empty schema by the time tests execute, so it cleaned nothing there. Seed an
+  orphan annotation, a link row, a position that only answers it, a **shared** position that
+  also answers a live issue, and an annotation filed under the same missing project that
+  **still annotates a live entity**; re-execute `V17`'s statements read off the classpath (so
+  the test cannot drift from what ships) and assert the orphans go while everything still
+  referenced by a live row stays. That last case is the one that fails against the first draft
+  of `V17` and passes against this one. This is also what makes the migration testable at all
+  — H2 runs with **Flyway disabled** (`create-drop`), so it is never exercised there.
 
 ### Gates
 
@@ -372,7 +656,8 @@ Added to the subclass so they do not run on H2, and needing no new context or co
 | an assistant run cannot write annotations for a deleted project | §2 + §3 + §4 (the gate), `cancelledAssistantApplyWritesNothingForADeletedProject`, `concurrentAssistantApplyAndProjectDeleteLeaveNoOrphans` |
 | a run that loses the race is recorded, not silently dropped | §5 `markCancelled`; the four `AssistantRunWorkerTest` cases |
 | `CANCELLED` is distinguishable from `SKIPPED` | §4 `Outcome`; `JpaAssistantRunStoreTest` |
-| existing orphans are cleaned up | §6 `V17`; `v17CleansOrphanAnnotationsLeftByOlderBuilds` |
+| existing orphans are cleaned up | §6 `V17`; `v17CleansOrphansButKeepsAnythingStillReferencedByLiveRows` |
+| the cleanup does not take live data with it | §6 conditions 2-3 and the position guards; the same test's survival assertions |
 | no deadlock between the two paths | single ordered gate (§2/§3); `concurrentAssistantApplyAndProjectDeleteLeaveNoOrphans` with the 10s lock-wait timeout as the tripwire |
 
 ## Out of scope

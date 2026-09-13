@@ -166,12 +166,13 @@ public class DeleteProjectMySqlIT extends DeleteProjectIT {
 	 * an empty schema by the time these tests execute, so it cleaned nothing; seed the shape
 	 * it targets and re-run its statements.
 	 * <p>
-	 * The interesting case is the shared position: {@code PositionImpl.issues} is a
-	 * {@code @ManyToMany}, so a position answering a live issue as well as an orphan one must
-	 * survive.
+	 * The interesting cases are the ones that must <em>survive</em>. A position is shared -
+	 * {@code PositionImpl.issues} is a {@code @ManyToMany} - so one answering a live issue as
+	 * well as an orphan must stay. And a broken group alone is not grounds for deletion: an
+	 * annotation still attached to a live entity stays too, group or no group.
 	 */
 	@Test
-	void v17CleansOrphanAnnotationsButKeepsPositionsAnsweringLiveIssues() throws Exception {
+	void v17CleansOrphansButKeepsAnythingStillReferencedByLiveRows() throws Exception {
 		User admin = getUserRepository().findUserByUsername("admin");
 		long ts = System.currentTimeMillis();
 		Long adminId = admin.getId();
@@ -196,6 +197,15 @@ public class DeleteProjectMySqlIT extends DeleteProjectIT {
 						+ " VALUES (?, 'Goal', 999999999)",
 				orphanIssueId);
 
+		// A broken group is not on its own enough to delete a row: this one is filed under the
+		// same missing project but still annotates a live entity, and must survive. Deleting it
+		// would take an annotation off a project that still exists.
+		Long stillAttachedId = insertAnnotation(adminId, missingProjectId, "still attached " + ts);
+		mysqlJdbcTemplate.update(
+				"INSERT INTO annotation_annotatable (annotation_id, annotatable_type, annotatable_id)"
+						+ " VALUES (?, 'Project', ?)",
+				stillAttachedId, live.getId());
+
 		runV17();
 
 		assertEquals(0, mysqlJdbcTemplate.queryForObject(
@@ -214,6 +224,13 @@ public class DeleteProjectMySqlIT extends DeleteProjectIT {
 		assertEquals(1, mysqlJdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM positions WHERE id = ?", Integer.class, sharedPositionId),
 				"a position still answering a live issue must survive - positions are shared");
+		assertEquals(1, mysqlJdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM annotations WHERE id = ?", Integer.class, stillAttachedId),
+				"an annotation that still annotates a live entity must survive a broken group");
+		assertEquals(1, mysqlJdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM annotation_annotatable WHERE annotation_id = ?",
+				Integer.class, stillAttachedId),
+				"and so must its link to that live entity");
 	}
 
 	/** A Future is "not done" only if it is still running - a thrown task counts as done. */

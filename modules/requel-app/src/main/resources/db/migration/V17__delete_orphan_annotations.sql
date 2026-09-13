@@ -54,7 +54,40 @@ INSERT INTO v17_orphan_annotations (id)
 SELECT a.id
 FROM annotations a
 WHERE a.grouping_object_type = 'Project'
-  AND NOT EXISTS (SELECT 1 FROM pods p WHERE p.id = a.grouping_object_id);
+  -- (a) the project it is filed under is gone.
+  AND NOT EXISTS (SELECT 1 FROM pods p WHERE p.id = a.grouping_object_id)
+  -- (b) and it does not still annotate anything that is alive. The race files findings
+  -- against entities that were deleted with the project, so normally there is nothing live
+  -- here - but this migration deletes rows, and an annotation still attached to a live
+  -- entity must survive even if its group is broken. Type-blind on purpose: an id has to be
+  -- absent from EVERY table it could name, which errs toward keeping rows.
+  AND NOT EXISTS (
+        SELECT 1 FROM annotation_annotatable aa
+        WHERE aa.annotation_id = a.id
+          AND (   EXISTS (SELECT 1 FROM pods           t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM actors         t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM goals          t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM goal_relations t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM scenarios      t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM stories        t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM usecases       t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM terms          t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM reports        t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM stakeholders   t WHERE t.id = aa.annotatable_id)
+               OR EXISTS (SELECT 1 FROM teams          t WHERE t.id = aa.annotatable_id)))
+  -- (c) and no surviving entity-side join row still owns it. These carry real foreign keys,
+  -- so a row here means a live entity claims the annotation.
+  AND NOT EXISTS (SELECT 1 FROM project_annotations        j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM actors_annotations         j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM goals_annotations          j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM goal_relations_annotations j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM scenarios_annotations      j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM stories_annotations        j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM usecases_annotations       j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM terms_annotations          j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM reports_annotations        j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM stakeholders_annotations   j WHERE j.annotations_id = a.id)
+  AND NOT EXISTS (SELECT 1 FROM teams_annotations          j WHERE j.annotations_id = a.id);
 
 -- Positions reachable only from orphan issues. positions is shared - PositionImpl.issues is
 -- a @ManyToMany, so one position can answer several issues - hence the NOT EXISTS guard: a
@@ -68,12 +101,16 @@ INSERT INTO v17_orphan_positions (id)
 SELECT DISTINCT pi.position_id
 FROM position_issue pi
 WHERE pi.issue_id IN (SELECT id FROM v17_orphan_annotations)
-  AND NOT EXISTS (
-      SELECT 1
-      FROM position_issue live
-      WHERE live.position_id = pi.position_id
-        AND live.issue_id NOT IN (SELECT id FROM v17_orphan_annotations)
-  );
+  AND pi.position_id NOT IN (
+        SELECT position_id FROM position_issue
+        WHERE issue_id NOT IN (SELECT id FROM v17_orphan_annotations))
+  -- ...and it is not the recorded resolution of an annotation that survives. Clearing a live
+  -- annotation's resolved_by_position_id to make room for this delete would be data loss;
+  -- keep the position instead.
+  AND pi.position_id NOT IN (
+        SELECT resolved_by_position_id FROM annotations
+        WHERE resolved_by_position_id IS NOT NULL
+          AND id NOT IN (SELECT id FROM v17_orphan_annotations));
 
 -- 1) arguments -> positions (FK position_id). Only for positions about to go.
 DELETE FROM arguments WHERE position_id IN (SELECT id FROM v17_orphan_positions);
@@ -81,9 +118,9 @@ DELETE FROM arguments WHERE position_id IN (SELECT id FROM v17_orphan_positions)
 -- 2) the @ManyToAny link rows from each orphan annotation to whatever it annotated.
 DELETE FROM annotation_annotatable WHERE annotation_id IN (SELECT id FROM v17_orphan_annotations);
 
--- 3) the inverse join tables (FK annotations_id -> annotations). These should already be
--- empty for orphans - those FKs are exactly what made the #247 symptom a loud failure
--- rather than a silent one - but a single leftover row would block step 6, so sweep them.
+-- 3) the inverse join tables (FK annotations_id -> annotations). Condition (c) above means
+-- an orphan has no rows here at all, so these are no-ops - kept as a belt-and-braces step so
+-- the delete in 6 cannot be blocked by a row that appeared between the two statements.
 DELETE FROM actors_annotations         WHERE annotations_id IN (SELECT id FROM v17_orphan_annotations);
 DELETE FROM goal_relations_annotations WHERE annotations_id IN (SELECT id FROM v17_orphan_annotations);
 DELETE FROM goals_annotations          WHERE annotations_id IN (SELECT id FROM v17_orphan_annotations);
@@ -99,12 +136,13 @@ DELETE FROM usecases_annotations       WHERE annotations_id IN (SELECT id FROM v
 -- 4) position <-> issue links for the orphan issues.
 DELETE FROM position_issue WHERE issue_id IN (SELECT id FROM v17_orphan_annotations);
 
--- 5) annotations.resolved_by_position_id is an FK into positions. Clear it on every row
--- that points at a position we are about to delete - including live annotations, which can
--- legitimately reference a shared position whose last remaining issue was an orphan.
+-- 5) annotations.resolved_by_position_id is an FK into positions. By construction the only
+-- rows still pointing at a doomed position are themselves orphans about to be deleted in 6,
+-- but MySQL checks the constraint per statement, so clear it first.
 UPDATE annotations
 SET resolved_by_position_id = NULL
-WHERE resolved_by_position_id IN (SELECT id FROM v17_orphan_positions);
+WHERE resolved_by_position_id IN (SELECT id FROM v17_orphan_positions)
+  AND id IN (SELECT id FROM v17_orphan_annotations);
 
 DELETE FROM positions WHERE id IN (SELECT id FROM v17_orphan_positions);
 
