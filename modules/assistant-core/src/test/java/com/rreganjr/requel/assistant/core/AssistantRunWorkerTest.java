@@ -447,6 +447,39 @@ class AssistantRunWorkerTest {
 				updated.status()).isEqualTo(AssistantRunStatus.SKIPPED));
 	}
 
+	/**
+	 * #279: {@code TransactionOperations.execute} is declared {@code @Nullable}. apply()
+	 * never returns null, so this is a defensive branch rather than a reachable one - but it
+	 * decides whether a run is recorded at all, so it is worth pinning: nothing said
+	 * otherwise, so the run succeeded.
+	 */
+	@Test
+	void aNullApplyOutcomeIsTreatedAsApplied() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		org.springframework.transaction.support.TransactionOperations nullReturningApply =
+				new org.springframework.transaction.support.TransactionOperations() {
+					@Override
+					public <T> T execute(
+							org.springframework.transaction.support.TransactionCallback<T> action) {
+						action.doInTransaction(
+								new org.springframework.transaction.support.SimpleTransactionStatus());
+						return null;
+					}
+				};
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new StringAssistant())),
+				new RecordingApplicator(), List.of(new StringTargetLoader()),
+				java.time.Clock.systemUTC(),
+				org.springframework.transaction.support.TransactionOperations.withoutTransaction(),
+				nullReturningApply);
+
+		worker.run(record.runId());
+
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
+				updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED));
+	}
+
 	private static AssistantProjectGate openGate() {
 		return gate(AssistantProjectGate.State.OPEN);
 	}
