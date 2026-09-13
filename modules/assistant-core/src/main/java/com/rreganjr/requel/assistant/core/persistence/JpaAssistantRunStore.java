@@ -129,6 +129,13 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 
 	@Override
 	@Transactional(propagation = Propagation.REQUIRED)
+	public void markCancelled(UUID runId, String reason) {
+		update(runId, AssistantRunStatus.CANCELLED, reason,
+				entity -> entity.setCompletedAt(clock.instant()));
+	}
+
+	@Override
+	@Transactional(propagation = Propagation.REQUIRED)
 	public void markFailed(UUID runId, Throwable failure) {
 		String summary = failure == null ? null : failure.getMessage();
 		String kind = failure == null ? null : failure.getClass().getSimpleName();

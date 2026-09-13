@@ -41,6 +41,7 @@ import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantException;
 import com.rreganjr.requel.assistant.api.AssistantRegistry;
 import com.rreganjr.requel.assistant.api.AssistantResult;
+import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
 
 /**
@@ -62,6 +63,16 @@ import com.rreganjr.requel.assistant.api.RequelAssistant;
  * if the user deleted it while the analysis ran, the run is skipped instead of
  * inserting rows for a row that is gone (the "LATEST FOREIGN KEY ERROR" MySQL
  * reported during the e2e suite).
+ * <p>
+ * That target re-check is necessary but not sufficient (issue #279). It looks at the
+ * target entity, never the project the findings are <em>grouped under</em>, and even when
+ * it passes nothing stops the delete from committing immediately afterwards - the check
+ * and the inserts were not serialized against it at all. Because
+ * {@code annotations.grouping_object_id} is an {@code @Any} soft reference with no foreign
+ * key, the losing run's rows are accepted by the database and become unreachable orphans
+ * rather than a loud failure. So the apply phase now also takes the project row's write
+ * lock through {@link AssistantProjectGate} before writing anything, and a run that finds
+ * the project gone records {@link AssistantRunStatus#CANCELLED} instead of inserting.
  */
 @Component
 public class AssistantRunWorker {
@@ -72,6 +83,7 @@ public class AssistantRunWorker {
 	private final AssistantRegistry assistantRegistry;
 	private final AssistantResultApplicator resultApplicator;
 	private final List<AssistantTargetLoader> targetLoaders;
+	private final AssistantProjectGate projectGate;
 	private final Clock clock;
 	private final TransactionOperations analyzeTransaction;
 	private final TransactionOperations applyTransaction;
@@ -79,13 +91,14 @@ public class AssistantRunWorker {
 	@Autowired
 	public AssistantRunWorker(AssistantRunStore runStore, AssistantRegistry assistantRegistry,
 			AssistantResultApplicator resultApplicator, List<AssistantTargetLoader> targetLoaders,
-			PlatformTransactionManager transactionManager) {
-		this(runStore, assistantRegistry, resultApplicator, targetLoaders, Clock.systemUTC(),
-				requiresNew(transactionManager), requiresNew(transactionManager));
+			AssistantProjectGate projectGate, PlatformTransactionManager transactionManager) {
+		this(runStore, assistantRegistry, resultApplicator, targetLoaders, projectGate,
+				Clock.systemUTC(), requiresNew(transactionManager), requiresNew(transactionManager));
 	}
 
 	/**
-	 * Test constructor: both phases run inline, without a transaction manager.
+	 * Test constructor: both phases run inline, without a transaction manager, and the
+	 * project gate is always open (the tests that care about the gate pass their own).
 	 */
 	AssistantRunWorker(AssistantRunStore runStore, AssistantRegistry assistantRegistry,
 			AssistantResultApplicator resultApplicator, List<AssistantTargetLoader> targetLoaders) {
@@ -93,23 +106,49 @@ public class AssistantRunWorker {
 	}
 
 	/**
-	 * Test constructor: both phases run inline, without a transaction manager.
+	 * Test constructor: both phases run inline, without a transaction manager, and the
+	 * project gate is always open.
 	 */
 	AssistantRunWorker(AssistantRunStore runStore, AssistantRegistry assistantRegistry,
 			AssistantResultApplicator resultApplicator, List<AssistantTargetLoader> targetLoaders,
 			Clock clock) {
-		this(runStore, assistantRegistry, resultApplicator, targetLoaders, clock,
+		this(runStore, assistantRegistry, resultApplicator, targetLoaders,
+				projectRef -> AssistantProjectGate.State.OPEN, clock,
 				TransactionOperations.withoutTransaction(), TransactionOperations.withoutTransaction());
+	}
+
+	/**
+	 * Test constructor: both phases run inline, with the supplied project gate.
+	 */
+	AssistantRunWorker(AssistantRunStore runStore, AssistantRegistry assistantRegistry,
+			AssistantResultApplicator resultApplicator, List<AssistantTargetLoader> targetLoaders,
+			AssistantProjectGate projectGate) {
+		this(runStore, assistantRegistry, resultApplicator, targetLoaders, projectGate,
+				Clock.systemUTC(), TransactionOperations.withoutTransaction(),
+				TransactionOperations.withoutTransaction());
+	}
+
+	/**
+	 * Test constructor: supplied transaction templates, project gate always open.
+	 */
+	AssistantRunWorker(AssistantRunStore runStore, AssistantRegistry assistantRegistry,
+			AssistantResultApplicator resultApplicator, List<AssistantTargetLoader> targetLoaders,
+			Clock clock, TransactionOperations analyzeTransaction,
+			TransactionOperations applyTransaction) {
+		this(runStore, assistantRegistry, resultApplicator, targetLoaders,
+				projectRef -> AssistantProjectGate.State.OPEN, clock, analyzeTransaction,
+				applyTransaction);
 	}
 
 	AssistantRunWorker(AssistantRunStore runStore, AssistantRegistry assistantRegistry,
 			AssistantResultApplicator resultApplicator, List<AssistantTargetLoader> targetLoaders,
-			Clock clock, TransactionOperations analyzeTransaction,
+			AssistantProjectGate projectGate, Clock clock, TransactionOperations analyzeTransaction,
 			TransactionOperations applyTransaction) {
 		this.runStore = runStore;
 		this.assistantRegistry = assistantRegistry;
 		this.resultApplicator = resultApplicator;
 		this.targetLoaders = List.copyOf(targetLoaders);
+		this.projectGate = Objects.requireNonNull(projectGate, "projectGate");
 		this.clock = clock;
 		this.analyzeTransaction = Objects.requireNonNull(analyzeTransaction, "analyzeTransaction");
 		this.applyTransaction = Objects.requireNonNull(applyTransaction, "applyTransaction");
@@ -148,15 +187,22 @@ public class AssistantRunWorker {
 				return;
 			}
 
-			// Phase 2 - apply, briefly. Re-check the target: the user may have deleted it
-			// while phase 1 ran, in which case writing findings would only produce FK
-			// violations against a row that is gone.
-			String applySkipReason = applyTransaction.execute(status -> apply(record, analysis));
-			if (applySkipReason != null) {
-				runStore.markSkipped(runId, applySkipReason);
+			// Phase 2 - apply, briefly. Gate on the project row and re-check the target: the
+			// user may have deleted either while phase 1 ran, in which case writing findings
+			// would produce FK violations against rows that are gone - or, worse, silent
+			// orphans under the soft-FK columns that have no constraint at all (#279).
+			Outcome outcome = applyTransaction.execute(status -> apply(record, analysis));
+			// TransactionOperations.execute is declared @Nullable; apply() never returns
+			// null, so a null here can only mean "nothing said otherwise" - treat as applied.
+			if (outcome == null) {
+				runStore.markSucceeded(runId);
 				return;
 			}
-			runStore.markSucceeded(runId);
+			switch (outcome.status) {
+				case SKIPPED -> runStore.markSkipped(runId, outcome.reason);
+				case CANCELLED -> runStore.markCancelled(runId, outcome.reason);
+				default -> runStore.markSucceeded(runId);
+			}
 		} catch (RuntimeException e) {
 			runStore.markFailed(runId, e);
 			throw new AssistantWorkerException("Assistant run failed: " + runId, e);
@@ -243,14 +289,63 @@ public class AssistantRunWorker {
 		return new Analysis(context, producers, results);
 	}
 
+	/** What the apply phase decided. */
+	private static final class Outcome {
+		final AssistantRunStatus status;
+		final String reason;
+
+		private Outcome(AssistantRunStatus status, String reason) {
+			this.status = status;
+			this.reason = reason;
+		}
+
+		static Outcome applied() {
+			return new Outcome(AssistantRunStatus.SUCCEEDED, null);
+		}
+
+		static Outcome skipped(String reason) {
+			return new Outcome(AssistantRunStatus.SKIPPED, reason);
+		}
+
+		static Outcome cancelled(String reason) {
+			return new Outcome(AssistantRunStatus.CANCELLED, reason);
+		}
+	}
+
 	/**
-	 * @return a skip reason, or {@code null} when the results were applied.
+	 * @return what happened: applied, skipped (nothing to do), or cancelled (there was
+	 *         something to do and it was deliberately dropped - see #279).
 	 */
-	private String apply(AssistantRunRecord record, Analysis analysis) {
+	private Outcome apply(AssistantRunRecord record, Analysis analysis) {
 		AnalysisRequest request = record.request();
+
+		// Gate on the project row first. This single statement both takes the lock that
+		// orders us against DeleteProjectCommandImpl (which takes the same lock before it
+		// touches any child, so neither path can deadlock the other) and answers whether
+		// the project still exists. Holding it for the rest of this transaction is what
+		// makes the check below meaningful: without the lock, the project could be deleted
+		// between the check and the inserts.
+		//
+		// projectRef is nullable - AnalysisRequest null-checks every other field, and
+		// AnalysisRequestDispatcher passes null when the target has no ProjectOrDomain.
+		// With no project there is nothing to gate on, so fall through to the pre-#279
+		// behaviour: the target-only re-check below.
+		EntityRef projectRef = request.projectRef();
+		if (projectRef != null) {
+			AssistantProjectGate.State gate = projectGate.acquire(projectRef);
+			if (gate == AssistantProjectGate.State.GONE) {
+				return Outcome.cancelled("Project#" + projectRef.entityId()
+						+ " was deleted while the analysis ran; findings discarded");
+			}
+			if (gate == AssistantProjectGate.State.BUSY) {
+				return Outcome.cancelled("Project#" + projectRef.entityId()
+						+ " could not be locked before applying; findings discarded");
+			}
+		}
+
 		if (loadTarget(request).isEmpty()) {
-			return "Target " + request.targetRef().entityType() + "#"
-					+ request.targetRef().entityId() + " no longer exists; findings discarded";
+			return Outcome.skipped("Target " + request.targetRef().entityType() + "#"
+					+ request.targetRef().entityId() + " no longer exists; findings discarded");
 		}
 		for (int i = 0; i < analysis.results.size(); i++) {
 			RequelAssistant<?> assistant = analysis.assistants.get(i);
@@ -262,7 +357,7 @@ public class AssistantRunWorker {
 						assistant.assistantId(), record.runId(), e.toString(), e);
 			}
 		}
-		return null;
+		return Outcome.applied();
 	}
 
 	private Optional<Object> loadTarget(AnalysisRequest request) {

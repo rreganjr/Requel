@@ -258,7 +258,7 @@ class AssistantRunWorkerTest {
 		CountingTransactionManager transactionManager = new CountingTransactionManager();
 		AssistantRunWorker worker = new AssistantRunWorker(runStore,
 				new SimpleAssistantRegistry(List.of(new StringAssistant())), applicator,
-				List.of(new StringTargetLoader()), transactionManager);
+				List.of(new StringTargetLoader()), openGate(), transactionManager);
 
 		worker.runInNewTransaction(record.runId()); // deprecated alias of run()
 
@@ -346,6 +346,128 @@ class AssistantRunWorkerTest {
 		public Optional<Object> loadTarget(EntityRef targetRef) {
 			loads++;
 			return (loads == 1) ? Optional.of("target") : Optional.empty();
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// #279: the project gate
+	// -------------------------------------------------------------------------
+
+	/**
+	 * #279: the target re-check is not enough. The findings are grouped under the project,
+	 * and {@code annotations.grouping_object_id} has no foreign key, so writing them for a
+	 * deleted project produces silent orphans rather than a loud FK failure. A run that
+	 * finds the project gone must write nothing and record CANCELLED - distinct from
+	 * SKIPPED, which means there was nothing to do in the first place.
+	 */
+	@Test
+	void cancelsWhenTheProjectWasDeletedDuringAnalysis() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		RecordingApplicator applicator = new RecordingApplicator();
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new StringAssistant())), applicator,
+				List.of(new StringTargetLoader()), gate(AssistantProjectGate.State.GONE));
+
+		worker.run(record.runId());
+
+		assertThat(applicator.appliedResults).isEmpty();
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> {
+			assertThat(updated.status()).isEqualTo(AssistantRunStatus.CANCELLED);
+			assertThat(updated.errorSummary()).contains("Project#2").contains("deleted");
+		});
+	}
+
+	/**
+	 * #279: losing the lock race is the same outcome as losing the project - drop the
+	 * findings rather than write them without the gate held.
+	 */
+	@Test
+	void cancelsWhenTheProjectRowCannotBeLocked() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		RecordingApplicator applicator = new RecordingApplicator();
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new StringAssistant())), applicator,
+				List.of(new StringTargetLoader()), gate(AssistantProjectGate.State.BUSY));
+
+		worker.run(record.runId());
+
+		assertThat(applicator.appliedResults).isEmpty();
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> {
+			assertThat(updated.status()).isEqualTo(AssistantRunStatus.CANCELLED);
+			assertThat(updated.errorSummary()).contains("Project#2").contains("locked");
+		});
+	}
+
+	/** #279: an open gate changes nothing about the happy path. */
+	@Test
+	void appliesWhenTheGateIsOpen() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		RecordingApplicator applicator = new RecordingApplicator();
+		RecordingGate recordingGate = new RecordingGate(AssistantProjectGate.State.OPEN);
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new StringAssistant())), applicator,
+				List.of(new StringTargetLoader()), recordingGate);
+
+		worker.run(record.runId());
+
+		assertThat(recordingGate.acquired).containsExactly(EntityRef.of("Project", 2L));
+		assertThat(applicator.appliedResults).hasSize(1);
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
+				updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED));
+	}
+
+	/**
+	 * #279: AnalysisRequest null-checks every field except projectRef, and
+	 * AnalysisRequestDispatcher really does pass null when the target has no
+	 * ProjectOrDomain. With no project there is nothing to gate on, so the gate must not
+	 * be consulted at all and the pre-#279 target-only behaviour stands.
+	 */
+	@Test
+	void skipsWithoutGatingWhenTheRequestHasNoProject() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AnalysisRequest projectless = new AnalysisRequest(EntityRef.of("Goal", 1L), null,
+				new UserRef(3L, "human"), new UserRef(4L, "assistant"), "REQUIREMENTS_REVIEW",
+				java.util.Locale.ROOT, Map.of());
+		AssistantRunRecord record = runStore.queueRun(projectless);
+		RecordingApplicator applicator = new RecordingApplicator();
+		// A gate that would cancel the run if it were ever asked.
+		RecordingGate recordingGate = new RecordingGate(AssistantProjectGate.State.GONE);
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new StringAssistant())), applicator,
+				List.of(new VanishingTargetLoader()), recordingGate);
+
+		worker.run(record.runId());
+
+		assertThat(recordingGate.acquired).isEmpty();
+		assertThat(applicator.appliedResults).isEmpty();
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
+				updated.status()).isEqualTo(AssistantRunStatus.SKIPPED));
+	}
+
+	private static AssistantProjectGate openGate() {
+		return gate(AssistantProjectGate.State.OPEN);
+	}
+
+	private static AssistantProjectGate gate(AssistantProjectGate.State state) {
+		return projectRef -> state;
+	}
+
+	/** Remembers what it was asked to lock, so a test can assert it was never consulted. */
+	private static final class RecordingGate implements AssistantProjectGate {
+		private final State state;
+		private final List<EntityRef> acquired = new java.util.ArrayList<>();
+
+		private RecordingGate(State state) {
+			this.state = state;
+		}
+
+		@Override
+		public State acquire(EntityRef projectRef) {
+			acquired.add(projectRef);
+			return state;
 		}
 	}
 

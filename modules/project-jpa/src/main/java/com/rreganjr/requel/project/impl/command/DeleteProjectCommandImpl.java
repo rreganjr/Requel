@@ -133,6 +133,15 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 	@Override
 	public void execute() throws Exception {
 		Project project = getRepository().get(getProject());
+		// #279: take the project row's write lock before the cascade touches a single child.
+		// An assistant run's apply phase takes the same lock on the same row first (see
+		// AssistantProjectGate), so the two paths can only interleave one of two safe ways:
+		// the apply commits before this delete starts - and step 11 below sweeps what it
+		// wrote - or it blocks here until the row is gone and cancels itself. Without this,
+		// the delete's order is children -> project and the apply's is project -> children,
+		// which is an ABBA deadlock under InnoDB. Taken before the version check so a stale
+		// rejection cannot race either.
+		project = getRepository().lockForUpdate(project);
 		User editedBy = getRepository().get(getEditedBy());
 
 		// Enforce the caller-supplied optimistic-lock version (issue #108).

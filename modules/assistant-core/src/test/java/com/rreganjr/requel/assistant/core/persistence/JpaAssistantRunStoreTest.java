@@ -180,6 +180,28 @@ class JpaAssistantRunStoreTest {
 		assertThat(entity.getCompletedAt()).isEqualTo(fixedNow);
 	}
 
+	/**
+	 * #279: a run whose findings were dropped because the project went away is CANCELLED,
+	 * not SKIPPED. Same shape as markSkipped - the distinction is the status, and it is
+	 * what lets run history explain a missing annotation.
+	 */
+	@Test
+	void markCancelledRecordsReasonAndCompletion() {
+		AssistantRunRepository repository = mock(AssistantRunRepository.class);
+		JpaAssistantRunStore store = new JpaAssistantRunStore(repository, fixedClock);
+		AssistantRunEntity entity = new AssistantRunEntity(UUID.randomUUID(), "test", "RUNNING",
+				fixedNow.minusSeconds(2), fixedNow.minusSeconds(1));
+		when(repository.findById(any())).thenReturn(Optional.of(entity));
+
+		store.markCancelled(entity.getRunId(),
+				"Project#7 was deleted while the analysis ran; findings discarded");
+
+		assertThat(entity.getStatus()).isEqualTo("CANCELLED");
+		assertThat(entity.getErrorSummary())
+				.isEqualTo("Project#7 was deleted while the analysis ran; findings discarded");
+		assertThat(entity.getCompletedAt()).isEqualTo(fixedNow);
+	}
+
 	private static AnalysisRequest request(String taskType, long goalId, long projectId,
 			long triggeringUserId, long assistantUserId) {
 		return new AnalysisRequest(EntityRef.of("Goal", goalId), EntityRef.of("Project", projectId),

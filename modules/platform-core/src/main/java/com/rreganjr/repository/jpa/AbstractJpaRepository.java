@@ -24,6 +24,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 
 import org.hibernate.Hibernate;
@@ -200,6 +201,34 @@ public class AbstractJpaRepository extends AbstractRepository {
 		} catch (Exception e) {
 			log.warn(e, e);
 			throw convertException(e, entity.getClass(), entity, EntityExceptionActionType.Deleting);
+		}
+	}
+
+	/**
+	 * Take a {@code PESSIMISTIC_WRITE} (SELECT ... FOR UPDATE) lock on the entity's row,
+	 * blocking until it is granted or the database's own lock-wait timeout fires.
+	 * <p>
+	 * {@link #attach(EntityManager, Object)} does the unwrapping: the argument arrives here
+	 * as a CGLIB entity proxy (this class is advised by {@code DomainObjectWrappingAdvice}),
+	 * and Hibernate must be handed the raw entity. Locking the proxy would fail (#279).
+	 */
+	@Override
+	public <T> T lockForUpdate(T entity) throws EntityException {
+		if (entity == null) {
+			return null;
+		}
+		try {
+			T attached = attach(entityManager, entity);
+			// attach() returns the detached original (with a warning) when the row is gone.
+			// There is nothing to gate in that case, and locking a detached instance would
+			// throw; leave the caller to fail on its own terms, exactly as it did before.
+			if (entityManager.contains(attached)) {
+				entityManager.lock(attached, LockModeType.PESSIMISTIC_WRITE);
+			}
+			return attached;
+		} catch (Exception e) {
+			log.warn(e, e);
+			throw convertException(e, entity.getClass(), entity, EntityExceptionActionType.Reading);
 		}
 	}
 
