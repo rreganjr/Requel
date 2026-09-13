@@ -38,6 +38,18 @@ public interface AssistantRunStore {
 
 	void markSkipped(UUID runId, String reason);
 
+	/**
+	 * Terminal state for a run whose findings were deliberately thrown away because the
+	 * world moved on while it was analyzing - the project was deleted, or its row could not
+	 * be locked in time (issue #279).
+	 * <p>
+	 * Distinct from {@link #markSkipped(UUID, String)}, which means there was nothing to do
+	 * in the first place (no assistant matched, no target loader, nothing to analyze). A
+	 * cancelled run <em>had</em> results and dropped them; that difference matters when
+	 * reading run history to explain missing annotations.
+	 */
+	void markCancelled(UUID runId, String reason);
+
 	void markFailed(UUID runId, Throwable failure);
 
 	Optional<AssistantRunRecord> findRun(UUID runId);

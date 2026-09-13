@@ -38,6 +38,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.command.AuthorizationException;
@@ -48,6 +51,8 @@ import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.annotation.command.EditNoteCommand;
+import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.assistant.core.AssistantProjectGate;
 import com.rreganjr.requel.project.command.AddActorToActorContainerCommand;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
 import com.rreganjr.requel.project.command.AddScenarioToUseCaseCommand;
@@ -94,6 +99,12 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    protected AssistantProjectGate projectGate;
+
+    @Autowired
+    protected PlatformTransactionManager transactionManager;
 
     private static final String PROJECT_DELETE_KEY =
             StakeholderPermissionImpl.generatePermissionKey(Project.class,
@@ -312,6 +323,50 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
                 "no link rows may survive the annotations");
     }
 
+    /**
+     * #279: the gate an assistant's apply phase takes before writing anything. It locks the
+     * project row and answers whether it still exists in a single statement, so a run whose
+     * project was deleted while it was analyzing cancels instead of inserting annotations
+     * that no cascade could ever reach ({@code annotations.grouping_object_id} is an
+     * {@code @Any} soft reference with no foreign key).
+     *
+     * <p>
+     * This asserts the outcome deterministically. The genuinely concurrent version - two
+     * threads racing for the same row - lives in {@code DeleteProjectMySqlIT}, because H2's
+     * row locking is too weak to reproduce it.
+     */
+    @Test
+    void assistantProjectGateOpensWhileTheProjectExistsAndReportsGoneOnceDeleted()
+            throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        long ts = System.currentTimeMillis();
+        Project project = createProject(admin, "del-gate-" + ts);
+        EntityRef projectRef = EntityRef.of("Project", project.getId());
+
+        assertEquals(AssistantProjectGate.State.OPEN, acquireGate(projectRef),
+                "the gate must open while the project row exists");
+
+        deleteProject(admin, project, project.getVersion());
+
+        assertEquals(AssistantProjectGate.State.GONE, acquireGate(projectRef),
+                "once the project row is gone the gate must report GONE so the apply cancels "
+                        + "instead of filing orphan annotations");
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM annotations WHERE grouping_object_id = ?", Integer.class,
+                project.getId()),
+                "no annotation may remain grouped under a deleted project");
+    }
+
+    /**
+     * The gate is {@code MANDATORY}: a row lock only lives as long as the transaction that
+     * took it, so it must join the caller's. Run it in one here.
+     */
+    private AssistantProjectGate.State acquireGate(EntityRef projectRef) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return template.execute(status -> projectGate.acquire(projectRef));
+    }
+
     // -------------------------------------------------------------------------
     // Permission seed + backfill
     // -------------------------------------------------------------------------
@@ -417,7 +472,7 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
     // Helpers
     // -------------------------------------------------------------------------
 
-    private Project createProject(User owner, String name) throws Exception {
+    protected Project createProject(User owner, String name) throws Exception {
         EditProjectCommand cmd = getProjectCommandFactory().newEditProjectCommand();
         cmd.setEditedBy(owner);
         cmd.setName(name);
@@ -427,7 +482,7 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
         return cmd.getProject();
     }
 
-    private void deleteProject(User actor, Project project, Integer expectedVersion)
+    protected void deleteProject(User actor, Project project, Integer expectedVersion)
             throws Exception {
         DeleteProjectCommand cmd = getProjectCommandFactory().newDeleteProjectCommand();
         cmd.setEditedBy(actor);

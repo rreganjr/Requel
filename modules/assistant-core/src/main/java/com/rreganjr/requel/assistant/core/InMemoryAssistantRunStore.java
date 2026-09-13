@@ -74,6 +74,11 @@ public class InMemoryAssistantRunStore implements AssistantRunStore {
 	}
 
 	@Override
+	public void markCancelled(UUID runId, String reason) {
+		update(runId, AssistantRunStatus.CANCELLED, reason);
+	}
+
+	@Override
 	public void markFailed(UUID runId, Throwable failure) {
 		update(runId, AssistantRunStatus.FAILED, failure.getMessage());
 	}
