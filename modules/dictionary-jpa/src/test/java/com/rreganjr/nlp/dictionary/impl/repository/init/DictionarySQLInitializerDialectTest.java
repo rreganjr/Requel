@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -182,5 +183,64 @@ class DictionarySQLInitializerDialectTest {
 				.contains("vnroletype.sql", "vnselres.sql", "vnroleref.sql.gz", "custom_vn.sql")
 				.doesNotContain("synset_definition_word.sql.gz", "semcor_file.sql.gz",
 						"semcor_sentence.sql.gz", "semcor_sentence_word.sql.gz");
+	}
+
+	@Test
+	void aJdbcTemplateWithNoDataSourceIsFatal() {
+		when(jdbcTemplate.getDataSource()).thenReturn(null);
+
+		assertThatThrownBy(() -> initializer("test-dump.sql").initialize())
+				.isInstanceOf(FatalInitializationException.class)
+				.hasMessageContaining("the dictionary is empty")
+				.hasMessageContaining("no DataSource");
+	}
+
+	@Test
+	void aConnectionFailureIsFatal() throws SQLException {
+		when(dataSource.getConnection()).thenThrow(new SQLException("pool exhausted"));
+
+		assertThatThrownBy(() -> initializer("test-dump.sql").initialize())
+				.isInstanceOf(FatalInitializationException.class)
+				.hasMessageContaining("could not obtain a database connection")
+				.cause().hasMessageContaining("pool exhausted");
+	}
+
+	@Test
+	void aNullDatabaseProductNameIsTreatedAsNotMySql() throws SQLException {
+		// A driver is not obliged to return a product name; absent one, do not run mysqldump SQL.
+		databaseProductIs(null);
+
+		assertThatCode(() -> initializer("test-dump.sql").initialize())
+				.doesNotThrowAnyException();
+
+		verify(statement, never()).executeUpdate(anyString());
+	}
+
+	@Test
+	void aFailedRollbackDoesNotMaskTheImportFailure() throws SQLException {
+		databaseProductIs("MySQL");
+		when(statement.executeUpdate(anyString())).thenThrow(new SQLException("import blew up"));
+		doThrow(new SQLException("connection already dead")).when(connection).rollback();
+
+		// The rollback failure is logged; what the caller sees is still why the import failed.
+		assertThatThrownBy(() -> initializer("test-dump.sql").initialize())
+				.isInstanceOf(FatalInitializationException.class)
+				.hasMessageContaining("the dictionary is empty")
+				.cause().hasMessageContaining("import blew up");
+	}
+
+	@Test
+	void aFailedAutoCommitRestoreDoesNotFailASuccessfulImport() throws SQLException {
+		databaseProductIs("MySQL");
+		when(connection.getAutoCommit()).thenReturn(true);
+		when(statement.executeUpdate(anyString())).thenReturn(1);
+		doThrow(new SQLException("connection returned to the pool")).when(connection)
+				.setAutoCommit(true);
+
+		// Restoring autoCommit is housekeeping — it must not turn a good import into a failure.
+		assertThatCode(() -> initializer("test-dump.sql").initialize())
+				.doesNotThrowAnyException();
+
+		verify(connection).commit();
 	}
 }
