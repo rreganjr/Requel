@@ -289,6 +289,7 @@ The Angular SPA is backed by a hybrid CQRS API:
 - `doc/unmarshalling_plan.md` — JAXB import strategy, aggregate assembly
 - `doc/agents.md` — AI agent workflows, edit policies, guardrails
 - `doc/USER_AND_STAKEHOLDER_MODEL.md` — identity/stakeholder coupling explanation
+- `doc/DICTIONARY_LOADING.md` — the two dictionary load paths (MySQL SQL dumps vs `dictionary.xml.gz`), which environments use which, and the properties that control them
 - `RELEASE.md` — release checklist, Docker build, GitHub Packages deploy
 
 ## Testing

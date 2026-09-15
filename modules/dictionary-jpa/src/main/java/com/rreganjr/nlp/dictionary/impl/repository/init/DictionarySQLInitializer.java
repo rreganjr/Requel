@@ -28,9 +28,13 @@ import java.io.Reader;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Locale;
 import java.util.zip.GZIPInputStream;
 
+import javax.sql.DataSource;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Scope;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -39,11 +43,19 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.rreganjr.platform.bootstrap.AbstractSystemInitializer;
-import com.rreganjr.ResourceBundleHelper;
+import com.rreganjr.platform.bootstrap.FatalInitializationException;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 
 /**
- * Load the dictionary from SQL if no words exist.
+ * Load the WordNet/VerbNet dictionary from the bundled {@code nlp/dictionary/*.sql.gz} dumps when
+ * the dictionary is empty.
+ * <p>
+ * The dumps are mysqldump output ({@code SET NAMES}, {@code SET @@FOREIGN_KEY_CHECKS},
+ * {@code LOCK TABLES}) and execute only on MySQL. Before #288 this class ran in every Spring
+ * context and simply failed on H2, logging one line and leaving the dictionary empty — a silent,
+ * dialect-dependent no-op that nothing declared. It now checks the datasource: anything that is not
+ * MySQL is skipped explicitly, and a failure on MySQL — where the import was both asked for and
+ * possible — is fatal rather than logged. See {@code doc/DICTIONARY_LOADING.md}.
  * 
  * @author ron
  */
@@ -55,98 +67,157 @@ import com.rreganjr.nlp.dictionary.DictionaryRepository;
 public class DictionarySQLInitializer extends AbstractSystemInitializer {
 
 	/**
-	 * The name of the property in the DictionarySQLInitializer.properties file
-	 * that contains the path to the directory containing all the sql files, if
-	 * not supplied the default file is "nlp/dictionary/"
+	 * Classpath directory holding the dumps. Override with
+	 * {@code requel.dictionary.sql-files-directory}.
 	 */
-	public static final String PROP_DICTIONARY_SQL_FILES_DIRECTORY = "DictionarySQLFilesDirectory";
 	public static final String PROP_DICTIONARY_SQL_FILES_DIRECTORY_DEFAULT = "nlp/dictionary/";
 
 	/**
-	 * The name of the property in the DictionarySQLInitializer.properties file
-	 * that contains a comma delimited list of sql file names in the order they
-	 * should be loaded. The files are expected to be in the directory defined
-	 * by PROP_DICTIONARY_SQL_FILES_DIRECTORY.<br>
-	 * If not supplied the default list is "categorydef.sql.gz, word.sql.gz,
-	 * morphdef.sql.gz, morphref.sql.gz, synset.sql.gz, sense.sql.gz,
-	 * synset_definition_word.sql.gz, synset_subsumer_counts.sql.gz,
-	 * linkdef.sql.gz, lexlinkref.sql.gz, semlinkref.sql.gz, vnclass.sql.gz,
-	 * vnframedef.sql.gz, vnframeref.sql.gz, semcor_file.sql.gz,
-	 * semcor_sentence.sql.gz, semcor_sentence_word.sql.gz"<br>
-	 * NOTE: the files may be plain sql files or zipped sql files.
+	 * Comma delimited dump file names, in load order, relative to
+	 * {@link #PROP_DICTIONARY_SQL_FILES_DIRECTORY_DEFAULT}. Override with
+	 * {@code requel.dictionary.sql-files}. Files may be plain {@code .sql} or gzipped
+	 * {@code .sql.gz}.
+	 * <p>
+	 * This list is the one production has always imported. Until #288 it lived in
+	 * {@code DictionarySQLInitializer.properties}, read through a {@code ResourceBundle}, and the
+	 * constant here named a <em>different</em> corpus — {@code synset_definition_word.sql.gz} and
+	 * the three {@code semcor_*} dumps in place of the VerbNet {@code vnroletype.sql},
+	 * {@code vnselres.sql}, {@code vnroleref.sql.gz} and {@code custom_vn.sql}. The bundle won,
+	 * silently, so the constant was documentation of something that never ran. The bundle is gone
+	 * and its list is here.
 	 */
-	public static final String PROP_DICTIONARY_SQL_FILES = "DictionarySQLFiles";
-	public static final String PROP_DICTIONARY_SQL_FILES_DEFAULT = "categorydef.sql.gz, word.sql.gz, morphdef.sql.gz, morphref.sql.gz, synset.sql.gz, sense.sql.gz, synset_definition_word.sql.gz, synset_subsumer_counts.sql.gz, linkdef.sql.gz, lexlinkref.sql.gz, semlinkref.sql.gz, vnclass.sql.gz, vnframedef.sql.gz, vnframeref.sql.gz, semcor_file.sql.gz, semcor_sentence.sql.gz, semcor_sentence_word.sql.gz";
+	public static final String PROP_DICTIONARY_SQL_FILES_DEFAULT =
+			"categorydef.sql.gz, word.sql.gz, morphdef.sql.gz, morphref.sql.gz, synset.sql.gz, "
+					+ "sense.sql.gz, synset_subsumer_counts.sql.gz, linkdef.sql.gz, "
+					+ "lexlinkref.sql.gz, semlinkref.sql.gz, vnclass.sql.gz, vnframedef.sql.gz, "
+					+ "vnframeref.sql.gz, vnroletype.sql, vnselres.sql, vnroleref.sql.gz, "
+					+ "custom_vn.sql";
 
 	private final DictionaryRepository dictionaryRepository;
 	private final JdbcTemplate jdbcTemplate;
+	private final String dictionaryDirPath;
+	private final String dictionaryFiles;
 
 	/**
 	 * @param dictionaryRepository
 	 * @param jdbcTemplate
+	 * @param dictionaryDirPath classpath directory holding the dumps
+	 * @param dictionaryFiles comma delimited dump file names, in load order
 	 */
 	@Autowired
 	public DictionarySQLInitializer(DictionaryRepository dictionaryRepository,
-			JdbcTemplate jdbcTemplate) {
+			JdbcTemplate jdbcTemplate,
+			@Value("${requel.dictionary.sql-files-directory:"
+					+ PROP_DICTIONARY_SQL_FILES_DIRECTORY_DEFAULT + "}") String dictionaryDirPath,
+			@Value("${requel.dictionary.sql-files:"
+					+ PROP_DICTIONARY_SQL_FILES_DEFAULT + "}") String dictionaryFiles) {
 		super(1);
 		this.dictionaryRepository = dictionaryRepository;
 		this.jdbcTemplate = jdbcTemplate;
+		this.dictionaryDirPath = dictionaryDirPath;
+		this.dictionaryFiles = dictionaryFiles;
 	}
 
 	@Override
 	@Transactional(propagation = Propagation.REQUIRED)
 	public void initialize() {
-		if (dictionaryRepository.findCategories().isEmpty()) {
-			Connection conn = null;
-			try {
-				ResourceBundleHelper resourceBundleHelper = new ResourceBundleHelper(
-						DictionarySQLInitializer.class.getName());
-				String dictionaryDirPath = resourceBundleHelper.getString(
-						PROP_DICTIONARY_SQL_FILES_DIRECTORY,
-						PROP_DICTIONARY_SQL_FILES_DIRECTORY_DEFAULT);
-				conn = jdbcTemplate.getDataSource().getConnection();
-				conn.setAutoCommit(false);
-				Statement statement = conn.createStatement();
+		if (!dictionaryRepository.findCategories().isEmpty()) {
+			return;
+		}
+		DataSource dataSource = jdbcTemplate.getDataSource();
+		if (dataSource == null) {
+			throw new FatalInitializationException("the dictionary is empty: the JdbcTemplate has"
+					+ " no DataSource, so the dictionary could not be imported.");
+		}
+		try (Connection conn = dataSource.getConnection()) {
+			if (!isMySQL(conn)) {
+				return;
+			}
+			importDictionary(conn);
+		} catch (SQLException e) {
+			throw new FatalInitializationException("the dictionary is empty: could not obtain a"
+					+ " database connection to import it.", e);
+		}
+	}
 
-				String dictionaryFiles = resourceBundleHelper.getString(PROP_DICTIONARY_SQL_FILES,
-						PROP_DICTIONARY_SQL_FILES_DEFAULT);
-				for (String sqlFile : dictionaryFiles.split(",")) {
-					loadSQLFile(dictionaryDirPath + sqlFile.trim(), statement);
-				}
-				conn.commit();
-			} catch (Exception e) {
-				if (conn != null) {
-					try {
-						conn.rollback();
-					} catch (SQLException se) {
-						log.error("could not rollback: " + se, se);
-					}
-				}
-				log.error("could not load dictionary via SQL: " + e, e);
+	/**
+	 * The dumps are mysqldump output and only execute on MySQL, so anything else is skipped — once,
+	 * visibly, saying what will be missing and where the alternative is. MariaDB's driver also
+	 * reports "MySQL", which is what we want: the dumps load there too.
+	 */
+	private boolean isMySQL(Connection conn) throws SQLException {
+		String product = conn.getMetaData().getDatabaseProductName();
+		if (product != null && product.toLowerCase(Locale.ROOT).contains("mysql")) {
+			return true;
+		}
+		log.info("dictionary SQL import skipped: the datasource reports '" + product
+				+ "', not MySQL. The " + dictionaryDirPath + "*.sql.gz dumps are mysqldump output"
+				+ " and execute only on MySQL, so the dictionary is empty in this context."
+				+ " Tests that need dictionary data call"
+				+ " AbstractIntegrationTestCase.ensureDictionaryLoaded() (dictionary.xml.gz)."
+				+ " See doc/DICTIONARY_LOADING.md.");
+		return false;
+	}
+
+	/**
+	 * Import every configured dump in one transaction on {@code conn}. A failure here is fatal: the
+	 * caller asked for the import (the property is on), the dialect can do it, and it did not
+	 * happen — which before #288 was logged and stepped over, leaving an empty dictionary behind a
+	 * passing build.
+	 */
+	private void importDictionary(Connection conn) throws SQLException {
+		boolean autoCommit = conn.getAutoCommit();
+		String currentFile = null;
+		try (Statement statement = conn.createStatement()) {
+			conn.setAutoCommit(false);
+			for (String sqlFile : dictionaryFiles.split(",")) {
+				currentFile = dictionaryDirPath + sqlFile.trim();
+				loadSQLFile(currentFile, statement);
+			}
+			conn.commit();
+		} catch (Exception e) {
+			try {
+				conn.rollback();
+			} catch (SQLException se) {
+				log.error("could not rollback: " + se, se);
+			}
+			throw new FatalInitializationException("the dictionary is empty: loading '" + currentFile
+					+ "' failed and the import was rolled back, so no dictionary data was written."
+					+ " Set requel.dictionary.sql-initializer.enabled=false to start without it.",
+					e);
+		} finally {
+			try {
+				conn.setAutoCommit(autoCommit);
+			} catch (SQLException se) {
+				log.error("could not restore autoCommit on the dictionary connection: " + se, se);
 			}
 		}
 	}
 
 	private void loadSQLFile(String path, Statement statement) throws IOException, SQLException {
 		log.info("loading sql file: " + path);
-		InputStream inputStream = getClass().getClassLoader().getResourceAsStream(path);
-		if (path.endsWith(".gz")) {
-			inputStream = new GZIPInputStream(inputStream);
+		InputStream resource = getClass().getClassLoader().getResourceAsStream(path);
+		if (resource == null) {
+			// Previously this fell through to new GZIPInputStream(null) and the NPE was swallowed
+			// by the same catch as a SQL error, so a renamed dump and a broken dump looked alike.
+			throw new IOException("dictionary SQL file not found on the classpath: " + path);
 		}
+		InputStream inputStream = path.endsWith(".gz") ? new GZIPInputStream(resource) : resource;
 
-		BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-		StringBuilder sqlBuffer = new StringBuilder(1500);
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+			StringBuilder sqlBuffer = new StringBuilder(1500);
 
-		while (true) {
-			String sql = readSQL(reader, sqlBuffer);
-			if (sql.length() == 0) {
-				break;
+			while (true) {
+				String sql = readSQL(reader, sqlBuffer);
+				if (sql.length() == 0) {
+					break;
+				}
+				log.debug("sql = " + sql);
+				if (!sql.toLowerCase().startsWith("lock tables")) {
+					statement.executeUpdate(sql);
+				}
+				sqlBuffer.setLength(0);
 			}
-			log.debug("sql = " + sql);
-			if (!sql.toLowerCase().startsWith("lock tables")) {
-				statement.executeUpdate(sql);
-			}
-			sqlBuffer.setLength(0);
 		}
 	}
 
