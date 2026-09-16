@@ -58,6 +58,12 @@ public class DatabaseInitializer {
 		for (SystemInitializer initializer : entityInitializers) {
 			try {
 				initializer.initialize();
+			} catch (FatalInitializationException e) {
+				// The initializer has established its work was asked for and could not be done.
+				// Let it stop the boot rather than leaving a broken system running (issue #288).
+				log.error("System initializer {} failed fatally; aborting initialization",
+						initializer.getClass().getSimpleName(), e);
+				throw e;
 			} catch (RuntimeException e) {
 				// Don't let one failing initializer abort the rest of the chain (e.g. user
 				// seeding ordered after it). Log and continue so the system still bootstraps.
