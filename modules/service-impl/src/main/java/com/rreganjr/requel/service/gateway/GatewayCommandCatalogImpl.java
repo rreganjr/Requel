@@ -22,6 +22,7 @@ package com.rreganjr.requel.service.gateway;
 
 import com.rreganjr.requel.gateway.CommandDescriptor;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
+import com.rreganjr.requel.service.api.CommandDescription;
 import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.command.ApiCommandFactory;
 import java.util.ArrayList;
@@ -62,7 +63,7 @@ public class GatewayCommandCatalogImpl implements GatewayCommandCatalog {
                 inputType = Void.class;
             }
             CommandDescriptor descriptor = new CommandDescriptor(
-                    commandType, inputType, humanize(commandType), null, true, null);
+                    commandType, inputType, humanize(commandType), describe(inputType), true, null);
             built.add(descriptor);
             byType.put(commandType, descriptor);
         }
@@ -77,6 +78,23 @@ public class GatewayCommandCatalogImpl implements GatewayCommandCatalog {
     @Override
     public Optional<CommandDescriptor> find(String commandType) {
         return Optional.ofNullable(byType.get(commandType));
+    }
+
+    /**
+     * The caller-facing description the input DTO declares with {@link CommandDescription}, or
+     * {@code null} when it declares none.
+     *
+     * <p>Null is the normal case for most of the catalog today: the MCP layer falls back to the
+     * title plus the input's field names, so an undescribed command still works. Reading the text
+     * from the DTO rather than hardcoding it here keeps the description beside the fields it
+     * describes, where whoever changes those fields will see it.
+     */
+    static String describe(Class<?> inputType) {
+        if (inputType == null) {
+            return null;
+        }
+        CommandDescription description = inputType.getAnnotation(CommandDescription.class);
+        return description == null ? null : description.value();
     }
 
     /** Turn a PascalCase command type into a spaced title, e.g. {@code EditGoal} → {@code Edit Goal}. */

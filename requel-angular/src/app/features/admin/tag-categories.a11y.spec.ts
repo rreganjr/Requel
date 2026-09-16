@@ -56,4 +56,35 @@ describe('TagCategoriesComponent — accessibility (issue #138)', () => {
     expect(fs.querySelector('.rq-field-error')).not.toBeNull();
     await expectNoAxeViolations(fs);
   });
+
+  /**
+   * The slug hint (#255) is the kind of helper text that used to be added as a bare paragraph a
+   * screen-reader user never heard. Both text inputs whose content gets slugged point at it, and
+   * the name input's error joins that list rather than replacing it — losing the hint the moment
+   * the field is invalid would hide it exactly when it is most likely to explain the problem.
+   */
+  it('describes both slugged inputs by the normalization hint', async () => {
+    const el = (await render()).nativeElement as HTMLElement;
+    const hint = el.querySelector('#tag-category-slug-hint');
+    expect(hint?.textContent).toContain('con-3685');
+
+    const name = el.querySelector<HTMLInputElement>('[data-testid="tag-category-name"]')!;
+    const values = el.querySelector<HTMLInputElement>('[data-testid="tag-category-values"]')!;
+    expect(name.getAttribute('aria-describedby')).toBe('tag-category-slug-hint');
+    expect(values.getAttribute('aria-describedby')).toBe('tag-category-slug-hint');
+  });
+
+  it('keeps the hint described alongside the error when the name is invalid', async () => {
+    const fixture = await render();
+    fixture.componentInstance.addForm.controls.name.setValue('  ');
+    await fixture.componentInstance.addCategory();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+
+    const name = el.querySelector<HTMLInputElement>('[data-testid="tag-category-name"]')!;
+    const ids = (name.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean);
+    expect(ids).toContain('tag-category-slug-hint');
+    expect(ids).toContain('tag-category-name-error');
+    expect(ids).toHaveLength(2);
+  });
 });

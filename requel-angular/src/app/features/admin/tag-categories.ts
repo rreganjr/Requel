@@ -50,11 +50,17 @@ import { InlineErrorComponent } from '../../shared/app-inline-error';
 
       <fieldset class="rq-fieldset" data-testid="tag-category-add-form" [formGroup]="addForm">
         <legend>Add tag category</legend>
+        <p class="hint" id="tag-category-slug-hint" data-testid="tag-category-slug-hint">
+          Names and values are saved as slugs: lower-cased, with runs of spaces or punctuation
+          collapsed to single hyphens. 'Source' is saved as 'source', and 'CON-3685' as 'con-3685'.
+        </p>
         <div class="add-row">
         <input pInputText formControlName="name" placeholder="category name"
                aria-label="Category name" data-testid="tag-category-name" class="name-input"
                [attr.aria-invalid]="nameErr.message() ? 'true' : null"
-               [attr.aria-describedby]="nameErr.message() ? 'tag-category-name-error' : null" />
+               [attr.aria-describedby]="nameErr.message()
+                   ? 'tag-category-slug-hint tag-category-name-error'
+                   : 'tag-category-slug-hint'" />
         <span class="excl">
           <p-checkbox formControlName="exclusive" [binary]="true" inputId="excl" />
           <label for="excl">Exclusive</label>
@@ -62,7 +68,8 @@ import { InlineErrorComponent } from '../../shared/app-inline-error';
         <input pInputText formControlName="allowedTypes" placeholder="allowed types (comma-sep)"
                aria-label="Allowed entity types" data-testid="tag-category-allowed" class="wide-input" />
         <input pInputText formControlName="values" placeholder="values (comma-sep)"
-               aria-label="Controlled values" data-testid="tag-category-values" class="wide-input" />
+               aria-label="Controlled values" data-testid="tag-category-values" class="wide-input"
+               aria-describedby="tag-category-slug-hint" />
         <input pInputText formControlName="color" placeholder="color"
                aria-label="Category color" data-testid="tag-category-color" class="color-input" />
         <p-button label="Add Category" icon="pi pi-plus" data-testid="tag-category-add"
@@ -94,6 +101,7 @@ import { InlineErrorComponent } from '../../shared/app-inline-error';
     .page-header { margin-bottom: 1rem; }
     .add-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
     .excl { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .hint { color: var(--p-text-muted-color); margin: 0.25rem 0 0.75rem; max-width: 60ch; }
     .name-input, .color-input { max-width: 160px; }
     .wide-input { max-width: 220px; }
     .add-row .rq-field-error { flex-basis: 100%; margin: 0; }
