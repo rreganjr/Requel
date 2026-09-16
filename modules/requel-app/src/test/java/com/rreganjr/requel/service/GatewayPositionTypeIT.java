@@ -94,9 +94,15 @@ public class GatewayPositionTypeIT extends AbstractIntegrationTestCase {
 
 	/**
 	 * The subclass test renames an existing position, so its text must not collide with any other
-	 * position in this project: EditPosition looks an existing position up by text with
-	 * getSingleResult(), and two matches throw NonUniqueResultException. Issue #284 makes that
-	 * lookup deterministic and de-duplicates; this constant can go with it.
+	 * position in this project. This class shares one project across every test (see the
+	 * {@code @BeforeAll} setup), and four of its tests plant {@link #PRICED} in it.
+	 *
+	 * <p>Issue #284 made this constant more necessary rather than less, so do not fold it into
+	 * {@link #PRICED}. EditPosition used to look a position up by text with getSingleResult(), and
+	 * two matches threw NonUniqueResultException. It now refuses a rename onto another position's
+	 * text outright ({@code EditPositionCommandImpl.refuseCollidingTextEdit}), so renaming to
+	 * {@link #PRICED} here would fail whenever a {@link #PRICED} position already exists — which
+	 * depends on the order JUnit happens to run this class in. Keep the two texts distinct.
 	 */
 	private static final String PRICED_PER_WORD = "cost is " + DOLLARS + " per dictionary word";
 
