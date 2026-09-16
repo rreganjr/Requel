@@ -69,7 +69,7 @@ Where they are set today:
 These are read with `Environment.getProperty`, deliberately not through a `@Value` placeholder: in
 this application a `@Value` placeholder resolves against `application*.properties` but not against
 properties supplied by `@TestPropertySource` or `@DynamicPropertySource`, so a test cannot configure
-one. Filed separately; see #288's plan for the measurement.
+one. That is #293; see #288's plan for the measurement.
 
 Before #288 the directory and file list came from
 `com/rreganjr/nlp/dictionary/impl/repository/init/DictionarySQLInitializer.properties` through

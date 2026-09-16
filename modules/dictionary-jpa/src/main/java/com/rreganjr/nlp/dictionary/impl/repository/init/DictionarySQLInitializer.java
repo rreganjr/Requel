@@ -106,8 +106,8 @@ public class DictionarySQLInitializer extends AbstractSystemInitializer {
 	 * {@code @TestPropertySource} or {@code @DynamicPropertySource}, while
 	 * {@code Environment.getProperty} sees all of them — which is why {@code @ConditionalOnProperty}
 	 * honoured the enable flag here while a {@code @Value} on this file list silently took its
-	 * default and imported the whole corpus (issue #288). The underlying placeholder defect is its
-	 * own ticket; this class does not depend on it.
+	 * default and imported the whole corpus (issue #288). The underlying placeholder defect is #293;
+	 * this class does not depend on it.
 	 */
 	@Autowired
 	public DictionarySQLInitializer(DictionaryRepository dictionaryRepository,

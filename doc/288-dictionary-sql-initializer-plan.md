@@ -134,8 +134,8 @@ only the number. It does mean the file list cannot be overridden by a Spring pro
    `application*.properties` but not against `@TestPropertySource`/`@DynamicPropertySource`
    properties, while `Environment.getProperty` and `Environment.resolvePlaceholders` see all of
    them. That is why `@ConditionalOnProperty` honoured the enable flag in the same test while
-   `@Value` ignored the file list. The placeholder defect is filed separately; this class reads the
-   `Environment` directly and does not depend on it.
+   `@Value` ignored the file list. The placeholder defect is #293; this class reads the `Environment`
+   directly and does not depend on it.
 
    **The default above is transcribed from the bundle, not from the existing constant.** The two
    disagree and the bundle is what production runs (see the review section); adopting the old
