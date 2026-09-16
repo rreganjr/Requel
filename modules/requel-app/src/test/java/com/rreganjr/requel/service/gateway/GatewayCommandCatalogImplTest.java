@@ -27,7 +27,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.rreganjr.requel.gateway.CommandDescriptor;
+import com.rreganjr.requel.service.api.CommandDescription;
 import com.rreganjr.requel.service.api.CommandRegistry;
+import com.rreganjr.requel.service.api.dto.EditTagCategoryInput;
+import com.rreganjr.requel.service.api.dto.EditTagInput;
 import com.rreganjr.requel.service.command.ApiCommandFactory;
 import org.junit.jupiter.api.Test;
 
@@ -68,5 +71,53 @@ class GatewayCommandCatalogImplTest {
         assertThat(GatewayCommandCatalogImpl.humanize("EditGoal")).isEqualTo("Edit Goal");
         assertThat(GatewayCommandCatalogImpl.humanize("AddScenarioToUseCase"))
                 .isEqualTo("Add Scenario To Use Case");
+    }
+
+    @Test
+    void descriptionComesFromTheInputTypesAnnotation() {
+        assertThat(GatewayCommandCatalogImpl.describe(DescribedInput.class))
+                .isEqualTo("Does the thing, and slugs what you give it.");
+        assertThat(GatewayCommandCatalogImpl.describe(UndescribedInput.class)).isNull();
+        assertThat(GatewayCommandCatalogImpl.describe(Void.class)).isNull();
+        assertThat(GatewayCommandCatalogImpl.describe(null)).isNull();
+    }
+
+    /**
+     * A command with no annotation must leave the description null rather than inventing one:
+     * {@code McpWriteService} falls back to the title plus the input's field names, and most of the
+     * catalog still relies on that.
+     */
+    @Test
+    void anUndescribedCommandLeavesTheDescriptionNull() {
+        CommandRegistry registry = mock(CommandRegistry.class);
+        when(registry.isRegistered(anyString())).thenReturn(true);
+        ApiCommandFactory factory = mock(ApiCommandFactory.class);
+        doReturn(UndescribedInput.class).when(factory).getInputType(anyString());
+
+        GatewayCommandCatalogImpl catalog = new GatewayCommandCatalogImpl(registry, factory);
+
+        assertThat(catalog.descriptors()).allMatch(d -> d.description() == null);
+    }
+
+    /**
+     * The two tagging commands are why the mechanism exists (issue #255): a caller has to be told
+     * that what they send is not what gets stored. Asserting against the real DTOs rather than a
+     * stub means the annotation cannot be dropped from them without this failing.
+     */
+    @Test
+    void theTaggingCommandsDescribeTheirNormalization() {
+        assertThat(GatewayCommandCatalogImpl.describe(EditTagCategoryInput.class))
+                .contains("slug")
+                .contains("con-3685");
+        assertThat(GatewayCommandCatalogImpl.describe(EditTagInput.class))
+                .contains("slug")
+                .contains("con-3685");
+    }
+
+    @CommandDescription("Does the thing, and slugs what you give it.")
+    private record DescribedInput(String name) {
+    }
+
+    private record UndescribedInput(String name) {
     }
 }

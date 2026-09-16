@@ -21,14 +21,25 @@
 package com.rreganjr.requel.service.api.dto;
 
 import java.util.List;
+import com.rreganjr.requel.service.api.CommandDescription;
 import com.rreganjr.validator.ValidationLimits;
 import jakarta.validation.constraints.Size;
 
 /**
  * Input for EditTagCategory. {@code categoryId} null = create; {@code projectName} null/blank =
- * global. Name is normalized to a slug on write. {@code allowedEntityTypes}/{@code values} may be
- * null or empty (no restriction).
+ * global. The {@code name} and every entry in {@code values} are normalized to a slug on write by
+ * {@code TagNormalizer.slug} — see {@link CommandDescription} on this record for the caller-facing
+ * statement of that, which is what an MCP client and the CLI actually see.
+ * {@code allowedEntityTypes}/{@code values} may be null or empty (no restriction).
  */
+@CommandDescription("Creates or edits a tag category and its controlled values. Pass categoryId to"
+        + " edit an existing category, or leave it null to create one; a null or blank projectName"
+        + " makes the category global."
+        + " The name and every entry in values are stored as slugs: trimmed, lower-cased, and with"
+        + " each run of non-alphanumeric characters collapsed to a single hyphen. \"Source\" is"
+        + " stored as \"source\", \"CON-3685\" as \"con-3685\", \"v2.0\" as \"v2-0\"."
+        + " The slug is the uniqueness key and the text you supplied is not retained, so read the"
+        + " response to see what was stored.")
 public record EditTagCategoryInput(
         Long categoryId,
         String projectName,

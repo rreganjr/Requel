@@ -20,11 +20,24 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+
 /**
  * Input for EditTag. {@code tagId} null = create; {@code projectName} null/blank =
  * global/system tag. Category may be null (flat tag); value is required. Uses
- * {@code projectName} (not id) to match the rest of the project-scoped API.
+ * {@code projectName} (not id) to match the rest of the project-scoped API. Both
+ * {@code category} and {@code value} are normalized to a slug on write by
+ * {@code TagNormalizer.slug} — see {@link CommandDescription} on this record for the
+ * caller-facing statement of that.
  */
+@CommandDescription("Creates or edits a single tag. Pass tagId to edit an existing tag, or leave it"
+        + " null to create one; a null or blank projectName makes the tag global. category may be"
+        + " null for a flat tag; value is required."
+        + " Both category and value are stored as slugs: trimmed, lower-cased, and with each run of"
+        + " non-alphanumeric characters collapsed to a single hyphen. \"CON-3685\" is stored as"
+        + " \"con-3685\" and \"v2.0\" as \"v2-0\"."
+        + " The slug is the uniqueness key and the text you supplied is not retained, so read the"
+        + " response to see what was stored.")
 public record EditTagInput(
         Long tagId,
         String projectName,

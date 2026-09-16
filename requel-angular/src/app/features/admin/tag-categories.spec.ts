@@ -80,7 +80,10 @@ describe('TagCategoriesComponent', () => {
     const el = fixture.nativeElement as HTMLElement;
     const input = el.querySelector('[data-testid="tag-category-name"]') as HTMLElement;
     expect(input.getAttribute('aria-invalid')).toBe('true');
-    expect(input.getAttribute('aria-describedby')).toBe('tag-category-name-error');
+    // The slug hint (#255) stays described alongside the error rather than being replaced by it,
+    // so the explanation is still announced when the field is invalid.
+    expect(input.getAttribute('aria-describedby'))
+      .toBe('tag-category-slug-hint tag-category-name-error');
     const err = el.querySelector('[data-testid="tag-category-name-error"]') as HTMLElement;
     expect(err.textContent).toContain('Name is required.');
     expect(err.getAttribute('role')).toBe('alert');
