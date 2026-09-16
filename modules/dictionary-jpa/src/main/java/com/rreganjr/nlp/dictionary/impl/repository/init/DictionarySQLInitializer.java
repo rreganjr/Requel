@@ -34,9 +34,9 @@ import java.util.zip.GZIPInputStream;
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Scope;
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -66,11 +66,12 @@ import com.rreganjr.nlp.dictionary.DictionaryRepository;
 @Scope("prototype")
 public class DictionarySQLInitializer extends AbstractSystemInitializer {
 
-	/**
-	 * Classpath directory holding the dumps. Override with
-	 * {@code requel.dictionary.sql-files-directory}.
-	 */
+	/** Classpath directory holding the dumps. */
+	public static final String PROP_DICTIONARY_SQL_FILES_DIRECTORY = "requel.dictionary.sql-files-directory";
 	public static final String PROP_DICTIONARY_SQL_FILES_DIRECTORY_DEFAULT = "nlp/dictionary/";
+
+	/** Comma delimited dump file names, in load order. */
+	public static final String PROP_DICTIONARY_SQL_FILES = "requel.dictionary.sql-files";
 
 	/**
 	 * Comma delimited dump file names, in load order, relative to
@@ -99,18 +100,34 @@ public class DictionarySQLInitializer extends AbstractSystemInitializer {
 	private final String dictionaryFiles;
 
 	/**
-	 * @param dictionaryRepository
-	 * @param jdbcTemplate
-	 * @param dictionaryDirPath classpath directory holding the dumps
-	 * @param dictionaryFiles comma delimited dump file names, in load order
+	 * Configuration is read from the {@link Environment} rather than through {@code @Value}
+	 * placeholders. In this application a {@code @Value} placeholder resolves against
+	 * {@code application*.properties} but <em>not</em> against properties a test supplies through
+	 * {@code @TestPropertySource} or {@code @DynamicPropertySource}, while
+	 * {@code Environment.getProperty} sees all of them — which is why {@code @ConditionalOnProperty}
+	 * honoured the enable flag here while a {@code @Value} on this file list silently took its
+	 * default and imported the whole corpus (issue #288). The underlying placeholder defect is its
+	 * own ticket; this class does not depend on it.
 	 */
 	@Autowired
 	public DictionarySQLInitializer(DictionaryRepository dictionaryRepository,
-			JdbcTemplate jdbcTemplate,
-			@Value("${requel.dictionary.sql-files-directory:"
-					+ PROP_DICTIONARY_SQL_FILES_DIRECTORY_DEFAULT + "}") String dictionaryDirPath,
-			@Value("${requel.dictionary.sql-files:"
-					+ PROP_DICTIONARY_SQL_FILES_DEFAULT + "}") String dictionaryFiles) {
+			JdbcTemplate jdbcTemplate, Environment environment) {
+		this(dictionaryRepository, jdbcTemplate,
+				environment.getProperty(PROP_DICTIONARY_SQL_FILES_DIRECTORY,
+						PROP_DICTIONARY_SQL_FILES_DIRECTORY_DEFAULT),
+				environment.getProperty(PROP_DICTIONARY_SQL_FILES,
+						PROP_DICTIONARY_SQL_FILES_DEFAULT));
+	}
+
+	/**
+	 * Direct-value constructor, for tests and for any caller that already knows what it wants
+	 * loaded.
+	 *
+	 * @param dictionaryDirPath classpath directory holding the dumps
+	 * @param dictionaryFiles comma delimited dump file names, in load order
+	 */
+	public DictionarySQLInitializer(DictionaryRepository dictionaryRepository,
+			JdbcTemplate jdbcTemplate, String dictionaryDirPath, String dictionaryFiles) {
 		super(1);
 		this.dictionaryRepository = dictionaryRepository;
 		this.jdbcTemplate = jdbcTemplate;
@@ -166,6 +183,11 @@ public class DictionarySQLInitializer extends AbstractSystemInitializer {
 	 * passing build.
 	 */
 	private void importDictionary(Connection conn) throws SQLException {
+		// Say what is about to be imported, not just each file as it goes by. The resolved list is
+		// the difference between a 4 KB fixture and the ~14.4 MB corpus, and without it a context
+		// that quietly fell back to the default list looks identical in the log to one that did
+		// not (issue #288).
+		log.info("importing the dictionary from " + dictionaryDirPath + ": " + dictionaryFiles);
 		boolean autoCommit = conn.getAutoCommit();
 		String currentFile = null;
 		try (Statement statement = conn.createStatement()) {

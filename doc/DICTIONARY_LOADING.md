@@ -66,6 +66,11 @@ Where they are set today:
   that imports through this path.
 - Nowhere else. The deployment relies on the default, which is on.
 
+These are read with `Environment.getProperty`, deliberately not through a `@Value` placeholder: in
+this application a `@Value` placeholder resolves against `application*.properties` but not against
+properties supplied by `@TestPropertySource` or `@DynamicPropertySource`, so a test cannot configure
+one. Filed separately; see #288's plan for the measurement.
+
 Before #288 the directory and file list came from
 `com/rreganjr/nlp/dictionary/impl/repository/init/DictionarySQLInitializer.properties` through
 `ResourceBundleHelper`, and that bundle disagreed with the Java constant beside it — the bundle
@@ -85,10 +90,20 @@ set `requel.dictionary.sql-files` instead.
   what #288 existed to stop.
 - **Dictionary already populated** — no-op, no connection taken.
 
-## Three ITs do not use the `test` profile
+## No test context loads the dictionary via SQL
 
-`ProjectXmlRoundTripIT`, `ProjectXmlStreamingRoundTripIT` and `ProjectUserCreationIT` configure the
-datasource with `@TestPropertySource(locations = "classpath:db.properties")` rather than
-`@ActiveProfiles("test")`, so `application-test.properties` — including the `enabled=false` line —
-does not apply to them. They are covered by the dialect guard instead. Moving them onto the `test`
-profile is a separate question (see #288's plan, out of scope).
+Every `@SpringBootTest` class activates the `test` profile, so
+`requel.dictionary.sql-initializer.enabled=false` applies and `@ConditionalOnProperty` never
+registers `DictionarySQLInitializer`. Three of them —`ProjectXmlRoundTripIT`,
+`ProjectXmlStreamingRoundTripIT` and `ProjectUserCreationIT` — configure the datasource with
+`@TestPropertySource(locations = "classpath:db.properties")` and write the profile annotation fully
+qualified on the following line, which makes them easy to mistake for profile-less contexts:
+
+```java
+@TestPropertySource(locations = "classpath:db.properties")
+@org.springframework.test.context.ActiveProfiles("test")
+```
+
+They are not. A test that needs dictionary data calls
+`AbstractIntegrationTestCase.ensureDictionaryLoaded()`; nothing in the suite goes through the SQL
+path except `DictionarySQLMySqlImportIT`, which turns the property back on for its own context.

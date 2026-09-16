@@ -12,20 +12,29 @@ carries `@ActiveProfiles("test")` — 20 of 23 — no longer registers the bean,
 already quiet, and `DeleteProjectMySqlIT` (which inherits the profile from `DeleteProjectIT`) no
 longer imports 36 MB.
 
-**What is still live — AC 3 is not met.** Three context classes never see that file, because they
-configure the datasource with `@TestPropertySource(locations = "classpath:db.properties")` instead
-of activating the `test` profile:
+**AC 3 was already met by #287. An earlier draft of this plan claimed otherwise and was wrong.**
+That draft asserted `ProjectXmlRoundTripIT`, `ProjectXmlStreamingRoundTripIT` and
+`ProjectUserCreationIT` did not activate the `test` profile, because a grep for `@ActiveProfiles(`
+did not match them. All three do carry it — written fully qualified on the line after
+`@TestPropertySource`:
 
-| class | line |
-|---|---|
-| `ProjectXmlRoundTripIT` | `@SpringBootTest(classes = Application.class)` + `db.properties` |
-| `ProjectXmlStreamingRoundTripIT` | same |
-| `ProjectUserCreationIT` | same, plus inline `properties = {...}` |
+```java
+@SpringBootTest(classes = Application.class)
+@TestPropertySource(locations = "classpath:db.properties")
+@org.springframework.test.context.ActiveProfiles("test")
+```
 
-`db.properties` sets only `db.*` keys — nothing named `requel.dictionary.sql-initializer.enabled` —
-so `matchIfMissing = true` registers the bean, the import runs against H2, and each of these three
-still logs `could not load dictionary via SQL` on every boot. Grep confirms the flag appears in
-exactly one test resource.
+So `application-test.properties` applies to them, `requel.dictionary.sql-initializer.enabled=false`
+applies, and `@ConditionalOnProperty` never registers the bean. Confirmed against a full
+`mvn clean verify` after this ticket's changes: the only two `dictionary SQL import skipped` lines
+in the build come from `DictionarySQLInitializerDialectTest`'s mocked cases. **Zero Spring test
+contexts reach the initializer at all.**
+
+That removes this ticket's test-facing justification. What remains is still worth doing, and is
+what the rest of this plan implements: the behaviour is undeclared in the environments that *do*
+register the bean (dev, docker, the deployment, and any future context that does not set the flag),
+a failure there is invisible, the connection is leaked, and the file list lives in a resource bundle
+that disagrees with the constant beside it.
 
 **Production is governed by `matchIfMissing = true` alone.** No `application*.properties` under
 `modules/requel-app/src/main/resources` and no `docker-compose.yml` key sets the flag; only
@@ -101,34 +110,41 @@ only the number. It does mean the file list cannot be overridden by a Spring pro
      rollback followed by `throw new FatalInitializationException(...)` whose message states that
      **the dictionary is empty**, names the file that failed, and names
      `requel.dictionary.sql-initializer.enabled=false` as the way to opt out.
-3. **Remove `ResourceBundleHelper` from `DictionarySQLInitializer`.** Replace the bundle lookup
-   with Spring configuration:
+3. **Remove `ResourceBundleHelper` from `DictionarySQLInitializer`.** The directory and file list
+   come from the Spring `Environment`:
 
    ```java
-   public static final String PROP_DICTIONARY_SQL_FILES_DEFAULT =
-           "categorydef.sql.gz, word.sql.gz, morphdef.sql.gz, morphref.sql.gz, synset.sql.gz, "
-           + "sense.sql.gz, synset_subsumer_counts.sql.gz, linkdef.sql.gz, lexlinkref.sql.gz, "
-           + "semlinkref.sql.gz, vnclass.sql.gz, vnframedef.sql.gz, vnframeref.sql.gz, "
-           + "vnroletype.sql, vnselres.sql, vnroleref.sql.gz, custom_vn.sql";
+   public static final String PROP_DICTIONARY_SQL_FILES = "requel.dictionary.sql-files";
 
-   @Value("${requel.dictionary.sql-files-directory:" + PROP_DICTIONARY_SQL_FILES_DIRECTORY_DEFAULT + "}")
-   private String dictionaryDirPath;
-   @Value("${requel.dictionary.sql-files:" + PROP_DICTIONARY_SQL_FILES_DEFAULT + "}")
-   private String dictionaryFiles;
+   @Autowired
+   public DictionarySQLInitializer(DictionaryRepository r, JdbcTemplate t, Environment environment) {
+       this(r, t, environment.getProperty(PROP_DICTIONARY_SQL_FILES_DIRECTORY, ...DIRECTORY_DEFAULT),
+               environment.getProperty(PROP_DICTIONARY_SQL_FILES, ...FILES_DEFAULT));
+   }
    ```
 
-   and delete
-   `modules/dictionary-jpa/src/main/resources/com/rreganjr/nlp/dictionary/impl/repository/init/DictionarySQLInitializer.properties`.
+   plus a direct-value constructor for tests, and
+   `modules/dictionary-jpa/src/main/resources/.../DictionarySQLInitializer.properties` is deleted.
+
+   **Not `@Value`.** A first attempt used `@Value("${requel.dictionary.sql-files:...}")` and the
+   property never arrived: `DictionarySQLMySqlImportIT` set it via `@DynamicPropertySource`, the
+   placeholder took its default, and the IT imported all seventeen dumps — 245 s locally, +8 min on
+   CI, and green, because its only assertion (`findCategories() == 45`) holds either way. A probe
+   measured the cause: in this application a `@Value` placeholder resolves against
+   `application*.properties` but not against `@TestPropertySource`/`@DynamicPropertySource`
+   properties, while `Environment.getProperty` and `Environment.resolvePlaceholders` see all of
+   them. That is why `@ConditionalOnProperty` honoured the enable flag in the same test while
+   `@Value` ignored the file list. The placeholder defect is filed separately; this class reads the
+   `Environment` directly and does not depend on it.
 
    **The default above is transcribed from the bundle, not from the existing constant.** The two
    disagree and the bundle is what production runs (see the review section); adopting the old
    constant would silently swap ~14.4 MB of VerbNet-inclusive dumps for ~36 MB of semcor-inclusive
-   ones, with no error, because all twenty tables exist in `V1__init.sql`. Correcting the constant
-   is the point: after this change the class states the list it actually imports, in one place.
+   ones, with no error, because all twenty tables exist in `V1__init.sql`.
 
-   This replaces the fallback seam an earlier draft of this plan proposed — one source of truth
-   rather than two — and it is what gives the IT in step 6 its override. Out of scope: the other
-   ten classes that construct a `ResourceBundleHelper` for a bundle that does not exist on disk.
+   Out of scope: the other ten classes that construct a `ResourceBundleHelper` for a bundle that
+   does not exist on disk.
+
 4. **`loadSQLFile`** — fail explicitly when `getResourceAsStream` returns `null`, so a missing dump
    is distinguishable from a SQL error.
 5. **`doc/DICTIONARY_LOADING.md`** (new, AC 4) — which environments load via SQL (MySQL deployment,
@@ -150,15 +166,19 @@ only the number. It does mean the file list cannot be overridden by a Spring pro
   `categorydef` is created by `V1__init.sql`), plus `@DynamicPropertySource` setting
   `requel.dictionary.sql-initializer.enabled=true` and `requel.dictionary.sql-files=categorydef.sql.gz`
   (the property introduced in step 3).
-  Asserts `dictionaryRepository.findCategories()` returns 45 rows — i.e. the `SET NAMES`,
+  Asserts `categorydef` landed (45 rows) **and that `word` is empty**, so the test fails if the
+  file-list override ever stops working — the 45-row check alone passes whether one dump loads or
+  all seventeen. Proves the `SET NAMES`,
   `SET @OLD_FOREIGN_KEY_CHECKS`, `LOCK TABLES` and `UNLOCK TABLES` statements all execute against a
   real MySQL and the guard does not skip. One 4 KB dump, seconds not minutes. Testcontainers is a
   test-scope dependency of `requel-app` only, which is why this IT lives there and the mocked test
   lives in `dictionary-jpa`.
-- **The three profile-less ITs** — assert the ERROR is gone. A log capture around context startup
-  is awkward for an already-refreshed context, so the cheap version is a build-level check:
-  `mvn clean verify` output must contain no `could not load dictionary via SQL`. Recorded in
-  `tmp/288-verify.sh` rather than as a JUnit assertion.
+- **Build-level check** — `mvn clean verify` output must contain no
+  `could not load dictionary via SQL`. Recorded in `tmp/288-verify.sh` rather than as a JUnit
+  assertion. Note what this does and does not prove: no Spring test context registers the
+  initializer (see the review above), so the absence of that line is a regression guard on #287's
+  property, not evidence that this ticket's guard fired. The guard is exercised by the mocked
+  tests.
 - **Gate** — `mvn clean verify` green; no frontend change, so no vitest/tsc/e2e run is required.
 
 ```bash
@@ -166,7 +186,6 @@ only the number. It does mean the file list cannot be overridden by a Spring pro
 set -e
 mvn clean verify | tee tmp/288-verify.log
 ! grep -q "could not load dictionary via SQL" tmp/288-verify.log
-grep -c "dictionary SQL import skipped" tmp/288-verify.log   # expect >= 3
 ```
 
 ## Out of scope
@@ -178,9 +197,8 @@ grep -c "dictionary SQL import skipped" tmp/288-verify.log   # expect >= 3
 - The `unlock tables` filter gap — `loadSQLFile` filters `lock tables` but not `UNLOCK TABLES`.
   Only reachable on MySQL, where the statement is valid, so it is latent, not a defect. Noted here
   so the next reader does not re-derive it.
-- Moving the three profile-less ITs onto `@ActiveProfiles("test")`. It would also fix AC 3, but it
-  changes their datasource and property surface and risks the id-collision behaviour CLAUDE.md
-  warns about. Worth its own ticket.
+- Anything about `ProjectXmlRoundTripIT`, `ProjectXmlStreamingRoundTripIT` or
+  `ProjectUserCreationIT`. They already use the `test` profile; there is nothing to change.
 - #268 (legacy lexical assistant precision), which is what actually consumes the dictionary.
 
 ## Risks
@@ -208,5 +226,5 @@ grep -c "dictionary SQL import skipped" tmp/288-verify.log   # expect >= 3
 |---|---|
 | Import is explicit, not accidental — pick one | Step 2, dialect guard (locked decision 1) |
 | A failed import is visible | Steps 1-2: `FatalInitializationException`, message says the dictionary is empty |
-| No Spring test context logs `could not load dictionary via SQL` | Step 2 + `tmp/288-verify.sh`; fixes the three profile-less ITs |
+| No Spring test context logs `could not load dictionary via SQL` | Already true after #287 — no Spring test context registers the initializer. `tmp/288-verify.sh` guards it against regression |
 | `doc/` notes which environments load via SQL vs `dictionary.xml.gz` | Step 4 |

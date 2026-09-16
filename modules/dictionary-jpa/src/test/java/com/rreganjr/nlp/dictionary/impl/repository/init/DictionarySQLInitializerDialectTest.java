@@ -43,6 +43,7 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.env.MockEnvironment;
 
 import com.rreganjr.nlp.dictionary.Category;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
@@ -242,5 +243,32 @@ class DictionarySQLInitializerDialectTest {
 				.doesNotThrowAnyException();
 
 		verify(connection).commit();
+	}
+
+	@Test
+	void theEnvironmentConstructorUsesAConfiguredFileList() throws SQLException {
+		databaseProductIs("MySQL");
+		when(statement.executeUpdate(anyString())).thenReturn(1);
+		MockEnvironment environment = new MockEnvironment()
+				.withProperty(DictionarySQLInitializer.PROP_DICTIONARY_SQL_FILES, "test-dump.sql");
+
+		new DictionarySQLInitializer(dictionaryRepository, jdbcTemplate, environment).initialize();
+
+		verify(connection).commit();
+	}
+
+	@Test
+	void theEnvironmentConstructorFallsBackToTheDefaultList() throws SQLException {
+		// Nothing configured, so the bundled corpus is what it tries — and those dumps live in
+		// nlp-jpa, which this module does not depend on, so the first one is not on the classpath.
+		// That is the assertion: the default list, not an empty or silently-substituted one.
+		databaseProductIs("MySQL");
+		MockEnvironment environment = new MockEnvironment();
+
+		assertThatThrownBy(() -> new DictionarySQLInitializer(dictionaryRepository, jdbcTemplate,
+				environment).initialize())
+						.isInstanceOf(FatalInitializationException.class)
+						.hasMessageContaining("categorydef.sql.gz")
+						.cause().hasMessageContaining("not found on the classpath");
 	}
 }

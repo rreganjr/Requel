@@ -23,6 +23,8 @@ package com.rreganjr.requel.nlp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
+import org.springframework.jdbc.core.JdbcTemplate;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -96,6 +98,9 @@ public class DictionarySQLMySqlImportIT {
 	@Autowired
 	private DictionaryRepository dictionaryRepository;
 
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
 	/**
 	 * The initializer runs on {@code ApplicationReadyEvent}, so by the time a test method runs the
 	 * import has already happened — or the context failed to start, which is the other half of
@@ -106,5 +111,17 @@ public class DictionarySQLMySqlImportIT {
 		assertFalse(dictionaryRepository.findCategories().isEmpty(),
 				"categorydef.sql.gz should have imported on MySQL, not been skipped");
 		assertEquals(WORDNET_CATEGORY_COUNT, dictionaryRepository.findCategories().size());
+	}
+
+	/**
+	 * The assertion above passes whether one dump loads or all seventeen — {@code categorydef} is
+	 * the first file either way — which is exactly how an earlier revision of this IT imported the
+	 * whole ~14.4 MB corpus, added eight minutes to every CI run, and still went green. This is the
+	 * assertion that fails when the file-list override stops working.
+	 */
+	@Test
+	void onlyTheOneConfiguredDumpIsImported() {
+		assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM word", Integer.class),
+				"word.sql.gz is not in requel.dictionary.sql-files, so `word` must be empty");
 	}
 }
