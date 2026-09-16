@@ -144,21 +144,56 @@ public class JpaAnnotationRepository extends AbstractJpaRepository implements An
 		}
 	}
 
+	/**
+	 * The lowest-id position in the grouping object with this text.
+	 * <p>
+	 * #284: this used to be {@code getSingleResult()} over a {@code like} comparison, which failed
+	 * two ways. {@code getSingleResult()} threw {@code NonUniqueResultException} when duplicate
+	 * text existed — converted by the catch below into a failed command, so
+	 * {@code EditPositionCommandImpl}'s reuse path (#281) never got a chance. And {@code like}
+	 * treated {@code %} and {@code _} in a position's text as wildcards, so one position
+	 * containing either could match others and produce that same failure with no duplicates
+	 * present at all. Now it matches on equality and resolves deterministically to the lowest id;
+	 * {@link #findPositions} exposes the full list for callers that can repair the duplication.
+	 */
 	@Override
 	public Position findPosition(Object groupingObject, String text) throws NoSuchPositionException {
+		List<Position> matches = findPositions(groupingObject, text);
+		if (matches.isEmpty()) {
+			throw NoSuchPositionException.forText(text);
+		}
+		return matches.get(0);
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public List<Position> findPositions(Object groupingObject, String text) {
 		try {
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager().createQuery(
 					"select object(position) from PositionImpl as position "
-							+ "inner join position.issues issue where position.text like :text "
-							+ "and issue.groupingObject = :groupingObject");
+							+ "inner join position.issues issue where position.text = :text "
+							+ "and issue.groupingObject = :groupingObject "
+							+ "order by position.id");
 			query.setParameter("groupingObject", groupingObject);
 			query.setParameter("text", text);
-			return (Position) query.getSingleResult();
-		} catch (NoResultException e) {
-			throw NoSuchPositionException.forText(text);
+			return query.getResultList();
 		} catch (Exception e) {
 			throw convertException(e, Position.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
+	@Override
+	@Transactional(propagation = Propagation.REQUIRED)
+	public Position mergeDuplicatePositions(List<Position> duplicates) {
+		if (duplicates.size() < 2) {
+			return duplicates.isEmpty() ? null : duplicates.get(0);
+		}
+		try {
+			return new PositionMerger(getEntityManager()).merge(duplicates);
+		} catch (Exception e) {
+			throw convertException(e, Position.class, duplicates.get(0),
+					EntityExceptionActionType.Updating);
 		}
 	}
 

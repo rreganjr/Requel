@@ -52,6 +52,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -72,6 +73,9 @@ public class EditPositionReuseIT extends AbstractIntegrationTestCase {
 
 	@Autowired
 	private CommandGateway gateway;
+
+	@Autowired
+	private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
 	private String projectName;
 	private String editorUsername;
@@ -152,6 +156,84 @@ public class EditPositionReuseIT extends AbstractIntegrationTestCase {
 		assertTrue(!first.id().equals(second.id()), "distinct text must not reuse a position");
 	}
 
+
+	/**
+	 * #284: duplicates that already exist are merged into the lowest id rather than failing the
+	 * command.
+	 * <p>
+	 * EditPosition cannot create a duplicate — it reuses or creates — so the duplicate is
+	 * manufactured the way CLAUDE.md prescribes for states single-threaded commands cannot reach:
+	 * natively, with one UPDATE to a second position's text.
+	 */
+	@Test
+	void duplicatesAreMergedIntoTheLowestIdAndTheLoserIsDeleted() throws Exception {
+		authenticate(editorUsername);
+		String sharedText = "merge-me-" + System.nanoTime();
+		Long issueA = createIssue("issue A for the merge case");
+		Long issueB = createIssue("issue B for the merge case");
+
+		PositionDto keeper = editPosition(issueA, sharedText);
+		PositionDto doomed = editPosition(issueB, "a different answer entirely");
+		// An argument on the loser: PositionImpl.arguments cascades ALL, so this is the row that
+		// disappears if the merge deletes before it reparents.
+		Long argumentId = createArgument(doomed.id(), "the reason the loser existed");
+
+		jdbcTemplate.update("UPDATE positions SET text = ? WHERE id = ?", sharedText, doomed.id());
+
+		PositionDto merged = editPosition(issueA, sharedText);
+
+		Long winnerId = Math.min(keeper.id(), doomed.id());
+		Long loserId = Math.max(keeper.id(), doomed.id());
+		assertEquals(winnerId, merged.id(), "the lowest id must survive the merge");
+		assertEquals(0, rowCount("SELECT COUNT(*) FROM positions WHERE id = ?", loserId),
+				"the loser row must be gone");
+		assertEquals(0, rowCount("SELECT COUNT(*) FROM position_issue WHERE position_id = ?",
+				loserId), "the loser's join-table rows must be gone");
+		assertEquals(1, rowCount("SELECT COUNT(*) FROM arguments WHERE id = ? AND position_id = ?",
+				argumentId, winnerId),
+				"the loser's argument must have been reparented onto the winner, not deleted");
+		assertTrue(positionIdsOn(issueA).contains(winnerId), "issue A lost the merged position");
+		assertTrue(positionIdsOn(issueB).contains(winnerId),
+				"issue B must now reference the surviving position");
+	}
+
+	/**
+	 * #284: the lookup used {@code like}, so a position whose text contains {@code %} matched
+	 * others and produced the same non-unique failure with no duplicates present at all.
+	 */
+	@Test
+	void aWildcardCharacterInPositionTextDoesNotMatchOtherPositions() throws Exception {
+		authenticate(editorUsername);
+		Long issueId = createIssue("an issue whose answers contain SQL wildcards");
+
+		PositionDto wildcard = editPosition(issueId, "%");
+		PositionDto specific = editPosition(issueId, "ship 50% of traffic");
+
+		assertTrue(!wildcard.id().equals(specific.id()),
+				"'%' must not match another position's text");
+		assertEquals(2, positionIdsOn(issueId).size(),
+				"both positions must exist; '%' is text, not a pattern");
+	}
+
+	/** #284: renaming a position onto another's text is refused, naming the position that holds it. */
+	@Test
+	void aTextEditThatWouldCollideIsRefusedAndNamesTheExistingPosition() throws Exception {
+		authenticate(editorUsername);
+		Long issueId = createIssue("an issue with two answers, one about to be renamed");
+		PositionDto existing = editPosition(issueId, "keep the flag");
+		PositionDto toRename = editPosition(issueId, "drop the flag");
+
+		Exception thrown = assertThrows(Exception.class, () -> gateway.execute(
+				new GatewayRequest("EditPosition", Map.of("projectName", projectName,
+						"issueId", issueId, "positionId", toRename.id(),
+						"text", "keep the flag"))));
+
+		assertTrue(rootMessage(thrown).contains(String.valueOf(existing.id())),
+				"the error must name the position that already holds the text, was: "
+						+ rootMessage(thrown));
+		assertEquals(2, positionIdsOn(issueId).size(), "nothing should have been merged or lost");
+	}
+
 	// ---- helpers -------------------------------------------------------------------------------
 
 	private PositionDto editPosition(Long issueId, String text) throws Exception {
@@ -175,6 +257,36 @@ public class EditPositionReuseIT extends AbstractIntegrationTestCase {
 		return ((IssueDto) result.result()).positions().stream()
 				.map(PositionDto::id)
 				.collect(Collectors.toSet());
+	}
+
+	/**
+	 * Inserts an argument row directly. Going through the EditArgument command needs a project
+	 * resolved from {@code position.getIssues()}, which comes back empty for a position loaded
+	 * outside the command's own transaction — a fixture problem, not the behaviour under test. The
+	 * columns are V1__init.sql's.
+	 */
+	private Long createArgument(Long positionId, String text) {
+		Long createdById = jdbcTemplate.queryForObject(
+				"SELECT id FROM users WHERE username = ?", Long.class, "admin");
+		jdbcTemplate.update("INSERT INTO arguments"
+				+ " (support_level, text, version, created_by_id, position_id)"
+				+ " VALUES (?, ?, ?, ?, ?)", 0, text, 0, createdById, positionId);
+		return jdbcTemplate.queryForObject(
+				"SELECT id FROM arguments WHERE position_id = ? AND text = ?", Long.class,
+				positionId, text);
+	}
+
+	private int rowCount(String sql, Object... args) {
+		Integer count = jdbcTemplate.queryForObject(sql, Integer.class, args);
+		return count == null ? 0 : count;
+	}
+
+	private static String rootMessage(Throwable t) {
+		StringBuilder all = new StringBuilder();
+		for (Throwable each = t; each != null; each = each.getCause()) {
+			all.append(each.getMessage()).append(" | ");
+		}
+		return all.toString();
 	}
 
 	private void authenticate(String username) {
