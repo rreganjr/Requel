@@ -41,6 +41,29 @@ public interface AnnotationRepository extends Repository {
 	public Position findPosition(Object groupingObject, String text) throws NoSuchPositionException;
 
 	/**
+	 * #284: every position in the grouping object whose text equals the given text, ordered by id
+	 * ascending, or an empty list.
+	 * <p>
+	 * {@link #findPosition(Object, String)} returns the first of these. This overload exists so a
+	 * caller that can repair duplicates — {@code EditPositionCommandImpl} — can see that there is
+	 * more than one rather than silently working with the survivor.
+	 *
+	 * @param groupingObject the object the positions' issues belong to.
+	 * @param text the exact position text.
+	 */
+	public java.util.List<Position> findPositions(Object groupingObject, String text);
+
+	/**
+	 * #284: merge positions sharing text into the lowest-id one — union their issue links,
+	 * reparent their arguments, repoint any issue they resolved — and delete the rest.
+	 *
+	 * @param duplicates two or more positions, ordered by id ascending, as returned by
+	 *            {@link #findPositions(Object, String)}.
+	 * @return the surviving position.
+	 */
+	public Position mergeDuplicatePositions(java.util.List<Position> duplicates);
+
+	/**
 	 * Find an existing position adding a word to the dictionary.
 	 * 
 	 * @param groupingObject -

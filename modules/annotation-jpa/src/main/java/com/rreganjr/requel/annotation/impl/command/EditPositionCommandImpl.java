@@ -20,14 +20,16 @@
  */
 package com.rreganjr.requel.annotation.impl.command;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.validator.EntityValidationException;
-import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
@@ -115,16 +117,25 @@ public class EditPositionCommandImpl extends AbstractEditCommand implements Edit
 			// point — dropping it left `position` null on the found path, and the add below
 			// then threw a NullPointerException (issue #281).
 			if (issue != null) {
-				try {
-					position = (PositionImpl) getAnnotationRepository()
-							.findPosition(issue.getGroupingObject(), getText());
-				} catch (NoSuchEntityException e) {
+				List<Position> matches = getAnnotationRepository()
+						.findPositions(issue.getGroupingObject(), getText());
+				if (matches.isEmpty()) {
 					position = getRepository().persist(new PositionImpl(getText(), editedBy));
+				} else if (matches.size() == 1) {
+					position = (PositionImpl) matches.get(0);
+				} else {
+					// #284: duplicates already exist. This command is the only path that hits
+					// them and is already a write in a transaction, so repair them here rather
+					// than failing: lowest id survives, and its issue links, arguments and
+					// resolutions absorb the rest.
+					position = (PositionImpl) getAnnotationRepository()
+							.mergeDuplicatePositions(matches);
 				}
 			} else {
 				position = getRepository().persist(new PositionImpl(getText(), editedBy));
 			}
 		} else {
+			refuseCollidingTextEdit(position, issue);
 			position.setText(getText());
 			position = getRepository().merge(position);
 		}
@@ -138,6 +149,36 @@ public class EditPositionCommandImpl extends AbstractEditCommand implements Edit
 		if (issue != null) {
 			issue.getPositions().add(position);
 			setIssue(issue);
+		}
+	}
+
+	/**
+	 * #284: renaming a position onto another's text is one of the two ways duplicates are created
+	 * — this branch had no uniqueness check at all. Refuse it, and name the position that already
+	 * holds the text so the caller can act on it.
+	 */
+	private void refuseCollidingTextEdit(PositionImpl position, Issue issue) {
+		if (getText().equals(position.getText())) {
+			return;
+		}
+		Object groupingObject = null;
+		if (issue != null) {
+			groupingObject = issue.getGroupingObject();
+		} else if (!position.getIssues().isEmpty()) {
+			groupingObject = position.getIssues().iterator().next().getGroupingObject();
+		}
+		if (groupingObject == null) {
+			// Nothing to be unique within.
+			return;
+		}
+		for (Position existing : getAnnotationRepository().findPositions(groupingObject,
+				getText())) {
+			if (!existing.getId().equals(position.getId())) {
+				throw EntityException.uniquenessConflict(null,
+						"The text conflicts with an existing Position: position "
+								+ existing.getId() + " in this grouping object already has that"
+								+ " text. Edit that position instead, or choose different text.");
+			}
 		}
 	}
 
