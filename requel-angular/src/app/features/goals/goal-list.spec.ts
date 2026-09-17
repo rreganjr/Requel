@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
@@ -110,5 +111,28 @@ describe('GoalListComponent', () => {
     const row = el.querySelector('tbody tr.dt-row') as HTMLElement;
     row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(router.navigate).toHaveBeenCalledWith(['/projects', 'proj1', 'goals', 1]);
+  });
+
+  /**
+   * Issue #276. The component used to snapshot the permission once, after its load, so a grant or
+   * revoke arriving later changed nothing until the page was reloaded. Deriving it means the
+   * control follows the service without the component re-running anything — which is exactly what
+   * this asserts: the service's answer changes, nothing else is touched, and the control follows.
+   */
+  it('follows a permission change without re-running its load path', async () => {
+    // The signal inside the stub is the point. `computed` only recomputes when a signal it read
+    // has changed, so a stub returning a constant would memoize its first answer forever and this
+    // test would pass against the old snapshot code too. The real service reads its `_permissions`
+    // signal inside `hasPermission`, which is what makes the derivation work; this mirrors that.
+    const granted = signal(false);
+    permissionServiceMock.canEdit = vi.fn(() => granted());
+
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    expect(comp.canEdit()).toBe(false);
+
+    granted.set(true);
+    expect(comp.canEdit()).toBe(true);
   });
 });

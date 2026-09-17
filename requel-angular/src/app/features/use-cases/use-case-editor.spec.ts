@@ -130,13 +130,19 @@ describe('UseCaseEditorComponent', () => {
     expect(comp.saving()).toBe(false);
   });
 
-  it('canEdit() and canDelete() set from permissionService on init', async () => {
+  /**
+   * #276: these are derived from the service signal now, not snapshotted during init, so nothing
+   * consults the service until something reads the control. Asserting a call happened "on init"
+   * would pin the very mechanism this replaced. The reads come first, and the entity type is
+   * checked after — the part that was actually worth asserting.
+   */
+  it('canEdit() and canDelete() derive from permissionService', async () => {
     fixture.detectChanges();
     await flush();
-    expect(permissionServiceMock.canEdit).toHaveBeenCalledWith('UseCase');
-    expect(permissionServiceMock.canDelete).toHaveBeenCalledWith('UseCase');
     expect(comp.canEdit()).toBe(true);
     expect(comp.canDelete()).toBe(true);
+    expect(permissionServiceMock.canEdit).toHaveBeenCalledWith('UseCase');
+    expect(permissionServiceMock.canDelete).toHaveBeenCalledWith('UseCase');
   });
 
   it('additionalScenarios() and actors() populated on load', async () => {

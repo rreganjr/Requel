@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, TemplateRef, ViewChild, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal, TemplateRef, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
@@ -71,7 +71,8 @@ export class StoryListComponent implements OnInit {
   stories = signal<StoryDto[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
-  canEdit = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canEdit = computed(() => this.permissionService.canEdit('Story'));
   /** Project-name context shown as the page eyebrow (issue #127). */
   projectContext = signal('');
 
@@ -104,7 +105,6 @@ export class StoryListComponent implements OnInit {
         this.projectName = name;
         this.projectContext.set(name);
         await this.permissionService.loadForProject(name);
-        this.canEdit.set(this.permissionService.canEdit('Story'));
         this.loadStories();
       }
     });

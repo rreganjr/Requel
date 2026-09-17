@@ -62,4 +62,35 @@ describe('PermissionService', () => {
     expect(service.canEdit('Goal')).toBe(false);
     expect(service.isStakeholder).toBe(false);
   });
+
+  /**
+   * #276. The no-op guard above is right for navigation and wrong after a grant, so refresh()
+   * clears first — which resets _loadedProject and lets the guard fall through. Without this the
+   * cache could never be updated at all: clear() had no production call site, and re-calling
+   * loadForProject() returned immediately.
+   */
+  it('refresh() re-fetches where a second loadForProject() would not', async () => {
+    await service.loadForProject('My Project');
+    expect(projectServiceSpy.getMyPermissions).toHaveBeenCalledTimes(1);
+
+    projectServiceSpy.getMyPermissions.mockResolvedValue({
+      ...FULL_PERMS,
+      permissions: { ...FULL_PERMS.permissions, Goal: ['Edit'] }
+    });
+
+    await service.loadForProject('My Project');
+    expect(projectServiceSpy.getMyPermissions).toHaveBeenCalledTimes(1);
+    expect(service.canDelete('Goal')).toBe(true);
+
+    await service.refresh();
+    expect(projectServiceSpy.getMyPermissions).toHaveBeenCalledTimes(2);
+    expect(projectServiceSpy.getMyPermissions).toHaveBeenLastCalledWith('My Project');
+    expect(service.canDelete('Goal')).toBe(false);
+    expect(service.canEdit('Goal')).toBe(true);
+  });
+
+  it('refresh() is a no-op when no project has been loaded', async () => {
+    await service.refresh();
+    expect(projectServiceSpy.getMyPermissions).not.toHaveBeenCalled();
+  });
 });

@@ -334,8 +334,13 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   loading = signal(true);
   loadError = signal<string | null>(null);
   saving = signal(false);
-  canEdit = signal(false);
-  canDelete = signal(false);
+  // #276: derived, not snapshotted, so a grant or revoke follows without re-running ngOnInit.
+  // computed is lazy, so reading this.permissionService here is safe even though field
+  // initializers run before the constructor assigns it — the callback first runs on read.
+  // Before permissions load, _permissions() is null and hasPermission returns false, so these
+  // read false exactly as signal(false) did (#38's button-timing fix is preserved).
+  canEdit = computed(() => this.permissionService.canEdit('Goal'));
+  canDelete = computed(() => this.permissionService.canDelete('Goal'));
   /** True once a save/commit has been attempted, so untouched invalid fields explain themselves. */
   submitted = signal(false);
   /** A cross-session update arrived while the form was dirty (#140): show the reload banner. */
@@ -446,8 +451,6 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       }
 
       await this.permissionService.loadForProject(this.projectName);
-      this.canEdit.set(this.permissionService.canEdit('Goal'));
-      this.canDelete.set(this.permissionService.canDelete('Goal'));
 
       if (!newIsNew) {
         this.isNew.set(false);

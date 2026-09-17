@@ -23,6 +23,7 @@ package com.rreganjr.requel.service.command;
 import com.rreganjr.command.Command;
 import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.EditProjectOrDomainEntityCommand;
+import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
 import com.rreganjr.requel.service.stream.StreamEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +47,15 @@ public class CommandEventPublisher {
     /** Sentinel project ID used as a broadcast channel for "any project changed". */
     private static final long PROJECT_BROADCAST_ID = 0L;
 
+    /**
+     * Sentinel id for the "someone's permissions changed" broadcast (issue #276). Deliberately a
+     * separate target from {@code Project:0} rather than a reuse of it: that broadcast fires on
+     * every project-scoped command, so a client invalidating its permissions on it would re-fetch
+     * them on every goal edit and scenario save by anyone. Permission writes are rare, so a target
+     * of their own costs nothing and keeps the project broadcast meaning what it means.
+     */
+    private static final long PERMISSIONS_BROADCAST_ID = 0L;
+
     private final StreamEventPublisher streamEventPublisher;
 
     public CommandEventPublisher(StreamEventPublisher streamEventPublisher) {
@@ -63,8 +73,30 @@ public class CommandEventPublisher {
     public void publish(Command command, Object primaryResult, Object secondaryResult,
                         String excludeSessionId) {
         publishProjectChangedIfScoped(command);
+        publishPermissionsChangedIfStakeholderWrite(command);
         TargetRef primary = publishTargeted(primaryResult, excludeSessionId, null);
         publishTargeted(secondaryResult, excludeSessionId, primary);
+    }
+
+    /**
+     * Issue #276: a stakeholder's permissions changed, so any session holding cached permissions
+     * has to re-fetch. Broadcast rather than targeted, and never filtered by originating session:
+     * the point of this event is that the person whose permissions changed is usually not the
+     * person who changed them.
+     *
+     * <p>The payload names no user and no permission. It says "permissions changed"; each client
+     * re-fetches its own and learns only what it is already entitled to know. Clients that hold no
+     * permissions for any project ignore it.
+     */
+    private void publishPermissionsChangedIfStakeholderWrite(Command command) {
+        try {
+            if (command instanceof EditUserStakeholderCommand) {
+                streamEventPublisher.publishTargetUpdate("Permissions", PERMISSIONS_BROADCAST_ID,
+                        Map.of("type", "refresh"));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to publish permissions-changed SSE event: {}", e.getMessage(), e);
+        }
     }
 
     private record TargetRef(String type, long id) {}

@@ -301,7 +301,8 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   loading = signal(true);
   loadError = signal<string | null>(null);
   saving = signal(false);
-  canDelete = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canDelete = computed(() => this.permissionService.canDelete('Stakeholder'));
   userOptions = signal<{ label: string; value: string }[]>([]);
   loadedUserDetails = signal<UserStakeholderDetails | null>(null);
   permissionGroups = signal<PermissionGroup[]>([]);
@@ -375,7 +376,6 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       await this.permissionService.loadForProject(this.projectName);
-      this.canDelete.set(this.permissionService.canDelete('Stakeholder'));
 
       const idParam = params.get('stakeholderId') ?? '';
       if (idParam === 'new-user') {
@@ -789,6 +789,14 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       }
       this.detailsForm.markAsPristine();
       this.permissionsForm.markAsPristine();
+
+      // #276: if this save changed permissions, re-fetch our own rather than waiting for the SSE
+      // event to come back round — the acting session should not lag the ones it notified. Only
+      // EditUserStakeholder carries permissionKeys; the non-user branch cannot change anyone's
+      // access. Cheap and idempotent: a no-op when nothing is loaded.
+      if (isUser) {
+        await this.permissionService.refresh();
+      }
       this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Stakeholder saved.' });
 
       if (wasCreate && this.stakeholderId != null) {

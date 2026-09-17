@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
@@ -494,8 +494,9 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
   loadError = signal<string | null>(null);
   saving = signal(false);
   submitted = signal(false);
-  canEdit = signal(false);
-  canDelete = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canEdit = computed(() => this.permissionService.canEdit('Scenario'));
+  canDelete = computed(() => this.permissionService.canDelete('Scenario'));
   /**
    * The scenario's step list as a reactive array (#143). Replaces the `stepNodes` signal and the
    * manual `stepsSaveNeeded` flag: dirty/valid now come from the form itself. Kept a sibling of
@@ -617,8 +618,6 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       }
 
       await this.permissionService.loadForProject(this.projectName);
-      this.canEdit.set(this.permissionService.canEdit('Scenario'));
-      this.canDelete.set(this.permissionService.canDelete('Scenario'));
 
       if (!newIsNew) {
         this.isNew.set(false);

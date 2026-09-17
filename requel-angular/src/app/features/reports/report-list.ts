@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
@@ -75,7 +75,8 @@ export class ReportListComponent implements OnInit {
   loading = signal(true);
   errorMessage = signal<string | null>(null);
   runningId = signal<number | null>(null);
-  canEdit = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canEdit = computed(() => this.permissionService.canEdit('ReportGenerator'));
 
   columns: DataTableColumn<ReportGeneratorDto>[] = [
     { field: 'name', header: 'Name', sortable: true, link: r => ['/projects', this.projectName, 'reports', r.id] },
@@ -98,7 +99,6 @@ export class ReportListComponent implements OnInit {
       if (name !== this.projectName) {
         this.projectName = name;
         await this.permissionService.loadForProject(name);
-        this.canEdit.set(this.permissionService.canEdit('ReportGenerator'));
         this.loadReports();
       }
     });

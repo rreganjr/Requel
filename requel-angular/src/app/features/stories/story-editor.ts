@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal, ViewChild, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgTemplateOutlet } from '@angular/common';
 import { PageHeaderComponent } from '../../shared/page-header';
@@ -344,8 +344,9 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   loading = signal(true);
   loadError = signal<string | null>(null);
   saving = signal(false);
-  canEdit = signal(false);
-  canDelete = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canEdit = computed(() => this.permissionService.canEdit('Story'));
+  canDelete = computed(() => this.permissionService.canDelete('Story'));
   /** True once a save/commit has been attempted, so untouched invalid fields explain themselves. */
   submitted = signal(false);
 
@@ -434,8 +435,6 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       }
 
       await this.permissionService.loadForProject(this.projectName);
-      this.canEdit.set(this.permissionService.canEdit('Story'));
-      this.canDelete.set(this.permissionService.canDelete('Story'));
 
       const actors = await this.actorService.listActors(this.projectName);
       this.actorOptions.set(actors.map(a => ({ label: a.name, value: a.name })));

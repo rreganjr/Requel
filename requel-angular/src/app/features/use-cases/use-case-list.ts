@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, TemplateRef, ViewChild, signal, ChangeDetectionStrategy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, OnInit, signal, TemplateRef, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
@@ -65,7 +65,8 @@ export class UseCaseListComponent implements OnInit {
   useCases = signal<UseCaseDto[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
-  canEdit = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canEdit = computed(() => this.permissionService.canEdit('UseCase'));
 
   @ViewChild('primaryActorCell', { static: true }) primaryActorCell!: TemplateRef<{ $implicit: UseCaseDto }>;
   columns: DataTableColumn<UseCaseDto>[] = [];
@@ -90,7 +91,6 @@ export class UseCaseListComponent implements OnInit {
     ];
     this.projectName = this.route.snapshot.paramMap.get('name') ?? '';
     await this.permissionService.loadForProject(this.projectName);
-    this.canEdit.set(this.permissionService.canEdit('UseCase'));
     try {
       this.useCases.set(await this.useCaseService.listUseCases(this.projectName));
     } catch {

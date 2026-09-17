@@ -99,7 +99,8 @@ export class GoalListComponent implements OnInit {
   goals = signal<GoalDto[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
-  canEdit = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canEdit = computed(() => this.permissionService.canEdit('Goal'));
   /** Project-name context shown as the page eyebrow (issue #127). */
   projectContext = signal('');
 
@@ -159,7 +160,6 @@ export class GoalListComponent implements OnInit {
         this.projectName = name;
         this.projectContext.set(name);
         await this.permissionService.loadForProject(name);
-        this.canEdit.set(this.permissionService.canEdit('Goal'));
         await this.loadGoals();
         await this.loadTags();
       }

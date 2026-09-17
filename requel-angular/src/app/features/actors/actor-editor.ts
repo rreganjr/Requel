@@ -267,8 +267,9 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   actor = signal<ActorDto | null>(null);
   actorName = signal('');
   isNew = signal(false);
-  canEdit = signal(false);
-  canDelete = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canEdit = computed(() => this.permissionService.canEdit('Actor'));
+  canDelete = computed(() => this.permissionService.canDelete('Actor'));
   errorMessage = signal<string | null>(null);
   retryable = signal(false);
   /** Sets the inline submit error and, by default, marks it non-retryable. */
@@ -389,8 +390,6 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       }
 
       await this.permissionService.loadForProject(this.projectName);
-      this.canEdit.set(this.permissionService.canEdit('Actor'));
-      this.canDelete.set(this.permissionService.canDelete('Actor'));
 
       if (!newIsNew) {
         this.isNew.set(false);
