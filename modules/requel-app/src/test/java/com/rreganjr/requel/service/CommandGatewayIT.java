@@ -35,6 +35,8 @@ import com.rreganjr.requel.project.NonUserStakeholder;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.ScenarioType;
+import com.rreganjr.requel.service.api.dto.ScenarioDto;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.Story;
@@ -570,6 +572,47 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
                 "a rejected DeleteProject must leave the project intact");
     }
 
+    /**
+     * Issue #252: {@code ConvertStepToScenario} is the one step command kept on the gateway, and it
+     * now carries a real input DTO instead of an empty schema. This exercises the applicator end to
+     * end, which is the part that could not be proved by inspection: the command is an
+     * {@code EditScenarioCommand} underneath and builds its new scenario from name, text and type,
+     * so the applicator has to carry those over from the step being converted or the conversion
+     * produces an unnamed scenario.
+     *
+     * <p>The fixture is built through the gateway on purpose — {@code EditScenario} with a steps
+     * array is the documented way to create a step, and it is what the removed
+     * {@code EditScenarioStep} tool is being replaced by.
+     */
+    @Test
+    void convertStepToScenarioBindsItsInputAndCarriesTheStepsNameOver() throws Exception {
+        authenticate(editorUsername);
+        String stepName = "gw-step-" + System.currentTimeMillis();
+
+        GatewayResult created = gateway.execute(new GatewayRequest("EditScenario",
+                Map.of("projectName", projectName,
+                        "name", "gw-scenario-" + System.currentTimeMillis(),
+                        "text", "scenario holding one plain step",
+                        "scenarioTypeName", ScenarioType.Primary.name(),
+                        "steps", List.of(Map.of("name", stepName, "text", "a plain step",
+                                "isScenario", false)))));
+        ScenarioDto scenario = (ScenarioDto) created.result();
+        assertNotNull(scenario, "EditScenario should return a scenario DTO");
+        assertEquals(1, scenario.steps().size(), "the scenario should hold the one step sent");
+        Long stepId = scenario.steps().get(0).id();
+
+        GatewayResult converted = gateway.execute(new GatewayRequest("ConvertStepToScenario",
+                Map.of("projectName", projectName, "stepId", stepId)));
+
+        assertEquals("ConvertStepToScenario", converted.commandType());
+        ScenarioDto promoted = (ScenarioDto) converted.result();
+        assertNotNull(promoted, "conversion should return the new scenario");
+        assertEquals(stepName, promoted.name(),
+                "the promoted scenario keeps the step's name, as the tool description promises");
+        assertNotEquals(stepId, promoted.id(),
+                "conversion creates a distinct scenario entity, not a mutated step");
+    }
+
     // ---- policy surface ------------------------------------------------------------------------
 
     @Test
@@ -582,6 +625,14 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
             assertTrue(instance instanceof AuthorizableCommand,
                     type + " must implement AuthorizableCommand so the gateway never exposes an "
                             + "unchecked write");
+            // Issue #252: CommandRegistry's two-argument register(type, factory) overload is a
+            // "placeholder for future DTO wiring" and records Void.class, which the catalog turns
+            // into an empty MCP schema — a tool that advertises no way to call it. Four allowlisted
+            // commands were in that state and nothing failed. Either give the command a real input
+            // DTO or take it off the allowlist.
+            assertNotEquals(Void.class, reg.inputClass(),
+                    type + " is allowlisted but registered with no input DTO, so it advertises an "
+                            + "empty schema and cannot be called");
         }
     }
 

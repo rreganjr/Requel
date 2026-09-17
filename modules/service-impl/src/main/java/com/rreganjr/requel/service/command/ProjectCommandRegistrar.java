@@ -75,6 +75,7 @@ import com.rreganjr.requel.project.command.EditGoalRelationCommand;
 import com.rreganjr.requel.project.command.EditNonUserStakeholderCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditScenarioCommand;
+import com.rreganjr.requel.project.command.ConvertStepToScenarioCommand;
 import com.rreganjr.requel.project.command.EditScenarioStepCommand;
 import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.EditUseCaseCommand;
@@ -95,6 +96,7 @@ import com.rreganjr.requel.service.api.dto.AddScenarioToUseCaseInput;
 import com.rreganjr.requel.service.api.dto.AddStoryToStoryContainerInput;
 import com.rreganjr.requel.service.api.dto.CopyActorInput;
 import com.rreganjr.requel.service.api.dto.CopyGoalInput;
+import com.rreganjr.requel.service.api.dto.ConvertStepToScenarioInput;
 import com.rreganjr.requel.service.api.dto.CopyScenarioInput;
 import com.rreganjr.requel.service.api.dto.CopyStoryInput;
 import com.rreganjr.requel.service.api.dto.CopyUseCaseInput;
@@ -671,7 +673,29 @@ public class ProjectCommandRegistrar {
                 null,
                 cmd -> ProjectQueryController.toUseCaseDetailDto(((CopyUseCaseCommand) cmd).getNewUseCase()));
         registry.register("CopyScenarioStep", factory::newCopyScenarioStepCommand);
-        registry.register("ConvertStepToScenario", factory::newConvertStepToScenarioCommand);
+        // Issue #252: this one carries a real input DTO because the EditScenario steps array cannot
+        // express it — sending isScenario=true with an existing plain step's id routes to
+        // findScenarioById, which only walks scenarios and throws for a step.
+        registry.register("ConvertStepToScenario", ConvertStepToScenarioInput.class,
+                factory::newConvertStepToScenarioCommand,
+                (cmd, input) -> {
+                    ConvertStepToScenarioCommand c = (ConvertStepToScenarioCommand) cmd;
+                    ConvertStepToScenarioInput i = (ConvertStepToScenarioInput) input;
+                    Project project = projectRepository.findProjectByName(i.projectName());
+                    Step step = findStepByIdAcrossScenarios(project, i.stepId());
+                    c.setProjectOrDomain(project);
+                    c.setOriginalScenarioStep(step);
+                    // The command is an EditScenarioCommand underneath and builds the new scenario
+                    // from these, so they must be carried over from the step or the conversion
+                    // produces an unnamed scenario. Same defaulting as EditScenario's existing-step
+                    // branch.
+                    c.setName(step.getName());
+                    c.setText(step.getText());
+                    c.setScenarioTypeName(step.getType().name());
+                },
+                null,
+                cmd -> ProjectQueryController.toScenarioDetailDto(
+                        ((ConvertStepToScenarioCommand) cmd).getScenario()));
         registry.register("DeleteUseCase", DeleteUseCaseInput.class,
                 factory::newDeleteUseCaseCommand,
                 (cmd, input) -> {

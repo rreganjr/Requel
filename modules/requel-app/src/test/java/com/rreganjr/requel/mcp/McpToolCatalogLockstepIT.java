@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.gateway.CommandDescriptor;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
+import com.rreganjr.requel.service.api.dto.ConvertStepToScenarioInput;
 import com.rreganjr.requel.service.api.dto.DeleteProjectInput;
 import com.rreganjr.requel.service.gateway.GatewayPolicyConfig;
 import java.util.List;
@@ -88,6 +89,63 @@ public class McpToolCatalogLockstepIT extends AbstractIntegrationTestCase {
 		// The generic escape hatch is always present alongside the typed tools.
 		assertThat(writeService.toolDescriptors()).extracting(McpToolDescriptor::name)
 				.contains(McpWriteService.RUN_COMMAND);
+	}
+
+	/**
+	 * Issue #252: an allowlisted command registered without an input DTO records {@code Void.class},
+	 * and the catalog turns that into {@code {"properties": {}, "type": "object"}} — a typed tool
+	 * that advertises no way to call it. Four commands were in that state at once and nothing
+	 * failed, because an empty schema looks like a working tool from every angle except using it.
+	 *
+	 * <p>Set-general on purpose: the eleven other commands registered through the same placeholder
+	 * overload are invisible only because they are not allowlisted, so this fails the day one of
+	 * them is added without a DTO.
+	 */
+	@Test
+	public void noAdvertisedCommandHasAnEmptyInputSchema() {
+		List<String> schemaless = catalog.descriptors().stream()
+				.filter(d -> d.inputType() == null || d.inputType() == Void.class)
+				.map(CommandDescriptor::commandType)
+				.toList();
+
+		assertThat(schemaless)
+				.as("these commands are advertised with an empty input schema and cannot be "
+						+ "called; give each a real input DTO or take it off GatewayPolicyConfig"
+						+ ".ALLOWED")
+				.isEmpty();
+	}
+
+	/**
+	 * Issue #252's own AC: the distinction between the step command that is offered and the three
+	 * that are not.
+	 *
+	 * <p>{@code EditScenario} replaces the whole steps array on save, so creating, editing and
+	 * deleting steps all go through it — a step with no {@code stepId} is created, one with its
+	 * {@code stepId} is edited, and one left out is deleted. {@code ConvertStepToScenario} is the
+	 * exception: sending {@code isScenario: true} with a plain step's id routes to a scenario
+	 * lookup that throws for a step, so it is the only one that would lose capability.
+	 */
+	@Test
+	public void onlyConvertStepToScenarioIsOfferedOfTheStepCommands() {
+		assertThat(GatewayPolicyConfig.ALLOWED)
+				.as("steps are managed through EditScenario's steps array")
+				.doesNotContain("EditScenarioStep", "CopyScenarioStep", "DeleteScenarioStep");
+		assertThat(catalog.find("EditScenarioStep")).isEmpty();
+		assertThat(catalog.find("CopyScenarioStep")).isEmpty();
+		assertThat(catalog.find("DeleteScenarioStep")).isEmpty();
+		assertThat(writeService.toolDescriptors()).extracting(McpToolDescriptor::name)
+				.doesNotContain("EditScenarioStep", "CopyScenarioStep", "DeleteScenarioStep");
+
+		assertThat(GatewayPolicyConfig.ALLOWED).contains("ConvertStepToScenario");
+		CommandDescriptor descriptor = catalog.find("ConvertStepToScenario").orElseThrow();
+		assertThat(descriptor.inputType())
+				.as("the typed tool's JSON schema is derived from this DTO")
+				.isEqualTo(ConvertStepToScenarioInput.class);
+		assertThat(descriptor.description())
+				.as("a caller has to be told steps are otherwise managed through EditScenario")
+				.contains("EditScenario");
+		assertThat(writeService.toolDescriptors()).extracting(McpToolDescriptor::name)
+				.contains("ConvertStepToScenario");
 	}
 
 	/**

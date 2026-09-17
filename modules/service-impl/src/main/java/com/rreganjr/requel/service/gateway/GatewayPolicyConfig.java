@@ -68,9 +68,15 @@ public class GatewayPolicyConfig {
             // Use cases
             "EditUseCase", "CopyUseCase", "DeleteUseCase",
             "AddScenarioToUseCase", "RemoveScenarioFromUseCase", "SetPrimaryScenarioOnUseCase",
-            // Scenarios (EditScenario / ConvertStepToScenario inherit auth from EditScenarioStep)
-            "EditScenario", "CopyScenario", "DeleteScenario",
-            "EditScenarioStep", "CopyScenarioStep", "ConvertStepToScenario", "DeleteScenarioStep",
+            // Scenarios (EditScenario / ConvertStepToScenario inherit auth from EditScenarioStep).
+            // Steps are managed through EditScenario's steps array, which replaces the whole list
+            // on save: send a step with no stepId to create it, with its stepId to edit it, and
+            // omit it to delete it. EditScenarioStep, CopyScenarioStep and DeleteScenarioStep were
+            // therefore removed from this list in issue #252 — they were registered without an
+            // input DTO, so each advertised an empty MCP schema and was uncallable. They remain
+            // registered and reachable through /api/commands; only the machine surface drops them.
+            // ConvertStepToScenario stays because the steps array genuinely cannot express it.
+            "EditScenario", "CopyScenario", "DeleteScenario", "ConvertStepToScenario",
             // Glossary
             "EditGlossaryTerm", "DeleteGlossaryTerm",
             // Reports (definition only; GenerateReport produces a file and is denied)
