@@ -6,7 +6,9 @@ import { LayoutComponent } from './layout';
 import { AuthService } from '../../core/auth.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { AnnouncerService } from '../../core/announcer.service';
-import { StreamConnectionState } from '../../models/stream';
+import { EMPTY, Subject } from 'rxjs';
+import { StreamConnectionState, StreamEventEnvelope } from '../../models/stream';
+import { PermissionService } from '../../core/permission.service';
 import { SidebarNavComponent } from '../../shared/sidebar-nav';
 import { AppearanceMenuComponent } from '../../shared/appearance-menu';
 
@@ -29,7 +31,7 @@ describe('LayoutComponent accessibility (issue #135)', () => {
         provideNoopAnimations(),
         provideRouter([]),
         { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
-        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false, connectionState: () => 'idle' } }
+        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false, connectionState: () => 'idle', events$: EMPTY } }
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {
@@ -76,7 +78,7 @@ describe('LayoutComponent top bar (issue #154)', () => {
         provideNoopAnimations(),
         provideRouter([]),
         { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
-        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false, connectionState: () => 'idle' } }
+        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false, connectionState: () => 'idle', events$: EMPTY } }
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {
@@ -153,7 +155,7 @@ describe('LayoutComponent top bar (issue #154)', () => {
         provideNoopAnimations(),
         provideRouter([{ path: 'somewhere', component: RouteStubComponent }]),
         { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
-        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false, connectionState: () => 'idle' } }
+        { provide: EventStreamService, useValue: { connect: vi.fn(), isConnected: () => false, connectionState: () => 'idle', events$: EMPTY } }
       ]
     });
     TestBed.overrideComponent(LayoutComponent, {
@@ -191,7 +193,8 @@ describe('LayoutComponent live-update announcements (issue #145)', () => {
           useValue: {
             connect: vi.fn(),
             isConnected: () => state() === 'open',
-            connectionState: state
+            connectionState: state,
+            events$: EMPTY
           }
         },
         { provide: AnnouncerService, useValue: { announce } }
@@ -241,5 +244,65 @@ describe('LayoutComponent live-update announcements (issue #145)', () => {
     state.set('closed'); // transient blip before a retry
     fixture.detectChanges();
     expect(announce).not.toHaveBeenCalled();
+  });
+});
+
+
+// ----- #276 permission invalidation over SSE --------------------------------
+
+/**
+ * The shell owns the permission listener because the person whose permissions changed is usually
+ * not the person who changed them, and may be looking at any screen. The event carries no
+ * permission data — it only says "re-fetch" — so the service asks the server what this user may do
+ * now and every derived control follows.
+ */
+describe('LayoutComponent permission invalidation (issue #276)', () => {
+  let events$: Subject<StreamEventEnvelope>;
+  let refresh: ReturnType<typeof vi.fn>;
+  let connect: ReturnType<typeof vi.fn>;
+
+  function createFixture() {
+    events$ = new Subject<StreamEventEnvelope>();
+    refresh = vi.fn().mockResolvedValue(undefined);
+    connect = vi.fn();
+
+    TestBed.configureTestingModule({
+      imports: [LayoutComponent],
+      providers: [
+        provideNoopAnimations(),
+        provideRouter([]),
+        { provide: AuthService, useValue: { user: signal(null), logout: vi.fn() } },
+        {
+          provide: EventStreamService,
+          useValue: { connect, isConnected: () => true, connectionState: () => 'open', events$ }
+        },
+        { provide: PermissionService, useValue: { refresh } }
+      ]
+    });
+    TestBed.overrideComponent(LayoutComponent, {
+      remove: { imports: [SidebarNavComponent, AppearanceMenuComponent] },
+      add: { imports: [SidebarNavStubComponent, AppearanceMenuStubComponent] }
+    });
+    const fixture = TestBed.createComponent(LayoutComponent);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('subscribes to the permission broadcast alongside the project one', () => {
+    createFixture();
+    expect(connect).toHaveBeenCalledWith(['Project:0', 'Permissions:0']);
+  });
+
+  it('re-fetches permissions when a Permissions event arrives', () => {
+    createFixture();
+    events$.next({ eventType: 'Data', targetType: 'Permissions', targetId: 0, payload: { type: 'refresh' } });
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores events for other targets', () => {
+    createFixture();
+    events$.next({ eventType: 'Data', targetType: 'Project', targetId: 0, payload: { type: 'refresh' } });
+    events$.next({ eventType: 'Data', targetType: 'Goal', targetId: 7, payload: { type: 'refresh' } });
+    expect(refresh).not.toHaveBeenCalled();
   });
 });

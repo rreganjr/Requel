@@ -18,8 +18,8 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, computed, effect, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, computed, DestroyRef, effect, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { Location } from '@angular/common';
 import { NavigationEnd, Router, RouterOutlet, RouterLink } from '@angular/router';
 import { filter, map } from 'rxjs';
@@ -28,6 +28,7 @@ import { MenuModule } from 'primeng/menu';
 import { ToastModule } from 'primeng/toast';
 import { AuthService } from '../../core/auth.service';
 import { EventStreamService } from '../../core/event-stream.service';
+import { PermissionService } from '../../core/permission.service';
 import { AnnouncerService } from '../../core/announcer.service';
 import { SidebarNavComponent } from '../../shared/sidebar-nav';
 import { BreadcrumbComponent } from '../../shared/breadcrumb';
@@ -265,6 +266,10 @@ export class LayoutComponent implements OnInit {
 
   private readonly authService: AuthService;
   private readonly eventStreamService: EventStreamService;
+  // Injected as fields rather than constructor params: the shell's constructor is long and these
+  // two exist only to serve the permission listener below (issue #276).
+  private readonly permissionService = inject(PermissionService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly announcer: AnnouncerService;
   private readonly location: Location;
   private readonly router: Router;
@@ -340,8 +345,22 @@ export class LayoutComponent implements OnInit {
 
   ngOnInit(): void {
     // Open SSE connection, subscribed to the project broadcast channel so the
-    // sidebar can reload counts whenever any project-scoped command completes.
-    this.eventStreamService.connect(['Project:0']);
+    // sidebar can reload counts whenever any project-scoped command completes,
+    // and to the permission broadcast (#276) so a grant or revoke made by
+    // another user reaches this session without a reload.
+    this.eventStreamService.connect(['Project:0', 'Permissions:0']);
+
+    // #276: the shell owns this rather than any one screen, because the person whose permissions
+    // changed is usually not the person who changed them and may be looking at anything. The event
+    // carries no permission data — it only says "re-fetch" — so the service asks the server what
+    // this user may do now, and every control derived from that signal follows.
+    this.eventStreamService.events$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(envelope => {
+        if (envelope.targetType === 'Permissions') {
+          void this.permissionService.refresh();
+        }
+      });
   }
 
   toggleSidebar(): void {

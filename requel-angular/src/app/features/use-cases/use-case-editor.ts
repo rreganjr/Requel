@@ -447,8 +447,9 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
   loading = signal(true);
   loadError = signal<string | null>(null);
   saving = signal(false);
-  canEdit = signal(false);
-  canDelete = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canEdit = computed(() => this.permissionService.canEdit('UseCase'));
+  canDelete = computed(() => this.permissionService.canDelete('UseCase'));
   goals = signal<GoalDto[]>([]);
   stories = signal<StoryDto[]>([]);
   actors = signal<ActorDto[]>([]);
@@ -526,8 +527,6 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       await this.permissionService.loadForProject(this.projectName);
-      this.canEdit.set(this.permissionService.canEdit('UseCase'));
-      this.canDelete.set(this.permissionService.canDelete('UseCase'));
 
       // Load all actors for the primary actor dropdown
       const actors = await this.actorService.listActors(this.projectName);

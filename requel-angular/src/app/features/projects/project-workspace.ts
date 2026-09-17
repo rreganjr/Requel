@@ -180,7 +180,11 @@ export class ProjectWorkspaceComponent implements OnInit {
   readonly project = signal<ProjectDto | null>(null);
   readonly openIssueCount = signal(0);
   readonly mustResolveCount = signal(0);
-  readonly canDelete = signal(false);
+  // #276: derived from the service signal rather than set once after the load. The defensive
+  // property of the old loadCanDelete() survives for free — if the permission fetch fails,
+  // _permissions() stays null and this reads false, hiding the action rather than blanking the
+  // workspace.
+  readonly canDelete = computed(() => this.permissionService.canDelete('Project'));
   readonly deleteTarget = signal<DeleteProjectTarget | null>(null);
   readonly deleteVisible = signal(false);
   projectName = '';
@@ -241,13 +245,12 @@ export class ProjectWorkspaceComponent implements OnInit {
     this.loading.set(true);
     this.errorMessage.set(null);
     try {
-      const [project, issues, canDelete] = await Promise.all([
+      const [project, issues] = await Promise.all([
         this.projectService.getProject(this.projectName),
         this.loadOpenIssues(),
-        this.loadCanDelete(),
+        this.ensurePermissionsLoaded(),
       ]);
       this.project.set(project);
-      this.canDelete.set(canDelete);
       this.openIssueCount.set(issues.length);
       this.mustResolveCount.set(issues.filter(i => i.mustBeResolved).length);
     } catch {
@@ -269,16 +272,16 @@ export class ProjectWorkspaceComponent implements OnInit {
   }
 
   /**
-   * Resolve whether the current user may delete this project. Defensive: a
-   * permissions hiccup hides the Delete action rather than blanking the whole
-   * workspace (mirrors how open-issues degrades).
+   * Load this project's permissions so the derived controls have something to read (#276 —
+   * previously this also returned the value, which is now a computed). Defensive: a permissions
+   * hiccup leaves the cache empty, so canDelete reads false and the Delete action stays hidden
+   * rather than blanking the whole workspace (mirrors how open-issues degrades).
    */
-  private async loadCanDelete(): Promise<boolean> {
+  private async ensurePermissionsLoaded(): Promise<void> {
     try {
       await this.permissionService.loadForProject(this.projectName);
-      return this.permissionService.canDelete('Project');
     } catch {
-      return false;
+      // Leave permissions unloaded; every derived control reads false.
     }
   }
 

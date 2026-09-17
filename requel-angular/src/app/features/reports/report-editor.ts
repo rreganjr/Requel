@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
@@ -216,8 +216,9 @@ export class ReportEditorComponent implements OnInit, DirtyCheckable {
   });
 
   projectName = '';
-  canEdit = signal(false);
-  canDelete = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canEdit = computed(() => this.permissionService.canEdit('ReportGenerator'));
+  canDelete = computed(() => this.permissionService.canDelete('ReportGenerator'));
 
   private readonly destroyRef = inject(DestroyRef);
 
@@ -254,8 +255,6 @@ export class ReportEditorComponent implements OnInit, DirtyCheckable {
       }
 
       await this.permissionService.loadForProject(this.projectName);
-      this.canEdit.set(this.permissionService.canEdit('ReportGenerator'));
-      this.canDelete.set(this.permissionService.canDelete('ReportGenerator'));
 
       if (!newIsNew) {
         await this.loadReport(Number(idParam));

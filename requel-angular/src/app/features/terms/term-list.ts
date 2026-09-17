@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, TemplateRef, ViewChild, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit, signal, TemplateRef, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
@@ -72,7 +72,8 @@ export class TermListComponent implements OnInit {
   terms = signal<GlossaryTermDto[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
-  canEdit = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canEdit = computed(() => this.permissionService.canEdit('GlossaryTerm'));
 
   @ViewChild('textCell', { static: true }) textCell!: TemplateRef<{ $implicit: GlossaryTermDto }>;
   @ViewChild('canonicalCell', { static: true }) canonicalCell!: TemplateRef<{ $implicit: GlossaryTermDto }>;
@@ -103,7 +104,6 @@ export class TermListComponent implements OnInit {
       if (name !== this.projectName) {
         this.projectName = name;
         await this.permissionService.loadForProject(name);
-        this.canEdit.set(this.permissionService.canEdit('GlossaryTerm'));
         this.loadTerms();
       }
     });

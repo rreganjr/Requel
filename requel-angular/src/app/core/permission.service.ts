@@ -52,6 +52,26 @@ export class PermissionService {
     this._loadedProject = null;
   }
 
+  /**
+   * Re-fetch permissions for the project already loaded (issue #276).
+   *
+   * `loadForProject` deliberately no-ops when the same project is already loaded, which is right
+   * for navigation but wrong after a grant or revoke. `clear()` resets `_loadedProject`, so clearing
+   * first makes the guard fall through — no `force` flag needed. Callers are the permission write
+   * path itself and the SSE listener that hears a permission change made by someone else.
+   *
+   * A no-op when nothing is loaded yet: there is no project to re-fetch for, and the next
+   * `loadForProject` will do it anyway.
+   */
+  async refresh(): Promise<void> {
+    const projectName = this._loadedProject;
+    if (projectName == null) {
+      return;
+    }
+    this.clear();
+    await this.loadForProject(projectName);
+  }
+
   get isStakeholder(): boolean {
     return this._permissions()?.isStakeholder ?? false;
   }

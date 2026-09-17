@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnDestroy, OnInit, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -293,8 +293,9 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   });
 
   projectName = '';
-  canEdit = signal(false);
-  canDelete = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  canEdit = computed(() => this.permissionService.canEdit('GlossaryTerm'));
+  canDelete = computed(() => this.permissionService.canDelete('GlossaryTerm'));
 
   private readonly destroyRef = inject(DestroyRef);
   private sseBound = false;
@@ -336,8 +337,6 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
       }
 
       await this.permissionService.loadForProject(this.projectName);
-      this.canEdit.set(this.permissionService.canEdit('GlossaryTerm'));
-      this.canDelete.set(this.permissionService.canDelete('GlossaryTerm'));
 
       // Load all terms for canonical selector (before loading detail)
       await this.loadCanonicalOptions(newIsNew ? null : Number(idParam));

@@ -187,7 +187,8 @@ export class ProjectEditorComponent implements OnInit, DirtyCheckable {
 
   readonly isNew = signal(true);
   readonly submitted = signal(false);
-  readonly canEdit = signal(false);
+  // #276: derived from the service signal rather than snapshotted after the load.
+  readonly canEdit = computed(() => this.permissionService.canEdit('Project'));
   readonly tagEntityId = signal<number | null>(null);
   readonly loading = signal(true);
   readonly saving = signal(false);
@@ -294,7 +295,6 @@ export class ProjectEditorComponent implements OnInit, DirtyCheckable {
           this.permissionService.loadForProject(nameParam)
         ]);
         this.populateForm(project);
-        this.canEdit.set(this.permissionService.canEdit('Project'));
       } else {
         this.projectId = null;
         this.projectVersion = null;
