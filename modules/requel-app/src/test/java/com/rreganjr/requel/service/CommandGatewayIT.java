@@ -613,6 +613,51 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
                 "conversion creates a distinct scenario entity, not a mutated step");
     }
 
+    /**
+     * Issue #254 on the surface it was actually reported from. Sending a steps entry whose name is
+     * already taken used to fail with "The name conflicts with an existing ProjectOrDomainEntity",
+     * naming neither the step nor the entity it hit, and appearing to blame the scenario — which
+     * cost two wrong fixes during the roundtable build before the cause was isolated.
+     */
+    @Test
+    void aStepsEntryWithATakenNameIsRefusedWithAnActionableMessage() throws Exception {
+        authenticate(editorUsername);
+        String stepName = "gw-shared-step-" + System.currentTimeMillis();
+
+        GatewayResult created = gateway.execute(new GatewayRequest("EditScenario",
+                Map.of("projectName", projectName,
+                        "name", "gw-first-scenario-" + System.currentTimeMillis(),
+                        "text", "holds the step whose name gets reused",
+                        "scenarioTypeName", ScenarioType.Primary.name(),
+                        "steps", List.of(Map.of("name", stepName, "text", "the original step",
+                                "isScenario", false)))));
+        Long stepId = ((ScenarioDto) created.result()).steps().get(0).id();
+
+        GatewayException ex = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("EditScenario",
+                        Map.of("projectName", projectName,
+                                "name", "gw-second-scenario-" + System.currentTimeMillis(),
+                                "text", "tries to create a step by the same name",
+                                "scenarioTypeName", ScenarioType.Primary.name(),
+                                "steps", List.of(Map.of("name", stepName,
+                                        "text", "approximate prose from an ingest client",
+                                        "isScenario", false))))));
+
+        StringBuilder chain = new StringBuilder();
+        for (Throwable t = ex; t != null; t = t.getCause()) {
+            if (t.getMessage() != null) {
+                chain.append(t.getMessage()).append(" | ");
+            }
+        }
+        String message = chain.toString();
+        assertTrue(message.contains(String.valueOf(stepId)),
+                "the refusal must name the existing step's id so the caller can link it: " + message);
+        assertTrue(message.contains("stepId"),
+                "the refusal must say which field to send it in: " + message);
+        assertFalse(message.contains("ProjectOrDomainEntity"),
+                "naming the registration key instead of the entity is the bug: " + message);
+    }
+
     // ---- policy surface ------------------------------------------------------------------------
 
     @Test
