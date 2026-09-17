@@ -26,9 +26,12 @@ import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
+import com.rreganjr.platform.exception.EntityException;
+import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.ScenarioType;
 import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.command.AnalysisRequestSource;
@@ -115,6 +118,8 @@ public class EditScenarioStepCommandImpl extends AbstractEditProjectOrDomainEnti
 		StepImpl stepImpl = (StepImpl) getStep();
 		ProjectOrDomain projectOrDomain = getProjectRepository().get(getProjectOrDomain());
 
+		refuseNameCollision(projectOrDomain, stepImpl);
+
 		if (stepImpl == null) {
 			stepImpl = getProjectRepository()
 					.persist(
@@ -126,6 +131,55 @@ public class EditScenarioStepCommandImpl extends AbstractEditProjectOrDomainEnti
 			stepImpl.setType(getScenarioType());
 		}
 		setStep(getProjectRepository().merge(stepImpl));
+	}
+
+	/**
+	 * Issue #254: refuse a name that already belongs to another step or scenario in this project,
+	 * and say which id to send instead.
+	 *
+	 * <p>Steps and scenarios share one table under a discriminator with a single
+	 * {@code (projectordomain_id, name)} unique key, so a step name collides with a scenario name
+	 * as readily as with another step's. Without this guard the write reached the database and the
+	 * constraint violation was adapted by an exception adapter registered against
+	 * {@code ProjectOrDomainEntity.class} — which is why the caller saw "The name conflicts with an
+	 * existing ProjectOrDomainEntity", naming neither the step nor what it collided with.
+	 *
+	 * <p>The message tells the caller which id to send rather than offering to reuse the entity
+	 * silently. Steps are shared across scenarios ({@link Step#getUsingScenarios()}) and a scenario
+	 * can itself be a step, so a bare name match is ambiguous between "link the existing one" and
+	 * "I did not realise this name was taken" — and guessing the first would apply the caller's
+	 * text to a step that every other scenario using it shares. Both link paths already exist in
+	 * {@code EditScenario}'s steps array; only the signposting was missing.
+	 */
+	protected void refuseNameCollision(ProjectOrDomain projectOrDomain, Step self) {
+		String name = getName();
+		if ((name == null) || name.trim().isEmpty()) {
+			// A null name means "leave it as it is" (issue #251).
+			return;
+		}
+		Step existing;
+		try {
+			existing = getProjectRepository().findStepByProjectOrDomainAndName(projectOrDomain,
+					name);
+		} catch (NoSuchEntityException e) {
+			return;
+		}
+		if ((self != null) && existing.equals(self)) {
+			return;
+		}
+		String quoted = "'" + name.trim() + "'";
+		if (existing instanceof Scenario) {
+			throw EntityException.uniquenessConflict(null,
+					"The name conflicts with an existing Scenario: scenario " + existing.getId()
+							+ " in this project already uses the name " + quoted
+							+ ". To nest that scenario as a step, send its id as stepId with"
+							+ " isScenario true; otherwise choose a different name.");
+		}
+		throw EntityException.uniquenessConflict(null,
+				"The name conflicts with an existing Step: step " + existing.getId()
+						+ " in this project already uses the name " + quoted
+						+ ". To reuse that step, send its id as stepId; otherwise choose a"
+						+ " different name.");
 	}
 
 	/**

@@ -206,7 +206,12 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 		try {
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(step) from StepImpl as step where step.projectOrDomain = :projectOrDomain and step.name like :name");
+							// Issue #254: equality, not "like". With no wildcards in the value the two
+							// behave the same, but a name containing % or _ matched OTHER entities
+							// — and this finder now backs a uniqueness guard, so a false match
+							// refuses a legitimate name. Same defect and same fix as #284's
+							// findPosition.
+							"select object(step) from StepImpl as step where step.projectOrDomain = :projectOrDomain and step.name = :name");
 			query.setParameter("projectOrDomain", pod);
 			query.setParameter("name", name.trim());
 			return (Step) query.getSingleResult();

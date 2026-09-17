@@ -28,9 +28,6 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.platform.exception.EntityException;
-import com.rreganjr.platform.exception.EntityExceptionActionType;
-import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectRepository;
@@ -104,23 +101,12 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 		ScenarioImpl scenarioImpl = (ScenarioImpl) getScenario();
 		ProjectOrDomain projectOrDomain = getRepository().get(getProjectOrDomain());
 
-		// Check for uniqueness. Skipped when no name was supplied: a null name means "leave it
-		// as it is", and the finder trims the name (issue #251). EditUseCaseCommandImpl and
-		// EditActorCommandImpl already guard this way.
-		if ((getName() != null) && !getName().trim().isEmpty()) {
-			try {
-				Scenario existing = getProjectRepository().findScenarioByProjectOrDomainAndName(
-						projectOrDomain, getName());
-				if (scenarioImpl == null) {
-					throw EntityException.uniquenessConflict(Scenario.class, existing, FIELD_NAME,
-							EntityExceptionActionType.Creating);
-				} else if (!existing.equals(scenarioImpl)) {
-					throw EntityException.uniquenessConflict(Scenario.class, existing, FIELD_NAME,
-							EntityExceptionActionType.Updating);
-				}
-			} catch (NoSuchEntityException e) {
-			}
-		}
+		// Issue #254: one guard for both, inherited from EditScenarioStepCommandImpl. The check
+		// that used to live here looked only at scenarios, so a scenario named after an existing
+		// plain step slipped past it and produced the same opaque "ProjectOrDomainEntity" message
+		// the ticket reports for steps. Steps and scenarios share one table and one name
+		// constraint, so the lookup has to span both. Null names are still skipped (issue #251).
+		refuseNameCollision(projectOrDomain, scenarioImpl);
 
 		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
 		scenarioImpl = checkExpectedVersion(scenarioImpl);
