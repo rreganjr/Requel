@@ -222,6 +222,66 @@ class ProjectQueryControllerTest {
     }
 
     // -------------------------------------------------------------------------
+    // Administrator delete capability (#256)
+    //
+    // These three pin the two read-side mirrors of
+    // RequiresStakeholderPermissionOrSystemAdminRole on DeleteProjectCommandImpl. If the
+    // command's requirement changes, these should fail: an advertised Delete the backend
+    // refuses, or a hidden Delete it would accept, is the bug #256 exists to fix.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getProjectReportsCanDeleteForAnAdminHoldingNoStakeholderRow() throws Exception {
+        when(user.hasRole(SystemAdminUserRole.class)).thenReturn(true);
+        when(stakeholder.matchesUser(user)).thenReturn(false);
+
+        mockMvc.perform(get("/api/projects/TestProject"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.canDelete").value(true));
+    }
+
+    /**
+     * my-permissions reads canCreateProjects off the ProjectUserRole before it looks at
+     * stakeholder permissions at all; the shared fixture leaves getRoleForType unstubbed
+     * because nothing exercised this endpoint before.
+     */
+    private void stubProjectUserRole() {
+        ProjectUserRole role = mock(ProjectUserRole.class);
+        when(user.getRoleForType(ProjectUserRole.class)).thenReturn(role);
+        when(role.canCreateProjects()).thenReturn(true);
+    }
+
+    @Test
+    void myPermissionsGivesANonStakeholderAdminProjectDeleteAndNothingElse() throws Exception {
+        stubProjectUserRole();
+        when(user.hasRole(SystemAdminUserRole.class)).thenReturn(true);
+        when(stakeholder.matchesUser(user)).thenReturn(false);
+
+        mockMvc.perform(get("/api/projects/TestProject/my-permissions"))
+                .andExpect(status().isOk())
+                // Not a member: the admin gains the one affordance, not membership.
+                .andExpect(jsonPath("$.isStakeholder").value(false))
+                .andExpect(jsonPath("$.permissions.Project.length()").value(1))
+                .andExpect(jsonPath("$.permissions.Project[0]").value("Delete"))
+                .andExpect(jsonPath("$.permissions.Goal").doesNotExist());
+    }
+
+    @Test
+    void myPermissionsLeavesANonAdminStakeholderUntouched() throws Exception {
+        stubProjectUserRole();
+        StakeholderPermission editPerm =
+                stubStakeholderPermission(Project.class, StakeholderPermissionType.Edit);
+        when(stakeholder.getStakeholderPermissions()).thenReturn(Set.of(editPerm));
+
+        mockMvc.perform(get("/api/projects/TestProject/my-permissions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isStakeholder").value(true))
+                // Project[Delete] must NOT appear: only administrators get it for free.
+                .andExpect(jsonPath("$.permissions.Project.length()").value(1))
+                .andExpect(jsonPath("$.permissions.Project[0]").value("Edit"));
+    }
+
+    // -------------------------------------------------------------------------
     // Goals
     // -------------------------------------------------------------------------
 

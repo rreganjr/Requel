@@ -53,4 +53,28 @@ public sealed interface AuthorizationRequirement {
     record RequiresStakeholderPermission(Class<?> entityType, String permissionType)
             implements AuthorizationRequirement {
     }
+
+    /**
+     * Satisfied either by the stakeholder permission (exactly as
+     * {@link RequiresStakeholderPermission}) or by holding the given administrator role, which
+     * needs no stakeholder membership on the target project at all. The command must
+     * implement ProjectScopedCommand to provide the project context for the stakeholder
+     * branch.
+     *
+     * <p>
+     * Deliberately narrow (issue #256): system administrators do <em>not</em> generally
+     * satisfy stakeholder permissions - {@code AuthorizationIT} pins that an admin
+     * without {@code Goal[Edit]} cannot edit a goal - so this variant exists for the one
+     * operation where a system-level capability is the point: deleting a whole project
+     * during ops cleanup, where the admin is by definition not a stakeholder on the
+     * rubbish being removed. Use it only where that reasoning applies; reach for
+     * {@link RequiresStakeholderPermission} everywhere else.
+     *
+     * @param entityType     the domain entity type (e.g. Project.class)
+     * @param permissionType the permission type string ("Edit", "Delete", "Grant")
+     * @param roleType       the administrator role that also satisfies this requirement
+     */
+    record RequiresStakeholderPermissionOrSystemAdminRole(Class<?> entityType, String permissionType,
+            Class<? extends Role> roleType) implements AuthorizationRequirement {
+    }
 }

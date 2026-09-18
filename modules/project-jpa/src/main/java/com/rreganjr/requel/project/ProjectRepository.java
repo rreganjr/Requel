@@ -47,6 +47,13 @@ public interface ProjectRepository extends Repository {
 	public Project findProjectByName(String name) throws NoSuchProjectException;
 
 	/**
+	 * @return every project, ordered by name. Intended for administrative operations
+	 *         that must consider the whole estate (issue #256); ordinary reads should
+	 *         go through a user's active projects instead.
+	 */
+	public java.util.List<Project> findAllProjects();
+
+	/**
 	 * Find a project-scoped entity by its persistent id. {@code entityType} is the
 	 * domain interface (e.g. {@link Goal}, {@link Story}, {@link Project}). Ids are
 	 * stable across renames, so this is the preferred lookup for tooling that holds

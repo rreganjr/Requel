@@ -64,6 +64,7 @@ import com.rreganjr.requel.project.command.EditScenarioStepCommand;
 import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
+import com.rreganjr.requel.project.command.RepairProjectStakeholdersCommand;
 import com.rreganjr.requel.project.command.ExportProjectCommand;
 import com.rreganjr.requel.project.command.GenerateReportCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
@@ -114,6 +115,12 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	public ImportProjectCommand newImportProjectCommand() {
 		return (ImportProjectCommand) getCreationStrategy().newInstance(
 				ImportProjectStreamingCommandImpl.class);
+	}
+
+	@Override
+	public RepairProjectStakeholdersCommand newRepairProjectStakeholdersCommand() {
+		return (RepairProjectStakeholdersCommand) getCreationStrategy().newInstance(
+				RepairProjectStakeholdersCommandImpl.class);
 	}
 
 	@Override

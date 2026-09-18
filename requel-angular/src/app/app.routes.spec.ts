@@ -10,7 +10,7 @@ const byPath = (p: string) => children.find(c => c.path === p);
 
 const EXPECTED = [
   '', 'account', 'settings',
-  'users', 'users/:username', 'global-tags', 'tag-categories',
+  'users', 'users/:username', 'global-tags', 'tag-categories', 'maintenance',
   'projects', 'projects/new',
   'projects/:name/stakeholders', 'projects/:name/stakeholders/:stakeholderId',
   'projects/:name/goals', 'projects/:name/goals/:goalId',
@@ -25,7 +25,7 @@ const EXPECTED = [
   'projects/:name',
 ];
 
-const ADMIN = ['users', 'users/:username', 'global-tags', 'tag-categories'];
+const ADMIN = ['users', 'users/:username', 'global-tags', 'tag-categories', 'maintenance'];
 const EDITORS = [
   'account', 'users/:username', 'projects/new', 'projects/:name/edit',
   'projects/:name/stakeholders/:stakeholderId', 'projects/:name/goals/:goalId',

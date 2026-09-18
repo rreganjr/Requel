@@ -690,6 +690,10 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         assertTrue(GatewayPolicyConfig.DENIED.containsAll(
                 Set.of("Login", "EditUser", "EditUserStakeholder")),
                 "identity/user commands must be denied");
+        // #256: the stakeholder-repair command creates stakeholder rows and grants
+        // permissions, which is the same category as EditUserStakeholder above.
+        assertTrue(GatewayPolicyConfig.DENIED.contains("RepairProjectStakeholders"),
+                "administrative stakeholder repair must not be exposed on the gateway");
     }
 
     // ---- helpers -------------------------------------------------------------------------------

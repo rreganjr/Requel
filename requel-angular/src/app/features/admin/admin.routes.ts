@@ -54,4 +54,11 @@ export const adminRoutes: Routes = [
     data: routeData({ section: 'admin', breadcrumb: 'Tag categories' }),
     loadComponent: () => import('./tag-categories').then(m => m.TagCategoriesComponent),
   },
+  {
+    path: 'maintenance',
+    canActivate: [adminGuard],
+    title: 'Maintenance',
+    data: routeData({ section: 'admin', breadcrumb: 'Maintenance' }),
+    loadComponent: () => import('./maintenance').then(m => m.MaintenanceComponent),
+  },
 ];

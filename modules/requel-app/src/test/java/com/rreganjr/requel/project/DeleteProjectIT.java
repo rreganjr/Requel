@@ -57,6 +57,7 @@ import com.rreganjr.requel.project.command.AddActorToActorContainerCommand;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
 import com.rreganjr.requel.project.command.AddScenarioToUseCaseCommand;
 import com.rreganjr.requel.project.command.DeleteProjectCommand;
+import com.rreganjr.requel.project.command.DeleteStakeholderCommand;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
@@ -449,6 +450,48 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
     // -------------------------------------------------------------------------
 
     @Test
+    void adminCanDeleteAProjectTheyHoldNoStakeholderRowOn() throws Exception {
+        // #256. The 377 undeletable projects on the dev instance were exactly this shape:
+        // created through a path that left the admin off the stakeholder list, so nobody
+        // held Project[Delete] on them.
+        User admin = getUserRepository().findUserByUsername("admin");
+        String projectName = "del-admin-nonmember-" + System.currentTimeMillis();
+        Project project = createProject(admin, projectName);
+
+        removeStakeholder(admin, project, admin);
+        // The finder throws rather than returning null when the row is gone, which is the
+        // state under test.
+        assertThrows(NoSuchEntityException.class,
+                () -> getProjectRepository().findStakeholderByProjectOrDomainAndUser(
+                        getProjectRepository().get(project), admin),
+                "precondition: admin must hold no stakeholder row on the project");
+
+        deleteProject(admin, getProjectRepository().get(project), null);
+
+        assertThrows(NoSuchProjectException.class,
+                () -> getProjectRepository().findProjectByName(projectName));
+    }
+
+    @Test
+    void adminWithoutAStakeholderRowStillCannotEditWithinTheProject() throws Exception {
+        // The other half of #256: the administrator capability is deleting a whole project,
+        // not general editing rights inside one. If this ever starts passing a goal edit,
+        // the requirement has been widened beyond what was agreed.
+        User admin = getUserRepository().findUserByUsername("admin");
+        String projectName = "del-admin-narrow-" + System.currentTimeMillis();
+        Project project = createProject(admin, projectName);
+
+        removeStakeholder(admin, project, admin);
+
+        Project reloaded = getProjectRepository().get(project);
+        assertThrows(AuthorizationException.class,
+                () -> createGoal(admin, reloaded, "admin-goal-attempt-" + System.currentTimeMillis()));
+
+        // And the project is still there to be deleted the proper way.
+        assertNotNull(getProjectRepository().findProjectByName(projectName));
+    }
+
+    @Test
     void stakeholderWithoutProjectDeleteCannotDelete() throws Exception {
         User admin = getUserRepository().findUserByUsername("admin");
         long ts = System.currentTimeMillis();
@@ -480,6 +523,19 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
         cmd.setOrganizationName("DelTestOrg-" + name);
         cmd = getCommandHandler().execute(cmd);
         return cmd.getProject();
+    }
+
+    /**
+     * Sever a user's stakeholder association with a project, leaving the project in the
+     * state #256 is about: real, populated, and with nobody holding Project[Delete].
+     */
+    private void removeStakeholder(User actor, Project project, User member) throws Exception {
+        UserStakeholder stakeholder = getProjectRepository()
+                .findStakeholderByProjectOrDomainAndUser(getProjectRepository().get(project), member);
+        DeleteStakeholderCommand cmd = getProjectCommandFactory().newDeleteStakeholderCommand();
+        cmd.setEditedBy(actor);
+        cmd.setStakeholder(stakeholder);
+        getCommandHandler().execute(cmd);
     }
 
     protected void deleteProject(User actor, Project project, Integer expectedVersion)
