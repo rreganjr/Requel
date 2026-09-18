@@ -3,7 +3,7 @@ name: Release
 # Fires only on tag pushes matching v* (e.g. v2.0.0-rc1, v2.0.0).
 # Builds the project, runs the full test suite, and creates a GitHub
 # Release with auto-generated notes and the Spring Boot JAR attached.
-# See doc/20-release-plan.md §5.4.
+# See doc/work/2.0/20-release-plan.md §5.4.
 
 on:
   push:
@@ -52,7 +52,7 @@ jobs:
       # Same toolchains stanza ci.yml writes. The root pom's
       # maven-toolchains-plugin runs during the `validate` phase and
       # demands a matching JDK entry; without this step every Maven
-      # build fails before reaching compile. See doc/MAVEN_TOOLCHAINS.md
+      # build fails before reaching compile. See doc/guides/MAVEN_TOOLCHAINS.md
       # for the local-dev equivalent.
       - name: Write Maven toolchains.xml
         run: |

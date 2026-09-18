@@ -2,7 +2,7 @@
 #
 # create-gateway-bug-issues.sh
 # Files the six gateway write-surface issues found building the PlatformQ Roundtable
-# project. Bodies are sliced from doc/gateway-write-surface-bugs.md on its `---`
+# project. Bodies are sliced from doc/work/backlog/gateway-write-surface-bugs.md on its `---`
 # separators: block 0 is the preamble (not filed), blocks 1..6 are the issues.
 #
 # Requirements: gh CLI, authenticated (gh auth status).
@@ -19,7 +19,7 @@ MILESTONE="${MILESTONE-v2.0}"
 DRY_RUN="${DRY_RUN:-0}"
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SPEC="$REPO_DIR/doc/gateway-write-surface-bugs.md"
+SPEC="$REPO_DIR/doc/work/backlog/gateway-write-surface-bugs.md"
 [[ -r "$SPEC" ]] || { echo "ERROR: spec not found: $SPEC" >&2; exit 1; }
 
 BODY_DIR="$REPO_DIR/tmp/gateway-bug-issues"

@@ -91,7 +91,7 @@ import java.util.function.Consumer;
  *
  * <p>Requel runs its own authorization server (Spring Authorization Server) against its existing
  * user store; {@code /api/mcp/**} becomes an OAuth2 resource server (Slice 2) validating the tokens
- * this server issues. See {@code doc/oauth_mcp_plan.md} → "Implementation Plan".
+ * this server issues. See {@code doc/work/2.0/oauth_mcp_plan.md} → "Implementation Plan".
  *
  * <p><b>Filter-chain layering</b> (unique {@code @Order}; more specific matchers get lower numbers):
  * <ol>
@@ -189,7 +189,7 @@ public class AuthorizationServerConfig {
             .with(authorizationServerConfigurer, (authorizationServer) -> authorizationServer
                 // OpenID Connect: userinfo + Dynamic Client Registration (Slice 4). The registration
                 // endpoint requires an initial access token (client_credentials + client.create),
-                // minted by the seeded registrar client; see the DCR notes in doc/oauth_mcp_plan.md.
+                // minted by the seeded registrar client; see the DCR notes in doc/work/2.0/oauth_mcp_plan.md.
                 .oidc(oidc -> oidc
                     .clientRegistrationEndpoint(clientRegistration ->
                         clientRegistration.authenticationProviders(applyDcrClientDefaults())))
@@ -301,7 +301,7 @@ public class AuthorizationServerConfig {
      * keystore and the JWK {@code kid} is the (stable) key alias, so tokens issued before a restart
      * keep validating afterwards and JWKS consumers can cache the key (issue #105). When the location
      * is blank, the previous behavior is kept: a fresh key is generated at startup (ephemeral,
-     * dev/test/CI default) with a one-time warning. See {@code doc/105-keystore-credentials.md}.
+     * dev/test/CI default) with a one-time warning. See {@code doc/work/2.0/105-keystore-credentials.md}.
      *
      * @see #buildSigningKey(String, String, String, String, String, ResourceLoader)
      */

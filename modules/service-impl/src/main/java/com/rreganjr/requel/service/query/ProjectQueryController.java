@@ -1060,7 +1060,7 @@ public class ProjectQueryController {
      * targeted {@code Project:<id>} channel (the sidebar uses the fixed {@code Project:0}
      * broadcast), so there is nothing to target. An unrecognized container type also returns
      * {@code null} but is logged, so a future container type surfaces in the logs instead of
-     * silently going quiet. See {@code doc/178-association-result-extractors-plan.md} §Decisions.
+     * silently going quiet. See {@code doc/work/2.0/178-association-result-extractors-plan.md} §Decisions.
      */
     public static Object toContainerDetailDto(Object container) {
         if (container instanceof UseCase useCase) {

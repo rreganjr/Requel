@@ -54,4 +54,10 @@ Run it after closing issues:
 ```
 
 <!-- BEGIN INDEX -->
+
+| Folder | Contents | Files |
+|---|---|---|
+| [backlog](work/backlog/) | proposals, not yet scheduled | 7 |
+| [2.0](work/2.0/INDEX.md) | release 2.0 | 116 |
+
 <!-- END INDEX -->

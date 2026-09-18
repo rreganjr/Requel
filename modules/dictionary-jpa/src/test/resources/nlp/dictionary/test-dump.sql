@@ -5,7 +5,7 @@
    Comment style matters: DictionarySQLInitializer.readSQL strips block comments and has no
    handling for `--` line comments, so a `--` line would be accumulated into the statement that
    follows it and defeat the `startsWith("lock tables")` filter. The real dumps use block comments
-   throughout. See doc/DICTIONARY_LOADING.md. */
+   throughout. See doc/architecture/DICTIONARY_LOADING.md. */
 
 SET NAMES utf8;
 

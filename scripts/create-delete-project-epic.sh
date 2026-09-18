@@ -4,7 +4,7 @@
 # Creates the "Delete Project" Epic + 3 child sub-issues on the v2.0 milestone,
 # links each child to the epic, and adds them all to the Requel 2.0 project board.
 #
-# Issue bodies are sliced from doc/delete-project-epic.md (the canonical spec)
+# Issue bodies are sliced from doc/work/2.0/delete-project-epic.md (the canonical spec)
 # on its `---` separators: block 0 = epic, blocks 1..3 = the children. Keeping
 # the prose in the doc means this script stays small and the spec has one home.
 #
@@ -35,7 +35,7 @@ DRY_RUN="${DRY_RUN:-0}"
 FORCE="${FORCE:-0}"
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SPEC="$REPO_DIR/doc/delete-project-epic.md"
+SPEC="$REPO_DIR/doc/work/2.0/delete-project-epic.md"
 EPIC_TITLE="[Epic] Delete Project — backend command, UI action, and MCP gateway tool"
 
 [[ -r "$SPEC" ]] || { echo "ERROR: spec not found: $SPEC" >&2; exit 1; }

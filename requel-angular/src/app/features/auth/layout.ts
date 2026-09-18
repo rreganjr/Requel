@@ -63,7 +63,7 @@ function persistSidebarCollapsed(collapsed: boolean): void {
 /**
  * Main application layout: top bar (back + breadcrumb region on the left;
  * search / account / sidebar-toggle on the right) over a collapsible sidebar
- * and the main content canvas. See doc/128-154-app-shell-plan.md.
+ * and the main content canvas. See doc/work/2.0/128-154-app-shell-plan.md.
  *
  * The breadcrumb region hosts <app-breadcrumb>, which builds the trail from the
  * current URL. Project and section labels are dynamic; resolving an artifact's

@@ -16,8 +16,8 @@ It models requirements as goals, stories, actors, scenarios, and use-cases with 
 annotation and discussion layer for negotiating issues and tracking decisions.
 
 For background on what requirements engineering is and why it matters, see the
-[Thesis Document](https://github.com/rreganjr/Requel/raw/master/doc/ThesisFinalColor.pdf)
-(Harvard ALM, 2009). The [User Guide](https://github.com/rreganjr/Requel/raw/master/doc/UserGuide.pdf)
+[Thesis Document](https://github.com/rreganjr/Requel/raw/master/doc/archive/2009-thesis/ThesisFinalColor.pdf)
+(Harvard ALM, 2009). The [User Guide](https://github.com/rreganjr/Requel/raw/master/doc/archive/2009-thesis/UserGuide.pdf)
 covers the core concepts; note that Chapter 5 (_Requel Setup_) describes the old WAR deployment
 and is no longer relevant.
 

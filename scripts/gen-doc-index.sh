@@ -37,7 +37,9 @@ for f in sorted(os.listdir(dir_)):
     if not f.endswith('.md') or f == 'INDEX.md':
         continue
     m = re.match(r'^(\d+)[-_]', f)
-    if m:
+    # A leading number is only an issue number if it resolves to a real issue.
+    # doc/work/2.0/20-release-plan.md is the *2.0* release plan, not issue #20.
+    if m and int(m.group(1)) in issues:
         by_issue[int(m.group(1))].append(f)
     else:
         unattributed.append(f)
@@ -47,25 +49,20 @@ out = [f'# Release {release} — work artifacts', '',
        'Issue state is read live from GitHub at generation time; it is not stored in the files.', '',
        '| Issue | State | Title | Artifacts |', '|---|---|---|---|']
 
-missing = []
 for n in sorted(by_issue):
-    st, title = issues.get(n, ('?', '(not found on GitHub)'))
-    if st == '?':
-        missing.append(n)
+    st, title = issues[n]
     files = ', '.join(f'[{f}]({f})' for f in sorted(by_issue[n]))
     badge = {'CLOSED': 'closed', 'OPEN': '**open**'}.get(st, st)
     out += [f'| [#{n}](https://github.com/rreganjr/Requel/issues/{n}) | {badge} | {title} | {files} |']
 
 if unattributed:
     out += ['', '## Unattributed', '',
-            'No issue number in the filename. This list should shrink over time.', '']
+            'No issue number in the filename, or a leading number that is not an issue '
+            '(e.g. `20-release-plan.md` is the 2.0 release plan). Informational, not a defect.', '']
     out += [f'- [{f}]({f})' for f in sorted(unattributed)]
 
 out += ['', f'{len(by_issue)} issues, '
             f'{sum(len(v) for v in by_issue.values()) + len(unattributed)} files.']
-if missing:
-    out += ['', f'**Warning:** issue numbers not found on GitHub: '
-                f'{", ".join(str(m) for m in missing)}']
 
 open(os.path.join(dir_, 'INDEX.md'), 'w').write('\n'.join(out) + '\n')
 print(f'>> wrote {dir_}/INDEX.md — {len(by_issue)} issues, {len(unattributed)} unattributed',
@@ -83,7 +80,7 @@ for d in sorted(os.listdir('doc/work'), reverse=True):
     rows.append(f'| {link} | {label} | {n} |')
 
 readme = open('doc/README.md').read()
-block = '\n'.join(['<!-- BEGIN INDEX -->', '', '| Folder | | Files |', '|---|---|---|',
+block = '\n'.join(['<!-- BEGIN INDEX -->', '', '| Folder | Contents | Files |', '|---|---|---|',
                    *rows, '', '<!-- END INDEX -->'])
 readme = re.sub(r'<!-- BEGIN INDEX -->.*?<!-- END INDEX -->', block, readme, flags=re.S)
 open('doc/README.md', 'w').write(readme)

@@ -114,7 +114,7 @@ import com.rreganjr.requel.user.UserRepository;
  * find-by-text lookups reuses the same annotation. The richer state machine
  * (SUPERSEDED / AUTO_RESOLVED / MANUALLY_RESOLVED) and the
  * RESOLVE/DELETE/REMOVE action types are implemented in a later phase
- * (doc/43-phase-4.5-plan.md, Step 6); this applicator skips those action types
+ * (doc/work/2.0/43-phase-4.5-plan.md, Step 6); this applicator skips those action types
  * for now rather than failing the run.
  */
 @Component

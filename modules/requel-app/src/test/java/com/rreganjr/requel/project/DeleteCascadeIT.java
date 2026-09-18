@@ -63,7 +63,7 @@ import com.rreganjr.requel.user.User;
  * its own: an annotation linked to an entity <em>after</em> the delete loaded it
  * (the assistant race), a scenario that is another use case's additional scenario,
  * and a primary scenario shared by two use cases. See
- * {@code doc/247-delete-project-cascade-hardening-plan.md}.
+ * {@code doc/work/2.0/247-delete-project-cascade-hardening-plan.md}.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @ActiveProfiles("test")

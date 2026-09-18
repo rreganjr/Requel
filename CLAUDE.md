@@ -275,8 +275,8 @@ The Angular SPA is backed by a hybrid CQRS API:
 - **Reads:** `GET /api/...` — conventional query endpoints, ~28 total
 - **Composite CommandFactory:** per-domain factories (`ProjectCommandFactory`, `UserCommandFactory`, etc.) register their command types at startup; a top-level `CommandFactory` facade provides `newCommand(type, input)` entry point
 - **Domain integration:** existing Commands implement `ApiCommand<T>` interface for input mapping
-- **Authorization:** `AuthorizingCommandHandler` in handler chain checks `AuthorizableCommand.getAuthorizationRequirement()` before execute. See `doc/AUTH_ARCH.md`
-- Full architecture diagram and endpoint inventory in `doc/UI_REFACTOR_PLAN.md` Section 3.1
+- **Authorization:** `AuthorizingCommandHandler` in handler chain checks `AuthorizableCommand.getAuthorizationRequirement()` before execute. See `doc/architecture/AUTH_ARCH.md`
+- Full architecture diagram and endpoint inventory in `doc/work/2.0/UI_REFACTOR_PLAN.md` Section 3.1
 
 ### Database
 
@@ -287,7 +287,7 @@ The Angular SPA is backed by a hybrid CQRS API:
 ## Development Guardrails
 
 - **Domain purity:** Keep domain code persistence-ignorant — no repository access from entity constructors or JAXB hooks
-- **Aggregate boundaries:** Follow DDD terminology from `doc/unmarshalling_plan.md`; honour the AggregateAssembler/ImportUnitOfWork pattern for import logic
+- **Aggregate boundaries:** Follow DDD terminology from `doc/architecture/unmarshalling_plan.md`; honour the AggregateAssembler/ImportUnitOfWork pattern for import logic
 - **Annotation decoupling:** The annotation module must not import project implementation classes; use the registry pattern
 - **Module dependencies flow downward:** domain modules never depend on JPA modules
 - **Project XML compatibility:** Import/export must satisfy `doc/samples/project.xsd`; changes to JAXB mappings need round-trip regression tests

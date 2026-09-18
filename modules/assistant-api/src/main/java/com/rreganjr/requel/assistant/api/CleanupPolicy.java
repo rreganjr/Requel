@@ -24,7 +24,7 @@ package com.rreganjr.requel.assistant.api;
  * How an assistant's stale findings are handled when a later run no longer
  * reports them (or reports a changed version of them). Declared per assistant via
  * {@link RequelAssistant#cleanupPolicy()}; the result applicator owns the
- * transitions. See {@code doc/assistant-spi-plan.md} (Finding State Machine).
+ * transitions. See {@code doc/work/2.0/assistant-spi-plan.md} (Finding State Machine).
  */
 public enum CleanupPolicy {
 

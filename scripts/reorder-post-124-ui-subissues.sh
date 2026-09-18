@@ -7,7 +7,7 @@
 # the environment (this epic's number isn't hard-coded) and COMMENT_FILE defaults
 # to the post-124 rollup doc.
 #
-# doc/post-124-ui-rollup.md is the single source of truth. The build order is the
+# doc/work/2.0/post-124-ui-rollup.md is the single source of truth. The build order is the
 # order its `- [ ] #NNN` / `- [x] #NNN` lines appear, top to bottom. Get EPIC and
 # COMMENT_ID from the output of tmp/create-post-124-ui.sh.
 #
@@ -31,7 +31,7 @@ set -euo pipefail
 REPO="${REPO:-rreganjr/Requel}"
 EPIC="${EPIC:?set EPIC=<epic#> from tmp/create-post-124-ui.sh output}"
 COMMENT_ID="${COMMENT_ID:-}"                     # the rollup task-list comment (needed only with --comment)
-COMMENT_FILE="${COMMENT_FILE:-doc/post-124-ui-rollup.md}"
+COMMENT_FILE="${COMMENT_FILE:-doc/work/2.0/post-124-ui-rollup.md}"
 API_VERSION="2022-11-28"
 DRY_RUN="${DRY_RUN:-0}"
 

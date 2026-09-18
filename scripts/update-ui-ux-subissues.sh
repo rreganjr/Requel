@@ -133,7 +133,7 @@ patch_rollup_comment() {
   cat > "$body_file" <<'EOF'
 ## Remediation rollup by phase
 
-Grouped from `doc/UI_UX_REVIEW.md` findings 1.1-5.6 plus the look-and-feel items (N1-N6, see `doc/124-lookandfeel-plan.md`). Also includes the follow-on tickets split out of #132 (see `doc/132-reactive-forms-plan.md`) - #171, #172, #173, #176. Some of those are server-side, but each one exists only to make a UI finding correct, so they are tracked here. Closed sub-issues are auto-checked; the rest are checked as each PR squash-merges to `release/2.0`.
+Grouped from `doc/work/2.0/UI_UX_REVIEW.md` findings 1.1-5.6 plus the look-and-feel items (N1-N6, see `doc/work/2.0/124-lookandfeel-plan.md`). Also includes the follow-on tickets split out of #132 (see `doc/work/2.0/132-reactive-forms-plan.md`) - #171, #172, #173, #176. Some of those are server-side, but each one exists only to make a UI finding correct, so they are tracked here. Closed sub-issues are auto-checked; the rest are checked as each PR squash-merges to `release/2.0`.
 
 **Execution order matters - do issues top-to-bottom.** The list below is the intended build order, and the epic's native sub-issue list is sorted to match. Key dependency notes:
 
@@ -253,7 +253,7 @@ reorder_subissues() {
 # ---------------------------------------------------------------------------
 
 replace_body 129 <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 2.2.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 2.2.
 
 **Priority:** High. **Effort:** Medium (3-5 days).
 
@@ -284,7 +284,7 @@ Blocked by #157.
 EOF
 
 replace_body 145 <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 5.4.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 5.4.
 
 **Priority:** Medium. **Effort:** Medium (4-6 days).
 
@@ -316,7 +316,7 @@ Related: #140 owns user-facing live-region announcements and skipped-update bann
 EOF
 
 replace_body 146 <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 5.5.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 5.5.
 
 **Priority:** High. **Effort:** Large (2-4 weeks incrementally).
 
@@ -346,7 +346,7 @@ Blocked by #154, #155, #156, #157, #158, and #131.
 EOF
 
 replace_body 158 <<'EOF'
-Part of the look-and-feel adoption in `doc/124-lookandfeel-plan.md`.
+Part of the look-and-feel adoption in `doc/work/2.0/124-lookandfeel-plan.md`.
 
 Build the `app-field` and `app-form-wizard` primitives that later reactive-form migration tickets can consume.
 

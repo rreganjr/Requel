@@ -55,7 +55,7 @@ import com.rreganjr.nlp.dictionary.DictionaryRepository;
  * context and simply failed on H2, logging one line and leaving the dictionary empty — a silent,
  * dialect-dependent no-op that nothing declared. It now checks the datasource: anything that is not
  * MySQL is skipped explicitly, and a failure on MySQL — where the import was both asked for and
- * possible — is fatal rather than logged. See {@code doc/DICTIONARY_LOADING.md}.
+ * possible — is fatal rather than logged. See {@code doc/architecture/DICTIONARY_LOADING.md}.
  * 
  * @author ron
  */
@@ -172,7 +172,7 @@ public class DictionarySQLInitializer extends AbstractSystemInitializer {
 				+ " and execute only on MySQL, so the dictionary is empty in this context."
 				+ " Tests that need dictionary data call"
 				+ " AbstractIntegrationTestCase.ensureDictionaryLoaded() (dictionary.xml.gz)."
-				+ " See doc/DICTIONARY_LOADING.md.");
+				+ " See doc/architecture/DICTIONARY_LOADING.md.");
 		return false;
 	}
 

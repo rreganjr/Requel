@@ -49,7 +49,7 @@ import org.springframework.core.io.ResourceLoader;
  *
  * <p>The test keystore is generated at runtime with {@code keytool} into a {@link TempDir}, so no
  * keystore is committed to source control (consistent with the credential guidance in
- * {@code doc/105-keystore-credentials.md}). The test is skipped if {@code keytool} is not present in
+ * {@code doc/work/2.0/105-keystore-credentials.md}). The test is skipped if {@code keytool} is not present in
  * the running JDK.
  */
 class OAuthSigningKeyTest {

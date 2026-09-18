@@ -5,7 +5,7 @@
 # the v2.0 milestone, links each child to the epic, and adds them all to the Requel 2.0
 # project board.
 #
-# Issue bodies are sliced from doc/living-document-model-gaps.md (the canonical spec)
+# Issue bodies are sliced from doc/work/backlog/living-document-model-gaps.md (the canonical spec)
 # on its `---` separators: block 0 = epic, blocks 1..8 = the children. Same pattern as
 # scripts/create-delete-project-epic.sh.
 #
@@ -31,7 +31,7 @@ DRY_RUN="${DRY_RUN:-0}"
 FORCE="${FORCE:-0}"
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SPEC="$REPO_DIR/doc/living-document-model-gaps.md"
+SPEC="$REPO_DIR/doc/work/backlog/living-document-model-gaps.md"
 EPIC_TITLE="[Epic] Requel as a living document — annotation hygiene, provenance, and emit"
 
 [[ -r "$SPEC" ]] || { echo "ERROR: spec not found: $SPEC" >&2; exit 1; }

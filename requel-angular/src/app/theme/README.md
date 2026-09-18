@@ -3,7 +3,7 @@
 The Requel brand layer over PrimeNG's Aura preset. This is the single source of
 truth for the app's visual language — colors, radius, typography, and spacing.
 No component may hard-code these values; every component reads from the tokens
-documented here. (GitHub #125; see `doc/124-lookandfeel-plan.md` §1.1.)
+documented here. (GitHub #125; see `doc/work/2.0/124-lookandfeel-plan.md` §1.1.)
 
 ## Two token layers
 
@@ -22,7 +22,7 @@ but not the reverse.
 | Aspect | Value | Source |
 |---|---|---|
 | Primary | Tailwind Blue — `500 = #3b82f6`, hover `600 = #2563eb` | verbatim |
-| Surface | Tailwind Slate, 12 stops (`0 = #ffffff` … `950 = #020617`) | verbatim, `doc/124-lookandfeel-plan.md` §1.1.1 |
+| Surface | Tailwind Slate, 12 stops (`0 = #ffffff` … `950 = #020617`) | verbatim, `doc/work/2.0/124-lookandfeel-plan.md` §1.1.1 |
 | Content radius | `6px` (inputs, buttons, chips, cards) | preset + `--rq-radius-md` |
 | Font | Figtree Variable @ 14px base | bundled, self-hosted |
 | Canvas | light blue-gray (`surface-50 = #f8fafc`), white cards | preset |
