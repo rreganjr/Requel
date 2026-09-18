@@ -166,6 +166,39 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
         assertEquals(available, granted, "importing user receives full stakeholder permissions");
     }
 
+    /**
+     * The import path used to route the assistant through the same grant loop as the creator,
+     * so an imported project gave it every permission while a UI-created one gave it none
+     * (issue #302). It now holds its own set, whichever way the project arrived.
+     */
+    @Test
+    public void importedAssistantGetsOnlyTheAssistantPermissionSet() throws Exception {
+        ImportProjectCommand command = (ImportProjectCommand) applicationContext.getBean("importProjectCommand");
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        User creator = getUserRepository().findUserByUsername("project");
+        User assistant = getUserRepository().findUserByUsername("assistant");
+
+        command.setEditedBy(creator);
+        command.setAnalysisEnabled(false);
+        command.setName("Import Assistant Perms Test " + System.currentTimeMillis());
+        try (InputStream inputStream = Files.newInputStream(resolveSampleXml())) {
+            command.setInputStream(inputStream);
+            command = getCommandHandler().execute(command);
+        }
+
+        Project imported = command.getProject();
+        Optional<UserStakeholder> maybeAssistant = imported.getStakeholders().stream()
+                .filter(s -> s instanceof UserStakeholder us && us.matchesUser(assistant))
+                .map(s -> (UserStakeholder) s)
+                .findFirst();
+        assertTrue(maybeAssistant.isPresent(), "assistant added as stakeholder on import");
+
+        assertEquals(getProjectRepository().findAssistantStakeholderPermissions(),
+                maybeAssistant.get().getStakeholderPermissions(),
+                "an imported assistant holds exactly the assistant set, not the full matrix");
+    }
+
     private void ensureAssistantHasProjectRole() throws Exception {
         User assistant = getUserRepository().findUserByUsername("assistant");
         boolean hasRole = assistant.getUserRoles().stream()

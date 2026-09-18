@@ -54,9 +54,9 @@ import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
 import com.rreganjr.requel.project.command.EditAddActorToProjectPositionCommand;
 import com.rreganjr.requel.project.command.EditAddWordToGlossaryPositionCommand;
-import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveUnneedLexicalIssuesCommand;
 import com.rreganjr.requel.project.exception.NoSuchActorException;
@@ -728,14 +728,18 @@ public class LexicalAssistant extends AbstractAssistant {
 		return editPositionCommand.getPosition();
 	}
 
+	/**
+	 * Recording that the analyzed entity mentions an existing glossary term goes through
+	 * AddGlossaryTermRefererCommand rather than EditGlossaryTermCommand, so the assistant does
+	 * not need GlossaryTerm[Edit] for what is really annotation bookkeeping (issue #302).
+	 */
 	protected void addProjectOrDomainEntityAsRefererToGlossaryTerm(User assistantUser,
 			GlossaryTerm glossaryTerm, ProjectOrDomainEntity thingBeingAnalyzed) throws Exception {
-		EditGlossaryTermCommand command = getProjectCommandFactory().newEditGlossaryTermCommand();
-		Set<ProjectOrDomainEntity> entities = new HashSet<ProjectOrDomainEntity>(1);
-		entities.add(thingBeingAnalyzed);
-		command.setAddReferers(entities);
-		command.setEditedBy(assistantUser);
+		AddGlossaryTermRefererCommand command = getProjectCommandFactory()
+				.newAddGlossaryTermRefererCommand();
 		command.setGlossaryTerm(glossaryTerm);
+		command.setReferer(thingBeingAnalyzed);
+		command.setEditedBy(assistantUser);
 		command = getCommandHandler().execute(command);
 	}
 }

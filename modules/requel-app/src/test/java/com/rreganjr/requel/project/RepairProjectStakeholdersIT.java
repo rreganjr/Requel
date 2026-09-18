@@ -64,6 +64,16 @@ public class RepairProjectStakeholdersIT extends AbstractIntegrationTestCase {
 			StakeholderPermissionImpl.generatePermissionKey(Project.class,
 					StakeholderPermissionType.Edit);
 
+	private static final String ANNOTATION_EDIT_KEY =
+			StakeholderPermissionImpl.generatePermissionKey(
+					com.rreganjr.requel.annotation.Annotation.class,
+					StakeholderPermissionType.Edit);
+
+	private static final String ANNOTATION_DELETE_KEY =
+			StakeholderPermissionImpl.generatePermissionKey(
+					com.rreganjr.requel.annotation.Annotation.class,
+					StakeholderPermissionType.Delete);
+
 	@BeforeAll
 	void setUp() throws Exception {
 		initializeBaselineData();
@@ -149,6 +159,77 @@ public class RepairProjectStakeholdersIT extends AbstractIntegrationTestCase {
 		assertNotNull(findStakeholder(second, admin));
 	}
 
+	/**
+	 * The one case where a repair takes permissions away (issue #302). A project imported
+	 * before #302 had the assistant granted every available permission by the import loop; the
+	 * repair narrows that to the assistant's own set, and leaves the creator alone while doing
+	 * it.
+	 */
+	@Test
+	void narrowsAnOverGrantedAssistantWithoutTouchingTheCreator() throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		User assistant = getUserRepository().findUserByUsername("assistant");
+		String projectName = "repair-assistant-narrow-" + System.currentTimeMillis();
+		Project project = createProject(admin, projectName);
+		Set<String> everything = getProjectRepository().findAvailableStakeholderPermissions()
+				.stream().map(StakeholderPermission::getPermissionKey)
+				.collect(java.util.stream.Collectors.toSet());
+
+		setStakeholderPermissions(admin, project, "assistant", everything);
+		assertEquals(everything.size(),
+				findStakeholder(projectName, assistant).getStakeholderPermissions().size(),
+				"precondition: the assistant must hold the full matrix, as an old import left it");
+
+		RepairProjectStakeholdersCommand cmd = repair(admin, projectName);
+
+		assertEquals(Set.of(ANNOTATION_EDIT_KEY, ANNOTATION_DELETE_KEY),
+				permissionKeys(findStakeholder(projectName, assistant)),
+				"the assistant ends at exactly the assistant set");
+		assertEquals(everything.size() - 2, cmd.getPermissionsRevoked(),
+				"every permission outside the assistant set is revoked, and only those");
+		assertEquals(everything.size(),
+				findStakeholder(projectName, admin).getStakeholderPermissions().size(),
+				"a run that narrows the assistant must not touch a human stakeholder");
+	}
+
+	@Test
+	void recreatesAMissingAssistantRow() throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		User assistant = getUserRepository().findUserByUsername("assistant");
+		String projectName = "repair-assistant-missing-" + System.currentTimeMillis();
+		Project project = createProject(admin, projectName);
+
+		removeStakeholder(admin, project, assistant);
+		assertNull(findStakeholder(projectName, assistant),
+				"precondition: the assistant must hold no stakeholder row");
+
+		RepairProjectStakeholdersCommand cmd = repair(admin, projectName);
+
+		UserStakeholder restored = findStakeholder(projectName, assistant);
+		assertNotNull(restored, "the assistant's stakeholder row must be restored");
+		assertEquals(Set.of(ANNOTATION_EDIT_KEY, ANNOTATION_DELETE_KEY),
+				permissionKeys(restored));
+		assertEquals(1, cmd.getStakeholdersCreated());
+		assertEquals(2, cmd.getPermissionsGranted());
+	}
+
+	/**
+	 * A freshly created project is already in the repaired state, which is what AC 4 asks for:
+	 * repairing one changes nothing.
+	 */
+	@Test
+	void aFreshlyCreatedProjectNeedsNoAssistantRepair() throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		String projectName = "repair-assistant-noop-" + System.currentTimeMillis();
+		createProject(admin, projectName);
+
+		RepairProjectStakeholdersCommand cmd = repair(admin, projectName);
+
+		assertEquals(0, cmd.getStakeholdersCreated());
+		assertEquals(0, cmd.getPermissionsGranted());
+		assertEquals(0, cmd.getPermissionsRevoked());
+	}
+
 	@Test
 	void requiresTheSystemAdministratorRole() throws Exception {
 		User admin = getUserRepository().findUserByUsername("admin");
@@ -164,6 +245,12 @@ public class RepairProjectStakeholdersIT extends AbstractIntegrationTestCase {
 	}
 
 	// ---- helpers -------------------------------------------------------------
+
+	private Set<String> permissionKeys(UserStakeholder stakeholder) {
+		return stakeholder.getStakeholderPermissions().stream()
+				.map(StakeholderPermission::getPermissionKey)
+				.collect(java.util.stream.Collectors.toSet());
+	}
 
 	private RepairProjectStakeholdersCommand repair(User actor, String projectName)
 			throws Exception {

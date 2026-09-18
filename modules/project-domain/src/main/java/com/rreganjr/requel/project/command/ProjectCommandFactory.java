@@ -131,6 +131,12 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public EditGlossaryTermCommand newEditGlossaryTermCommand();
 
 	/**
+	 * @return a new AddGlossaryTermRefererCommand for recording that an entity mentions an
+	 *         existing glossary term, without the caller needing GlossaryTerm[Edit] (#302).
+	 */
+	public AddGlossaryTermRefererCommand newAddGlossaryTermRefererCommand();
+
+	/**
 	 * @return a new EditAddWordToGlossaryPositionCommand for creating or
 	 *         editing a position for adding a term to the project glossary.
 	 */

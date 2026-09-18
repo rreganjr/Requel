@@ -233,7 +233,7 @@ public class ProjectCommandRegistrar {
                     RepairProjectStakeholdersCommand c = (RepairProjectStakeholdersCommand) cmd;
                     return new RepairProjectStakeholdersResultDto(c.getProjectsScanned(),
                             c.getStakeholdersCreated(), c.getPermissionsGranted(),
-                            c.getProjectsSkipped());
+                            c.getPermissionsRevoked(), c.getProjectsSkipped());
                 });
 
         // Stakeholders

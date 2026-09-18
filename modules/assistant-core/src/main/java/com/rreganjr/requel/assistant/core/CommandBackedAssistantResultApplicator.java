@@ -80,9 +80,9 @@ import com.rreganjr.requel.assistant.core.persistence.AssistantRunRepository;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
 import com.rreganjr.requel.project.command.EditAddActorToProjectPositionCommand;
 import com.rreganjr.requel.project.command.EditAddWordToGlossaryPositionCommand;
-import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.user.UserRepository;
 
@@ -175,7 +175,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		Objects.requireNonNull(context, "context");
 		Objects.requireNonNull(result, "result");
 
-		User editedBy = resolveUser(context);
+		User editedBy = resolveAssistantUser(context);
 		String source = "ASSISTANT:" + result.assistantId();
 		List<Long> annotationIds = new ArrayList<Long>();
 		// Annotations created earlier in this same result, keyed by action key,
@@ -189,8 +189,8 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		for (AnnotationAction action : result.annotationActions()) {
 			try {
 				if (action.actionType() == AnnotationAction.ActionType.ADD_GLOSSARY_TERM_REFERER) {
-					// Project edit (not an annotation): link the target entity to an existing
-					// glossary term. Idempotent at the domain level, so no finding is recorded.
+					// Link the target entity to an existing glossary term. Idempotent at the
+					// domain level, so no finding is recorded.
 					applyGlossaryTermReferer(action, editedBy);
 					continue;
 				}
@@ -419,14 +419,18 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 				.map(annotationRepository::findAnnotationById).orElse(null);
 	}
 
-	// ---- project edits (glossary-term referer) --------------------------------
+	// ---- glossary-term referer ------------------------------------------------
 
 	/**
 	 * Add the action's {@code targetRef} entity as a referer to an existing glossary term
 	 * (identified by {@code metadata.glossaryTermType} / {@code glossaryTermId}), through
-	 * {@link EditGlossaryTermCommand#setAddReferers}. This is a project edit, not an
-	 * annotation: it produces no finding and is idempotent at the domain level (the referer
-	 * collection is a {@code Set}). A no-op when either entity can no longer be resolved.
+	 * {@link AddGlossaryTermRefererCommand}. It produces no finding and is idempotent at the
+	 * domain level (the referer collection is a {@code Set}). A no-op when either entity can no
+	 * longer be resolved.
+	 *
+	 * <p>
+	 * It goes through that narrow command rather than {@code EditGlossaryTermCommand} so the
+	 * assistant does not need {@code GlossaryTerm[Edit]} to record a back-reference - see #302.
 	 */
 	private void applyGlossaryTermReferer(AnnotationAction action, User editedBy) throws Exception {
 		Object refererObject = resolveTargetEntity(action.targetRef());
@@ -440,9 +444,10 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 					+ " resolve", action.actionKey(), action.targetRef(), termId);
 			return;
 		}
-		EditGlossaryTermCommand command = projectCommandFactory.newEditGlossaryTermCommand();
+		AddGlossaryTermRefererCommand command = projectCommandFactory
+				.newAddGlossaryTermRefererCommand();
 		command.setGlossaryTerm(glossaryTerm);
-		command.setAddReferers(new HashSet<ProjectOrDomainEntity>(List.of(referer)));
+		command.setReferer(referer);
 		command.setEditedBy(editedBy);
 		commandHandler.execute(command);
 	}
@@ -913,6 +918,37 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			return null;
 		}
 		return userRepository.findUserByUsername(ref.username());
+	}
+
+	/**
+	 * The identity an assistant run's writes are made with: the assistant, not the person whose
+	 * edit set the run going (issue #302).
+	 *
+	 * <p>
+	 * These annotations are the assistant's findings, so the assistant authors them and the
+	 * assistant's permissions authorize them. Writing them as the triggering user made every
+	 * finding look hand-written by whoever happened to save the entity, and quietly borrowed
+	 * that person's permissions - which is why #302 never showed up on this path even though
+	 * the assistant held none on a UI-created project. MCP and agent writes are a different
+	 * thing and keep the logged-in user: those go through the command gateway, which stamps
+	 * editedBy from the SecurityContext.
+	 *
+	 * <p>
+	 * Falls back to the triggering user when the run carries no resolvable assistant identity,
+	 * so an unexpected context cannot take down a whole analysis pass.
+	 */
+	private User resolveAssistantUser(AssistantContext context) {
+		// AssistantContext requires a non-null assistantUser, so only the username can be absent.
+		UserRef ref = context.assistantUser();
+		if (ref.username() != null) {
+			try {
+				return userRepository.findUserByUsername(ref.username());
+			} catch (RuntimeException e) {
+				log.warn("Assistant user '{}' did not resolve; falling back to the triggering"
+						+ " user for run {}", ref.username(), context.runId(), e);
+			}
+		}
+		return resolveUser(context);
 	}
 
 	private <T> T parentOfType(AnnotationAction action, Map<String, Object> createdByActionKey,

@@ -32,6 +32,7 @@ public record RepairProjectStakeholdersResultDto(
         int projectsScanned,
         int stakeholdersCreated,
         int permissionsGranted,
+        int permissionsRevoked,
         int projectsSkipped
 ) {
 }

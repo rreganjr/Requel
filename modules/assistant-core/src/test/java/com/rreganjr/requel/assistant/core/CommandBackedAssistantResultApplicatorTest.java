@@ -22,7 +22,6 @@ package com.rreganjr.requel.assistant.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -47,7 +46,7 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.DeleteNoteCommand;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
-import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
+import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
@@ -179,6 +178,39 @@ class CommandBackedAssistantResultApplicatorTest {
 		verifyNoInteractions(annotationCommandFactory);
 	}
 
+	/**
+	 * A run whose assistant identity does not resolve still has to apply its findings, so the
+	 * applicator falls back to the triggering user rather than failing the whole pass (#302).
+	 */
+	@Test
+	void fallsBackToTheTriggeringUserWhenTheAssistantDoesNotResolve() throws Exception {
+		String key = "legacy-lexical:Goal:1:note";
+		AssistantFindingEntity finding = new AssistantFindingEntity(UUID.randomUUID(), key,
+				"legacy-lexical", "Goal", 1L, "note", AssistantFindingState.ACTIVE.name(),
+				UUID.randomUUID(), Instant.parse("2026-05-29T00:00:00Z"));
+		finding.setAppliedAnnotationId(55L);
+		when(findingRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(finding));
+		when(annotationRepository.findById(Note.class, 55L)).thenReturn(mock(Note.class));
+		DeleteNoteCommand deleteCommand = mock(DeleteNoteCommand.class);
+		when(annotationCommandFactory.newDeleteNoteCommand()).thenReturn(deleteCommand);
+		when(commandHandler.execute(deleteCommand)).thenReturn(deleteCommand);
+
+		com.rreganjr.requel.user.User triggeringUser = mock(com.rreganjr.requel.user.User.class);
+		when(userRepository.findUserByUsername("assistant"))
+				.thenThrow(new IllegalStateException("no assistant user on this deployment"));
+		when(userRepository.findUserByUsername("ron")).thenReturn(triggeringUser);
+
+		AnnotationAction delete = new AnnotationAction(key, AnnotationAction.ActionType.DELETE_NOTE,
+				EntityRef.of("Goal", 1L), null, null, null, null, List.of(), Map.of());
+		AssistantResult result = AssistantResult.builder().assistantId("legacy-lexical")
+				.annotationAction(delete).build();
+
+		newApplicator().apply(context(), result, CleanupPolicy.MARK_SUPERSEDED,
+				EntityRef.of("Goal", 1L));
+
+		verify(deleteCommand).setEditedBy(triggeringUser);
+	}
+
 	@Test
 	void manualPolicyLeavesStaleFindingsUntouched() {
 		// Under MANUAL the applicator does not query or transition prior findings.
@@ -191,7 +223,7 @@ class CommandBackedAssistantResultApplicatorTest {
 	}
 
 	@Test
-	void glossaryTermRefererActionAddsRefererViaEditCommand() throws Exception {
+	void glossaryTermRefererActionAddsRefererAsTheAssistant() throws Exception {
 		EntityRef refererRef = EntityRef.of("Goal", 1L);
 		EntityRef termRef = EntityRef.of("GlossaryTerm", 9L);
 		ProjectOrDomainEntity referer = mock(ProjectOrDomainEntity.class);
@@ -201,9 +233,13 @@ class CommandBackedAssistantResultApplicatorTest {
 		when(loader.loadTarget(refererRef)).thenReturn(Optional.of(referer));
 		when(loader.supports(termRef)).thenReturn(true);
 		when(loader.loadTarget(termRef)).thenReturn(Optional.of(term));
-		EditGlossaryTermCommand command = mock(EditGlossaryTermCommand.class);
-		when(projectCommandFactory.newEditGlossaryTermCommand()).thenReturn(command);
+		AddGlossaryTermRefererCommand command = mock(AddGlossaryTermRefererCommand.class);
+		when(projectCommandFactory.newAddGlossaryTermRefererCommand()).thenReturn(command);
 		when(commandHandler.execute(command)).thenReturn(command);
+		// The write is made as the assistant, not as the user whose edit triggered the run
+		// (issue #302).
+		com.rreganjr.requel.user.User assistantUser = mock(com.rreganjr.requel.user.User.class);
+		when(userRepository.findUserByUsername("assistant")).thenReturn(assistantUser);
 
 		CommandBackedAssistantResultApplicator applicator = new CommandBackedAssistantResultApplicator(
 				commandHandler, annotationCommandFactory, projectCommandFactory, annotationRepository,
@@ -219,10 +255,10 @@ class CommandBackedAssistantResultApplicatorTest {
 		applicator.apply(context(), result, CleanupPolicy.MANUAL, refererRef);
 
 		verify(command).setGlossaryTerm(term);
-		verify(command).setAddReferers(argThat(set -> set.size() == 1 && set.contains(referer)));
-		verify(command).setEditedBy(any());
+		verify(command).setReferer(referer);
+		verify(command).setEditedBy(assistantUser);
 		verify(commandHandler).execute(command);
-		// A glossary-term referer is a project edit, not a finding.
+		// A glossary-term referer produces no finding.
 		verifyNoInteractions(findingRepository);
 	}
 

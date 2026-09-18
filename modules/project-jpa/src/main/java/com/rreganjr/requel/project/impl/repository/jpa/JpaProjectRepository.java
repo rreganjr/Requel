@@ -50,6 +50,7 @@ import com.rreganjr.repository.jpa.GenericPropertyValueExceptionAdapter;
 import com.rreganjr.repository.jpa.InvalidStateExceptionAdapter;
 import com.rreganjr.repository.jpa.OptimisticLockExceptionAdapter;
 import com.rreganjr.platform.exception.NoSuchEntityException;
+import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.NoSuchPositionException;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
@@ -326,6 +327,22 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			throw convertException(e, StakeholderPermission.class, null,
 					EntityExceptionActionType.Reading);
 		}
+	}
+
+	/**
+	 * @see com.rreganjr.requel.project.ProjectRepository#findAssistantStakeholderPermissions()
+	 */
+	@Override
+	public Set<StakeholderPermission> findAssistantStakeholderPermissions() {
+		// findStakeholderPermission throws when a row is absent, which is the behaviour this
+		// needs: returning a short set would hand the assistant fewer permissions than it
+		// needs and reproduce #302 somewhere new.
+		Set<StakeholderPermission> permissions = new TreeSet<StakeholderPermission>();
+		permissions.add(findStakeholderPermission(Annotation.class,
+				StakeholderPermissionType.Edit));
+		permissions.add(findStakeholderPermission(Annotation.class,
+				StakeholderPermissionType.Delete));
+		return permissions;
 	}
 
 	@Override

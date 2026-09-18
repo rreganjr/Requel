@@ -184,6 +184,31 @@ public interface ProjectRepository extends Repository {
 	public Set<StakeholderPermission> findAvailableStakeholderPermissions();
 
 	/**
+	 * The permissions the background assistant holds on every project, however that project
+	 * was created - exactly {@code Annotation[Edit]} and {@code Annotation[Delete]} (issue
+	 * #302).
+	 *
+	 * <p>
+	 * Three callers must agree on this set or it drifts the way creation and import drifted
+	 * from each other: {@code EditProjectCommandImpl.createProject()},
+	 * {@code ImportProjectStreamingCommandImpl.addUserAsStakeholder()} and
+	 * {@code RepairProjectStakeholdersCommand}. It is defined here so there is one answer.
+	 *
+	 * <p>
+	 * Edit covers every annotation the assistants write - notes, issues, positions, arguments
+	 * and the lexical subclasses that inherit the requirement. Delete is not optional: the
+	 * assistant retracts its own stale findings on each re-run
+	 * ({@code CommandBackedAssistantResultApplicator.reconcileStaleFindings}). Nothing the
+	 * assistant runs requires {@code Annotation[Grant]}, so it is excluded.
+	 *
+	 * @return the assistant's permission set.
+	 * @throws com.rreganjr.EntityException
+	 *             if either permission row is missing, rather than silently returning a
+	 *             shorter set - an under-grant here is issue #302 in a new shape.
+	 */
+	public Set<StakeholderPermission> findAssistantStakeholderPermissions();
+
+	/**
 	 * @param permission
 	 *            a stakeholder permission definition.
 	 * @return every {@link UserStakeholder} that has been granted the supplied

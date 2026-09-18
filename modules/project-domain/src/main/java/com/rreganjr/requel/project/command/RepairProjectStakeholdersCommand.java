@@ -36,11 +36,19 @@ import com.rreganjr.platform.command.EditCommand;
  * brings old rows up to what creation produces today and does nothing else.
  *
  * <p>
+ * It also brings the {@code assistant} stakeholder to
+ * {@code ProjectRepository.findAssistantStakeholderPermissions()} (issue #302), which is the
+ * one case where a repair takes permissions away: a project imported before #302 had the
+ * assistant granted the full matrix by the import loop, and the point of #302 is that the
+ * assistant holds the same set however the project arrived. Nobody assigned the assistant
+ * those permissions - a loop did - so narrowing them is still repair rather than policy. Human
+ * stakeholders are only ever topped up.
+ *
+ * <p>
  * Idempotent, and safe to run against every project repeatedly. Projects whose
  * {@code createdBy} is null or no longer resolves to a user are skipped and counted,
- * not failed. The {@code assistant} stakeholder is deliberately untouched - see #302,
- * which owns what permissions the assistant should hold and will change creation,
- * import and this command together.
+ * not failed - and a project with no assistant stakeholder row still has its creator
+ * repaired, and vice versa.
  *
  * @author ron
  */
@@ -69,6 +77,13 @@ public interface RepairProjectStakeholdersCommand extends EditCommand {
 	 *         stakeholders.
 	 */
 	public int getPermissionsGranted();
+
+	/**
+	 * @return how many individual permissions were revoked across all repaired stakeholders.
+	 *         Only the assistant's row is ever narrowed (issue #302); a human stakeholder's
+	 *         permissions are never taken away by a repair.
+	 */
+	public int getPermissionsRevoked();
 
 	/**
 	 * @return how many projects were skipped because their createdBy was null or did
