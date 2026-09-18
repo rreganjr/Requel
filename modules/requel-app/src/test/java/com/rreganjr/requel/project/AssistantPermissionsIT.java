@@ -38,10 +38,14 @@ import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
+import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
+import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.impl.StakeholderPermissionImpl;
 import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.command.EditUserCommand;
+import com.rreganjr.validator.EntityValidationException;
 
 /**
  * What the background assistant may do on a project created through the UI (issue #302).
@@ -131,6 +135,71 @@ public class AssistantPermissionsIT extends AbstractIntegrationTestCase {
 		assertThrows(AuthorizationException.class, () -> getCommandHandler().execute(cmd));
 	}
 
+	/**
+	 * The glossary-term back-reference an analysis pass records is annotation bookkeeping, not a
+	 * glossary edit, so it goes through AddGlossaryTermRefererCommand and the assistant can make
+	 * it with Annotation[Edit] alone — it holds no GlossaryTerm[Edit] (#302).
+	 */
+	@Test
+	void theAssistantCanRecordAGlossaryTermReferer() throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		User assistant = getUserRepository().findUserByUsername("assistant");
+		Project project = createProject(admin, "assistant-perms-referer-" + System.currentTimeMillis());
+		Goal goal = createGoal(admin, project, "assistant-perms-referer-goal-" + System.currentTimeMillis());
+		GlossaryTerm term = createGlossaryTerm(admin, project,
+				"assistantterm" + System.currentTimeMillis());
+
+		AddGlossaryTermRefererCommand cmd = getProjectCommandFactory()
+				.newAddGlossaryTermRefererCommand();
+		cmd.setEditedBy(assistant);
+		cmd.setGlossaryTerm(term);
+		cmd.setReferer(goal);
+		cmd = getCommandHandler().execute(cmd);
+
+		assertTrue(cmd.getGlossaryTerm().getReferers().contains(goal),
+				"the analyzed entity is recorded as a referer of the term");
+		assertTrue(getProjectRepository().get(goal).getGlossaryTerms().contains(term),
+				"and the association is set on both sides");
+	}
+
+	@Test
+	void aNonStakeholderCannotRecordAGlossaryTermReferer() throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		long ts = System.currentTimeMillis();
+		Project project = createProject(admin, "assistant-perms-referer-deny-" + ts);
+		Goal goal = createGoal(admin, project, "assistant-perms-deny-goal-" + ts);
+		GlossaryTerm term = createGlossaryTerm(admin, project, "denyterm" + ts);
+		User outsider = createUser(admin, "assistant-perms-outsider-" + ts);
+
+		AddGlossaryTermRefererCommand cmd = getProjectCommandFactory()
+				.newAddGlossaryTermRefererCommand();
+		cmd.setEditedBy(outsider);
+		cmd.setGlossaryTerm(term);
+		cmd.setReferer(goal);
+
+		assertThrows(AuthorizationException.class, () -> getCommandHandler().execute(cmd));
+	}
+
+	/**
+	 * With no term the command still has to resolve its project from the referer, so the
+	 * authorization check can run before validation rejects the input.
+	 */
+	@Test
+	void recordingARefererWithoutATermIsRejected() throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		User assistant = getUserRepository().findUserByUsername("assistant");
+		long ts = System.currentTimeMillis();
+		Project project = createProject(admin, "assistant-perms-referer-invalid-" + ts);
+		Goal goal = createGoal(admin, project, "assistant-perms-invalid-goal-" + ts);
+
+		AddGlossaryTermRefererCommand cmd = getProjectCommandFactory()
+				.newAddGlossaryTermRefererCommand();
+		cmd.setEditedBy(assistant);
+		cmd.setReferer(goal);
+
+		assertThrows(EntityValidationException.class, () -> getCommandHandler().execute(cmd));
+	}
+
 	@Test
 	void theAssistantSetIsSmallerThanTheCreatorSet() {
 		Set<StakeholderPermission> assistantPermissions = getProjectRepository()
@@ -160,6 +229,33 @@ public class AssistantPermissionsIT extends AbstractIntegrationTestCase {
 		cmd.setOrganizationName("AssistantPermsOrg-" + name);
 		cmd = getCommandHandler().execute(cmd);
 		return cmd.getProject();
+	}
+
+	private GlossaryTerm createGlossaryTerm(User actor, Project project, String name)
+			throws Exception {
+		EditGlossaryTermCommand cmd = getProjectCommandFactory().newEditGlossaryTermCommand();
+		cmd.setEditedBy(actor);
+		cmd.setProjectOrDomain(getProjectRepository().get(project));
+		cmd.setName(name);
+		cmd.setText("a term the assistant will link to");
+		cmd = getCommandHandler().execute(cmd);
+		return cmd.getGlossaryTerm();
+	}
+
+	private User createUser(User actor, String username) throws Exception {
+		EditUserCommand cmd = getUserCommandFactory().newEditUserCommand();
+		cmd.setEditedBy(actor);
+		cmd.setUsername(username);
+		cmd.setPassword("test-pass");
+		cmd.setRepassword("test-pass");
+		cmd.setName(username);
+		cmd.setEmailAddress(username + "@example.com");
+		cmd.setPhoneNumber("");
+		cmd.setOrganizationName("AssistantPermsOrg");
+		// A user with no role at all fails bean validation on the way in.
+		cmd.addUserRoleName("ProjectUserRole");
+		getCommandHandler().execute(cmd);
+		return getUserRepository().findUserByUsername(username);
 	}
 
 	private Goal createGoal(User actor, Project project, String name) throws Exception {

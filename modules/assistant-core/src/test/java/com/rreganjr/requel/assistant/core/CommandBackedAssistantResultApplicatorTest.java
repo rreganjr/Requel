@@ -178,6 +178,39 @@ class CommandBackedAssistantResultApplicatorTest {
 		verifyNoInteractions(annotationCommandFactory);
 	}
 
+	/**
+	 * A run whose assistant identity does not resolve still has to apply its findings, so the
+	 * applicator falls back to the triggering user rather than failing the whole pass (#302).
+	 */
+	@Test
+	void fallsBackToTheTriggeringUserWhenTheAssistantDoesNotResolve() throws Exception {
+		String key = "legacy-lexical:Goal:1:note";
+		AssistantFindingEntity finding = new AssistantFindingEntity(UUID.randomUUID(), key,
+				"legacy-lexical", "Goal", 1L, "note", AssistantFindingState.ACTIVE.name(),
+				UUID.randomUUID(), Instant.parse("2026-05-29T00:00:00Z"));
+		finding.setAppliedAnnotationId(55L);
+		when(findingRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(finding));
+		when(annotationRepository.findById(Note.class, 55L)).thenReturn(mock(Note.class));
+		DeleteNoteCommand deleteCommand = mock(DeleteNoteCommand.class);
+		when(annotationCommandFactory.newDeleteNoteCommand()).thenReturn(deleteCommand);
+		when(commandHandler.execute(deleteCommand)).thenReturn(deleteCommand);
+
+		com.rreganjr.requel.user.User triggeringUser = mock(com.rreganjr.requel.user.User.class);
+		when(userRepository.findUserByUsername("assistant"))
+				.thenThrow(new IllegalStateException("no assistant user on this deployment"));
+		when(userRepository.findUserByUsername("ron")).thenReturn(triggeringUser);
+
+		AnnotationAction delete = new AnnotationAction(key, AnnotationAction.ActionType.DELETE_NOTE,
+				EntityRef.of("Goal", 1L), null, null, null, null, List.of(), Map.of());
+		AssistantResult result = AssistantResult.builder().assistantId("legacy-lexical")
+				.annotationAction(delete).build();
+
+		newApplicator().apply(context(), result, CleanupPolicy.MARK_SUPERSEDED,
+				EntityRef.of("Goal", 1L));
+
+		verify(deleteCommand).setEditedBy(triggeringUser);
+	}
+
 	@Test
 	void manualPolicyLeavesStaleFindingsUntouched() {
 		// Under MANUAL the applicator does not query or transition prior findings.
@@ -190,7 +223,7 @@ class CommandBackedAssistantResultApplicatorTest {
 	}
 
 	@Test
-	void glossaryTermRefererActionAddsRefererViaEditCommand() throws Exception {
+	void glossaryTermRefererActionAddsRefererAsTheAssistant() throws Exception {
 		EntityRef refererRef = EntityRef.of("Goal", 1L);
 		EntityRef termRef = EntityRef.of("GlossaryTerm", 9L);
 		ProjectOrDomainEntity referer = mock(ProjectOrDomainEntity.class);

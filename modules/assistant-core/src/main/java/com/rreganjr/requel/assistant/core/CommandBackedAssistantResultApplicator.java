@@ -938,8 +938,9 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 * so an unexpected context cannot take down a whole analysis pass.
 	 */
 	private User resolveAssistantUser(AssistantContext context) {
+		// AssistantContext requires a non-null assistantUser, so only the username can be absent.
 		UserRef ref = context.assistantUser();
-		if (ref != null && ref.username() != null) {
+		if (ref.username() != null) {
 			try {
 				return userRepository.findUserByUsername(ref.username());
 			} catch (RuntimeException e) {
