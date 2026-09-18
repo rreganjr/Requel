@@ -22,18 +22,18 @@ sub-issues (#220–226, plus I8 added later) are listed below.
 ### Phase 3 — App shell & scroll/viewport model
 
 - [x] #223 — I2 App shell / top bar polish: sticky header, CDK announcer visually-hidden fix, remove search (L4, T2, T3) — 3
-- [ ] #224 — I3 Sidebar: per-section scroll regions (S1) — 5
+- [x] #224 — I3 Sidebar: per-section scroll regions (S1) — 5
 
 ### Phase 4 — Screen polish
 
-- [ ] #225 — I1 Login screen overhaul (L1, L2, L3, L5, L6, L7, L8) — 5
+- [x] #225 — I1 Login screen overhaul (L1, L2, L3, L5, L6, L7, L8) — 5
 
 ### Phase 5 — Enhancement
 
-- [ ] #226 — I6 Annotations: collapse/expand (A1) — 3
+- [x] #226 — I6 Annotations: collapse/expand (A1) — 3
 
 ### Phase 6 — Table/list polish
 
-- [ ] #234 — I8 Search icon: migrate the three search boxes to PrimeNG 21 IconField (D2) — 2
+- [x] #234 — I8 Search icon: migrate the three search boxes to PrimeNG 21 IconField (D2) — 2
 
-**Progress: 4 / 8 complete** (proposed 26 points total).
+**Progress: 8 / 8 complete** (proposed 26 points total).
