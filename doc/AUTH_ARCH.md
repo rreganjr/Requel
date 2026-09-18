@@ -536,7 +536,61 @@ The Angular HTTP interceptor handles 403 responses:
 - Do not redirect — the user stays on the current page
 - Optionally refresh permissions in case they changed
 
-## 6. Migration Approach
+## 6. Assistant Identity and Permissions
+
+Three different identities write through the command chain, and they are authorized
+differently. Getting them mixed up is what issue #302 was.
+
+| Writer | `editedBy` | Authorized as |
+|---|---|---|
+| A person in the UI | the logged-in user, from the `SecurityContext` | their own stakeholder permissions |
+| An agent over MCP / the command gateway | the logged-in user, stamped by `InProcessCommandGateway` | that person's permissions — an agent acts for whoever is signed in |
+| A background assistant run | the `assistant` user, resolved by `CommandBackedAssistantResultApplicator` from `AssistantContext.assistantUser()` | the assistant's own stakeholder permissions |
+
+The third row is the one worth stating out loud. An assistant's findings are the assistant's,
+so they are authored by the assistant and authorized by what the assistant may do — not by
+whoever happened to save the entity that set the run going. Before #302 the applicator used
+`AssistantContext.triggeringUser()` for every write, which made findings look hand-written and
+quietly borrowed that person's permissions.
+
+### 6.1 What the assistant holds
+
+`ProjectRepository.findAssistantStakeholderPermissions()` is the single definition:
+
+- `Annotation[Edit]` — every annotation the assistants write: notes, issues, positions,
+  arguments, and the lexical subclasses that inherit the requirement.
+- `Annotation[Delete]` — not optional. An assistant retracts its own stale findings on each
+  re-run (`CommandBackedAssistantResultApplicator.reconcileStaleFindings`), which runs the
+  delete commands.
+
+Nothing else. `Annotation[Grant]` exists as a permission row but nothing the assistant runs
+requires it, and the assistant deliberately cannot edit goals, stories, actors, the glossary or
+the project itself.
+
+Three places must agree, and all three ask the repository rather than keeping their own list:
+`EditProjectCommandImpl.createProject()`, `ImportProjectStreamingCommandImpl.addUserAsStakeholder()`
+and `RepairProjectStakeholdersCommand`. The repair command is the only one that *revokes*: a
+project imported before #302 had the assistant granted the full matrix by the import loop, and
+narrowing that is what makes "the assistant holds the same set however the project was created"
+true. Human stakeholders are only ever topped up.
+
+### 6.2 The one write that is not an annotation
+
+While analyzing text, an assistant that finds a phrase matching an existing glossary term
+records the analyzed entity as a *referer* on that term. That went through
+`EditGlossaryTermCommand`, which requires `GlossaryTerm[Edit]` — a permission the assistant
+should not need for what is a back-reference. It now goes through
+`AddGlossaryTermRefererCommand`, which requires `Annotation[Edit]` and can change nothing else
+about the term. `EditGlossaryTermCommand` still requires `GlossaryTerm[Edit]` unconditionally,
+including for the user-facing "Add to Glossary" resolver.
+
+### 6.3 Reads
+
+Reads are not permission-gated the way writes are. `ProjectQueryController.requireProjectAccess`
+needs a stakeholder row or the system-administrator role, so the assistant's row is enough on
+its own, and in-process assistants read through the repositories with no check at all.
+
+## 7. Migration Approach
 
 ### Phase 0 — Foundation (UI_REFACTOR_PLAN Phase 0)
 - Add `AuthorizableCommand`, `AuthorizationRequirement`, `ProjectScopedCommand` interfaces
@@ -555,7 +609,7 @@ The Angular HTTP interceptor handles 403 responses:
 - Project-scoped commands implement `ProjectScopedCommand`
 - Query controllers use `ProjectAccessChecker`
 
-## 7. Summary
+## 8. Summary
 
 | Concern | Where | How |
 |---|---|---|
@@ -565,3 +619,4 @@ The Angular HTTP interceptor handles 403 responses:
 | Nested command auth | Same handler chain | Sub-commands go through full chain; each declares its own requirement |
 | Query authorization | `ProjectAccessChecker` in controllers | Verifies stakeholder membership before returning data |
 | Angular UI gating | `PermissionService` + signals | System roles from JWT, project permissions from API endpoint |
+| Assistant writes | `CommandBackedAssistantResultApplicator` | Authored as the `assistant` user; authorized by `findAssistantStakeholderPermissions()` (§6) |

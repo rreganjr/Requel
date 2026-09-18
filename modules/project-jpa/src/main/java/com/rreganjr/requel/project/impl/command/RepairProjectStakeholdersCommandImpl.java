@@ -21,6 +21,7 @@
 package com.rreganjr.requel.project.impl.command;
 
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -70,6 +71,8 @@ public class RepairProjectStakeholdersCommandImpl extends AbstractEditProjectCom
 	private static final Logger log = LoggerFactory
 			.getLogger(RepairProjectStakeholdersCommandImpl.class);
 
+	private static final String ASSISTANT_USERNAME = "assistant";
+
 	private String projectName;
 
 	private int projectsScanned;
@@ -77,6 +80,8 @@ public class RepairProjectStakeholdersCommandImpl extends AbstractEditProjectCom
 	private int stakeholdersCreated;
 
 	private int permissionsGranted;
+
+	private int permissionsRevoked;
 
 	private int projectsSkipped;
 
@@ -114,6 +119,11 @@ public class RepairProjectStakeholdersCommandImpl extends AbstractEditProjectCom
 	}
 
 	@Override
+	public int getPermissionsRevoked() {
+		return permissionsRevoked;
+	}
+
+	@Override
 	public int getProjectsSkipped() {
 		return projectsSkipped;
 	}
@@ -123,13 +133,23 @@ public class RepairProjectStakeholdersCommandImpl extends AbstractEditProjectCom
 		User editedBy = getRepository().get(getEditedBy());
 		Set<StakeholderPermission> available = getProjectRepository()
 				.findAvailableStakeholderPermissions();
+		Set<StakeholderPermission> assistantPermissions = getProjectRepository()
+				.findAssistantStakeholderPermissions();
+		// Resolved once: a deployment without the assistant user should log that fact once,
+		// not once per project, and should still repair every creator.
+		com.rreganjr.requel.user.User assistant = resolveAssistant();
 
 		for (Project project : resolveProjects()) {
 			projectsScanned++;
-			repair(getProjectRepository().get(project), available, editedBy);
+			Project managed = getProjectRepository().get(project);
+			repair(managed, available, editedBy);
+			if (assistant != null) {
+				repairAssistant(managed, assistant, assistantPermissions, editedBy);
+			}
 		}
-		log.info("Repaired project stakeholders: scanned={}, created={}, granted={}, skipped={}",
-				projectsScanned, stakeholdersCreated, permissionsGranted, projectsSkipped);
+		log.info("Repaired project stakeholders: scanned={}, created={}, granted={}, revoked={},"
+				+ " skipped={}", projectsScanned, stakeholdersCreated, permissionsGranted,
+				permissionsRevoked, projectsSkipped);
 	}
 
 	private Collection<? extends Project> resolveProjects() {
@@ -167,6 +187,57 @@ public class RepairProjectStakeholdersCommandImpl extends AbstractEditProjectCom
 			}
 		}
 		getProjectRepository().merge(stakeholder);
+	}
+
+	/**
+	 * Bring this project's {@code assistant} stakeholder to exactly the assistant's permission
+	 * set (issue #302), creating the row when the project predates it having one.
+	 *
+	 * <p>
+	 * This is the one place a repair revokes. A project imported before #302 had the assistant
+	 * granted every available permission by the import loop, and "the assistant holds the same
+	 * set however the project was created" is not true while those extras remain. The narrowing
+	 * is scoped to the assistant's own row: {@link #repair} handles humans and only ever grants.
+	 *
+	 */
+	private void repairAssistant(Project project, com.rreganjr.requel.user.User assistant,
+			Set<StakeholderPermission> assistantPermissions, User editedBy) {
+		UserStakeholder stakeholder = findUserStakeholder(project, assistant);
+		if (stakeholder == null) {
+			stakeholder = getProjectRepository()
+					.persist(new UserStakeholderImpl(project, editedBy, assistant));
+			project.getStakeholders().add(stakeholder);
+			stakeholdersCreated++;
+		}
+
+		for (StakeholderPermission permission : assistantPermissions) {
+			if (!stakeholder.getStakeholderPermissions().contains(permission)) {
+				stakeholder.grantStakeholderPermission(permission);
+				permissionsGranted++;
+			}
+		}
+		for (StakeholderPermission held : new LinkedHashSet<StakeholderPermission>(
+				stakeholder.getStakeholderPermissions())) {
+			if (!assistantPermissions.contains(held)) {
+				stakeholder.revokeStakeholderPermission(held);
+				permissionsRevoked++;
+			}
+		}
+		getProjectRepository().merge(stakeholder);
+	}
+
+	/**
+	 * @return the assistant user, or null on a deployment that has none - in which case there
+	 *         is no assistant row to repair and the creator repair still runs.
+	 */
+	private com.rreganjr.requel.user.User resolveAssistant() {
+		try {
+			return getUserRepository().findUserByUsername(ASSISTANT_USERNAME);
+		} catch (Exception e) {
+			log.warn("The assistant user does not resolve; skipping assistant stakeholder"
+					+ " repair: {}", e.getMessage());
+			return null;
+		}
 	}
 
 	private com.rreganjr.requel.user.User resolveCreator(Project project) {

@@ -296,7 +296,11 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
 
         addUserAsStakeholder(targetProject, createdBy, createdBy);
         try {
-            addUserAsStakeholder(targetProject, getUserRepository().findUserByUsername("assistant"), createdBy);
+            // The assistant holds its own, narrower set rather than the creator's full matrix
+            // (issue #302), and holds exactly that set: a project imported over an existing one
+            // can carry an assistant row this path over-granted before #302.
+            addUserAsStakeholder(targetProject, getUserRepository().findUserByUsername("assistant"),
+                    createdBy, getProjectRepository().findAssistantStakeholderPermissions(), true);
         } catch (NoSuchUserException e) {
             log.warn("The assistant user doesn't exist and could not be added as a stakeholder to " + targetProject.getName());
         }
@@ -485,6 +489,23 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
     private record ProjectMetadata(String organizationName, String description) {}
 
     private void addUserAsStakeholder(Project project, User user, User editedBy) {
+        addUserAsStakeholder(project, user, editedBy,
+                getProjectRepository().findAvailableStakeholderPermissions(), false);
+    }
+
+    /**
+     * Ensure {@code user} has a stakeholder row on {@code project} holding {@code permissions}.
+     *
+     * <p>
+     * When {@code exact} is false the row is topped up and anything extra it already holds is
+     * left alone - the right behaviour for a human stakeholder, whose permissions someone
+     * assigned deliberately. When true the row is made to match {@code permissions} exactly,
+     * extras included. Only the assistant is imported that way (issue #302): its permissions
+     * were never assigned by anyone, this loop granted them, and the point of #302 is that the
+     * assistant holds the same set however the project arrived.
+     */
+    private void addUserAsStakeholder(Project project, User user, User editedBy,
+            Set<StakeholderPermission> permissions, boolean exact) {
         if (user == null) {
             return;
         }
@@ -510,9 +531,17 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
                 });
 
         // Grant any missing permissions.
-        for (StakeholderPermission permission : getProjectRepository().findAvailableStakeholderPermissions()) {
+        for (StakeholderPermission permission : permissions) {
             if (!creatorStakeholder.getStakeholderPermissions().contains(permission)) {
                 creatorStakeholder.grantStakeholderPermission(permission);
+            }
+        }
+        if (exact) {
+            for (StakeholderPermission held : new LinkedHashSet<StakeholderPermission>(
+                    creatorStakeholder.getStakeholderPermissions())) {
+                if (!permissions.contains(held)) {
+                    creatorStakeholder.revokeStakeholderPermission(held);
+                }
             }
         }
         creatorStakeholder.ensureProjectMembership();

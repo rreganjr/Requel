@@ -30,6 +30,9 @@ import org.springframework.stereotype.Controller;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizableCommand;
 import com.rreganjr.platform.command.AuthorizationRequirement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
@@ -51,6 +54,7 @@ import com.rreganjr.requel.user.Organization;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.exception.NoSuchOrganizationException;
+import com.rreganjr.requel.user.exception.NoSuchUserException;
 import com.rreganjr.requel.user.impl.OrganizationImpl;
 
 /**
@@ -60,6 +64,8 @@ import com.rreganjr.requel.user.impl.OrganizationImpl;
 @Scope("prototype")
 public class EditProjectCommandImpl extends AbstractEditProjectCommand implements
 		EditProjectCommand, AuthorizableCommand, ProjectScopedCommand {
+
+	private static final Logger log = LoggerFactory.getLogger(EditProjectCommandImpl.class);
 
 	public static final String BUILTIN_REPORT_GENERATOR_PATH = "xslt/project2html.xslt";
 
@@ -212,9 +218,36 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 		}
 
 		// TODO: use a command to create the stakeholder
-		// create a stakeholder for assistant
-		com.rreganjr.requel.user.User assistantUser = getUserRepository().findUserByUsername("assistant");
-		getProjectRepository().persist(new UserStakeholderImpl(projectImpl, user, assistantUser));
+		// Create a stakeholder for the assistant, holding the set defined in one place for
+		// creation, import and repair alike (issue #302). Before that it was created with no
+		// permissions at all, so every assistant annotation on a UI-created project was
+		// refused by AuthorizingCommandHandler while the same project imported from XML
+		// worked. A missing assistant user is a warning rather than a failure, matching the
+		// import path: a deployment without the assistant can still create projects.
+		try {
+			com.rreganjr.requel.user.User assistantUser = getUserRepository()
+					.findUserByUsername("assistant");
+			UserStakeholderImpl assistantStakeholder = getProjectRepository().persist(
+					new UserStakeholderImpl(projectImpl, user, assistantUser));
+			for (StakeholderPermission permission : getProjectRepository()
+					.findAssistantStakeholderPermissions()) {
+				assistantStakeholder.grantStakeholderPermission(permission);
+			}
+			// The persisted row has to join the project's collection for
+			// ProjectImpl.getUserStakeholder() - and so the authorization check that calls it -
+			// to see it without a reload, and the assistant needs project membership the same
+			// way the import path grants it.
+			projectImpl.getStakeholders().add(assistantStakeholder);
+			try {
+				assistantStakeholder.ensureProjectMembership();
+			} catch (com.rreganjr.requel.user.exception.NoSuchRoleForUserException e) {
+				log.warn("Assistant user missing ProjectUserRole; skipping membership"
+						+ " enforcement on " + projectImpl.getName(), e);
+			}
+		} catch (NoSuchUserException e) {
+			log.warn("The assistant user doesn't exist and could not be added as a stakeholder to "
+					+ projectImpl.getName());
+		}
 
 		// Ensure the creator carries a ProjectUserRole so activeProjects can be tracked.
 		com.rreganjr.requel.user.User requelUser = (com.rreganjr.requel.user.User) user;

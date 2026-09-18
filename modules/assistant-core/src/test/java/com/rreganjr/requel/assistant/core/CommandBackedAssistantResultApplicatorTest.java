@@ -22,7 +22,6 @@ package com.rreganjr.requel.assistant.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -47,7 +46,7 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.DeleteNoteCommand;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
-import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
+import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
@@ -201,9 +200,13 @@ class CommandBackedAssistantResultApplicatorTest {
 		when(loader.loadTarget(refererRef)).thenReturn(Optional.of(referer));
 		when(loader.supports(termRef)).thenReturn(true);
 		when(loader.loadTarget(termRef)).thenReturn(Optional.of(term));
-		EditGlossaryTermCommand command = mock(EditGlossaryTermCommand.class);
-		when(projectCommandFactory.newEditGlossaryTermCommand()).thenReturn(command);
+		AddGlossaryTermRefererCommand command = mock(AddGlossaryTermRefererCommand.class);
+		when(projectCommandFactory.newAddGlossaryTermRefererCommand()).thenReturn(command);
 		when(commandHandler.execute(command)).thenReturn(command);
+		// The write is made as the assistant, not as the user whose edit triggered the run
+		// (issue #302).
+		com.rreganjr.requel.user.User assistantUser = mock(com.rreganjr.requel.user.User.class);
+		when(userRepository.findUserByUsername("assistant")).thenReturn(assistantUser);
 
 		CommandBackedAssistantResultApplicator applicator = new CommandBackedAssistantResultApplicator(
 				commandHandler, annotationCommandFactory, projectCommandFactory, annotationRepository,
@@ -219,10 +222,10 @@ class CommandBackedAssistantResultApplicatorTest {
 		applicator.apply(context(), result, CleanupPolicy.MANUAL, refererRef);
 
 		verify(command).setGlossaryTerm(term);
-		verify(command).setAddReferers(argThat(set -> set.size() == 1 && set.contains(referer)));
-		verify(command).setEditedBy(any());
+		verify(command).setReferer(referer);
+		verify(command).setEditedBy(assistantUser);
 		verify(commandHandler).execute(command);
-		// A glossary-term referer is a project edit, not a finding.
+		// A glossary-term referer produces no finding.
 		verifyNoInteractions(findingRepository);
 	}
 

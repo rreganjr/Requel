@@ -53,6 +53,7 @@ import com.rreganjr.requel.project.command.DeleteUseCaseCommand;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditAddActorToProjectPositionCommand;
 import com.rreganjr.requel.project.command.EditAddWordToGlossaryPositionCommand;
+import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditGoalRelationCommand;
@@ -195,6 +196,11 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	public EditGlossaryTermCommand newEditGlossaryTermCommand() {
 		return (EditGlossaryTermCommand) getCreationStrategy().newInstance(
 				EditGlossaryTermCommandImpl.class);
+	}
+
+	public AddGlossaryTermRefererCommand newAddGlossaryTermRefererCommand() {
+		return (AddGlossaryTermRefererCommand) getCreationStrategy().newInstance(
+				AddGlossaryTermRefererCommandImpl.class);
 	}
 
 	public EditAddWordToGlossaryPositionCommand newEditAddWordToGlossaryPositionCommand() {
