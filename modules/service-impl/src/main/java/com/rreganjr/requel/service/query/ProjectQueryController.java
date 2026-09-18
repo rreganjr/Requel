@@ -190,7 +190,12 @@ public class ProjectQueryController {
             // Find the current user's stakeholder in this project
             UserStakeholder stakeholder = findUserStakeholder(project, user);
             if (stakeholder == null) {
-                return ResponseEntity.ok(new ProjectPermissionsDto(false, canCreate, Collections.emptyMap()));
+                // Not a stakeholder: no permissions at all, except that an administrator may
+                // still delete the project (#256). isStakeholder stays false - this grants the
+                // one affordance, not membership.
+                Map<String, Set<String>> adminOnly = new HashMap<>();
+                addAdminProjectDelete(adminOnly, user);
+                return ResponseEntity.ok(new ProjectPermissionsDto(false, canCreate, adminOnly));
             }
 
             // Build permission map: entitySimpleName -> set of permission type names
@@ -200,6 +205,7 @@ public class ProjectQueryController {
                 permMap.computeIfAbsent(entityName, k -> new HashSet<>())
                         .add(perm.getPermissionType().name());
             }
+            addAdminProjectDelete(permMap, user);
 
             return ResponseEntity.ok(new ProjectPermissionsDto(true, canCreate, permMap));
         } catch (NoSuchProjectException e) {
@@ -541,11 +547,20 @@ public class ProjectQueryController {
     }
 
     /**
-     * True iff the given user holds the Project[Delete] stakeholder permission on
-     * this project. Mirrors the gate enforced by the DeleteProject command (#240)
-     * so the UI never offers a Delete action the backend would reject with 403.
+     * True iff the given user may delete this project. Mirrors the gate enforced by the
+     * DeleteProject command (#240, #256) so the UI never offers a Delete action the
+     * backend would reject with 403 - and never hides one it would accept.
+     *
+     * <p>
+     * Two ways to satisfy it, matching
+     * {@code RequiresStakeholderPermissionOrSystemAdminRole} on the command: the
+     * {@code Project[Delete]} stakeholder permission, or the system-administrator role
+     * with no stakeholder row at all. Change this and the command's requirement together.
      */
     private boolean callerHoldsProjectDelete(Project project, User user) {
+        if (user.hasRole(SystemAdminUserRole.class)) {
+            return true;
+        }
         UserStakeholder stakeholder = findUserStakeholder(project, user);
         if (stakeholder == null) {
             return false;
@@ -557,6 +572,20 @@ public class ProjectQueryController {
             }
         }
         return false;
+    }
+
+    /**
+     * Add {@code Project[Delete]} for a system administrator, and for nobody else (#256).
+     * Keeps the workspace's Delete control in step with
+     * {@link #callerHoldsProjectDelete(Project, User)} and with the DeleteProject command's
+     * own requirement. Deliberately the only permission an administrator gains this way:
+     * they are not granted editing rights inside a project they are not a stakeholder of.
+     */
+    private void addAdminProjectDelete(Map<String, Set<String>> permMap, User user) {
+        if (user.hasRole(SystemAdminUserRole.class)) {
+            permMap.computeIfAbsent(Project.class.getSimpleName(), k -> new HashSet<>())
+                    .add(StakeholderPermissionType.Delete.name());
+        }
     }
 
     private <T extends ProjectOrDomainEntity> ProjectTreeNodeDto treeGroup(String groupName,

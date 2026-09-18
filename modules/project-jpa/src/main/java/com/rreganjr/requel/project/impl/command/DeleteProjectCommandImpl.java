@@ -32,7 +32,7 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizableCommand;
 import com.rreganjr.platform.command.AuthorizationExemptable;
 import com.rreganjr.platform.command.AuthorizationRequirement;
-import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermissionOrSystemAdminRole;
 import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.platform.exception.EntityLockException;
@@ -67,6 +67,7 @@ import com.rreganjr.requel.project.command.DeleteUseCaseCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 
 /**
  * Delete a whole project and every entity it contains (issue #240, epic #239).
@@ -306,8 +307,22 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 		return project;
 	}
 
+	/**
+	 * {@code Project[Delete]} on this project, <em>or</em> the system-administrator role
+	 * (issue #256).
+	 *
+	 * <p>
+	 * The role alternative exists because the stakeholder gate blocked the use case the
+	 * delete-project epic was built for: on the dev instance 377 of 524 projects reported
+	 * {@code canDelete: false}, all of them e2e fixtures and imports created through paths
+	 * that never made the admin a stakeholder, so the rubbish #239 set out to remove could
+	 * not be removed by anyone. This is deliberately the only command that takes the
+	 * alternative - an administrator gains the ability to delete a whole project, not
+	 * general editing rights inside one - and {@code AuthorizationIT} pins that narrowness.
+	 */
 	@Override
 	public AuthorizationRequirement getAuthorizationRequirement() {
-		return new RequiresStakeholderPermission(Project.class, "Delete");
+		return new RequiresStakeholderPermissionOrSystemAdminRole(Project.class, "Delete",
+				SystemAdminUserRole.class);
 	}
 }

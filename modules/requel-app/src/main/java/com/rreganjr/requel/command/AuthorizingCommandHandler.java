@@ -106,30 +106,46 @@ public class AuthorizingCommandHandler implements CommandHandler {
                         "Cannot check role permissions for user type: " + user.getClass().getName());
             }
         } else if (req instanceof RequiresStakeholderPermission r) {
-            if (command instanceof ProjectScopedCommand psc) {
-                try {
-                    UserStakeholder stakeholder = psc.getProject().getUserStakeholder(user);
-                    String permKey = r.entityType().getName() + "[" + r.permissionType() + "]";
-                    boolean hasPermission = stakeholder.getStakeholderPermissions().stream()
-                            .anyMatch(p -> permKey.equals(p.getPermissionKey()));
-                    if (!hasPermission) {
-                        throw new AuthorizationException(
-                                "Requires stakeholder permission: "
-                                + r.entityType().getSimpleName() + "[" + r.permissionType() + "]");
-                    }
-                } catch (AuthorizationException e) {
-                    throw e;
-                } catch (Exception e) {
-                    throw new AuthorizationException(
-                            "User is not a stakeholder on the target project", e);
-                }
-            } else {
-                throw new AuthorizationException(
-                        "Stakeholder permission required but command "
-                        + "does not provide project context");
+            checkStakeholderPermission(command, user, r.entityType(), r.permissionType());
+        } else if (req instanceof RequiresStakeholderPermissionOrSystemAdminRole r) {
+            // The administrator role is an alternative to stakeholder membership, not an addition to it
+            // (issue #256): an administrator cleaning up projects is by definition not a
+            // stakeholder on them. Everyone else falls through to the identical stakeholder check.
+            if (!user.hasRole(r.roleType())) {
+                checkStakeholderPermission(command, user, r.entityType(), r.permissionType());
             }
         }
         log.trace("Authorization check passed for {} by user {}",
                 command.getClass().getSimpleName(), user.getUsername());
+    }
+
+    /**
+     * The stakeholder-permission check shared by {@code RequiresStakeholderPermission} and the
+     * stakeholder branch of {@code RequiresStakeholderPermissionOrSystemAdminRole}. One copy on
+     * purpose: two would drift, and a stale authorization check is worse than a verbose one.
+     */
+    private void checkStakeholderPermission(AuthorizableCommand command, User user,
+            Class<?> entityType, String permissionType) {
+        if (!(command instanceof ProjectScopedCommand psc)) {
+            throw new AuthorizationException(
+                    "Stakeholder permission required but command "
+                    + "does not provide project context");
+        }
+        try {
+            UserStakeholder stakeholder = psc.getProject().getUserStakeholder(user);
+            String permKey = entityType.getName() + "[" + permissionType + "]";
+            boolean hasPermission = stakeholder.getStakeholderPermissions().stream()
+                    .anyMatch(p -> permKey.equals(p.getPermissionKey()));
+            if (!hasPermission) {
+                throw new AuthorizationException(
+                        "Requires stakeholder permission: "
+                        + entityType.getSimpleName() + "[" + permissionType + "]");
+            }
+        } catch (AuthorizationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AuthorizationException(
+                    "User is not a stakeholder on the target project", e);
+        }
     }
 }

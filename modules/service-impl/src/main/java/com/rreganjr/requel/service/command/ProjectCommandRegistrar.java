@@ -80,6 +80,7 @@ import com.rreganjr.requel.project.command.EditScenarioStepCommand;
 import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
+import com.rreganjr.requel.project.command.RepairProjectStakeholdersCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RemoveActorFromActorContainerCommand;
@@ -103,6 +104,8 @@ import com.rreganjr.requel.service.api.dto.CopyUseCaseInput;
 import com.rreganjr.requel.service.api.dto.DeleteActorInput;
 import com.rreganjr.requel.service.api.dto.DeleteScenarioInput;
 import com.rreganjr.requel.service.api.dto.DeleteProjectInput;
+import com.rreganjr.requel.service.api.dto.RepairProjectStakeholdersInput;
+import com.rreganjr.requel.service.api.dto.RepairProjectStakeholdersResultDto;
 import com.rreganjr.requel.service.api.dto.DeleteGoalInput;
 import com.rreganjr.requel.service.api.dto.DeleteGoalRelationInput;
 import com.rreganjr.requel.service.api.dto.DeleteStakeholderInput;
@@ -213,6 +216,24 @@ public class ProjectCommandRegistrar {
                     c.setProject(project);
                     // Caller's version drives the optimistic-lock check (issue #108).
                     c.setExpectedVersion(i.version());
+                });
+
+        // Administrative repair (#256). Denied on the gateway - creating stakeholder rows and
+        // granting permissions is identity management, the same category as EditUserStakeholder,
+        // which the gateway denylist already excludes by design.
+        registry.register("RepairProjectStakeholders", RepairProjectStakeholdersInput.class,
+                factory::newRepairProjectStakeholdersCommand,
+                (cmd, input) -> {
+                    RepairProjectStakeholdersCommand c = (RepairProjectStakeholdersCommand) cmd;
+                    RepairProjectStakeholdersInput i = (RepairProjectStakeholdersInput) input;
+                    c.setProjectName(i.projectName());
+                },
+                null, // no file
+                cmd -> {
+                    RepairProjectStakeholdersCommand c = (RepairProjectStakeholdersCommand) cmd;
+                    return new RepairProjectStakeholdersResultDto(c.getProjectsScanned(),
+                            c.getStakeholdersCreated(), c.getPermissionsGranted(),
+                            c.getProjectsSkipped());
                 });
 
         // Stakeholders

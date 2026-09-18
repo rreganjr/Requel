@@ -304,6 +304,18 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 		}
 	}
 
+	@SuppressWarnings("unchecked")
+	public java.util.List<Project> findAllProjects() {
+		try {
+			// TODO: use named query so it can be configured externally
+			Query query = getEntityManager().createQuery(
+					"select object(project) from ProjectImpl as project order by project.name");
+			return query.getResultList();
+		} catch (Exception e) {
+			throw convertException(e, Project.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
 	public Set<StakeholderPermission> findAvailableStakeholderPermissions() {
 		try {
 			// TODO: use named query so it can be configured externally

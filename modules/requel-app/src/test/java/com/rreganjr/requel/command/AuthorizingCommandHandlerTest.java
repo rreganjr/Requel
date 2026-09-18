@@ -61,6 +61,11 @@ import static org.mockito.Mockito.*;
  * - RequiresStakeholderPermission — stakeholder lacks permission: throws
  * - RequiresStakeholderPermission — getUserStakeholder throws: throws AuthorizationException
  * - RequiresStakeholderPermission on non-ProjectScopedCommand: throws
+ * - RequiresStakeholderPermissionOrSystemAdminRole — user holds the role, no stakeholder
+ *   row consulted: passes (issue #256)
+ * - RequiresStakeholderPermissionOrSystemAdminRole — no role, holds the stakeholder
+ *   permission: passes
+ * - RequiresStakeholderPermissionOrSystemAdminRole — neither: throws
  */
 class AuthorizingCommandHandlerTest {
 
@@ -294,6 +299,75 @@ class AuthorizingCommandHandlerTest {
         assertThatThrownBy(() -> handler.execute(cmd))
                 .isInstanceOf(AuthorizationException.class)
                 .hasMessageContaining("does not provide project context");
+    }
+
+    // -------------------------------------------------------------------------
+    // RequiresStakeholderPermissionOrSystemAdminRole (issue #256)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void stakeholderPermissionOrAdminRolePassesOnRoleWithoutTouchingTheProject() throws Exception {
+        ProjectAuthCmd cmd = mock(ProjectAuthCmd.class);
+        com.rreganjr.platform.identity.User user = mock(com.rreganjr.platform.identity.User.class);
+
+        when(cmd.getAuthorizationRequirement())
+                .thenReturn(new RequiresStakeholderPermissionOrSystemAdminRole(
+                        Project.class, "Delete", SystemAdminRole.class));
+        when(cmd.getEditedBy()).thenReturn(user);
+        when(user.hasRole(SystemAdminRole.class)).thenReturn(true);
+
+        handler.execute(cmd);
+
+        verify(delegate).execute(cmd);
+        // The whole point of the variant: an administrator cleaning up projects has no
+        // stakeholder row to consult, so the project must not be asked for one.
+        verify(cmd, never()).getProject();
+    }
+
+    @Test
+    void stakeholderPermissionOrAdminRolePassesOnThePermissionWithoutTheRole() throws Exception {
+        ProjectAuthCmd cmd = mock(ProjectAuthCmd.class);
+        com.rreganjr.platform.identity.User user = mock(com.rreganjr.platform.identity.User.class);
+        Project project = mock(Project.class);
+        UserStakeholder stakeholder = mock(UserStakeholder.class);
+        StakeholderPermission perm = mock(StakeholderPermission.class);
+
+        when(cmd.getAuthorizationRequirement())
+                .thenReturn(new RequiresStakeholderPermissionOrSystemAdminRole(
+                        Project.class, "Delete", SystemAdminRole.class));
+        when(cmd.getEditedBy()).thenReturn(user);
+        when(user.hasRole(SystemAdminRole.class)).thenReturn(false);
+        when(cmd.getProject()).thenReturn(project);
+        when(project.getUserStakeholder(user)).thenReturn(stakeholder);
+        when(stakeholder.getStakeholderPermissions()).thenReturn(Set.of(perm));
+        when(perm.getPermissionKey()).thenReturn("com.rreganjr.requel.project.Project[Delete]");
+
+        handler.execute(cmd);
+
+        verify(delegate).execute(cmd);
+    }
+
+    @Test
+    void stakeholderPermissionOrAdminRoleThrowsWithNeither() {
+        ProjectAuthCmd cmd = mock(ProjectAuthCmd.class);
+        com.rreganjr.platform.identity.User user = mock(com.rreganjr.platform.identity.User.class);
+        Project project = mock(Project.class);
+        UserStakeholder stakeholder = mock(UserStakeholder.class);
+        StakeholderPermission perm = mock(StakeholderPermission.class);
+
+        when(cmd.getAuthorizationRequirement())
+                .thenReturn(new RequiresStakeholderPermissionOrSystemAdminRole(
+                        Project.class, "Delete", SystemAdminRole.class));
+        when(cmd.getEditedBy()).thenReturn(user);
+        when(user.hasRole(SystemAdminRole.class)).thenReturn(false);
+        when(cmd.getProject()).thenReturn(project);
+        when(project.getUserStakeholder(user)).thenReturn(stakeholder);
+        when(stakeholder.getStakeholderPermissions()).thenReturn(Set.of(perm));
+        when(perm.getPermissionKey()).thenReturn("com.rreganjr.requel.project.Project[Edit]");
+
+        assertThatThrownBy(() -> handler.execute(cmd))
+                .isInstanceOf(AuthorizationException.class)
+                .hasMessageContaining("Project[Delete]");
     }
 
     // -------------------------------------------------------------------------

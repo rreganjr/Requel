@@ -96,8 +96,11 @@ public class GatewayPolicyConfig {
      * permission-checked (no {@code AuthorizableCommand}).
      */
     public static final Set<String> DENIED = Set.of(
-            // Identity / user management — out of scope by design
-            "Login", "EditUser", "EditUserStakeholder",
+            // Identity / user management — out of scope by design. RepairProjectStakeholders
+            // creates stakeholder rows and grants permissions, so it belongs here with
+            // EditUserStakeholder rather than on the allowlist (issue #256); admins run it
+            // through /api/commands from the admin UI.
+            "Login", "EditUser", "EditUserStakeholder", "RepairProjectStakeholders",
             // File transfer / generation (not plain JSON commands)
             "ImportProject", "ExportProject", "GenerateReport",
             // Not independently authorized (assistant / structural-internal)

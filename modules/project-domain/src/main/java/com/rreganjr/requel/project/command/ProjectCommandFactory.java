@@ -50,6 +50,12 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public ImportProjectCommand newImportProjectCommand();
 
 	/**
+	 * @return a new RepairProjectStakeholdersCommand for restoring creator
+	 *         stakeholder rows lost by older project-creating paths (issue #256).
+	 */
+	public RepairProjectStakeholdersCommand newRepairProjectStakeholdersCommand();
+
+	/**
 	 * @return a new EditStakeholderCommand for creating or editing a
 	 *         stakeholder.
 	 */
