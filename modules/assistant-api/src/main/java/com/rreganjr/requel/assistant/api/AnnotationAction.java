@@ -36,7 +36,7 @@ import java.util.Optional;
  * assistant naming a command. The applicator follows the "Edit" convention: a
  * {@code CREATE_OR_UPDATE_*} action creates when no existing annotation matches
  * the idempotency key and updates (by id + optimistic-lock version) when one
- * does. See the command-mapping table in {@code doc/assistant-spi-plan.md}.
+ * does. See the command-mapping table in {@code doc/work/2.0/assistant-spi-plan.md}.
  *
  * <p>
  * Sub-variants that share a kind but resolve to different factory methods - a

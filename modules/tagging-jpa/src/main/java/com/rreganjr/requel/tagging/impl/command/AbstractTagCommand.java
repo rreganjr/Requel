@@ -44,7 +44,7 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
  * annotations): a project-scoped tag reuses the stakeholder {@code Annotation[Edit]} /
  * {@code Annotation[Delete]} permission on the owning project, while a global (system) tag
  * requires the {@link SystemAdminUserRole}. A dedicated {@code Tag} permission can be
- * introduced later (see doc/project-entity-categorization.md §4) without changing callers.</p>
+ * introduced later (see doc/architecture/project-entity-categorization.md §4) without changing callers.</p>
  *
  * @author ron
  */

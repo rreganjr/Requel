@@ -9,7 +9,7 @@
 #   1. Start everything:           docker compose -f docker-compose.local-ai.yml up -d
 #   2. Pull a model into Ollama:   docker compose -f docker-compose.local-ai.yml exec ollama ollama pull llama3.1
 #      (only needed once; the model is cached in the named volume below)
-#   3. Use Requel at http://localhost:8080/ and trigger a review (see doc/AI_ASSISTANT_SETUP.md).
+#   3. Use Requel at http://localhost:8080/ and trigger a review (see doc/guides/AI_ASSISTANT_SETUP.md).
 #
 # Override the model without editing this file, e.g.:
 #   REQUEL_AI_MODEL=qwen2.5 docker compose -f docker-compose.local-ai.yml up -d

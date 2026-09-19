@@ -46,7 +46,7 @@ import org.springframework.web.bind.annotation.RestController;
  * REST-backed gateway client used by {@code requel-cli}). Unlike the raw {@code /api/commands/*}
  * CQRS endpoint, this dispatches through the in-process {@link CommandGateway} bean, so the gateway
  * <strong>allow/deny policy is enforced server-side</strong> (the denylist boundary — never expose
- * user/identity commands — holds independently of authorization, per doc/local_mcp_bridge.md), not
+ * user/identity commands — holds independently of authorization, per doc/guides/local_mcp_bridge.md), not
  * merely trusted to the client.
  *
  * <p>Success returns {@code 200} with the command's result DTO (or empty body when the command has

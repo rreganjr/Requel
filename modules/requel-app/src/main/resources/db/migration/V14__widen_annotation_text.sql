@@ -1,5 +1,5 @@
 -- Widen the IBIS discussion-layer free-text columns to LONGTEXT (issue #171).
--- Plan: doc/171-bean-validation-plan.md (§4).
+-- Plan: doc/work/2.0/171-bean-validation-plan.md (§4).
 --
 -- `arguments.text` and `positions.text` were VARCHAR(255) while `annotations.text` (notes and
 -- issues, which share the annotations table) has always been LONGTEXT. The mismatch was not a

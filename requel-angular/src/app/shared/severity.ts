@@ -41,7 +41,7 @@ export type RqTagVariant = 'default' | 'pill' | 'icon';
  * Generic default PrimeIcon per tone, used by the `icon` tag variant when the
  * caller does not supply a domain-specific icon. Callers with a domain meaning
  * (Note, Issue, ...) pass their own icon instead (see the N2 mapping table in
- * `doc/124-lookandfeel-plan.md`).
+ * `doc/work/2.0/124-lookandfeel-plan.md`).
  */
 export const RQ_TONE_ICON: Record<RqTone, string> = {
   primary: 'pi pi-tag',

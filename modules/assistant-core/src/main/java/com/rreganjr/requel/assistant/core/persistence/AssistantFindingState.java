@@ -23,7 +23,7 @@ package com.rreganjr.requel.assistant.core.persistence;
 /**
  * Finding lifecycle states. Transitions are owned by
  * {@code AssistantResultApplicator}; see
- * {@code doc/assistant-spi-plan.md} (Finding State Machine) for the rules.
+ * {@code doc/work/2.0/assistant-spi-plan.md} (Finding State Machine) for the rules.
  */
 public enum AssistantFindingState {
 	ACTIVE,

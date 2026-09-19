@@ -39,7 +39,7 @@ import java.util.Locale;
  * uniqueness would keep the key controlled while letting the displayed vocabulary drift, which is
  * most of the near-duplicate problem back again. A tag is therefore a controlled vocabulary entry
  * and not a carrier for text that has to round-trip — entity provenance, which needs exactly that,
- * is tracked separately in issue #272 and {@code doc/entity-provenance-notes.md}.
+ * is tracked separately in issue #272 and {@code doc/work/backlog/entity-provenance-notes.md}.
  *
  * <p>Callers reach this through {@code EditTagCategory} and {@code EditTag}, whose input DTOs carry
  * a {@code CommandDescription} stating the behaviour in the MCP tool description and CLI help.

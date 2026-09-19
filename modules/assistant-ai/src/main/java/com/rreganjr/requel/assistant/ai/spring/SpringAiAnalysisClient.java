@@ -249,7 +249,7 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 		Integer inputTokens = null;
 		Integer outputTokens = null;
 		// Anthropic cache-read tokens map through Usage#getNativeUsage(); deferred to the
-		// Anthropic fast-follow (see doc/spring_ai_provider_port_plan.md).
+		// Anthropic fast-follow (see doc/work/2.0/spring_ai_provider_port_plan.md).
 		Integer cachedInputTokens = null;
 		if (chatResponse != null && chatResponse.getMetadata() != null
 				&& chatResponse.getMetadata().getUsage() != null) {

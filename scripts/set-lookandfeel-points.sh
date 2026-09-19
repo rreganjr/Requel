@@ -29,7 +29,7 @@ done <<'EOF'
 157 8   # N4 Data-table pattern component + migrate >=2 list pages
 158 13  # N5 Form wizard + app-field + form-errors helper + Goal AND Story migrations
         # (was 8; re-pointed when the helper and the reactive-forms migration for both
-        # pilots moved out of #132 into N5 - see doc/158-form-wizard-field.md sec 7)
+        # pilots moved out of #132 into N5 - see doc/work/2.0/158-form-wizard-field.md sec 7)
 159 3   # N6 Theme switcher + dark mode (optional)
 EOF
 

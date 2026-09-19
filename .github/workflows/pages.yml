@@ -11,7 +11,7 @@ name: Pages
 #
 # Pages gives the schema a home that is deployed from the repo, so the URL stamped into
 # every export resolves to the same file the build validates against. See
-# doc/171-bean-validation-plan.md §6.
+# doc/work/2.0/171-bean-validation-plan.md §6.
 #
 # Repo setting required once, by hand: Settings → Pages → Build and deployment →
 # Source: "GitHub Actions". Without it this workflow runs and the deploy step fails.

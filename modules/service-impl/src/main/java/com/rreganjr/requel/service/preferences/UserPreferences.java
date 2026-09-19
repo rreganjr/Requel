@@ -25,7 +25,7 @@ import jakarta.persistence.*;
 /**
  * UI preferences for a user. Separate aggregate from User — User handles
  * identity/auth/contact, this handles UI configuration.
- * See doc/UI_DESIGN_GUIDE.md §3.2.3.
+ * See doc/ui/UI_DESIGN_GUIDE.md §3.2.3.
  */
 @Entity
 @Table(name = "user_preferences")

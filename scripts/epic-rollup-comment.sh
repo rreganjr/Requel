@@ -21,7 +21,7 @@ REPO="rreganjr/Requel"
 EPIC="${EPIC:-124}"
 DRY_RUN="${DRY_RUN:-0}"
 
-# Finding -> phase mapping (from doc/UI_UX_REVIEW.md "Proposed Phased Roadmap").
+# Finding -> phase mapping (from doc/work/2.0/UI_UX_REVIEW.md "Proposed Phased Roadmap").
 phase_of() {
   case "$1" in
     4.1|4.2|4.3|4.5|4.7)              echo 1 ;;   # quick wins & a11y blockers
@@ -34,7 +34,7 @@ phase_of() {
 }
 
 # Some sub-issues carry no finding-id prefix (server-side backing split out of
-# #132, see doc/132-reactive-forms-plan.md). Map those to their phase by number
+# #132, see doc/work/2.0/132-reactive-forms-plan.md). Map those to their phase by number
 # so they don't fall into the "Unmapped" bucket. Returns empty for everything
 # else, so phase_of() (by finding id) stays the default.
 phase_by_number() {
@@ -70,7 +70,7 @@ fi
 
 body="## Remediation rollup by phase
 
-Grouped from \`doc/UI_UX_REVIEW.md\` findings 1.1–5.6 plus the look-and-feel items (N1–N6, see \`doc/124-lookandfeel-plan.md\`). Closed sub-issues are auto-checked; the rest are checked as each PR squash-merges to \`release/2.0\`.
+Grouped from \`doc/work/2.0/UI_UX_REVIEW.md\` findings 1.1–5.6 plus the look-and-feel items (N1–N6, see \`doc/work/2.0/124-lookandfeel-plan.md\`). Closed sub-issues are auto-checked; the rest are checked as each PR squash-merges to \`release/2.0\`.
 "
 
 for p in 1 2 3 4 5 0; do

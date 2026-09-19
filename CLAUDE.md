@@ -47,7 +47,19 @@ always with `--no-optional-locks`. When Claude reaches the repo over the Cowork 
 cannot delete files, so any command that takes `.git/index.lock` leaves it behind and blocks the
 next git operation from the developer's own terminal.
 
-All plans, reviews, notes and documentation go in the doc folder.
+Documentation is filed by lifecycle. See `doc/README.md` for the full layout and the one
+question that decides where a file goes.
+
+- **Ticket-scoped artifacts** — plans, reviews, rollups, issue drafts — go in
+  `doc/work/<release>/`, where `<release>` is the reactor version's major.minor from the
+  root `pom.xml` (`2.0.0-dev` → `doc/work/2.0/`). Never hardcode the release.
+- **Standing documentation** goes in `doc/architecture/` (how it is built),
+  `doc/guides/` (how to run it) or `doc/ui/` (the Angular layer).
+- **Proposals not yet tied to an issue** go in `doc/work/backlog/`.
+- Nothing new belongs at the root of `doc/` except `README.md`.
+
+Work artifacts are never retro-edited. A plan or review is correct as of when it was
+written, and a version or path it names that has since changed is a record, not a defect.
 
 Never use `TL;DR` I hate that abbreviation, use `Summary`
 
@@ -64,7 +76,7 @@ Every change is tied to a GitHub issue and lands via a ticket branch and a PR �
    gh issue view <n> --repo rreganjr/Requel --json number,title,body,labels,state > tmp/issue-<n>.json
    ```
    Report: is it still needed, have the ACs changed, any blockers/decisions needed. Ask the open questions and wait for answers.
-2. **Write an implementation plan** — a house-style doc at `doc/<n>-<slug>-plan.md` (scope/locked decisions, contracts, step-by-step, test plan, out-of-scope, risks, AC mapping). All plans/reviews/notes live in `doc/`. Get a thumbs-up on the plan (and on any risky decisions, e.g. a route move) before coding. For a large ticket, split into stacked sub-PRs in the plan (§ "Stacked PRs" below).
+2. **Write an implementation plan** — a house-style doc at `doc/work/<release>/<n>-<slug>-plan.md` (scope/locked decisions, contracts, step-by-step, test plan, out-of-scope, risks, AC mapping). All plans/reviews/notes live under `doc/work/<release>/`. Get a thumbs-up on the plan (and on any risky decisions, e.g. a route move) before coding. For a large ticket, split into stacked sub-PRs in the plan (§ "Stacked PRs" below).
 3. **Branch (at the start of work)** — cut from `release/2.0`, named `<issue-number>-<short-slug>` (e.g. `142-route-groups`, `128-154-app-shell`). All edits on that branch. (Claude may create the branch over the device bridge with `git switch -c` / `git checkout -b` — those don't leave a lock — but never `git branch -D`, `git rebase`, `git stash`, or anything else that writes refs/index over the bridge; hand those to the developer.)
 4. **Implement.** Keep a per-ticket verify script at `tmp/<n>-verify.sh` (gitignored) that runs the exact gates below, so the developer runs one command.
 5. **Verify — the gate. All relevant suites must pass before committing:**
@@ -143,7 +155,7 @@ Command reference — all run by the developer, in the developer's environment, 
 
 ```bash
 # 0. Review:  gh issue view <n> --repo rreganjr/Requel --json number,title,body,labels,state > tmp/issue-<n>.json
-# 1. Plan:    doc/<n>-<slug>-plan.md  (then get sign-off)
+# 1. Plan:    doc/work/<release>/<n>-<slug>-plan.md  (then get sign-off)
 # 2. Branch:  git switch -c <issue#>-<slug> release/2.0
 # 3. Verify (must pass — run what the change touched):
 mvn clean verify                                              # backend (modules/**)
@@ -263,8 +275,8 @@ The Angular SPA is backed by a hybrid CQRS API:
 - **Reads:** `GET /api/...` — conventional query endpoints, ~28 total
 - **Composite CommandFactory:** per-domain factories (`ProjectCommandFactory`, `UserCommandFactory`, etc.) register their command types at startup; a top-level `CommandFactory` facade provides `newCommand(type, input)` entry point
 - **Domain integration:** existing Commands implement `ApiCommand<T>` interface for input mapping
-- **Authorization:** `AuthorizingCommandHandler` in handler chain checks `AuthorizableCommand.getAuthorizationRequirement()` before execute. See `doc/AUTH_ARCH.md`
-- Full architecture diagram and endpoint inventory in `doc/UI_REFACTOR_PLAN.md` Section 3.1
+- **Authorization:** `AuthorizingCommandHandler` in handler chain checks `AuthorizableCommand.getAuthorizationRequirement()` before execute. See `doc/architecture/AUTH_ARCH.md`
+- Full architecture diagram and endpoint inventory in `doc/work/2.0/UI_REFACTOR_PLAN.md` Section 3.1
 
 ### Database
 
@@ -275,7 +287,7 @@ The Angular SPA is backed by a hybrid CQRS API:
 ## Development Guardrails
 
 - **Domain purity:** Keep domain code persistence-ignorant — no repository access from entity constructors or JAXB hooks
-- **Aggregate boundaries:** Follow DDD terminology from `doc/unmarshalling_plan.md`; honour the AggregateAssembler/ImportUnitOfWork pattern for import logic
+- **Aggregate boundaries:** Follow DDD terminology from `doc/architecture/unmarshalling_plan.md`; honour the AggregateAssembler/ImportUnitOfWork pattern for import logic
 - **Annotation decoupling:** The annotation module must not import project implementation classes; use the registry pattern
 - **Module dependencies flow downward:** domain modules never depend on JPA modules
 - **Project XML compatibility:** Import/export must satisfy `doc/samples/project.xsd`; changes to JAXB mappings need round-trip regression tests
@@ -283,13 +295,16 @@ The Angular SPA is backed by a hybrid CQRS API:
 
 ## Key Documentation
 
-- `doc/20-release-plan.md` - New release with new Angular UI, CQRS API, SSE streaming, AI assistance, MCP spport
-- `doc/AUTH_ARCH.md` — authorization architecture: AuthorizingCommandHandler, permission model, Angular PermissionService
-- `doc/MODULARIZATION_PLAN.md` — module dependency graph, refactoring roadmap, package conventions
-- `doc/unmarshalling_plan.md` — JAXB import strategy, aggregate assembly
-- `doc/agents.md` — AI agent workflows, edit policies, guardrails
-- `doc/USER_AND_STAKEHOLDER_MODEL.md` — identity/stakeholder coupling explanation
-- `doc/DICTIONARY_LOADING.md` — the two dictionary load paths (MySQL SQL dumps vs `dictionary.xml.gz`), which environments use which, and the properties that control them
+- `doc/work/2.0/20-release-plan.md` - New release with new Angular UI, CQRS API, SSE streaming, AI assistance, MCP spport
+- `doc/architecture/AUTH_ARCH.md` — authorization architecture: AuthorizingCommandHandler, permission model, Angular PermissionService
+- `doc/architecture/MODULARIZATION_PLAN.md` — module dependency graph, refactoring roadmap, package conventions
+- `doc/architecture/unmarshalling_plan.md` — JAXB import strategy, aggregate assembly
+- `doc/guides/agents.md` — AI agent workflows, edit policies, guardrails
+- `doc/architecture/USER_AND_STAKEHOLDER_MODEL.md` — identity/stakeholder coupling explanation
+- `doc/architecture/DICTIONARY_LOADING.md` — the two dictionary load paths (MySQL SQL dumps vs `dictionary.xml.gz`), which environments use which, and the properties that control them
+- `doc/README.md` — the documentation map: what each folder means and where a new file goes
+- `doc/work/<release>/INDEX.md` — generated by `scripts/gen-doc-index.sh`; every ticket
+  artifact in the release with its live issue state
 - `RELEASE.md` — release checklist, Docker build, GitHub Packages deploy
 
 ## Testing

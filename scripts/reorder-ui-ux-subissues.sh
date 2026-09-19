@@ -4,7 +4,7 @@
 # Reorders the sub-issues of the UI/UX epic (#124) into the intended build order
 # and (optionally) rewrites the "Remediation rollup by phase" comment to match.
 #
-# doc/124-remediation-rollup.md is the single source of truth. The build order is
+# doc/work/2.0/124-remediation-rollup.md is the single source of truth. The build order is
 # the order its `- [ ] #NNN` / `- [x] #NNN` lines appear, top to bottom.
 #
 # Why this exists: sub-issues were added in creation order (#125..#147, then
@@ -46,7 +46,7 @@ set -euo pipefail
 REPO="${REPO:-rreganjr/Requel}"
 EPIC="${EPIC:-124}"
 COMMENT_ID="${COMMENT_ID:-5113771759}"          # the "Remediation rollup by phase" comment
-COMMENT_FILE="${COMMENT_FILE:-doc/124-remediation-rollup.md}"
+COMMENT_FILE="${COMMENT_FILE:-doc/work/2.0/124-remediation-rollup.md}"
 API_VERSION="2022-11-28"
 DRY_RUN="${DRY_RUN:-0}"
 

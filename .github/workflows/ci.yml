@@ -3,7 +3,7 @@ name: CI
 # Build, test, and report coverage on every push and pull request that
 # targets master or any release/* branch. The release/2.0 cycle uses this
 # workflow as the gate for merging feature branches into the integration
-# branch. See doc/20-release-plan.md §5.1.
+# branch. See doc/work/2.0/20-release-plan.md §5.1.
 
 on:
   push:
@@ -52,7 +52,7 @@ jobs:
       # phase and requires ~/.m2/toolchains.xml to contain a matching JDK
       # entry (vendor=any, version=17). GitHub runners don't ship one, so
       # without this step every Maven build fails before reaching compile.
-      # See doc/MAVEN_TOOLCHAINS.md for the local-dev equivalent.
+      # See doc/guides/MAVEN_TOOLCHAINS.md for the local-dev equivalent.
       - name: Write Maven toolchains.xml
         run: |
           mkdir -p "$HOME/.m2"

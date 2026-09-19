@@ -33,7 +33,7 @@ import java.util.Optional;
  * {@code assistantId + ':' + targetType + ':' + targetId + ':' + findingType +
  * ':' + normalizedEvidenceHash}. Keeping evidence structured lets the core
  * applicator/finding layer compute a stable hash without parsing free-form
- * metadata. See {@code doc/assistant-spi-plan.md}.
+ * metadata. See {@code doc/work/2.0/assistant-spi-plan.md}.
  *
  * <p>
  * All three components are optional, but at least one must be present:

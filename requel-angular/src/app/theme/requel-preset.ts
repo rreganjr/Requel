@@ -29,10 +29,10 @@ import Aura from '@primeuix/themes/aura';
  * variables. Components must read colors/radius/type from these tokens, never
  * from hard-coded literals. See `src/app/theme/README.md`.
  *
- * Locked look-and-feel (GitHub #125, doc/124-lookandfeel-plan.md §1.1):
+ * Locked look-and-feel (GitHub #125, doc/work/2.0/124-lookandfeel-plan.md §1.1):
  *  - Primary:  Tailwind Blue — 500 = #3b82f6, hover 600 = #2563eb.
  *  - Surface:  Tailwind Slate, adopted verbatim — a validated, accessible
- *              cool blue-gray ramp (doc/124-lookandfeel-plan.md §1.1.1).
+ *              cool blue-gray ramp (doc/work/2.0/124-lookandfeel-plan.md §1.1.1).
  *              surface-0 = white cards; surface-50 = light blue-gray canvas.
  *  - Radius:   6px content radius (inputs, buttons, chips, cards).
  *  - Font:     Figtree at 14px base (bundled via @fontsource-variable/figtree,

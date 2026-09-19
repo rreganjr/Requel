@@ -26,7 +26,7 @@ import { artifactNameResolver } from '../../core/resolvers/artifact-name.resolve
 /**
  * Project list + every project-scoped route. `projects/:name` (the project WORKSPACE OVERVIEW,
  * #154) MUST stay LAST: the multi-segment `projects/:name/<artifact>` routes and `projects/:name/edit`
- * are listed before it so matching order is preserved (see doc/142-route-structure-plan.md §9).
+ * are listed before it so matching order is preserved (see doc/work/2.0/142-route-structure-plan.md §9).
  * `projects/new` (create wizard) is listed before `projects/:name` so "new" is never read as a name.
  */
 export const projectRoutes: Routes = [

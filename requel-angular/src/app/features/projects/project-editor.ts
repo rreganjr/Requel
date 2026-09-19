@@ -317,7 +317,7 @@ export class ProjectEditorComponent implements OnInit, DirtyCheckable {
    * Runs the commit for the wizard's current step. Only Details talks to the API - the Tags
    * step commits through `app-tag-selector` as the user works, and `AssignTag` mutates the Tag
    * rather than the project, so it does not spend the project's version (verified in #158 and
-   * re-confirmed in doc/173-create-flow-wizards-plan.md §2). Project is the one wizard of the
+   * re-confirmed in doc/work/2.0/173-create-flow-wizards-plan.md §2). Project is the one wizard of the
    * five whose second step needs no version handling at all.
    */
   async onStepCommit(request: WizardCommitRequest): Promise<void> {

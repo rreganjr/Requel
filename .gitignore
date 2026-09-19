@@ -10,7 +10,7 @@ target/
 .envrc
 
 # Per-developer local AI-client config (MCP server wiring, machine-specific paths, tokens).
-# The portable setup is documented in doc/mcp_remote_connection.md instead.
+# The portable setup is documented in doc/guides/mcp_remote_connection.md instead.
 .cursor/
 .claude/
 # Codex stdio bridge wrapper (per-developer; reads the PAT from ~/.config, no secret in-file).

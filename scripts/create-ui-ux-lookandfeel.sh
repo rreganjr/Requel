@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # create-ui-ux-lookandfeel.sh
-# Applies the look-and-feel plan (doc/124-lookandfeel-plan.md) to the existing UI/UX
+# Applies the look-and-feel plan (doc/work/2.0/124-lookandfeel-plan.md) to the existing UI/UX
 # epic #124:
 #   1. Appends the §3 "Target look-and-feel" block to existing sub-issues
 #      #125, #126, #127, #128, #129, #132, #146 (idempotent — safe to rerun).
@@ -57,7 +57,7 @@ child() {  # args: title priority-label body
 # Append/refresh the look-and-feel block on an existing issue body. Idempotent AND
 # self-healing: if the block is already present it is stripped and rewritten, so a
 # rerun replaces (never duplicates) it and repairs any earlier bad render.
-MARKER="## Target look-and-feel (see doc/124-lookandfeel-plan.md)"
+MARKER="## Target look-and-feel (see doc/work/2.0/124-lookandfeel-plan.md)"
 append_to_issue() {  # args: issue-number body-block
   local num="$1"; local block="$2"
   local current base
@@ -128,7 +128,7 @@ echo "Adding look-and-feel sub-issues to epic #$EPIC ..."
 # N1 — App shell
 # ===========================================================================
 child "N1 App shell: top bar + grouped collapsible sidebar" "priority:medium" "$(cat <<'EOF'
-Part of the look-and-feel adoption in `doc/124-lookandfeel-plan.md`.
+Part of the look-and-feel adoption in `doc/work/2.0/124-lookandfeel-plan.md`.
 
 Reshape `layout` + `sidebar-nav` to the target app shell.
 
@@ -156,7 +156,7 @@ EOF
 # N2 — Tag & Chip severity system
 # ===========================================================================
 child "N2 Tag & Chip severity system as shared primitives" "priority:medium" "$(cat <<'EOF'
-Part of the look-and-feel adoption in `doc/124-lookandfeel-plan.md`.
+Part of the look-and-feel adoption in `doc/work/2.0/124-lookandfeel-plan.md`.
 
 Add `app-tag` and `app-chip` wrappers over PrimeNG Tag/Chip.
 
@@ -177,7 +177,7 @@ EOF
 # N3 — Card / content-surface primitive
 # ===========================================================================
 child "N3 Card / content-surface primitive (app-card)" "priority:low" "$(cat <<'EOF'
-Part of the look-and-feel adoption in `doc/124-lookandfeel-plan.md`.
+Part of the look-and-feel adoption in `doc/work/2.0/124-lookandfeel-plan.md`.
 
 Extract the repeated card container into `app-card`.
 
@@ -196,7 +196,7 @@ EOF
 # N4 — Data-table pattern component
 # ===========================================================================
 child "N4 Data-table pattern component (app-data-table)" "priority:medium" "$(cat <<'EOF'
-Part of the look-and-feel adoption in `doc/124-lookandfeel-plan.md`.
+Part of the look-and-feel adoption in `doc/work/2.0/124-lookandfeel-plan.md`.
 
 Implement the table pattern as a reusable component over PrimeNG Table.
 
@@ -222,7 +222,7 @@ EOF
 # N5 — Multi-step entity-create wizard
 # ===========================================================================
 child "N5 Multi-step entity-create wizard (app-form-wizard + app-field)" "priority:medium" "$(cat <<'EOF'
-Part of the look-and-feel adoption in `doc/124-lookandfeel-plan.md`.
+Part of the look-and-feel adoption in `doc/work/2.0/124-lookandfeel-plan.md`.
 
 Build the two-column create wizard.
 
@@ -246,7 +246,7 @@ EOF
 # N6 — (Optional) Theme switcher + dark mode
 # ===========================================================================
 child "N6 Theme switcher + dark mode via config panel (optional)" "priority:low" "$(cat <<'EOF'
-Part of the look-and-feel adoption in `doc/124-lookandfeel-plan.md`.
+Part of the look-and-feel adoption in `doc/work/2.0/124-lookandfeel-plan.md`.
 
 Add a config panel (gear in the top bar) to toggle light/dark and optionally the
 primary color, backed by the preset's dark token set.

@@ -22,7 +22,7 @@ package com.rreganjr.requel.tagging;
 
 /**
  * The by-name string form of a tag used in the project XML round-trip (see
- * {@code doc/112-phase5-jaxb-tags.md}):
+ * {@code doc/work/2.0/112-phase5-jaxb-tags.md}):
  *
  * <pre>
  *   token   := [ category ":" ] value [ "[" color "]" ]

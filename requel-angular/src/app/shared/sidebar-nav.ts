@@ -96,7 +96,7 @@ function persistExpandedProjectNames(names: Set<string>): void {
  * Sidebar accordion navigation.
  * - Admin panel: visible for SystemAdminUserRole users
  * - Projects panel: visible for ProjectUserRole (or admin) users
- * See doc/UI_DESIGN_GUIDE.md section 3.
+ * See doc/ui/UI_DESIGN_GUIDE.md section 3.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,

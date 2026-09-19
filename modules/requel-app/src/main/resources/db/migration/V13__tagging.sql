@@ -1,6 +1,6 @@
 -- Cross-cutting entity tagging / categorization (issue #112, Phase 1).
--- Design & model: doc/project-entity-categorization.md (§3.3).
--- Plan: doc/112-entity-categorization-plan.md (Phase 1).
+-- Design & model: doc/architecture/project-entity-categorization.md (§3.3).
+-- Plan: doc/work/2.0/112-entity-categorization-plan.md (Phase 1).
 --
 -- `tag` is the reusable tag/category vocabulary; `tag_taggable` is the polymorphic
 -- assignment join, mirroring `annotation_annotatable` (composite PK, soft reference

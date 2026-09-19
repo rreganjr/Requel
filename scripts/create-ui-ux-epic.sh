@@ -2,7 +2,7 @@
 #
 # create-ui-ux-epic.sh
 # Creates one Epic parent issue + 23 child issues (one per finding in
-# doc/UI_UX_REVIEW.md), each linked to the epic as a real sub-issue.
+# doc/work/2.0/UI_UX_REVIEW.md), each linked to the epic as a real sub-issue.
 #
 # Requirements:
 #   - gh CLI v2.94.0+ (for the native --parent flag). Check: gh --version
@@ -42,7 +42,7 @@ create_issue() {  # args: title body [extra gh flags...]
 # --- labels (idempotent) ---------------------------------------------------
 
 run gh label create "Epic"          --repo "$REPO" --color 6f42c1 --description "Epic: parent tracking issue" 2>/dev/null || true
-run gh label create "ui-ux-review"  --repo "$REPO" --color 0e8a16 --description "From doc/UI_UX_REVIEW.md" 2>/dev/null || true
+run gh label create "ui-ux-review"  --repo "$REPO" --color 0e8a16 --description "From doc/work/2.0/UI_UX_REVIEW.md" 2>/dev/null || true
 run gh label create "priority:high"   --repo "$REPO" --color b60205 --description "High priority" 2>/dev/null || true
 run gh label create "priority:medium" --repo "$REPO" --color fbca04 --description "Medium priority" 2>/dev/null || true
 run gh label create "priority:low"    --repo "$REPO" --color c2e0c6 --description "Low priority" 2>/dev/null || true
@@ -52,7 +52,7 @@ run gh label create "priority:low"    --repo "$REPO" --color c2e0c6 --descriptio
 EPIC=$(create_issue \
 "[Epic] Angular UI/UX, Accessibility, and Front-End Architecture Remediation" \
 "$(cat <<'EOF'
-Umbrella epic tracking the remediation work identified in `doc/UI_UX_REVIEW.md` — a review of the Angular 21 / PrimeNG 21 SPA (`requel-angular/src`) against the CQRS `/api/**` backend.
+Umbrella epic tracking the remediation work identified in `doc/work/2.0/UI_UX_REVIEW.md` — a review of the Angular 21 / PrimeNG 21 SPA (`requel-angular/src`) against the CQRS `/api/**` backend.
 
 Scope covers five areas, broken out into child issues (one per finding):
 
@@ -64,7 +64,7 @@ Scope covers five areas, broken out into child issues (one per finding):
 
 Highest-impact themes: establish a Requel design system (custom `definePreset` + tokens), extract shared page/editor/field primitives, migrate to reactive forms with a command-error adapter, close critical WCAG 2.2 AA gaps, make task flows project-aware, standardize loading/empty/error states, modernize Angular idioms (OnPush, `takeUntilDestroyed`), and add axe + Playwright accessibility regression tests.
 
-A suggested phased roadmap (Phase 1 a11y blockers → Phase 5 architecture refactors) is in `doc/UI_UX_REVIEW.md`.
+A suggested phased roadmap (Phase 1 a11y blockers → Phase 5 architecture refactors) is in `doc/work/2.0/UI_UX_REVIEW.md`.
 
 Child issues are linked below as sub-issues.
 EOF
@@ -86,7 +86,7 @@ child() {  # args: title priority-label body
 # ===========================================================================
 
 child "1.1 App uses stock Aura with no Requel brand layer" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 1.1.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 1.1.
 
 **Priority:** High. **Effort:** Medium (3–5 days for first usable theme + token pass).
 
@@ -113,7 +113,7 @@ EOF
 )"
 
 child "1.2 Component-local CSS fights PrimeNG and fragments visual consistency" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 1.2.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 1.2.
 
 **Priority:** High. **Effort:** Medium (4–7 days to extract common patterns without redesigning all pages).
 
@@ -136,7 +136,7 @@ EOF
 )"
 
 child "1.3 Typography and hierarchy are too flat" "priority:medium" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 1.3.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 1.3.
 
 **Priority:** Medium. **Effort:** Small (1–2 days for tokens + shell updates; larger to apply everywhere).
 
@@ -161,7 +161,7 @@ EOF
 # ===========================================================================
 
 child "2.1 Navigation is complete but project context is hidden in the sidebar" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 2.1.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 2.1.
 
 **Priority:** High. **Effort:** Medium (3–5 days).
 
@@ -187,7 +187,7 @@ EOF
 )"
 
 child "2.2 List/detail patterns are inconsistent and over-rely on row selection" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 2.2.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 2.2.
 
 **Priority:** High. **Effort:** Medium (3–5 days).
 
@@ -210,7 +210,7 @@ EOF
 )"
 
 child "2.3 Dialog and relationship flows need clearer progression" "priority:medium" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 2.3.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 2.3.
 
 **Priority:** Medium. **Effort:** Medium (3–6 days).
 
@@ -234,7 +234,7 @@ EOF
 )"
 
 child "2.4 Loading, empty, and failure states are under-specified" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 2.4.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 2.4.
 
 **Priority:** High. **Effort:** Small (2–3 days for common components and first pass).
 
@@ -259,7 +259,7 @@ EOF
 # ===========================================================================
 
 child "3.1 Forms are mostly template-driven and lack consistent validation" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 3.1.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 3.1.
 
 **Priority:** High. **Effort:** Large (1–2 weeks for high-risk forms, 3–4 weeks for full migration).
 
@@ -288,7 +288,7 @@ EOF
 )"
 
 child "3.2 API and command errors are surfaced inconsistently" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 3.2.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 3.2.
 
 **Priority:** High. **Effort:** Medium (3–5 days).
 
@@ -312,7 +312,7 @@ EOF
 )"
 
 child "3.3 Mini-forms (annotations, tags, admin, dialogs) need the same validation contract" "priority:medium" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 3.3.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 3.3.
 
 **Priority:** Medium. **Effort:** Medium (4–6 days).
 
@@ -341,7 +341,7 @@ EOF
 # ===========================================================================
 
 child "4.1 Skip navigation and heading structure are incomplete" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 4.1.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 4.1.
 
 **Priority:** High. **Effort:** Small (1 day).
 **WCAG:** 2.4.1 Bypass Blocks, 2.4.6 Headings and Labels, 1.3.1 Info and Relationships.
@@ -363,7 +363,7 @@ EOF
 )"
 
 child "4.2 Several interactive elements are mouse-only or not real links/buttons" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 4.2.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 4.2.
 
 **Priority:** High. **Effort:** Medium (3–5 days).
 **WCAG:** 2.1.1 Keyboard, 2.1.3 Keyboard No Exception, 2.4.7 Focus Visible, 4.1.2 Name/Role/Value.
@@ -386,7 +386,7 @@ EOF
 )"
 
 child "4.3 Icon-only buttons often lack accessible names" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 4.3.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 4.3.
 
 **Priority:** High. **Effort:** Small (1–2 days).
 **WCAG:** 4.1.2 Name/Role/Value, 2.5.3 Label in Name.
@@ -404,7 +404,7 @@ EOF
 )"
 
 child "4.4 Form labels and error associations are incomplete" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 4.4.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 4.4.
 
 **Priority:** High. **Effort:** Large (tied to reactive-forms migration — see 3.1).
 **WCAG:** 1.3.1, 3.3.1 Error Identification, 3.3.2 Labels or Instructions, 3.3.3 Error Suggestion, 4.1.3 Status Messages.
@@ -429,7 +429,7 @@ EOF
 )"
 
 child "4.5 Custom dialogs and overlays miss modal accessibility guarantees" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 4.5.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 4.5.
 
 **Priority:** High. **Effort:** Medium (2–4 days).
 **WCAG:** 2.1.2 No Keyboard Trap, 2.4.3 Focus Order, 2.4.7 Focus Visible, 4.1.2 Name/Role/Value.
@@ -451,7 +451,7 @@ EOF
 )"
 
 child "4.6 Async and SSE updates are not announced" "priority:medium" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 4.6.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 4.6.
 
 **Priority:** Medium. **Effort:** Medium (3–5 days).
 **WCAG:** 4.1.3 Status Messages; 2.2.2 Pause/Stop/Hide where continuous updates distract.
@@ -475,7 +475,7 @@ EOF
 )"
 
 child "4.7 Color contrast, color-only meaning, reduced motion, and target size need policy" "priority:medium" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 4.7.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 4.7.
 
 **Priority:** Medium. **Effort:** Medium (3–5 days for policy and fixes; ongoing in design system).
 **WCAG:** 1.4.1 Use of Color, 1.4.3 Contrast Minimum, 1.4.11 Non-text Contrast, 2.3.3 Animation from Interactions, 2.5.8 Target Size (Minimum).
@@ -504,7 +504,7 @@ EOF
 # ===========================================================================
 
 child "5.1 Standalone/lazy routes are good, but route groups need structure" "priority:medium" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 5.1.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 5.1.
 
 **Priority:** Medium. **Effort:** Medium (3–5 days).
 
@@ -526,7 +526,7 @@ EOF
 )"
 
 child "5.2 Signals are used, but form/state hygiene is mixed" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 5.2.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 5.2.
 
 **Priority:** High. **Effort:** Large (paired with the reactive-forms migration in 3.1).
 
@@ -549,7 +549,7 @@ EOF
 )"
 
 child "5.3 Change detection and subscriptions are not modernized" "priority:medium" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 5.3.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 5.3.
 
 **Priority:** Medium. **Effort:** Medium (4–7 days).
 
@@ -572,7 +572,7 @@ EOF
 )"
 
 child "5.4 SSE service is thoughtful but disconnected from UX and app-level state" "priority:medium" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 5.4.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 5.4.
 
 **Priority:** Medium. **Effort:** Medium (4–6 days).
 
@@ -596,7 +596,7 @@ EOF
 )"
 
 child "5.5 Shared components exist but are too thin for the app's repeated patterns" "priority:high" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 5.5.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 5.5.
 
 **Priority:** High. **Effort:** Large (2–4 weeks incrementally).
 
@@ -616,7 +616,7 @@ EOF
 )"
 
 child "5.6 Bundle and dependency posture is reasonable but should be measured" "priority:low" "$(cat <<'EOF'
-Part of the UI/UX remediation epic. Source: `doc/UI_UX_REVIEW.md` Finding 5.6.
+Part of the UI/UX remediation epic. Source: `doc/work/2.0/UI_UX_REVIEW.md` Finding 5.6.
 
 **Priority:** Low. **Effort:** Small (1 day).
 
