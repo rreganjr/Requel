@@ -1,0 +1,19 @@
+# doc-link-allow.tsv — prose mentions of doc/ paths that do not resolve on purpose.
+#
+# scripts/check-doc-links.sh reports two things. A broken markdown link is a defect and fails
+# the run. A prose mention — a bare or backticked doc/....md inside a sentence — may be an
+# instruction, a conditional, a reference to another branch, or a deliberate note that
+# something is missing. Work artifacts are correct as of when they were written and are never
+# retro-edited to make old prose resolve (doc/README.md, CLAUDE.md), so the waiver lives here
+# instead of in the document.
+#
+# Keyed on citing file + target, never a line number: line numbers shift the first time
+# anyone edits above them.
+#
+# citing file	target	reason
+doc/work/2.0/43-review.md	doc/43-comment.md	Self-documenting — the sentence itself says the current references are broken. #43.
+doc/work/2.0/RELEASE_20_TEST_PLAN.md	doc/project-delete-support-plan.md	Conditional — "if/when it is prioritized, capture the design in a dedicated ...". Never meant to exist when written.
+doc/work/2.0/post-124-ui-epic-plan.md	doc/post-124-ui-epic-body.md	An instruction, not a link — "draft this from the phase list once agreed". Epic #219 closed 8/8; the body was never drafted.
+doc/work/2.0/279-assistant-delete-race-plan.md	doc/279-orphan-assistant-annotations-plan.md	TEMPORARY — the file exists on the 279-orphan-assistant-annotations branch at the pre-#304 path. Remove this entry when that branch rebases and its citation moves to doc/work/2.0/.
+doc/work/2.0/310-doc-link-check-plan.md	doc/279-orphan-assistant-annotations-plan.md	The plan quotes the pre-#304 path it is triaging. Remove alongside the 279-assistant-delete-race-plan.md entry.
+doc/work/2.0/310-doc-link-check-plan.md	doc/ui-refactor-review.md	The plan quotes the wrong name it is repointing.
