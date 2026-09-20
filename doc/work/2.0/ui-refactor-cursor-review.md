@@ -10,7 +10,7 @@ This document holds follow-up reviews of [doc/work/2.0/UI_REFACTOR_PLAN.md](UI_R
 
 ### 1. Resolution of Original Review Gaps
 
-The plan has been updated to address the gaps called out in the initial completeness review (doc/ui-refactor-review.md). Summary:
+The plan has been updated to address the gaps called out in the [initial completeness review](ui-refactor-claude-review.md). Summary:
 
 | Original gap | Status |
 |--------------|--------|

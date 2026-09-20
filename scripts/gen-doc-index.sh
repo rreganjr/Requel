@@ -86,3 +86,8 @@ readme = re.sub(r'<!-- BEGIN INDEX -->.*?<!-- END INDEX -->', block, readme, fla
 open('doc/README.md', 'w').write(readme)
 print('>> refreshed the index block in doc/README.md', file=sys.stderr)
 PY
+
+# Links are checked after the index is written, so the generated INDEX.md and the
+# README block are covered too. The checker needs no gh and no network; it is runnable
+# on its own (scripts/check-doc-links.sh) and its exit code is the exit code here.
+"$root/scripts/check-doc-links.sh"

@@ -53,11 +53,24 @@ Run it after closing issues:
 ./scripts/gen-doc-index.sh 2.1      # a specific release
 ```
 
+Generating the index also runs `scripts/check-doc-links.sh`, which resolves every markdown
+link under `doc/` and in the three root documents and fails on a broken one. It needs no
+GitHub access and can be run on its own:
+
+```bash
+./scripts/check-doc-links.sh
+```
+
+Paths mentioned in prose rather than linked are reported separately and never fail the run —
+an instruction, a conditional or a reference to another branch is not a defect, and a work
+artifact is never retro-edited to make its old prose resolve. Ones that are known and
+intended are recorded, with a reason, in `scripts/doc-link-allow.tsv`.
+
 <!-- BEGIN INDEX -->
 
 | Folder | Contents | Files |
 |---|---|---|
 | [backlog](work/backlog/) | proposals, not yet scheduled | 7 |
-| [2.0](work/2.0/INDEX.md) | release 2.0 | 116 |
+| [2.0](work/2.0/INDEX.md) | release 2.0 | 117 |
 
 <!-- END INDEX -->
