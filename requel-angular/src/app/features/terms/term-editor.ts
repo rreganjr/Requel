@@ -231,7 +231,7 @@ const SEPARATOR = '; ';
           [projectName]="projectName"
           entityType="GlossaryTerm"
           [entityId]="termId()"
-          [canEdit]="canEdit()" />
+          />
       }
 
     </div>

@@ -159,7 +159,7 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
             [projectName]="projectName"
             entityType="ReportGenerator"
             [entityId]="reportId()"
-            [canEdit]="canEdit()" />
+            />
         }
       }
 

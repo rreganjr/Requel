@@ -29,7 +29,7 @@ import com.rreganjr.platform.command.AuthorizationRequirement;
 import com.rreganjr.platform.command.AuthorizationRequirement.*;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.project.ProjectScopedCommand;
-import com.rreganjr.requel.project.UserStakeholder;
+import com.rreganjr.requel.project.StakeholderAuthorizationChecker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -131,21 +131,7 @@ public class AuthorizingCommandHandler implements CommandHandler {
                     "Stakeholder permission required but command "
                     + "does not provide project context");
         }
-        try {
-            UserStakeholder stakeholder = psc.getProject().getUserStakeholder(user);
-            String permKey = entityType.getName() + "[" + permissionType + "]";
-            boolean hasPermission = stakeholder.getStakeholderPermissions().stream()
-                    .anyMatch(p -> permKey.equals(p.getPermissionKey()));
-            if (!hasPermission) {
-                throw new AuthorizationException(
-                        "Requires stakeholder permission: "
-                        + entityType.getSimpleName() + "[" + permissionType + "]");
-            }
-        } catch (AuthorizationException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new AuthorizationException(
-                    "User is not a stakeholder on the target project", e);
-        }
+        StakeholderAuthorizationChecker.require(psc.getProject(), user, entityType,
+                permissionType);
     }
 }

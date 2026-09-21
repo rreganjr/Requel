@@ -28,6 +28,7 @@ import { SelectModule } from 'primeng/select';
 import { MessageService } from 'primeng/api';
 import { AnnotationsDto, IssueDto, NoteDto, PositionDto, SUPPORT_LEVEL_OPTIONS } from '../models/annotation';
 import { AnnotationService } from '../core/annotation.service';
+import { PermissionService } from '../core/permission.service';
 import { AppCardComponent } from './app-card';
 import { AppTagComponent } from './app-tag';
 import { ErrorStateComponent } from './error-state';
@@ -64,7 +65,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
                         [ariaLabel]="allIssuesCollapsed() ? 'Expand all issues' : 'Collapse all issues'"
                         (onClick)="toggleAll()" />
             }
-            @if (canEdit) {
+            @if (canEditAnnotations()) {
               <div class="action-buttons">
                 <p-button label="Add Note" icon="pi pi-comment" size="small" severity="secondary"
                           data-testid="annotation-add-note"
@@ -134,7 +135,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
               <app-tag data-testid="annotation-note-badge" [tone]="'info'" icon="pi pi-comment" label="Note" />
               <span class="annotation-text">{{ note.text }}</span>
               <span class="annotation-creator">{{ note.createdBy }}</span>
-              @if (canEdit) {
+              @if (canEditAnnotations()) {
                 <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
                           data-testid="annotation-delete-note" ariaLabel="Delete note"
                           (onClick)="deleteNote(note)" />
@@ -163,7 +164,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
               }
               <span class="annotation-text">{{ issue.text }}</span>
               <span class="annotation-creator">{{ issue.createdBy }}</span>
-              @if (canEdit) {
+              @if (canEditAnnotations()) {
                 <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
                           data-testid="annotation-delete-issue" ariaLabel="Delete issue"
                           (onClick)="deleteIssue(issue)" />
@@ -187,13 +188,13 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
                   <app-tag data-testid="annotation-position-badge" [tone]="'neutral'" icon="pi pi-flag" label="Position" />
                   <span class="annotation-text">{{ pos.text }}</span>
                   <span class="annotation-creator">{{ pos.createdBy }}</span>
-                  @if (canEdit && !issue.resolved) {
+                  @if (canEditAnnotations() && !issue.resolved) {
                     <p-button [label]="resolveLabel(pos.positionType)" icon="pi pi-check-circle"
                               data-testid="annotation-resolve-issue"
                               size="small" severity="success" [outlined]="true"
                               (onClick)="resolveIssue(issue, pos)" />
                   }
-                  @if (canEdit) {
+                  @if (canEditAnnotations()) {
                     <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
                               data-testid="annotation-delete-position" ariaLabel="Delete position"
                               (onClick)="deletePosition(pos)" />
@@ -209,7 +210,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
                                [label]="formatSupportLevel(arg.supportLevel)" />
                       <span class="annotation-text">{{ arg.text }}</span>
                       <span class="annotation-creator">{{ arg.createdBy }}</span>
-                      @if (canEdit) {
+                      @if (canEditAnnotations()) {
                         <p-button icon="pi pi-trash" severity="danger" [text]="true" size="small"
                                   data-testid="annotation-delete-argument" ariaLabel="Delete argument"
                                   (onClick)="deleteArgument(pos, arg)" />
@@ -238,7 +239,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
                     </div>
                   </fieldset>
                 }
-                @if (canEdit && addArgPositionId() !== pos.id) {
+                @if (canEditAnnotations() && addArgPositionId() !== pos.id) {
                   <p-button label="Add Argument" icon="pi pi-plus" size="small" [text]="true"
                             (onClick)="startAddArgument(pos)" />
                 }
@@ -263,7 +264,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
                 </div>
               </fieldset>
             }
-            @if (canEdit && addPosIssueId() !== issue.id) {
+            @if (canEditAnnotations() && addPosIssueId() !== issue.id) {
               <p-button label="Add Position" icon="pi pi-plus" size="small" [text]="true"
                         (onClick)="startAddPosition(issue)" />
             }
@@ -318,7 +319,16 @@ export class AnnotationsSectionComponent implements OnChanges {
   @Input() projectName = '';
   @Input() entityType = '';
   @Input() entityId: number | null = null;
-  @Input() canEdit = false;
+  /**
+   * Whether the current user may write annotations here.
+   *
+   * Deliberately NOT an input taking the host entity's Edit permission (issue #305). Every
+   * annotation write — notes, issues, positions, arguments and resolving — is authorized on
+   * the backend as Annotation[Edit], not as Goal[Edit] or GlossaryTerm[Edit], so gating the
+   * UI on the host entity's permission both hid actions a user was entitled to and offered
+   * actions the backend would refuse.
+   */
+  readonly canEditAnnotations = computed(() => this.permissionService.canEdit('Annotation'));
 
   private _annotations = signal<AnnotationsDto>({ notes: [], issues: [] });
   annotations = this._annotations.asReadonly();
@@ -391,6 +401,7 @@ export class AnnotationsSectionComponent implements OnChanges {
 
   constructor(
     private annotationService: AnnotationService,
+    private permissionService: PermissionService,
     private messageService: MessageService
   ) {}
 

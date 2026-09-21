@@ -275,7 +275,7 @@ type StepGroup = FormGroup<{
           [projectName]="projectName"
           entityType="Scenario"
           [entityId]="scenarioId"
-          [canEdit]="canEdit()" />
+          />
       }
 
       <p-confirmDialog />

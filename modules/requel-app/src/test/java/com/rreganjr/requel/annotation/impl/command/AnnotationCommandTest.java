@@ -579,7 +579,7 @@ public class AnnotationCommandTest extends AbstractIntegrationTestCase {
         lexCmd.setText("Possible misspelling: systm");
         lexCmd.setMustBeResolved(false);
         lexCmd.setWord("systm");
-        // Property name drives reflection: get<Name>() / set<Name>() on the entity
+        // Property name selects which text property the registered editor corrects (issue #305)
         lexCmd.setAnnotatableEntityPropertyName("Text");
         lexCmd = getCommandHandler().execute(lexCmd);
         LexicalIssue lexicalIssue = (LexicalIssue) lexCmd.getIssue();

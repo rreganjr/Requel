@@ -192,7 +192,7 @@ const STALE_VERSION_MESSAGE =
           [projectName]="projectName"
           entityType="Goal"
           [entityId]="goalId"
-          [canEdit]="canEdit()" />
+          />
       }
 
       <!-- Add Relation Dialog -->

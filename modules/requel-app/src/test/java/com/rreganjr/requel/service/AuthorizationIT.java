@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.project.*;
+import com.rreganjr.requel.annotation.command.*;
 import com.rreganjr.requel.project.command.*;
 import com.rreganjr.requel.project.impl.StakeholderPermissionImpl;
 import com.rreganjr.requel.user.User;
@@ -686,6 +687,65 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 .andExpect(status().isForbidden());
     }
 
+    // -------------------------------------------------------------------------
+    // ResolveIssue — requires Annotation[Edit] (issue #305)
+    // Resolving is an annotation write, so it reuses the permission the other
+    // annotation commands require rather than adding a permission type of its own.
+    // The deleter case is the sharp one: Annotation[Delete] is not Annotation[Edit],
+    // so holding it does not let you dismiss a finding.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void editorCanResolveIssue() throws Exception {
+        long[] ids = createIssueWithPosition("resolve-allowed");
+        mockMvc.perform(post("/api/commands/ResolveIssue")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resolveIssueJson(ids[0], ids[1])))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void deleterWithoutAnnotationEditCannotResolveIssue() throws Exception {
+        long[] ids = createIssueWithPosition("resolve-deleter");
+        mockMvc.perform(post("/api/commands/ResolveIssue")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resolveIssueJson(ids[0], ids[1])))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void granterCannotResolveIssue() throws Exception {
+        long[] ids = createIssueWithPosition("resolve-granter");
+        mockMvc.perform(post("/api/commands/ResolveIssue")
+                        .header("Authorization", "Bearer " + granterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resolveIssueJson(ids[0], ids[1])))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void noAccessCannotResolveIssue() throws Exception {
+        long[] ids = createIssueWithPosition("resolve-noaccess");
+        mockMvc.perform(post("/api/commands/ResolveIssue")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resolveIssueJson(ids[0], ids[1])))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminWithoutAnnotationEditCannotResolveIssue() throws Exception {
+        long[] ids = createIssueWithPosition("resolve-admin");
+        mockMvc.perform(post("/api/commands/ResolveIssue")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(resolveIssueJson(ids[0], ids[1])))
+                .andExpect(status().isForbidden());
+    }
+
     @Test
     void unauthenticatedProjectQueryReturnsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/projects/" + testProjectName))
@@ -792,6 +852,42 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 "projectName", testProjectName,
                 "name", name,
                 "text", "authorization test goal"));
+    }
+
+    /**
+     * A fresh issue and one position on it, authored by the editor (who holds
+     * Annotation[Edit]; admin holds nothing once the fixture strips its creator grants).
+     * Fresh per test because resolving marks the issue resolved, and a shared one would make
+     * the tests order-dependent. The project is the annotatable, which keeps the fixture
+     * independent of the goal and still gives the resolver a project to authorize against.
+     */
+    private long[] createIssueWithPosition(String label) throws Exception {
+        Project project = getProjectRepository().findProjectByName(testProjectName);
+        User editor = getUserRepository().findUserByUsername(editorUsername);
+        String unique = label + "-" + System.nanoTime();
+
+        EditIssueCommand issueCmd = getAnnotationCommandFactory().newEditIssueCommand();
+        issueCmd.setEditedBy(editor);
+        issueCmd.setGroupingObject(project);
+        issueCmd.setAnnotatable(project);
+        issueCmd.setText(unique);
+        issueCmd.setMustBeResolved(false);
+        issueCmd = getCommandHandler().execute(issueCmd);
+
+        EditPositionCommand positionCmd = getAnnotationCommandFactory().newEditPositionCommand();
+        positionCmd.setEditedBy(editor);
+        positionCmd.setIssue(issueCmd.getIssue());
+        positionCmd.setText(unique + " position");
+        positionCmd = getCommandHandler().execute(positionCmd);
+
+        return new long[] { issueCmd.getIssue().getId(), positionCmd.getPosition().getId() };
+    }
+
+    private String resolveIssueJson(long issueId, long positionId) throws Exception {
+        return objectMapper.writeValueAsString(Map.of(
+                "projectName", testProjectName,
+                "issueId", issueId,
+                "positionId", positionId));
     }
 
     private String deleteGoalJson(Long id, Integer version) throws Exception {

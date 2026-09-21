@@ -4,6 +4,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MessageService } from 'primeng/api';
 import { AnnotationsSectionComponent } from './annotations-section';
 import { AnnotationService } from '../core/annotation.service';
+import { PermissionService } from '../core/permission.service';
 
 const MOCK_ANNOTATIONS = {
   notes: [
@@ -25,6 +26,7 @@ describe('AnnotationsSectionComponent', () => {
     resolveIssue: ReturnType<typeof vi.fn>;
   };
   let messageServiceMock: { add: ReturnType<typeof vi.fn> };
+  let permissionServiceMock: { canEdit: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     annotationServiceMock = {
@@ -34,20 +36,25 @@ describe('AnnotationsSectionComponent', () => {
       resolveIssue: vi.fn().mockResolvedValue({ success: true }),
     };
     messageServiceMock = { add: vi.fn() };
+    permissionServiceMock = { canEdit: vi.fn().mockReturnValue(false) };
   });
 
-  function providers() {
+  // Annotation actions gate on Annotation[Edit], not on the host entity's permission
+  // (issue #305), so these tests drive the permission service rather than an input.
+  function providers(canEditAnnotations = false) {
+    permissionServiceMock.canEdit.mockReturnValue(canEditAnnotations);
     return [
       provideNoopAnimations(),
       { provide: AnnotationService, useValue: annotationServiceMock },
       { provide: MessageService, useValue: messageServiceMock },
+      { provide: PermissionService, useValue: permissionServiceMock },
     ];
   }
 
   it('shows "No annotations." when service returns empty data', async () => {
     const { fixture } = await render(AnnotationsSectionComponent, {
       providers: providers(),
-      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1, canEdit: false }
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 }
     });
     await fixture.whenStable();
     fixture.detectChanges();
@@ -57,7 +64,7 @@ describe('AnnotationsSectionComponent', () => {
   it('calls getAnnotations when entityId is provided', async () => {
     const { fixture } = await render(AnnotationsSectionComponent, {
       providers: providers(),
-      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 42, canEdit: false }
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 42 }
     });
     await fixture.whenStable();
     expect(annotationServiceMock.getAnnotations).toHaveBeenCalledWith('proj1', 'Goal', 42);
@@ -66,16 +73,16 @@ describe('AnnotationsSectionComponent', () => {
   it('does not call getAnnotations when entityId is null', async () => {
     const { fixture } = await render(AnnotationsSectionComponent, {
       providers: providers(),
-      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: null, canEdit: false }
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: null }
     });
     await fixture.whenStable();
     expect(annotationServiceMock.getAnnotations).not.toHaveBeenCalled();
   });
 
-  it('hides Add Note and Add Issue buttons when canEdit is false', async () => {
+  it('hides Add Note and Add Issue buttons without Annotation[Edit]', async () => {
     const { fixture } = await render(AnnotationsSectionComponent, {
       providers: providers(),
-      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1, canEdit: false }
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 }
     });
     await fixture.whenStable();
     fixture.detectChanges();
@@ -83,10 +90,10 @@ describe('AnnotationsSectionComponent', () => {
     expect(screen.queryByText('Add Issue')).not.toBeInTheDocument();
   });
 
-  it('shows Add Note and Add Issue buttons when canEdit is true', async () => {
+  it('shows Add Note and Add Issue buttons with Annotation[Edit]', async () => {
     const { fixture } = await render(AnnotationsSectionComponent, {
-      providers: providers(),
-      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1, canEdit: true }
+      providers: providers(true),
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 }
     });
     await fixture.whenStable();
     fixture.detectChanges();
@@ -98,7 +105,7 @@ describe('AnnotationsSectionComponent', () => {
     annotationServiceMock.getAnnotations.mockResolvedValue(MOCK_ANNOTATIONS);
     const { fixture } = await render(AnnotationsSectionComponent, {
       providers: providers(),
-      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1, canEdit: false }
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 }
     });
     await fixture.whenStable();
     fixture.detectChanges();
@@ -133,6 +140,7 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
     deleteArgument: ReturnType<typeof vi.fn>;
   };
   let messageServiceMock: { add: ReturnType<typeof vi.fn> };
+  let permissionServiceMock: { canEdit: ReturnType<typeof vi.fn> };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fixture: any;
   let comp: AnnotationsSectionComponent;
@@ -151,13 +159,15 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
       deleteArgument: vi.fn().mockResolvedValue({ success: true }),
     };
     messageServiceMock = { add: vi.fn() };
+    permissionServiceMock = { canEdit: vi.fn().mockReturnValue(true) };
 
     TestBed.configureTestingModule({
       imports: [AnnotationsSectionComponent],
       providers: [
         provideNoopAnimations(),
         { provide: AnnotationService, useValue: annotationServiceMock },
-        { provide: MessageService, useValue: messageServiceMock }
+        { provide: MessageService, useValue: messageServiceMock },
+        { provide: PermissionService, useValue: permissionServiceMock }
       ]
     });
     fixture = TestBed.createComponent(AnnotationsSectionComponent);
@@ -165,7 +175,6 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
     fixture.componentRef.setInput('projectName', 'proj1');
     fixture.componentRef.setInput('entityType', 'Goal');
     fixture.componentRef.setInput('entityId', 42);
-    fixture.componentRef.setInput('canEdit', true);
     fixture.detectChanges();
   });
 
