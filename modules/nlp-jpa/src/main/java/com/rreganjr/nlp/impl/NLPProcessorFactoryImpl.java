@@ -195,7 +195,18 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 
 	@Override
 	public NLPProcessor<Collection<NLPText>> getSimilarWordFinder() {
-		return newInstance(SpellingSuggester.class);
+		return getSimilarWordFinder(null);
+	}
+
+	/**
+	 * {@code newInstance} goes through {@code createBean}, so every call returns a fresh
+	 * processor — setting the project on it afterwards cannot leak between callers.
+	 */
+	@Override
+	public NLPProcessor<Collection<NLPText>> getSimilarWordFinder(Long projectId) {
+		SpellingSuggester suggester = newInstance(SpellingSuggester.class);
+		suggester.setProjectId(projectId);
+		return suggester;
 	}
 
 	@Override
@@ -205,7 +216,15 @@ public class NLPProcessorFactoryImpl implements NLPProcessorFactory, Application
 
 	@Override
 	public NLPProcessor<Boolean> getSpellingChecker() {
-		return newInstance(SpellingChecker.class);
+		return getSpellingChecker(null);
+	}
+
+	/** @see #getSimilarWordFinder(Long) for why setting the project on the instance is safe. */
+	@Override
+	public NLPProcessor<Boolean> getSpellingChecker(Long projectId) {
+		SpellingChecker checker = newInstance(SpellingChecker.class);
+		checker.setProjectId(projectId);
+		return checker;
 	}
 
 	/**

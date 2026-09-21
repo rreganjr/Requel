@@ -70,8 +70,11 @@ class LexicalSpellingAssistantTest {
 		NLPText suggestion = mock(NLPText.class);
 
 		when(nlpProcessorFactory.processText(anyString())).thenReturn(nlpText);
-		when(nlpProcessorFactory.getSpellingChecker()).thenReturn(spellChecker);
-		when(nlpProcessorFactory.getSimilarWordFinder()).thenReturn(similarWordFinder);
+		// Stubbed on the exact project id, not any(): the assistant must pass Project 7 from the
+		// context through to the factory (issue #313). If it passes null or the wrong id the stub
+		// does not match, the processors come back null and this fails.
+		when(nlpProcessorFactory.getSpellingChecker(7L)).thenReturn(spellChecker);
+		when(nlpProcessorFactory.getSimilarWordFinder(7L)).thenReturn(similarWordFinder);
 		when(nlpText.getLeaves()).thenReturn(List.of(word));
 		when(word.in(any(PartOfSpeech[].class))).thenReturn(false);
 		when(word.in(any(ParseTag[].class))).thenReturn(false);
@@ -96,6 +99,36 @@ class LexicalSpellingAssistantTest {
 				a -> "CHANGE_SPELLING".equals(a.metadata().get("kind")));
 	}
 
+	/**
+	 * {@code AssistantContext.projectRef()} is nullable, so a run with no project must still
+	 * analyze — against the two installation-wide dictionary layers alone (issue #313).
+	 */
+	@Test
+	void aRunWithNoProjectStillAnalyzesAgainstTheInstallationWideDictionary() {
+		@SuppressWarnings("unchecked")
+		NLPProcessor<Boolean> spellChecker = mock(NLPProcessor.class);
+		@SuppressWarnings("unchecked")
+		NLPProcessor<java.util.Collection<NLPText>> similarWordFinder = mock(NLPProcessor.class);
+		NLPText nlpText = mock(NLPText.class);
+		NLPText word = mock(NLPText.class);
+
+		when(nlpProcessorFactory.processText(anyString())).thenReturn(nlpText);
+		when(nlpProcessorFactory.getSpellingChecker(null)).thenReturn(spellChecker);
+		when(nlpProcessorFactory.getSimilarWordFinder(null)).thenReturn(similarWordFinder);
+		when(nlpText.getLeaves()).thenReturn(List.of(word));
+		when(word.in(any(PartOfSpeech[].class))).thenReturn(false);
+		when(word.in(any(ParseTag[].class))).thenReturn(false);
+		when(word.getText()).thenReturn("datalaek");
+		when(spellChecker.process(word)).thenReturn(false);
+		when(similarWordFinder.process(word)).thenReturn(List.of());
+
+		AssistantResult result = assistant.analyze(contextWithNoProject(),
+				textEntity("", "datalaek"));
+
+		// 1 issue + add-dictionary + ignore + add-glossary + add-actor, no change-spelling
+		assertThat(result.annotationActions()).hasSize(5);
+	}
+
 	@Test
 	void blankTextProducesNoActions() {
 		AssistantResult result = assistant.analyze(context(), textEntity("", ""));
@@ -106,6 +139,11 @@ class LexicalSpellingAssistantTest {
 		return new AssistantContext(UUID.randomUUID(), new UserRef(3L, "ron"),
 				new UserRef(11L, "assistant"), EntityRef.of("Project", 7L), Locale.US,
 				Clock.systemUTC(), Map.of());
+	}
+
+	private static AssistantContext contextWithNoProject() {
+		return new AssistantContext(UUID.randomUUID(), new UserRef(3L, "ron"),
+				new UserRef(11L, "assistant"), null, Locale.US, Clock.systemUTC(), Map.of());
 	}
 
 	private static TextEntity textEntity(String name, String text) {

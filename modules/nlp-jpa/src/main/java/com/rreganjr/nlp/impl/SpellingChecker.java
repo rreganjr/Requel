@@ -42,12 +42,29 @@ public class SpellingChecker implements NLPProcessor<Boolean> {
 
 	private final DictionaryRepository dictionaryRepository;
 
+	private Long projectId;
+
 	/**
 	 * @param dictionaryRepository
 	 */
 	@Autowired
 	public SpellingChecker(DictionaryRepository dictionaryRepository) {
 		this.dictionaryRepository = dictionaryRepository;
+	}
+
+	/**
+	 * The project whose own dictionary counts as correctly spelled here, in addition to the two
+	 * installation-wide layers (issue #313). Null means the installation-wide layers alone.
+	 * <p>
+	 * Set by {@code NLPProcessorFactory.getSpellingChecker(Long)} on a freshly created instance —
+	 * this is a prototype bean, so it is never shared between callers.
+	 */
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	protected Long getProjectId() {
+		return projectId;
 	}
 
 	@Override
@@ -78,7 +95,7 @@ public class SpellingChecker implements NLPProcessor<Boolean> {
 					// TODO: what about the lead word like can't -> (MD ca) (RB
 					// n't)
 				} else {
-					return dictionaryRepository.isKnownWord(text.getText());
+					return dictionaryRepository.isKnownWord(projectId, text.getText());
 				}
 			}
 		} else {
