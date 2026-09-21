@@ -3,6 +3,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MessageService } from 'primeng/api';
 import { AnnotationsSectionComponent } from './annotations-section';
 import { AnnotationService } from '../core/annotation.service';
+import { PermissionService } from '../core/permission.service';
 import { expectNoAxeViolations } from './testing/a11y';
 
 describe('AnnotationsSectionComponent — accessibility (issue #138)', () => {
@@ -16,13 +17,14 @@ describe('AnnotationsSectionComponent — accessibility (issue #138)', () => {
         resolveIssue: vi.fn().mockResolvedValue({ success: true }),
       } },
       { provide: MessageService, useValue: { add: vi.fn() } },
+      { provide: PermissionService, useValue: { canEdit: vi.fn().mockReturnValue(true) } },
     ];
   }
 
   it('groups the add-note / add-issue forms under labelled fieldsets, no axe violations', async () => {
     const { fixture } = await render(AnnotationsSectionComponent, {
       providers: providers(),
-      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1, canEdit: true },
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 },
     });
     await fixture.whenStable();
     fixture.componentInstance.showNoteForm.set(true);
@@ -43,7 +45,7 @@ describe('AnnotationsSectionComponent — accessibility (issue #138)', () => {
   it('keeps the note / issue forms accessible when the required error is shown', async () => {
     const { fixture } = await render(AnnotationsSectionComponent, {
       providers: providers(),
-      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1, canEdit: true },
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 },
     });
     await fixture.whenStable();
     const comp = fixture.componentInstance;

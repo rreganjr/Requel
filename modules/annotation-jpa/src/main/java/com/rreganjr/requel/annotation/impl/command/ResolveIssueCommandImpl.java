@@ -25,22 +25,43 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
 import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.requel.annotation.Annotatable;
+import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.ResolveIssueCommand;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.platform.identity.User;
 
 /**
+ * Resolves an issue with one of its positions.
+ * <p>
+ * Requires {@code Annotation[Edit]} on the issue's project (issue #305). Resolving is an
+ * annotation write, so it reuses the permission every other annotation command already
+ * requires rather than introducing a permission type of its own. The four resolver
+ * subclasses inherit this requirement; those that edit a project entity additionally run
+ * that entity's own {@code Edit*Command}, which is authorized in its own right.
+ * <p>
+ * Those nested commands are deliberately <em>not</em> marked authorization-exempt.
+ * {@link com.rreganjr.requel.annotation.impl.command.AbstractEditCommand} implements
+ * {@code AuthorizationExemptable} and {@code AuthorizingCommandHandler} short-circuits on
+ * that flag <em>before</em> the {@code AuthorizableCommand} check, so exempting a resolve's
+ * sub-commands would silently reopen the hole this class closes.
+ *
  * @author ron
  */
 @Controller("resolveIssueCommand")
 @Scope("prototype")
-public class ResolveIssueCommandImpl extends AbstractEditCommand implements ResolveIssueCommand {
+public class ResolveIssueCommandImpl extends AbstractEditCommand
+		implements ResolveIssueCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Annotatable annotatable;
 	private Issue issue;
@@ -103,5 +124,31 @@ public class ResolveIssueCommandImpl extends AbstractEditCommand implements Reso
 			throw EntityValidationException.emptyRequiredProperty(Issue.class, getPosition(),
 					"position", EntityExceptionActionType.Updating);
 		}
+	}
+
+	/**
+	 * The project the resolved issue belongs to, for the stakeholder check. An annotation has
+	 * no direct project reference, so this walks the same routes the other annotation commands
+	 * use: the issue's grouping object or annotatables, then the position's issues, then the
+	 * explicitly-set annotatable. Returns {@code null} for a domain-scoped annotation, which
+	 * {@code AuthorizingCommandHandler} treats as "not a stakeholder on the target project"
+	 * and denies.
+	 */
+	@Override
+	public Project getProject() {
+		Project project = AnnotationCommandProjectResolver.of(getIssue());
+		if (project != null) {
+			return project;
+		}
+		project = AnnotationCommandProjectResolver.of(getPosition());
+		if (project != null) {
+			return project;
+		}
+		return AnnotationCommandProjectResolver.ofAnnotatable(getAnnotatable());
+	}
+
+	@Override
+	public AuthorizationRequirement getAuthorizationRequirement() {
+		return new RequiresStakeholderPermission(Annotation.class, "Edit");
 	}
 }

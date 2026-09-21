@@ -199,7 +199,7 @@ const STALE_VERSION_MESSAGE =
           [projectName]="projectName"
           entityType="Story"
           [entityId]="storyId"
-          [canEdit]="canEdit()" />
+          />
       }
 
       <p-confirmDialog />

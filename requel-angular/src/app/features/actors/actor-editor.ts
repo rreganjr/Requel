@@ -206,7 +206,7 @@ const STALE_VERSION_MESSAGE =
         [projectName]="projectName"
         entityType="Actor"
         [entityId]="actorId"
-        [canEdit]="canEdit()" />
+        />
     }
 
     <p-confirmDialog />
