@@ -30,7 +30,13 @@ import org.junit.jupiter.api.Test;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.nlp.dictionary.ProjectDictionaryWord;
+import com.rreganjr.requel.annotation.command.EditAddWordToDictionaryPositionCommand;
+import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
+import com.rreganjr.requel.annotation.command.ResolveIssueCommand;
+import com.rreganjr.requel.annotation.impl.LexicalIssue;
+import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.user.User;
 
@@ -177,6 +183,69 @@ public class ProjectDictionaryIT extends AbstractIntegrationTestCase {
 				"an invented word should be unknown with no project");
 		assertTrue(getDictionaryRepository().findProjectWords(null).isEmpty());
 		assertEquals(0, getDictionaryRepository().deleteProjectWords(null));
+	}
+
+	/**
+	 * The write path end to end (issue #313): resolving an "Add to Dictionary" position puts the
+	 * word in that project's dictionary and leaves the installation-wide WordNet {@code word}
+	 * table alone. Before this ticket the same resolution wrote a senseless row into {@code word},
+	 * which is what made the addition installation-wide.
+	 */
+	@Test
+	public void resolvingAddToDictionaryWritesOnlyTheProjectsDictionary() throws Exception {
+		Project project = createProject("dict-resolve");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Goal goal = createGoal(project, "goal-" + System.nanoTime(), "a goal mentioning "
+				+ INVENTED_WORD);
+
+		int wordRowsBefore = getDictionaryRepository().findWords().size();
+
+		EditLexicalIssueCommand issueCmd = getAnnotationCommandFactory()
+				.newEditLexicalIssueCommand();
+		issueCmd.setEditedBy(admin);
+		issueCmd.setGroupingObject(project);
+		issueCmd.setAnnotatable(goal);
+		issueCmd.setText("Possible misspelling: " + INVENTED_WORD);
+		issueCmd.setMustBeResolved(false);
+		issueCmd.setWord(INVENTED_WORD);
+		issueCmd.setAnnotatableEntityPropertyName("Text");
+		issueCmd = getCommandHandler().execute(issueCmd);
+		LexicalIssue issue = (LexicalIssue) issueCmd.getIssue();
+
+		EditAddWordToDictionaryPositionCommand positionCmd = getAnnotationCommandFactory()
+				.newEditAddWordToDictionaryPositionCommand();
+		positionCmd.setEditedBy(admin);
+		positionCmd.setIssue(issue);
+		positionCmd.setText("Add '" + INVENTED_WORD + "' to the project dictionary");
+		positionCmd = getCommandHandler().execute(positionCmd);
+
+		ResolveIssueCommand resolve = getAnnotationCommandFactory().newResolveIssueCommand(
+				positionCmd.getPosition());
+		resolve.setEditedBy(admin);
+		resolve.setIssue(issue);
+		resolve.setPosition(positionCmd.getPosition());
+		getCommandHandler().execute(resolve);
+
+		List<ProjectDictionaryWord> words = getDictionaryRepository().findProjectWords(
+				project.getId());
+		assertEquals(1, words.size(), "expected the resolved word in the project's dictionary, got "
+				+ words);
+		assertEquals(INVENTED_WORD, words.get(0).getLemma());
+		assertTrue(getDictionaryRepository().isKnownWord(project.getId(), INVENTED_WORD),
+				"the word should be known in this project after the resolve");
+		assertEquals(wordRowsBefore, getDictionaryRepository().findWords().size(),
+				"resolving must not add a row to the installation-wide word table");
+	}
+
+	private Goal createGoal(Project project, String name, String text) throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditGoalCommand cmd = getProjectCommandFactory().newEditGoalCommand();
+		cmd.setEditedBy(admin);
+		cmd.setGoalContainer(project);
+		cmd.setName(name);
+		cmd.setText(text);
+		cmd = getCommandHandler().execute(cmd);
+		return cmd.getGoal();
 	}
 
 	private Project createProject(String label) throws Exception {

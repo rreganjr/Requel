@@ -35,4 +35,16 @@ public interface EditDictionaryWordCommand extends Command {
 	 * @param lemma
 	 */
 	public void setLemma(String lemma);
+
+	/**
+	 * The project whose dictionary the word is added to (issue #313).
+	 * <p>
+	 * Words used to go into the installation-wide WordNet {@code word} table, which made a word
+	 * added while working in one project correct in every project on the installation. Set this and
+	 * the word goes into that project's own dictionary instead. A null projectId keeps the old
+	 * installation-wide behaviour, for a caller that genuinely has no project.
+	 *
+	 * @param projectId
+	 */
+	public void setProjectId(Long projectId);
 }
