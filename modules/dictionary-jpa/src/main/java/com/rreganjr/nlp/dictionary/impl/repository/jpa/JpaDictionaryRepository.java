@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.rreganjr.validator.InvalidStateException;
 import jakarta.persistence.NoResultException;
@@ -61,6 +62,7 @@ import com.rreganjr.nlp.dictionary.Category;
 import com.rreganjr.nlp.dictionary.Dictionary;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.Lexlinkref;
+import com.rreganjr.nlp.dictionary.ProjectDictionaryWord;
 import com.rreganjr.nlp.dictionary.LexlinkrefId;
 import com.rreganjr.nlp.dictionary.Linkdef;
 import com.rreganjr.nlp.dictionary.SemcorFile;
@@ -74,6 +76,7 @@ import com.rreganjr.nlp.dictionary.VerbNetSelectionRestrictionType;
 import com.rreganjr.nlp.dictionary.Word;
 import com.rreganjr.nlp.dictionary.impl.repository.NoSuchWordException;
 import com.rreganjr.nlp.dictionary.impl.repository.DatabaseSpellDictionary;
+import com.rreganjr.nlp.dictionary.impl.repository.ProjectSpellDictionary;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.repository.jpa.AbstractJpaRepository;
 import com.rreganjr.repository.jpa.ExceptionMapper;
@@ -150,6 +153,15 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 	private SpellChecker spellChecker = new SpellChecker();
 
 	/**
+	 * One jazzy SpellChecker per project (issue #313), each carrying the same static dictionaries
+	 * by reference plus that project's own words as its user dictionary. Entries are two small
+	 * objects — the .dic files are not copied — and are evicted whenever the project's word list
+	 * changes. Unbounded by project count, which is fine at this scale; a size-bounded LRU is a
+	 * drop-in if it ever is not.
+	 */
+	private final Map<Long, SpellChecker> projectSpellCheckers = new ConcurrentHashMap<Long, SpellChecker>();
+
+	/**
 	 * @param exceptionMapper
 	 */
 	@Autowired
@@ -196,18 +208,65 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 		return spellChecker;
 	}
 
+	/**
+	 * The checker to consult for a given project: the installation-wide one when projectId is
+	 * null, otherwise a cached per-project checker that also sees that project's own words.
+	 * <p>
+	 * The mapping function does no database work — it only wires up a
+	 * {@link ProjectSpellDictionary}, which reads lazily, per lookup — so nothing blocks inside
+	 * {@code computeIfAbsent}.
+	 */
+	protected SpellChecker getSpellChecker(Long projectId) {
+		if (projectId == null) {
+			return getSpellChecker();
+		}
+		return projectSpellCheckers.computeIfAbsent(projectId, id -> {
+			SpellChecker checker = new SpellChecker();
+			for (SpellDictionary dictionary : staticDictionaries) {
+				checker.addDictionary(dictionary);
+			}
+			try {
+				checker.setUserDictionary(new ProjectSpellDictionary(this, id));
+			} catch (IOException e) {
+				// Cannot happen: ProjectSpellDictionary passes no phonetic file.
+				throw new RuntimeException("failed to create the dictionary for project " + id, e);
+			}
+			return checker;
+		});
+	}
+
+	/**
+	 * Drop a project's cached checker so the next lookup rebuilds it. Called whenever that
+	 * project's word list changes.
+	 */
+	protected void evictSpellChecker(Long projectId) {
+		if (projectId != null) {
+			projectSpellCheckers.remove(projectId);
+		}
+	}
+
 	public Boolean isKnownWord(String word) {
+		return isKnownWord(null, word);
+	}
+
+	@Override
+	public Boolean isKnownWord(Long projectId, String word) {
 		if (isNumber(word)) {
 			return Boolean.TRUE;
 		}
-		return getSpellChecker().isCorrect(word);
+		return getSpellChecker(projectId).isCorrect(word);
 	}
 
 	public List<String> findSpellingSuggestions(String word, int threshold) {
+		return findSpellingSuggestions(null, word, threshold);
+	}
+
+	@Override
+	public List<String> findSpellingSuggestions(Long projectId, String word, int threshold) {
 		List<String> results = new ArrayList<String>();
 		boolean containsDigits = containsDigits(word);
 
-		for (Object obj : getSpellChecker().getSuggestions(word, threshold)) {
+		for (Object obj : getSpellChecker(projectId).getSuggestions(word, threshold)) {
 			org.fife.com.swabunga.spell.engine.Word jazzyWord = (org.fife.com.swabunga.spell.engine.Word) obj;
 			// if the word doesn't contain any digits, don't include numbers in
 			// the suggestions
@@ -303,6 +362,101 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 
 	public void addToDictionary(String word) {
 		getSpellChecker().addToDictionary(word);
+	}
+
+	@Override
+	public void addToDictionary(Long projectId, String word) {
+		if (projectId == null) {
+			addToDictionary(word);
+			return;
+		}
+		if ((word == null) || word.trim().isEmpty()) {
+			return;
+		}
+		String lemma = word.trim();
+		// Idempotent by decision: two users can resolve the same lexical issue, and on H2 the
+		// unique constraint is case-sensitive where MySQL's collation is not, so the check is
+		// made here rather than left to the database.
+		if (!findProjectWordsMatching(projectId, lemma).isEmpty()) {
+			return;
+		}
+		persist(new ProjectDictionaryWord(projectId, lemma, generatePhoneticCode(lemma)));
+		evictSpellChecker(projectId);
+	}
+
+	@Override
+	public List<ProjectDictionaryWord> findProjectWords(Long projectId) {
+		if (projectId == null) {
+			return Collections.emptyList();
+		}
+		try {
+			Query query = getEntityManager().createQuery(
+					"select object(word) from ProjectDictionaryWord as word "
+							+ "where word.projectId = :projectId order by word.lemma");
+			query.setParameter("projectId", projectId);
+			return query.getResultList();
+		} catch (Exception e) {
+			throw new RuntimeException("failed to find the dictionary words of project "
+					+ projectId, e);
+		}
+	}
+
+	@Override
+	public List<ProjectDictionaryWord> findProjectWordsByPhoneticCode(Long projectId,
+			String phoneticCode) {
+		if ((projectId == null) || (phoneticCode == null)) {
+			return Collections.emptyList();
+		}
+		try {
+			Query query = getEntityManager().createQuery(
+					"select object(word) from ProjectDictionaryWord as word "
+							+ "where word.projectId = :projectId "
+							+ "and word.phoneticCode = :phoneticCode");
+			query.setParameter("projectId", projectId);
+			query.setParameter("phoneticCode", phoneticCode);
+			return query.getResultList();
+		} catch (Exception e) {
+			throw new RuntimeException("failed to find the words of project " + projectId
+					+ " by phonetic code '" + phoneticCode + "'", e);
+		}
+	}
+
+	@Override
+	public int deleteProjectWords(Long projectId) {
+		if (projectId == null) {
+			return 0;
+		}
+		try {
+			Query query = getEntityManager().createQuery(
+					"delete from ProjectDictionaryWord word where word.projectId = :projectId");
+			query.setParameter("projectId", projectId);
+			int deleted = query.executeUpdate();
+			evictSpellChecker(projectId);
+			return deleted;
+		} catch (Exception e) {
+			throw new RuntimeException("failed to delete the dictionary words of project "
+					+ projectId, e);
+		}
+	}
+
+	/**
+	 * The project's words whose lemma matches case-insensitively. One row at most in practice;
+	 * a list because H2 under create-drop would let two cases coexist where MySQL's collation
+	 * would not.
+	 */
+	private List<ProjectDictionaryWord> findProjectWordsMatching(Long projectId, String lemma) {
+		try {
+			Query query = getEntityManager().createQuery(
+					"select object(word) from ProjectDictionaryWord as word "
+							+ "where word.projectId = :projectId "
+							+ "and lower(word.lemma) = :lemma");
+			query.setParameter("projectId", projectId);
+			query.setParameter("lemma", lemma.toLowerCase());
+			return query.getResultList();
+		} catch (Exception e) {
+			throw new RuntimeException("failed to look up '" + lemma + "' in the dictionary of "
+					+ "project " + projectId, e);
+		}
 	}
 
 	@Override

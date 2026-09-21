@@ -175,6 +175,75 @@ public interface DictionaryRepository extends Repository {
 	 */
 	public void addToDictionary(String word);
 
+	// ---------------------------------------------------------------------------------------
+	// Project-scoped dictionary layer (issue #313).
+	//
+	// The methods above see the two installation-wide layers: the jazzy word lists loaded from
+	// the classpath and the WordNet `word` table. The ones below add a third layer on top,
+	// holding the words a user added while working in one project. A null projectId means "no
+	// project", and every one of these delegates to its project-less counterpart above, so a
+	// caller that has no project in hand behaves exactly as it did before.
+	// ---------------------------------------------------------------------------------------
+
+	/**
+	 * @param projectId -
+	 *            the project whose own words are consulted in addition to the installation-wide
+	 *            layers, or null for the installation-wide layers alone.
+	 * @param word
+	 * @return true if the supplied word is in the dictionary for that project
+	 */
+	public Boolean isKnownWord(Long projectId, String word);
+
+	/**
+	 * @param projectId -
+	 *            the project whose own words may appear among the suggestions, or null for the
+	 *            installation-wide layers alone.
+	 * @param word
+	 * @param threshold
+	 * @return a list of words as Strings that are similar to the supplied word with the given
+	 *         threshold.
+	 */
+	public List<String> findSpellingSuggestions(Long projectId, String word, int threshold);
+
+	/**
+	 * Add a word to one project's dictionary. Idempotent: a word already in that project's
+	 * dictionary, in any case, leaves it unchanged rather than failing, because two users can
+	 * resolve the same lexical issue.
+	 * <p>
+	 * TODO: as with {@link #addToDictionary(String)}, a write does not belong on the repository;
+	 * it is here to match the existing shape rather than to endorse it.
+	 *
+	 * @param projectId -
+	 *            the project to add the word to. A null projectId adds to the installation-wide
+	 *            dictionary, preserving the old behaviour.
+	 * @param word
+	 */
+	public void addToDictionary(Long projectId, String word);
+
+	/**
+	 * @param projectId
+	 * @return every word in that project's own dictionary, ordered by lemma
+	 */
+	public List<ProjectDictionaryWord> findProjectWords(Long projectId);
+
+	/**
+	 * @param projectId
+	 * @param phoneticCode -
+	 *            a DoubleMeta code as produced by {@link #generatePhoneticCode(String)}
+	 * @return that project's own words having the given phonetic code. This is the query behind
+	 *         spelling suggestions, and the reason for the (project_id, phonetic_code) index.
+	 */
+	public List<ProjectDictionaryWord> findProjectWordsByPhoneticCode(Long projectId,
+			String phoneticCode);
+
+	/**
+	 * Remove every word in one project's dictionary. Called when the project is deleted.
+	 *
+	 * @param projectId
+	 * @return the number of words removed
+	 */
+	public int deleteProjectWords(Long projectId);
+
 	/**
 	 * @return all the words in the dictionary
 	 * @throws RuntimeException
