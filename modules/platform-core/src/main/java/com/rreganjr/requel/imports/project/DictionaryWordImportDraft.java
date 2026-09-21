@@ -25,20 +25,20 @@ package com.rreganjr.requel.imports.project;
  * <p>
  * Deliberately thin. A project dictionary word has no external id, no creator and no annotations —
  * it is a string that is spelled correctly in one project — so unlike the other import drafts there
- * is nothing here to resolve against the rest of the file. The phonetic code is carried for
- * completeness but is recomputed on import rather than trusted: it has to agree with the
- * transformator the running installation uses, not the one that wrote the file.
+ * is nothing here to resolve against the rest of the file.
+ * <p>
+ * The file's {@code phoneticCode} attribute is deliberately <em>not</em> carried. The import
+ * recomputes the code with the running installation's transformator rather than trusting the one
+ * that wrote the file, so a field here would be written and never read.
  *
  * @author ron
  */
 public class DictionaryWordImportDraft {
 
     private final String lemma;
-    private final String phoneticCode;
 
     private DictionaryWordImportDraft(Builder builder) {
         this.lemma = builder.lemma;
-        this.phoneticCode = builder.phoneticCode;
     }
 
     public static Builder builder() {
@@ -49,21 +49,11 @@ public class DictionaryWordImportDraft {
         return lemma;
     }
 
-    public String getPhoneticCode() {
-        return phoneticCode;
-    }
-
     public static final class Builder {
         private String lemma;
-        private String phoneticCode;
 
         public Builder lemma(String lemma) {
             this.lemma = lemma;
-            return this;
-        }
-
-        public Builder phoneticCode(String phoneticCode) {
-            this.phoneticCode = phoneticCode;
             return this;
         }
 

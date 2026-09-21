@@ -54,6 +54,22 @@ public class NlpDisabledSmokeTest {
 		assertThat(nlpProcessorFactory).isInstanceOf(NoOpNLPProcessorFactory.class);
 	}
 
+	/**
+	 * The project-aware overloads added for the project dictionary (issue #313) have to behave the
+	 * same way here. This is the {@code requel.nlp.enabled=false} path, so a project's own
+	 * dictionary is as unreachable as the installation's: every word is correct and nothing is
+	 * suggested, whatever project is asked about.
+	 */
+	@Test
+	void noOpFactoryIgnoresTheProjectOnTheProjectAwareOverloads() {
+		NLPText text = nlpProcessorFactory.processText("the groal is vaige");
+
+		assertThat(nlpProcessorFactory.getSpellingChecker(42L).process(text)).isTrue();
+		assertThat(nlpProcessorFactory.getSimilarWordFinder(42L).process(text)).isEmpty();
+		assertThat(nlpProcessorFactory.getSpellingChecker(null).process(text)).isTrue();
+		assertThat(nlpProcessorFactory.getSimilarWordFinder(null).process(text)).isEmpty();
+	}
+
 	@Test
 	void noOpFactoryReturnsSafeEmptyValues() {
 		NLPText text = nlpProcessorFactory.processText("the groal is vaige");

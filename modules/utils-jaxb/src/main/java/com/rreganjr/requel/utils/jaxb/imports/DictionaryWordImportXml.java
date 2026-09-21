@@ -32,9 +32,9 @@ public class DictionaryWordImportXml {
     @XmlAttribute(name = "lemma")
     private String lemma;
 
-    @XmlAttribute(name = "phoneticCode")
-    private String phoneticCode;
+    // The document's phoneticCode attribute is read and discarded: the import recomputes the code
+    // with this installation's transformator rather than trusting the file's, so there is nothing
+    // to map it to.
 
     public String getLemma() { return lemma; }
-    public String getPhoneticCode() { return phoneticCode; }
 }

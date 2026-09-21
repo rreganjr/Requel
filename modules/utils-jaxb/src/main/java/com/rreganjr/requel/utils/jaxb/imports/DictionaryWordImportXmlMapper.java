@@ -31,7 +31,6 @@ public class DictionaryWordImportXmlMapper {
         }
         return DictionaryWordImportDraft.builder()
                 .lemma(xml.getLemma())
-                .phoneticCode(xml.getPhoneticCode())
                 .build();
     }
 }

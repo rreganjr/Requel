@@ -201,8 +201,17 @@
                                 <format>HTML</format>
                                 <format>XML</format>
                             </formats>
+                            <!--
+                              Issue #313: narrowed from com/rreganjr/nlp/** to the legacy NLP
+                              pipeline alone. The broad pattern also hid com.rreganjr.nlp.dictionary
+                              — the WordNet entities and the dictionary repository — which is where
+                              the project-scoped dictionary lives and where work happens now. With
+                              the old pattern those classes appeared only in dictionary-jpa's own
+                              report, built from that module's own exec file, so everything covered
+                              by an integration test two modules away read as 0%.
+                            -->
                             <excludes>
-                                <exclude>com/rreganjr/nlp/**</exclude>
+                                <exclude>com/rreganjr/nlp/impl/**</exclude>
                             </excludes>
                         </configuration>
                     </execution>
@@ -222,8 +231,17 @@
                                 <format>XML</format>
                             </formats>
                             <outputDirectory>${project.reporting.outputDirectory}/jacoco-aggregate</outputDirectory>
+                            <!--
+                              Issue #313: narrowed from com/rreganjr/nlp/** to the legacy NLP
+                              pipeline alone. The broad pattern also hid com.rreganjr.nlp.dictionary
+                              — the WordNet entities and the dictionary repository — which is where
+                              the project-scoped dictionary lives and where work happens now. With
+                              the old pattern those classes appeared only in dictionary-jpa's own
+                              report, built from that module's own exec file, so everything covered
+                              by an integration test two modules away read as 0%.
+                            -->
                             <excludes>
-                                <exclude>com/rreganjr/nlp/**</exclude>
+                                <exclude>com/rreganjr/nlp/impl/**</exclude>
                             </excludes>
                         </configuration>
                     </execution>
