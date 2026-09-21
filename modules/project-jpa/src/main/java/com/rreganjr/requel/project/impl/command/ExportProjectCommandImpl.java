@@ -89,6 +89,9 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 		classes.add(AddWordToDictionaryPosition.class);
 		classes.add(AddGlossaryTermPosition.class);
 		classes.add(AddActorPosition.class);
+		// Issue #313: the project's own dictionary words, reachable from
+		// AbstractProjectOrDomain.getDictionaryWords().
+		classes.add(com.rreganjr.nlp.dictionary.ProjectDictionaryWord.class);
 		CLASSES_FOR_JAXB = classes.toArray(new Class<?>[classes.size()]);
 	}
 
@@ -96,6 +99,7 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 	private OutputStream outputStream;
     private final JaxbAdapterConfigurer jaxbAdapterConfigurer;
     private final com.rreganjr.requel.tagging.TagExportProvider tagExportProvider;
+    private final com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository;
 
 	/**
 	 * @param assistantManager
@@ -111,11 +115,13 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 		ProjectCommandFactory projectCommandFactory,
 		AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler,
 		JaxbAdapterConfigurer jaxbAdapterConfigurer,
-		com.rreganjr.requel.tagging.TagExportProvider tagExportProvider) {
+		com.rreganjr.requel.tagging.TagExportProvider tagExportProvider,
+		com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository) {
 		super(assistantManager, userRepository, projectRepository, projectCommandFactory,
 			annotationCommandFactory, commandHandler);
         this.jaxbAdapterConfigurer = jaxbAdapterConfigurer;
         this.tagExportProvider = tagExportProvider;
+        this.dictionaryRepository = dictionaryRepository;
 	}
 
 	/**
@@ -152,6 +158,13 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 							assignment.entityType(), assignment.entity(), assignment.token()));
 				}
 				projectImpl.setExportTagAssignments(tagXmls);
+
+				// Issue #313: the project's own dictionary words, read from the repository that
+				// owns them. Same carrier pattern as the tags above and for the same reason —
+				// nothing on the entity is mapped to project_dictionary_words, so there is no
+				// Hibernate copy that could be stale.
+				projectImpl.setDictionaryWords(new java.util.TreeSet<>(
+						dictionaryRepository.findProjectWords(projectImpl.getId())));
 			}
 
 			JAXBContext context = JAXBContext.newInstance(CLASSES_FOR_JAXB);

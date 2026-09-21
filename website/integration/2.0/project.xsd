@@ -34,6 +34,8 @@
 
   <xs:element name="changeSpellingPosition" type="tns:changeSpellingPosition"/>
 
+  <xs:element name="dictionaryWord" type="tns:dictionaryWord"/>
+
   <xs:element name="domainAdminUserRole" type="tns:domainAdminUserRole"/>
 
   <xs:element name="goal" type="tns:goal"/>
@@ -256,6 +258,13 @@
           </xs:sequence>
         </xs:complexType>
       </xs:element>
+      <xs:element name="dictionary" form="qualified" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="tns:dictionaryWord" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
       <xs:element name="glossary" form="qualified" minOccurs="0">
         <xs:complexType>
           <xs:sequence>
@@ -412,6 +421,13 @@
         <xs:attribute name="id" type="xs:ID"/>
       </xs:extension>
     </xs:complexContent>
+  </xs:complexType>
+
+  <!-- A word in one project's own spell-check dictionary (issue #313). The two installation-level
+       layers - the jazzy word lists and the WordNet corpus - are not part of a project file. -->
+  <xs:complexType name="dictionaryWord">
+    <xs:attribute name="lemma" type="xs:string" use="required"/>
+    <xs:attribute name="phoneticCode" type="xs:string"/>
   </xs:complexType>
 
   <xs:complexType name="step">

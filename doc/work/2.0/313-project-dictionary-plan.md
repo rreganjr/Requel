@@ -30,13 +30,23 @@ No authorization work here — #312 owns that and lands immediately after (see L
    even `platform-identity` (#312 adds that one). Mapping a `@ManyToOne Project` would invert the
    module graph. The entity carries `projectId` as a plain column; the project's side of the link
    is a unidirectional `@OneToMany` + `@JoinColumn`, exactly as `Word.senses` already does.
-4. **The project owns the *read-only* side of the collection.** `AbstractProjectOrDomain` gets a
-   `@OneToMany(targetEntity = ProjectDictionaryWord.class) @JoinColumn(name = "project_id",
-   insertable = false, updatable = false)` collection. `project-jpa` already depends on
-   `dictionary-jpa`, so referencing the class is legal. The entity owns the `project_id` column for
-   writes (the repository sets it); the collection exists so JAXB reaches the words by
-   reachability and export comes almost free. Cascade is `PERSIST, REFRESH` **downward only**,
-   matching `getGlossaryTerms()` and respecting the #247 guardrail (no child → parent REFRESH).
+4. **The project carries the words for export in a transient field, not a mapped collection.**
+   `AbstractProjectOrDomain` gets a `@Transient @XmlElementWrapper(name = "dictionary")`
+   `SortedSet<ProjectDictionaryWord>` that `ExportProjectCommandImpl` fills from the repository
+   immediately before marshalling — the same carrier pattern, for the same reason, as
+   `ProjectImpl.getExportTagAssignments()` right beside it.
+
+   **Revised twice during commit 4, both times from a real failure.** It started as a mapped
+   read-only `@OneToMany` + `@JoinColumn(insertable = false, updatable = false)` with
+   `PERSIST, REFRESH` cascade mirroring `getGlossaryTerms()`. First the cascade had to go: with the
+   join column read-only, cascading a persist inserts a word with a null `project_id`. Then the
+   mapping itself had to go. Because the words are written through `DictionaryRepository` rather
+   than through the collection, Hibernate's copy is only right when the export runs in a session
+   that loads the project fresh; for a project created or imported in the same transaction the
+   collection is still the empty set from the field initializer and the export silently carries no
+   dictionary. `ProjectXmlStreamingRoundTripIT.projectDictionaryWordsRoundTrip` caught it as an
+   empty `<dictionary/>`. A transient carrier cannot go stale, because nothing reads it but the
+   marshaller.
 5. **Project dictionary ≠ project glossary.** Two separate lists, by decision on the ticket.
    Glossary terms do not become known words in this ticket.
 6. **The write stays ungated here.** `EditDictionaryWordCommandImpl` gains a `projectId` and

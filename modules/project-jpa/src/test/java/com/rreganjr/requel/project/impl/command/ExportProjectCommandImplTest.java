@@ -40,8 +40,12 @@ class ExportProjectCommandImplTest {
 		story.getActors().add(actor);
 
 		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		// The dictionary repository is the export's source for the project's own words (issue
+		// #313). A mock returns an empty list, which is what a project with no dictionary looks
+		// like — this test is about goals, actors and stories.
 		ExportProjectCommandImpl command = new ExportProjectCommandImpl(null, null, null,
-				null, null, null, new JaxbAdapterConfigurer(), proj -> java.util.List.of());
+				null, null, null, new JaxbAdapterConfigurer(), proj -> java.util.List.of(),
+				org.mockito.Mockito.mock(com.rreganjr.nlp.dictionary.DictionaryRepository.class));
 		command.setProject(project);
 		command.setOutputStream(output);
 
