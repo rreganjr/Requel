@@ -109,12 +109,16 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 	 * @param annotationCommandFactory
 	 * @param commandHandler
 	 */
+	private final com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository;
+
 	@Autowired
 	public DeleteProjectCommandImpl(AssistantFacade assistantManager, UserRepository userRepository,
 			ProjectRepository projectRepository, ProjectCommandFactory projectCommandFactory,
-			AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler) {
+			AnnotationCommandFactory annotationCommandFactory, CommandHandler commandHandler,
+			com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository) {
 		super(assistantManager, userRepository, projectRepository, projectCommandFactory,
 				annotationCommandFactory, commandHandler);
+		this.dictionaryRepository = dictionaryRepository;
 	}
 
 	@Override
@@ -262,7 +266,15 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 			getRepository().delete(managedTeam);
 		}
 
-		// 10) The project's own annotations.
+		// 10) The project's own dictionary words (issue #313). project_dictionary_words is keyed
+		// by the project's id and nothing references it, so it only has to go before the project
+		// row: on MySQL the row carries an InnoDB foreign key to pods(id), which the H2 profile
+		// (create-drop, no Flyway) does not have — DeleteProjectMySqlIT is what checks the real
+		// constraint. A bulk delete rather than per-row entity deletes: the words are not
+		// annotatable, have no children, and are not loaded in the project's object graph.
+		dictionaryRepository.deleteProjectWords(project.getId());
+
+		// 11) The project's own annotations.
 		for (Annotation annotation : new HashSet<Annotation>(project.getAnnotations())) {
 			RemoveAnnotationFromAnnotatableCommand command = getAnnotationCommandFactory()
 					.newRemoveAnnotationFromAnnotatableCommand();
@@ -272,7 +284,7 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 			getCommandHandler().execute(command);
 		}
 
-		// 11) Whatever is still grouped under the project: annotations an assistant filed
+		// 12) Whatever is still grouped under the project: annotations an assistant filed
 		// against an entity deleted before its findings were applied, or left unlinked by
 		// earlier bugs. annotations.grouping_object_id is an @Any with no foreign key, so a
 		// survivor is an orphan row - and, if it was loaded during the cascade, a commit
@@ -284,7 +296,7 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 		((AuthorizationExemptable) deleteAnnotationGroup).setAuthorizationExempt(true);
 		getCommandHandler().execute(deleteAnnotationGroup);
 
-		// 12) Finally, the project row itself (#247: after a database-state sweep of any
+		// 13) Finally, the project row itself (#247: after a database-state sweep of any
 		// annotation linked to the project since it was loaded).
 		removeAllAnnotationsBeforeDelete(project, editedBy);
 		getRepository().delete(project);

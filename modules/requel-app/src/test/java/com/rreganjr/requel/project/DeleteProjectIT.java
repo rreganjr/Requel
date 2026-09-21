@@ -515,6 +515,53 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
     // Helpers
     // -------------------------------------------------------------------------
 
+    /**
+     * Issue #313: a project's own dictionary words go with it, and only its own.
+     * <p>
+     * project_dictionary_words is not part of the project's object graph — the words are
+     * written through DictionaryRepository and the project's XML carrier is transient — so
+     * nothing deletes them implicitly. DeleteProjectCommandImpl has an explicit step, and on
+     * MySQL the row's foreign key to pods(id) makes the ordering load-bearing: without the
+     * step the project row delete fails outright rather than leaving an orphan. The H2 profile
+     * has no such constraint, so the subclass is what proves that half.
+     */
+    @Test
+    void deleteProjectRemovesItsDictionaryWordsAndNoOthers() throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        long ts = System.currentTimeMillis();
+
+        Project doomed = createProject(admin, "del-dict-" + ts);
+        Project survivor = createProject(admin, "keep-dict-" + ts);
+        Long doomedId = doomed.getId();
+        Long survivorId = survivor.getId();
+
+        getDictionaryRepository().addToDictionary(doomedId, "requelspeak");
+        getDictionaryRepository().addToDictionary(survivorId, "requelspeak");
+        assertEquals(1, getDictionaryRepository().findProjectWords(doomedId).size());
+
+        deleteProject(admin, doomed, null);
+
+        assertTrue(getDictionaryRepository().findProjectWords(doomedId).isEmpty(),
+                "the deleted project's dictionary words must be gone");
+        assertEquals(0, countDictionaryWordRows(doomedId),
+                "no project_dictionary_words row may survive the project it belonged to");
+        assertEquals(1, getDictionaryRepository().findProjectWords(survivorId).size(),
+                "another project's dictionary must be untouched");
+        assertTrue(getDictionaryRepository().isKnownWord(survivorId, "requelspeak"),
+                "the surviving project's word is still known there");
+    }
+
+    /**
+     * Straight to the table, so the assertion does not depend on the repository or on
+     * anything Hibernate has cached.
+     */
+    private int countDictionaryWordRows(Long projectId) {
+        Integer count = jdbcTemplate.queryForObject(
+                "select count(*) from project_dictionary_words where project_id = ?",
+                Integer.class, projectId);
+        return count == null ? 0 : count;
+    }
+
     protected Project createProject(User owner, String name) throws Exception {
         EditProjectCommand cmd = getProjectCommandFactory().newEditProjectCommand();
         cmd.setEditedBy(owner);

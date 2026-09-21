@@ -237,6 +237,30 @@ public class ProjectDictionaryIT extends AbstractIntegrationTestCase {
 				"resolving must not add a row to the installation-wide word table");
 	}
 
+	/**
+	 * Loading the WordNet corpus leaves project dictionaries alone (issue #313).
+	 * <p>
+	 * This is the XML corpus path — {@code ImportDictionaryCommand} via
+	 * {@code ensureDictionaryLoaded()}. It writes the installation-wide {@code word},
+	 * {@code category}, {@code synset} and {@code sense} tables and has no path to
+	 * {@code project_dictionary_words}, which is the whole point of separating the layers; this
+	 * pins it so that a future "reset the dictionary" step cannot quietly take project words with
+	 * it. The MySQL dump path ({@code DictionarySQLInitializer}) writes the same corpus tables and
+	 * additionally skips entirely unless the dictionary is empty.
+	 */
+	@Test
+	public void loadingTheCorpusLeavesProjectWordsAlone() throws Exception {
+		Project project = createProject("dict-corpus");
+		getDictionaryRepository().addToDictionary(project.getId(), INVENTED_WORD);
+
+		ensureDictionaryLoaded();
+
+		assertEquals(1, getDictionaryRepository().findProjectWords(project.getId()).size(),
+				"the corpus load must not touch the project's dictionary");
+		assertTrue(getDictionaryRepository().isKnownWord(project.getId(), INVENTED_WORD),
+				"the project word is still known after the corpus load");
+	}
+
 	private Goal createGoal(Project project, String name, String text) throws Exception {
 		User admin = getUserRepository().findUserByUsername("admin");
 		EditGoalCommand cmd = getProjectCommandFactory().newEditGoalCommand();
