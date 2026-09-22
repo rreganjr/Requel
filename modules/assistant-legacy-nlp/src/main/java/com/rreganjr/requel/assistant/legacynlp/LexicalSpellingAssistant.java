@@ -113,20 +113,26 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 				.assistantId(ASSISTANT_ID)
 				.runId(context.runId())
 				.summary("Lexical spelling analysis");
-		analyzeProperty(builder, targetRef, entityType, target.getId(), PROP_NAME, target.getName());
-		analyzeProperty(builder, targetRef, entityType, target.getId(), PROP_TEXT, target.getText());
+		// Issue #313: the project's own dictionary is part of the vocabulary for this run. The
+		// project ref is nullable on AssistantContext, and a null project means the two
+		// installation-wide layers alone.
+		Long projectId = context.projectRef() == null ? null : context.projectRef().entityId();
+		analyzeProperty(builder, targetRef, entityType, target.getId(), PROP_NAME, target.getName(),
+				projectId);
+		analyzeProperty(builder, targetRef, entityType, target.getId(), PROP_TEXT, target.getText(),
+				projectId);
 		return builder.build();
 	}
 
 	private void analyzeProperty(AssistantResult.Builder builder, EntityRef targetRef,
-			String entityType, Long entityId, String propertyName, String text) {
+			String entityType, Long entityId, String propertyName, String text, Long projectId) {
 		if (text == null || text.isBlank()) {
 			return;
 		}
 		NLPText nlpText = nlpProcessorFactory.processText(text);
-		NLPProcessor<Boolean> spellChecker = nlpProcessorFactory.getSpellingChecker();
+		NLPProcessor<Boolean> spellChecker = nlpProcessorFactory.getSpellingChecker(projectId);
 		NLPProcessor<Collection<NLPText>> similarWordFinder = nlpProcessorFactory
-				.getSimilarWordFinder();
+				.getSimilarWordFinder(projectId);
 		for (NLPText word : nlpText.getLeaves()) {
 			if (word.in(PartOfSpeech.PUNCTUATION, PartOfSpeech.NUMBER, PartOfSpeech.SYMBOL)
 					|| word.in(ParseTag.POS, ParseTag.CD)) {

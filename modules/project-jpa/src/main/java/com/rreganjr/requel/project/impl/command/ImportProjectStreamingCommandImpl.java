@@ -98,6 +98,8 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
     private final com.rreganjr.requel.utils.jaxb.imports.PositionStaxImporter positionStaxImporter;
     private final com.rreganjr.requel.utils.jaxb.imports.AnnotationStaxImporter annotationStaxImporter;
     private final com.rreganjr.requel.utils.jaxb.imports.GlossaryTermStaxImporter glossaryTermStaxImporter;
+    private final com.rreganjr.requel.utils.jaxb.imports.DictionaryWordStaxImporter dictionaryWordStaxImporter;
+    private final com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository;
     private final com.rreganjr.requel.utils.jaxb.imports.ReportGeneratorStaxImporter reportGeneratorStaxImporter;
     private final com.rreganjr.requel.utils.jaxb.imports.TagStaxImporter tagStaxImporter;
     private final com.rreganjr.requel.tagging.spi.TaggableTypeRegistry taggableTypeRegistry;
@@ -124,6 +126,8 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
                                              com.rreganjr.requel.utils.jaxb.imports.PositionStaxImporter positionStaxImporter,
                                              com.rreganjr.requel.utils.jaxb.imports.AnnotationStaxImporter annotationStaxImporter,
                                              com.rreganjr.requel.utils.jaxb.imports.GlossaryTermStaxImporter glossaryTermStaxImporter,
+                                             com.rreganjr.requel.utils.jaxb.imports.DictionaryWordStaxImporter dictionaryWordStaxImporter,
+                                             com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository,
                                              com.rreganjr.requel.utils.jaxb.imports.ReportGeneratorStaxImporter reportGeneratorStaxImporter,
                                              com.rreganjr.requel.utils.jaxb.imports.TagStaxImporter tagStaxImporter,
                                              com.rreganjr.requel.tagging.spi.TaggableTypeRegistry taggableTypeRegistry,
@@ -139,6 +143,8 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         this.positionStaxImporter = positionStaxImporter;
         this.annotationStaxImporter = annotationStaxImporter;
         this.glossaryTermStaxImporter = glossaryTermStaxImporter;
+        this.dictionaryWordStaxImporter = dictionaryWordStaxImporter;
+        this.dictionaryRepository = dictionaryRepository;
         this.reportGeneratorStaxImporter = reportGeneratorStaxImporter;
         this.tagStaxImporter = tagStaxImporter;
         this.taggableTypeRegistry = taggableTypeRegistry;
@@ -322,6 +328,26 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         }
 
         setProject(getProjectRepository().persist(targetProject));
+
+        // Import the project's own dictionary words (issue #313) AFTER the persist, for the same
+        // reason the tags below wait: project_dictionary_words is keyed by the project's id, and a
+        // new project has none until it is persisted. They go through the repository rather than
+        // through AbstractProjectOrDomain.getDictionaryWords(), which is a read-only export view
+        // with no cascade. addToDictionary recomputes the phonetic code with this installation's
+        // transformator instead of trusting the one in the file, and is idempotent, so re-importing
+        // a project over itself does not duplicate its dictionary.
+        Long importedProjectId = targetProject.getId();
+        if (importedProjectId != null) {
+            for (com.rreganjr.requel.imports.project.DictionaryWordImportDraft draft
+                    : dictionaryWordStaxImporter.readWords(new ByteArrayInputStream(xmlBytes))) {
+                if (StringUtils.hasText(draft.getLemma())) {
+                    dictionaryRepository.addToDictionary(importedProjectId, draft.getLemma());
+                }
+            }
+        } else {
+            log.warn("The imported project has no id after persist; its dictionary words were not "
+                    + "imported.");
+        }
 
         // Import tag assignments (issue #112, Phase 5) AFTER the project and its entities are
         // persisted, so the tag @ManyToAny never references a transient entity. Entities are resolved

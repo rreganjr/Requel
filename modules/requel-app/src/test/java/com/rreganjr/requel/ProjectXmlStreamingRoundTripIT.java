@@ -150,6 +150,9 @@ class ProjectXmlStreamingRoundTripIT {
 	@Autowired
 	private com.rreganjr.requel.tagging.TagRepository tagRepository;
 
+	@Autowired
+	private com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository;
+
 	@jakarta.persistence.PersistenceContext
 	private jakarta.persistence.EntityManager entityManager;
 
@@ -237,6 +240,52 @@ class ProjectXmlStreamingRoundTripIT {
 		// The global tag was resolved by key on import, not duplicated.
 		assertThat(tagRepository.findTag(null, "scope", "shared"))
 				.as("global tag resolved by key").isNotNull();
+	}
+
+	/**
+	 * The project's own dictionary travels with the project file (issue #313).
+	 * <p>
+	 * The words are written and read through DictionaryRepository, not through the project's
+	 * collection — that collection is a read-only export view. So this covers the whole path:
+	 * repository write, JAXB export off the collection, STAX read on import, repository write
+	 * against the new project's id.
+	 */
+	@Test
+	@Transactional
+	void projectDictionaryWordsRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+
+		dictionaryRepository.addToDictionary(originalProject.getId(), "requelspeak");
+		dictionaryRepository.addToDictionary(originalProject.getId(), "Elicitron");
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML dictionary block")
+				.contains("<dictionary>")
+				.contains("requelspeak")
+				.contains("Elicitron");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " DictReimport " + Instant.now().toEpochMilli();
+		Project reimported = importProject(exportedBytes, projectUser, reName);
+		entityManager.flush();
+
+		Set<String> lemmas = dictionaryRepository.findProjectWords(reimported.getId()).stream()
+				.map(com.rreganjr.nlp.dictionary.ProjectDictionaryWord::getLemma)
+				.collect(Collectors.toSet());
+		assertThat(lemmas).as("dictionary words on the reimported project")
+				.containsExactlyInAnyOrder("requelspeak", "Elicitron");
+
+		// The original keeps its own copy: the import added words to the new project, it did not
+		// move them.
+		assertThat(dictionaryRepository.findProjectWords(originalProject.getId())).hasSize(2);
+
+		// And the words are known in each project, which is the point of the layer.
+		assertThat(dictionaryRepository.isKnownWord(reimported.getId(), "requelspeak")).isTrue();
+		assertThat(dictionaryRepository.isKnownWord(reimported.getId(), "elicitron")).isTrue();
 	}
 
 	private void assignImportedTagForTest(User user, Project projectScope, Goal goal,

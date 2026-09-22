@@ -47,6 +47,8 @@ public class SpellingSuggester implements NLPProcessor<Collection<NLPText>> {
 
 	private final DictionaryRepository dictionaryRepository;
 
+	private Long projectId;
+
 	/**
 	 * @param dictionaryRepository
 	 */
@@ -55,12 +57,28 @@ public class SpellingSuggester implements NLPProcessor<Collection<NLPText>> {
 		this.dictionaryRepository = dictionaryRepository;
 	}
 
+	/**
+	 * The project whose own dictionary words may appear among the suggestions, in addition to the
+	 * two installation-wide layers (issue #313). Null means the installation-wide layers alone.
+	 * <p>
+	 * Set by {@code NLPProcessorFactory.getSimilarWordFinder(Long)} on a freshly created instance
+	 * — this is a prototype bean, so it is never shared between callers.
+	 */
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	protected Long getProjectId() {
+		return projectId;
+	}
+
 	@Override
 	public Collection<NLPText> process(NLPText text) {
 		if (text.is(GrammaticalStructureLevel.WORD) && text.hasText()
 				&& !text.is(PartOfSpeech.PUNCTUATION)) {
 			List<NLPText> results = new ArrayList<NLPText>();
-			for (String word : dictionaryRepository.findSpellingSuggestions(text.getText(), 2)) {
+			for (String word : dictionaryRepository.findSpellingSuggestions(projectId,
+					text.getText(), 2)) {
 				results.add(new NLPTextImpl(word, GrammaticalStructureLevel.WORD));
 			}
 			return results;

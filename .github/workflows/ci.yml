@@ -112,11 +112,16 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      # The per-module reports are each built from their own module's exec file, so a class
+      # exercised only by an integration test in another module reads as 0% in them. The
+      # aggregate report in modules/requel-app attributes that cross-module coverage, and until
+      # issue #313 it was generated on every build and never uploaded — its output directory is
+      # site/jacoco-aggregate, which the per-module glob does not match.
       - name: Upload backend coverage to Codecov
         if: always()
         uses: codecov/codecov-action@v5
         with:
-          files: "**/target/site/jacoco/jacoco.xml"
+          files: "**/target/site/jacoco/jacoco.xml,modules/requel-app/target/site/jacoco-aggregate/jacoco.xml"
           flags: backend
           name: jacoco-backend
           fail_ci_if_error: false

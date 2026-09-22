@@ -160,6 +160,11 @@ public class NoOpNLPProcessorFactory implements NLPProcessorFactory {
 	}
 
 	@Override
+	public NLPProcessor<Collection<NLPText>> getSimilarWordFinder(Long projectId) {
+		return getSimilarWordFinder();
+	}
+
+	@Override
 	public NLPProcessor<Collection<NLPText>> getMoreSpecificWordSuggester() {
 		return text -> List.of();
 	}
@@ -167,5 +172,10 @@ public class NoOpNLPProcessorFactory implements NLPProcessorFactory {
 	@Override
 	public NLPProcessor<Boolean> getSpellingChecker() {
 		return text -> Boolean.TRUE;
+	}
+
+	@Override
+	public NLPProcessor<Boolean> getSpellingChecker(Long projectId) {
+		return getSpellingChecker();
 	}
 }

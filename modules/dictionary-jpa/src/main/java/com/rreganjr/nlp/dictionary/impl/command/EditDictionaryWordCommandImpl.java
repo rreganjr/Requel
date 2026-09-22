@@ -37,6 +37,8 @@ public class EditDictionaryWordCommandImpl extends AbstractDictionaryCommand imp
 
 	private String lemma;
 
+	private Long projectId;
+
 	/**
 	 * @param dictionaryRepository
 	 */
@@ -53,13 +55,32 @@ public class EditDictionaryWordCommandImpl extends AbstractDictionaryCommand imp
 		this.lemma = lemma;
 	}
 
+	protected Long getProjectId() {
+		return projectId;
+	}
+
+	@Override
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
 	/**
 	 * @see com.rreganjr.command.Command#execute()
+	 */
+	/**
+	 * Issue #313 changed where the word goes — the project's own dictionary rather than the
+	 * installation-wide WordNet table — and nothing else about this method.
+	 * <p>
+	 * The swallowed exception is deliberately left as it is. It is a real defect: a failed
+	 * dictionary write is reported as a successful resolve. It belongs to #312 along with the
+	 * missing authorization on this command, and #312 was blocked on this ticket precisely because
+	 * the gate could not be scoped while the write was installation-wide. Fixing it here would put
+	 * half of #312 in an unrelated diff.
 	 */
 	@Override
 	public void execute() {
 		try {
-			getDictionaryRepository().addToDictionary(getLemma());
+			getDictionaryRepository().addToDictionary(getProjectId(), getLemma());
 		} catch (Exception e) {
 			log.error(e, e);
 		}

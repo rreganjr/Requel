@@ -75,6 +75,10 @@ public class ResolveIssueWithAddWordToDictionaryPositionCommandImpl extends Reso
 		validate();
 		EditDictionaryWordCommand command = dictionaryCommandFactory.newEditDictionaryWordCommand();
 		command.setLemma(getIssue().getWord());
+		// Issue #313: the word belongs to this project's dictionary, not the installation's.
+		// getProject() comes from ResolveIssueCommandImpl (ProjectScopedCommand, #305) and resolves
+		// the project from the issue's grouping object, so there is nothing extra to resolve here.
+		command.setProjectId(getProject() == null ? null : getProject().getId());
 		command = getCommandHandler().execute(command);
 		super.execute();
 	}

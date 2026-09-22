@@ -38,5 +38,15 @@
             <groupId>org.glassfish.jaxb</groupId>
             <artifactId>jaxb-runtime</artifactId>
         </dependency>
+        <!--
+          Test scope only. This module had no tests at all until issue #313; the StAX importers
+          are pure functions over an XML document and are cheap to test here, beside the classes
+          they cover, rather than from an integration test two modules away.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

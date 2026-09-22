@@ -136,6 +136,19 @@ public interface NLPProcessorFactory {
 	public NLPProcessor<Collection<NLPText>> getSimilarWordFinder();
 
 	/**
+	 * The project-aware form (issue #313). The returned processor consults the project's own
+	 * dictionary in addition to the two installation-wide layers, so a word a user added while
+	 * working in that project can be offered as a spelling suggestion there and nowhere else.
+	 *
+	 * @param projectId -
+	 *            the project being analyzed, or null for the installation-wide layers alone, which
+	 *            is what {@link #getSimilarWordFinder()} does.
+	 * @return an NLPProcessor that takes an NLPWord that maybe misspelled and returns a collection
+	 *         of words that may be the correct spelling.
+	 */
+	public NLPProcessor<Collection<NLPText>> getSimilarWordFinder(Long projectId);
+
+	/**
 	 * @return an NLPProcessor that takes an NLPWord with sense information and
 	 *         suggests more specific senses (hyponyms.)
 	 */
@@ -146,6 +159,18 @@ public interface NLPProcessorFactory {
 	 *         word is found in the dictionary, or false if not.
 	 */
 	public NLPProcessor<Boolean> getSpellingChecker();
+
+	/**
+	 * The project-aware form (issue #313). The returned processor treats a word in the project's
+	 * own dictionary as correctly spelled, in addition to the two installation-wide layers.
+	 *
+	 * @param projectId -
+	 *            the project being analyzed, or null for the installation-wide layers alone, which
+	 *            is what {@link #getSpellingChecker()} does.
+	 * @return an NLPProcessor that takes an NLPWord and returns true if the word is found in the
+	 *         dictionary, or false if not.
+	 */
+	public NLPProcessor<Boolean> getSpellingChecker(Long projectId);
 
 	/**
 	 * @see {@link NLPText#getPrimaryVerb()}

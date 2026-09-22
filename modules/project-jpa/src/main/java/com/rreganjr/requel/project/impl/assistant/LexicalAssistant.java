@@ -469,9 +469,13 @@ public class LexicalAssistant extends AbstractAssistant {
 	public void checkSpelling(User assistantUser, ProjectOrDomain projectOrDomain,
 			ProjectOrDomainEntity thingBeingAnalyzed, String annotatableEntityPropertyName,
 			NLPText nlpText) throws Exception {
-		NLPProcessor<Boolean> spellChecker = getNLPProcessorFactory().getSpellingChecker();
+		// Issue #313: spell-check against this project's own dictionary as well as the two
+		// installation-wide layers, so a word added here is not flagged here and is not treated as
+		// known anywhere else.
+		Long projectId = (projectOrDomain == null) ? null : projectOrDomain.getId();
+		NLPProcessor<Boolean> spellChecker = getNLPProcessorFactory().getSpellingChecker(projectId);
 		NLPProcessor<Collection<NLPText>> similarWordFinder = getNLPProcessorFactory()
-				.getSimilarWordFinder();
+				.getSimilarWordFinder(projectId);
 
 		for (NLPText word : nlpText.getLeaves()) {
 			if (!word.in(PartOfSpeech.PUNCTUATION, PartOfSpeech.NUMBER, PartOfSpeech.SYMBOL)
