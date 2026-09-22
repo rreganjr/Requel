@@ -51,11 +51,18 @@ import com.rreganjr.validator.EntityValidationException;
  * (issue #312).
  * <p>
  * #305 gated the resolve; #313 made the write project-scoped, which is what allows the write
- * itself to be gated against the project it touches. These cover the four things that changed:
- * the happy path still lands in the project's dictionary and nowhere else, a stakeholder without
- * {@code Annotation[Edit]} cannot use the resolver, the write command refuses on its own when it
- * is executed outside the resolver, and a command with no project writes nothing at all rather
- * than falling back to the installation-wide dictionary.
+ * itself to be gated against the project it touches. These cover what changed: the happy path
+ * still lands in the project's dictionary and nowhere else, and every route to the write is
+ * refused without {@code Annotation[Edit]} on that project — through the resolver, through the
+ * command on its own, and with a project id that has no project object behind it.
+ * <p>
+ * <b>Two projects, deliberately.</b> Every IT in the run shares one H2 database and one Spring
+ * context, and a project created here stays in the {@code admin} user's active projects for the
+ * rest of the run. {@code AddStoryToStoryContainer}'s {@code em.refresh} loads a graph with six
+ * eager {@code user -> user_roles -> active_projects -> pods} branches, so its row count
+ * multiplies with that count rather than adding to it; four projects from this class were enough
+ * to take {@code CommandGatewayIT} from slow to out of memory on CI. Assertions are grouped so
+ * that the fixture stays at two projects until that fetch graph is fixed.
  *
  * @author ron
  */
@@ -72,7 +79,9 @@ public class ResolveIssueDictionaryIT extends AbstractIntegrationTestCase {
 		Goal goal = createGoal(project, "Use Requelish terminology");
 		String word = invented("Requelish");
 
-		resolveAddToDictionary(project, goal, word, admin);
+		LexicalIssue issue = newLexicalIssue(project, goal, word, admin);
+		AddWordToDictionaryPosition position = newAddWordPosition(issue, word, admin);
+		getCommandHandler().execute(resolveCommand(issue, position, goal, admin));
 
 		Issue resolved = getAnnotationRepository().findIssue(project, goal, issueText(word));
 		assertTrue(resolved.isResolved(), "the lexical issue should be resolved");
@@ -83,134 +92,105 @@ public class ResolveIssueDictionaryIT extends AbstractIntegrationTestCase {
 	}
 
 	/**
-	 * A stakeholder without {@code Annotation[Edit]} cannot add a word through the resolver. The
-	 * refusal comes from #305's gate on the resolve, before the dictionary command is built at
-	 * all — {@link #theDictionaryWriteIsGatedOnItsOwn()} is what proves the write is not relying
-	 * on that outer gate.
+	 * Every route to the write, refused, on one fixture.
+	 * <p>
+	 * The first is #305's gate on the resolve. The second is the point of #312: executed on its
+	 * own rather than through the resolver, the write is still checked, because it is an
+	 * {@code AuthorizableCommand} in its own right. That second assertion is what fails if the
+	 * command is ever re-parented onto a base class implementing {@code AuthorizationExemptable} —
+	 * {@code AuthorizingCommandHandler} honours that flag before it reads the authorization
+	 * requirement, so the gate would go quiet rather than loud.
+	 * <p>
+	 * The third runs as {@code admin}, who does hold {@code Annotation[Edit]} here: a project id
+	 * with no project object behind it authorizes nothing, so the refusal is about the missing
+	 * project rather than a missing permission. {@code setProjectId} exists only because
+	 * {@code EditDictionaryWordCommand} is declared in a module that cannot name a {@code Project}
+	 * (#313). Fail closed, and no silent installation-wide fallback.
 	 */
 	@Test
-	public void refusesTheResolveWithoutAnnotationEdit() throws Exception {
+	public void refusesEveryRouteToTheWriteWithoutAnnotationEdit() throws Exception {
 		Project project = createProject("dict-auth-refused");
 		User admin = getUserRepository().findUserByUsername("admin");
 		Goal goal = createGoal(project, "Use Requelese terminology");
-		String word = invented("Requelese");
-
 		User restricted = stakeholderWithoutAnnotationEdit(project, "dict-noannotation");
 
-		LexicalIssue issue = newLexicalIssue(project, goal, word, admin);
-		AddWordToDictionaryPosition position = newAddWordPosition(issue, word, admin);
-
-		ResolveIssueCommand resolve = getAnnotationCommandFactory()
-				.newResolveIssueCommand(position);
-		resolve.setEditedBy(restricted);
-		resolve.setIssue(issue);
-		resolve.setPosition(position);
-		resolve.setAnnotatable(goal);
+		// 1 — through the resolver
+		String resolverWord = invented("Requelese");
+		LexicalIssue issue = newLexicalIssue(project, goal, resolverWord, admin);
+		AddWordToDictionaryPosition position = newAddWordPosition(issue, resolverWord, admin);
+		ResolveIssueCommand resolve = resolveCommand(issue, position, goal, restricted);
 
 		assertThrows(AuthorizationException.class, () -> getCommandHandler().execute(resolve),
 				"Add to Dictionary must be refused without Annotation[Edit]");
-
-		Issue stillOpen = getAnnotationRepository().findIssue(project, goal, issueText(word));
+		Issue stillOpen = getAnnotationRepository().findIssue(project, goal, issueText(resolverWord));
 		assertFalse(stillOpen.isResolved(),
 				"the issue must stay unresolved when the resolve is refused");
-		assertFalse(getDictionaryRepository().isKnownWord(project.getId(), word),
+		assertFalse(getDictionaryRepository().isKnownWord(project.getId(), resolverWord),
 				"a refused resolve must not add the word");
-	}
 
-	/**
-	 * The point of #312. Executed on its own rather than through the resolver, the dictionary
-	 * write is still checked: it is an {@code AuthorizableCommand} in its own right, requiring
-	 * {@code Annotation[Edit]} on the project it writes to.
-	 * <p>
-	 * This is the test that fails if the command is ever re-parented onto a base class that
-	 * implements {@code AuthorizationExemptable} — {@code AuthorizingCommandHandler} honours that
-	 * flag before it reads the authorization requirement, so the gate would go quiet rather than
-	 * loud.
-	 */
-	@Test
-	public void theDictionaryWriteIsGatedOnItsOwn() throws Exception {
-		Project project = createProject("dict-auth-direct");
-		String word = invented("Requelian");
-
-		User restricted = stakeholderWithoutAnnotationEdit(project, "dict-direct");
-
-		EditProjectDictionaryWordCommand cmd = getProjectCommandFactory()
+		// 2 — the write command on its own, outside the resolver
+		String directWord = invented("Requelian");
+		EditProjectDictionaryWordCommand direct = getProjectCommandFactory()
 				.newEditDictionaryWordCommand();
-		cmd.setEditedBy(restricted);
-		cmd.setProject(project);
-		cmd.setLemma(word);
+		direct.setEditedBy(restricted);
+		direct.setProject(project);
+		direct.setLemma(directWord);
 
-		assertThrows(AuthorizationException.class, () -> getCommandHandler().execute(cmd),
+		assertThrows(AuthorizationException.class, () -> getCommandHandler().execute(direct),
 				"the dictionary write must refuse without Annotation[Edit], resolver or not");
-		assertFalse(getDictionaryRepository().isKnownWord(project.getId(), word),
+		assertFalse(getDictionaryRepository().isKnownWord(project.getId(), directWord),
+				"a refused write must leave the project dictionary alone");
+
+		// 3 — a project id with no project behind it, as a user who does hold the permission
+		String idOnlyWord = invented("Requelid");
+		EditProjectDictionaryWordCommand idOnly = getProjectCommandFactory()
+				.newEditDictionaryWordCommand();
+		idOnly.setEditedBy(admin);
+		idOnly.setProjectId(project.getId());
+		idOnly.setLemma(idOnlyWord);
+
+		assertThrows(AuthorizationException.class, () -> getCommandHandler().execute(idOnly),
+				"an id without the project itself must not authorize a write");
+		assertFalse(getDictionaryRepository().isKnownWord(project.getId(), idOnlyWord),
 				"a refused write must leave the project dictionary alone");
 	}
 
 	/**
-	 * A command with no project is refused rather than writing installation-wide, which is what
-	 * {@code setProjectId(null)} used to mean.
+	 * A command with no project writes nothing, which is what {@code setProjectId(null)} used to
+	 * mean — the installation-wide dictionary.
 	 * <p>
-	 * With a user set, the refusal is the stakeholder check: there is no project to be a
-	 * stakeholder on. The validation in {@code execute()} is the second line of defence, for the
-	 * bootstrap case below.
+	 * With a user set the refusal is the stakeholder check: there is no project to be a
+	 * stakeholder on. Without one it is the validation in {@code execute()}, and that second half
+	 * is the one worth having: {@code AuthorizingCommandHandler} skips the check entirely when
+	 * {@code editedBy} is null, the path initializers use, so without the validation an
+	 * unauthenticated caller would write installation-wide exactly as before #312.
+	 * <p>
+	 * Creates no project: see the class note.
 	 */
 	@Test
 	public void refusesAWriteWithNoProject() throws Exception {
 		User admin = getUserRepository().findUserByUsername("admin");
-		String word = invented("Requelless");
 
-		EditProjectDictionaryWordCommand cmd = getProjectCommandFactory()
+		String userWord = invented("Requelless");
+		EditProjectDictionaryWordCommand withUser = getProjectCommandFactory()
 				.newEditDictionaryWordCommand();
-		cmd.setEditedBy(admin);
-		cmd.setLemma(word);
+		withUser.setEditedBy(admin);
+		withUser.setLemma(userWord);
 
-		assertThrows(AuthorizationException.class, () -> getCommandHandler().execute(cmd),
+		assertThrows(AuthorizationException.class, () -> getCommandHandler().execute(withUser),
 				"a write with no project must be refused");
-		assertFalse(getDictionaryRepository().isKnownWord(word),
+		assertFalse(getDictionaryRepository().isKnownWord(userWord),
 				"nothing may reach the installation-wide dictionary");
-	}
 
-	/**
-	 * A project id on its own does not authorize anything. {@code setProjectId} exists because
-	 * {@code EditDictionaryWordCommand} is declared in a module that cannot name a {@code Project}
-	 * (#313); the authorization check needs the project itself, so a command given only an id is
-	 * refused rather than trusted. Fail closed, and no silent installation-wide fallback.
-	 */
-	@Test
-	public void refusesAWriteGivenOnlyAProjectId() throws Exception {
-		Project project = createProject("dict-auth-id-only");
-		User admin = getUserRepository().findUserByUsername("admin");
-		String word = invented("Requelid");
-
-		EditProjectDictionaryWordCommand cmd = getProjectCommandFactory()
+		String bootstrapWord = invented("Requelnull");
+		EditProjectDictionaryWordCommand withoutUser = getProjectCommandFactory()
 				.newEditDictionaryWordCommand();
-		cmd.setEditedBy(admin);
-		cmd.setProjectId(project.getId());
-		cmd.setLemma(word);
+		withoutUser.setLemma(bootstrapWord);
 
-		assertThrows(AuthorizationException.class, () -> getCommandHandler().execute(cmd),
-				"an id without the project itself must not authorize a write");
-		assertFalse(getDictionaryRepository().isKnownWord(project.getId(), word),
-				"a refused write must leave the project dictionary alone");
-	}
-
-	/**
-	 * The bootstrap escape does not become a hole. {@code AuthorizingCommandHandler} skips the
-	 * check entirely when {@code editedBy} is null — the path initializers use — so without the
-	 * validation in {@code execute()} an unauthenticated caller would write installation-wide
-	 * exactly as before #312.
-	 */
-	@Test
-	public void refusesAWriteWithNoProjectAndNoUser() throws Exception {
-		String word = invented("Requelnull");
-
-		EditProjectDictionaryWordCommand cmd = getProjectCommandFactory()
-				.newEditDictionaryWordCommand();
-		cmd.setLemma(word);
-
-		assertThrows(EntityValidationException.class, () -> getCommandHandler().execute(cmd),
+		assertThrows(EntityValidationException.class,
+				() -> getCommandHandler().execute(withoutUser),
 				"a write with no project and no user must fail validation");
-		assertFalse(getDictionaryRepository().isKnownWord(word),
+		assertFalse(getDictionaryRepository().isKnownWord(bootstrapWord),
 				"nothing may reach the installation-wide dictionary");
 	}
 
@@ -219,8 +199,8 @@ public class ResolveIssueDictionaryIT extends AbstractIntegrationTestCase {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * A distinct word per test. The Spring context and its H2 database are shared by every IT in
-	 * the run, and a project dictionary write is idempotent by decision (#313), so a word reused
+	 * A distinct word per assertion. The Spring context and its H2 database are shared by every IT
+	 * in the run, and a project dictionary write is idempotent by decision (#313), so a word reused
 	 * across tests would make "was it added?" depend on test order.
 	 */
 	private static String invented(String stem) {
@@ -231,18 +211,15 @@ public class ResolveIssueDictionaryIT extends AbstractIntegrationTestCase {
 		return "Unknown word: " + word;
 	}
 
-	private void resolveAddToDictionary(Project project, Goal goal, String word, User editedBy)
-			throws Exception {
-		LexicalIssue issue = newLexicalIssue(project, goal, word, editedBy);
-		AddWordToDictionaryPosition position = newAddWordPosition(issue, word, editedBy);
-
+	private ResolveIssueCommand resolveCommand(LexicalIssue issue,
+			AddWordToDictionaryPosition position, Goal goal, User editedBy) throws Exception {
 		ResolveIssueCommand resolve = getAnnotationCommandFactory()
 				.newResolveIssueCommand(position);
 		resolve.setEditedBy(editedBy);
 		resolve.setIssue(issue);
 		resolve.setPosition(position);
 		resolve.setAnnotatable(goal);
-		getCommandHandler().execute(resolve);
+		return resolve;
 	}
 
 	private LexicalIssue newLexicalIssue(Project project, Goal goal, String word, User editedBy)
