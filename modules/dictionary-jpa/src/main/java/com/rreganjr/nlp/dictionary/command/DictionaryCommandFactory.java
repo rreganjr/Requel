@@ -45,12 +45,6 @@ public interface DictionaryCommandFactory extends CommandFactory {
 	public ExportDictionaryCommand newExportDictionaryCommand();
 
 	/**
-	 * @return a new EditDictionaryWordCommand for add/editing a word in the
-	 *         dictionary
-	 */
-	public EditDictionaryWordCommand newEditDictionaryWordCommand();
-
-	/**
 	 * @return a new EditSynsetCommand for add/editing a synset
 	 *         (meaning/concept) in the dictionary
 	 */

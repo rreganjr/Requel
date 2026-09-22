@@ -28,7 +28,6 @@ import com.rreganjr.command.AbstractCommandFactory;
 import com.rreganjr.command.CommandFactoryStrategy;
 import com.rreganjr.nlp.dictionary.command.CalculateWordFrequenceCommand;
 import com.rreganjr.nlp.dictionary.command.DictionaryCommandFactory;
-import com.rreganjr.nlp.dictionary.command.EditDictionaryWordCommand;
 import com.rreganjr.nlp.dictionary.command.EditSemlinkRefCommand;
 import com.rreganjr.nlp.dictionary.command.EditSenseCommand;
 import com.rreganjr.nlp.dictionary.command.EditSynsetCommand;
@@ -68,12 +67,6 @@ public class DictionaryCommandFactoryImpl extends AbstractCommandFactory impleme
 	public ImportDictionaryCommand newImportDictionaryCommand() {
 		return (ImportDictionaryCommand) getCreationStrategy().newInstance(
 				ImportDictionaryCommandImpl.class);
-	}
-
-	@Override
-	public EditDictionaryWordCommand newEditDictionaryWordCommand() {
-		return (EditDictionaryWordCommand) getCreationStrategy().newInstance(
-				EditDictionaryWordCommandImpl.class);
 	}
 
 	@Override

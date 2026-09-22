@@ -25,6 +25,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.AbstractCommandFactory;
+import com.rreganjr.requel.project.command.EditProjectDictionaryWordCommand;
 import com.rreganjr.command.CommandFactoryStrategy;
 import com.rreganjr.requel.project.command.AddActorToActorContainerCommand;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
@@ -196,6 +197,11 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	public EditGlossaryTermCommand newEditGlossaryTermCommand() {
 		return (EditGlossaryTermCommand) getCreationStrategy().newInstance(
 				EditGlossaryTermCommandImpl.class);
+	}
+
+	public EditProjectDictionaryWordCommand newEditDictionaryWordCommand() {
+		return (EditProjectDictionaryWordCommand) getCreationStrategy().newInstance(
+				EditDictionaryWordCommandImpl.class);
 	}
 
 	public AddGlossaryTermRefererCommand newAddGlossaryTermRefererCommand() {
