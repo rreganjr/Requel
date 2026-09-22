@@ -131,6 +131,16 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public EditGlossaryTermCommand newEditGlossaryTermCommand();
 
 	/**
+	 * Moved here from {@code DictionaryCommandFactory} by issue #312: the command is authorized
+	 * against the project whose dictionary it writes, so its implementation has to live where a
+	 * {@code Project} is visible, and {@code dictionary-jpa} is below {@code project-domain} in the
+	 * module graph.
+	 *
+	 * @return a new EditDictionaryWordCommand for adding a word to a project's dictionary.
+	 */
+	public EditProjectDictionaryWordCommand newEditDictionaryWordCommand();
+
+	/**
 	 * @return a new AddGlossaryTermRefererCommand for recording that an entity mentions an
 	 *         existing glossary term, without the caller needing GlossaryTerm[Edit] (#302).
 	 */
