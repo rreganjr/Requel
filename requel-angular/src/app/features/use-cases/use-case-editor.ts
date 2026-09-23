@@ -98,7 +98,7 @@ const STALE_VERSION_MESSAGE =
                         [outlined]="true" (onClick)="onCopy()" />
             }
             @if (canDelete()) {
-              <p-button label="Delete" icon="pi pi-trash" severity="danger"
+              <p-button label="Delete" icon="pi pi-trash" severity="danger" data-testid="use-case-delete"
                         [outlined]="true" (onClick)="onDelete()" />
             }
           }
@@ -256,14 +256,15 @@ const STALE_VERSION_MESSAGE =
                  placeholder="Use case name" data-testid="use-case-name" />
         </app-field>
 
+        <!-- #325: required, with no clear button. usecases.primary_actor_id is NOT NULL, so the
+             old clear (x) silently did nothing on save. -->
         <app-field label="Primary Actor" controlId="useCasePrimaryActorInput"
-                   [control]="detailsForm.controls.primaryActorName" [submitted]="submitted()">
+                   [control]="detailsForm.controls.primaryActorName"
+                   [errorMessages]="primaryActorErrors" [submitted]="submitted()">
           <p-select appFieldControl inputId="useCasePrimaryActorInput"
                     data-testid="use-case-primary-actor"
                     [formControl]="detailsForm.controls.primaryActorName"
                     [options]="actorOptions()" optionLabel="label" optionValue="value"
-                    [showClear]="true"
-                    [pt]="{ clearIcon: { 'data-testid': 'use-case-primary-actor-clear' } }"
                     placeholder="Select primary actor" styleClass="w-full" />
         </app-field>
 
@@ -492,11 +493,12 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       validators: [Validators.required, Validators.maxLength(ARTIFACT_NAME_MAX_LENGTH)],
       nonNullable: true,
     }),
-    primaryActorName: new FormControl('', { nonNullable: true }),
+    primaryActorName: new FormControl('', { validators: [Validators.required], nonNullable: true }),
     text: new FormControl('', { nonNullable: true }),
   });
 
   readonly nameErrors = { required: 'A use case needs a name.' };
+  readonly primaryActorErrors = { required: 'A use case needs a primary actor.' };
 
   /** Active wizard step key, two-way bound to `app-form-wizard`. */
   wizardStep = 'details';
@@ -727,7 +729,8 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
         name,
         // '' clears; null would leave the text as it is (#316).
         text,
-        primaryActorName: primaryActorName || null,
+        // Required on a use case; the server refuses '' and reads null as "leave it" (#325).
+        primaryActorName,
       };
       if (this.useCaseId != null) input['useCaseId'] = this.useCaseId;
       if (this.version != null) input['version'] = this.version;
@@ -945,6 +948,7 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
         name: this.detailsForm.controls.name.value,
         // '' clears; null would leave the text as it is (#316).
         text: this.detailsForm.controls.text.value,
+        // Not a details save: an empty control means "leave the actor as it is" (#325).
         primaryActorName: this.detailsForm.controls.primaryActorName.value || null,
         useCaseId: this.useCaseId,
         version: this.version

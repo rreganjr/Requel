@@ -233,6 +233,89 @@ public class DeleteProjectMySqlIT extends DeleteProjectIT {
 				"and so must its link to that live entity");
 	}
 
+	/**
+	 * V19 (issue #325) deletes plain steps no scenario uses any more, the leftovers of the old
+	 * replace-the-whole-list step handling, along with their join rows. A step a scenario still
+	 * uses, the scenario itself, and the annotation that pointed at the orphan all stay, and a
+	 * second run is harmless.
+	 */
+	@Test
+	void v19DeletesOrphanStepsAndTheirJoinRowsButKeepsUsedOnes() throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		long ts = System.currentTimeMillis();
+		Project live = createProject(admin, "del-v19-" + ts);
+
+		com.rreganjr.requel.project.command.EditScenarioCommand scenarioCmd =
+				getProjectCommandFactory().newEditScenarioCommand();
+		scenarioCmd.setEditedBy(admin);
+		scenarioCmd.setProjectOrDomain(live);
+		scenarioCmd.setName("v19 scenario " + ts);
+		scenarioCmd.setScenarioTypeName(ScenarioType.Primary.name());
+		scenarioCmd.setStepCommands(java.util.List.of(v19Step(admin, live, "kept step " + ts),
+				v19Step(admin, live, "orphan step " + ts)));
+		Scenario scenario = getCommandHandler().execute(scenarioCmd).getScenario();
+		Long scenarioId = scenario.getId();
+		Long keptId = scenario.getSteps().get(0).getId();
+		Long orphanId = scenario.getSteps().get(1).getId();
+
+		com.rreganjr.requel.project.command.EditGlossaryTermCommand termCmd =
+				getProjectCommandFactory().newEditGlossaryTermCommand();
+		termCmd.setEditedBy(admin);
+		termCmd.setProjectOrDomain(live);
+		termCmd.setName("v19term" + ts);
+		Long termId = getCommandHandler().execute(termCmd).getGlossaryTerm().getId();
+
+		// Manufacture what the old code left: the orphan's scenario_steps row gone, its other
+		// links still in place.
+		mysqlJdbcTemplate.update("DELETE FROM scenario_steps WHERE step_id = ?", orphanId);
+		Long annotationId = insertAnnotation(admin.getId(), live.getId(), "note on orphan " + ts);
+		mysqlJdbcTemplate.update("INSERT INTO annotation_annotatable (annotation_id,"
+				+ " annotatable_type, annotatable_id) VALUES (?, 'Step', ?)", annotationId, orphanId);
+		mysqlJdbcTemplate.update("INSERT INTO scenarios_annotations (step_impl_id, annotations_id)"
+				+ " VALUES (?, ?)", orphanId, annotationId);
+		mysqlJdbcTemplate.update("INSERT INTO terms_referers (term_id, referer_type, referer_id)"
+				+ " VALUES (?, 'com.rreganjr.requel.project.Step', ?)", termId, orphanId);
+		mysqlJdbcTemplate.update("INSERT INTO scenarios_glossary_terms (step_impl_id,"
+				+ " glossary_terms_id) VALUES (?, ?)", orphanId, termId);
+
+		runMigration("V19__delete_orphan_steps.sql");
+		runMigration("V19__delete_orphan_steps.sql");
+
+		assertEquals(0, count("SELECT COUNT(*) FROM scenarios WHERE id = ?", orphanId),
+				"the orphan step must be deleted");
+		assertEquals(0, count("SELECT COUNT(*) FROM annotation_annotatable WHERE annotatable_id = ?"
+				+ " AND annotatable_type = 'Step'", orphanId), "its annotation link must go");
+		assertEquals(0, count("SELECT COUNT(*) FROM scenarios_annotations WHERE step_impl_id = ?",
+				orphanId), "its scenarios_annotations row must go");
+		assertEquals(0, count("SELECT COUNT(*) FROM terms_referers WHERE referer_id = ?"
+				+ " AND referer_type = 'com.rreganjr.requel.project.Step'", orphanId),
+				"its terms_referers row must go");
+		assertEquals(0, count("SELECT COUNT(*) FROM scenarios_glossary_terms WHERE step_impl_id = ?",
+				orphanId), "its scenarios_glossary_terms row must go");
+		assertEquals(1, count("SELECT COUNT(*) FROM scenarios WHERE id = ?", keptId),
+				"a step a scenario still uses must survive");
+		assertEquals(1, count("SELECT COUNT(*) FROM scenarios WHERE id = ?", scenarioId),
+				"a top-level scenario is not an orphan");
+		assertEquals(1, count("SELECT COUNT(*) FROM annotations WHERE id = ?", annotationId),
+				"the annotation itself stays, as it does when DeleteScenarioStep runs");
+	}
+
+	private com.rreganjr.requel.project.command.EditScenarioStepCommand v19Step(User admin,
+			Project project, String name) {
+		com.rreganjr.requel.project.command.EditScenarioStepCommand step =
+				getProjectCommandFactory().newEditScenarioStepCommand();
+		step.setEditedBy(admin);
+		step.setProjectOrDomain(project);
+		step.setName(name);
+		step.setText("step");
+		step.setScenarioTypeName(ScenarioType.Primary.name());
+		return step;
+	}
+
+	private int count(String sql, Object... args) {
+		return mysqlJdbcTemplate.queryForObject(sql, Integer.class, args);
+	}
+
 	/** A Future is "not done" only if it is still running - a thrown task counts as done. */
 	private static boolean isDone(Future<?> future) throws Exception {
 		// Give the delete a moment to reach the lock before concluding it is blocked.
@@ -263,10 +346,15 @@ public class DeleteProjectMySqlIT extends DeleteProjectIT {
 	 * away from what ships.
 	 */
 	private void runV17() throws Exception {
+		runMigration("V17__delete_orphan_annotations.sql");
+	}
+
+	/** Re-run a migration's statements, read off the classpath (see {@link #runV17()}). */
+	private void runMigration(String fileName) throws Exception {
 		String sql;
 		try (java.io.InputStream in = getClass()
-				.getResourceAsStream("/db/migration/V17__delete_orphan_annotations.sql")) {
-			org.junit.jupiter.api.Assertions.assertNotNull(in, "V17 migration not on the classpath");
+				.getResourceAsStream("/db/migration/" + fileName)) {
+			org.junit.jupiter.api.Assertions.assertNotNull(in, fileName + " not on the classpath");
 			sql = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
 		}
 		StringBuilder stripped = new StringBuilder();

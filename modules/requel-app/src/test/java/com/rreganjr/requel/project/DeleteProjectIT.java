@@ -774,4 +774,34 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
         cmd = getCommandHandler().execute(cmd);
         return cmd.getIssue();
     }
+
+    // -------------------------------------------------------------------------
+    // Orphan steps (issue #325)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Before #325, a step dropped from a scenario's list stayed in {@code scenarios} with no
+     * {@code scenario_steps} row. Walking the scenarios never reaches it, so on MySQL its
+     * projectordomain_id FK refused the final delete. The orphan is manufactured natively, which
+     * is the state old databases (and every pre-#325 e2e run) are in.
+     */
+    @Test
+    void deleteProjectDeletesAStepNoScenarioReaches() throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        long ts = System.currentTimeMillis();
+        Project project = createProject(admin, "del-orphan-step-" + ts);
+        Actor actor = createActor(admin, project, "orphan-actor-" + ts);
+        UseCase useCase = createUseCase(admin, project, "orphan-usecase-" + ts, actor.getName(),
+                "orphan step " + ts);
+        Long stepId = useCase.getScenario().getSteps().get(0).getId();
+        jdbcTemplate.update("DELETE FROM scenario_steps WHERE step_id = ?", stepId);
+
+        deleteProject(admin, project, null);
+
+        assertThrows(NoSuchProjectException.class,
+                () -> getProjectRepository().findProjectByName(project.getName()));
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM scenarios WHERE id = ?", Integer.class, stepId),
+                "the orphan step row should be deleted with the project");
+    }
 }

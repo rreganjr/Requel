@@ -33,6 +33,9 @@ import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditStoryCommand;
 import com.rreganjr.requel.user.User;
+import com.rreganjr.validator.EntityValidationException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
@@ -336,5 +339,113 @@ public class StoryCommandTest extends AbstractIntegrationTestCase {
 
 		Story updated = getProjectRepository().get(editCmd.getStory());
 		assertEquals("", updated.getText(), "an empty text should clear the text");
+	}
+
+	// -------------------------------------------------------------------------
+	// Primary actor on update (issue #325): null leaves it, "" clears it, an unknown name is
+	// refused
+	// -------------------------------------------------------------------------
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
+	private Story createStoryWithActor(Project project, String name, Actor actor) throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditStoryCommand cmd = getProjectCommandFactory().newEditStoryCommand();
+		cmd.setEditedBy(admin);
+		cmd.setStoryContainer(project);
+		cmd.setName(name);
+		cmd.setText("Story for primary-actor tests.");
+		cmd.setStoryTypeName(StoryType.Success.name());
+		cmd.setPrimaryActorName(actor.getName());
+		cmd = getCommandHandler().execute(cmd);
+		return cmd.getStory();
+	}
+
+	private int actorRefererRows(Actor actor, Story story) {
+		return jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM actor_actorcontainers WHERE actor_id = ? AND actorcontainer_id = ?",
+				Integer.class, actor.getId(), story.getId());
+	}
+
+	@Test
+	public void editStoryWithoutPrimaryActorNameKeepsTheActor() throws Exception {
+		Project project = createProject("Story-actor-keep");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Actor actor = createActor(project, "Cashier");
+		Story original = createStoryWithActor(project, "Cashier opens the till", actor);
+
+		EditStoryCommand editCmd = getProjectCommandFactory().newEditStoryCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setStory(original);
+		editCmd.setText("The cashier counts the float and opens the till.");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Story updated = getProjectRepository().get(editCmd.getStory());
+		assertEquals("The cashier counts the float and opens the till.", updated.getText(),
+				"the supplied text should be applied");
+		assertNotNull(updated.getPrimaryActor(), "a null primaryActorName should keep the actor");
+		assertEquals(actor.getName(), updated.getPrimaryActor().getName());
+		assertEquals(1, actorRefererRows(actor, updated), "the actor should still list the story");
+	}
+
+	@Test
+	public void editStoryWithEmptyPrimaryActorNameClearsIt() throws Exception {
+		Project project = createProject("Story-actor-clear");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Actor actor = createActor(project, "Courier");
+		Story original = createStoryWithActor(project, "Courier delivers a parcel", actor);
+		assertEquals(1, actorRefererRows(actor, original), "fixture: the actor lists the story");
+
+		EditStoryCommand editCmd = getProjectCommandFactory().newEditStoryCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setStory(original);
+		editCmd.setPrimaryActorName("");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Story updated = getProjectRepository().get(editCmd.getStory());
+		assertNull(updated.getPrimaryActor(), "an empty primaryActorName should clear the actor");
+		assertEquals(0, actorRefererRows(actor, updated),
+				"clearing should remove the story from the actor's referers");
+	}
+
+	@Test
+	public void editStoryWithUnknownPrimaryActorIsRefusedAndKeepsTheActor() throws Exception {
+		Project project = createProject("Story-actor-unknown");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Actor actor = createActor(project, "Pilot");
+		Story original = createStoryWithActor(project, "Pilot files a flight plan", actor);
+
+		EditStoryCommand editCmd = getProjectCommandFactory().newEditStoryCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setStory(original);
+		editCmd.setPrimaryActorName("Nobody by this name");
+		EntityValidationException e = assertThrows(EntityValidationException.class,
+				() -> getCommandHandler().execute(editCmd));
+		assertArrayEquals(new String[] { "primaryActorName" }, e.getEntityPropertyNames(),
+				"the refusal should name the primaryActorName field");
+
+		Story reloaded = getProjectRepository().findStoryByProjectOrDomainAndName(project,
+				"Pilot files a flight plan");
+		assertNotNull(reloaded.getPrimaryActor(), "a refused edit must leave the actor alone");
+		assertEquals(actor.getName(), reloaded.getPrimaryActor().getName());
+	}
+
+	@Test
+	public void createStoryWithUnknownPrimaryActorIsRefused() throws Exception {
+		Project project = createProject("Story-actor-unknown-create");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditStoryCommand cmd = getProjectCommandFactory().newEditStoryCommand();
+		cmd.setEditedBy(admin);
+		cmd.setStoryContainer(project);
+		cmd.setName("Ghost reviews the backlog");
+		cmd.setStoryTypeName(StoryType.Success.name());
+		cmd.setPrimaryActorName("Ghost");
+		assertThrows(EntityValidationException.class, () -> getCommandHandler().execute(cmd));
+		assertThrows(NoSuchEntityException.class,
+				() -> getProjectRepository().findStoryByProjectOrDomainAndName(project,
+						"Ghost reviews the backlog"),
+				"a refused create must not leave a story behind");
 	}
 }

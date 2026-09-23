@@ -37,7 +37,9 @@ import jakarta.validation.constraints.Size;
  * a nested scenario by its id as {@code stepId} with {@code isScenario} true.
  * <p>
  * On update, a null (or absent) {@code text} or {@code scenarioTypeName} leaves it as it
- * is; an empty {@code text} clears it (issue #316).
+ * is; an empty {@code text} clears it (issue #316). An absent {@code steps} leaves the step list
+ * as it is; a list, even an empty one, replaces it, and a plain step dropped from it is deleted
+ * unless another scenario uses it (issue #325).
  */
 @CommandDescription("Creates or edits a scenario and its list of steps. Pass scenarioId to edit an"
         + " existing scenario, or leave it null to create one."

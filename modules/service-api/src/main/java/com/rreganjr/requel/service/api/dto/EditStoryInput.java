@@ -29,14 +29,16 @@ import jakarta.validation.constraints.Size;
  *
  * <p>
  * On update, a null (or absent) {@code text} or {@code storyTypeName} leaves it as it is;
- * an empty {@code text} clears it (issue #316).
+ * an empty {@code text} clears it (issue #316). The same goes for {@code primaryActorName}: null
+ * leaves the actor, an empty string clears it, and a name that names no actor is refused
+ * (issue #325).
  *
  * @param projectName      project the story belongs to
  * @param storyId          ID of the story to edit (null for create)
  * @param name             story name (the new name to set)
  * @param text             story body text
  * @param storyTypeName    "Success" or "Exception"
- * @param primaryActorName name of the primary actor (null to clear)
+ * @param primaryActorName name of the primary actor ("" to clear, null to leave it)
  * @param version          optimistic lock version (null for create)
  */
 public record EditStoryInput(
@@ -47,12 +49,11 @@ public record EditStoryInput(
         String name,
         String text,
         String storyTypeName,
-        // Deliberately unconstrained: a story's primary actor is optional, and passing null is how
-        // the SPA CLEARS it (ProjectCommandRegistrar:364 applies it unconditionally, and
-        // StoryPrimaryActorMappingTest asserts the clear). A @NotBlank here made every story edit
-        // fail with 422 -- including stories that never had a primary actor. Note
-        // EditUseCaseInput.primaryActorName is likewise unconstrained. Enforcing it was dormant and
-        // therefore invisible until #171 turned DTO validation on.
+        // Deliberately unconstrained: a story's primary actor is optional, and passing "" is how
+        // the SPA clears it (null leaves it as it is since #325; StoryPrimaryActorMappingTest
+        // asserts the clear). A @NotBlank here made every story edit fail with 422 -- including
+        // stories that never had a primary actor. Enforcing it was dormant and therefore
+        // invisible until #171 turned DTO validation on.
         String primaryActorName,
         Integer version
 ) {

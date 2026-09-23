@@ -651,7 +651,8 @@ export class StoryEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         name,
         text,
         storyTypeName: storyType,
-        primaryActorName: primaryActorName || null,
+        // '' clears; null would leave the actor as it is (#325). The p-select clear sets null.
+        primaryActorName: primaryActorName ?? '',
       };
       if (this.storyId != null) input['storyId'] = this.storyId;
       if (this.version != null) input['version'] = this.version;

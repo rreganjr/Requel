@@ -148,6 +148,25 @@ public interface ProjectRepository extends Repository {
 	public Set<Scenario> findScenariosUsedByUseCase(UseCase usecase);
 
 	/**
+	 * Every step and scenario row that belongs to the project or domain, including ones no
+	 * scenario reaches any more (issue #325), which walking the scenarios would miss.
+	 *
+	 * @param projectOrDomain
+	 * @return the steps and scenarios whose projectOrDomain is the supplied one
+	 */
+	public Set<Step> findStepsByProjectOrDomain(ProjectOrDomain projectOrDomain);
+
+	/**
+	 * Whether any scenario other than {@code except} still has {@code step} in its step list
+	 * (issue #325), so a step dropped from one scenario is only deleted when nothing else uses it.
+	 *
+	 * @param step
+	 * @param except the scenario the step was just removed from
+	 * @return true if another scenario uses the step
+	 */
+	public boolean isStepUsedByAnotherScenario(Step step, Scenario except);
+
+	/**
 	 * Find a non-user stakeholder by name.
 	 * 
 	 * @param projectOrDomain -
