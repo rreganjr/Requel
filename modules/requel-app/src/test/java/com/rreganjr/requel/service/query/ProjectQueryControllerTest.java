@@ -137,13 +137,11 @@ class ProjectQueryControllerTest {
 
     @Test
     void listProjectsReturnsProjectUserActiveProjectsSortedByName() throws Exception {
-        ProjectUserRole role = mock(ProjectUserRole.class);
-        when(user.getRoleForType(ProjectUserRole.class)).thenReturn(role);
-
         Project alpha = stubProject("Alpha", 10L);
         Project zeta  = stubProject("Zeta",  20L);
         Project beta  = stubProject("Beta",  30L);
-        when(role.getActiveProjects()).thenReturn(Set.of(zeta, alpha, beta));
+        // #323: read through the repository, never the (lazy) role collection.
+        when(projectRepository.findActiveProjects(user)).thenReturn(Set.of(zeta, alpha, beta));
 
         mockMvc.perform(get("/api/projects"))
                 .andExpect(status().isOk())

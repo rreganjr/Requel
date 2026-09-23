@@ -176,8 +176,10 @@ public class IssueImpl extends AbstractAnnotation implements Issue {
 		setResolvedDate(null);
 	}
 
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST,
-			CascadeType.REFRESH }, optional = true)
+	// #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+	// nothing above it (the user's roles reach every project the user is on).
+	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.MERGE, CascadeType.PERSIST },
+			optional = true)
 	@XmlIDREF
 	@XmlAttribute(name = "resolvedByUser")
 	public User getResolvedByUser() {

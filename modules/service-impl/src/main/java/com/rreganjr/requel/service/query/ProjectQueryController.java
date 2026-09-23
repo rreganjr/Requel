@@ -132,8 +132,8 @@ public class ProjectQueryController {
         if (user.hasRole(SystemAdminUserRole.class)) {
             projects = findAllProjects();
         } else if (user.hasRole(ProjectUserRole.class)) {
-            ProjectUserRole role = user.getRoleForType(ProjectUserRole.class);
-            projects = role.getActiveProjects();
+            // #323: activeProjects is lazy; query it rather than relying on open-in-view.
+            projects = projectRepository.findActiveProjects(user);
         } else {
             projects = Collections.emptySet();
         }
