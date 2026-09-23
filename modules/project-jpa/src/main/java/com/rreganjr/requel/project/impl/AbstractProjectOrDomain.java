@@ -162,7 +162,9 @@ public abstract class AbstractProjectOrDomain implements ProjectOrDomain, Serial
 	@XmlIDREF()
 	@XmlAttribute(name = "createdBy")
 	@XmlJavaTypeAdapter(User2UserImplAdapter.class)
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.REFRESH }, fetch = FetchType.LAZY)
+	// #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+	// nothing above it (the user's roles reach every project the user is on).
+	@ManyToOne(targetEntity = UserImpl.class, fetch = FetchType.LAZY)
 	public User getCreatedBy() {
 		return createdBy;
 	}

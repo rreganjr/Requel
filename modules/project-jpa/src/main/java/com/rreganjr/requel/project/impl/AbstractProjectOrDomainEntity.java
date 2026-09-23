@@ -161,7 +161,9 @@ public abstract class AbstractProjectOrDomainEntity implements ProjectOrDomainEn
 		this.terms = terms;
 	}
 
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH }, optional = false)
+	// #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+	// nothing above it (the user's roles reach every project the user is on).
+	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST }, optional = false)
 	@XmlIDREF()
 	@XmlAttribute(name = "createdBy")
 	@XmlJavaTypeAdapter(User2UserImplAdapter.class)

@@ -317,6 +317,20 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 		}
 	}
 
+	@Override
+	public Set<Project> findActiveProjects(User user) {
+		try {
+			// #323: a query rather than role.getActiveProjects(), so the caller neither needs the
+			// user to be managed nor pays to initialize the collection on it.
+			Query query = getEntityManager().createQuery(
+					"select p from ProjectUserRole r join r.activeProjects p where r.user = :user");
+			query.setParameter("user", user);
+			return new TreeSet<Project>(query.getResultList());
+		} catch (Exception e) {
+			throw convertException(e, Project.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
 	public Set<StakeholderPermission> findAvailableStakeholderPermissions() {
 		try {
 			// TODO: use named query so it can be configured externally

@@ -90,7 +90,9 @@ public class ProjectUserRole extends AbstractUserRole {
 	/**
 	 * @return the user this role is assigned to
 	 */
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH })
+	// #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+	// nothing above it (the user's roles reach every project the user is on).
+	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST })
 	protected User getUser() {
 		return user;
 	}
@@ -110,8 +112,12 @@ public class ProjectUserRole extends AbstractUserRole {
 	 */
 	// #247: no REFRESH cascade - refreshing a role must not reload every active project and
 	// everything under them (see AbstractProjectOrDomainEntity.getProjectOrDomain).
+	// #323: LAZY. Users are loaded eagerly with their roles everywhere (every entity's createdBy),
+	// and an EAGER set here was left-joined into each of those loads - one user chain per
+	// createdBy, multiplying to ~N^6 rows for a user on N projects. To list the projects use
+	// ProjectRepository.findActiveProjects(User); add/remove only on a managed user.
 	@ManyToMany(targetEntity = ProjectImpl.class, cascade = { CascadeType.PERSIST },
-			fetch = FetchType.EAGER)
+			fetch = FetchType.LAZY)
 	@SortNatural
 	public Set<Project> getActiveProjects() {
 		return activeProjects;

@@ -146,7 +146,9 @@ public class TagCategoryImpl implements TagCategory, Serializable {
 	}
 
 	@Override
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST, CascadeType.REFRESH })
+	// #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+	// nothing above it (the user's roles reach every project the user is on).
+	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.PERSIST })
 	@JoinColumn(name = "created_by_id")
 	public User getCreatedBy() {
 		return createdBy;

@@ -91,7 +91,9 @@ public abstract class AbstractStakeholder extends AbstractProjectOrDomainEntity 
 		this.type = type;
 	}
 
-	@ManyToOne(targetEntity = UserImpl.class, cascade = { CascadeType.REFRESH }, optional = true)
+	// #323: no REFRESH cascade up to the user - a refresh reloads the entity and what it owns,
+	// nothing above it (the user's roles reach every project the user is on).
+	@ManyToOne(targetEntity = UserImpl.class, optional = true)
 	protected User getUser() {
 		return user;
 	}

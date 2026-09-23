@@ -54,6 +54,16 @@ public interface ProjectRepository extends Repository {
 	public java.util.List<Project> findAllProjects();
 
 	/**
+	 * @param user -
+	 *            the user whose active projects to read
+	 * @return the projects on the user's {@link ProjectUserRole}, in natural order; empty if the
+	 *         user has no project role. This is the way to read the set:
+	 *         {@link ProjectUserRole#getActiveProjects()} is lazy (#323), so reading it on a user
+	 *         loaded outside the current persistence context throws.
+	 */
+	public Set<Project> findActiveProjects(User user);
+
+	/**
 	 * Find a project-scoped entity by its persistent id. {@code entityType} is the
 	 * domain interface (e.g. {@link Goal}, {@link Story}, {@link Project}). Ids are
 	 * stable across renames, so this is the preferred lookup for tooling that holds
