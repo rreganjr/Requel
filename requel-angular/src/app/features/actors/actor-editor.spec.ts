@@ -117,6 +117,19 @@ describe('ActorEditorComponent', () => {
     }));
   });
 
+  // #316: the server reads null as "leave it as it is", so a blank description goes as ''.
+  it('onSave sends an empty description to clear it', async () => {
+    fixture.detectChanges();
+    await flush();
+    comp.detailsForm.setValue({ name: 'New Actor', text: '' });
+    comp.detailsForm.markAsDirty();
+    await comp.onSave();
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('EditActor', expect.objectContaining({
+      name: 'New Actor',
+      description: ''
+    }));
+  });
+
   it('onDelete triggers confirm then calls execute("DeleteActor")', async () => {
     paramMap$.next(convertToParamMap({ name: 'proj1', actorId: '5' }));
     fixture.detectChanges();

@@ -931,7 +931,8 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
     return this.stepsForm.getRawValue().map(step => ({
       stepId: step.stepId,
       name: step.name,
-      text: step.text || null,
+      // '' clears; null would leave the step's text as it is (#316).
+      text: step.text ?? '',
       scenarioTypeName: step.scenarioType,
       isScenario: step.isScenario
     }));
@@ -996,7 +997,8 @@ export class ScenarioEditorComponent implements OnInit, OnDestroy, DirtyCheckabl
       const input: Record<string, unknown> = {
         projectName: this.projectName,
         name,
-        text: text || null,
+        // '' clears; null would leave the text as it is (#316).
+        text,
         scenarioTypeName: scenarioType,
         steps: this.buildStepInputs(),
       };

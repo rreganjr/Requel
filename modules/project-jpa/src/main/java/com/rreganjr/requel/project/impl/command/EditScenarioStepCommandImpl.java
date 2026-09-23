@@ -126,9 +126,16 @@ public class EditScenarioStepCommandImpl extends AbstractEditProjectOrDomainEnti
 							new StepImpl(projectOrDomain, editedBy, getName(), getText(),
 									getScenarioType()));
 		} else {
-			stepImpl.setName(getName());
-			stepImpl.setText(getText());
-			stepImpl.setType(getScenarioType());
+			// Null leaves a property as it is; "" clears the text (issue #316).
+			if (getName() != null) {
+				stepImpl.setName(getName());
+			}
+			if (getText() != null) {
+				stepImpl.setText(getText());
+			}
+			if (getScenarioType() != null) {
+				stepImpl.setType(getScenarioType());
+			}
 		}
 		setStep(getProjectRepository().merge(stepImpl));
 	}

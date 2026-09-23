@@ -256,14 +256,15 @@ describe('ReportEditorComponent', () => {
       expect(comp.submitted()).toBe(true);
     });
 
-    it('sends null rather than an empty string for an empty template', async () => {
+    // #316: the server reads null as "leave it as it is", so an empty template goes as ''.
+    it('sends an empty string rather than null for an empty template', async () => {
       fixture.detectChanges();
       await flush();
       fill('Doc', '');
 
       await comp.onSave();
 
-      expect(reportServiceMock.saveReport).toHaveBeenCalledWith('proj1', null, 'Doc', null);
+      expect(reportServiceMock.saveReport).toHaveBeenCalledWith('proj1', null, 'Doc', '');
     });
 
     it('hasUnsavedChanges() derives from form.dirty', async () => {

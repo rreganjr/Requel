@@ -107,6 +107,22 @@ describe('ProjectEditorComponent', () => {
     }));
   });
 
+  // #316: the server reads null as "leave it as it is", so clearing sends ''.
+  it('onSave sends an empty description and organizationName to clear them', async () => {
+    fixture.detectChanges();
+    await flush();
+    comp.detailsForm.controls.name.setValue('My New Project');
+    comp.detailsForm.controls.description.setValue('');
+    comp.detailsForm.controls.organization.setValue(null);
+    comp.detailsForm.markAsDirty();
+    await comp.onSave();
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('EditProject', expect.objectContaining({
+      description: '',
+      organizationId: null,
+      organizationName: ''
+    }));
+  });
+
   // #173: create is a wizard. Project is the one editor whose second step needs no version
   // handling - AssignTag mutates the Tag, not the project - so the contract to pin here is that
   // step 1 captures the id WITHOUT navigating. The old code routed away on save, which both hid

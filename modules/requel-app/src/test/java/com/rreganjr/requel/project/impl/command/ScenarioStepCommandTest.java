@@ -403,4 +403,85 @@ public class ScenarioStepCommandTest extends AbstractIntegrationTestCase {
 				.anyMatch(s -> "User fills in the registration form".equals(s.getName())),
 				"converted scenario should appear in the project's scenario collection");
 	}
+
+	// -------------------------------------------------------------------------
+	// Partial update (issue #316): null leaves a property as it is, "" clears the text
+	// -------------------------------------------------------------------------
+
+	private Step createStep(Project project, String name, String text, ScenarioType type)
+			throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditScenarioStepCommand cmd = getProjectCommandFactory().newEditScenarioStepCommand();
+		cmd.setEditedBy(admin);
+		cmd.setProjectOrDomain(project);
+		cmd.setName(name);
+		cmd.setText(text);
+		cmd.setScenarioTypeName(type.name());
+		cmd = getCommandHandler().execute(cmd);
+		return cmd.getStep();
+	}
+
+	@Test
+	public void editStepWithOnlyNameKeepsTextAndType() throws Exception {
+		Project project = createProject("Step-partial-name");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Step original = createStep(project, "The user picks a date",
+				"A calendar opens on today.", ScenarioType.Alternative);
+
+		EditScenarioStepCommand editCmd = getProjectCommandFactory().newEditScenarioStepCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setStep(original);
+		editCmd.setName("The user picks a start date");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Step updated = getProjectRepository().get(editCmd.getStep());
+		assertEquals("The user picks a start date", updated.getName(),
+				"the supplied name should be applied");
+		assertEquals("A calendar opens on today.", updated.getText(),
+				"a null text should leave the text as it is");
+		assertEquals(ScenarioType.Alternative, updated.getType(),
+				"a null scenario type should leave the type as it is");
+	}
+
+	@Test
+	public void editStepWithOnlyTextKeepsName() throws Exception {
+		Project project = createProject("Step-partial-text");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Step original = createStep(project, "The system saves the draft",
+				"Saved every minute.", ScenarioType.Primary);
+
+		EditScenarioStepCommand editCmd = getProjectCommandFactory().newEditScenarioStepCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setStep(original);
+		editCmd.setText("Saved every thirty seconds.");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Step updated = getProjectRepository().get(editCmd.getStep());
+		assertEquals("The system saves the draft", updated.getName(),
+				"a null name should leave the name as it is");
+		assertEquals("Saved every thirty seconds.", updated.getText(),
+				"the supplied text should be applied");
+		assertEquals(ScenarioType.Primary, updated.getType(), "type should be unchanged");
+	}
+
+	@Test
+	public void editStepWithEmptyTextClearsText() throws Exception {
+		Project project = createProject("Step-clear-text");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Step original = createStep(project, "The user confirms",
+				"A dialog asks for confirmation.", ScenarioType.Primary);
+
+		EditScenarioStepCommand editCmd = getProjectCommandFactory().newEditScenarioStepCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setStep(original);
+		editCmd.setText("");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Step updated = getProjectRepository().get(editCmd.getStep());
+		assertEquals("The user confirms", updated.getName(), "name should be unchanged");
+		assertEquals("", updated.getText(), "an empty text should clear the text");
+	}
 }

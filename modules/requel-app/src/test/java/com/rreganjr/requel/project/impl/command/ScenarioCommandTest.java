@@ -272,4 +272,63 @@ public class ScenarioCommandTest extends AbstractIntegrationTestCase {
 				() -> getProjectRepository().findScenarioByProjectOrDomainAndName(project, "ToDelete"),
 				"deleted scenario should no longer be findable");
 	}
+
+	// -------------------------------------------------------------------------
+	// Partial update (issue #316): null leaves a property as it is, "" clears the text
+	// -------------------------------------------------------------------------
+
+	private Scenario createScenario(Project project, String name, String text, ScenarioType type)
+			throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditScenarioCommand cmd = getProjectCommandFactory().newEditScenarioCommand();
+		cmd.setEditedBy(admin);
+		cmd.setProjectOrDomain(project);
+		cmd.setName(name);
+		cmd.setText(text);
+		cmd.setScenarioTypeName(type.name());
+		cmd = getCommandHandler().execute(cmd);
+		return cmd.getScenario();
+	}
+
+	@Test
+	public void editScenarioWithNullTextAndTypeKeepsThem() throws Exception {
+		Project project = createProject("Scenario-partial");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Scenario original = createScenario(project, "Pay by card",
+				"The user pays with a saved card.", ScenarioType.Alternative);
+
+		EditScenarioCommand editCmd = getProjectCommandFactory().newEditScenarioCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setScenario(original);
+		editCmd.setName("Pay by saved card");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Scenario updated = getProjectRepository().get(editCmd.getScenario());
+		assertEquals("Pay by saved card", updated.getName(), "the supplied name should be applied");
+		assertEquals("The user pays with a saved card.", updated.getText(),
+				"a null text should leave the text as it is");
+		assertEquals(ScenarioType.Alternative, updated.getType(),
+				"a null scenario type should leave the type as it is");
+	}
+
+	@Test
+	public void editScenarioWithEmptyTextClearsText() throws Exception {
+		Project project = createProject("Scenario-clear-text");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Scenario original = createScenario(project, "Cancel order",
+				"The user cancels before shipping.", ScenarioType.Exception);
+
+		EditScenarioCommand editCmd = getProjectCommandFactory().newEditScenarioCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setScenario(original);
+		editCmd.setName("Cancel order");
+		editCmd.setText("");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Scenario updated = getProjectRepository().get(editCmd.getScenario());
+		assertEquals("", updated.getText(), "an empty text should clear the text");
+		assertEquals(ScenarioType.Exception, updated.getType(), "type should be unchanged");
+	}
 }

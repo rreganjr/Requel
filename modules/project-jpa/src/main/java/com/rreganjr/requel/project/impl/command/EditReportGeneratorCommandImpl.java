@@ -95,26 +95,34 @@ public class EditReportGeneratorCommandImpl extends AbstractEditProjectOrDomainE
 		ReportGeneratorImpl reportGeneratorImpl = (ReportGeneratorImpl) getReportGenerator();
 		ProjectOrDomain projectOrDomain = getProjectRepository().get(getProjectOrDomain());
 
-		// check for uniqueness
-		try {
-			ReportGenerator existing = getProjectRepository()
-					.findReportGeneratorByProjectOrDomainAndName(projectOrDomain, getName());
-			if (reportGeneratorImpl == null) {
-				throw EntityException.uniquenessConflict(ReportGenerator.class, existing,
-						FIELD_NAME, EntityExceptionActionType.Creating);
-			} else if (!existing.equals(reportGeneratorImpl)) {
-				throw EntityException.uniquenessConflict(ReportGenerator.class, existing,
-						FIELD_NAME, EntityExceptionActionType.Updating);
+		// Check for uniqueness. Skipped when no name was supplied: a null name means "leave it
+		// as it is", and the finder trims the name, so it would NPE (issue #316).
+		if (getName() != null) {
+			try {
+				ReportGenerator existing = getProjectRepository()
+						.findReportGeneratorByProjectOrDomainAndName(projectOrDomain, getName());
+				if (reportGeneratorImpl == null) {
+					throw EntityException.uniquenessConflict(ReportGenerator.class, existing,
+							FIELD_NAME, EntityExceptionActionType.Creating);
+				} else if (!existing.equals(reportGeneratorImpl)) {
+					throw EntityException.uniquenessConflict(ReportGenerator.class, existing,
+							FIELD_NAME, EntityExceptionActionType.Updating);
+				}
+			} catch (NoSuchEntityException e) {
 			}
-		} catch (NoSuchEntityException e) {
 		}
 
 		if (reportGeneratorImpl == null) {
 			reportGeneratorImpl = getProjectRepository().persist(
 					new ReportGeneratorImpl(projectOrDomain, editedBy, getName(), getText()));
 		} else {
-			reportGeneratorImpl.setName(getName());
-			reportGeneratorImpl.setText(getText());
+			// Null leaves a property as it is; "" clears the text (issue #316).
+			if (getName() != null) {
+				reportGeneratorImpl.setName(getName());
+			}
+			if (getText() != null) {
+				reportGeneratorImpl.setText(getText());
+			}
 		}
 		reportGeneratorImpl = getProjectRepository().merge(reportGeneratorImpl);
 		setReportGenerator(reportGeneratorImpl);

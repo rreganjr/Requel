@@ -233,4 +233,55 @@ public class GoalCommandTest extends AbstractIntegrationTestCase {
 				() -> getProjectRepository().findGoalByProjectOrDomainAndName(project, "ToDelete"),
 				"deleted goal should no longer be findable");
 	}
+
+	// -------------------------------------------------------------------------
+	// Partial update (issue #316): null leaves a property as it is, "" clears the text
+	// -------------------------------------------------------------------------
+
+	private Goal createGoal(Project project, String name, String text) throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditGoalCommand cmd = getProjectCommandFactory().newEditGoalCommand();
+		cmd.setEditedBy(admin);
+		cmd.setGoalContainer(project);
+		cmd.setName(name);
+		cmd.setText(text);
+		cmd = getCommandHandler().execute(cmd);
+		return cmd.getGoal();
+	}
+
+	@Test
+	public void editGoalWithNullTextKeepsText() throws Exception {
+		Project project = createProject("Goal-partial-text");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Goal original = createGoal(project, "Audit trail", "Every change is recorded.");
+
+		EditGoalCommand editCmd = getProjectCommandFactory().newEditGoalCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setGoal(original);
+		editCmd.setName("Audit log");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Goal updated = getProjectRepository().get(editCmd.getGoal());
+		assertEquals("Audit log", updated.getName(), "the supplied name should be applied");
+		assertEquals("Every change is recorded.", updated.getText(),
+				"a null text should leave the text as it is");
+	}
+
+	@Test
+	public void editGoalWithEmptyTextClearsText() throws Exception {
+		Project project = createProject("Goal-clear-text");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Goal original = createGoal(project, "Fast search", "Results in under a second.");
+
+		EditGoalCommand editCmd = getProjectCommandFactory().newEditGoalCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setGoal(original);
+		editCmd.setName("Fast search");
+		editCmd.setText("");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Goal updated = getProjectRepository().get(editCmd.getGoal());
+		assertEquals("Fast search", updated.getName(), "name should be unchanged");
+		assertEquals("", updated.getText(), "an empty text should clear the text");
+	}
 }

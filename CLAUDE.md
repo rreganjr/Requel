@@ -210,14 +210,23 @@ mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests
 
 The jar is named for the reactor version in the root `pom.xml` (`requel-app-<version>.jar`), currently `2.0.0-dev` — update these commands when that version changes.
 
+**Always run the jar locally with `--spring.profiles.active=dev`, and always include it when handing
+over a `java -jar` command.** The dev profile enables `/api/dev/reset-admin` and
+`/api/dev/reset-project`, which the Playwright global setup calls to put the admin and project
+users back in canonical state before each run (without it the run prints two
+`[global-setup] ... not available` warnings and depends on whatever state those users are in),
+plus CORS for `ng serve` on :4200 and the dev OAuth client. Note that it resets the admin
+credentials to `admin`/`admin` on the database it points at.
+
 ```bash
 # With local MySQL (Angular served from the JAR at /)
 java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
+  --spring.profiles.active=dev --server.port=8080 \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
-  --spring.datasource.username=root --spring.datasource.password=password --server.port=8080
+  --spring.datasource.username=root --spring.datasource.password=password
 
-# Angular dev server (hot reload) + Spring Boot backend
-# Start backend with dev profile so CORS allows localhost:4200:
+# Angular dev server (hot reload) + Spring Boot backend - the same command; the dev profile's
+# CORS setting is what lets localhost:4200 call it:
 java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
   --spring.profiles.active=dev --server.port=8080 \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
@@ -291,6 +300,7 @@ The Angular SPA is backed by a hybrid CQRS API:
 - **Annotation decoupling:** The annotation module must not import project implementation classes; use the registry pattern
 - **Module dependencies flow downward:** domain modules never depend on JPA modules
 - **Project XML compatibility:** Import/export must satisfy `doc/samples/project.xsd`; changes to JAXB mappings need round-trip regression tests
+- **Never edit an applied Flyway migration, not even a comment.** Flyway's checksum covers every line, so any change to a `V*__*.sql` file already on `release/2.0` fails startup on every existing database (#304 rewrote doc paths in the comments of V8, V9, V13 and V14; #316 put them back). Bulk find-and-replace passes must skip `db/migration/`. A fix goes in a new migration.
 - **No upward `CascadeType.REFRESH`:** never cascade REFRESH from a child to its parent/owner (entity → project, anything → user, role → projects). `em.refresh(entity)` follows every REFRESH edge; one upward edge turned a refresh into a reload of the whole database (#247: 300k statements per DeleteProject). Refresh reloads the entity and what it owns, nothing above it.
 
 ## Key Documentation

@@ -279,4 +279,62 @@ public class StoryCommandTest extends AbstractIntegrationTestCase {
 				() -> getProjectRepository().findStoryByProjectOrDomainAndName(project, "ToDelete"),
 				"deleted story should no longer be findable");
 	}
+
+	// -------------------------------------------------------------------------
+	// Partial update (issue #316): null leaves a property as it is, "" clears the text
+	// -------------------------------------------------------------------------
+
+	private Story createStory(Project project, String name, String text, StoryType type)
+			throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditStoryCommand cmd = getProjectCommandFactory().newEditStoryCommand();
+		cmd.setEditedBy(admin);
+		cmd.setStoryContainer(project);
+		cmd.setName(name);
+		cmd.setText(text);
+		cmd.setStoryTypeName(type.name());
+		cmd = getCommandHandler().execute(cmd);
+		return cmd.getStory();
+	}
+
+	@Test
+	public void editStoryWithNullTextAndTypeKeepsThem() throws Exception {
+		Project project = createProject("Story-partial");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Story original = createStory(project, "Ron forgets his password",
+				"Ron asks for a reset link.", StoryType.Exception);
+
+		EditStoryCommand editCmd = getProjectCommandFactory().newEditStoryCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setStory(original);
+		editCmd.setName("Ron resets his password");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Story updated = getProjectRepository().get(editCmd.getStory());
+		assertEquals("Ron resets his password", updated.getName(),
+				"the supplied name should be applied");
+		assertEquals("Ron asks for a reset link.", updated.getText(),
+				"a null text should leave the text as it is");
+		assertEquals(StoryType.Exception, updated.getStoryType(),
+				"a null story type should leave the type as it is");
+	}
+
+	@Test
+	public void editStoryWithEmptyTextClearsText() throws Exception {
+		Project project = createProject("Story-clear-text");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Story original = createStory(project, "Rich exports a report",
+				"Rich downloads the HTML report.", StoryType.Success);
+
+		EditStoryCommand editCmd = getProjectCommandFactory().newEditStoryCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setStory(original);
+		editCmd.setName("Rich exports a report");
+		editCmd.setText("");
+		editCmd.setStoryTypeName(StoryType.Success.name());
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Story updated = getProjectRepository().get(editCmd.getStory());
+		assertEquals("", updated.getText(), "an empty text should clear the text");
+	}
 }

@@ -363,14 +363,19 @@ export class ProjectEditorComponent implements OnInit, DirtyCheckable {
       const { name, organization, description } = this.detailsForm.getRawValue();
       // Resolve organization: object = existing org by id, string = new org by name.
       const orgId = typeof organization === 'object' && organization ? organization.id : null;
-      const orgName = typeof organization === 'string' && organization ? organization : null;
+      // No organization selected sends organizationName '' - the server reads null as "leave it
+      // as it is" on update, so '' is what clears it (#316).
+      const orgName = typeof organization === 'string' && organization
+        ? organization
+        : (orgId == null ? '' : null);
 
       const input: Record<string, unknown> = {
         id: this.projectId,
         version: this.projectVersion,
         projectName: this.isNew() ? null : this.originalName(),
         name,
-        description: description || null,
+        // '' clears; null would leave the description as it is (#316).
+        description,
         organizationId: orgId,
         organizationName: orgName,
       };

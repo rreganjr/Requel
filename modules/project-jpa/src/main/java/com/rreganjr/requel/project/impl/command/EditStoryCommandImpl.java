@@ -191,8 +191,13 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 			if (getName() != null) {
 				storyImpl.setName(getName());
 			}
-			storyImpl.setText(getText());
-			storyImpl.setStoryType(getStoryType());
+			// Null leaves the text and type as they are; "" clears the text (issue #316).
+			if (getText() != null) {
+				storyImpl.setText(getText());
+			}
+			if (getStoryType() != null) {
+				storyImpl.setStoryType(getStoryType());
+			}
 			// Mirror UseCase pattern: merge first so the entity is managed, then set actor
 			storyImpl = getProjectRepository().merge(storyImpl);
 			Actor priorActor = storyImpl.getPrimaryActor();

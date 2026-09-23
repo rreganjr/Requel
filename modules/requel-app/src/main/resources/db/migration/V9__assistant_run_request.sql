@@ -2,8 +2,8 @@
 -- when a run row is read back (e.g. by the worker before invoking assistants, or
 -- by run-history / MCP tooling). Before this, only user ids and target/project
 -- refs were stored, so the rebuilt request dropped usernames, locale, and the
--- attributes map. See doc/work/2.0/43-phase-4.5-plan.md (Step 1) and
--- doc/work/2.0/assistant-spi-plan.md (Dispatcher transactions and async boundaries).
+-- attributes map. See doc/43-phase-4.5-plan.md (Step 1) and
+-- doc/assistant-spi-plan.md (Dispatcher transactions and async boundaries).
 ALTER TABLE assistant_runs
     ADD COLUMN triggered_by_username VARCHAR(255) NULL,
     ADD COLUMN assistant_username VARCHAR(255) NULL,

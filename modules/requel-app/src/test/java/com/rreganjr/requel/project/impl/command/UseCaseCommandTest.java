@@ -32,6 +32,8 @@ import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.command.EditScenarioCommand;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
@@ -280,5 +282,79 @@ public class UseCaseCommandTest extends AbstractIntegrationTestCase {
 		assertThrows(NoSuchEntityException.class,
 				() -> getProjectRepository().findUseCaseByProjectOrDomainAndName(project, "ToDelete"),
 				"deleted use case should no longer be findable");
+	}
+
+	// -------------------------------------------------------------------------
+	// Partial update (issue #316): null leaves a property as it is, "" clears the text
+	// -------------------------------------------------------------------------
+
+	/**
+	 * The use-case update runs a nested EditScenario that never sets text. Before #316 that
+	 * nulled the use case's scenario text on every save.
+	 */
+	@Test
+	public void editUseCaseLeavesItsScenarioTextIntact() throws Exception {
+		Project project = createProject("UseCase-scenario-text");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Actor actor = createActor(project, "Clerk");
+
+		EditUseCaseCommand createCmd = getProjectCommandFactory().newEditUseCaseCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setProjectOrDomain(project);
+		createCmd.setName("Issue a refund");
+		createCmd.setText("A clerk refunds a returned item.");
+		createCmd.setPrimaryActorName(actor.getName());
+		createCmd = getCommandHandler().execute(createCmd);
+		UseCase original = createCmd.getUseCase();
+
+		EditScenarioCommand scenarioCmd = getProjectCommandFactory().newEditScenarioCommand();
+		scenarioCmd.setEditedBy(admin);
+		scenarioCmd.setProjectOrDomain(project);
+		scenarioCmd.setScenario(original.getScenario());
+		scenarioCmd.setText("The clerk scans the receipt and confirms the amount.");
+		getCommandHandler().execute(scenarioCmd);
+
+		EditUseCaseCommand editCmd = getProjectCommandFactory().newEditUseCaseCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setUseCase(getProjectRepository().get(original));
+		editCmd.setName("Issue a refund");
+		editCmd.setText("A clerk refunds a returned item to the original card.");
+		editCmd.setPrimaryActorName(actor.getName());
+		editCmd = getCommandHandler().execute(editCmd);
+
+		UseCase updated = getProjectRepository().get(editCmd.getUseCase());
+		assertEquals("A clerk refunds a returned item to the original card.", updated.getText(),
+				"the supplied use-case text should be applied");
+		Scenario scenario = getProjectRepository().get(updated.getScenario());
+		assertEquals("The clerk scans the receipt and confirms the amount.", scenario.getText(),
+				"saving the use case must not wipe its scenario's text");
+	}
+
+	@Test
+	public void editUseCaseWithEmptyTextClearsText() throws Exception {
+		Project project = createProject("UseCase-clear-text");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Actor actor = createActor(project, "Reviewer");
+
+		EditUseCaseCommand createCmd = getProjectCommandFactory().newEditUseCaseCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setProjectOrDomain(project);
+		createCmd.setName("Approve a change");
+		createCmd.setText("A reviewer approves a pending change.");
+		createCmd.setPrimaryActorName(actor.getName());
+		createCmd = getCommandHandler().execute(createCmd);
+
+		EditUseCaseCommand editCmd = getProjectCommandFactory().newEditUseCaseCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setUseCase(createCmd.getUseCase());
+		editCmd.setName("Approve a change");
+		editCmd.setText("");
+		editCmd.setPrimaryActorName(actor.getName());
+		editCmd = getCommandHandler().execute(editCmd);
+
+		UseCase updated = getProjectRepository().get(editCmd.getUseCase());
+		assertEquals("", updated.getText(), "an empty text should clear the text");
 	}
 }

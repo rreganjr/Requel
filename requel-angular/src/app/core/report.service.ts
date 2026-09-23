@@ -42,7 +42,7 @@ export class ReportService {
     return firstValueFrom(this.http.get<ReportGeneratorDto>(projectApiUrl(projectName, 'reports', reportId)));
   }
 
-  saveReport(projectName: string, reportId: number | null, name: string, text: string | null) {
+  saveReport(projectName: string, reportId: number | null, name: string, text: string) {
     return this.commandService.execute('EditReportGenerator', { projectName, reportId, name, text });
   }
 

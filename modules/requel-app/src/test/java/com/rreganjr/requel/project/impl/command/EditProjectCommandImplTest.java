@@ -32,6 +32,7 @@ import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.exception.NoSuchOrganizationException;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
@@ -185,5 +186,107 @@ public class EditProjectCommandImplTest extends AbstractIntegrationTestCase {
 
 		assertThrows(EntityException.class, () -> getCommandHandler().execute(command),
 				"editing a project to an existing name should fail");
+	}
+
+	// -------------------------------------------------------------------------
+	// Partial update (issue #316): null leaves a property as it is, "" clears it
+	// -------------------------------------------------------------------------
+
+	@Test
+	public void editProjectWithNullNameAndNoOrganizationKeepsThem() throws Exception {
+		Project original = createProject("Partial Name Project");
+		User admin = ensureProjectCapableAdmin();
+		String originalName = original.getName();
+		String originalOrg = original.getOrganization().getName();
+
+		// A null name also skips the uniqueness lookup, whose finder would NPE on it.
+		EditProjectCommand command = getProjectCommandFactory().newEditProjectCommand();
+		command.setEditedBy(admin);
+		command.setProject(original);
+		command.setText("Only the description changes");
+		command = getCommandHandler().execute(command);
+
+		Project updated = getProjectRepository().get(command.getProject());
+		assertEquals(originalName, updated.getName(), "a null name should leave the name as it is");
+		assertEquals("Only the description changes", updated.getText(),
+				"the supplied description should be applied");
+		assertNotNull(updated.getOrganization(),
+				"no organization fields should leave the organization as it is");
+		assertEquals(originalOrg, updated.getOrganization().getName(),
+				"no organization fields should leave the organization as it is");
+	}
+
+	@Test
+	public void editProjectWithNullDescriptionKeepsDescription() throws Exception {
+		Project original = createProject("Partial Text Project");
+		User admin = ensureProjectCapableAdmin();
+		String originalText = original.getText();
+
+		EditProjectCommand command = getProjectCommandFactory().newEditProjectCommand();
+		command.setEditedBy(admin);
+		command.setProject(original);
+		command.setName(original.getName() + " Renamed");
+		command = getCommandHandler().execute(command);
+
+		Project updated = getProjectRepository().get(command.getProject());
+		assertEquals(original.getName() + " Renamed", updated.getName(),
+				"the supplied name should be applied");
+		assertEquals(originalText, updated.getText(),
+				"a null description should leave the description as it is");
+	}
+
+	@Test
+	public void editProjectWithEmptyDescriptionClearsIt() throws Exception {
+		Project original = createProject("Clear Text Project");
+		User admin = ensureProjectCapableAdmin();
+
+		EditProjectCommand command = getProjectCommandFactory().newEditProjectCommand();
+		command.setEditedBy(admin);
+		command.setProject(original);
+		command.setName(original.getName());
+		command.setText("");
+		command = getCommandHandler().execute(command);
+
+		Project updated = getProjectRepository().get(command.getProject());
+		assertEquals("", updated.getText(), "an empty description should clear the description");
+	}
+
+	@Test
+	public void editProjectWithEmptyOrganizationNameClearsTheOrganization() throws Exception {
+		Project original = createProject("Clear Org Project");
+		User admin = ensureProjectCapableAdmin();
+		assertNotNull(original.getOrganization(), "fixture should start with an organization");
+
+		EditProjectCommand command = getProjectCommandFactory().newEditProjectCommand();
+		command.setEditedBy(admin);
+		command.setProject(original);
+		command.setName(original.getName());
+		command.setOrganizationName("");
+		command = getCommandHandler().execute(command);
+
+		Project updated = getProjectRepository().get(command.getProject());
+		assertNull(updated.getOrganization(), "an empty organization name should clear it");
+		assertThrows(NoSuchOrganizationException.class,
+				() -> getUserRepository().findOrganizationByName(""),
+				"clearing must not create an organization with an empty name");
+	}
+
+	@Test
+	public void createProjectWithEmptyOrganizationNameHasNoOrganization() throws Exception {
+		long uniqueifier = System.currentTimeMillis();
+		User creator = ensureProjectCapableAdmin();
+
+		EditProjectCommand command = getProjectCommandFactory().newEditProjectCommand();
+		command.setEditedBy(creator);
+		command.setName("No Org Project " + uniqueifier);
+		command.setText("Created without an organization");
+		command.setOrganizationName("");
+		command = getCommandHandler().execute(command);
+
+		assertNull(command.getProject().getOrganization(),
+				"an empty organization name should mean no organization");
+		assertThrows(NoSuchOrganizationException.class,
+				() -> getUserRepository().findOrganizationByName(""),
+				"creating must not create an organization with an empty name");
 	}
 }

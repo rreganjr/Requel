@@ -121,6 +121,19 @@ describe('UseCaseEditorComponent', () => {
     }));
   });
 
+  // #316: the server reads null as "leave it as it is", so a blank description goes as ''.
+  it('onSave sends an empty text to clear it', async () => {
+    fixture.detectChanges();
+    await flush();
+    comp.detailsForm.patchValue({ name: 'New Use Case', text: '' });
+    comp.detailsForm.markAsDirty();
+    await comp.onSave();
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('EditUseCase', expect.objectContaining({
+      name: 'New Use Case',
+      text: ''
+    }));
+  });
+
   it('onSave sets errorMessage when command fails', async () => {
     commandServiceMock.execute.mockResolvedValue({ success: false, error: 'Conflict' });
     comp.detailsForm.controls.name.setValue('Test');

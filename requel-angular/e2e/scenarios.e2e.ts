@@ -365,3 +365,34 @@ test.describe('Scenario steps', () => {
   });
 
 });
+
+// #316: the server reads null as "leave it as it is", so clearing sends ''. Guarding scenario
+// text without this would have broken clearing it.
+test.describe('Clearing the description (#316)', () => {
+  test('clear scenario description → stays empty after save and reload', async ({ adminContext, request }) => {
+    const scenarioName = `e2e-scenario-clear-${Date.now()}`;
+    const scenario = await createScenario(request, PROJECT_NAME, scenarioName, 'Primary',
+      'Description that will be cleared');
+    scenarioToCleanup = scenario;
+
+    const page = await adminContext.newPage();
+    const listPage = new ScenarioListPage(page);
+    const editorPage = new ScenarioEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickScenario(scenarioName);
+    await editorPage.expectNameValue(scenarioName);
+    await expect(page.locator('#text')).toHaveValue('Description that will be cleared');
+
+    const ta = page.locator('#text');
+    await ta.clear();
+    await editorPage.save();
+
+    await reloadAndWaitForGet(page, r => /\/scenarios\/\d+$/.test(r.url()));
+    // The name check waits for the form to populate, so the empty check can't pass early.
+    await editorPage.expectNameValue(scenarioName);
+    await expect(page.locator('#text')).toHaveValue('');
+
+    await page.close();
+  });
+});

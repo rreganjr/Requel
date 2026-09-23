@@ -28,6 +28,9 @@ import jakarta.validation.constraints.Size;
  * Input for EditActor command.
  * actorId is null for create, non-null for update.
  * version is null for create, required for update (optimistic lock check).
+ * <p>
+ * On update, a null (or absent) {@code description} leaves it as it is; an empty string
+ * clears it (issue #316).
  */
 public record EditActorInput(
         @NotBlank String projectName,

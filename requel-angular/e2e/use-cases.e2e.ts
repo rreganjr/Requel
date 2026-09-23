@@ -432,3 +432,34 @@ test.describe('Use Case primary scenario', () => {
   });
 
 });
+
+// #316: the server reads null as "leave it as it is", so clearing sends ''. Before the fix the
+// use-case editor sent null and the old description came back after a save.
+test.describe('Clearing the description (#316)', () => {
+  test('clear use case description → stays empty after save and reload', async ({ adminContext, request }) => {
+    const ucName = `e2e-uc-clear-${Date.now()}`;
+    const uc = await createUseCase(request, PROJECT_NAME, ucName, 'Description that will be cleared');
+    ucToCleanup = uc;
+
+    const page = await adminContext.newPage();
+    const listPage = new UseCaseListPage(page);
+    const editorPage = new UseCaseEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickUseCase(ucName);
+    await editorPage.expectNameValue(ucName);
+
+    await editorPage.fillDescription('');
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/commands/EditUseCase')),
+      editorPage.save(),
+    ]);
+
+    await reloadAndWaitForGet(page, r => /\/use-cases\/\d+$/.test(r.url()));
+    // The name check waits for the form to populate, so the empty check can't pass early.
+    await editorPage.expectNameValue(ucName);
+    await expect(page.locator('#text')).toHaveValue('');
+
+    await page.close();
+  });
+});

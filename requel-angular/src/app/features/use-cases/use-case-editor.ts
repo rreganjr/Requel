@@ -725,7 +725,8 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       const input: Record<string, unknown> = {
         projectName: this.projectName,
         name,
-        text: text || null,
+        // '' clears; null would leave the text as it is (#316).
+        text,
         primaryActorName: primaryActorName || null,
       };
       if (this.useCaseId != null) input['useCaseId'] = this.useCaseId;
@@ -942,7 +943,8 @@ export class UseCaseEditorComponent implements OnInit, OnDestroy, DirtyCheckable
       const input: Record<string, unknown> = {
         projectName: this.projectName,
         name: this.detailsForm.controls.name.value,
-        text: this.detailsForm.controls.text.value || null,
+        // '' clears; null would leave the text as it is (#316).
+        text: this.detailsForm.controls.text.value,
         primaryActorName: this.detailsForm.controls.primaryActorName.value || null,
         useCaseId: this.useCaseId,
         version: this.version

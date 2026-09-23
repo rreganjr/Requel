@@ -493,7 +493,8 @@ export class TermEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
     const { name, text, canonicalTermId } = this.form.getRawValue();
     const trimmedName = name.trim();
     const result = await this.termService.saveTerm(
-      this.projectName, this.termId(), trimmedName, text || null, canonicalTermId
+      // '' clears; null would leave the definition as it is (#316).
+      this.projectName, this.termId(), trimmedName, text, canonicalTermId
     );
     this.saving.set(false);
 

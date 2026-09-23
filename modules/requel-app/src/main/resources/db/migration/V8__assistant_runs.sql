@@ -1,5 +1,5 @@
 -- Assistant runs, findings, and usage rows backing the Phase 2 dispatcher.
--- See doc/work/2.0/assistant-spi-plan.md (Data Model and Applicator Contract) for the
+-- See doc/assistant-spi-plan.md (Data Model and Applicator Contract) for the
 -- field-level rationale. Soft FKs (no constraint) are used for cross-module
 -- references (users, pods, annotations) so the assistant tables can be added
 -- without coupling their schema to user-jpa / project-jpa / annotation-jpa

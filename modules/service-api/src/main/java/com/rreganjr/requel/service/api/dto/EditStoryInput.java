@@ -27,6 +27,10 @@ import jakarta.validation.constraints.Size;
 /**
  * Input DTO for creating or editing a story.
  *
+ * <p>
+ * On update, a null (or absent) {@code text} or {@code storyTypeName} leaves it as it is;
+ * an empty {@code text} clears it (issue #316).
+ *
  * @param projectName      project the story belongs to
  * @param storyId          ID of the story to edit (null for create)
  * @param name             story name (the new name to set)

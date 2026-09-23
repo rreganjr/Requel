@@ -37,7 +37,7 @@ export class TermService {
     return firstValueFrom(this.http.get<GlossaryTermDto>(projectApiUrl(projectName, 'terms', termId)));
   }
 
-  saveTerm(projectName: string, termId: number | null, name: string, text: string | null, canonicalTermId: number | null) {
+  saveTerm(projectName: string, termId: number | null, name: string, text: string, canonicalTermId: number | null) {
     return this.commandService.execute('EditGlossaryTerm', { projectName, termId, name, text, canonicalTermId });
   }
 

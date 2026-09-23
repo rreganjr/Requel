@@ -343,3 +343,39 @@ test.describe('Actor sub-tables', () => {
   });
 
 });
+
+// #316: the server reads null as "leave it as it is", so clearing sends ''. Before the fix the
+// actor editor sent null and the old description came back after a save.
+test.describe('Clearing the description (#316)', () => {
+  test('clear actor description → stays empty after save and reload', async ({ adminContext, request }) => {
+    const actorName = `e2e-actor-clear-${Date.now()}`;
+    const actor = await createActor(request, PROJECT_NAME, actorName);
+    actorToCleanup = actor;
+
+    const page = await adminContext.newPage();
+    const listPage = new ActorListPage(page);
+    const editorPage = new ActorEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickActor(actorName);
+
+    await editorPage.fillDescription('Description that will be cleared');
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/commands/EditActor')),
+      editorPage.save(),
+    ]);
+
+    await editorPage.fillDescription('');
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/commands/EditActor')),
+      editorPage.save(),
+    ]);
+
+    await reloadAndWaitForGet(page, r => /\/actors\/\d+$/.test(r.url()));
+    // The name check waits for the form to populate, so the empty check can't pass early.
+    await editorPage.expectNameValue(actorName);
+    await expect(page.locator('#text')).toHaveValue('');
+
+    await page.close();
+  });
+});

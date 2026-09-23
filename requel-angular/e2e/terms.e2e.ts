@@ -279,3 +279,31 @@ test.describe('Glossary term management', () => {
   });
 
 });
+
+// #316: the server reads null as "leave it as it is", so clearing sends ''. Before the fix the
+// term editor sent null and the old definition came back after a save.
+test.describe('Clearing the definition (#316)', () => {
+  test('clear term definition → stays empty after save and reload', async ({ adminContext, request }) => {
+    const termName = `e2e-term-clear-${Date.now()}`;
+    const term = await createTerm(request, PROJECT_NAME, termName, 'Definition that will be cleared');
+    termToCleanup = term;
+
+    const page = await adminContext.newPage();
+    const listPage = new TermListPage(page);
+    const editorPage = new TermEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickTerm(termName);
+    await editorPage.expectTextValue('Definition that will be cleared');
+
+    await editorPage.fillText('');
+    await editorPage.save();
+
+    await reloadAndWaitForGet(page, r => /\/terms\/\d+$/.test(r.url()));
+    // The name check waits for the form to populate, so the empty check can't pass early.
+    await editorPage.expectNameValue(termName);
+    await editorPage.expectTextValue('');
+
+    await page.close();
+  });
+});

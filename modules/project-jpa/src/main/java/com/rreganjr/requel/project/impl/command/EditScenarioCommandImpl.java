@@ -119,8 +119,15 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 			if (getName() != null) {
 				scenarioImpl.setName(getName());
 			}
-			scenarioImpl.setText(getText());
-			scenarioImpl.setType(getScenarioType());
+			// Null leaves the text and type as they are; "" clears the text (issue #316). This
+			// also stops EditUseCaseCommandImpl's nested update, which never sets text, from
+			// wiping the scenario's text on every use-case save.
+			if (getText() != null) {
+				scenarioImpl.setText(getText());
+			}
+			if (getScenarioType() != null) {
+				scenarioImpl.setType(getScenarioType());
+			}
 		}
 		// TODO: merge is failing because the use cases in the
 		// usedByUseCases property are my proxies and hibernate throws an
