@@ -10,6 +10,7 @@ import {
 } from './fixtures/api-helper';
 import { LoginPage } from './pages/LoginPage';
 import { ProjectsPage, ProjectEditorPage } from './pages/ProjectsPage';
+import { reloadAndWaitForGet } from './helpers/navigation';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -557,4 +558,39 @@ test.describe('Project management', () => {
     await page.close();
   });
 
+});
+
+// #316: the server reads null as "leave it as it is", so clearing sends ''. Guarding project
+// description and organization without this would have broken clearing them.
+test.describe('Clearing description and organization (#316)', () => {
+  test('clear project description and organization → stay empty after save and reload', async ({ adminContext, request }) => {
+    const projectName = `e2e-project-clear-${Date.now()}`;
+    await createProject(request, projectName, 'Description that will be cleared');
+
+    const page = await adminContext.newPage();
+    const projectsPage = new ProjectsPage(page);
+    const editorPage = new ProjectEditorPage(page);
+    try {
+      await projectsPage.goto();
+      await projectsPage.openEditor(projectName);
+      await editorPage.waitForLoad(projectName);
+      await expect(page.locator('#description')).toHaveValue('Description that will be cleared');
+
+      await editorPage.fillDescription('');
+      await page.locator('#projectOrgInput').fill('');
+      await Promise.all([
+        page.waitForResponse(r => r.url().includes('/api/commands/EditProject')),
+        editorPage.save(),
+      ]);
+
+      await reloadAndWaitForGet(page, r => /\/api\/projects\/[^/?]+$/.test(r.url()));
+      // waitForLoad checks the name first, so the empty checks can't pass early.
+      await editorPage.waitForLoad(projectName);
+      await expect(page.locator('#description')).toHaveValue('');
+      await expect(page.locator('#projectOrgInput')).toHaveValue('');
+    } finally {
+      await page.close();
+      await deleteProject(request, projectName);
+    }
+  });
 });

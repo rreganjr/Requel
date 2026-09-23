@@ -146,6 +146,22 @@ describe('ScenarioEditorComponent', () => {
     }));
   });
 
+  // #316: the server reads null as "leave it as it is", so blank text goes as '' - for the
+  // scenario and for each step.
+  it('onSave sends an empty text for the scenario and its steps to clear them', async () => {
+    fixture.detectChanges();
+    await flush();
+    comp.detailsForm.controls.name.setValue('My Scenario');
+    comp.detailsForm.controls.text.setValue('');
+    comp.addStep();
+    setStepName(0, 'Step one');
+    await comp.onSave();
+    expect(commandServiceMock.execute).toHaveBeenCalledWith('EditScenario', expect.objectContaining({
+      text: '',
+      steps: [expect.objectContaining({ name: 'Step one', text: '' })]
+    }));
+  });
+
   /**
    * #276: these are derived from the service signal now, not snapshotted during init, so nothing
    * consults the service until something reads the control. Asserting a call happened "on init"

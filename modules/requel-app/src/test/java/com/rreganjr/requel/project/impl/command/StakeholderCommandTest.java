@@ -372,4 +372,84 @@ public class StakeholderCommandTest extends AbstractIntegrationTestCase {
 				() -> getProjectRepository().findStakeholderByProjectOrDomainAndName(project, "ToDelete"),
 				"deleted non-user stakeholder should no longer be findable");
 	}
+
+	// -------------------------------------------------------------------------
+	// Partial update (issue #316): null leaves a property as it is, "" clears the text
+	// -------------------------------------------------------------------------
+
+	private NonUserStakeholder createNonUserStakeholder(Project project, String name, String text)
+			throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditNonUserStakeholderCommand cmd = getProjectCommandFactory()
+				.newEditNonUserStakeholderCommand();
+		cmd.setEditedBy(admin);
+		cmd.setProjectOrDomain(project);
+		cmd.setName(name);
+		cmd.setText(text);
+		cmd = getCommandHandler().execute(cmd);
+		return cmd.getStakeholder();
+	}
+
+	@Test
+	public void editNonUserStakeholderWithNullNameKeepsName() throws Exception {
+		Project project = createProject("NonUserStakeholder-partial-name");
+		User admin = getUserRepository().findUserByUsername("admin");
+		NonUserStakeholder original = createNonUserStakeholder(project, "IEEE",
+				"Standards body.");
+
+		// A null name also skips the uniqueness lookup, whose finder would NPE on it.
+		EditNonUserStakeholderCommand editCmd = getProjectCommandFactory()
+				.newEditNonUserStakeholderCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setStakeholder(original);
+		editCmd.setText("Institute of Electrical and Electronics Engineers");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		NonUserStakeholder updated = getProjectRepository().get(editCmd.getStakeholder());
+		assertEquals("IEEE", updated.getName(), "a null name should leave the name as it is");
+		assertEquals("Institute of Electrical and Electronics Engineers", updated.getText(),
+				"the supplied text should be applied");
+	}
+
+	@Test
+	public void editNonUserStakeholderWithNullTextKeepsText() throws Exception {
+		Project project = createProject("NonUserStakeholder-partial-text");
+		User admin = getUserRepository().findUserByUsername("admin");
+		NonUserStakeholder original = createNonUserStakeholder(project, "W3C",
+				"World Wide Web Consortium");
+
+		EditNonUserStakeholderCommand editCmd = getProjectCommandFactory()
+				.newEditNonUserStakeholderCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setStakeholder(original);
+		editCmd.setName("W3 Consortium");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		NonUserStakeholder updated = getProjectRepository().get(editCmd.getStakeholder());
+		assertEquals("W3 Consortium", updated.getName(), "the supplied name should be applied");
+		assertEquals("World Wide Web Consortium", updated.getText(),
+				"a null text should leave the text as it is");
+	}
+
+	@Test
+	public void editNonUserStakeholderWithEmptyTextClearsText() throws Exception {
+		Project project = createProject("NonUserStakeholder-clear-text");
+		User admin = getUserRepository().findUserByUsername("admin");
+		NonUserStakeholder original = createNonUserStakeholder(project, "IETF",
+				"Internet Engineering Task Force");
+
+		EditNonUserStakeholderCommand editCmd = getProjectCommandFactory()
+				.newEditNonUserStakeholderCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setStakeholder(original);
+		editCmd.setName("IETF");
+		editCmd.setText("");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		NonUserStakeholder updated = getProjectRepository().get(editCmd.getStakeholder());
+		assertEquals("", updated.getText(), "an empty text should clear the text");
+	}
 }

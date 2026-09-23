@@ -347,7 +347,8 @@ export class ReportEditorComponent implements OnInit, DirtyCheckable {
     const { name, text } = this.form.getRawValue();
     const trimmedName = name.trim();
     const result = await this.reportService.saveReport(
-      this.projectName, this.reportId(), trimmedName, text || null
+      // '' clears; null would leave the text as it is (#316).
+      this.projectName, this.reportId(), trimmedName, text
     );
     this.saving.set(false);
 

@@ -160,10 +160,9 @@ public class ProjectAnnotatableTextEditorConfiguration {
 	/**
 	 * Fill in the command for a one-property correction.
 	 * <p>
-	 * Both name and text are always supplied, the untouched one read straight back off the
-	 * entity. That is not belt-and-braces: several {@code Edit*Command} implementations set an
-	 * unsupplied property to null rather than skipping it (issue #316), so a name-only edit
-	 * that left text unset would wipe the entity's text.
+	 * Only the corrected property is supplied. The other is left null, which every
+	 * {@code Edit*Command} update treats as "leave it as it is" (issue #316), so a name-only
+	 * correction cannot touch the entity's text and vice versa.
 	 * <p>
 	 * Analysis is disabled because the replacement word is the dictionary's own suggestion.
 	 * Re-analysing it is wasted work, and it risks the lexical assistant raising a fresh issue
@@ -176,8 +175,11 @@ public class ProjectAnnotatableTextEditorConfiguration {
 			String propertyName, String newValue, User editedBy) {
 		boolean name = isName(propertyName, entity);
 		command.setProjectOrDomain(entity.getProjectOrDomain());
-		command.setName(name ? newValue : entity.getName());
-		command.setText(name ? entity.getText() : newValue);
+		if (name) {
+			command.setName(newValue);
+		} else {
+			command.setText(newValue);
+		}
 		command.setEditedBy(editedBy);
 		command.setAnalysisEnabled(false);
 		return command;

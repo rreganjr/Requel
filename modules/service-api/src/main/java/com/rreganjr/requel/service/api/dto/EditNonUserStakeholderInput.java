@@ -27,6 +27,10 @@ import jakarta.validation.constraints.Size;
 /**
  * Input DTO for creating or editing a non-user stakeholder (external authority).
  *
+ * <p>
+ * On update, a null (or absent) {@code text} leaves it as it is; an empty string clears it
+ * (issue #316).
+ *
  * @param projectName    project to add the stakeholder to
  * @param stakeholderId  ID of the stakeholder to edit (null for create)
  * @param name           stakeholder name (the new name to set)

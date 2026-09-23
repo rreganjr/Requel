@@ -28,6 +28,9 @@ import jakarta.validation.constraints.Size;
 /**
  * Input DTO for creating or editing a glossary term.
  * Set termId null to create a new term.
+ * <p>
+ * On update, a null (or absent) {@code text} leaves the definition as it is; an empty
+ * string clears it (issue #316).
  */
 public record EditGlossaryTermInput(
         @NotBlank String projectName,

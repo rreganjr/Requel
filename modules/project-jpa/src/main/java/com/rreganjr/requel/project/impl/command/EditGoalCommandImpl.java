@@ -148,7 +148,10 @@ public class EditGoalCommandImpl extends AbstractEditProjectOrDomainEntityComman
 			if (getName() != null) {
 				goalImpl.setName(getName());
 			}
-			goalImpl.setText(getText());
+			// Null leaves the text as it is; "" clears it (issue #316).
+			if (getText() != null) {
+				goalImpl.setText(getText());
+			}
 		}
 		if (goalContainer != null) {
 			goalImpl.getReferers().add(goalContainer);

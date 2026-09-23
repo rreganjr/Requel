@@ -149,21 +149,25 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 		User user = getUserRepository().get(getEditedBy());
 		ProjectImpl projectImpl = (ProjectImpl) getProject();
 
-		// check for uniqueness
-		try {
-			Project existing = getProjectRepository().findProjectByName(getName());
-			if (projectImpl == null) {
-				throw EntityException.uniquenessConflict(Project.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Creating);
-			} else if (!existing.equals(projectImpl)) {
-				throw EntityException.uniquenessConflict(Project.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Updating);
+		// Check for uniqueness. Skipped when no name was supplied: a null name means "leave it
+		// as it is", and the finder trims the name, so it would NPE (issue #316).
+		if (getName() != null) {
+			try {
+				Project existing = getProjectRepository().findProjectByName(getName());
+				if (projectImpl == null) {
+					throw EntityException.uniquenessConflict(Project.class, existing, FIELD_NAME,
+							EntityExceptionActionType.Creating);
+				} else if (!existing.equals(projectImpl)) {
+					throw EntityException.uniquenessConflict(Project.class, existing, FIELD_NAME,
+							EntityExceptionActionType.Updating);
+				}
+			} catch (NoSuchEntityException e) {
 			}
-		} catch (NoSuchEntityException e) {
 		}
 
 		if (projectImpl == null) {
 			projectImpl = createProject(organization, user);
+			projectImpl.setText(getText());
 		} else {
 			// Enforce the caller-supplied optimistic-lock version on update (issue #108).
 			projectImpl = getRepository().get(projectImpl);
@@ -172,10 +176,18 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 				throw EntityLockException.staleEntity(Project.class, projectImpl,
 						EntityExceptionActionType.Updating);
 			}
-			projectImpl.setName(getName());
-			projectImpl.setOrganization(organization);
+			// Null leaves a property as it is; "" clears the description, and
+			// organizationName "" clears the organization (issue #316).
+			if (getName() != null) {
+				projectImpl.setName(getName());
+			}
+			if (isOrganizationSupplied()) {
+				projectImpl.setOrganization(organization);
+			}
+			if (getText() != null) {
+				projectImpl.setText(getText());
+			}
 		}
-		projectImpl.setText(getText());
 		projectImpl = getRepository().merge(projectImpl);
 		setProject(projectImpl);
 	}
@@ -263,11 +275,23 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 		return projectImpl;
 	}
 
+	/**
+	 * Whether the caller said anything about the organization. On update, neither field set
+	 * leaves the organization as it is (issue #316).
+	 */
+	private boolean isOrganizationSupplied() {
+		return (getOrganizationId() != null) || (getOrganizationName() != null);
+	}
+
+	/**
+	 * The organization the caller asked for, or null for none. A blank organizationName means
+	 * "no organization" rather than an organization with an empty name (issue #316).
+	 */
 	private Organization resolveOrganization() {
 		if (getOrganizationId() != null) {
 			return getUserRepository().findOrganizationById(getOrganizationId());
 		}
-		if (getOrganizationName() != null) {
+		if (getOrganizationName() != null && !getOrganizationName().trim().isEmpty()) {
 			try {
 				return getUserRepository().findOrganizationByName(getOrganizationName());
 			} catch (NoSuchOrganizationException e) {

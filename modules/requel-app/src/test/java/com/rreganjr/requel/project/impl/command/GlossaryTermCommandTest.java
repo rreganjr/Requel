@@ -262,4 +262,28 @@ public class GlossaryTermCommandTest extends AbstractIntegrationTestCase {
 		assertNull(reloadedAlternate.getCanonicalTerm(),
 				"alternate term's canonical pointer should be cleared after the canonical is deleted");
 	}
+
+	// -------------------------------------------------------------------------
+	// Partial update (issue #316): null leaves a property as it is, "" clears the text
+	// -------------------------------------------------------------------------
+
+	@Test
+	public void editGlossaryTermWithEmptyDefinitionClearsIt() throws Exception {
+		Project project = createProject("Term-clear-definition");
+		User admin = getUserRepository().findUserByUsername("admin");
+		GlossaryTerm original = createTerm(project, "baseline",
+				"The approved set of requirements for a release.");
+
+		EditGlossaryTermCommand editCmd = getProjectCommandFactory().newEditGlossaryTermCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setGlossaryTerm(original);
+		editCmd.setName("baseline");
+		editCmd.setText("");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		GlossaryTerm updated = getProjectRepository().get(editCmd.getGlossaryTerm());
+		assertEquals("baseline", updated.getName(), "name should be unchanged");
+		assertEquals("", updated.getText(), "an empty definition should clear it");
+	}
 }

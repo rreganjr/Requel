@@ -27,6 +27,9 @@ import jakarta.validation.constraints.Size;
  * One entry in the steps list when saving a scenario.
  * stepId=null means create new. isScenario=true means this step is a sub-scenario;
  * the registrar will use EditScenarioCommand instead of EditScenarioStepCommand.
+ * <p>
+ * On update, a null (or absent) {@code name}, {@code text} or {@code scenarioTypeName}
+ * leaves it as it is; an empty {@code text} clears it (issue #316).
  */
 public record EditStepInput(
     Long stepId,

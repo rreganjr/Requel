@@ -27,6 +27,9 @@ import jakarta.validation.constraints.Size;
 /**
  * Input DTO for EditReportGenerator command.
  * reportId is null when creating a new report generator.
+ * <p>
+ * On update, a null (or absent) {@code text} leaves it as it is; an empty string clears it
+ * (issue #316).
  */
 public record EditReportGeneratorInput(
         @NotBlank String projectName,

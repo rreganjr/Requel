@@ -208,3 +208,31 @@ test.describe('Report generator management', () => {
   });
 
 });
+
+// #316: the server reads null as "leave it as it is", so clearing sends ''. Before the fix the
+// report editor sent null, which (once the command guards text) would keep the old template.
+test.describe('Clearing the template (#316)', () => {
+  test('clear report template → stays empty after save and reload', async ({ adminContext, request }) => {
+    const reportName = `e2e-report-clear-${Date.now()}`;
+    const report = await createReport(request, PROJECT_NAME, reportName, MINIMAL_XSLT);
+    reportToCleanup = report;
+
+    const page = await adminContext.newPage();
+    const listPage = new ReportListPage(page);
+    const editorPage = new ReportEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickEdit(reportName);
+    await editorPage.expectNameValue(reportName);
+
+    await editorPage.fillText('');
+    await editorPage.save();
+
+    await reloadAndWaitForGet(page, r => /\/reports\/\d+$/.test(r.url()));
+    // The name check waits for the form to populate, so the empty check can't pass early.
+    await editorPage.expectNameValue(reportName);
+    await expect(page.locator('#text')).toHaveValue('');
+
+    await page.close();
+  });
+});

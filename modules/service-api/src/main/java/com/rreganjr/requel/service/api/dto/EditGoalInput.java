@@ -27,6 +27,10 @@ import jakarta.validation.constraints.Size;
 /**
  * Input DTO for creating or editing a goal.
  *
+ * <p>
+ * On update, a null (or absent) {@code text} leaves it as it is; an empty string clears it
+ * (issue #316).
+ *
  * @param projectName  project the goal belongs to
  * @param goalId       ID of the goal to edit (null for create)
  * @param name         goal name (the new name to set)

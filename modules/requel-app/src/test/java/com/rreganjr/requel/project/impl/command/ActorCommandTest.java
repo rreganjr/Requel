@@ -215,4 +215,32 @@ public class ActorCommandTest extends AbstractIntegrationTestCase {
 				() -> getProjectRepository().findActorByProjectOrDomainAndName(project, "ToDelete"),
 				"deleted actor should no longer be findable");
 	}
+
+	// -------------------------------------------------------------------------
+	// Partial update (issue #316): null leaves a property as it is, "" clears the text
+	// -------------------------------------------------------------------------
+
+	@Test
+	public void editActorWithEmptyTextClearsText() throws Exception {
+		Project project = createProject("Actor-clear-text");
+		User admin = getUserRepository().findUserByUsername("admin");
+
+		EditActorCommand createCmd = getProjectCommandFactory().newEditActorCommand();
+		createCmd.setEditedBy(admin);
+		createCmd.setActorContainer(project);
+		createCmd.setName("Auditor");
+		createCmd.setText("Reviews the change history.");
+		createCmd = getCommandHandler().execute(createCmd);
+
+		EditActorCommand editCmd = getProjectCommandFactory().newEditActorCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setActor(createCmd.getActor());
+		editCmd.setName("Auditor");
+		editCmd.setText("");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Actor updated = getProjectRepository().get(editCmd.getActor());
+		assertEquals("Auditor", updated.getName(), "name should be unchanged");
+		assertEquals("", updated.getText(), "an empty text should clear the text");
+	}
 }

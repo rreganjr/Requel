@@ -104,18 +104,21 @@ public class EditNonUserStakeholderCommandImpl extends AbstractEditProjectOrDoma
 
 		NonUserStakeholderImpl stakeholderImpl = (NonUserStakeholderImpl) getStakeholder();
 
-		// check for uniqueness
-		try {
-			NonUserStakeholder existing = getProjectRepository()
-					.findStakeholderByProjectOrDomainAndName(projectOrDomain, getName());
-			if (stakeholderImpl == null) {
-				throw EntityException.uniquenessConflict(Stakeholder.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Creating);
-			} else if (!existing.equals(stakeholderImpl)) {
-				throw EntityException.uniquenessConflict(Stakeholder.class, existing, FIELD_NAME,
-						EntityExceptionActionType.Updating);
+		// Check for uniqueness. Skipped when no name was supplied: a null name means "leave it
+		// as it is", and the finder trims the name, so it would NPE (issue #316).
+		if (getName() != null) {
+			try {
+				NonUserStakeholder existing = getProjectRepository()
+						.findStakeholderByProjectOrDomainAndName(projectOrDomain, getName());
+				if (stakeholderImpl == null) {
+					throw EntityException.uniquenessConflict(Stakeholder.class, existing,
+							FIELD_NAME, EntityExceptionActionType.Creating);
+				} else if (!existing.equals(stakeholderImpl)) {
+					throw EntityException.uniquenessConflict(Stakeholder.class, existing,
+							FIELD_NAME, EntityExceptionActionType.Updating);
+				}
+			} catch (NoSuchEntityException e) {
 			}
-		} catch (NoSuchEntityException e) {
 		}
 
 		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
@@ -124,10 +127,16 @@ public class EditNonUserStakeholderCommandImpl extends AbstractEditProjectOrDoma
 		if (stakeholderImpl == null) {
 			stakeholderImpl = getProjectRepository().persist(
 					new NonUserStakeholderImpl(projectOrDomain, editedBy, getName()));
+			stakeholderImpl.setText(getText());
 		} else {
-			stakeholderImpl.setName(getName());
+			// Null leaves a property as it is; "" clears the text (issue #316).
+			if (getName() != null) {
+				stakeholderImpl.setName(getName());
+			}
+			if (getText() != null) {
+				stakeholderImpl.setText(getText());
+			}
 		}
-		stakeholderImpl.setText(getText());
 		stakeholderImpl = getProjectRepository().merge(stakeholderImpl);
 		setStakeholder(stakeholderImpl);
 	}

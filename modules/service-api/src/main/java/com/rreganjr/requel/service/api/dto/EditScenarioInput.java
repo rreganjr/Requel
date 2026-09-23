@@ -35,6 +35,9 @@ import jakarta.validation.constraints.Size;
  * one {@code (projectordomain_id, name)} constraint — and a name already in use is refused rather
  * than reused (issue #254). Link the existing entity by id instead: a step by its {@code stepId},
  * a nested scenario by its id as {@code stepId} with {@code isScenario} true.
+ * <p>
+ * On update, a null (or absent) {@code text} or {@code scenarioTypeName} leaves it as it
+ * is; an empty {@code text} clears it (issue #316).
  */
 @CommandDescription("Creates or edits a scenario and its list of steps. Pass scenarioId to edit an"
         + " existing scenario, or leave it null to create one."

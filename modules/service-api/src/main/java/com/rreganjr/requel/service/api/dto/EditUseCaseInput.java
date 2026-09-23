@@ -25,6 +25,12 @@ import jakarta.validation.constraints.NotBlank;
 import com.rreganjr.validator.ValidationLimits;
 import jakarta.validation.constraints.Size;
 
+/**
+ * Input for the EditUseCase command. {@code useCaseId} null = create.
+ * <p>
+ * On update, a null (or absent) {@code text} leaves it as it is; an empty string clears it
+ * (issue #316).
+ */
 public record EditUseCaseInput(
         @NotBlank String projectName,
         Long useCaseId,

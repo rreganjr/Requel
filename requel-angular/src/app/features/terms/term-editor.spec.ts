@@ -261,14 +261,15 @@ describe('TermEditorComponent', () => {
       expect(termServiceMock.saveTerm).toHaveBeenCalledWith('proj1', null, 'Spaced', 'text', null);
     });
 
-    it('sends null rather than an empty string for a blank definition', async () => {
+    // #316: the server reads null as "leave it as it is", so a blank definition goes as ''.
+    it('sends an empty string rather than null for a blank definition', async () => {
       fixture.detectChanges();
       await flush();
       fill('Term', '');
 
       await comp.onSave();
 
-      expect(termServiceMock.saveTerm).toHaveBeenCalledWith('proj1', null, 'Term', null, null);
+      expect(termServiceMock.saveTerm).toHaveBeenCalledWith('proj1', null, 'Term', '', null);
     });
 
     it('hasUnsavedChanges() derives from form.dirty', async () => {

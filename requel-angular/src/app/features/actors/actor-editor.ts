@@ -582,7 +582,8 @@ export class ActorEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         projectName: this.projectName,
         actorId: this.actorId,
         name,
-        description: text || null,
+        // '' clears; null would leave the description as it is (#316).
+        description: text,
       };
       if (this.version != null) input['version'] = this.version;
 

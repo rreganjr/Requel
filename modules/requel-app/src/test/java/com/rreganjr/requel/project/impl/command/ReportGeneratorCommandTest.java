@@ -159,4 +159,63 @@ public class ReportGeneratorCommandTest extends AbstractIntegrationTestCase {
                         .noneMatch(r -> "Report To Delete".equals(r.getName())),
                 "report generator should be absent from project after delete");
     }
+
+    // -------------------------------------------------------------------------
+    // Partial update (issue #316): null leaves a property as it is, "" clears the text
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void editReportGeneratorWithNullNameKeepsName() throws Exception {
+        Project project = createProject("Report-partial-name");
+        ReportGenerator original = createReportGenerator(project, "Keep This Name");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        // A null name also skips the uniqueness lookup, whose finder would fail on it.
+        EditReportGeneratorCommand cmd = getProjectCommandFactory().newEditReportGeneratorCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectOrDomain(project);
+        cmd.setReportGenerator(original);
+        cmd.setText(MINIMAL_XSLT.replace("<output/>", "<changed/>"));
+        cmd = getCommandHandler().execute(cmd);
+
+        ReportGenerator updated = getProjectRepository().get(cmd.getReportGenerator());
+        assertEquals("Keep This Name", updated.getName(), "a null name should leave the name as it is");
+        assertTrue(updated.getText().contains("<changed/>"), "the supplied text should be applied");
+    }
+
+    @Test
+    public void editReportGeneratorWithNullTextKeepsText() throws Exception {
+        Project project = createProject("Report-partial-text");
+        ReportGenerator original = createReportGenerator(project, "Rename Me");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        EditReportGeneratorCommand cmd = getProjectCommandFactory().newEditReportGeneratorCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectOrDomain(project);
+        cmd.setReportGenerator(original);
+        cmd.setName("Renamed Report");
+        cmd = getCommandHandler().execute(cmd);
+
+        ReportGenerator updated = getProjectRepository().get(cmd.getReportGenerator());
+        assertEquals("Renamed Report", updated.getName(), "the supplied name should be applied");
+        assertEquals(MINIMAL_XSLT, updated.getText(), "a null text should leave the text as it is");
+    }
+
+    @Test
+    public void editReportGeneratorWithEmptyTextClearsText() throws Exception {
+        Project project = createProject("Report-clear-text");
+        ReportGenerator original = createReportGenerator(project, "Clear Me");
+        User admin = getUserRepository().findUserByUsername("admin");
+
+        EditReportGeneratorCommand cmd = getProjectCommandFactory().newEditReportGeneratorCommand();
+        cmd.setEditedBy(admin);
+        cmd.setProjectOrDomain(project);
+        cmd.setReportGenerator(original);
+        cmd.setName("Clear Me");
+        cmd.setText("");
+        cmd = getCommandHandler().execute(cmd);
+
+        ReportGenerator updated = getProjectRepository().get(cmd.getReportGenerator());
+        assertEquals("", updated.getText(), "an empty text should clear the text");
+    }
 }

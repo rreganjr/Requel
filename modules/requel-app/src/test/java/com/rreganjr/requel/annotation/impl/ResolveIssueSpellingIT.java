@@ -64,10 +64,10 @@ public class ResolveIssueSpellingIT extends AbstractIntegrationTestCase {
 	/**
 	 * The hazard behind issue #316, pinned here because #305 depends on it not biting.
 	 * <p>
-	 * Most {@code Edit*Command} implementations set text unconditionally on update, so a
-	 * command given a name but no text would null the entity's text. The registry avoids that
-	 * by reading both properties off the entity and supplying both. If that ever regresses,
-	 * this fails rather than silently emptying a goal.
+	 * The registry supplies only the corrected property, so a name correction reaches
+	 * {@code EditGoalCommand} with a null text. The command's "null leaves it as it is" guard
+	 * is what keeps the text; if that guard ever regresses, this fails rather than silently
+	 * emptying a goal.
 	 */
 	@Test
 	public void correctingTheNameLeavesTheTextIntact() throws Exception {
@@ -82,6 +82,21 @@ public class ResolveIssueSpellingIT extends AbstractIntegrationTestCase {
 		assertEquals("Body text that must survive.", reloaded.getText(),
 				"correcting the name must not disturb the text");
 		assertTrue(reloaded.getName().contains("system"), "the name should be corrected");
+	}
+
+	/** The mirror of {@link #correctingTheNameLeavesTheTextIntact()} (issue #316). */
+	@Test
+	public void correctingTheTextLeavesTheNameIntact() throws Exception {
+		Project project = createProject("spelling-text-only");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Goal goal = createGoal(project, "Name that must survive", "Users recieve a receipt.");
+
+		resolveSpelling(project, goal, "Text", "recieve", "receive", admin);
+
+		Goal reloaded = getProjectRepository()
+				.findGoalByProjectOrDomainAndName(project, "Name that must survive");
+		assertTrue(reloaded.getText().contains("receive"), "the text should be corrected");
+		assertFalse(reloaded.getText().contains("recieve"), "the misspelling should be gone");
 	}
 
 	/**

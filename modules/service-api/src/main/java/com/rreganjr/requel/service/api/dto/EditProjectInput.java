@@ -29,6 +29,11 @@ import jakarta.validation.constraints.Size;
  * The version field is required for updates to support optimistic locking.
  * Organization is referenced by organizationId when selecting an existing org,
  * or by organizationName when creating a new one.
+ * <p>
+ * On update, a null (or absent) {@code name} or {@code description} leaves it as it is and
+ * an empty {@code description} clears it; with neither {@code organizationId} nor
+ * {@code organizationName} the organization is left as it is, and an empty
+ * {@code organizationName} clears it (issue #316).
  */
 public record EditProjectInput(
         Long id,
