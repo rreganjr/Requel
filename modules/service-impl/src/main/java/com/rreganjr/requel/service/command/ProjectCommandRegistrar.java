@@ -555,7 +555,9 @@ public class ProjectCommandRegistrar {
                     c.setName(i.name());
                     if (i.text() != null) c.setText(i.text());
                     if (i.primaryActorName() != null) c.setPrimaryActorName(i.primaryActorName());
-                    c.setStepCommands(new ArrayList<>());
+                    // No steps on this input, so leave them null: a non-null (even empty) list
+                    // replaces the primary scenario's steps, which is how every use-case save
+                    // used to wipe them (#325).
                 },
                 null,
                 cmd -> ProjectQueryController.toUseCaseDetailDto(((EditUseCaseCommand) cmd).getUseCase()));
@@ -657,7 +659,8 @@ public class ProjectCommandRegistrar {
                             }
                         }
                     }
-                    c.setStepCommands(stepCmds);
+                    // Absent steps leave the list as it is; [] removes them all (#325).
+                    c.setStepCommands(i.steps() != null ? stepCmds : null);
                 },
                 null,
                 cmd -> ProjectQueryController.toScenarioDetailDto(((EditScenarioCommand) cmd).getScenario()));

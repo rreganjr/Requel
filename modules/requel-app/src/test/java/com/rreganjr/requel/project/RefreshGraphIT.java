@@ -295,7 +295,11 @@ public class RefreshGraphIT extends AbstractIntegrationTestCase {
         User admin = getUserRepository().findUserByUsername("admin");
         long ts = System.currentTimeMillis();
         Project project = createProject(admin, "rg-delstory-" + ts);
-        Story story = createStory(admin, project, "rg-delstory-" + ts, "rg-delstory-actor-" + ts);
+        // The actor has to exist: before #325 an unknown name silently left the story with no
+        // primary actor, so this test never had the actor its name promises.
+        Actor actor = createActor(admin, project, "rg-delstory-actor-" + ts);
+        Story story = createStory(admin, project, "rg-delstory-" + ts, actor.getName());
+        assertNotNull(story.getPrimaryActor(), "fixture: the story has a primary actor");
 
         withoutLoadingActiveProjects("DeleteStory", () -> {
             DeleteStoryCommand cmd = getProjectCommandFactory().newDeleteStoryCommand();

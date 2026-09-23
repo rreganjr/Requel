@@ -60,10 +60,6 @@ export class UseCaseEditorPage {
     await this.page.getByRole('option', { name: actorName }).click();
   }
 
-  async clearPrimaryActor(): Promise<void> {
-    await this.page.getByTestId('use-case-primary-actor-clear').click();
-  }
-
   /**
    * Open the primary-actor p-select, assert the named actor is one of the
    * options, and close the dropdown again. Used to verify that newly-created
@@ -96,7 +92,9 @@ export class UseCaseEditorPage {
   }
 
   async delete(): Promise<void> {
-    await this.page.getByRole('button', { name: 'Delete' }).click();
+    // By testid, as the other editors do: a role match on 'Delete' also hits every 'Delete issue' /
+    // 'Delete position' button in the annotations panel once an assistant has annotated the use case.
+    await this.page.getByTestId('use-case-delete').click();
     await this.page.getByRole('button', { name: 'Yes' }).click();
     await this.page.waitForLoadState('domcontentloaded');
   }

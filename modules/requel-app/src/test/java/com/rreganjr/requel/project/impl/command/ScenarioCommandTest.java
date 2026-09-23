@@ -31,6 +31,10 @@ import com.rreganjr.requel.project.command.DeleteScenarioCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditScenarioCommand;
 import com.rreganjr.requel.user.User;
+import java.util.ArrayList;
+import java.util.List;
+import com.rreganjr.requel.project.Step;
+import com.rreganjr.requel.project.command.EditScenarioStepCommand;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
@@ -330,5 +334,150 @@ public class ScenarioCommandTest extends AbstractIntegrationTestCase {
 		Scenario updated = getProjectRepository().get(editCmd.getScenario());
 		assertEquals("", updated.getText(), "an empty text should clear the text");
 		assertEquals(ScenarioType.Exception, updated.getType(), "type should be unchanged");
+	}
+
+	// -------------------------------------------------------------------------
+	// Step list on update (issue #325): null leaves it, a list replaces it, and a dropped plain
+	// step is deleted unless another scenario uses it
+	// -------------------------------------------------------------------------
+
+	private EditScenarioStepCommand newStep(Project project, String name) {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditScenarioStepCommand step = getProjectCommandFactory().newEditScenarioStepCommand();
+		step.setEditedBy(admin);
+		step.setProjectOrDomain(project);
+		step.setName(name);
+		step.setText("A step.");
+		step.setScenarioTypeName(ScenarioType.Primary.name());
+		return step;
+	}
+
+	/** A step command that re-sends an existing step or sub-scenario, as the API does. */
+	private EditScenarioStepCommand existingStep(Project project, Step step) {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditScenarioStepCommand cmd = getProjectCommandFactory().newEditScenarioStepCommand();
+		cmd.setEditedBy(admin);
+		cmd.setProjectOrDomain(project);
+		cmd.setStep(step);
+		return cmd;
+	}
+
+	private Scenario createScenarioWithSteps(Project project, String name,
+			List<EditScenarioStepCommand> steps) throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditScenarioCommand cmd = getProjectCommandFactory().newEditScenarioCommand();
+		cmd.setEditedBy(admin);
+		cmd.setProjectOrDomain(project);
+		cmd.setName(name);
+		cmd.setScenarioTypeName(ScenarioType.Primary.name());
+		cmd.setStepCommands(steps);
+		return getCommandHandler().execute(cmd).getScenario();
+	}
+
+	private Scenario replaceSteps(Project project, Scenario scenario,
+			List<EditScenarioStepCommand> steps) throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditScenarioCommand cmd = getProjectCommandFactory().newEditScenarioCommand();
+		cmd.setEditedBy(admin);
+		cmd.setProjectOrDomain(project);
+		cmd.setScenario(getProjectRepository().get(scenario));
+		cmd.setStepCommands(steps);
+		return getCommandHandler().execute(cmd).getScenario();
+	}
+
+	private boolean stepExists(Project project, String name) {
+		try {
+			getProjectRepository().findStepByProjectOrDomainAndName(project, name);
+			return true;
+		} catch (NoSuchEntityException e) {
+			return false;
+		}
+	}
+
+	@Test
+	public void editScenarioWithNullStepCommandsKeepsTheSteps() throws Exception {
+		Project project = createProject("Scenario-steps-keep");
+		User admin = getUserRepository().findUserByUsername("admin");
+		String stepName = "Scan the badge " + System.nanoTime();
+		Scenario original = createScenarioWithSteps(project, "Enter the building",
+				List.of(newStep(project, stepName)));
+
+		EditScenarioCommand editCmd = getProjectCommandFactory().newEditScenarioCommand();
+		editCmd.setEditedBy(admin);
+		editCmd.setProjectOrDomain(project);
+		editCmd.setScenario(original);
+		editCmd.setText("The employee badges in at the front door.");
+		editCmd = getCommandHandler().execute(editCmd);
+
+		Scenario updated = getProjectRepository().get(editCmd.getScenario());
+		assertEquals("The employee badges in at the front door.", updated.getText());
+		assertEquals(1, updated.getSteps().size(), "null step commands should keep the steps");
+		assertEquals(stepName, updated.getSteps().get(0).getName());
+	}
+
+	@Test
+	public void editScenarioWithAnEmptyStepListRemovesAndDeletesTheSteps() throws Exception {
+		Project project = createProject("Scenario-steps-clear");
+		String first = "Open the valve " + System.nanoTime();
+		String second = "Close the valve " + System.nanoTime();
+		Scenario original = createScenarioWithSteps(project, "Bleed the radiator",
+				List.of(newStep(project, first), newStep(project, second)));
+
+		Scenario updated = replaceSteps(project, original, new ArrayList<>());
+
+		assertEquals(0, getProjectRepository().get(updated).getSteps().size(),
+				"an empty list should remove every step");
+		assertFalse(stepExists(project, first), "a dropped step no scenario uses is deleted");
+		assertFalse(stepExists(project, second), "a dropped step no scenario uses is deleted");
+	}
+
+	@Test
+	public void droppingOneStepDeletesOnlyThatStep() throws Exception {
+		Project project = createProject("Scenario-steps-drop-one");
+		String kept = "Preheat the oven " + System.nanoTime();
+		String dropped = "Grease the tin " + System.nanoTime();
+		Scenario original = createScenarioWithSteps(project, "Bake a cake",
+				List.of(newStep(project, kept), newStep(project, dropped)));
+		Step keptStep = getProjectRepository().findStepByProjectOrDomainAndName(project, kept);
+
+		Scenario updated = replaceSteps(project, original, List.of(existingStep(project, keptStep)));
+
+		updated = getProjectRepository().get(updated);
+		assertEquals(1, updated.getSteps().size());
+		assertEquals(kept, updated.getSteps().get(0).getName());
+		assertFalse(stepExists(project, dropped), "the dropped step should be deleted");
+	}
+
+	@Test
+	public void aDroppedStepAnotherScenarioUsesSurvives() throws Exception {
+		Project project = createProject("Scenario-steps-shared");
+		String shared = "Wash your hands " + System.nanoTime();
+		Scenario first = createScenarioWithSteps(project, "Prepare lunch",
+				List.of(newStep(project, shared)));
+		Step sharedStep = getProjectRepository().findStepByProjectOrDomainAndName(project, shared);
+		Scenario second = createScenarioWithSteps(project, "Prepare dinner",
+				List.of(existingStep(project, sharedStep)));
+
+		replaceSteps(project, first, new ArrayList<>());
+
+		assertTrue(stepExists(project, shared), "a step another scenario still uses must survive");
+		assertEquals(1, getProjectRepository().get(second).getSteps().size(),
+				"the other scenario keeps the step");
+	}
+
+	@Test
+	public void aDroppedSubScenarioSurvives() throws Exception {
+		Project project = createProject("Scenario-steps-subscenario");
+		Scenario sub = createScenarioWithSteps(project, "Log in " + System.nanoTime(),
+				List.of(newStep(project, "Type the password " + System.nanoTime())));
+		Scenario parent = createScenarioWithSteps(project, "Check out",
+				List.of(existingStep(project, sub)));
+		assertEquals(1, getProjectRepository().get(parent).getSteps().size(), "fixture");
+
+		replaceSteps(project, parent, new ArrayList<>());
+
+		Scenario reloadedSub = getProjectRepository().get(sub);
+		assertNotNull(reloadedSub, "a dropped sub-scenario is a standalone scenario and stays");
+		assertEquals(1, reloadedSub.getSteps().size(), "and it keeps its own steps");
 	}
 }

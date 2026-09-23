@@ -30,6 +30,7 @@ import com.rreganjr.platform.command.AuthorizationRequirement;
 import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
@@ -171,15 +172,18 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
 		storyImpl = checkExpectedVersion(storyImpl);
 
-		// Resolve the primary actor before any persistence calls
+		// Resolve the primary actor before any persistence calls. Issue #325: on update a null
+		// name leaves the actor as it is and a blank one clears it; a name that names no actor is
+		// refused. It used to log "leaving unchanged" and then clear the actor anyway.
+		boolean actorSupplied = getPrimaryActorName() != null;
 		Actor resolvedPrimaryActor = null;
-		if (getPrimaryActorName() != null && !getPrimaryActorName().trim().isEmpty()) {
+		if (actorSupplied && !getPrimaryActorName().trim().isEmpty()) {
 			try {
 				resolvedPrimaryActor = getProjectRepository().findActorByProjectOrDomainAndName(
 						projectOrDomain, getPrimaryActorName());
 			} catch (NoSuchEntityException e) {
-				log.warn("Primary actor '{}' not found for story '{}' — leaving unchanged",
-						getPrimaryActorName(), getName());
+				throw EntityValidationException.validationFailed(Story.class, "primaryActorName",
+						"there is no actor named '" + getPrimaryActorName().trim() + "'");
 			}
 		}
 
@@ -200,14 +204,17 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 			}
 			// Mirror UseCase pattern: merge first so the entity is managed, then set actor
 			storyImpl = getProjectRepository().merge(storyImpl);
-			Actor priorActor = storyImpl.getPrimaryActor();
-			if (priorActor != null && !priorActor.equals(resolvedPrimaryActor)) {
-				// Use direct SQL to avoid loading the @ManyToAny collection, which would throw
-				// NoSuchEntityException if the collection contains stale rows for deleted entities.
-				getProjectRepository().removeActorContainerFromActorJoinTable(
-						priorActor.getId(), storyImpl.getId());
+			if (actorSupplied) {
+				Actor priorActor = storyImpl.getPrimaryActor();
+				if (priorActor != null && !priorActor.equals(resolvedPrimaryActor)) {
+					// Use direct SQL to avoid loading the @ManyToAny collection, which would throw
+					// NoSuchEntityException if the collection contains stale rows for deleted
+					// entities.
+					getProjectRepository().removeActorContainerFromActorJoinTable(
+							priorActor.getId(), storyImpl.getId());
+				}
+				storyImpl.setPrimaryActor(resolvedPrimaryActor);
 			}
-			storyImpl.setPrimaryActor(resolvedPrimaryActor);
 		}
 
 		if (storyContainer != null) {

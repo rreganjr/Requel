@@ -34,6 +34,10 @@ import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.command.EditScenarioCommand;
+import java.util.List;
+import com.rreganjr.requel.project.ScenarioType;
+import com.rreganjr.requel.project.command.EditScenarioStepCommand;
+import com.rreganjr.validator.EntityValidationException;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
@@ -356,5 +360,139 @@ public class UseCaseCommandTest extends AbstractIntegrationTestCase {
 
 		UseCase updated = getProjectRepository().get(editCmd.getUseCase());
 		assertEquals("", updated.getText(), "an empty text should clear the text");
+	}
+
+	// -------------------------------------------------------------------------
+	// Primary actor and primary scenario on update (issue #325)
+	// -------------------------------------------------------------------------
+
+	private UseCase createUseCase(Project project, String name, Actor actor) throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditUseCaseCommand cmd = getProjectCommandFactory().newEditUseCaseCommand();
+		cmd.setEditedBy(admin);
+		cmd.setProjectOrDomain(project);
+		cmd.setName(name);
+		cmd.setText("Use case for #325 tests.");
+		cmd.setPrimaryActorName(actor.getName());
+		cmd = getCommandHandler().execute(cmd);
+		return cmd.getUseCase();
+	}
+
+	/** Give the use case's primary scenario one plain step (and, optionally, its own name). */
+	private Scenario addStepToPrimaryScenario(Project project, UseCase useCase, String stepName,
+			String scenarioName) throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditScenarioStepCommand step = getProjectCommandFactory().newEditScenarioStepCommand();
+		step.setEditedBy(admin);
+		step.setProjectOrDomain(project);
+		step.setName(stepName);
+		step.setText("A step.");
+		step.setScenarioTypeName(ScenarioType.Primary.name());
+		EditScenarioCommand scenarioCmd = getProjectCommandFactory().newEditScenarioCommand();
+		scenarioCmd.setEditedBy(admin);
+		scenarioCmd.setProjectOrDomain(project);
+		scenarioCmd.setScenario(getProjectRepository().get(useCase).getScenario());
+		scenarioCmd.setName(scenarioName);
+		scenarioCmd.setStepCommands(List.of(step));
+		return getCommandHandler().execute(scenarioCmd).getScenario();
+	}
+
+	/** What the API does for a use-case save from the editor: no steps (#325). */
+	private UseCase saveUseCase(Project project, UseCase useCase, String name, String text)
+			throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditUseCaseCommand cmd = getProjectCommandFactory().newEditUseCaseCommand();
+		cmd.setEditedBy(admin);
+		cmd.setProjectOrDomain(project);
+		cmd.setUseCase(getProjectRepository().get(useCase));
+		cmd.setName(name);
+		cmd.setText(text);
+		return getCommandHandler().execute(cmd).getUseCase();
+	}
+
+	@Test
+	public void editUseCaseWithoutPrimaryActorNameKeepsTheActor() throws Exception {
+		Project project = createProject("UseCase-actor-keep");
+		Actor actor = createActor(project, "Librarian");
+		UseCase original = createUseCase(project, "Lend a book", actor);
+
+		UseCase updated = saveUseCase(project, original, "Lend a book", "A librarian lends a book.");
+
+		updated = getProjectRepository().get(updated);
+		assertEquals("A librarian lends a book.", updated.getText(), "the text should be applied");
+		assertEquals(actor.getName(), updated.getPrimaryActor().getName(),
+				"a null primaryActorName should keep the actor");
+	}
+
+	@Test
+	public void editUseCaseWithEmptyPrimaryActorNameIsRefused() throws Exception {
+		Project project = createProject("UseCase-actor-clear");
+		User admin = getUserRepository().findUserByUsername("admin");
+		Actor actor = createActor(project, "Nurse");
+		UseCase original = createUseCase(project, "Record vitals", actor);
+
+		EditUseCaseCommand cmd = getProjectCommandFactory().newEditUseCaseCommand();
+		cmd.setEditedBy(admin);
+		cmd.setProjectOrDomain(project);
+		cmd.setUseCase(original);
+		cmd.setPrimaryActorName("");
+		EntityValidationException e = assertThrows(EntityValidationException.class,
+				() -> getCommandHandler().execute(cmd));
+		assertArrayEquals(new String[] { "primaryActorName" }, e.getEntityPropertyNames(),
+				"the refusal should name the primaryActorName field");
+
+		UseCase reloaded = getProjectRepository().get(original);
+		assertEquals(actor.getName(), reloaded.getPrimaryActor().getName(),
+				"a use case always keeps a primary actor");
+	}
+
+	/** Fails on 07d5b71e: every use-case save wiped its primary scenario's steps. */
+	@Test
+	public void savingAUseCaseKeepsItsPrimaryScenarioStepsAndName() throws Exception {
+		Project project = createProject("UseCase-keep-steps");
+		Actor actor = createActor(project, "Barista");
+		UseCase original = createUseCase(project, "Make a latte", actor);
+		Scenario scenario = addStepToPrimaryScenario(project, original,
+				"Steam the milk " + System.nanoTime(), "Latte, the usual way");
+
+		saveUseCase(project, original, "Make a latte", "A barista makes a latte.");
+
+		Scenario after = getProjectRepository().get(scenario);
+		assertEquals(1, after.getSteps().size(), "saving the use case must keep the steps");
+		assertEquals("Latte, the usual way", after.getName(),
+				"saving the use case must not rename a scenario with its own name");
+	}
+
+	@Test
+	public void renamingAUseCaseRenamesAScenarioThatSharedItsName() throws Exception {
+		Project project = createProject("UseCase-rename-sync");
+		Actor actor = createActor(project, "Driver");
+		UseCase original = createUseCase(project, "Book a ride", actor);
+		Scenario scenario = getProjectRepository().get(original).getScenario();
+		assertEquals("Book a ride", scenario.getName(), "fixture: create names the scenario after it");
+		addStepToPrimaryScenario(project, original, "Pick a pickup point " + System.nanoTime(),
+				null);
+
+		saveUseCase(project, original, "Book a taxi", null);
+
+		Scenario after = getProjectRepository().get(scenario);
+		assertEquals("Book a taxi", after.getName(), "a scenario that shared the name follows it");
+		assertEquals(1, after.getSteps().size(), "the rename must keep the steps");
+	}
+
+	@Test
+	public void renamingAUseCaseLeavesADifferentlyNamedScenarioAlone() throws Exception {
+		Project project = createProject("UseCase-rename-nosync");
+		Actor actor = createActor(project, "Chef");
+		UseCase original = createUseCase(project, "Plate a dish", actor);
+		Scenario scenario = addStepToPrimaryScenario(project, original,
+				"Wipe the rim " + System.nanoTime(), "Plating for service");
+
+		saveUseCase(project, original, "Plate a main course", null);
+
+		Scenario after = getProjectRepository().get(scenario);
+		assertEquals("Plating for service", after.getName(),
+				"a scenario with its own name keeps it when the use case is renamed");
+		assertEquals("Plate a main course", getProjectRepository().get(original).getName());
 	}
 }

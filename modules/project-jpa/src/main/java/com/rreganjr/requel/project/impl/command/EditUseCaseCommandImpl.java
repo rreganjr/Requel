@@ -29,12 +29,14 @@ import org.springframework.stereotype.Controller;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
+import com.rreganjr.validator.EntityValidationException;
 import com.rreganjr.platform.exception.NoSuchEntityException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.ScenarioType;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.AnalysisRequestSource;
@@ -146,6 +148,12 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
 		usecaseImpl = checkExpectedVersion(usecaseImpl);
 
+		// Issue #325: a use case must have a primary actor (usecases.primary_actor_id is NOT
+		// NULL), so a blank name is refused rather than cleared. Null leaves it as it is.
+		if (getPrimaryActorName() != null && getPrimaryActorName().trim().isEmpty()) {
+			throw EntityValidationException.validationFailed(UseCase.class, "primaryActorName",
+					"a use case needs a primary actor");
+		}
 		Actor primaryActor = null;
 		if (getPrimaryActorName() != null && !getPrimaryActorName().trim().isEmpty()) {
 			try {
@@ -178,6 +186,7 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 					new UseCaseImpl(projectOrDomain, primaryActor, editedBy, getName(), getText(),
 							editScenarioCommand.getScenario()));
 		} else {
+			String previousName = usecaseImpl.getName();
 			if (getName() != null) {
 				usecaseImpl.setName(getName());
 			}
@@ -192,20 +201,36 @@ public class EditUseCaseCommandImpl extends AbstractEditProjectOrDomainEntityCom
 				}
 				usecaseImpl.setPrimaryActor(primaryActor);
 			}
-			EditScenarioCommand editScenarioCommand = getProjectCommandFactory()
-					.newEditScenarioCommand();
-			editScenarioCommand.setScenario(getRepository().get(usecaseImpl.getScenario()));
-			editScenarioCommand.setEditedBy(editedBy);
-			editScenarioCommand.setName(getName());
-			editScenarioCommand.setProjectOrDomain(projectOrDomain);
-			editScenarioCommand.setScenarioTypeName(ScenarioType.Primary.name());
-			editScenarioCommand.setStepCommands(getStepCommands());
-			// the scenario will be analyzed when the use case is analyzed.
-			editScenarioCommand.setAnalysisEnabled(false);
-			editScenarioCommand = getCommandHandler().execute(editScenarioCommand);
-			if (usecaseImpl.getScenario() == null) {
-				usecaseImpl.setScenario(editScenarioCommand.getScenario());
-				usecaseImpl = getProjectRepository().merge(usecaseImpl);
+			// Issue #325: this nested edit used to run on every save with the use case's name and
+			// the caller's step list, so a UI save (which sends no steps) wiped the primary
+			// scenario's steps and renamed it back to the use-case name. It now runs only when
+			// there is something to do: steps were supplied, the use case has no primary scenario
+			// yet (the editor's "create primary scenario" relies on this), or the use case was
+			// renamed and its scenario still carried the old name.
+			Scenario scenario = getRepository().get(usecaseImpl.getScenario());
+			boolean renamed = (getName() != null) && !getName().equals(previousName);
+			boolean syncName = renamed && (scenario != null)
+					&& scenario.getName().equals(previousName);
+			if ((scenario == null) || (getStepCommands() != null) || syncName) {
+				EditScenarioCommand editScenarioCommand = getProjectCommandFactory()
+						.newEditScenarioCommand();
+				editScenarioCommand.setScenario(scenario);
+				editScenarioCommand.setEditedBy(editedBy);
+				editScenarioCommand.setProjectOrDomain(projectOrDomain);
+				if (scenario == null) {
+					editScenarioCommand.setName(usecaseImpl.getName());
+					editScenarioCommand.setScenarioTypeName(ScenarioType.Primary.name());
+				} else if (syncName) {
+					editScenarioCommand.setName(getName());
+				}
+				editScenarioCommand.setStepCommands(getStepCommands());
+				// the scenario will be analyzed when the use case is analyzed.
+				editScenarioCommand.setAnalysisEnabled(false);
+				editScenarioCommand = getCommandHandler().execute(editScenarioCommand);
+				if (usecaseImpl.getScenario() == null) {
+					usecaseImpl.setScenario(editScenarioCommand.getScenario());
+					usecaseImpl = getProjectRepository().merge(usecaseImpl);
+				}
 			}
 		}
 		if (projectOrDomain != null) {

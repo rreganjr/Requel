@@ -28,11 +28,13 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.platform.command.AuthorizationExemptable;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
+import com.rreganjr.requel.project.command.DeleteScenarioStepCommand;
 import com.rreganjr.requel.project.command.EditScenarioCommand;
 import com.rreganjr.requel.project.command.EditScenarioStepCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -111,7 +113,8 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 		// Enforce the caller-supplied optimistic-lock version on update (issue #108).
 		scenarioImpl = checkExpectedVersion(scenarioImpl);
 
-		if (scenarioImpl == null) {
+		boolean creating = (scenarioImpl == null);
+		if (creating) {
 			scenarioImpl = getProjectRepository().persist(
 					new ScenarioImpl(projectOrDomain, editedBy, getName(), getText(),
 							getScenarioType()));
@@ -138,13 +141,50 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 		}
 
 		scenarioImpl = getProjectRepository().merge(scenarioImpl);
-		scenarioImpl.getSteps().clear();
-		for (EditScenarioStepCommand executedCommand : stepEditCommands) {
-			Step step = executedCommand.getStep();
-			scenarioImpl.getSteps().add(step);
-			step.getUsingScenarios().add(scenarioImpl);
+		// Issue #325: on update, null step commands leave the step list as it is; a list, even an
+		// empty one, replaces it. It used to be replaced unconditionally, so any edit that sent
+		// no steps (a use-case save, a spelling fix) deleted them all.
+		List<Step> droppedSteps = new ArrayList<Step>();
+		if (creating || (getStepCommands() != null)) {
+			List<Step> previousSteps = new ArrayList<Step>(scenarioImpl.getSteps());
+			scenarioImpl.getSteps().clear();
+			for (EditScenarioStepCommand executedCommand : stepEditCommands) {
+				Step step = executedCommand.getStep();
+				scenarioImpl.getSteps().add(step);
+				step.getUsingScenarios().add(scenarioImpl);
+			}
+			for (Step previous : previousSteps) {
+				// A dropped sub-scenario is a standalone scenario and stays.
+				if (!(previous instanceof Scenario) && !scenarioImpl.getSteps().contains(previous)
+						&& !droppedSteps.contains(previous)) {
+					previous.getUsingScenarios().remove(scenarioImpl);
+					droppedSteps.add(previous);
+				}
+			}
 		}
 		setScenario(getProjectRepository().merge(scenarioImpl));
+		deleteUnusedSteps(droppedSteps, (Scenario) getScenario(), editedBy);
+	}
+
+	/**
+	 * Issue #325: a plain step dropped from the list used to stay in the table, attached to no
+	 * scenario, still holding its name in the shared step/scenario unique key and blocking
+	 * DeleteProject on MySQL. Delete it unless another scenario still uses it. The delete is
+	 * authorization-exempt: dropping the step is part of this edit, which the caller is already
+	 * authorized for.
+	 */
+	private void deleteUnusedSteps(List<Step> droppedSteps, Scenario scenario, User editedBy)
+			throws Exception {
+		for (Step step : droppedSteps) {
+			if (!getProjectRepository().isStepUsedByAnotherScenario(step, scenario)) {
+				DeleteScenarioStepCommand command = getProjectCommandFactory()
+						.newDeleteScenarioStepCommand();
+				command.setScenarioStep(step);
+				command.setEditedBy(editedBy);
+				((AuthorizationExemptable) command).setAuthorizationExempt(true);
+				getCommandHandler().execute(command);
+			}
+		}
 	}
 
 	@Override

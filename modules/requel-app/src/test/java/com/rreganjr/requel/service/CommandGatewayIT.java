@@ -37,6 +37,7 @@ import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.ScenarioType;
 import com.rreganjr.requel.service.api.dto.ScenarioDto;
+import com.rreganjr.requel.service.api.dto.UseCaseDto;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.Story;
@@ -746,5 +747,76 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         return Arrays.stream(entityTypes)
                 .map(c -> StakeholderPermissionImpl.generatePermissionKey(c, type))
                 .collect(Collectors.toSet());
+    }
+
+    // -------------------------------------------------------------------------
+    // Steps through the API (issue #325)
+    // -------------------------------------------------------------------------
+
+    /** EditScenario without a steps key leaves the steps alone; it used to delete them all. */
+    @Test
+    void editScenarioWithoutStepsKeepsTheSteps() throws Exception {
+        authenticate(editorUsername);
+        long ts = System.currentTimeMillis();
+        ScenarioDto created = (ScenarioDto) gateway.execute(new GatewayRequest("EditScenario",
+                Map.of("projectName", projectName,
+                        "name", "gw-keep-steps-" + ts,
+                        "scenarioTypeName", ScenarioType.Primary.name(),
+                        "steps", List.of(Map.of("name", "gw-kept-step-" + ts, "text", "a step",
+                                "isScenario", false))))).result();
+
+        ScenarioDto updated = (ScenarioDto) gateway.execute(new GatewayRequest("EditScenario",
+                Map.of("projectName", projectName,
+                        "scenarioId", created.id(),
+                        "version", created.version(),
+                        "name", created.name(),
+                        "text", "only the text changes"))).result();
+
+        assertEquals("only the text changes", updated.text());
+        assertEquals(1, updated.steps().size(), "an absent steps key should keep the steps");
+    }
+
+    /**
+     * A use-case save from the editor sends no steps. It used to reach the nested EditScenario
+     * as an empty list and wipe the primary scenario's steps.
+     */
+    @Test
+    void editUseCaseKeepsItsPrimaryScenarioSteps() throws Exception {
+        // Its own project: a use case created in the shared fixture project can take the id
+        // storyId2 was chosen to avoid, and actorContainerLookupIsScopedToNamedType then finds a
+        // "UseCase" with that id (CLAUDE.md: ids from different tables collide).
+        long ts = System.currentTimeMillis();
+        String ucProjectName = "gw-uc-steps-" + ts;
+        Project ucProject = createProject(ucProjectName);
+        Set<String> perms = new HashSet<>(keys(StakeholderPermissionType.Edit, Project.class,
+                Actor.class, UseCase.class, Scenario.class));
+        addUserStakeholder(ucProject, editorUsername, perms);
+        authenticate(editorUsername);
+        String actorName = "gw-uc-actor-" + ts;
+        UseCaseDto useCase = (UseCaseDto) gateway.execute(new GatewayRequest("EditUseCase",
+                Map.of("projectName", ucProjectName,
+                        "name", "gw-uc-" + ts,
+                        "text", "a use case",
+                        "primaryActorName", actorName))).result();
+        ScenarioDto scenario = (ScenarioDto) gateway.execute(new GatewayRequest("EditScenario",
+                Map.of("projectName", ucProjectName,
+                        "scenarioId", useCase.scenarioId(),
+                        "name", useCase.scenarioName(),
+                        "steps", List.of(Map.of("name", "gw-uc-step-" + ts, "text", "a step",
+                                "isScenario", false))))).result();
+        assertEquals(1, scenario.steps().size(), "fixture: the primary scenario has one step");
+
+        gateway.execute(new GatewayRequest("EditUseCase",
+                Map.of("projectName", ucProjectName,
+                        "useCaseId", useCase.id(),
+                        "name", useCase.name(),
+                        "text", "the description changes",
+                        "primaryActorName", actorName)));
+
+        Scenario reloaded = getProjectRepository().get(
+                getProjectRepository().findScenarioByProjectOrDomainAndName(
+                        getProjectRepository().findProjectByName(ucProjectName), scenario.name()));
+        assertEquals(1, reloaded.getSteps().size(),
+                "saving the use case must keep its primary scenario's steps");
     }
 }

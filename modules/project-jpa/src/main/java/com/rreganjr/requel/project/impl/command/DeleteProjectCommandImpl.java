@@ -179,6 +179,10 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 		// Walk scenarios and their steps via the domain interfaces (the impl's
 		// getAllScenariosAndSteps() is not exposed on Project).
 		Set<Step> allScenariosAndSteps = new HashSet<Step>(project.getScenarios());
+		// Issue #325: plus every step row that carries this project's id, found by query. A step
+		// dropped from a scenario's list before #325 was never deleted, so no scenario reaches
+		// it, and on MySQL the leftover row's projectordomain_id FK refused the final delete.
+		allScenariosAndSteps.addAll(getProjectRepository().findStepsByProjectOrDomain(project));
 		java.util.Deque<Scenario> toExamine = new java.util.ArrayDeque<Scenario>(
 				project.getScenarios());
 		while (!toExamine.isEmpty()) {

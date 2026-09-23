@@ -233,6 +233,31 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 	}
 
 	@Override
+	public Set<Step> findStepsByProjectOrDomain(ProjectOrDomain projectOrDomain) {
+		try {
+			Query query = getEntityManager().createQuery(
+					"select step from StepImpl step where step.projectOrDomain = :projectOrDomain");
+			query.setParameter("projectOrDomain", projectOrDomain);
+			return new HashSet<Step>(query.getResultList());
+		} catch (Exception e) {
+			throw convertException(e, Step.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
+	@Override
+	public boolean isStepUsedByAnotherScenario(Step step, Scenario except) {
+		try {
+			Query query = getEntityManager().createQuery(
+					"select count(s) from ScenarioImpl s where :step member of s.steps and s <> :except");
+			query.setParameter("step", step);
+			query.setParameter("except", except);
+			return ((Number) query.getSingleResult()).longValue() > 0;
+		} catch (Exception e) {
+			throw convertException(e, Step.class, null, EntityExceptionActionType.Reading);
+		}
+	}
+
+	@Override
 	public Set<Scenario> findScenariosUsedByUseCase(UseCase usecase) {
 		try {
 			// TODO: use named query so it can be configured externally

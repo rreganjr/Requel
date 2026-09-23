@@ -99,6 +99,8 @@ describe('UseCaseEditorComponent - create wizard accessibility', () => {
   /** Commits Details, which is what unlocks every later step. */
   async function advancePastDetails(wizard: HTMLElement): Promise<void> {
     comp.detailsForm.controls.name.setValue('Place order');
+    // #325: a use case needs a primary actor before step 1 can commit.
+    comp.detailsForm.controls.primaryActorName.setValue('Customer');
     await settle();
     await clickContinue(wizard);
   }

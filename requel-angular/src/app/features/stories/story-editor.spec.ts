@@ -165,13 +165,24 @@ describe('StoryEditorComponent', () => {
     }));
   });
 
-  it('sends a cleared primary actor as null', async () => {
+  // #325: the server reads null as "leave the actor as it is", so clearing sends ''.
+  it('sends a cleared primary actor as an empty string', async () => {
     await renderExisting();
     comp.detailsForm.patchValue({ primaryActorName: '' });
     comp.detailsForm.markAsDirty();
     await comp.onSave();
 
-    expect(editStoryCall(0)).toEqual(expect.objectContaining({ primaryActorName: null }));
+    expect(editStoryCall(0)).toEqual(expect.objectContaining({ primaryActorName: '' }));
+  });
+
+  // The p-select clear (x) sets the control to null despite nonNullable.
+  it('sends an actor cleared with the clear button as an empty string', async () => {
+    await renderExisting();
+    comp.detailsForm.controls.primaryActorName.setValue(null as unknown as string);
+    comp.detailsForm.markAsDirty();
+    await comp.onSave();
+
+    expect(editStoryCall(0)).toEqual(expect.objectContaining({ primaryActorName: '' }));
   });
 
   describe('the edit-mode Save policy', () => {

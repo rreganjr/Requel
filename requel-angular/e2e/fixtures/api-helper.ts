@@ -478,6 +478,44 @@ export async function getUseCaseVersion(
   return data.version;
 }
 
+/**
+ * Give a use case's primary scenario the named plain steps (#325). Returns the scenario id, so a
+ * test can read the steps back with getScenarioStepCount.
+ */
+export async function addStepsToUseCaseScenario(
+  api: APIRequestContext,
+  uc: UseCaseFixture,
+  stepNames: string[]
+): Promise<number> {
+  const token = await getAdminToken(api);
+  const res = await api.get(
+    `${BASE_URL}/api/projects/${encodeURIComponent(uc.projectName)}/use-cases/${uc.id}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const useCase = await res.json() as { scenarioId: number; scenarioName: string };
+  await command(api, token, 'EditScenario', {
+    projectName: uc.projectName,
+    scenarioId: useCase.scenarioId,
+    name: useCase.scenarioName,
+    steps: stepNames.map(name => ({ name, text: name, scenarioTypeName: 'Primary', isScenario: false })),
+  });
+  return useCase.scenarioId;
+}
+
+export async function getScenarioStepCount(
+  api: APIRequestContext,
+  projectName: string,
+  scenarioId: number
+): Promise<number> {
+  const token = await getAdminToken(api);
+  const res = await api.get(
+    `${BASE_URL}/api/projects/${encodeURIComponent(projectName)}/scenarios/${scenarioId}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json() as { steps: unknown[] };
+  return data.steps.length;
+}
+
 export async function createScenario(
   api: APIRequestContext,
   projectName: string,

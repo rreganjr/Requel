@@ -8,6 +8,7 @@ import {
   createUseCase, deleteUseCase, getUseCaseVersion, UseCaseFixture,
   addActorToUseCase, addGoalToUseCase, addStoryToUseCase,
   addScenarioToUseCase, setPrimaryScenarioOnUseCase,
+  addStepsToUseCaseScenario, getScenarioStepCount,
 } from './fixtures/api-helper';
 import { UseCaseListPage, UseCaseEditorPage } from './pages/UseCaseEditorPage';
 import { GoalEditorPage } from './pages/GoalEditorPage';
@@ -459,6 +460,37 @@ test.describe('Clearing the description (#316)', () => {
     // The name check waits for the form to populate, so the empty check can't pass early.
     await editorPage.expectNameValue(ucName);
     await expect(page.locator('#text')).toHaveValue('');
+
+    await page.close();
+  });
+});
+
+// #325: every use-case save used to send an empty step list through to the primary scenario,
+// deleting its steps. The editor sends none now, and none means "leave them alone".
+test.describe('Saving keeps the primary scenario steps (#325)', () => {
+  test('edit use case description → primary scenario keeps its steps', async ({ adminContext, request }) => {
+    const ucName = `e2e-uc-keep-steps-${Date.now()}`;
+    const uc = await createUseCase(request, PROJECT_NAME, ucName, 'Original description');
+    ucToCleanup = uc;
+    const scenarioId = await addStepsToUseCaseScenario(request, uc,
+      [`e2e-uc-step-a-${Date.now()}`, `e2e-uc-step-b-${Date.now()}`]);
+    expect(await getScenarioStepCount(request, PROJECT_NAME, scenarioId)).toBe(2);
+
+    const page = await adminContext.newPage();
+    const listPage = new UseCaseListPage(page);
+    const editorPage = new UseCaseEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickUseCase(ucName);
+    await editorPage.expectNameValue(ucName);
+
+    await editorPage.fillDescription('Changed description');
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/commands/EditUseCase')),
+      editorPage.save(),
+    ]);
+
+    expect(await getScenarioStepCount(request, PROJECT_NAME, scenarioId)).toBe(2);
 
     await page.close();
   });

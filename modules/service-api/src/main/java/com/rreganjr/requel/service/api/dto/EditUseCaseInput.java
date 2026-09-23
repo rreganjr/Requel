@@ -29,7 +29,11 @@ import jakarta.validation.constraints.Size;
  * Input for the EditUseCase command. {@code useCaseId} null = create.
  * <p>
  * On update, a null (or absent) {@code text} leaves it as it is; an empty string clears it
- * (issue #316).
+ * (issue #316). A null {@code primaryActorName} leaves the actor as it is; an empty one is
+ * refused, because a use case must have a primary actor; an unknown name creates the actor
+ * (issue #325). The input has no steps, so a use-case save never touches its primary
+ * scenario's steps; renaming the use case renames the scenario too only if it carried the old
+ * name.
  */
 public record EditUseCaseInput(
         @NotBlank String projectName,

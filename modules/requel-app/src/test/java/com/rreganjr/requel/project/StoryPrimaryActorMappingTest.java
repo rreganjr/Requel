@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Scenarios covered:
  * - Story created with primaryActor: reloaded story has correct primaryActor
  * - Story created without primaryActor: reloaded story has null primaryActor
- * - Story primaryActor cleared via edit: reloaded story has null primaryActor
+ * - Story primaryActor cleared via edit (primaryActorName ""): reloaded story has null primaryActor
  * - UseCase created with primaryActor: reloaded use case has correct primaryActor
  */
 public class StoryPrimaryActorMappingTest extends AbstractIntegrationTestCase {
@@ -135,7 +135,8 @@ public class StoryPrimaryActorMappingTest extends AbstractIntegrationTestCase {
         editCmd.setName("Story with actor");
         editCmd.setText("updated text");
         editCmd.setStoryTypeName(StoryType.Success.name());
-        // not setting primaryActorName → clears it
+        // "" clears it; null would leave it as it is (#325)
+        editCmd.setPrimaryActorName("");
         getCommandHandler().execute(editCmd);
 
         Story reloaded = reloadStory(project, "Story with actor");

@@ -111,21 +111,34 @@ describe('UseCaseEditorComponent', () => {
   it('onSave calls commandService.execute("EditUseCase") with fields', async () => {
     fixture.detectChanges();
     await flush();
-    comp.detailsForm.patchValue({ name: 'New Use Case', text: 'Description' });
+    comp.detailsForm.patchValue({ name: 'New Use Case', primaryActorName: 'Customer', text: 'Description' });
     comp.detailsForm.markAsDirty();
     await comp.onSave();
     expect(commandServiceMock.execute).toHaveBeenCalledWith('EditUseCase', expect.objectContaining({
       projectName: 'proj1',
       name: 'New Use Case',
+      primaryActorName: 'Customer',
       text: 'Description'
     }));
+  });
+
+  // #325: a use case must have a primary actor (the column is NOT NULL), so the form requires one
+  // rather than sending a clear the server would refuse.
+  it('onSave refuses to save without a primary actor', async () => {
+    fixture.detectChanges();
+    await flush();
+    comp.detailsForm.patchValue({ name: 'New Use Case', primaryActorName: '', text: 'Description' });
+    comp.detailsForm.markAsDirty();
+    await comp.onSave();
+    expect(comp.detailsForm.controls.primaryActorName.hasError('required')).toBe(true);
+    expect(commandServiceMock.execute).not.toHaveBeenCalledWith('EditUseCase', expect.anything());
   });
 
   // #316: the server reads null as "leave it as it is", so a blank description goes as ''.
   it('onSave sends an empty text to clear it', async () => {
     fixture.detectChanges();
     await flush();
-    comp.detailsForm.patchValue({ name: 'New Use Case', text: '' });
+    comp.detailsForm.patchValue({ name: 'New Use Case', primaryActorName: 'Customer', text: '' });
     comp.detailsForm.markAsDirty();
     await comp.onSave();
     expect(commandServiceMock.execute).toHaveBeenCalledWith('EditUseCase', expect.objectContaining({
@@ -137,6 +150,7 @@ describe('UseCaseEditorComponent', () => {
   it('onSave sets errorMessage when command fails', async () => {
     commandServiceMock.execute.mockResolvedValue({ success: false, error: 'Conflict' });
     comp.detailsForm.controls.name.setValue('Test');
+    comp.detailsForm.controls.primaryActorName.setValue('Customer');
     comp.detailsForm.markAsDirty();
     await comp.onSave();
     expect(comp.errorMessage()).toBe('Conflict');

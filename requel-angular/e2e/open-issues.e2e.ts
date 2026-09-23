@@ -80,12 +80,18 @@ test.describe('Open Issues', () => {
 
     const page = await adminContext.newPage();
 
-    await Promise.all([
+    const [response] = await Promise.all([
       page.waitForResponse(r => r.url().includes(`/api/projects/${encodeURIComponent(PROJECT_NAME)}/open-issues`) && r.status() === 200),
       page.goto(`/projects/${encodeURIComponent(PROJECT_NAME)}/open-issues`),
     ]);
 
-    await expect(page.getByTestId('open-issues-badge')).toContainText('1');
+    // The badge counts every required open issue in the project, and with a dictionary loaded the
+    // assistants file their own (spelling issues on names like "e2e-open-goal-..."). Compare with
+    // what the page was served rather than assuming ours are the only ones.
+    const issues = await response.json() as { issueText: string; mustBeResolved: boolean }[];
+    expect(issues.some(i => i.issueText === requiredIssueText && i.mustBeResolved)).toBe(true);
+    const required = issues.filter(i => i.mustBeResolved).length;
+    await expect(page.getByTestId('open-issues-badge')).toHaveText(String(required));
 
     const requiredRow = page.getByRole('row', { name: new RegExp(requiredIssueText) });
     await expect(requiredRow.getByTestId('open-issue-required')).toContainText('Yes');
