@@ -62,6 +62,7 @@ import com.rreganjr.nlp.dictionary.Category;
 import com.rreganjr.nlp.dictionary.Dictionary;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.Lexlinkref;
+import com.rreganjr.nlp.dictionary.InstallDictionaryWord;
 import com.rreganjr.nlp.dictionary.ProjectDictionaryWord;
 import com.rreganjr.nlp.dictionary.LexlinkrefId;
 import com.rreganjr.nlp.dictionary.Linkdef;
@@ -76,6 +77,7 @@ import com.rreganjr.nlp.dictionary.VerbNetSelectionRestrictionType;
 import com.rreganjr.nlp.dictionary.Word;
 import com.rreganjr.nlp.dictionary.impl.repository.NoSuchWordException;
 import com.rreganjr.nlp.dictionary.impl.repository.DatabaseSpellDictionary;
+import com.rreganjr.nlp.dictionary.impl.repository.InstallSpellDictionary;
 import com.rreganjr.nlp.dictionary.impl.repository.ProjectSpellDictionary;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.repository.jpa.AbstractJpaRepository;
@@ -153,6 +155,20 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 	private SpellChecker spellChecker = new SpellChecker();
 
 	/**
+	 * The WordNet {@code word} table as a jazzy dictionary: one shared, read-only instance in
+	 * every checker's dictionary list (issue #319). #313 left it out of the per-project checkers:
+	 * jazzy's {@code SpellChecker} has a single user-dictionary slot, and giving it to the
+	 * project's words dropped WordNet from project spell checks altogether.
+	 */
+	private final DatabaseSpellDictionary wordNetDictionary;
+
+	/**
+	 * Installation-wide added words (issue #319): one shared instance, the installation checker's
+	 * user dictionary and in every per-project checker's dictionary list.
+	 */
+	private final InstallSpellDictionary installDictionary;
+
+	/**
 	 * One jazzy SpellChecker per project (issue #313), each carrying the same static dictionaries
 	 * by reference plus that project's own words as its user dictionary. Entries are two small
 	 * objects — the .dic files are not copied — and are evicted whenever the project's word list
@@ -167,19 +183,25 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 	@Autowired
 	public JpaDictionaryRepository(ExceptionMapper exceptionMapper) {
 		super(exceptionMapper);
-		spellChecker = new SpellChecker();
-		for (SpellDictionary dictionary : staticDictionaries) {
-			spellChecker.addDictionary(dictionary);
-		}
 		try {
 			// Passing null as the phonetic code file causes the dictionary to
 			// use the DoubleMeta Transformator to create phentic codes for
 			// spelling corrections.
-			spellChecker.setUserDictionary(new DatabaseSpellDictionary(this, (File) null));
+			wordNetDictionary = new DatabaseSpellDictionary(this, (File) null);
+			installDictionary = new InstallSpellDictionary(this);
 		} catch (IOException e) {
 			// This will never happen because null is passed as the phonetic
 			// code file.
+			throw new IllegalStateException("failed to create the database dictionaries", e);
 		}
+		spellChecker = new SpellChecker();
+		for (SpellDictionary dictionary : staticDictionaries) {
+			spellChecker.addDictionary(dictionary);
+		}
+		// Issue #319: WordNet is read-only, so it is a listed dictionary, and the user dictionary,
+		// which jazzy writes to, is the installation-wide added words.
+		spellChecker.addDictionary(wordNetDictionary);
+		spellChecker.setUserDictionary(installDictionary);
 
 		addExceptionAdapter(PropertyValueException.class,
 				new GenericPropertyValueExceptionAdapter(), Word.class, Category.class,
@@ -225,6 +247,10 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 			for (SpellDictionary dictionary : staticDictionaries) {
 				checker.addDictionary(dictionary);
 			}
+			// Issue #319: the same shared WordNet and installation-word dictionaries the
+			// installation checker has. The user-dictionary slot below is the project's words.
+			checker.addDictionary(wordNetDictionary);
+			checker.addDictionary(installDictionary);
 			try {
 				checker.setUserDictionary(new ProjectSpellDictionary(this, id));
 			} catch (IOException e) {
@@ -361,7 +387,9 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 	}
 
 	public void addToDictionary(String word) {
-		getSpellChecker().addToDictionary(word);
+		// Issue #319: installation-wide additions go to install_dictionary_words, never to the
+		// WordNet table.
+		addInstallWord(word, null);
 	}
 
 	@Override
@@ -436,6 +464,128 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 		} catch (Exception e) {
 			throw new RuntimeException("failed to delete the dictionary words of project "
 					+ projectId, e);
+		}
+	}
+
+	@Override
+	public ProjectDictionaryWord findProjectWord(Long projectId, String lemma) {
+		if ((projectId == null) || (lemma == null) || lemma.trim().isEmpty()) {
+			return null;
+		}
+		List<ProjectDictionaryWord> matches = findProjectWordsMatching(projectId, lemma.trim());
+		return matches.isEmpty() ? null : matches.get(0);
+	}
+
+	@Override
+	public boolean deleteProjectWord(Long projectId, Long wordId) {
+		if ((projectId == null) || (wordId == null)) {
+			return false;
+		}
+		try {
+			// The project id is part of the match (issue #319), so an id from another project
+			// removes nothing.
+			Query query = getEntityManager().createQuery(
+					"delete from ProjectDictionaryWord word "
+							+ "where word.projectId = :projectId and word.id = :wordId");
+			query.setParameter("projectId", projectId);
+			query.setParameter("wordId", wordId);
+			int deleted = query.executeUpdate();
+			evictSpellChecker(projectId);
+			return deleted > 0;
+		} catch (Exception e) {
+			throw new RuntimeException("failed to delete word " + wordId
+					+ " from the dictionary of project " + projectId, e);
+		}
+	}
+
+	@Override
+	public int countProjectWords(Long projectId) {
+		if (projectId == null) {
+			return 0;
+		}
+		try {
+			Query query = getEntityManager().createQuery(
+					"select count(word) from ProjectDictionaryWord word "
+							+ "where word.projectId = :projectId");
+			query.setParameter("projectId", projectId);
+			return ((Number) query.getSingleResult()).intValue();
+		} catch (Exception e) {
+			throw new RuntimeException("failed to count the dictionary words of project "
+					+ projectId, e);
+		}
+	}
+
+	@Override
+	public List<InstallDictionaryWord> findInstallWords() {
+		try {
+			Query query = getEntityManager().createQuery(
+					"select object(word) from InstallDictionaryWord as word order by word.lemma");
+			return query.getResultList();
+		} catch (Exception e) {
+			throw new RuntimeException("failed to find the installation-wide dictionary words", e);
+		}
+	}
+
+	@Override
+	public List<InstallDictionaryWord> findInstallWordsByPhoneticCode(String phoneticCode) {
+		if (phoneticCode == null) {
+			return Collections.emptyList();
+		}
+		try {
+			Query query = getEntityManager().createQuery(
+					"select object(word) from InstallDictionaryWord as word "
+							+ "where word.phoneticCode = :phoneticCode");
+			query.setParameter("phoneticCode", phoneticCode);
+			return query.getResultList();
+		} catch (Exception e) {
+			throw new RuntimeException("failed to find installation-wide words by phonetic code '"
+					+ phoneticCode + "'", e);
+		}
+	}
+
+	@Override
+	public InstallDictionaryWord addInstallWord(String lemma, Long createdById) {
+		if ((lemma == null) || lemma.trim().isEmpty()) {
+			return null;
+		}
+		String trimmed = lemma.trim();
+		// Idempotent, and checked here rather than left to the unique key: H2's is
+		// case-sensitive where MySQL's collation is not (the #313 reasoning).
+		List<InstallDictionaryWord> existing = findInstallWordsMatching(trimmed);
+		if (!existing.isEmpty()) {
+			return existing.get(0);
+		}
+		InstallDictionaryWord word = new InstallDictionaryWord(trimmed,
+				generatePhoneticCode(trimmed), createdById);
+		persist(word);
+		return word;
+	}
+
+	@Override
+	public boolean deleteInstallWord(Long wordId) {
+		if (wordId == null) {
+			return false;
+		}
+		try {
+			Query query = getEntityManager().createQuery(
+					"delete from InstallDictionaryWord word where word.id = :wordId");
+			query.setParameter("wordId", wordId);
+			return query.executeUpdate() > 0;
+		} catch (Exception e) {
+			throw new RuntimeException("failed to delete installation-wide word " + wordId, e);
+		}
+	}
+
+	private List<InstallDictionaryWord> findInstallWordsMatching(String lemma) {
+		try {
+			Query query = getEntityManager().createQuery(
+					"select object(word) from InstallDictionaryWord as word "
+							+ "where lower(word.lemma) = :lemma");
+			query.setParameter("lemma", lemma.toLowerCase());
+			return query.getResultList();
+		} catch (Exception e) {
+			throw new RuntimeException("failed to look up '" + lemma
+					+ "' in the installation-wide dictionary", e);
 		}
 	}
 

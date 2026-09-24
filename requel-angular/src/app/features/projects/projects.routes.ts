@@ -151,6 +151,13 @@ export const projectRoutes: Routes = [
   },
 
   {
+    path: 'projects/:name/dictionary',
+    title: 'Dictionary',
+    data: routeData({ section: 'project', breadcrumb: 'Dictionary' }),
+    loadComponent: () => import('../dictionary/project-dictionary').then(m => m.ProjectDictionaryComponent),
+  },
+
+  {
     path: 'projects/:name/reports',
     title: 'Reports',
     data: routeData({ section: 'project', artifactType: 'report', breadcrumb: 'Reports' }),

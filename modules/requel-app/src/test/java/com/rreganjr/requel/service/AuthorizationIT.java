@@ -768,6 +768,120 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
     }
 
     // -------------------------------------------------------------------------
+    // Dictionary (#319): the project list needs project access, its writes Project[Edit];
+    // the installation list and its writes need the administrator role.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void editorCanAddListAndRemoveAProjectDictionaryWord() throws Exception {
+        String lemma = "authdictword" + System.nanoTime();
+        MvcResult added = mockMvc.perform(post("/api/commands/AddProjectDictionaryWord")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "lemma", lemma))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.entity.lemma").value(lemma))
+                .andReturn();
+        long wordId = objectMapper.readTree(added.getResponse().getContentAsString())
+                .path("entity").path("id").asLong();
+
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/dictionary")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.lemma == '" + lemma + "')].id").value(
+                        org.hamcrest.Matchers.contains((int) wordId)));
+
+        mockMvc.perform(post("/api/commands/DeleteProjectDictionaryWord")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "wordId", wordId))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/dictionary")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.lemma == '" + lemma + "')]").isEmpty());
+    }
+
+    @Test
+    void deleterCannotAddAProjectDictionaryWord() throws Exception {
+        mockMvc.perform(post("/api/commands/AddProjectDictionaryWord")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "lemma", "authdictrefused"))))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void aWordWithASpaceIsAValidationErrorOnLemma() throws Exception {
+        mockMvc.perform(post("/api/commands/AddProjectDictionaryWord")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "lemma", "two words"))))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.violations[0].field").value("lemma"));
+    }
+
+    @Test
+    void noAccessCannotListTheProjectDictionary() throws Exception {
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/dictionary")
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void theProjectReportsItsDictionaryWordCount() throws Exception {
+        mockMvc.perform(get("/api/projects/" + testProjectName)
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dictionaryWordCount").isNumber());
+    }
+
+    @Test
+    void adminCanAddListAndRemoveAnInstallationWord() throws Exception {
+        String lemma = "authinstallword" + System.nanoTime();
+        MvcResult added = mockMvc.perform(post("/api/commands/AddInstallDictionaryWord")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("lemma", lemma))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entity.lemma").value(lemma))
+                .andReturn();
+        long wordId = objectMapper.readTree(added.getResponse().getContentAsString())
+                .path("entity").path("id").asLong();
+        try {
+            mockMvc.perform(get("/api/admin/dictionary")
+                            .header("Authorization", "Bearer " + adminToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[?(@.lemma == '" + lemma + "')]").isNotEmpty());
+        } finally {
+            mockMvc.perform(post("/api/commands/DeleteInstallDictionaryWord")
+                            .header("Authorization", "Bearer " + adminToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("wordId", wordId))))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    @Test
+    void editorCannotListOrAddInstallationWords() throws Exception {
+        mockMvc.perform(get("/api/admin/dictionary")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/commands/AddInstallDictionaryWord")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "lemma", "authinstallrefused"))))
+                .andExpect(status().isForbidden());
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers — fixture creation
     // -------------------------------------------------------------------------
 

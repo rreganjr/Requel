@@ -300,6 +300,69 @@ public class DeleteProjectMySqlIT extends DeleteProjectIT {
 				"the annotation itself stays, as it does when DeleteScenarioStep runs");
 	}
 
+	/**
+	 * V20 (issue #319) moves the user additions the old installation-wide "Add to Dictionary"
+	 * wrote into the WordNet {@code word} table over to {@code install_dictionary_words}. A corpus
+	 * word has a sense (or another corpus reference) and stays; a row nothing references moves,
+	 * keeping its phonetic code; and a second run is harmless.
+	 */
+	@Test
+	void v20MovesUnreferencedWordRowsToTheInstallationTable() throws Exception {
+		long ts = System.currentTimeMillis();
+		long base = 1_900_000_000L + (ts % 1_000_000L) * 10;
+		String orphan = "v20orphan" + ts;
+		String withSense = "v20sense" + ts;
+		String withMorph = "v20morph" + ts;
+		mysqlJdbcTemplate.update("INSERT INTO categorydef (name, pos) VALUES (?, 'n')",
+				"v20cat" + (ts % 100000));
+		Long categoryId = mysqlJdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+		mysqlJdbcTemplate.update("INSERT INTO synset (definition, pos, categoryid)"
+				+ " VALUES ('v20 synset', 'n', ?)", categoryId);
+		Long synsetId = mysqlJdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+		mysqlJdbcTemplate.update("INSERT INTO word (wordid, lemma, phonetic_code) VALUES (?, ?, 'FKRN')",
+				base, orphan);
+		mysqlJdbcTemplate.update("INSERT INTO word (wordid, lemma, phonetic_code) VALUES (?, ?, 'SNS')",
+				base + 1, withSense);
+		mysqlJdbcTemplate.update("INSERT INTO word (wordid, lemma, phonetic_code) VALUES (?, ?, 'MRF')",
+				base + 2, withMorph);
+		mysqlJdbcTemplate.update("INSERT INTO sense (synsetid, wordid, `rank`) VALUES (?, ?, 1)",
+				synsetId, base + 1);
+		mysqlJdbcTemplate.update("INSERT INTO morphref (morphid, pos, wordid) VALUES (?, 'n', ?)",
+				(int) (ts % 1_000_000L), (int) (base + 2));
+		try {
+			runMigration("V20__install_dictionary_words.sql");
+			runMigration("V20__install_dictionary_words.sql");
+
+			assertEquals(0, count("SELECT COUNT(*) FROM word WHERE lemma = ?", orphan),
+					"an unreferenced word row must leave the WordNet table");
+			assertEquals(1, count("SELECT COUNT(*) FROM install_dictionary_words"
+					+ " WHERE lemma = ? AND phonetic_code = 'FKRN'", orphan),
+					"it must arrive once in the installation table, with its phonetic code");
+			assertEquals(1, count("SELECT COUNT(*) FROM word WHERE lemma = ?", withSense),
+					"a word with a sense is corpus and must stay");
+			assertEquals(1, count("SELECT COUNT(*) FROM word WHERE lemma = ?", withMorph),
+					"a word a morph points at is corpus and must stay");
+			assertEquals(0, count("SELECT COUNT(*) FROM install_dictionary_words"
+					+ " WHERE lemma IN (?, ?)", withSense, withMorph),
+					"corpus words must not be copied");
+			assertEquals(1, count("SELECT COUNT(*) FROM information_schema.statistics"
+					+ " WHERE table_schema = DATABASE() AND table_name = 'word'"
+					+ " AND index_name = 'idx_word_phonetic'"),
+					"the phonetic-code index must exist once");
+			assertEquals(0, count("SELECT COUNT(*) FROM information_schema.tables"
+					+ " WHERE table_schema = DATABASE() AND table_name = 'v20_user_words'"),
+					"the work table must be dropped");
+		} finally {
+			mysqlJdbcTemplate.update("DELETE FROM install_dictionary_words WHERE lemma = ?", orphan);
+			mysqlJdbcTemplate.update("DELETE FROM morphref WHERE wordid = ?", (int) (base + 2));
+			mysqlJdbcTemplate.update("DELETE FROM sense WHERE wordid = ?", base + 1);
+			mysqlJdbcTemplate.update("DELETE FROM word WHERE wordid IN (?, ?, ?)", base, base + 1,
+					base + 2);
+			mysqlJdbcTemplate.update("DELETE FROM synset WHERE synsetid = ?", synsetId);
+			mysqlJdbcTemplate.update("DELETE FROM categorydef WHERE categoryid = ?", categoryId);
+		}
+	}
+
 	private com.rreganjr.requel.project.command.EditScenarioStepCommand v19Step(User admin,
 			Project project, String name) {
 		com.rreganjr.requel.project.command.EditScenarioStepCommand step =
@@ -363,10 +426,19 @@ public class DeleteProjectMySqlIT extends DeleteProjectIT {
 				stripped.append(line).append('\n');
 			}
 		}
-		for (String statement : stripped.toString().split(";")) {
-			if (!statement.isBlank()) {
-				mysqlJdbcTemplate.execute(statement.trim());
+		// One connection for the whole script: V20's guarded CREATE INDEX keeps its SQL in a
+		// session variable across SET / PREPARE / EXECUTE, which a pooled connection per
+		// statement would lose.
+		String script = stripped.toString();
+		mysqlJdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) con -> {
+			try (java.sql.Statement st = con.createStatement()) {
+				for (String statement : script.split(";")) {
+					if (!statement.isBlank()) {
+						st.execute(statement.trim());
+					}
+				}
 			}
-		}
+			return null;
+		});
 	}
 }

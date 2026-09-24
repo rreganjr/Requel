@@ -44,8 +44,9 @@ import com.rreganjr.nlp.dictionary.Word;
  * <p>This is a <strong>before-execution</strong> generator: it produces the id <em>before</em> the
  * INSERT, so Hibernate performs a plain insert with the value returned here — the caller-supplied id
  * when the entity already has one (XML import and the {@code DictionarySQLInitializer} SQL dump both
- * carry the dictionary-assigned id), otherwise a freshly generated id for a runtime word created
- * without an id by {@code DatabaseSpellDictionary.addWord}. A post-insert {@code IDENTITY} generator
+ * carry the dictionary-assigned id), otherwise a freshly generated id for a word created without
+ * one (before #319, by {@code DatabaseSpellDictionary.addWord}; the WordNet table is read-only since,
+ * so only tests do it). A post-insert {@code IDENTITY} generator
  * cannot do this: the importer inserts via the legacy {@code Session.save()} path, which reassigns
  * IDENTITY ids and ignores a pre-assigned value, which is what broke the import before this fix.
  *

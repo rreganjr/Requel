@@ -889,3 +889,61 @@ export async function deleteReport(
     reportId: report.id,
   });
 }
+
+/**
+ * Add a user stakeholder to a project with exactly the given permissions (#319). Keys are
+ * `<entity interface FQN>[<Edit|Delete|Grant>]`, e.g. `com.rreganjr.requel.project.Goal[Edit]`.
+ */
+export async function addUserStakeholder(
+  api: APIRequestContext,
+  projectName: string,
+  username: string,
+  permissionKeys: string[]
+): Promise<void> {
+  const token = await getAdminToken(api);
+  await command(api, token, 'EditUserStakeholder', {
+    projectName,
+    username,
+    teamName: null,
+    permissionKeys,
+    version: null,
+  });
+}
+
+export interface DictionaryWordFixture {
+  id: number;
+  lemma: string;
+}
+
+/** Add a word to a project's dictionary as admin (#319). */
+export async function addProjectDictionaryWord(
+  api: APIRequestContext,
+  projectName: string,
+  lemma: string
+): Promise<DictionaryWordFixture> {
+  const token = await getAdminToken(api);
+  const result = await command(api, token, 'AddProjectDictionaryWord', { projectName, lemma });
+  return result['entity'] as DictionaryWordFixture;
+}
+
+/**
+ * Best-effort removal of an installation-wide word by lemma (#319), for teardown: an
+ * installation word is visible in every project, so a leaked one would leak into other runs.
+ */
+export async function removeInstallDictionaryWordByLemma(
+  api: APIRequestContext,
+  lemma: string
+): Promise<void> {
+  const token = await getAdminToken(api);
+  try {
+    const res = await api.get(`${BASE_URL}/api/admin/dictionary`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const words = (await res.json()) as DictionaryWordFixture[];
+    for (const w of words.filter(w => w.lemma.toLowerCase() === lemma.toLowerCase())) {
+      await command(api, token, 'DeleteInstallDictionaryWord', { wordId: w.id });
+    }
+  } catch (err) {
+    console.warn(`[e2e cleanup] removeInstallDictionaryWordByLemma(${lemma}) failed: ${err}`);
+  }
+}

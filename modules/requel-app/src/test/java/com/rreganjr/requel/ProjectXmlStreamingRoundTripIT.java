@@ -288,6 +288,30 @@ class ProjectXmlStreamingRoundTripIT {
 		assertThat(dictionaryRepository.isKnownWord(reimported.getId(), "elicitron")).isTrue();
 	}
 
+	/**
+	 * A word removed from the project's Dictionary page (issue #319) is gone from the next
+	 * export: the export reads the repository, and the removal is a row delete there.
+	 */
+	@Test
+	@Transactional
+	void aRemovedDictionaryWordIsAbsentFromTheExport() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project project = createSampleProject(projectUser);
+
+		dictionaryRepository.addToDictionary(project.getId(), "requelkeepword");
+		dictionaryRepository.addToDictionary(project.getId(), "requelgoneword");
+		entityManager.flush();
+		Long goneId = dictionaryRepository.findProjectWord(project.getId(), "requelgoneword")
+				.getId();
+		assertThat(dictionaryRepository.deleteProjectWord(project.getId(), goneId)).isTrue();
+
+		String xml = new String(exportProject(project), StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML dictionary block")
+				.contains("requelkeepword")
+				.doesNotContain("requelgoneword");
+	}
+
 	private void assignImportedTagForTest(User user, Project projectScope, Goal goal,
 			String category, String value) throws Exception {
 		com.rreganjr.requel.tagging.command.EditTagCommand edit = tagCommandFactory.newEditTagCommand();

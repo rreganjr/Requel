@@ -107,3 +107,35 @@ qualified on the following line, which makes them easy to mistake for profile-le
 They are not. A test that needs dictionary data calls
 `AbstractIntegrationTestCase.ensureDictionaryLoaded()`; nothing in the suite goes through the SQL
 path except `DictionarySQLMySqlImportIT`, which turns the property back on for its own context.
+
+## Layers (#319)
+
+The loading paths above fill the WordNet corpus. Spell checking reads it together with three other
+word sources, and which of them a check sees depends on whether it runs inside a project.
+
+| Checker | User dictionary (jazzy's single slot) | Dictionaries list |
+|---|---|---|
+| Installation (no project) | `InstallSpellDictionary` | the six jazzy classpath lists, `DatabaseSpellDictionary` (WordNet) |
+| Project | `ProjectSpellDictionary` | the six jazzy classpath lists, `DatabaseSpellDictionary` (WordNet), `InstallSpellDictionary` |
+
+- **jazzy lists** — static `.dic` files on the classpath. Not editable.
+- **WordNet** (`word`) — the corpus the loaders above fill. Read-only at runtime:
+  `DatabaseSpellDictionary.addWord` throws, so a coding mistake cannot write user words into it.
+- **Installation words** (`install_dictionary_words`) — added by an administrator on the
+  Installation Dictionary page (`AddInstallDictionaryWord` / `DeleteInstallDictionaryWord`,
+  administrators only, denied on the gateway). Known in every project at once.
+- **Project words** (`project_dictionary_words`, #313) — added on the project's Dictionary page
+  (`AddProjectDictionaryWord` / `DeleteProjectDictionaryWord`, gated on `Project[Edit]`) or by
+  resolving an "Add to Dictionary" issue (`Annotation[Edit]`). Known in that project only, and
+  exported with it.
+
+`DatabaseSpellDictionary` and `InstallSpellDictionary` are single shared instances that query per
+lookup, so an administrator's add or remove applies everywhere with no cache eviction. Each project
+checker is cached and evicted when that project's words change.
+
+Before #319 a project checker held only the jazzy lists and the project's words (#313 had dropped
+WordNet from it by replacing jazzy's user dictionary), so a word known only to WordNet was flagged
+inside every project. And before #313, every "Add to Dictionary" wrote a sense-less row into
+`word`. `V20__install_dictionary_words.sql` moved those rows — any `word` row that no `sense`,
+`lexlinkref`, `morphref` or `synset_definition_word` row references — into
+`install_dictionary_words`, and added an index on `word.phonetic_code`, which every lookup uses.

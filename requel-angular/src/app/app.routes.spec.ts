@@ -10,7 +10,7 @@ const byPath = (p: string) => children.find(c => c.path === p);
 
 const EXPECTED = [
   '', 'account', 'settings',
-  'users', 'users/:username', 'global-tags', 'tag-categories', 'maintenance',
+  'users', 'users/:username', 'global-tags', 'tag-categories', 'dictionary', 'maintenance',
   'projects', 'projects/new',
   'projects/:name/stakeholders', 'projects/:name/stakeholders/:stakeholderId',
   'projects/:name/goals', 'projects/:name/goals/:goalId',
@@ -19,13 +19,14 @@ const EXPECTED = [
   'projects/:name/scenarios', 'projects/:name/scenarios/:scenarioId',
   'projects/:name/use-cases', 'projects/:name/use-cases/:useCaseId',
   'projects/:name/terms', 'projects/:name/terms/:termId',
+  'projects/:name/dictionary',
   'projects/:name/reports', 'projects/:name/reports/:reportId',
   'projects/:name/open-issues',
   'projects/:name/edit',
   'projects/:name',
 ];
 
-const ADMIN = ['users', 'users/:username', 'global-tags', 'tag-categories', 'maintenance'];
+const ADMIN = ['users', 'users/:username', 'global-tags', 'tag-categories', 'dictionary', 'maintenance'];
 const EDITORS = [
   'account', 'users/:username', 'projects/new', 'projects/:name/edit',
   'projects/:name/stakeholders/:stakeholderId', 'projects/:name/goals/:goalId',

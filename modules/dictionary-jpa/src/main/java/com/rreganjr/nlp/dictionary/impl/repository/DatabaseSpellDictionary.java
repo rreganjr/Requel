@@ -31,7 +31,8 @@ import org.fife.com.swabunga.spell.engine.SpellDictionaryASpell;
 
 /**
  * An implementation of Jazzy's SpellDictionary using The database based
- * DictionaryRepository of WordNet words.
+ * DictionaryRepository of WordNet words. Read-only since issue #319: it is in every checker's
+ * dictionary list, and never a checker's user dictionary.
  * <p>
  * 
  * @author ron
@@ -96,8 +97,13 @@ public class DatabaseSpellDictionary extends SpellDictionaryASpell {
 	 * @see SpellDictionaryASpell#addWord(java.lang.String)
 	 */
 	public boolean addWord(String text) {
-		com.rreganjr.nlp.dictionary.Word word = new com.rreganjr.nlp.dictionary.Word(text, getCode(text));
-		dictionaryRepository.persist(word);
-		return true;
+		// Issue #319: the WordNet table is the loaded corpus and is read-only. Installation-wide
+		// additions go to install_dictionary_words through InstallSpellDictionary, which is the
+		// installation checker's user dictionary, so jazzy never calls this. Throwing means a
+		// future change that wires this back in as a writable dictionary fails loudly instead of
+		// quietly mixing user words into the corpus.
+		throw new UnsupportedOperationException(
+				"the WordNet dictionary is read-only; add installation-wide words through "
+						+ "InstallSpellDictionary (issue #319)");
 	}
 }

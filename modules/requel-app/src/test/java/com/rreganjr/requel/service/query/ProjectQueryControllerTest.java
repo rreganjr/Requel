@@ -57,6 +57,8 @@ import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
+import com.rreganjr.nlp.dictionary.DictionaryRepository;
+import com.rreganjr.nlp.dictionary.ProjectDictionaryWord;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.StoryType;
 import com.rreganjr.requel.project.UseCase;
@@ -87,6 +89,7 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
  * - listUseCases: 200 with use cases sorted by name
  * - listScenarios: 200 with scenarios sorted by name
  * - listStakeholders: 200 with stakeholder list
+ * - getProject / listDictionaryWords: the project dictionary count and list (issue #319)
  */
 class ProjectQueryControllerTest {
 
@@ -97,6 +100,7 @@ class ProjectQueryControllerTest {
     private CommandHandler commandHandler;
     private CurrentUserResolver currentUserResolver;
     private jakarta.persistence.EntityManager entityManager;
+    private DictionaryRepository dictionaryRepository;
 
     private User user;
     private Project project;
@@ -113,9 +117,10 @@ class ProjectQueryControllerTest {
         commandHandler = mock(CommandHandler.class);
         currentUserResolver = mock(CurrentUserResolver.class);
         entityManager = mock(jakarta.persistence.EntityManager.class);
+        dictionaryRepository = mock(DictionaryRepository.class);
         mockMvc = MockMvcBuilders.standaloneSetup(new ProjectQueryController(
                 projectRepository, projectCommandFactory, commandHandler, currentUserResolver,
-                entityManager)).build();
+                entityManager, dictionaryRepository)).build();
 
         user = mock(User.class);
         when(currentUserResolver.resolve()).thenReturn(user);
@@ -178,6 +183,48 @@ class ProjectQueryControllerTest {
                 .andExpect(jsonPath("$.description").value("A test project"))
                 .andExpect(jsonPath("$.goalCount").value(2))
                 .andExpect(jsonPath("$.actorCount").value(1));
+    }
+
+    /** Issue #319: the project's own word count, for the left nav and the overview card. */
+    @Test
+    void getProjectReportsTheProjectDictionaryWordCount() throws Exception {
+        when(dictionaryRepository.countProjectWords(1L)).thenReturn(3);
+
+        mockMvc.perform(get("/api/projects/TestProject"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dictionaryWordCount").value(3));
+    }
+
+    /** Issue #319: the Dictionary page's list, ordered by lemma regardless of case. */
+    @Test
+    void listDictionaryWordsReturnsTheProjectsWordsSortedByLemma() throws Exception {
+        ProjectDictionaryWord zebra = stubDictionaryWord(7L, "zebrafy");
+        ProjectDictionaryWord alpha = stubDictionaryWord(8L, "Alphaword");
+        when(dictionaryRepository.findProjectWords(1L)).thenReturn(List.of(zebra, alpha));
+
+        mockMvc.perform(get("/api/projects/TestProject/dictionary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(8))
+                .andExpect(jsonPath("$[0].lemma").value("Alphaword"))
+                .andExpect(jsonPath("$[1].lemma").value("zebrafy"));
+    }
+
+    @Test
+    void listDictionaryWordsReturns403WhenUserIsNotStakeholder() throws Exception {
+        when(stakeholder.matchesUser(user)).thenReturn(false);
+
+        mockMvc.perform(get("/api/projects/TestProject/dictionary"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listDictionaryWordsReturns404WhenProjectNotFound() throws Exception {
+        when(projectRepository.findProjectByName("Missing"))
+                .thenThrow(NoSuchProjectException.forName("Missing"));
+
+        mockMvc.perform(get("/api/projects/Missing/dictionary"))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -811,6 +858,13 @@ class ProjectQueryControllerTest {
         when(p.getGlossaryTerms()).thenReturn(Collections.emptySortedSet());
         when(p.getReportGenerators()).thenReturn(Collections.emptySet());
         return p;
+    }
+
+    private ProjectDictionaryWord stubDictionaryWord(Long id, String lemma) {
+        ProjectDictionaryWord w = mock(ProjectDictionaryWord.class);
+        when(w.getId()).thenReturn(id);
+        when(w.getLemma()).thenReturn(lemma);
+        return w;
     }
 
     private Goal stubGoal(Long id, String name) {

@@ -39,6 +39,8 @@ public record ProjectDto(
         int scenarioCount,
         int glossaryTermCount,
         int reportGeneratorCount,
+        // Words in the project's own dictionary (issue #319); installation words are not counted.
+        int dictionaryWordCount,
         boolean canDelete
 ) {
 }

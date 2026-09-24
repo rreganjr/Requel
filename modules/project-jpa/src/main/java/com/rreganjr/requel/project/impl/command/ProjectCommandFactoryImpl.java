@@ -26,6 +26,10 @@ import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.AbstractCommandFactory;
 import com.rreganjr.requel.project.command.EditProjectDictionaryWordCommand;
+import com.rreganjr.requel.project.command.AddInstallDictionaryWordCommand;
+import com.rreganjr.requel.project.command.AddProjectDictionaryWordCommand;
+import com.rreganjr.requel.project.command.DeleteInstallDictionaryWordCommand;
+import com.rreganjr.requel.project.command.DeleteProjectDictionaryWordCommand;
 import com.rreganjr.command.CommandFactoryStrategy;
 import com.rreganjr.requel.project.command.AddActorToActorContainerCommand;
 import com.rreganjr.requel.project.command.AddGoalToGoalContainerCommand;
@@ -202,6 +206,30 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	public EditProjectDictionaryWordCommand newEditDictionaryWordCommand() {
 		return (EditProjectDictionaryWordCommand) getCreationStrategy().newInstance(
 				EditDictionaryWordCommandImpl.class);
+	}
+
+	@Override
+	public AddProjectDictionaryWordCommand newAddProjectDictionaryWordCommand() {
+		return (AddProjectDictionaryWordCommand) getCreationStrategy().newInstance(
+				AddProjectDictionaryWordCommandImpl.class);
+	}
+
+	@Override
+	public DeleteProjectDictionaryWordCommand newDeleteProjectDictionaryWordCommand() {
+		return (DeleteProjectDictionaryWordCommand) getCreationStrategy().newInstance(
+				DeleteProjectDictionaryWordCommandImpl.class);
+	}
+
+	@Override
+	public AddInstallDictionaryWordCommand newAddInstallDictionaryWordCommand() {
+		return (AddInstallDictionaryWordCommand) getCreationStrategy().newInstance(
+				AddInstallDictionaryWordCommandImpl.class);
+	}
+
+	@Override
+	public DeleteInstallDictionaryWordCommand newDeleteInstallDictionaryWordCommand() {
+		return (DeleteInstallDictionaryWordCommand) getCreationStrategy().newInstance(
+				DeleteInstallDictionaryWordCommandImpl.class);
 	}
 
 	public AddGlossaryTermRefererCommand newAddGlossaryTermRefererCommand() {
