@@ -141,6 +141,30 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public EditProjectDictionaryWordCommand newEditDictionaryWordCommand();
 
 	/**
+	 * @return a new command adding a word to a project's dictionary from its Dictionary page,
+	 *         gated on {@code Project[Edit]} (issue #319).
+	 */
+	public AddProjectDictionaryWordCommand newAddProjectDictionaryWordCommand();
+
+	/**
+	 * @return a new command removing one word from a project's dictionary, gated on
+	 *         {@code Project[Edit]} (issue #319).
+	 */
+	public DeleteProjectDictionaryWordCommand newDeleteProjectDictionaryWordCommand();
+
+	/**
+	 * @return a new command adding an installation-wide dictionary word; administrators only
+	 *         (issue #319).
+	 */
+	public AddInstallDictionaryWordCommand newAddInstallDictionaryWordCommand();
+
+	/**
+	 * @return a new command removing an installation-wide dictionary word; administrators only
+	 *         (issue #319).
+	 */
+	public DeleteInstallDictionaryWordCommand newDeleteInstallDictionaryWordCommand();
+
+	/**
 	 * @return a new AddGlossaryTermRefererCommand for recording that an entity mentions an
 	 *         existing glossary term, without the caller needing GlossaryTerm[Edit] (#302).
 	 */

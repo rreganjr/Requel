@@ -29,7 +29,9 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.rreganjr.AbstractIntegrationTestCase;
+import com.rreganjr.nlp.dictionary.InstallDictionaryWord;
 import com.rreganjr.nlp.dictionary.ProjectDictionaryWord;
+import com.rreganjr.nlp.dictionary.Word;
 import com.rreganjr.requel.annotation.command.EditAddWordToDictionaryPositionCommand;
 import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
 import com.rreganjr.requel.annotation.command.ResolveIssueCommand;
@@ -41,7 +43,8 @@ import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.user.User;
 
 /**
- * The project-scoped dictionary layer (issue #313).
+ * The project-scoped dictionary layer (issue #313), and the installation-wide layer and the
+ * WordNet regression fix (issue #319).
  * <p>
  * Before this, every word a user added through "Add to Dictionary" went into the installation-wide
  * WordNet {@code word} table, so a word added while working in one project was spelled-correctly
@@ -66,6 +69,21 @@ public class ProjectDictionaryIT extends AbstractIntegrationTestCase {
 
 	/** A near-miss of {@link #INVENTED_WORD}, for the suggestion path. */
 	private static final String MISSPELLED_WORD = "requelspek";
+
+	/** Held only by a {@code word} row the test persists, as the WordNet corpus would hold it. */
+	private static final String WORDNET_ONLY_WORD = "requelnettle";
+
+	/** A near-miss of {@link #WORDNET_ONLY_WORD}. */
+	private static final String WORDNET_ONLY_MISSPELLED = "requelnetle";
+
+	/**
+	 * Added installation-wide by the tests that need it, and removed before they finish: an
+	 * installation word is visible to every other test in the shared context.
+	 */
+	private static final String INSTALL_WORD = "requelwide";
+
+	/** A near-miss of {@link #INSTALL_WORD}. */
+	private static final String INSTALL_MISSPELLED = "requelwid";
 
 	@Test
 	public void wordAddedInOneProjectIsUnknownInAnother() throws Exception {
@@ -259,6 +277,141 @@ public class ProjectDictionaryIT extends AbstractIntegrationTestCase {
 				"the corpus load must not touch the project's dictionary");
 		assertTrue(getDictionaryRepository().isKnownWord(project.getId(), INVENTED_WORD),
 				"the project word is still known after the corpus load");
+	}
+
+	/**
+	 * The #313 regression (issue #319): a project checker was built from the jazzy lists and the
+	 * project's own words only, so a word known to the WordNet {@code word} table alone was
+	 * flagged as a misspelling in every project while reading as correct with no project.
+	 * <p>
+	 * The row is persisted directly, as the corpus would hold it (a runtime id, above the range the
+	 * importer assigns), and removed afterwards so it cannot leak into the shared context.
+	 */
+	@Test
+	public void aWordNetWordIsKnownAndSuggestedInAProject() throws Exception {
+		Project project = createProject("dict-wordnet");
+		Word word = getDictionaryRepository().persist(new Word(WORDNET_ONLY_WORD,
+				getDictionaryRepository().generatePhoneticCode(WORDNET_ONLY_WORD)));
+		try {
+			assertTrue(getDictionaryRepository().isKnownWord(WORDNET_ONLY_WORD),
+					"the word should be known with no project");
+			assertTrue(getDictionaryRepository().isKnownWord(project.getId(), WORDNET_ONLY_WORD),
+					"a WordNet word should be known inside a project too");
+			List<String> suggestions = getDictionaryRepository().findSpellingSuggestions(
+					project.getId(), WORDNET_ONLY_MISSPELLED, 2);
+			assertTrue(suggestions.contains(WORDNET_ONLY_WORD),
+					"expected the WordNet word among the project's suggestions, got " + suggestions);
+		} finally {
+			getDictionaryRepository().delete(word);
+		}
+	}
+
+	/**
+	 * An installation-wide word (issue #319) is known in every project and with no project, and
+	 * removing it makes it unknown everywhere at once: the layer reads per lookup, so there is no
+	 * cached checker to evict.
+	 */
+	@Test
+	public void anInstallationWordIsKnownEverywhereUntilRemoved() throws Exception {
+		Project projectA = createProject("dict-install-a");
+		Project projectB = createProject("dict-install-b");
+		// Populate both project checkers before the add, so the test also proves no eviction is
+		// needed.
+		assertFalse(getDictionaryRepository().isKnownWord(projectA.getId(), INSTALL_WORD));
+		assertFalse(getDictionaryRepository().isKnownWord(projectB.getId(), INSTALL_WORD));
+
+		InstallDictionaryWord added = getDictionaryRepository().addInstallWord(INSTALL_WORD, null);
+		try {
+			assertTrue(getDictionaryRepository().isKnownWord(INSTALL_WORD),
+					"an installation word should be known with no project");
+			assertTrue(getDictionaryRepository().isKnownWord(projectA.getId(), INSTALL_WORD),
+					"an installation word should be known in project A");
+			assertTrue(getDictionaryRepository().isKnownWord(projectB.getId(),
+					INSTALL_WORD.toUpperCase()),
+					"an installation word should be known in project B, in any case");
+			assertTrue(getDictionaryRepository().findSpellingSuggestions(projectA.getId(),
+					INSTALL_MISSPELLED, 2).contains(INSTALL_WORD),
+					"an installation word should be suggested inside a project");
+			assertTrue(getDictionaryRepository().findProjectWords(projectA.getId()).isEmpty(),
+					"an installation word is not a project word");
+			assertEquals(added.getId(), getDictionaryRepository().addInstallWord(
+					INSTALL_WORD.toUpperCase(), null).getId(),
+					"adding the same word in another case should return the existing row");
+		} finally {
+			assertTrue(getDictionaryRepository().deleteInstallWord(added.getId()));
+		}
+
+		assertFalse(getDictionaryRepository().isKnownWord(INSTALL_WORD),
+				"a removed installation word should be unknown with no project");
+		assertFalse(getDictionaryRepository().isKnownWord(projectA.getId(), INSTALL_WORD),
+				"a removed installation word should be unknown in project A at once");
+		assertFalse(getDictionaryRepository().isKnownWord(projectB.getId(), INSTALL_WORD),
+				"a removed installation word should be unknown in project B at once");
+		assertFalse(getDictionaryRepository().deleteInstallWord(added.getId()),
+				"a second delete of the same id should remove nothing");
+	}
+
+	/**
+	 * The project-less {@code addToDictionary(String)} writes the installation layer, not the
+	 * WordNet table (issue #319).
+	 */
+	@Test
+	public void theProjectlessAddWritesTheInstallationTableNotWordNet() throws Exception {
+		int wordRowsBefore = getDictionaryRepository().findWords().size();
+		getDictionaryRepository().addToDictionary(INSTALL_WORD);
+		InstallDictionaryWord added = findInstallWord(INSTALL_WORD);
+		try {
+			assertTrue(added != null, "expected the word in the installation table");
+			assertEquals(wordRowsBefore, getDictionaryRepository().findWords().size(),
+					"the WordNet table must not gain a row");
+		} finally {
+			if (added != null) {
+				getDictionaryRepository().deleteInstallWord(added.getId());
+			}
+		}
+	}
+
+	/**
+	 * Removing one project word by id (issue #319) leaves the same spelling in another project,
+	 * and an id from another project removes nothing: the project id is part of the match.
+	 */
+	@Test
+	public void deletingOneProjectWordIsScopedToItsProject() throws Exception {
+		Project projectA = createProject("dict-one-a");
+		Project projectB = createProject("dict-one-b");
+		getDictionaryRepository().addToDictionary(projectA.getId(), INVENTED_WORD);
+		getDictionaryRepository().addToDictionary(projectA.getId(), "requelother");
+		getDictionaryRepository().addToDictionary(projectB.getId(), INVENTED_WORD);
+		ProjectDictionaryWord wordA = getDictionaryRepository().findProjectWord(projectA.getId(),
+				INVENTED_WORD.toUpperCase());
+		ProjectDictionaryWord wordB = getDictionaryRepository().findProjectWord(projectB.getId(),
+				INVENTED_WORD);
+		assertEquals(2, getDictionaryRepository().countProjectWords(projectA.getId()));
+
+		assertFalse(getDictionaryRepository().deleteProjectWord(projectA.getId(), wordB.getId()),
+				"project B's word id must not delete anything through project A");
+		assertTrue(getDictionaryRepository().isKnownWord(projectB.getId(), INVENTED_WORD));
+
+		assertTrue(getDictionaryRepository().deleteProjectWord(projectA.getId(), wordA.getId()));
+
+		assertFalse(getDictionaryRepository().isKnownWord(projectA.getId(), INVENTED_WORD),
+				"the removed word should be unknown in project A at once");
+		assertTrue(getDictionaryRepository().isKnownWord(projectA.getId(), "requelother"),
+				"the project's other word should stay");
+		assertTrue(getDictionaryRepository().isKnownWord(projectB.getId(), INVENTED_WORD),
+				"project B should keep its own copy of the word");
+		assertEquals(1, getDictionaryRepository().countProjectWords(projectA.getId()));
+		assertEquals(1, getDictionaryRepository().countProjectWords(projectB.getId()));
+		assertEquals(0, getDictionaryRepository().countProjectWords(null));
+	}
+
+	private InstallDictionaryWord findInstallWord(String lemma) {
+		for (InstallDictionaryWord word : getDictionaryRepository().findInstallWords()) {
+			if (word.getLemma().equalsIgnoreCase(lemma)) {
+				return word;
+			}
+		}
+		return null;
 	}
 
 	private Goal createGoal(Project project, String name, String text) throws Exception {

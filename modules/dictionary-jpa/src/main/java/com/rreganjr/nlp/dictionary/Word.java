@@ -83,8 +83,9 @@ public class Word implements Comparable<Word>, Serializable {
 	@Column(name = "wordid", unique = true, nullable = false)
 	// Assigned-or-generate (issue #80): a before-execution generator preserves the dictionary-
 	// assigned id on import / SQL dump (so the composite sense -> word FKs resolve regardless of
-	// insert order) and allocates a fresh id for runtime words created without one by
-	// DatabaseSpellDictionary.addWord. A post-insert IDENTITY strategy cannot preserve the assigned
+	// insert order) and allocates a fresh id for a word created without one (before #319 that was
+	// DatabaseSpellDictionary.addWord; the WordNet table is read-only now, so only tests do it).
+	// A post-insert IDENTITY strategy cannot preserve the assigned
 	// id on the importer's Session.save() path. See AssignedOrGeneratedWordIdGenerator.
 	@GeneratedValue(generator = "word-assigned-id")
 	@GenericGenerator(name = "word-assigned-id", type = AssignedOrGeneratedWordIdGenerator.class)

@@ -14,7 +14,7 @@ function makeProject(over: Partial<ProjectDto> = {}): ProjectDto {
     id: 1, version: 0, name: 'Acme', description: null, organizationName: null,
     createdBy: null, status: null,
     stakeholderCount: 0, goalCount: 0, storyCount: 0, actorCount: 0,
-    scenarioCount: 0, useCaseCount: 0, glossaryTermCount: 0, reportGeneratorCount: 0,
+    scenarioCount: 0, useCaseCount: 0, glossaryTermCount: 0, reportGeneratorCount: 0, dictionaryWordCount: 0,
     ...over,
   } as ProjectDto;
 }
@@ -62,7 +62,9 @@ describe('ProjectWorkspaceComponent (#154)', () => {
     const goals = el.querySelector('[data-testid="count-goals"]') as HTMLAnchorElement;
     expect(goals?.textContent).toContain('3');
     expect(goals?.getAttribute('href')).toContain('/goals');
-    expect(el.querySelectorAll('.count-card').length).toBe(8);
+    expect(el.querySelectorAll('.count-card').length).toBe(9);
+    const dictionary = el.querySelector('[data-testid="count-dictionary"]') as HTMLAnchorElement;
+    expect(dictionary?.getAttribute('href')).toContain('/dictionary');
     // sanity on the model too
     expect(fixture.componentInstance.counts().find(c => c.segment === 'goals')?.count).toBe(3);
   });

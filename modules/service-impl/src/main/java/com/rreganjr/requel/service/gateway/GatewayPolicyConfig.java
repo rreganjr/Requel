@@ -79,6 +79,8 @@ public class GatewayPolicyConfig {
             "EditScenario", "CopyScenario", "DeleteScenario", "ConvertStepToScenario",
             // Glossary
             "EditGlossaryTerm", "DeleteGlossaryTerm",
+            // Project dictionary (#319; Project[Edit] at the command layer)
+            "AddProjectDictionaryWord", "DeleteProjectDictionaryWord",
             // Reports (definition only; GenerateReport produces a file and is denied)
             "EditReportGenerator", "DeleteReportGenerator",
             // Annotations / IBIS
@@ -101,6 +103,9 @@ public class GatewayPolicyConfig {
             // EditUserStakeholder rather than on the allowlist (issue #256); admins run it
             // through /api/commands from the admin UI.
             "Login", "EditUser", "EditUserStakeholder", "RepairProjectStakeholders",
+            // Installation-wide dictionary (#319): administrators manage it from the admin UI;
+            // it changes spell checking in every project, not one a client is working in.
+            "AddInstallDictionaryWord", "DeleteInstallDictionaryWord",
             // File transfer / generation (not plain JSON commands)
             "ImportProject", "ExportProject", "GenerateReport",
             // Not independently authorized (assistant / structural-internal)

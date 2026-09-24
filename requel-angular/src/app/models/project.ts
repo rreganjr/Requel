@@ -34,6 +34,8 @@ export interface ProjectDto {
   scenarioCount: number;
   glossaryTermCount: number;
   reportGeneratorCount: number;
+  /** Words in the project's own dictionary (issue #319); installation words are not counted. */
+  dictionaryWordCount: number;
   /** True when the current user holds Project[Delete] on this project (server-computed, #241). */
   canDelete: boolean;
 }

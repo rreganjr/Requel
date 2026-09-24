@@ -97,6 +97,9 @@ public class ApiSecurityConfig {
                 .requestMatchers("/api/users/organizations").authenticated()
                 .requestMatchers("/api/users/**").hasRole("SystemAdminUserRole")
                 .requestMatchers("/api/commands/NewUser").hasRole("SystemAdminUserRole")
+                // Admin-only reads (#319: the installation dictionary). Must stay ahead of the
+                // /api/** catch-all below.
+                .requestMatchers("/api/admin/**").hasRole("SystemAdminUserRole")
                 .requestMatchers("/api/projects/**").authenticated()
                 .requestMatchers("/api/**").authenticated()
             )

@@ -202,6 +202,7 @@ export class ProjectWorkspaceComponent implements OnInit {
       { label: 'Scenarios', segment: 'scenarios', count: p.scenarioCount, icon: 'pi pi-list-check' },
       { label: 'Use cases', segment: 'use-cases', count: p.useCaseCount, icon: 'pi pi-sitemap' },
       { label: 'Glossary', segment: 'terms', count: p.glossaryTermCount, icon: 'pi pi-list' },
+      { label: 'Dictionary', segment: 'dictionary', count: p.dictionaryWordCount, icon: 'pi pi-language' },
       { label: 'Reports', segment: 'reports', count: p.reportGeneratorCount, icon: 'pi pi-file' },
     ];
   });

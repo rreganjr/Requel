@@ -168,6 +168,9 @@ public interface DictionaryRepository extends Repository {
 	public double infoContent(Synset synset, Linkdef linkType);
 
 	/**
+	 * Add a word to the installation-wide dictionary. Since issue #319 this writes
+	 * {@code install_dictionary_words}, not the WordNet {@code word} table.
+	 * <p>
 	 * TODO: the repository should be for getting only, this should be part of a
 	 * command.
 	 * 
@@ -243,6 +246,68 @@ public interface DictionaryRepository extends Repository {
 	 * @return the number of words removed
 	 */
 	public int deleteProjectWords(Long projectId);
+
+	/**
+	 * @param projectId
+	 * @param lemma
+	 * @return that project's word matching the lemma case-insensitively, or null if it has none
+	 *         (issue #319).
+	 */
+	public ProjectDictionaryWord findProjectWord(Long projectId, String lemma);
+
+	/**
+	 * Remove one word from one project's dictionary, by its row id, and evict that project's
+	 * cached checker so the removal applies to the next lookup (issue #319). The project id is part
+	 * of the match, so an id belonging to another project removes nothing.
+	 *
+	 * @param projectId
+	 * @param wordId
+	 * @return true if a word was removed
+	 */
+	public boolean deleteProjectWord(Long projectId, Long wordId);
+
+	/**
+	 * @param projectId
+	 * @return the number of words in that project's own dictionary (issue #319)
+	 */
+	public int countProjectWords(Long projectId);
+
+	// ---------------------------------------------------------------------------------------
+	// Installation-wide added words (issue #319).
+	//
+	// Words known in every project and with no project, kept apart from the read-only WordNet
+	// corpus in install_dictionary_words. Every checker reads them per lookup, so no checker is
+	// cached against them.
+	// ---------------------------------------------------------------------------------------
+
+	/**
+	 * @return every installation-wide added word, ordered by lemma
+	 */
+	public List<InstallDictionaryWord> findInstallWords();
+
+	/**
+	 * @param phoneticCode -
+	 *            a DoubleMeta code as produced by {@link #generatePhoneticCode(String)}
+	 * @return the installation-wide added words having that phonetic code
+	 */
+	public List<InstallDictionaryWord> findInstallWordsByPhoneticCode(String phoneticCode);
+
+	/**
+	 * Add a word to the installation-wide dictionary. Idempotent: a word already there, in any
+	 * case, is returned unchanged.
+	 *
+	 * @param lemma
+	 * @param createdById -
+	 *            the id of the user adding it, or null if unknown.
+	 * @return the added or existing word, or null for a blank lemma
+	 */
+	public InstallDictionaryWord addInstallWord(String lemma, Long createdById);
+
+	/**
+	 * @param wordId
+	 * @return true if a word was removed
+	 */
+	public boolean deleteInstallWord(Long wordId);
 
 	/**
 	 * @return all the words in the dictionary

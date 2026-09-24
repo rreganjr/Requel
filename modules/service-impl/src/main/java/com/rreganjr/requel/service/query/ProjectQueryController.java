@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.query;
 
+import com.rreganjr.nlp.dictionary.DictionaryRepository;
+import com.rreganjr.requel.service.api.dto.DictionaryWordDto;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -108,17 +110,20 @@ public class ProjectQueryController {
     private final CommandHandler commandHandler;
     private final CurrentUserResolver currentUserResolver;
     private final EntityManager entityManager;
+    private final DictionaryRepository dictionaryRepository;
 
     public ProjectQueryController(ProjectRepository projectRepository,
                                   ProjectCommandFactory projectCommandFactory,
                                   CommandHandler commandHandler,
                                   CurrentUserResolver currentUserResolver,
-                                  EntityManager entityManager) {
+                                  EntityManager entityManager,
+                                  DictionaryRepository dictionaryRepository) {
         this.projectRepository = projectRepository;
         this.projectCommandFactory = projectCommandFactory;
         this.commandHandler = commandHandler;
         this.currentUserResolver = currentUserResolver;
         this.entityManager = entityManager;
+        this.dictionaryRepository = dictionaryRepository;
     }
 
     /**
@@ -667,6 +672,7 @@ public class ProjectQueryController {
                 project.getScenarios().size(),
                 project.getGlossaryTerms().size(),
                 project.getReportGenerators().size(),
+                dictionaryRepository.countProjectWords(project.getId()),
                 callerHoldsProjectDelete(project, user)
         );
     }
@@ -868,6 +874,29 @@ public class ProjectQueryController {
             List<GlossaryTermDto> dtos = project.getGlossaryTerms().stream()
                     .map(ProjectQueryController::toGlossaryTermSummaryDto)
                     .sorted(Comparator.comparing(GlossaryTermDto::name, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/dictionary — the project's own dictionary words, ordered by lemma
+     * (issue #319). Installation-wide words and the WordNet corpus are not included.
+     */
+    @GetMapping("/{name}/dictionary")
+    public ResponseEntity<?> listDictionaryWords(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            List<DictionaryWordDto> dtos = dictionaryRepository.findProjectWords(project.getId())
+                    .stream()
+                    .map(w -> new DictionaryWordDto(w.getId(), w.getLemma()))
+                    .sorted(Comparator.comparing(DictionaryWordDto::lemma,
+                            String.CASE_INSENSITIVE_ORDER))
                     .toList();
             return ResponseEntity.ok(dtos);
         } catch (NoSuchProjectException e) {

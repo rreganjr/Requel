@@ -20,6 +20,18 @@
  */
 package com.rreganjr.requel.service.command;
 
+import com.rreganjr.nlp.dictionary.DictionaryRepository;
+import com.rreganjr.nlp.dictionary.InstallDictionaryWord;
+import com.rreganjr.nlp.dictionary.ProjectDictionaryWord;
+import com.rreganjr.requel.project.command.AddInstallDictionaryWordCommand;
+import com.rreganjr.requel.project.command.AddProjectDictionaryWordCommand;
+import com.rreganjr.requel.project.command.DeleteInstallDictionaryWordCommand;
+import com.rreganjr.requel.project.command.DeleteProjectDictionaryWordCommand;
+import com.rreganjr.requel.service.api.dto.AddInstallDictionaryWordInput;
+import com.rreganjr.requel.service.api.dto.AddProjectDictionaryWordInput;
+import com.rreganjr.requel.service.api.dto.DeleteInstallDictionaryWordInput;
+import com.rreganjr.requel.service.api.dto.DeleteProjectDictionaryWordInput;
+import com.rreganjr.requel.service.api.dto.DictionaryWordDto;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -151,13 +163,16 @@ public class ProjectCommandRegistrar {
     private final ProjectCommandFactory factory;
     private final ProjectRepository projectRepository;
     private final CommandRegistry registry;
+    private final DictionaryRepository dictionaryRepository;
 
     public ProjectCommandRegistrar(ProjectCommandFactory factory,
                                    ProjectRepository projectRepository,
-                                   CommandRegistry registry) {
+                                   CommandRegistry registry,
+                                   DictionaryRepository dictionaryRepository) {
         this.factory = factory;
         this.projectRepository = projectRepository;
         this.registry = registry;
+        this.dictionaryRepository = dictionaryRepository;
     }
 
     @PostConstruct
@@ -759,6 +774,40 @@ public class ProjectCommandRegistrar {
                     c.setGlossaryTerm(findTermById(project, i.termId()));
                 });
 
+        // Dictionary (#319). The project pair is gated on Project[Edit] and allowed on the
+        // gateway; the installation pair requires the administrator role and is denied there.
+        registry.register("AddProjectDictionaryWord", AddProjectDictionaryWordInput.class,
+                factory::newAddProjectDictionaryWordCommand,
+                (cmd, input) -> {
+                    AddProjectDictionaryWordCommand c = (AddProjectDictionaryWordCommand) cmd;
+                    AddProjectDictionaryWordInput i = (AddProjectDictionaryWordInput) input;
+                    c.setProject(projectRepository.findProjectByName(i.projectName()));
+                    c.setLemma(i.lemma());
+                },
+                null,
+                cmd -> toDictionaryWordDto(((AddProjectDictionaryWordCommand) cmd).getWord()));
+
+        registry.register("DeleteProjectDictionaryWord", DeleteProjectDictionaryWordInput.class,
+                factory::newDeleteProjectDictionaryWordCommand,
+                (cmd, input) -> {
+                    DeleteProjectDictionaryWordCommand c = (DeleteProjectDictionaryWordCommand) cmd;
+                    DeleteProjectDictionaryWordInput i = (DeleteProjectDictionaryWordInput) input;
+                    c.setProject(projectRepository.findProjectByName(i.projectName()));
+                    c.setWordId(i.wordId());
+                });
+
+        registry.register("AddInstallDictionaryWord", AddInstallDictionaryWordInput.class,
+                factory::newAddInstallDictionaryWordCommand,
+                (cmd, input) -> ((AddInstallDictionaryWordCommand) cmd)
+                        .setLemma(((AddInstallDictionaryWordInput) input).lemma()),
+                null,
+                cmd -> toDictionaryWordDto(((AddInstallDictionaryWordCommand) cmd).getWord()));
+
+        registry.register("DeleteInstallDictionaryWord", DeleteInstallDictionaryWordInput.class,
+                factory::newDeleteInstallDictionaryWordCommand,
+                (cmd, input) -> ((DeleteInstallDictionaryWordCommand) cmd)
+                        .setWordId(((DeleteInstallDictionaryWordInput) input).wordId()));
+
         registry.register("EditAddWordToGlossaryPosition", factory::newEditAddWordToGlossaryPositionCommand);
         registry.register("EditAddActorToProjectPosition", factory::newEditAddActorToProjectPositionCommand);
         registry.register("ReplaceGlossaryTerm", factory::newReplaceGlossaryTermCommand);
@@ -792,7 +841,15 @@ public class ProjectCommandRegistrar {
         // NLP cleanup
         registry.register("RemoveUnneedLexicalIssues", factory::newRemoveUnneedLexicalIssuesCommand);
 
-        log.info("Registered {} project command types", 40);
+        log.info("Registered {} project command types", 44);
+    }
+
+    static DictionaryWordDto toDictionaryWordDto(ProjectDictionaryWord word) {
+        return word == null ? null : new DictionaryWordDto(word.getId(), word.getLemma());
+    }
+
+    static DictionaryWordDto toDictionaryWordDto(InstallDictionaryWord word) {
+        return word == null ? null : new DictionaryWordDto(word.getId(), word.getLemma());
     }
 
     private static UserStakeholder findUserStakeholderByUsername(Project project, String username) {
@@ -996,7 +1053,7 @@ public class ProjectCommandRegistrar {
         throw new IllegalArgumentException("Step not found: " + stepId);
     }
 
-    private static ProjectDto toDto(Project project) {
+    private ProjectDto toDto(Project project) {
         return new ProjectDto(
                 project.getId(),
                 project.getVersion(),
@@ -1013,6 +1070,7 @@ public class ProjectCommandRegistrar {
                 project.getScenarios().size(),
                 project.getGlossaryTerms().size(),
                 project.getReportGenerators().size(),
+                dictionaryRepository.countProjectWords(project.getId()),
                 // canDelete is only meaningful on the list query (ProjectQueryController),
                 // which resolves the caller; command-result DTOs report false.
                 false

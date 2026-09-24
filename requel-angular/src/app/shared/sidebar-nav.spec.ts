@@ -23,7 +23,7 @@ const MOCK_PROJECT: ProjectDto = {
   organizationName: null, createdBy: null, status: null,
   stakeholderCount: 2, goalCount: 3, storyCount: 1,
   actorCount: 4, scenarioCount: 5, useCaseCount: 0,
-  glossaryTermCount: 2, reportGeneratorCount: 1, canDelete: false
+  glossaryTermCount: 2, reportGeneratorCount: 1, dictionaryWordCount: 3, canDelete: false
 };
 
 const SIDEBAR_EXPANDED_KEY = 'requel_sidebar_expanded_projects';
@@ -80,6 +80,25 @@ describe('SidebarNavComponent', () => {
     expect(comp.isAdmin()).toBe(true);
   });
 
+  it('links admins to the installation dictionary (#319)', async () => {
+    const fixture = setup(makeUser(['SystemAdminUserRole']));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const link = (fixture.nativeElement as HTMLElement)
+      .querySelector('a[aria-label="Manage the installation dictionary"]');
+    expect(link?.getAttribute('href')).toBe('/dictionary');
+  });
+
+  it('does not show the installation dictionary link to project users (#319)', async () => {
+    const fixture = setup(makeUser(['ProjectUserRole']));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement)
+      .querySelector('a[aria-label="Manage the installation dictionary"]')).toBeNull();
+  });
+
   it('hasProjectRole() is true for ProjectUserRole', () => {
     setup(makeUser(['ProjectUserRole']));
     expect(comp.hasProjectRole()).toBe(true);
@@ -126,6 +145,10 @@ describe('SidebarNavComponent', () => {
     expect(goalNode?.label).toBe('Goals (3)');
     const openIssuesNode = children.find(c => c.data?.type === 'OpenIssues');
     expect(openIssuesNode?.label).toBe('Open Issues');
+    // #319: the project's own dictionary, counted, right after the glossary.
+    const types = children.map(c => c.data?.type);
+    expect(types.indexOf('Dictionary')).toBe(types.indexOf('Glossary') + 1);
+    expect(children.find(c => c.data?.type === 'Dictionary')?.label).toBe('Dictionary (3)');
   });
 
   // ----- group open/closed state (#154) --------------------------------
@@ -226,6 +249,7 @@ describe('SidebarNavComponent', () => {
     ['Use Cases', 'use-cases'],
     ['Stakeholders', 'stakeholders'],
     ['Glossary', 'terms'],
+    ['Dictionary', 'dictionary'],
     ['Reports', 'reports'],
     ['OpenIssues', 'open-issues'],
   ])('onNodeSelect navigates to %s list', (type, route) => {

@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.service;
 
+import com.rreganjr.requel.service.api.dto.DictionaryWordDto;
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.command.Command;
 import com.rreganjr.platform.command.AuthorizableCommand;
@@ -244,6 +245,36 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
                         "text", "made via gateway")));
         assertEquals("EditGoal", result.commandType());
         assertNotNull(result.result(), "EditGoal should return a goal DTO");
+    }
+
+    /** Issue #319: the project dictionary pair is on the gateway, gated on Project[Edit]. */
+    @Test
+    void projectDictionaryWordsCanBeAddedAndRemovedThroughTheGateway() throws Exception {
+        authenticate(editorUsername);
+        String lemma = "gwdictword" + System.nanoTime();
+        GatewayResult added = gateway.execute(new GatewayRequest("AddProjectDictionaryWord",
+                Map.of("projectName", projectName, "lemma", lemma)));
+        DictionaryWordDto word = (DictionaryWordDto) added.result();
+        assertEquals(lemma, word.lemma());
+
+        gateway.execute(new GatewayRequest("DeleteProjectDictionaryWord",
+                Map.of("projectName", projectName, "wordId", word.id())));
+
+        Project project = getProjectRepository().findProjectByName(projectName);
+        assertFalse(getDictionaryRepository().isKnownWord(project.getId(), lemma),
+                "the removed word should be unknown in the project");
+    }
+
+    /** Issue #319: the installation dictionary is admin-only and never on the gateway. */
+    @Test
+    void installationDictionaryCommandsAreNotAllowed() {
+        authenticate("admin");
+        GatewayException add = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("AddInstallDictionaryWord", Map.of("lemma", "gwinstall"))));
+        assertEquals(GatewayException.Kind.NOT_ALLOWED, add.getKind());
+        GatewayException delete = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("DeleteInstallDictionaryWord", Map.of("wordId", 1L))));
+        assertEquals(GatewayException.Kind.NOT_ALLOWED, delete.getKind());
     }
 
     @Test
@@ -695,6 +726,10 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         // permissions, which is the same category as EditUserStakeholder above.
         assertTrue(GatewayPolicyConfig.DENIED.contains("RepairProjectStakeholders"),
                 "administrative stakeholder repair must not be exposed on the gateway");
+        // #319: the installation dictionary changes every project, so it stays off the gateway.
+        assertTrue(GatewayPolicyConfig.DENIED.containsAll(
+                Set.of("AddInstallDictionaryWord", "DeleteInstallDictionaryWord")),
+                "installation dictionary commands must not be exposed on the gateway");
     }
 
     // ---- helpers -------------------------------------------------------------------------------

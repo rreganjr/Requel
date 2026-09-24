@@ -14,7 +14,7 @@ const MOCK_PROJECT = {
   id: 42, version: 1, name: 'Existing Project', description: 'Desc',
   organizationName: 'Acme', createdBy: null, status: null,
   stakeholderCount: 0, goalCount: 0, storyCount: 0, actorCount: 0,
-  scenarioCount: 0, useCaseCount: 0, glossaryTermCount: 0, reportGeneratorCount: 0
+  scenarioCount: 0, useCaseCount: 0, glossaryTermCount: 0, reportGeneratorCount: 0, dictionaryWordCount: 0
 };
 
 const flush = () => new Promise(r => setTimeout(r, 0));

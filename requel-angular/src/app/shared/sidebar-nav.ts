@@ -127,6 +127,9 @@ function persistExpandedProjectNames(names: Set<string>): void {
               <a routerLink="/tag-categories" routerLinkActive="active" class="sidebar-link" aria-label="Manage tag categories">
                 <i class="pi pi-sitemap"></i> Tag Categories
               </a>
+              <a routerLink="/dictionary" routerLinkActive="active" class="sidebar-link" aria-label="Manage the installation dictionary">
+                <i class="pi pi-language"></i> Installation Dictionary
+              </a>
               <a routerLink="/maintenance" routerLinkActive="active" class="sidebar-link" aria-label="Run maintenance tasks">
                 <i class="pi pi-wrench"></i> Maintenance
               </a>
@@ -396,6 +399,8 @@ export class SidebarNavComponent implements OnInit {
       this.router.navigate(['/projects', data.projectName, 'use-cases']);
     } else if (data.type === 'Glossary') {
       this.router.navigate(['/projects', data.projectName, 'terms']);
+    } else if (data.type === 'Dictionary') {
+      this.router.navigate(['/projects', data.projectName, 'dictionary']);
     } else if (data.type === 'Reports') {
       this.router.navigate(['/projects', data.projectName, 'reports']);
     } else if (data.type === 'OpenIssues') {
@@ -422,6 +427,7 @@ export class SidebarNavComponent implements OnInit {
       { label: 'Scenarios', type: 'Scenarios', count: project.scenarioCount, icon: 'pi pi-list-check' },
       { label: 'Use Cases', type: 'Use Cases', count: project.useCaseCount, icon: 'pi pi-sitemap' },
       { label: 'Glossary', type: 'Glossary', count: project.glossaryTermCount, icon: 'pi pi-list' },
+      { label: 'Dictionary', type: 'Dictionary', count: project.dictionaryWordCount, icon: 'pi pi-language' },
       { label: 'Reports', type: 'Reports', count: project.reportGeneratorCount, icon: 'pi pi-file' },
       { label: 'Open Issues', type: 'OpenIssues', count: -1, icon: 'pi pi-exclamation-circle' },
     ];
