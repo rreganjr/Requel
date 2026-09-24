@@ -13,7 +13,7 @@
 
     <artifactId>nlp-jpa</artifactId>
     <name>Requel NLP JPA</name>
-    <description>NLP processing tools and models (OpenNLP/Stanford) used by assistants.</description>
+    <description>NLP processing tools (OpenNLP/Stanford) used by assistants. The models and dictionary data they read come from requel-nlp-data (see modules/nlp-data).</description>
 
     <dependencies>
         <dependency>
@@ -27,6 +27,25 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!--
+          NLP data (#193): the nlp/... classpath tree the OpenNLP classes here and the dictionary
+          initializers in dictionary-jpa read. The type=pom dependency orders modules/nlp-data,
+          which fetches and installs the data jar, ahead of this module; the runtime one puts the
+          data on the classpath and in requel-app's fat jar (BOOT-INF/lib). See
+          doc/guides/NLP_DATA.md.
+        -->
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>nlp-data</artifactId>
+            <version>${project.version}</version>
+            <type>pom</type>
+        </dependency>
+        <dependency>
+            <groupId>com.rreganjr.requel</groupId>
+            <artifactId>requel-nlp-data</artifactId>
+            <version>${requel.nlp-data.version}</version>
+            <scope>runtime</scope>
+        </dependency>
         <!-- OpenNLP -->
         <dependency>
             <groupId>org.apache.opennlp</groupId>

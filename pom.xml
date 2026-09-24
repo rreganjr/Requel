@@ -20,6 +20,16 @@
         <java.version>17</java.version>
         <!-- Spring AI baseline for the AI/MCP work (issues #69, #spring-ai port). -->
         <spring-ai.version>1.1.7</spring-ai.version>
+        <!--
+          Issue #193: the NLP data (OpenNLP models, WordNet glosses, dictionary dumps, jazzy,
+          VerbNet) is not in the source tree. modules/nlp-data downloads it from the
+          nlp-data-<version> GitHub Release, checks it against the sha256 below and installs it
+          as com.rreganjr.requel:requel-nlp-data:<version>. A change to the data is a new release
+          and a bump of both values; a published asset is never replaced. See
+          doc/guides/NLP_DATA.md and scripts/build-nlp-data.sh.
+        -->
+        <requel.nlp-data.version>1</requel.nlp-data.version>
+        <requel.nlp-data.sha256>629f47f8f426c2cfe3a58149df815539cba876945b5a9fc62811f9d647b6dd7e</requel.nlp-data.sha256>
     </properties>
 
     <dependencyManagement>
@@ -153,6 +163,12 @@
                         </execution>
                     </executions>
                 </plugin>
+                <plugin>
+                    <!-- Fetches the NLP data jar in modules/nlp-data (#193). -->
+                    <groupId>io.github.download-maven-plugin</groupId>
+                    <artifactId>download-maven-plugin</artifactId>
+                    <version>2.1.0</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -251,6 +267,7 @@
         <module>modules/platform-identity</module>
         <module>modules/user-domain</module>
         <module>modules/user-jpa</module>
+        <module>modules/nlp-data</module>
         <module>modules/dictionary-jpa</module>
         <module>modules/annotation-domain</module>
         <module>modules/annotation-jpa</module>

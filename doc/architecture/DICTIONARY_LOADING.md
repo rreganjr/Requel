@@ -17,6 +17,10 @@ tables, and confusing them is what produced issues #287 and #288.
 They are not alternatives to one another at runtime — nothing in the test suite depends on the SQL
 path, and the deployment does not use the XML path.
 
+Both sets of files ship in the `requel-nlp-data` jar, not in the source tree; the `nlp/dictionary/`
+paths above are classpath paths inside it. How that jar is built, fetched and changed is in
+[NLP_DATA.md](../guides/NLP_DATA.md).
+
 ## Why the dumps are MySQL-only
 
 `nlp/dictionary/*.sql.gz` are mysqldump output. Each file opens with
@@ -47,6 +51,9 @@ the database with the comment glued to its front. On MySQL that is harmless (bot
 the statement are valid), but it means the dumps must keep the block-comment style they have. Plain
 `mysqldump` emits a `-- MySQL dump 10.13 ...` header by default; these files do not have one, and a
 regenerated set should not either (`--skip-comments`). Found while writing the #288 test fixture.
+
+A regenerated set is new data: publish it as a new `nlp-data-<N>` release (see NLP_DATA.md) rather
+than committing the dumps.
 
 ## Configuration
 
