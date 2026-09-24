@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.rreganjr.requel</groupId>
+        <artifactId>Requel-parent</artifactId>
+        <version>2.0.0-dev</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+    <artifactId>nlp-data</artifactId>
+    <packaging>pom</packaging>
+    <name>Requel NLP data</name>
+    <description>
+        Fetches the versioned NLP data jar (requel-nlp-data) from its GitHub Release and installs it
+        into the local repository, so nlp-jpa can depend on it like any other artifact (#193).
+    </description>
+
+    <!--
+      Why this module exists: ~90 MB of NLP data used to live in nlp-jpa/src/main/resources, and
+      maven-jar-plugin ran CI out of heap packaging it on every build. The data now lives in one
+      jar attached to the nlp-data-${requel.nlp-data.version} release. Both executions run in
+      `initialize`, in declaration order:
+
+        1. download-maven-plugin:wget fetches the asset, verifying the sha256 pinned in the root
+           pom. Its cache (${settings.localRepository}/.cache/download-maven-plugin) means one
+           download per machine; a swapped or corrupted asset fails the build.
+        2. maven-install-plugin:install-file installs it as
+           com.rreganjr.requel:requel-nlp-data:${requel.nlp-data.version}.
+
+      nlp-jpa declares a type=pom dependency on this module, which orders it first in the reactor
+      (also under -T and -pl ... -am), and a runtime dependency on the installed jar, which Maven
+      resolves only when nlp-jpa itself builds, by which point step 2 has run. An IDE that resolves
+      the whole project on import shows requel-nlp-data as missing until one command-line build has
+      run. See doc/guides/NLP_DATA.md.
+    -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.github.download-maven-plugin</groupId>
+                <artifactId>download-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>fetch-nlp-data</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>wget</goal>
+                        </goals>
+                        <configuration>
+                            <uri>https://github.com/rreganjr/Requel/releases/download/nlp-data-${requel.nlp-data.version}/requel-nlp-data-${requel.nlp-data.version}.jar</uri>
+                            <outputDirectory>${project.build.directory}</outputDirectory>
+                            <outputFileName>requel-nlp-data-${requel.nlp-data.version}.jar</outputFileName>
+                            <sha256>${requel.nlp-data.sha256}</sha256>
+                            <!-- A read timeout between packets, not a total; 60s rides out a slow CDN. -->
+                            <readTimeOut>60000</readTimeOut>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>install-nlp-data</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.build.directory}/requel-nlp-data-${requel.nlp-data.version}.jar</file>
+                            <groupId>com.rreganjr.requel</groupId>
+                            <artifactId>requel-nlp-data</artifactId>
+                            <version>${requel.nlp-data.version}</version>
+                            <packaging>jar</packaging>
+                            <generatePom>true</generatePom>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
