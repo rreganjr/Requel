@@ -169,6 +169,19 @@ public class IssueImpl extends AbstractAnnotation implements Issue {
 		setResolvedDate(new Date());
 	}
 
+	/**
+	 * Issue #320: restore a resolution read from a project export. Unlike
+	 * {@link #resolve(Position, User)}, it keeps the original date; a null date means "now".
+	 * Import only; commands resolve through {@link #resolve(Position, User)}.
+	 */
+	public void restoreResolution(Position resolvedByPosition, User resolvedByUser,
+			Date resolvedDate) {
+		resolve(resolvedByPosition, resolvedByUser);
+		if (resolvedDate != null) {
+			setResolvedDate(resolvedDate);
+		}
+	}
+
 	@Override
 	public void unresolve() {
 		setResolvedByPosition(null);

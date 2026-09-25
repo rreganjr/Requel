@@ -32,9 +32,13 @@ import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 public class AnnotationAssembler implements AggregateAssembler<AnnotationImportDraft, Annotation> {
+
+    private static final Logger log = LoggerFactory.getLogger(AnnotationAssembler.class);
 
     private final UserRepository userRepository;
     private final User defaultCreatedBy;
@@ -80,6 +84,7 @@ public class AnnotationAssembler implements AggregateAssembler<AnnotationImportD
                         issue.getPositions().add(p);
                         p.getIssues().add(issue);
                     }));
+            restoreResolution(issue, draft, unitOfWork, createdBy);
             attachAnnotatables(issue, draft);
             annotation = issue;
         } else {
@@ -88,6 +93,32 @@ public class AnnotationAssembler implements AggregateAssembler<AnnotationImportD
         }
         unitOfWork.register(Annotation.class, draft.getExternalId(), annotation);
         return annotation;
+    }
+
+    /**
+     * Issue #320: re-apply the resolution the export recorded. Positions are imported before
+     * annotations, so {@code resolvedByPosition} is already in the unit of work. The resolving
+     * user falls back to the issue's creator the way {@link #resolveCreatedBy} does. A position
+     * that isn't in the file leaves the issue open rather than failing the import.
+     */
+    private void restoreResolution(IssueImpl issue, AnnotationImportDraft draft,
+            ImportUnitOfWork unitOfWork, User fallbackUser) {
+        String positionId = draft.getResolvedByPositionExternalId();
+        if (!StringUtils.hasText(positionId)) {
+            return;
+        }
+        Optional<PositionImpl> position = unitOfWork.resolve(PositionImpl.class, positionId);
+        if (position.isEmpty()) {
+            log.warn("import: issue {} was resolved by position {}, which is not in the file;"
+                    + " importing it unresolved", draft.getExternalId(), positionId);
+            return;
+        }
+        User resolvedBy = fallbackUser;
+        if (StringUtils.hasText(draft.getResolvedByUserExternalId())) {
+            resolvedBy = unitOfWork.resolve(User.class, draft.getResolvedByUserExternalId())
+                    .orElse(fallbackUser);
+        }
+        issue.restoreResolution(position.get(), resolvedBy, draft.getResolvedDate());
     }
 
     private User resolveCreatedBy(AnnotationImportDraft draft, ImportUnitOfWork unitOfWork) {

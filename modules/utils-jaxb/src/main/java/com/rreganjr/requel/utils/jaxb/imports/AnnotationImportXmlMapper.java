@@ -22,7 +22,10 @@ package com.rreganjr.requel.utils.jaxb.imports;
 
 import com.rreganjr.requel.imports.ImportException;
 import com.rreganjr.requel.imports.annotation.AnnotationImportDraft;
+import java.util.Date;
 import java.util.HashSet;
+
+import com.rreganjr.requel.utils.DateUtils;
 
 public class AnnotationImportXmlMapper {
 
@@ -41,6 +44,32 @@ public class AnnotationImportXmlMapper {
                 .annotatablePropertyName(xml.getAnnotatablePropertyName())
                 .positionExternalIds(new HashSet<>(xml.getPositionRefs()))
                 .annotatableExternalIds(new HashSet<>(xml.getAnnotatableRefs()))
+                .resolvedByPositionExternalId(blankToNull(xml.getResolvedByPosition()))
+                .resolvedByUserExternalId(blankToNull(xml.getResolvedByUser()))
+                .resolvedDate(parseDate(xml.getDateResolved()))
                 .build();
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
+    /**
+     * The export writes dates with {@link DateUtils#standardDateAndTime}. Parse with that first:
+     * {@link DateUtils#parseDateOrDefault} tries the date-only format first, which accepts the
+     * datetime string and drops the time. A missing or unreadable date is null.
+     */
+    private static Date parseDate(String value) {
+        if (blankToNull(value) == null) {
+            return null;
+        }
+        synchronized (DateUtils.standardDateAndTime) {
+            try {
+                return DateUtils.standardDateAndTime.parse(value);
+            } catch (java.text.ParseException e) {
+                // fall through to the lenient formats
+            }
+        }
+        return DateUtils.parseDateOrDefault(value, null);
     }
 }

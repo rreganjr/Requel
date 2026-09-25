@@ -21,6 +21,7 @@
 package com.rreganjr.requel.imports.annotation;
 
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -37,6 +38,9 @@ public class AnnotationImportDraft {
     private final Set<String> annotatableExternalIds;
     private final String word;
     private final String annotatablePropertyName;
+    private final String resolvedByPositionExternalId;
+    private final String resolvedByUserExternalId;
+    private final Date resolvedDate;
 
     private AnnotationImportDraft(Builder builder) {
         this.externalId = builder.externalId;
@@ -48,6 +52,9 @@ public class AnnotationImportDraft {
         this.annotatableExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.annotatableExternalIds));
         this.word = builder.word;
         this.annotatablePropertyName = builder.annotatablePropertyName;
+        this.resolvedByPositionExternalId = builder.resolvedByPositionExternalId;
+        this.resolvedByUserExternalId = builder.resolvedByUserExternalId;
+        this.resolvedDate = builder.resolvedDate;
     }
 
     public String getExternalId() { return externalId; }
@@ -59,6 +66,10 @@ public class AnnotationImportDraft {
     public Set<String> getAnnotatableExternalIds() { return annotatableExternalIds; }
     public String getWord() { return word; }
     public String getAnnotatablePropertyName() { return annotatablePropertyName; }
+    /** The XML id of the position that resolved this issue, or null when it is open (#320). */
+    public String getResolvedByPositionExternalId() { return resolvedByPositionExternalId; }
+    public String getResolvedByUserExternalId() { return resolvedByUserExternalId; }
+    public Date getResolvedDate() { return resolvedDate; }
 
     public static Builder builder() { return new Builder(); }
 
@@ -72,6 +83,9 @@ public class AnnotationImportDraft {
         private Set<String> annotatableExternalIds = new HashSet<>();
         private String word;
         private String annotatablePropertyName;
+        private String resolvedByPositionExternalId;
+        private String resolvedByUserExternalId;
+        private Date resolvedDate;
 
         public Builder externalId(String externalId) { this.externalId = externalId; return this; }
         public Builder createdByExternalId(String createdByExternalId) { this.createdByExternalId = createdByExternalId; return this; }
@@ -82,6 +96,9 @@ public class AnnotationImportDraft {
         public Builder annotatableExternalIds(Set<String> ids) { if (ids != null) this.annotatableExternalIds.addAll(ids); return this; }
         public Builder word(String word) { this.word = word; return this; }
         public Builder annotatablePropertyName(String name) { this.annotatablePropertyName = name; return this; }
+        public Builder resolvedByPositionExternalId(String id) { this.resolvedByPositionExternalId = id; return this; }
+        public Builder resolvedByUserExternalId(String id) { this.resolvedByUserExternalId = id; return this; }
+        public Builder resolvedDate(Date date) { this.resolvedDate = date; return this; }
         public AnnotationImportDraft build() {
             Objects.requireNonNull(text, "annotation text is required");
             Objects.requireNonNull(type, "annotation type is required");
