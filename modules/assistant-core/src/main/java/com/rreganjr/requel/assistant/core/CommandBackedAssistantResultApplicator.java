@@ -218,7 +218,8 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 					producedKeysByTarget
 							.computeIfAbsent(action.targetRef(), key -> new HashSet<String>())
 							.add(action.actionKey());
-					if (upsertFinding(context, result, action, applied.annotationId())) {
+					if (upsertFinding(context, result, action, applied.annotationId(),
+							createdByActionKey.get(action.actionKey()))) {
 						newFindings++;
 					}
 				}
@@ -671,10 +672,25 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	// ---- finding upsert -------------------------------------------------------
 
 	/**
+	 * Record that this run reported the finding.
+	 * <p>
+	 * Issue #320: a finding this run reports again, whose annotation is open, is {@code ACTIVE}
+	 * whatever state it was left in. Two cases re-raise onto a closed finding:
+	 * <ul>
+	 * <li>the resolved issue was deleted, so a {@code MANUALLY_RESOLVED} finding is repointed at
+	 * a new open issue;</li>
+	 * <li>the word left the text and came back, so an {@code AUTO_RESOLVED} (or
+	 * {@code SUPERSEDED}) finding gets its annotation back.</li>
+	 * </ul>
+	 * Leaving the old state meant {@link #reconcileStaleFindings}, which only considers
+	 * {@code ACTIVE} findings, never cleaned the open issue up again.
+	 *
+	 * @param annotation
+	 *            the annotation this run applied for the action, or null
 	 * @return true if a new finding row was created (vs touching an existing one).
 	 */
 	private boolean upsertFinding(AssistantContext context, AssistantResult result,
-			AnnotationAction action, Long annotationId) {
+			AnnotationAction action, Long annotationId, Object annotation) {
 		Instant now = clock.instant();
 		Optional<AssistantFindingEntity> existing = findingRepository
 				.findByIdempotencyKey(action.actionKey());
@@ -684,6 +700,12 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			finding.setLastSeenAt(now);
 			if (annotationId != null) {
 				finding.setAppliedAnnotationId(annotationId);
+			}
+			if (!AssistantFindingState.ACTIVE.name().equals(finding.getState())
+					&& isOpen(annotation)) {
+				finding.setState(AssistantFindingState.ACTIVE.name());
+				finding.setClosedAt(null);
+				finding.setSupersededByRunId(null);
 			}
 			findingRepository.save(finding);
 			return false;
@@ -707,6 +729,14 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		finding.setAppliedAnnotationId(annotationId);
 		findingRepository.save(finding);
 		return true;
+	}
+
+	/** An unresolved issue, or a note: an annotation a human still has to act on or read. */
+	private static boolean isOpen(Object annotation) {
+		if (annotation instanceof Issue issue) {
+			return !issue.isResolved();
+		}
+		return annotation instanceof Note;
 	}
 
 	private void bumpFindingsCount(UUID runId, int newFindings) {

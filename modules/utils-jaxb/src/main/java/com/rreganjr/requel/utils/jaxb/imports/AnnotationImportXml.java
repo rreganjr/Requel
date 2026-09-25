@@ -51,6 +51,16 @@ public class AnnotationImportXml {
     @XmlAttribute(name = "propertyName")
     private String annotatablePropertyName;
 
+    // Issue #320: the export writes an issue's resolution; import used to drop it.
+    @XmlAttribute(name = "resolvedByPosition")
+    private String resolvedByPosition;
+
+    @XmlAttribute(name = "resolvedByUser")
+    private String resolvedByUser;
+
+    @XmlAttribute(name = "dateResolved")
+    private String dateResolved;
+
     @XmlElementWrapper(name = "positions", namespace = "http://www.rreganjr.com/requel")
     @XmlElement(name = "positionRef", namespace = "http://www.rreganjr.com/requel")
     private List<String> positionRefs = new ArrayList<>();
@@ -59,7 +69,7 @@ public class AnnotationImportXml {
     @XmlElement(name = "annotatableRef", namespace = "http://www.rreganjr.com/requel")
     private List<String> annotatableRefs = new ArrayList<>();
 
-    // differentiate by element name externally (lexicalIssue vs note)
+    // differentiate by element name externally (issue, lexicalIssue or note)
     public String getId() { return id; }
     public String getCreatedBy() { return createdBy; }
     public String getText() { return text; }
@@ -68,4 +78,7 @@ public class AnnotationImportXml {
     public String getAnnotatablePropertyName() { return annotatablePropertyName; }
     public List<String> getPositionRefs() { return positionRefs; }
     public List<String> getAnnotatableRefs() { return annotatableRefs; }
+    public String getResolvedByPosition() { return resolvedByPosition; }
+    public String getResolvedByUser() { return resolvedByUser; }
+    public String getDateResolved() { return dateResolved; }
 }

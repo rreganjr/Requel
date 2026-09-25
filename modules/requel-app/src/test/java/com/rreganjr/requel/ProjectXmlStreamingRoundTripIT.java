@@ -312,6 +312,122 @@ class ProjectXmlStreamingRoundTripIT {
 				.doesNotContain("requelgoneword");
 	}
 
+	/**
+	 * Issue #320: an export carries each issue's resolution and every plain issue, and the import
+	 * used to drop both. {@code AnnotationImportXml} didn't read {@code resolvedByPosition},
+	 * {@code resolvedByUser} or {@code dateResolved}, and {@code AnnotationStaxImporter} read
+	 * only {@code <note>} and {@code <lexicalIssue>}, so every {@code <issue>} was lost.
+	 */
+	@Test
+	@Transactional
+	void issueResolutionsAndPlainIssuesRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String ts = Long.toString(System.nanoTime());
+
+		// A lexical issue resolved as ignored, a plain issue resolved by a human position, and an
+		// open plain issue.
+		com.rreganjr.requel.annotation.command.EditLexicalIssueCommand lexical =
+				annotationCommandFactory.newEditLexicalIssueCommand();
+		lexical.setEditedBy(projectUser);
+		lexical.setGroupingObject(originalProject);
+		lexical.setAnnotatable(goal);
+		lexical.setWord("zorblat" + ts);
+		lexical.setAnnotatableEntityPropertyName("Name");
+		lexical.setText("The word zorblat" + ts + " is not recognized.");
+		lexical.setMustBeResolved(true);
+		com.rreganjr.requel.annotation.Issue lexicalIssue = commandHandler.execute(lexical).getIssue();
+		resolveWith(lexicalIssue, projectUser, "Ignore this word.");
+
+		com.rreganjr.requel.annotation.Issue resolvedPlain = addIssue(originalProject, goal,
+				projectUser, "Who signs off on this? " + ts);
+		resolveWith(resolvedPlain, projectUser, "The product owner " + ts);
+		addIssue(originalProject, goal, projectUser, "Is this still needed? " + ts);
+		entityManager.flush();
+		java.util.Date originalResolvedDate = lexicalIssue.getResolvedDate();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML").contains("<issue ").contains("resolvedByPosition=");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " Resolutions " + Instant.now().toEpochMilli();
+		Project reimported = importProject(exportedBytes, projectUser, reName);
+		entityManager.flush();
+		entityManager.clear();
+
+		Goal importedGoal = projectRepository.findProjectByName(reName).getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow(() -> new AssertionError("goal " + goal.getName() + " not imported"));
+		List<com.rreganjr.requel.annotation.Issue> issues = importedGoal.getAnnotations().stream()
+				.map(org.hibernate.Hibernate::unproxy)
+				.filter(com.rreganjr.requel.annotation.Issue.class::isInstance)
+				.map(com.rreganjr.requel.annotation.Issue.class::cast).collect(Collectors.toList());
+
+		com.rreganjr.requel.annotation.Issue importedLexical = issueWithText(issues,
+				"The word zorblat" + ts + " is not recognized.");
+		assertThat(importedLexical.isResolved()).as("ignored lexical issue stays resolved").isTrue();
+		assertThat(importedLexical.getResolvedByPosition().getText()).isEqualTo("Ignore this word.");
+		assertThat(importedLexical.getResolvedDate()).as("resolution date is kept, to the second")
+				.isCloseTo(originalResolvedDate, 1000);
+
+		com.rreganjr.requel.annotation.Issue importedResolvedPlain = issueWithText(issues,
+				"Who signs off on this? " + ts);
+		assertThat(importedResolvedPlain.isResolved()).as("plain resolved issue").isTrue();
+		assertThat(importedResolvedPlain.getResolvedByPosition().getText())
+				.isEqualTo("The product owner " + ts);
+
+		com.rreganjr.requel.annotation.Issue importedOpenPlain = issueWithText(issues,
+				"Is this still needed? " + ts);
+		assertThat(importedOpenPlain.isResolved()).as("plain open issue").isFalse();
+
+		// A resolution that points at a position missing from the file imports the issue open
+		// instead of failing the import.
+		String positionId = xml.replaceAll("(?s).*resolvedByPosition=\"([^\"]+)\".*", "$1");
+		byte[] brokenBytes = xml.replace("resolvedByPosition=\"" + positionId + "\"",
+				"resolvedByPosition=\"POS_missing\"").getBytes(StandardCharsets.UTF_8);
+		String brokenName = originalProject.getName() + " Dangling " + Instant.now().toEpochMilli();
+		assertThat(importProject(brokenBytes, projectUser, brokenName)).isNotNull();
+	}
+
+	private com.rreganjr.requel.annotation.Issue addIssue(Project project, Goal goal, User editor,
+			String text) throws Exception {
+		com.rreganjr.requel.annotation.command.EditIssueCommand command =
+				annotationCommandFactory.newEditIssueCommand();
+		command.setEditedBy(editor);
+		command.setGroupingObject(project);
+		command.setAnnotatable(goal);
+		command.setText(text);
+		command.setMustBeResolved(true);
+		return commandHandler.execute(command).getIssue();
+	}
+
+	private void resolveWith(com.rreganjr.requel.annotation.Issue issue, User editor,
+			String positionText) throws Exception {
+		com.rreganjr.requel.annotation.command.EditPositionCommand position =
+				annotationCommandFactory.newEditPositionCommand();
+		position.setEditedBy(editor);
+		position.setIssue(issue);
+		position.setText(positionText);
+		com.rreganjr.requel.annotation.Position created = commandHandler.execute(position)
+				.getPosition();
+		com.rreganjr.requel.annotation.command.ResolveIssueCommand resolve =
+				annotationCommandFactory.newResolveIssueCommand(created);
+		resolve.setEditedBy(editor);
+		resolve.setIssue(issue);
+		resolve.setPosition(created);
+		commandHandler.execute(resolve);
+	}
+
+	private static com.rreganjr.requel.annotation.Issue issueWithText(
+			List<com.rreganjr.requel.annotation.Issue> issues, String text) {
+		return issues.stream().filter(issue -> text.equals(issue.getText())).findFirst()
+				.orElseThrow(() -> new AssertionError("no imported issue '" + text + "'; got "
+						+ issues.stream().map(Annotation::getText).collect(Collectors.toList())));
+	}
+
 	private void assignImportedTagForTest(User user, Project projectScope, Goal goal,
 			String category, String value) throws Exception {
 		com.rreganjr.requel.tagging.command.EditTagCommand edit = tagCommandFactory.newEditTagCommand();

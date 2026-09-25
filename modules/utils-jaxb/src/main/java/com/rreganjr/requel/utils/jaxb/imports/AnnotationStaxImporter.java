@@ -64,6 +64,12 @@ public class AnnotationStaxImporter {
                         AnnotationImportXml xml = unmarshaller.unmarshal(reader, AnnotationImportXml.class).getValue();
                         drafts.add(mapper.toDraft(xml, AnnotationImportDraft.Type.NOTE));
                         continue;
+                    } else if ("issue".equals(reader.getLocalName())) {
+                        // Issue #320: plain issues (human- or AI-raised) are exported as <issue>
+                        // and were silently dropped on import.
+                        AnnotationImportXml xml = unmarshaller.unmarshal(reader, AnnotationImportXml.class).getValue();
+                        drafts.add(mapper.toDraft(xml, AnnotationImportDraft.Type.ISSUE));
+                        continue;
                     } else if ("lexicalIssue".equals(reader.getLocalName())) {
                         AnnotationImportXml xml = unmarshaller.unmarshal(reader, AnnotationImportXml.class).getValue();
                         drafts.add(mapper.toDraft(xml, AnnotationImportDraft.Type.LEXICAL_ISSUE));

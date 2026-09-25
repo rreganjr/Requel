@@ -239,64 +239,98 @@ public class JpaAnnotationRepository extends AbstractJpaRepository implements An
 		}
 	}
 
+	/**
+	 * Issue #320: find the issue on {@code annotatable} with exactly this text. Only the
+	 * annotatable's own annotations are searched. This used to be a project-wide query that
+	 * ignored {@code annotatable}, so a caller creating an issue on one entity was handed another
+	 * entity's issue with the same text and attached it to both.
+	 */
 	@Override
 	public Issue findIssue(Object groupingObject, Annotatable annotatable, String message) {
-		try {
-			// TODO: use named query so it can be configured externally
-			Query query = getEntityManager().createQuery(
-					"select object(issue) from IssueImpl as issue "
-							+ "where issue.text like :message "
-							+ "and issue.groupingObject = :groupingObject");
-			query.setParameter("groupingObject", groupingObject);
-			query.setParameter("message", message);
-			return (Issue) query.getSingleResult();
-		} catch (NoResultException e) {
+		Issue issue = lowestIdMatch(groupingObject, annotatable, Issue.class,
+				candidate -> message != null && message.equals(candidate.getText()));
+		if (issue == null) {
 			throw NoSuchAnnotationException.forMessage(message);
-		} catch (Exception e) {
-			throw convertException(e, Issue.class, null, EntityExceptionActionType.Reading);
 		}
+		return issue;
 	}
 
+	/**
+	 * Issue #320: find the lexical issue on {@code annotatable} for {@code word} (compared
+	 * case-insensitively) that is not tied to a property. Only the annotatable's own annotations
+	 * are searched; see {@link #findIssue}.
+	 */
 	@Override
 	public LexicalIssue findLexicalIssue(Object groupingObject, Annotatable annotatable, String word)
 			throws NoSuchAnnotationException {
-		try {
-			// TODO: use named query so it can be configured externally
-			Query query = getEntityManager().createQuery(
-					"select object(issue) from LexicalIssue as issue "
-							+ "where issue.word like :word "
-							+ "and issue.groupingObject = :groupingObject "
-							+ "and issue.annotatableEntityPropertyName is null");
-			query.setParameter("word", word);
-			query.setParameter("groupingObject", groupingObject);
-			return (LexicalIssue) query.getSingleResult();
-		} catch (NoResultException e) {
+		LexicalIssue issue = lowestIdMatch(groupingObject, annotatable, LexicalIssue.class,
+				candidate -> sameWord(word, candidate.getWord())
+						&& candidate.getAnnotatableEntityPropertyName() == null);
+		if (issue == null) {
 			throw NoSuchAnnotationException.forWord(word, "<no property>");
-		} catch (Exception e) {
-			throw convertException(e, Issue.class, null, EntityExceptionActionType.Reading);
 		}
+		return issue;
 	}
 
+	/**
+	 * Issue #320: find the lexical issue on {@code annotatable} for {@code word} in the property
+	 * {@code annotatableEntityPropertyName}, both compared case-insensitively. Only the
+	 * annotatable's own annotations are searched; see {@link #findIssue}.
+	 */
 	@Override
 	public LexicalIssue findLexicalIssue(Object groupingObject, Annotatable annotatable,
 			String word, String annotatableEntityPropertyName) throws NoSuchAnnotationException {
-		try {
-			// TODO: use named query so it can be configured externally
-			Query query = getEntityManager()
-					.createQuery(
-							"select object(issue) from LexicalIssue as issue "
-									+ "where issue.word like :word "
-									+ "and issue.groupingObject = :groupingObject "
-									+ "and issue.annotatableEntityPropertyName like :annotatableEntityPropertyName");
-			query.setParameter("word", word);
-			query.setParameter("groupingObject", groupingObject);
-			query.setParameter("annotatableEntityPropertyName", annotatableEntityPropertyName);
-			return (LexicalIssue) query.getSingleResult();
-		} catch (NoResultException e) {
+		LexicalIssue issue = lowestIdMatch(groupingObject, annotatable, LexicalIssue.class,
+				candidate -> sameWord(word, candidate.getWord())
+						&& annotatableEntityPropertyName != null
+						&& annotatableEntityPropertyName
+								.equalsIgnoreCase(candidate.getAnnotatableEntityPropertyName()));
+		if (issue == null) {
 			throw NoSuchAnnotationException.forWord(word, annotatableEntityPropertyName);
-		} catch (Exception e) {
-			throw convertException(e, Issue.class, null, EntityExceptionActionType.Reading);
 		}
+		return issue;
+	}
+
+	/**
+	 * A null word never matches, the way {@code word like null} never did. Issues with no word
+	 * (complexity findings) must not match one another.
+	 */
+	private static boolean sameWord(String word, String candidate) {
+		return word != null && word.equalsIgnoreCase(candidate);
+	}
+
+	/**
+	 * The annotation of {@code type} on {@code annotatable}, in {@code groupingObject}, that
+	 * satisfies {@code test}. When several match, the one with the lowest id wins, so the choice
+	 * doesn't depend on set iteration order. A null annotatable has nothing to search.
+	 * Annotatables carry tens of annotations, so walking the collection is cheaper than a join
+	 * through the {@code @ManyToAny} table and behaves the same on H2 and MySQL. A detached
+	 * annotatable is reloaded first, because its collection is a snapshot from whenever it was
+	 * loaded and misses annotations added since.
+	 */
+	private <T extends Annotation> T lowestIdMatch(Object groupingObject,
+			Annotatable annotatable, Class<T> type, java.util.function.Predicate<T> test) {
+		if (annotatable == null) {
+			return null;
+		}
+		Annotatable managed = attach(getEntityManager(), annotatable);
+		T best = null;
+		for (Annotation annotation : managed.getAnnotations()) {
+			Object unproxied = Hibernate.unproxy(annotation);
+			if (!type.isInstance(unproxied)) {
+				continue;
+			}
+			T candidate = type.cast(unproxied);
+			if (!java.util.Objects.equals(groupingObject, candidate.getGroupingObject())
+					|| !test.test(candidate)) {
+				continue;
+			}
+			if (best == null || (candidate.getId() != null
+					&& (best.getId() == null || candidate.getId() < best.getId()))) {
+				best = candidate;
+			}
+		}
+		return best;
 	}
 
 	@Override
