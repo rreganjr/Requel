@@ -58,8 +58,11 @@ public class ApiSecurityConfig {
 
     /**
      * Additional CORS allowed origins beyond same-origin (e.g. http://localhost:4200 for the
-     * Angular dev server). Empty in production; set via spring.cors.allowed-origins in
-     * application-dev.properties or as an environment variable.
+     * Angular dev server). Empty unless something sets {@code spring.cors.allowed-origins}: the dev
+     * profile's application-dev.properties does, and {@code SPRING_CORS_ALLOWED_ORIGINS} overrides
+     * it. Before #293 a legacy XML placeholder configurer fed every profile's file to this field in
+     * every run, so the dev origin was allowed in production and the environment variable was
+     * ignored.
      */
     @Value("${spring.cors.allowed-origins:}")
     private List<String> additionalAllowedOrigins;
@@ -117,8 +120,9 @@ public class ApiSecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         // In production the Angular app is served from the same origin, so no explicit
-        // allowed-origins are needed. Add http://localhost:4200 (or other origins) via
-        // spring.cors.allowed-origins in application-dev.properties for local development.
+        // allowed-origins are needed. The dev profile adds http://localhost:4200 through
+        // spring.cors.allowed-origins in application-dev.properties; SPRING_CORS_ALLOWED_ORIGINS
+        // sets it anywhere else.
         List<String> origins = new ArrayList<>(additionalAllowedOrigins);
         if (!origins.isEmpty()) {
             config.setAllowedOrigins(origins);

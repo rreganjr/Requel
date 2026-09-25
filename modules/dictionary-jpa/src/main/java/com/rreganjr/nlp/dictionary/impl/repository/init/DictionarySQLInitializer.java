@@ -101,13 +101,14 @@ public class DictionarySQLInitializer extends AbstractSystemInitializer {
 
 	/**
 	 * Configuration is read from the {@link Environment} rather than through {@code @Value}
-	 * placeholders. In this application a {@code @Value} placeholder resolves against
+	 * placeholders. When #288 was fixed, a {@code @Value} placeholder resolved against
 	 * {@code application*.properties} but <em>not</em> against properties a test supplies through
 	 * {@code @TestPropertySource} or {@code @DynamicPropertySource}, while
-	 * {@code Environment.getProperty} sees all of them — which is why {@code @ConditionalOnProperty}
+	 * {@code Environment.getProperty} saw all of them — which is why {@code @ConditionalOnProperty}
 	 * honoured the enable flag here while a {@code @Value} on this file list silently took its
-	 * default and imported the whole corpus (issue #288). The underlying placeholder defect is #293;
-	 * this class does not depend on it.
+	 * default and imported the whole corpus. #293 traced that to a legacy XML
+	 * {@code PropertyPlaceholderConfigurer} and removed it; reading the {@code Environment} directly
+	 * remains correct and is kept.
 	 */
 	@Autowired
 	public DictionarySQLInitializer(DictionaryRepository dictionaryRepository,

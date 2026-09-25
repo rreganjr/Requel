@@ -25,20 +25,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.rreganjr.requel.gateway.CommandDescriptor;
 import com.rreganjr.requel.gateway.CommandGateway;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
+import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayResult;
 import com.rreganjr.requel.service.gateway.GatewayCommandController.DescriptorView;
+import com.rreganjr.requel.service.gateway.GatewayCommandController.GatewayErrorBody;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 /**
  * Unit tests for the descriptor endpoint's {@link DescriptorView} projection (issue #103): it now
  * carries a JSON {@code schema} for each command's input DTO (via {@link
  * com.rreganjr.requel.gateway.CommandInputSchema}), which the CLI turns into per-field typed
- * subcommands. Also pins the write-flag gating (empty list when writes are disabled). Constructs the
+ * subcommands. Also pins the write-flag gating (empty list, and dispatch refused, when writes are
+ * disabled). Constructs the
  * controller directly with a stub catalog — no Spring context needed.
  */
 class GatewayCommandControllerTest {
@@ -100,5 +105,24 @@ class GatewayCommandControllerTest {
 				new GatewayCommandController(NOOP_GATEWAY, catalog, false);
 
 		assertThat(controller.descriptors()).isEmpty();
+	}
+
+	@Test
+	void dispatchIsRefusedWhenWritesDisabled() {
+		CommandGateway failIfCalled = request -> {
+			throw new AssertionError("gateway must not run a command when writes are disabled");
+		};
+		GatewayCommandCatalog catalog = catalogOf(
+				new CommandDescriptor("EditThing", EditThingInput.class, "Edit Thing", null, true,
+						null));
+		GatewayCommandController controller =
+				new GatewayCommandController(failIfCalled, catalog, false);
+
+		ResponseEntity<?> response = controller.dispatch("EditThing", Map.of("name", "x"), null);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+		assertThat(response.getBody()).isEqualTo(new GatewayErrorBody(
+				GatewayException.Kind.NOT_ALLOWED.name(),
+				GatewayCommandController.WRITES_DISABLED_MESSAGE));
 	}
 }

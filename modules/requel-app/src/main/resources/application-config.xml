@@ -6,7 +6,6 @@
 		http://www.springframework.org/schema/context https://www.springframework.org/schema/context/spring-context.xsd
 		http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd">
 
-	<context:property-placeholder location="classpath*:*.properties" system-properties-mode="OVERRIDE" ignore-unresolvable="false" local-override="true" />
 	<context:component-scan base-package="com.rreganjr"/>
 
 	<import resource="spring/altlemmatizerConfig.xml" />
