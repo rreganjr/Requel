@@ -17,3 +17,5 @@ doc/work/2.0/post-124-ui-epic-plan.md	doc/post-124-ui-epic-body.md	An instructio
 doc/work/2.0/279-assistant-delete-race-plan.md	doc/279-orphan-assistant-annotations-plan.md	TEMPORARY — the file exists on the 279-orphan-assistant-annotations branch at the pre-#304 path. Remove this entry when that branch rebases and its citation moves to doc/work/2.0/.
 doc/work/2.0/310-doc-link-check-plan.md	doc/279-orphan-assistant-annotations-plan.md	The plan quotes the pre-#304 path it is triaging. Remove alongside the 279-assistant-delete-race-plan.md entry.
 doc/work/2.0/310-doc-link-check-plan.md	doc/ui-refactor-review.md	The plan quotes the wrong name it is repointing.
+doc/work/backlog/we-need-stinkin-badges.md	doc/guides/RELEASE_GUIDE.md	Removed in #332; folded into doc/guides/RELEASE_PROCESS.md. The proposal predates it.
+doc/work/2.0/ui-refactor-codex-review.md	doc/guides/RELEASE_GUIDE.md	Removed in #332; folded into doc/guides/RELEASE_PROCESS.md. The review predates it.

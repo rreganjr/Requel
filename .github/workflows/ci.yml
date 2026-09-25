@@ -4,16 +4,27 @@ name: CI
 # targets master or any release/* branch. The release/2.0 cycle uses this
 # workflow as the gate for merging feature branches into the integration
 # branch. See doc/work/2.0/20-release-plan.md §5.1.
+#
+# Documentation-only changes skip it: markdown is not built or tested, and docs-only
+# commits go straight onto the branch (doc/guides/RELEASE_PROCESS.md, "Commits that skip
+# the PR"). The filter is *.md, not doc/**: doc/samples/project.xsd is read by the XML
+# round-trip tests. A push that touches anything else still runs the whole workflow.
 
 on:
   push:
     branches:
       - master
       - "release/**"
+    paths-ignore:
+      - "*.md"
+      - "doc/**/*.md"
   pull_request:
     branches:
       - master
       - "release/**"
+    paths-ignore:
+      - "*.md"
+      - "doc/**/*.md"
 
 # Cancel earlier runs of the same workflow on the same ref. Useful when
 # someone force-pushes a feature branch and the in-flight run becomes stale.

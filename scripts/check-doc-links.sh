@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Check markdown links under doc/ (plus the three root documents) and report prose mentions
-# of doc/ paths that do not resolve.
+# Check markdown links under doc/ (plus the two root documents, README.md and CLAUDE.md)
+# and report prose mentions of doc/ paths that do not resolve.
 #
 # Two passes, deliberately different:
 #
@@ -32,7 +32,7 @@ from urllib.parse import unquote
 
 quiet = sys.argv[1] == '1'
 
-ROOT_DOCS = ['README.md', 'RELEASE.md', 'CLAUDE.md']
+ROOT_DOCS = ['README.md', 'CLAUDE.md']
 ALLOW = 'scripts/doc-link-allow.tsv'
 
 fence = re.compile(r'^\s{0,3}(```|~~~)')

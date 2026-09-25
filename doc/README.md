@@ -54,8 +54,8 @@ Run it after closing issues:
 ```
 
 Generating the index also runs `scripts/check-doc-links.sh`, which resolves every markdown
-link under `doc/` and in the three root documents and fails on a broken one. It needs no
-GitHub access and can be run on its own:
+link under `doc/` and in the two root documents (`README.md`, `CLAUDE.md`) and fails on a
+broken one. It needs no GitHub access and can be run on its own:
 
 ```bash
 ./scripts/check-doc-links.sh

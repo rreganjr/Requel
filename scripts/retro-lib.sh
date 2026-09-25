@@ -3,16 +3,21 @@
 # retro-lib.sh — shared config + helpers for the per-release story-point scripts.
 # Source it; do not run directly.   . "$(dirname "$0")/retro-lib.sh"
 #
-# One project per release, matched by milestone. A single RELEASE drives everything
-# by naming convention:
-#     RELEASE=2.0  ->  milestone "v2.0"  ->  project titled "Requel 2.0"
+# One project per minor release, matched by milestone. A single RELEASE drives
+# everything by naming convention:
+#     RELEASE=2.0    ->  milestone "v2.0"    ->  project titled "Requel 2.0"
+#     RELEASE=2.0.1  ->  milestone "v2.0.1"  ->  project titled "Requel 2.0"
+# A patch release has its own milestone but shares its minor's board
+# (doc/guides/RELEASE_PROCESS.md, "Milestones, boards and the backlog").
 # Override any of these via environment variables if your naming differs.
 
 OWNER="${REQUEL_OWNER:-rreganjr}"
 REPO="${REQUEL_REPO:-rreganjr/Requel}"
 RELEASE="${REQUEL_RELEASE:-2.0}"
 MILESTONE="${REQUEL_MILESTONE:-v$RELEASE}"
-PROJECT_TITLE="${REQUEL_PROJECT_TITLE:-Requel $RELEASE}"
+BOARD_RELEASE="$RELEASE"
+[[ "$RELEASE" =~ ^([0-9]+\.[0-9]+)\.[0-9]+$ ]] && BOARD_RELEASE="${BASH_REMATCH[1]}"
+PROJECT_TITLE="${REQUEL_PROJECT_TITLE:-Requel $BOARD_RELEASE}"
 
 # repo root, for git history (works whether sourced from scripts/ or elsewhere)
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
