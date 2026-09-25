@@ -18,6 +18,9 @@ on:
     paths-ignore:
       - "*.md"
       - "doc/**/*.md"
+      # Maintainer helpers (board, retro, issue and release scripts): nothing in the build or
+      # the test suites runs them.
+      - "scripts/**"
   pull_request:
     branches:
       - master
@@ -25,6 +28,9 @@ on:
     paths-ignore:
       - "*.md"
       - "doc/**/*.md"
+      # Maintainer helpers (board, retro, issue and release scripts): nothing in the build or
+      # the test suites runs them.
+      - "scripts/**"
 
 # Cancel earlier runs of the same workflow on the same ref. Useful when
 # someone force-pushes a feature branch and the in-flight run becomes stale.

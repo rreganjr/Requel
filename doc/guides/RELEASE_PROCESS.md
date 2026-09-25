@@ -94,7 +94,10 @@ branch forward into it until it ships.
   `v2.1` → board "Requel 2.1". A patch number maps to its minor's board, so `2.1.1` →
   milestone `v2.1.1` → board "Requel 2.1". `./scripts/setup-project.sh 2.2` creates a new
   minor's board; `./scripts/add-milestone-issues-to-project.sh 2.1.1` puts a patch
-  milestone's issues on the parent board.
+  milestone's issues on the parent board. Moving an issue to another milestone does not
+  take it off the old board; after a move, `./scripts/remove-off-milestone-issues-from-project.sh 2.0 --apply`
+  removes the open issues that no longer belong on the 2.0 board (it dry-runs without
+  `--apply`, and never removes a closed issue, whose item holds its retro).
 - **Retros.** `backfill-points.sh` selects by milestone, so run it once per milestone
   (`2.1` and `2.1.1`). `audit-retros.sh 2.1` walks the board, so it already covers the
   patch issues on it.
@@ -109,6 +112,8 @@ and no PR. Line 1 of the commit is still the issue URL, so the retro counts it.
 - **Documentation only**: `doc/**/*.md` and markdown files at the repo root (`README.md`,
   `CLAUDE.md`). CI skips these pushes (see [What CI does](#what-ci-does)), so a PR would
   only add review overhead.
+- **Maintainer scripts**: `scripts/**`, the board, retro, issue and release helpers. Nothing
+  in the build or the tests runs them, so CI skips these pushes too.
 - **Release commits**: a version bump and nothing else, as part of cutting a release
   below. CI runs on the push.
 
@@ -242,7 +247,7 @@ move forward.
 
 | Workflow | Runs on | Does |
 |---|---|---|
-| `ci.yml` | every push and PR to `master` and `release/**`, except ones that only touch `doc/**/*.md` or root `*.md` | full Maven build, unit + integration tests, Angular lint + unit tests, e2e |
+| `ci.yml` | every push and PR to `master` and `release/**`, except ones that only touch `doc/**/*.md`, root `*.md` or `scripts/**` | full Maven build, unit + integration tests, Angular lint + unit tests, e2e |
 | `release.yml` | a `v*` tag | full build + tests, then a GitHub Release with generated notes and the jar attached; `-rc` tags are pre-releases |
 | `container-publish.yml` | a `v*` tag | build + tests, docker-compose smoke test, push `rreganjr/requel:<version>`; final tags (no `-` suffix) also push `:latest` |
 | `pages.yml` | pushes touching `website/**` | publishes `website/`, which hosts the project XSD that exports point to |
@@ -250,9 +255,9 @@ move forward.
 Markdown under `doc/` is not skipped in general: only `*.md`. `doc/samples/project.xsd` is
 read by the XML round-trip tests, so a change there runs CI.
 
-If `Build & test` is a required status check on a branch, a docs-only PR never gets that
-check (the workflow doesn't start), so it waits forever. That is one more reason docs-only
-changes are committed directly; if one does go through a PR, merge it with `--admin`.
+If `Build & test` is a required status check on a branch, a docs-only or scripts-only PR never
+gets that check (the workflow doesn't start), so it waits forever. That is one more reason
+those changes are committed directly; if one does go through a PR, merge it with `--admin`.
 
 The smoke test in `container-publish.yml` re-tags the image as `2.0.0-dev` because
 `docker-compose.yml` names that tag. When the version in `docker-compose.yml` changes, change
