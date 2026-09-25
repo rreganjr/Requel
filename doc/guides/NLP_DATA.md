@@ -92,4 +92,4 @@ as above.
 | `nlp/opennlp-tools/namefind/`, `coref/`, `EnglishChunk.bin.gz`, `parser/dict.bin.gz`, `parser/tagdict` | No reference in the code |
 | `nlp/dictionary/categorydef.sql`, `synset_subsumer_counts.sql` | Uncompressed duplicates of the `.sql.gz` on the import list |
 | `nlp/dictionary/synset_definition_word.sql.gz`, `semcor_{file,sentence,sentence_word}.sql.gz` | Never on the import list production runs (#288); `synset_definition_word` is built from the tagged glosses |
-| `nlp/jwnl/file_properties.xml`, `nlp/jwnl/wn30/{data,index}.*`, `*.exc` | The JWNL WordNet database. Nothing initializes JWNL, and `WordNetSenseKeyInitializer`, the one class that would read `index.sense`, has its `@Component` commented out |
+| `nlp/jwnl/file_properties.xml`, `nlp/jwnl/wn30/{data,index}.*`, `*.exc` | The JWNL WordNet database. Nothing initialized JWNL. `WordNetSenseKeyInitializer`, the one class that would have read `index.sense`, had its `@Component` commented out; it, `ClassPathFileManagerImpl` and the `jwnl` dependency were removed in #314 |

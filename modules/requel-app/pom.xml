@@ -464,18 +464,6 @@
             <artifactId>commons-digester3</artifactId>
             <version>3.2</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/opennlp/tools -->
-        <dependency>
-            <groupId>opennlp</groupId>
-            <artifactId>tools</artifactId>
-            <version>1.5.0</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/opennlp/maxent -->
-        <dependency>
-            <groupId>opennlp</groupId>
-            <artifactId>maxent</artifactId>
-            <version>3.0.0</version>
-        </dependency>
         <!-- https://mvnrepository.com/artifact/com.fifesoft/spellchecker -->
         <dependency>
             <groupId>com.fifesoft</groupId>
@@ -487,12 +475,26 @@
             <groupId>edu.stanford.nlp</groupId>
             <artifactId>stanford-corenlp</artifactId>
             <version>4.5.6</version>
+            <!-- Same Xerces exclusion as modules/nlp-jpa (#314): a direct declaration without it
+                 would put xercesImpl back on this module's classpath. -->
+            <exclusions>
+                <exclusion>
+                    <groupId>xerces</groupId>
+                    <artifactId>xercesImpl</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>edu.stanford.nlp</groupId>
             <artifactId>stanford-corenlp</artifactId>
             <version>4.5.6</version>
             <classifier>models</classifier>
+            <exclusions>
+                <exclusion>
+                    <groupId>xerces</groupId>
+                    <artifactId>xercesImpl</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>

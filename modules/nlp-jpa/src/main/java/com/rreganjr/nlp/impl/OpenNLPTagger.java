@@ -29,7 +29,6 @@ import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
 import com.rreganjr.platform.ApplicationException;
 import opennlp.tools.postag.POSModel;
 import opennlp.tools.postag.POSTaggerME;
-import opennlp.tools.util.Sequence;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -49,7 +48,7 @@ public class OpenNLPTagger extends OpenNLPTokenizer implements NLPProcessor<NLPT
             String modelFile = resourceBundleHelper.getString(PROP_POSTAGGER_MODEL_FILE, PROP_POSTAGGER_MODEL_FILE_DEFAULT);
             InputStream modelStream = OpenNLPTagger.class.getClassLoader().getResourceAsStream(modelFile);
             posModel = new POSModel(modelStream);
-            posTagger = new POSTaggerME(posModel);
+            posTagger = newPosTagger(posModel);
         } catch (Exception e) {
             posTagger = null;
             throw new ExceptionInInitializerError(e);
@@ -67,7 +66,7 @@ public class OpenNLPTagger extends OpenNLPTokenizer implements NLPProcessor<NLPT
                 String modelFile = resourceBundleHelper.getString(PROP_POSTAGGER_MODEL_FILE, PROP_POSTAGGER_MODEL_FILE_DEFAULT);
                 InputStream modelStream = OpenNLPTagger.class.getClassLoader().getResourceAsStream(modelFile);
                 posModel = new POSModel(modelStream);
-                posTagger = new POSTaggerME(posModel);
+                posTagger = newPosTagger(posModel);
             } catch (Exception e) {
                 posTagger = null;
                 throw ApplicationException.failedToInitializeComponent(getClass(), e);
