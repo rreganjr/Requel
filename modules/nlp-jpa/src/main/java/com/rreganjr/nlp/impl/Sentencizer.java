@@ -31,7 +31,6 @@ import opennlp.tools.sentdetect.SentenceDetectorME;
 
 import opennlp.tools.sentdetect.SentenceModel;
 import opennlp.tools.util.Span;
-import opennlp.tools.util.InvalidFormatException;
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Component;
 
@@ -129,30 +128,29 @@ public class Sentencizer extends AbstractOpenNLPTool<NLPText> {
 		return text;
 	}
 
+	/**
+	 * Split text into trimmed sentences using the detector's spans. Any non-blank text after the
+	 * last span is kept as a final sentence. Text with no spans comes back as one sentence.
+	 * <p>
+	 * Issue #314: this used to treat {@code Span.length()} as an end offset (a leftover from the
+	 * pre-1.5 API, where {@code sentPosDetect} returned end positions), which cut every sentence
+	 * after the first at the wrong place.
+	 */
 	private List<String> sentencize(String text) {
 		log.debug("text = " + text);
 		if (sentenceDetector != null) {
-            Span[] sentenceOffsets = sentenceDetector.sentPosDetect(text);
-			List<String> trimmedSentences = new ArrayList<String>(sentenceOffsets.length);
+			Span[] sentenceOffsets = sentenceDetector.sentPosDetect(text);
+			List<String> trimmedSentences = new ArrayList<String>(sentenceOffsets.length + 1);
 
 			if (sentenceOffsets.length == 0) {
 				trimmedSentences.add(text);
 			} else {
-				// if leftover is true then there is dangling text after the
-				// last sentence
-				boolean leftover = sentenceOffsets[sentenceOffsets.length - 1].length() != text.length();
-				trimmedSentences.add(text.substring(0, sentenceOffsets[0].length()).trim());
-
-				for (int si = 1; si < sentenceOffsets.length; si++) {
-					int nextStart = sentenceOffsets[si].length();
-					while (Character.isWhitespace(text.charAt(nextStart - 1))) {
-						nextStart--;
-					}
-					trimmedSentences.add(text.substring(sentenceOffsets[si - 1].length(), nextStart));
+				for (Span span : sentenceOffsets) {
+					trimmedSentences.add(text.substring(span.getStart(), span.getEnd()).trim());
 				}
-				if (leftover) {
-					trimmedSentences.add(text
-							.substring(sentenceOffsets[sentenceOffsets.length - 1].length()).trim());
+				String leftover = text.substring(sentenceOffsets[sentenceOffsets.length - 1].getEnd()).trim();
+				if (!leftover.isEmpty()) {
+					trimmedSentences.add(leftover);
 				}
 			}
 			log.debug("sentences detected = " + trimmedSentences.size());
@@ -166,7 +164,8 @@ public class Sentencizer extends AbstractOpenNLPTool<NLPText> {
 	 */
 	private static final class SimpleSentenceDetector implements SentenceDetector {
 		@Override
-		public String[] sentDetect(String text) {
+		public String[] sentDetect(CharSequence chars) {
+			String text = chars == null ? null : chars.toString();
 			if (text == null || text.isEmpty()) {
 				return new String[0];
 			}
@@ -175,7 +174,8 @@ public class Sentencizer extends AbstractOpenNLPTool<NLPText> {
 		}
 
 		@Override
-		public Span[] sentPosDetect(String text) {
+		public Span[] sentPosDetect(CharSequence chars) {
+			String text = chars.toString();
 			String[] sentences = sentDetect(text);
 			Span[] spans = new Span[sentences.length];
 			int cursor = 0;

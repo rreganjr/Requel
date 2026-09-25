@@ -51,9 +51,9 @@ import com.rreganjr.nlp.impl.Sentencizer;
  * copied — and requires each to be served from the data jar. That also fails if a copy of the data
  * ever reappears in a module's own resources and shadows the jar.
  * <p>
- * Deliberately absent: {@code WordNetSenseKeyInitializer}'s {@code nlp/jwnl/wn30/index.sense}.
- * That initializer's {@code @Component} is commented out and the JWNL WordNet database it would
- * read was pruned with the rest of the unused data (see doc/guides/NLP_DATA.md).
+ * Deliberately absent: the JWNL WordNet database ({@code nlp/jwnl/wn30/index.sense} and friends).
+ * It was pruned with the rest of the unused data in #193, and {@code WordNetSenseKeyInitializer},
+ * the one class that would have read it, was removed in #314 (see doc/guides/NLP_DATA.md).
  */
 class NlpDataResourcesTest {
 
