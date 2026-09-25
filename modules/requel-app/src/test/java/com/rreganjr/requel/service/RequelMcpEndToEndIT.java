@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.mcp.McpCallAuditRepository;
+import com.rreganjr.requel.mcp.McpWriteService;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
@@ -68,7 +69,10 @@ import org.springframework.test.context.TestPropertySource;
  * (from the command chain) and the MCP-call-audit rows (from the MCP transport).
  *
  * <p>Write tools are enabled here explicitly; the application default is now {@code true} but the
- * property is pinned so the test is independent of that.
+ * property is pinned so the test is independent of that, and {@link #writeFlagIsPinnedOn()} fails if
+ * the pin ever stops taking effect. Until #293 it did not: a legacy XML placeholder configurer hid
+ * {@code @TestPropertySource} values from {@code @Value}, so this IT inherited the shipped default.
+ * {@code PropertyPlaceholderResolutionIT} pins the opposite value to prove test properties land.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestPropertySource(properties = "requel.gateway.write.enabled=true")
@@ -85,6 +89,9 @@ public class RequelMcpEndToEndIT extends AbstractIntegrationTestCase {
 
 	@Autowired
 	private McpCallAuditRepository mcpCallAuditRepository;
+
+	@Autowired
+	private McpWriteService mcpWriteService;
 
 	private String projectName;
 	private String username;
@@ -130,6 +137,13 @@ public class RequelMcpEndToEndIT extends AbstractIntegrationTestCase {
 		stakeCmd.setUsername(username);
 		stakeCmd.setStakeholderPermissions(editPerms);
 		getCommandHandler().execute(stakeCmd);
+	}
+
+	/** The {@code @TestPropertySource} pin must reach the bean, whatever the shipped default is. */
+	@Test
+	void writeFlagIsPinnedOn() {
+		assertThat(mcpWriteService.isWriteEnabled())
+				.as("requel.gateway.write.enabled=true is pinned for this IT").isTrue();
 	}
 
 	@Test

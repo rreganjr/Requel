@@ -63,6 +63,9 @@ public class GatewayCommandController {
     private final GatewayCommandCatalog catalog;
     private final boolean writeEnabled;
 
+    static final String WRITES_DISABLED_MESSAGE =
+            "Write commands are disabled; set requel.gateway.write.enabled=true to enable them";
+
     public GatewayCommandController(CommandGateway commandGateway, GatewayCommandCatalog catalog,
             @Value("${requel.gateway.write.enabled:false}") boolean writeEnabled) {
         this.commandGateway = commandGateway;
@@ -88,6 +91,13 @@ public class GatewayCommandController {
             @PathVariable String commandType,
             @RequestBody(required = false) Map<String, Object> input,
             @RequestHeader(value = "X-Requel-Client", required = false) String clientId) {
+        if (!writeEnabled) {
+            // Mirrors McpWriteService.call: the flag is the on/off for the whole write surface, so a
+            // command is refused here, not only hidden from /descriptors (#293).
+            return ResponseEntity.status(statusFor(GatewayException.Kind.NOT_ALLOWED))
+                    .body(new GatewayErrorBody(GatewayException.Kind.NOT_ALLOWED.name(),
+                            WRITES_DISABLED_MESSAGE));
+        }
         try {
             GatewayResult result = commandGateway.execute(new GatewayRequest(commandType, input, clientId));
             return ResponseEntity.ok(result.result());
