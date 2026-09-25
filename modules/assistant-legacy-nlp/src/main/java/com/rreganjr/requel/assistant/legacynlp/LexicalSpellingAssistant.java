@@ -169,7 +169,8 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 		builder.annotationAction(position(issueKey + ":add-dictionary", issueKey,
 				"ADD_WORD_TO_DICTIONARY", MessageFormat.format(ADD_TO_DICTIONARY_MSG, wordText),
 				evidence));
-		builder.annotationAction(position(issueKey + ":ignore", issueKey, null, IGNORE_WORD_MSG,
+		// Issue #320: accepting this records an ignored finding (IgnorePosition).
+		builder.annotationAction(position(issueKey + ":ignore", issueKey, "IGNORE", IGNORE_WORD_MSG,
 				evidence));
 		builder.annotationAction(position(issueKey + ":add-glossary", issueKey,
 				"ADD_WORD_TO_GLOSSARY", MessageFormat.format(ADD_TO_GLOSSARY_MSG, wordText),

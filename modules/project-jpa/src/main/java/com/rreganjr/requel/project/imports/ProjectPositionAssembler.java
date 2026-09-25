@@ -55,6 +55,8 @@ public class ProjectPositionAssembler extends PositionAssembler {
 				return new ChangeSpellingPosition(draft.getText(), createdBy, draft.getProposedWord());
 			case "addWordToDictionaryPosition":
 				return new AddWordToDictionaryPosition(draft.getText(), createdBy);
+			case "ignorePosition":
+				return new com.rreganjr.requel.annotation.impl.IgnorePosition(draft.getText(), createdBy);
 			default:
 				// fall through to base below
 			}

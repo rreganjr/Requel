@@ -182,7 +182,7 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 
 		builder.annotationAction(new AnnotationAction(issueKey + ":ignore",
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION, null, issueKey,
-				IGNORE_WORD_MSG, null, null, evidence, Map.of()));
+				IGNORE_WORD_MSG, null, null, evidence, Map.of("kind", "IGNORE")));
 
 		Collection<NLPText> suggestions = moreSpecificWordSuggester.process(word);
 		if (suggestions != null) {

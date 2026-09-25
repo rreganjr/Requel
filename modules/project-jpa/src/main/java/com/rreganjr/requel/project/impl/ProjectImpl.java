@@ -73,6 +73,7 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project, Tag
 	private String status;
 	private Set<Annotation> annotations = new TreeSet<Annotation>();
 	private Set<TagAssignmentXml> exportTagAssignments = new HashSet<TagAssignmentXml>();
+	private java.util.List<IgnoredFindingXml> exportIgnoredFindings = new java.util.ArrayList<IgnoredFindingXml>();
 
 	/**
 	 * @param name
@@ -170,6 +171,22 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project, Tag
 
 	public void setExportTagAssignments(Set<TagAssignmentXml> exportTagAssignments) {
 		this.exportTagAssignments = exportTagAssignments;
+	}
+
+	/**
+	 * Export carrier for the project's ignored findings (issue #320). Not persistent; filled by
+	 * {@code ExportProjectCommandImpl} from the {@code IgnoredFindingStore}, the same way the tags
+	 * above are.
+	 */
+	@Transient
+	@XmlElementWrapper(name = "ignoredFindings", namespace = "http://www.rreganjr.com/requel", required = false)
+	@XmlElement(name = "ignoredFinding", namespace = "http://www.rreganjr.com/requel")
+	public java.util.List<IgnoredFindingXml> getExportIgnoredFindings() {
+		return exportIgnoredFindings;
+	}
+
+	public void setExportIgnoredFindings(java.util.List<IgnoredFindingXml> exportIgnoredFindings) {
+		this.exportIgnoredFindings = exportIgnoredFindings;
 	}
 
 	@XmlElementWrapper(name = "annotations", namespace = "http://www.rreganjr.com/requel", required = false)

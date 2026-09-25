@@ -574,6 +574,7 @@ export class AnnotationsSectionComponent implements OnChanges {
       case 'ChangeSpellingPosition': return 'Fix Spelling';
       case 'AddActorPosition': return 'Add as Actor';
       case 'AddGlossaryTermPosition': return 'Add to Glossary';
+      case 'IgnorePosition': return 'Ignore';
       default: return 'Ignore';
     }
   }

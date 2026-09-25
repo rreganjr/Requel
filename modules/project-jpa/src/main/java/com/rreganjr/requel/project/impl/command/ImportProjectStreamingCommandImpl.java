@@ -349,6 +349,10 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
                     + "imported.");
         }
 
+        // Issue #320: the project's ignored findings, after the persist for the same reason as the
+        // dictionary words: they are keyed by the new ids of the project, the entity and the issue.
+        importIgnoredFindings(xmlBytes, targetProject, unitOfWork, createdBy);
+
         // Import tag assignments (issue #112, Phase 5) AFTER the project and its entities are
         // persisted, so the tag @ManyToAny never references a transient entity. Entities are resolved
         // here (this command owns the unit of work) and applied through the TagImportHandler SPI, so
@@ -359,6 +363,49 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
             if (taggable != null) {
                 tagImportHandler.assignImportedTag(taggable, ta.getToken(), createdBy);
             }
+        }
+    }
+
+    /**
+     * Issue #320: record each exported ignore against the imported entity, with its key rebuilt
+     * for the entity's new id. A row whose entity isn't in the file is skipped with a WARN; one
+     * whose issue isn't in the file keeps no issue id.
+     */
+    private void importIgnoredFindings(byte[] xmlBytes, Project targetProject,
+            ImportUnitOfWork unitOfWork, User createdBy) {
+        if (getIgnoredFindingStore() == null || targetProject.getId() == null) {
+            return;
+        }
+        var ignored = new com.rreganjr.requel.utils.jaxb.imports.IgnoredFindingStaxImporter()
+                .readIgnoredFindings(new ByteArrayInputStream(xmlBytes));
+        if (ignored.isEmpty()) {
+            return;
+        }
+        // The annotations were persisted with the project; flush so they have ids.
+        getProjectRepository().flush();
+        for (com.rreganjr.requel.utils.jaxb.imports.IgnoredFindingImportXml xml : ignored) {
+            Class<?> entityType = com.rreganjr.requel.project.impl.IgnorableEntityTypes.BY_NAME
+                    .get(xml.getEntityType());
+            Object entity = (entityType == null || !StringUtils.hasText(xml.getEntityRef())) ? null
+                    : unitOfWork.resolve(entityType, xml.getEntityRef()).orElse(null);
+            if (!(entity instanceof com.rreganjr.requel.project.ProjectOrDomainEntity target)
+                    || target.getId() == null
+                    || !StringUtils.hasText(xml.getKeySuffix())) {
+                log.warn("import: ignored finding " + xml.getAssistant() + ":" + xml.getEntityType()
+                        + ":" + xml.getEntityRef() + ":" + xml.getKeySuffix()
+                        + " has no entity in the file; skipped");
+                continue;
+            }
+            Long annotationId = null;
+            if (StringUtils.hasText(xml.getAnnotationRef())) {
+                annotationId = unitOfWork
+                        .resolve(com.rreganjr.requel.annotation.Annotation.class, xml.getAnnotationRef())
+                        .map(com.rreganjr.requel.annotation.Annotation::getId).orElse(null);
+            }
+            getIgnoredFindingStore().record(new com.rreganjr.requel.project.IgnoredFindingStore.Spec(
+                    targetProject.getId(), xml.getEntityType(), target.getId(), xml.getAssistant(),
+                    xml.getFindingType(), xml.getProperty(), xml.getKeySuffix(), xml.getSubject(),
+                    annotationId), createdBy);
         }
     }
 

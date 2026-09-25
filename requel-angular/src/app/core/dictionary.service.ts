@@ -22,7 +22,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { DictionaryWordDto } from '../models/dictionary';
+import { DictionaryWordDto, IgnoredFindingDto } from '../models/dictionary';
 import { CommandService } from './command.service';
 
 /**
@@ -46,6 +46,17 @@ export class DictionaryService {
 
   removeProjectWord(projectName: string, wordId: number) {
     return this.commandService.execute('DeleteProjectDictionaryWord', { projectName, wordId });
+  }
+
+  /** The assistant findings ignored in the project (issue #320). */
+  listIgnoredFindings(projectName: string): Promise<IgnoredFindingDto[]> {
+    return firstValueFrom(this.http.get<IgnoredFindingDto[]>(
+      `${environment.apiBaseUrl}/projects/${encodeURIComponent(projectName)}/ignored-findings`));
+  }
+
+  /** Stop ignoring a finding; the server re-analyzes the entity so it is raised again. */
+  removeIgnoredFinding(projectName: string, ignoredFindingId: number) {
+    return this.commandService.execute('DeleteIgnoredFinding', { projectName, ignoredFindingId });
   }
 
   listInstallWords(): Promise<DictionaryWordDto[]> {

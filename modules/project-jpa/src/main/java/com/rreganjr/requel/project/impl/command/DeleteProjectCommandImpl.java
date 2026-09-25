@@ -277,6 +277,10 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 		// constraint. A bulk delete rather than per-row entity deletes: the words are not
 		// annotatable, have no children, and are not loaded in the project's object graph.
 		dictionaryRepository.deleteProjectWords(project.getId());
+		// Issue #320: the project's ignored findings. Keyed by project id, nothing references them.
+		if (getIgnoredFindingStore() != null) {
+			getIgnoredFindingStore().deleteForProject(project.getId());
+		}
 
 		// 11) The project's own annotations.
 		for (Annotation annotation : new HashSet<Annotation>(project.getAnnotations())) {

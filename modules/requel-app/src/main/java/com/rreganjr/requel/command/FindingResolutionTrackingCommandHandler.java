@@ -20,6 +20,16 @@
  */
 package com.rreganjr.requel.command;
 
+import org.hibernate.Hibernate;
+
+import com.rreganjr.platform.command.EditCommand;
+import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.annotation.Position;
+import com.rreganjr.requel.annotation.impl.IgnorePosition;
+import com.rreganjr.requel.annotation.impl.LexicalIssue;
+import com.rreganjr.requel.project.IgnoredFinding;
+import com.rreganjr.requel.project.IgnoredFindingStore;
+import com.rreganjr.requel.project.Project;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -61,6 +71,7 @@ public class FindingResolutionTrackingCommandHandler implements CommandHandler {
 
 	private final CommandHandler commandHandler;
 	private final AssistantFindingRepository findingRepository;
+	private IgnoredFindingStore ignoredFindingStore;
 	private final Clock clock;
 
 	public FindingResolutionTrackingCommandHandler(CommandHandler commandHandler,
@@ -75,6 +86,11 @@ public class FindingResolutionTrackingCommandHandler implements CommandHandler {
 		this.clock = clock;
 	}
 
+	/** Issue #320: set from commandHandlerConfig.xml. */
+	public void setIgnoredFindingStore(IgnoredFindingStore ignoredFindingStore) {
+		this.ignoredFindingStore = ignoredFindingStore;
+	}
+
 	@Override
 	public <T extends Command> T execute(T command) throws Exception {
 		T executedCommand = commandHandler.execute(command);
@@ -85,8 +101,62 @@ public class FindingResolutionTrackingCommandHandler implements CommandHandler {
 				log.warn("Could not mark findings MANUALLY_RESOLVED for command {}: {}",
 						command.getClass().getSimpleName(), e.getMessage(), e);
 			}
+			try {
+				recordIgnoredFindings(resolve);
+			} catch (Exception e) {
+				log.warn("Could not record the ignored findings for command {}: {}",
+						command.getClass().getSimpleName(), e.getMessage(), e);
+			}
 		}
 		return executedCommand;
+	}
+
+	/**
+	 * Issue #320: when the issue was resolved with an {@link IgnorePosition}, record an ignored
+	 * finding for every assistant finding behind the issue, so the assistants skip it from now on
+	 * even if the resolved issue is deleted. All findings on the issue, whatever their state: an
+	 * issue shared by several entities (before the #320 scoping fix) was ignored on all of them.
+	 */
+	private void recordIgnoredFindings(ResolveIssueCommand resolve) {
+		if (ignoredFindingStore == null) {
+			return;
+		}
+		Position position = resolve.getResolvingPosition();
+		Issue issue = resolve.getIssue();
+		if (position == null || issue == null || issue.getId() == null
+				|| !(Hibernate.unproxy(position) instanceof IgnorePosition)) {
+			return;
+		}
+		Object unproxied = Hibernate.unproxy(issue);
+		String propertyName = null;
+		String word = null;
+		if (unproxied instanceof LexicalIssue lexical) {
+			propertyName = lexical.getAnnotatableEntityPropertyName();
+			word = lexical.getWord();
+		}
+		User user = (resolve instanceof EditCommand edit) ? edit.getEditedBy() : null;
+		for (AssistantFindingEntity finding : findingRepository
+				.findByAppliedAnnotationId(issue.getId())) {
+			String prefix = IgnoredFinding.keyPrefix(finding.getAssistantId(),
+					finding.getTargetType(), finding.getTargetId());
+			String key = finding.getIdempotencyKey();
+			Long projectId = finding.getProjectId() != null ? finding.getProjectId()
+					: projectIdOf(issue);
+			if (key == null || !key.startsWith(prefix) || projectId == null) {
+				log.warn("Not recording an ignore for finding {}: its key doesn't start with {}"
+						+ " or it has no project", key, prefix);
+				continue;
+			}
+			ignoredFindingStore.record(new IgnoredFindingStore.Spec(projectId,
+					finding.getTargetType(), finding.getTargetId(), finding.getAssistantId(),
+					finding.getFindingType(), propertyName, key.substring(prefix.length()),
+					word != null ? word : finding.getSummary(), issue.getId()), user);
+		}
+	}
+
+	private static Long projectIdOf(Issue issue) {
+		Object grouping = issue.getGroupingObject();
+		return (grouping instanceof Project project) ? project.getId() : null;
 	}
 
 	private void markFindingsManuallyResolved(Issue issue) {

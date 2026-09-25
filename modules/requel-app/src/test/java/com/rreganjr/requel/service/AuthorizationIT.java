@@ -91,6 +91,9 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore;
+
     // JWT tokens stored once in @BeforeAll and reused in @Test methods
     private String adminToken;
     private String editorToken;
@@ -804,6 +807,41 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                         .header("Authorization", "Bearer " + editorToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.lemma == '" + lemma + "')]").isEmpty());
+    }
+
+    // Ignored findings (#320): the list needs project access, removing one Project[Edit].
+    @Test
+    void editorCanListAndRemoveAnIgnoredFindingButADeleterCannotRemoveIt() throws Exception {
+        Project project = getProjectRepository().findProjectByName(testProjectName);
+        String subject = "authignore" + System.nanoTime();
+        long ignoredId = ignoredFindingStore.record(new com.rreganjr.requel.project.IgnoredFindingStore.Spec(
+                project.getId(), "Goal", goalId, "legacy-lexical", "unknown-word", "Name",
+                "unknown-word:Name:" + subject, subject, null), null).getId();
+
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/ignored-findings")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.subject == '" + subject + "')].id").value(
+                        org.hamcrest.Matchers.contains((int) ignoredId)));
+
+        mockMvc.perform(post("/api/commands/DeleteIgnoredFinding")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "ignoredFindingId", ignoredId))))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/commands/DeleteIgnoredFinding")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "projectName", testProjectName, "ignoredFindingId", ignoredId))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/ignored-findings")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.subject == '" + subject + "')]").isEmpty());
     }
 
     @Test

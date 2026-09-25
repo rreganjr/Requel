@@ -164,6 +164,6 @@ public class LexicalComplexityAssistant implements RequelAssistant<TextEntity> {
 
 		builder.annotationAction(new AnnotationAction(issueKey + ":ignore",
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION, null, issueKey,
-				IGNORE_WORD_MSG, null, null, evidence, Map.of()));
+				IGNORE_WORD_MSG, null, null, evidence, Map.of("kind", "IGNORE")));
 	}
 }

@@ -796,6 +796,16 @@ public class ProjectCommandRegistrar {
                     c.setWordId(i.wordId());
                 });
 
+        registry.register("DeleteIgnoredFinding",
+                com.rreganjr.requel.service.api.dto.DeleteIgnoredFindingInput.class,
+                factory::newDeleteIgnoredFindingCommand,
+                (cmd, input) -> {
+                    var c = (com.rreganjr.requel.project.command.DeleteIgnoredFindingCommand) cmd;
+                    var i = (com.rreganjr.requel.service.api.dto.DeleteIgnoredFindingInput) input;
+                    c.setProject(projectRepository.findProjectByName(i.projectName()));
+                    c.setIgnoredFindingId(i.ignoredFindingId());
+                });
+
         registry.register("AddInstallDictionaryWord", AddInstallDictionaryWordInput.class,
                 factory::newAddInstallDictionaryWordCommand,
                 (cmd, input) -> ((AddInstallDictionaryWordCommand) cmd)

@@ -29,6 +29,14 @@ describe('DictionaryService (#319)', () => {
     expect((await promise)[0].lemma).toBe('requel');
   });
 
+  it('listIgnoredFindings() GETs the project ignored findings (#320)', async () => {
+    const promise = service.listIgnoredFindings('My Project');
+    const req = httpMock.expectOne('/api/projects/My%20Project/ignored-findings');
+    expect(req.request.method).toBe('GET');
+    req.flush([{ id: 7, subject: 'groal' }]);
+    expect((await promise)[0].subject).toBe('groal');
+  });
+
   it('listInstallWords() GETs the admin dictionary', async () => {
     const promise = service.listInstallWords();
     const req = httpMock.expectOne('/api/admin/dictionary');
@@ -42,9 +50,11 @@ describe('DictionaryService (#319)', () => {
     await service.removeProjectWord('P', 7);
     await service.addInstallWord('wide');
     await service.removeInstallWord(9);
+    await service.removeIgnoredFinding('P', 11);
     expect(execute).toHaveBeenNthCalledWith(1, 'AddProjectDictionaryWord', { projectName: 'P', lemma: 'word' });
     expect(execute).toHaveBeenNthCalledWith(2, 'DeleteProjectDictionaryWord', { projectName: 'P', wordId: 7 });
     expect(execute).toHaveBeenNthCalledWith(3, 'AddInstallDictionaryWord', { lemma: 'wide' });
     expect(execute).toHaveBeenNthCalledWith(4, 'DeleteInstallDictionaryWord', { wordId: 9 });
+    expect(execute).toHaveBeenNthCalledWith(5, 'DeleteIgnoredFinding', { projectName: 'P', ignoredFindingId: 11 });
   });
 });

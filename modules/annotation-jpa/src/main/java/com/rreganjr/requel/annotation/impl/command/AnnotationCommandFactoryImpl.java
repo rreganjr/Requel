@@ -38,6 +38,7 @@ import com.rreganjr.requel.annotation.command.DeleteIssueCommand;
 import com.rreganjr.requel.annotation.command.DeleteNoteCommand;
 import com.rreganjr.requel.annotation.command.DeletePositionCommand;
 import com.rreganjr.requel.annotation.command.EditAddWordToDictionaryPositionCommand;
+import com.rreganjr.requel.annotation.command.EditIgnorePositionCommand;
 import com.rreganjr.requel.annotation.command.EditArgumentCommand;
 import com.rreganjr.requel.annotation.command.EditChangeSpellingPositionCommand;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
@@ -49,6 +50,7 @@ import com.rreganjr.requel.annotation.command.RemoveAllAnnotationsFromAnnotatabl
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.annotation.command.ResolveIssueCommand;
 import com.rreganjr.requel.annotation.impl.AddWordToDictionaryPosition;
+import com.rreganjr.requel.annotation.impl.IgnorePosition;
 import com.rreganjr.requel.annotation.impl.ChangeSpellingPosition;
 import com.rreganjr.requel.annotation.impl.PositionImpl;
 
@@ -68,6 +70,9 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 		register(PositionImpl.class, ResolveIssueCommandImpl.class);
 		register(ChangeSpellingPosition.class, ResolveIssueWithChangeSpellingPositionCommandImpl.class);
 		register(AddWordToDictionaryPosition.class, ResolveIssueWithAddWordToDictionaryPositionCommandImpl.class);
+		// Issue #320: an ignore resolves like a plain position; the ignored finding is recorded by
+		// FindingResolutionTrackingCommandHandler after the resolve.
+		register(IgnorePosition.class, ResolveIssueCommandImpl.class);
 	}
 
 	private static void register(Class<? extends Position> positionType,
@@ -165,6 +170,12 @@ public class AnnotationCommandFactoryImpl extends AbstractCommandFactory impleme
 	public EditAddWordToDictionaryPositionCommand newEditAddWordToDictionaryPositionCommand() {
 		return (EditAddWordToDictionaryPositionCommand) getCreationStrategy().newInstance(
 				EditAddWordToDictionaryPositionCommandImpl.class);
+	}
+
+	@Override
+	public EditIgnorePositionCommand newEditIgnorePositionCommand() {
+		return (EditIgnorePositionCommand) getCreationStrategy().newInstance(
+				EditIgnorePositionCommandImpl.class);
 	}
 
 	@Override

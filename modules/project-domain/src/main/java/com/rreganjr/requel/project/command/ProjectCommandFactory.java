@@ -153,6 +153,12 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public DeleteProjectDictionaryWordCommand newDeleteProjectDictionaryWordCommand();
 
 	/**
+	 * @return a new command that stops ignoring an assistant finding; requires
+	 *         {@code Project[Edit]} (issue #320).
+	 */
+	public DeleteIgnoredFindingCommand newDeleteIgnoredFindingCommand();
+
+	/**
 	 * @return a new command adding an installation-wide dictionary word; administrators only
 	 *         (issue #319).
 	 */

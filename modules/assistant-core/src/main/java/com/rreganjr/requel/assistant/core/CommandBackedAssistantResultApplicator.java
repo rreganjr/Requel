@@ -136,6 +136,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	private final AssistantRunRepository runRepository;
 	private final List<AssistantTargetLoader> targetLoaders;
 	private final ObjectMapper objectMapper = new ObjectMapper();
+	private com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore;
 	private final Clock clock;
 
 	@Autowired
@@ -169,6 +170,33 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		this.clock = Objects.requireNonNull(clock, "clock");
 	}
 
+	/**
+	 * Issue #320: setter-injected so the constructors (and the tests that call them) don't change.
+	 * Without a store nothing is treated as ignored.
+	 */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setIgnoredFindingStore(com.rreganjr.requel.project.IgnoredFindingStore store) {
+		this.ignoredFindingStore = store;
+	}
+
+	/** The run's project's ignored keys, lower-cased; read once per apply. */
+	private Set<String> ignoredKeys(AssistantContext context) {
+		if (ignoredFindingStore == null || context.projectRef() == null) {
+			return java.util.Collections.emptySet();
+		}
+		return ignoredFindingStore.ignoredKeys(context.projectRef().entityId());
+	}
+
+	private static boolean isIgnored(AnnotationAction action, Set<String> ignoredKeys) {
+		if (ignoredKeys.isEmpty() || action.actionKey() == null) {
+			return false;
+		}
+		AnnotationAction.ActionType type = action.actionType();
+		return (type == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE
+				|| type == AnnotationAction.ActionType.CREATE_OR_UPDATE_NOTE)
+				&& ignoredKeys.contains(action.actionKey().toLowerCase(java.util.Locale.ROOT));
+	}
+
 	@Override
 	public AppliedAssistantResult apply(AssistantContext context, AssistantResult result,
 			CleanupPolicy cleanupPolicy, EntityRef dispatchTarget) {
@@ -185,9 +213,18 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		// stale findings on each target can be reconciled afterward.
 		Map<EntityRef, Set<String>> producedKeysByTarget = new HashMap<EntityRef, Set<String>>();
 		int newFindings = 0;
+		Set<String> ignoredKeys = ignoredKeys(context);
 
 		for (AnnotationAction action : result.annotationActions()) {
 			try {
+				if (isIgnored(action, ignoredKeys)) {
+					// Issue #320: the user ignored this finding on this entity and property. Not
+					// applying it also skips its positions (their parent isn't in
+					// createdByActionKey), and leaving the key out of producedKeysByTarget lets an
+					// ACTIVE, untouched finding for it auto-resolve below.
+					log.debug("Skipping ignored finding {}", action.actionKey());
+					continue;
+				}
 				if (action.actionType() == AnnotationAction.ActionType.ADD_GLOSSARY_TERM_REFERER) {
 					// Link the target entity to an existing glossary term. Idempotent at the
 					// domain level, so no finding is recorded.
@@ -554,6 +591,20 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 				|| "ADD_ACTOR_TO_PROJECT".equalsIgnoreCase(kind)) {
 			return applyProjectPosition(kind, issue, grouping, text, editedBy, action,
 					createdByActionKey);
+		}
+
+		if ("IGNORE".equalsIgnoreCase(kind)) {
+			// Issue #320: the ignore marker. The command reuses the grouping's ignore position with
+			// this text itself, so the plain-position lookup below is skipped (it can find a
+			// plain position with the same text, which isn't an IgnorePosition).
+			EditPositionCommand ignore = annotationCommandFactory.newEditIgnorePositionCommand();
+			ignore.setIssue(issue);
+			ignore.setText(text);
+			ignore.setEditedBy(editedBy);
+			ignore = commandHandler.execute(ignore);
+			Position position = ignore.getPosition();
+			createdByActionKey.put(action.actionKey(), position);
+			return new AppliedAction(position.getId());
 		}
 
 		EditPositionCommand command;
