@@ -23,3 +23,23 @@ export interface DictionaryWordDto {
   id: number;
   lemma: string;
 }
+
+/**
+ * An assistant finding a user ignored on one entity and property (issue #320). Listed on the
+ * project's Dictionary page; removing it raises the finding again.
+ */
+export interface IgnoredFindingDto {
+  id: number;
+  /** What was ignored: a word, a phrase or a sentence snippet. */
+  subject: string | null;
+  /** e.g. unknown-word, vague-word, complex-text, glossary-term */
+  findingType: string;
+  /** e.g. Goal, Story, UseCase */
+  entityType: string;
+  entityId: number;
+  entityName: string | null;
+  /** Name, Text, or null for glossary terms. */
+  propertyName: string | null;
+  createdBy: string | null;
+  dateCreated: string | null;
+}

@@ -86,6 +86,11 @@ public class ResolveIssueCommandImpl extends AbstractEditCommand
 		this.position = position;
 	}
 
+	@Override
+	public Position getResolvingPosition() {
+		return position;
+	}
+
 	public void setIssue(Issue issue) {
 		this.issue = issue;
 	}

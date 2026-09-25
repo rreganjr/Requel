@@ -87,6 +87,7 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 		classes.add(PositionImpl.class);
 		classes.add(ChangeSpellingPosition.class);
 		classes.add(AddWordToDictionaryPosition.class);
+		classes.add(com.rreganjr.requel.annotation.impl.IgnorePosition.class);
 		classes.add(AddGlossaryTermPosition.class);
 		classes.add(AddActorPosition.class);
 		// Issue #313: the project's own dictionary words, reachable from
@@ -122,6 +123,48 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
         this.jaxbAdapterConfigurer = jaxbAdapterConfigurer;
         this.tagExportProvider = tagExportProvider;
         this.dictionaryRepository = dictionaryRepository;
+	}
+
+	/**
+	 * Issue #320: one carrier per ignored finding whose entity is still in the project. The entity
+	 * and the resolved issue are referenced by IDREF, so the file never carries a database id.
+	 */
+	private java.util.List<com.rreganjr.requel.project.impl.IgnoredFindingXml> exportIgnoredFindings(
+			ProjectImpl projectImpl) {
+		java.util.List<com.rreganjr.requel.project.impl.IgnoredFindingXml> carriers =
+				new java.util.ArrayList<>();
+		if (getIgnoredFindingStore() == null) {
+			return carriers;
+		}
+		java.util.Map<String, Object> entities = new java.util.HashMap<>();
+		java.util.Map<Long, Object> annotations = new java.util.HashMap<>();
+		for (com.rreganjr.requel.annotation.Annotation annotation : projectImpl.getAnnotations()) {
+			annotations.put(annotation.getId(), annotation);
+		}
+		for (com.rreganjr.requel.project.ProjectOrDomainEntity entity : projectImpl
+				.getProjectEntities()) {
+			entities.put(entity.getProjectOrDomainEntityInterface().getSimpleName() + ":"
+					+ entity.getId(), entity);
+			for (com.rreganjr.requel.annotation.Annotation annotation : entity.getAnnotations()) {
+				annotations.put(annotation.getId(), annotation);
+			}
+		}
+		for (com.rreganjr.requel.project.IgnoredFinding ignored : getIgnoredFindingStore()
+				.list(projectImpl.getId())) {
+			Object entity = entities.get(ignored.getTargetType() + ":" + ignored.getTargetId());
+			if (entity == null) {
+				continue;
+			}
+			carriers.add(new com.rreganjr.requel.project.impl.IgnoredFindingXml(
+					ignored.getTargetType(), entity, ignored.getAssistantId(),
+					ignored.getFindingType(), ignored.getPropertyName(), ignored.getKeySuffix(),
+					ignored.getSubject(), annotations.get(ignored.getAnnotationId()),
+					ignored.getCreatedBy() == null ? null : ignored.getCreatedBy().getUsername(),
+					ignored.getDateCreated() == null ? null
+							: com.rreganjr.requel.utils.DateUtils.standardDateAndTime
+									.format(ignored.getDateCreated())));
+		}
+		return carriers;
 	}
 
 	/**
@@ -165,6 +208,9 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 				// Hibernate copy that could be stale.
 				projectImpl.setDictionaryWords(new java.util.TreeSet<>(
 						dictionaryRepository.findProjectWords(projectImpl.getId())));
+
+				// Issue #320: the project's ignored findings, from the store that owns them.
+				projectImpl.setExportIgnoredFindings(exportIgnoredFindings(projectImpl));
 			}
 
 			JAXBContext context = JAXBContext.newInstance(CLASSES_FOR_JAXB);

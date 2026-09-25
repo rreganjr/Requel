@@ -92,6 +92,23 @@ public abstract class AbstractProjectCommand extends AbstractUserCommand
 		return commandHandler;
 	}
 
+	private com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore;
+
+	/**
+	 * Issue #320: setter-injected so the many subclass constructors don't change; commands are
+	 * created through the application context, so every project command gets it. Null in unit
+	 * tests that construct a command directly.
+	 */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setIgnoredFindingStore(
+			com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore) {
+		this.ignoredFindingStore = ignoredFindingStore;
+	}
+
+	protected com.rreganjr.requel.project.IgnoredFindingStore getIgnoredFindingStore() {
+		return ignoredFindingStore;
+	}
+
 	/**
 	 * #247: the last step before {@code getRepository().delete(entity)} in every
 	 * project-entity delete. Unlinks the entity from every annotation using the
@@ -109,6 +126,14 @@ public abstract class AbstractProjectCommand extends AbstractUserCommand
 	 */
 	protected void removeAllAnnotationsBeforeDelete(Annotatable entity, User editedBy)
 			throws Exception {
+		// Issue #320: the entity's ignored findings go with it. They are keyed by entity type and
+		// id, like the assistant findings, so nothing else would ever remove them.
+		if (ignoredFindingStore != null
+				&& entity instanceof com.rreganjr.requel.project.ProjectOrDomainEntity projectEntity) {
+			ignoredFindingStore.deleteForTarget(
+					projectEntity.getProjectOrDomainEntityInterface().getSimpleName(),
+					projectEntity.getId());
+		}
 		RemoveAllAnnotationsFromAnnotatableCommand command = getAnnotationCommandFactory()
 				.newRemoveAllAnnotationsFromAnnotatableCommand();
 		command.setAnnotatable(entity);

@@ -221,6 +221,12 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	}
 
 	@Override
+	public com.rreganjr.requel.project.command.DeleteIgnoredFindingCommand newDeleteIgnoredFindingCommand() {
+		return (com.rreganjr.requel.project.command.DeleteIgnoredFindingCommand) getCreationStrategy()
+				.newInstance(DeleteIgnoredFindingCommandImpl.class);
+	}
+
+	@Override
 	public AddInstallDictionaryWordCommand newAddInstallDictionaryWordCommand() {
 		return (AddInstallDictionaryWordCommand) getCreationStrategy().newInstance(
 				AddInstallDictionaryWordCommandImpl.class);

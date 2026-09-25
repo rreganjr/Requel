@@ -153,6 +153,9 @@ class ProjectXmlStreamingRoundTripIT {
 	@Autowired
 	private com.rreganjr.nlp.dictionary.DictionaryRepository dictionaryRepository;
 
+	@Autowired
+	private com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore;
+
 	@jakarta.persistence.PersistenceContext
 	private jakarta.persistence.EntityManager entityManager;
 
@@ -390,6 +393,79 @@ class ProjectXmlStreamingRoundTripIT {
 				"resolvedByPosition=\"POS_missing\"").getBytes(StandardCharsets.UTF_8);
 		String brokenName = originalProject.getName() + " Dangling " + Instant.now().toEpochMilli();
 		assertThat(importProject(brokenBytes, projectUser, brokenName)).isNotNull();
+	}
+
+	/**
+	 * Issue #320: ignored findings and the IgnorePosition marker round-trip, with each key
+	 * rebuilt for the entity's new id and pointing at the imported issue.
+	 */
+	@Test
+	@Transactional
+	void ignoredFindingsRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String ts = Long.toString(System.nanoTime());
+
+		com.rreganjr.requel.annotation.command.EditLexicalIssueCommand lexical =
+				annotationCommandFactory.newEditLexicalIssueCommand();
+		lexical.setEditedBy(projectUser);
+		lexical.setGroupingObject(originalProject);
+		lexical.setAnnotatable(goal);
+		lexical.setWord("zorblat" + ts);
+		lexical.setAnnotatableEntityPropertyName("Name");
+		lexical.setText("The word zorblat" + ts + " is not recognized.");
+		lexical.setMustBeResolved(true);
+		com.rreganjr.requel.annotation.Issue issue = commandHandler.execute(lexical).getIssue();
+		com.rreganjr.requel.annotation.command.EditIgnorePositionCommand ignorePosition =
+				annotationCommandFactory.newEditIgnorePositionCommand();
+		ignorePosition.setEditedBy(projectUser);
+		ignorePosition.setIssue(issue);
+		ignorePosition.setText("Ignore this word.");
+		com.rreganjr.requel.annotation.Position ignore = commandHandler.execute(ignorePosition)
+				.getPosition();
+		com.rreganjr.requel.annotation.command.ResolveIssueCommand resolve =
+				annotationCommandFactory.newResolveIssueCommand(ignore);
+		resolve.setEditedBy(projectUser);
+		resolve.setIssue(issue);
+		resolve.setPosition(ignore);
+		commandHandler.execute(resolve);
+		String suffix = "unknown-word:Name:zorblat" + ts;
+		ignoredFindingStore.record(new com.rreganjr.requel.project.IgnoredFindingStore.Spec(
+				originalProject.getId(), "Goal", goal.getId(), "legacy-lexical", "unknown-word",
+				"Name", suffix, "zorblat" + ts, issue.getId()), projectUser);
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML").contains("<ignorePosition ").contains("<ignoredFinding ");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " Ignores " + Instant.now().toEpochMilli();
+		Project reimported = importProject(exportedBytes, projectUser, reName);
+		entityManager.flush();
+
+		Goal importedGoal = reimported.getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow(() -> new AssertionError("goal " + goal.getName() + " not imported"));
+		List<com.rreganjr.requel.project.IgnoredFinding> ignored = ignoredFindingStore
+				.list(reimported.getId());
+		assertThat(ignored).as("ignored findings on the reimported project").hasSize(1);
+		com.rreganjr.requel.project.IgnoredFinding row = ignored.get(0);
+		assertThat(row.getIdempotencyKey())
+				.isEqualTo("legacy-lexical:Goal:" + importedGoal.getId() + ":" + suffix);
+		com.rreganjr.requel.annotation.Issue importedIssue = importedGoal.getAnnotations().stream()
+				.map(org.hibernate.Hibernate::unproxy)
+				.filter(com.rreganjr.requel.annotation.Issue.class::isInstance)
+				.map(com.rreganjr.requel.annotation.Issue.class::cast)
+				.filter(candidate -> candidate.getText().startsWith("The word zorblat" + ts))
+				.findFirst().orElseThrow();
+		assertThat(row.getAnnotationId()).isEqualTo(importedIssue.getId());
+		assertThat(org.hibernate.Hibernate.unproxy(importedIssue.getResolvedByPosition()))
+				.isInstanceOf(com.rreganjr.requel.annotation.impl.IgnorePosition.class);
+		// The original keeps its own.
+		assertThat(ignoredFindingStore.list(originalProject.getId())).hasSize(1);
 	}
 
 	private com.rreganjr.requel.annotation.Issue addIssue(Project project, Goal goal, User editor,

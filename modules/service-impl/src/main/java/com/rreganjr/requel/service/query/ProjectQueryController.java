@@ -112,6 +112,14 @@ public class ProjectQueryController {
     private final EntityManager entityManager;
     private final DictionaryRepository dictionaryRepository;
 
+    private com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore;
+
+    /** Issue #320: setter-injected so the constructor used by the standalone MockMvc test is unchanged. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setIgnoredFindingStore(com.rreganjr.requel.project.IgnoredFindingStore store) {
+        this.ignoredFindingStore = store;
+    }
+
     public ProjectQueryController(ProjectRepository projectRepository,
                                   ProjectCommandFactory projectCommandFactory,
                                   CommandHandler commandHandler,
@@ -903,6 +911,48 @@ public class ProjectQueryController {
             return ResponseEntity.notFound().build();
         } catch (AuthorizationException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/ignored-findings — the assistant findings ignored in the project
+     * (issue #320), ordered by entity then subject.
+     */
+    @GetMapping("/{name}/ignored-findings")
+    public ResponseEntity<?> listIgnoredFindings(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            if (ignoredFindingStore == null) {
+                return ResponseEntity.ok(List.of());
+            }
+            List<com.rreganjr.requel.service.api.dto.IgnoredFindingDto> dtos = ignoredFindingStore
+                    .list(project.getId()).stream()
+                    .map(f -> new com.rreganjr.requel.service.api.dto.IgnoredFindingDto(f.getId(),
+                            f.getSubject(), f.getFindingType(), f.getTargetType(), f.getTargetId(),
+                            entityName(f.getTargetType(), f.getTargetId()), f.getPropertyName(),
+                            f.getCreatedBy() == null ? null : f.getCreatedBy().getUsername(),
+                            f.getDateCreated()))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    private String entityName(String entityType, Long entityId) {
+        Class<?> type = com.rreganjr.requel.project.impl.IgnorableEntityTypes.BY_NAME.get(entityType);
+        if (type == null || entityId == null) {
+            return null;
+        }
+        try {
+            Object entity = projectRepository.findById(type, entityId);
+            return (entity instanceof com.rreganjr.requel.project.TextEntity text) ? text.getName()
+                    : null;
+        } catch (Exception e) {
+            return null;
         }
     }
 

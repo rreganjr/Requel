@@ -9,6 +9,8 @@ import { PermissionService } from '../../core/permission.service';
 import { ProjectService } from '../../core/project.service';
 
 const WORDS = [{ id: 1, lemma: 'requel' }];
+const IGNORED = [{ id: 7, subject: 'groal', findingType: 'unknown-word', entityType: 'Goal', entityId: 3,
+  entityName: 'groal intake', propertyName: 'Name', createdBy: 'project', dateCreated: null }];
 const flush = () => new Promise(r => setTimeout(r, 0));
 
 describe('ProjectDictionaryComponent (#319)', () => {
@@ -16,6 +18,8 @@ describe('ProjectDictionaryComponent (#319)', () => {
     listProjectWords: ReturnType<typeof vi.fn>;
     addProjectWord: ReturnType<typeof vi.fn>;
     removeProjectWord: ReturnType<typeof vi.fn>;
+    listIgnoredFindings: ReturnType<typeof vi.fn>;
+    removeIgnoredFinding: ReturnType<typeof vi.fn>;
   };
   let notifyTreeChanged: ReturnType<typeof vi.fn>;
 
@@ -24,6 +28,8 @@ describe('ProjectDictionaryComponent (#319)', () => {
       listProjectWords: vi.fn().mockResolvedValue(WORDS),
       addProjectWord: vi.fn().mockResolvedValue({ success: true, entity: { id: 2, lemma: 'new' } }),
       removeProjectWord: vi.fn().mockResolvedValue({ success: true }),
+      listIgnoredFindings: vi.fn().mockResolvedValue(IGNORED),
+      removeIgnoredFinding: vi.fn().mockResolvedValue({ success: true }),
     };
     notifyTreeChanged = vi.fn();
     TestBed.configureTestingModule({
@@ -106,5 +112,27 @@ describe('ProjectDictionaryComponent (#319)', () => {
     await comp.load();
     expect(comp.errorMessage()).toBe('Failed to load the project dictionary.');
     expect(comp.loadFailed()).toBe(true);
+  });
+
+  it('loads the ignored findings for the route project (#320)', async () => {
+    const { comp, el } = await render(true);
+    expect(dictionary.listIgnoredFindings).toHaveBeenCalledWith('Proj A');
+    expect(comp.ignoredFindings()).toEqual(IGNORED);
+    expect(el.querySelector('[data-testid="ignored-findings-title"]')?.textContent).toContain('Ignored findings');
+  });
+
+  it('removes an ignored finding and reloads both lists (#320)', async () => {
+    const { comp } = await render(true);
+    await comp.removeIgnoredFinding(IGNORED[0]);
+    expect(dictionary.removeIgnoredFinding).toHaveBeenCalledWith('Proj A', 7);
+    expect(dictionary.listIgnoredFindings).toHaveBeenCalledTimes(2);
+    expect(dictionary.listProjectWords).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a failed ignored-finding remove message on screen (#320)', async () => {
+    const { comp } = await render(true);
+    dictionary.removeIgnoredFinding.mockResolvedValue({ success: false, error: 'FORBIDDEN' });
+    await comp.removeIgnoredFinding(IGNORED[0]);
+    expect(comp.errorMessage()).toBe('FORBIDDEN');
   });
 });

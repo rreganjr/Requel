@@ -81,6 +81,8 @@ public class GatewayPolicyConfig {
             "EditGlossaryTerm", "DeleteGlossaryTerm",
             // Project dictionary (#319; Project[Edit] at the command layer)
             "AddProjectDictionaryWord", "DeleteProjectDictionaryWord",
+            // Ignored assistant findings (#320; Project[Edit] at the command layer)
+            "DeleteIgnoredFinding",
             // Reports (definition only; GenerateReport produces a file and is denied)
             "EditReportGenerator", "DeleteReportGenerator",
             // Annotations / IBIS

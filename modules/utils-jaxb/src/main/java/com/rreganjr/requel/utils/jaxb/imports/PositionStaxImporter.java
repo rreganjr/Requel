@@ -65,7 +65,8 @@ public class PositionStaxImporter {
                             || "changeSpellingPosition".equals(local)
                             || "addWordToDictionaryPosition".equals(local)
                             || "addGlossaryTermPosition".equals(local)
-                            || "addActorPosition".equals(local)) {
+                            || "addActorPosition".equals(local)
+                            || "ignorePosition".equals(local)) {
                         PositionImportXml xml = unmarshaller.unmarshal(reader, PositionImportXml.class).getValue();
                         drafts.add(mapper.toDraft(xml, local));
                         continue;

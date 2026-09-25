@@ -315,6 +315,7 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
     expect(comp.resolveLabel('ChangeSpellingPosition')).toBe('Fix Spelling');
     expect(comp.resolveLabel('AddActorPosition')).toBe('Add as Actor');
     expect(comp.resolveLabel('AddGlossaryTermPosition')).toBe('Add to Glossary');
+    expect(comp.resolveLabel('IgnorePosition')).toBe('Ignore');
     expect(comp.resolveLabel('UnknownPosition')).toBe('Ignore');
   });
 

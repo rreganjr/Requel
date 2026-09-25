@@ -287,7 +287,7 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 
 		builder.annotationAction(new AnnotationAction(issueKey + ":ignore",
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION, null, issueKey,
-				IGNORE_PHRASE_MSG, null, null, evidence, Map.of()));
+				IGNORE_PHRASE_MSG, null, null, evidence, Map.of("kind", "IGNORE")));
 		builder.annotationAction(new AnnotationAction(issueKey + ":add-glossary",
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION, null, issueKey,
 				MessageFormat.format(ADD_TO_GLOSSARY_MSG, termText), null, null, evidence,

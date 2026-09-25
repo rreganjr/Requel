@@ -23,13 +23,14 @@ import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, ViewChild, comp
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { MessageService } from 'primeng/api';
-import { DictionaryWordDto } from '../../models/dictionary';
+import { DictionaryWordDto, IgnoredFindingDto } from '../../models/dictionary';
 import { DictionaryService } from '../../core/dictionary.service';
 import { PermissionService } from '../../core/permission.service';
 import { ProjectService } from '../../core/project.service';
 import { ListPageComponent } from '../../shared/list-page';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { DictionaryWordListComponent } from '../../shared/dictionary-word-list';
+import { IgnoredFindingListComponent } from '../../shared/ignored-finding-list';
 
 /**
  * A project's own spell-check word list (issue #319), at /projects/:name/dictionary.
@@ -42,7 +43,8 @@ import { DictionaryWordListComponent } from '../../shared/dictionary-word-list';
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-project-dictionary',
   standalone: true,
-  imports: [ListPageComponent, SubmitErrorComponent, DictionaryWordListComponent],
+  imports: [ListPageComponent, SubmitErrorComponent, DictionaryWordListComponent,
+            IgnoredFindingListComponent],
   template: `
     <app-list-page title="Dictionary" [showSearch]="false">
       <p class="intro" data-testid="project-dictionary-intro">
@@ -56,14 +58,25 @@ import { DictionaryWordListComponent } from '../../shared/dictionary-word-list';
                                 testid="project-dictionary"
                                 emptyMessage="Words added here, or by resolving an 'Add to Dictionary' issue, appear in this list."
                                 (add)="addWord($event)" (remove)="removeWord($event)" />
+
+      <h2 class="section-title" data-testid="ignored-findings-title">Ignored findings</h2>
+      <p class="intro" data-testid="ignored-findings-intro">
+        Assistant findings resolved with Ignore. They aren't raised again on that item and
+        property. Stop ignoring one to have it raised again.
+      </p>
+      <app-ignored-finding-list [findings]="ignoredFindings()" [loading]="loading()"
+                                [canRemove]="canEdit()" [projectName]="projectName"
+                                (remove)="removeIgnoredFinding($event)" />
     </app-list-page>
   `,
   styles: [`
     .intro { margin: 0 0 1rem; color: var(--p-text-muted-color); }
+    .section-title { margin: 2rem 0 0.5rem; font-size: 1.1rem; }
   `]
 })
 export class ProjectDictionaryComponent implements OnInit {
   readonly words = signal<DictionaryWordDto[]>([]);
+  readonly ignoredFindings = signal<IgnoredFindingDto[]>([]);
   readonly loading = signal(true);
   readonly adding = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -72,7 +85,7 @@ export class ProjectDictionaryComponent implements OnInit {
 
   @ViewChild('list') list?: DictionaryWordListComponent;
 
-  private projectName = '';
+  protected projectName = '';
   private readonly route = inject(ActivatedRoute);
   private readonly dictionaryService = inject(DictionaryService);
   private readonly permissionService = inject(PermissionService);
@@ -94,7 +107,12 @@ export class ProjectDictionaryComponent implements OnInit {
   async load(): Promise<void> {
     this.loading.set(true);
     try {
-      this.words.set(await this.dictionaryService.listProjectWords(this.projectName));
+      const [words, ignored] = await Promise.all([
+        this.dictionaryService.listProjectWords(this.projectName),
+        this.dictionaryService.listIgnoredFindings(this.projectName),
+      ]);
+      this.words.set(words);
+      this.ignoredFindings.set(ignored);
       // Clear only a load failure: a failed add or remove reloads too, and its message must stay.
       if (this.loadFailed()) {
         this.loadFailed.set(false);
@@ -136,6 +154,18 @@ export class ProjectDictionaryComponent implements OnInit {
       this.projectService.notifyTreeChanged();
     } else {
       this.errorMessage.set(result.error ?? 'Failed to remove the word.');
+    }
+    await this.load();
+  }
+
+  async removeIgnoredFinding(finding: IgnoredFindingDto): Promise<void> {
+    this.errorMessage.set(null);
+    const result = await this.dictionaryService.removeIgnoredFinding(this.projectName, finding.id);
+    if (result.success) {
+      this.messageService.add({ severity: 'success',
+        summary: `No longer ignoring "${finding.subject ?? ''}"`, life: 3000 });
+    } else {
+      this.errorMessage.set(result.error ?? 'Failed to stop ignoring the finding.');
     }
     await this.load();
   }

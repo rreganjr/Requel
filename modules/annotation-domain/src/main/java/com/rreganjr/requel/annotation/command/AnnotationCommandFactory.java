@@ -72,6 +72,12 @@ public interface AnnotationCommandFactory extends CommandFactory {
 	public EditAddWordToDictionaryPositionCommand newEditAddWordToDictionaryPositionCommand();
 
 	/**
+	 * @return a new EditIgnorePositionCommand for adding the "Ignore" position an assistant offers
+	 *         on a finding (issue #320).
+	 */
+	public EditIgnorePositionCommand newEditIgnorePositionCommand();
+
+	/**
 	 * @return a new EditArgumentCommand for creating or editing an argument for
 	 *         or against a position of an issue.
 	 */

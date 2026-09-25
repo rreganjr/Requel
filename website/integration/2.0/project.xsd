@@ -29,6 +29,7 @@
   <xs:element name="addGlossaryTermPosition" type="tns:addGlossaryTermPosition"/>
 
   <xs:element name="addWordToDictionaryPosition" type="tns:addWordToDictionaryPosition"/>
+  <xs:element name="ignorePosition" type="tns:ignorePosition"/>
 
   <xs:element name="argument" type="tns:argument"/>
 
@@ -143,6 +144,16 @@
   </xs:complexType>
 
   <xs:complexType name="addWordToDictionaryPosition">
+    <xs:complexContent>
+      <xs:extension base="tns:position">
+        <xs:sequence/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <!-- The "Ignore" position an assistant offers on a finding (issue #320). A marker: what was
+       ignored is recorded as an ignoredFinding on the project. -->
+  <xs:complexType name="ignorePosition">
     <xs:complexContent>
       <xs:extension base="tns:position">
         <xs:sequence/>
@@ -643,6 +654,7 @@
                     <xs:element ref="tns:changeSpellingPosition"/>
                     <xs:element ref="tns:addActorPosition"/>
                     <xs:element ref="tns:addGlossaryTermPosition"/>
+                    <xs:element ref="tns:ignorePosition"/>
                   </xs:choice>
                 </xs:sequence>
               </xs:complexType>
@@ -655,12 +667,35 @@
                 </xs:sequence>
               </xs:complexType>
             </xs:element>
+            <xs:element name="ignoredFindings" form="qualified" minOccurs="0" maxOccurs="1">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="ignoredFinding" type="tns:ignoredFinding" form="qualified"
+                              minOccurs="0" maxOccurs="unbounded"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
           </xs:choice>
           <xs:element ref="tns:organization"/>
           <xs:element name="status" type="xs:string" form="qualified" minOccurs="0"/>
         </xs:sequence>
       </xs:extension>
     </xs:complexContent>
+  </xs:complexType>
+
+  <!-- An assistant finding a user chose to ignore on one entity and property (issue #320). The key
+       is rebuilt on import as assistant:entityType:<new id>:keySuffix. -->
+  <xs:complexType name="ignoredFinding">
+    <xs:attribute name="entityType" type="xs:string" use="required"/>
+    <xs:attribute name="entityRef" type="xs:IDREF" use="required"/>
+    <xs:attribute name="assistant" type="xs:string" use="required"/>
+    <xs:attribute name="findingType" type="xs:string" use="required"/>
+    <xs:attribute name="property" type="xs:string"/>
+    <xs:attribute name="keySuffix" type="xs:string" use="required"/>
+    <xs:attribute name="subject" type="xs:string"/>
+    <xs:attribute name="annotationRef" type="xs:IDREF"/>
+    <xs:attribute name="createdBy" type="xs:string"/>
+    <xs:attribute name="dateCreated" type="xs:string"/>
   </xs:complexType>
 
   <xs:complexType name="tagAssignment">

@@ -64,6 +64,14 @@ public interface ResolveIssueCommand extends Command {
 	public void setPosition(Position position);
 
 	/**
+	 * Issue #320: the position that resolves the issue, as set. Read after the command runs to
+	 * see how an issue was resolved (an {@code IgnorePosition} records an ignored finding).
+	 *
+	 * @return the resolving position, or null if none was set
+	 */
+	public Position getResolvingPosition();
+
+	/**
 	 * @param user -
 	 *            the user resolving the issue.
 	 */
