@@ -20,12 +20,20 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Deletes an actor, selected by actorId. It is first detached from its use"
+        + " cases, stories, goals and glossary terms, which are kept; annotations only it carries"
+        + " are deleted and shared ones unlinked, and any assistant suggestion to add an actor of"
+        + " that name is removed. An actor that is a use case's primary actor is refused: give the"
+        + " use case another primary actor, or delete the use case, first."
+        + CommandDescriptions.VERSION_CHECKED_ON_DELETE)
 public record DeleteActorInput(
         @NotBlank String projectName,
         @NotNull Long actorId,
-        int version
+        Integer version
 ) {
 }

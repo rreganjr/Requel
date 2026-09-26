@@ -49,7 +49,7 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteGoalRelationCommand")
 @Scope("prototype")
-public class DeleteGoalRelationCommandImpl extends AbstractEditProjectCommand implements
+public class DeleteGoalRelationCommandImpl extends AbstractDeleteProjectEntityCommand implements
 		DeleteGoalRelationCommand, ProjectScopedCommand, AuthorizableCommand {
 
 	@Override
@@ -80,6 +80,8 @@ public class DeleteGoalRelationCommandImpl extends AbstractEditProjectCommand im
 	@Override
 	public void execute() throws Exception {
 		GoalRelation goalRelation = getRepository().get(getGoalRelation());
+		// #296: refuse before touching anything if the caller read an older version.
+		refuseStaleDelete(GoalRelation.class, goalRelation, goalRelation.getVersion());
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(goalRelation.getAnnotations());
 		for (Annotation annotation : annotations) {

@@ -20,13 +20,12 @@
  */
 package com.rreganjr.requel.project.command;
 
-import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.requel.project.Actor;
 
 /**
  * @author ron
  */
-public interface DeleteActorCommand extends EditCommand {
+public interface DeleteActorCommand extends VersionCheckedDeleteCommand {
 
 	/**
 	 * Set the actor to delete.

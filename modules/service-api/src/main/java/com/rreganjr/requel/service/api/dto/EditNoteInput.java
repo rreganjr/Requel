@@ -20,12 +20,21 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 /**
  * Input DTO for EditNote command. noteId null = create new note on entity.
  */
+@CommandDescription("Creates or edits a note attached to the entity given by entityType and"
+        + " entityId. entityType is case-sensitive: Project, ProjectTeam, Goal, GoalRelation,"
+        + " UseCase, Scenario, Step, Story, Actor, GlossaryTerm, NonUserStakeholder or"
+        + " UserStakeholder. Leave noteId null to create a note; when a note with the same text,"
+        + " ignoring case, already exists anywhere in the project, that note is attached instead of"
+        + " a new one. Pass noteId to replace a note's text. A note can be attached to several"
+        + " entities, so editing it changes it everywhere, and an unknown noteId creates a new note"
+        + " rather than failing.")
 public record EditNoteInput(
         String projectName,
         @NotBlank String entityType,

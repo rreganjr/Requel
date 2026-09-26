@@ -36,7 +36,8 @@ import com.rreganjr.requel.service.api.CommandDescription;
         + " stepId must be an existing plain step, not a scenario; converting a step that is already"
         + " a sub-scenario is not what this does."
         + " To create, edit or delete ordinary steps, use EditScenario and send the whole steps"
-        + " array: the list is replaced on save, so omitting a step deletes it.")
+        + " array: the list is replaced on save, so a step you leave out is removed from the"
+        + " scenario, and deleted unless another scenario also uses it.")
 public record ConvertStepToScenarioInput(
         String projectName,
         Long stepId

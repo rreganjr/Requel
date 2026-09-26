@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
 import com.rreganjr.validator.ValidationLimits;
 import jakarta.validation.constraints.Size;
@@ -37,6 +39,12 @@ import jakarta.validation.constraints.Size;
  * @param text         goal description/body
  * @param version      optimistic lock version (null for create)
  */
+@CommandDescription("Creates or edits a goal. Leave goalId null to create one, or pass it to edit"
+        + " an existing goal. name is required on every call, so send the current name to keep it,"
+        + " and goal names are unique within the project, ignoring case. Saving asks the assistant"
+        + " to analyze the goal."
+        + CommandDescriptions.PARTIAL_UPDATE
+        + CommandDescriptions.VERSION_CHECKED)
 public record EditGoalInput(
         @NotBlank String projectName,
         Long goalId,

@@ -20,7 +20,11 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Deletes an issue, selected by issueId, and removes it from every entity it"
+        + " is attached to. Positions that answer only this issue are deleted with their arguments;"
+        + " positions shared with other issues are kept.")
 public record DeleteIssueInput(String projectName, @NotNull Long issueId) {
 }

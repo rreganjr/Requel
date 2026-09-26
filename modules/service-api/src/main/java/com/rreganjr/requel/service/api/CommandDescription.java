@@ -40,9 +40,14 @@ import java.lang.annotation.Target;
  * would otherwise discover by surprise — a value transformed on write, or an edit refused rather
  * than resolved. A field list is already generated; do not restate it.
  *
- * <p>Absent on an input type, the descriptor's description stays {@code null} and the MCP layer
- * falls back to the humanized command name plus the input's field names. Populating the rest of
- * the catalog is tracked separately.
+ * <p>Every command on the gateway allowlist must carry one (issue #296; {@code
+ * McpToolCatalogLockstepIT} fails the build otherwise). Absent on an input type, the descriptor's
+ * description stays {@code null} and the MCP layer falls back to the humanized command name plus
+ * the input's field names.
+ *
+ * <p>Do not state the permission a command needs: the catalog derives that from the command's
+ * {@code getAuthorizationRequirement()} and publishes it as the descriptor's authorization hint.
+ * Shared sentences, such as the partial-update rule, live in {@link CommandDescriptions}.
  *
  * @author ron
  */
@@ -53,4 +58,12 @@ public @interface CommandDescription {
 
     /** The description, written for a caller. */
     String value();
+
+    /**
+     * Overrides the authorization hint the catalog derives from the command, for a command whose
+     * requirement depends on its input (a project tag versus a global one, creating a project
+     * versus editing one). The derived hint comes from a command created with no input, so for
+     * those commands it would be wrong. Empty, the default, means derive it.
+     */
+    String authorization() default "";
 }

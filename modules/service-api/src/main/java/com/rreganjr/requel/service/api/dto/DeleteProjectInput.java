@@ -20,12 +20,19 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 
 /**
  * Input for deleting a whole project by name (issue #240). {@code version}
  * carries the caller's optimistic-lock expectation (issue #108).
  */
+@CommandDescription("Permanently deletes a whole project, selected by projectName, and everything"
+        + " in it: use cases, scenarios and steps, stories, actors, goals and their relations,"
+        + " glossary terms, reports, stakeholders, teams, the project dictionary, ignored findings"
+        + " and annotations. User accounts are kept; only their membership of the project goes."
+        + " Pass version to have the delete refused if the project changed since you read it. This"
+        + " cannot be undone.")
 public record DeleteProjectInput(
         @NotBlank String projectName,
         Integer version

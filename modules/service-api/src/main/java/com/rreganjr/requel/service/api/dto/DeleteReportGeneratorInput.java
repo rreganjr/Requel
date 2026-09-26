@@ -20,11 +20,14 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 /**
  * Input DTO for DeleteReportGenerator command.
  */
+@CommandDescription("Deletes a report generator, selected by reportId. Notes and issues on it are"
+        + " removed, and deleted when nothing else carries them.")
 public record DeleteReportGeneratorInput(@NotBlank String projectName, @NotNull Long reportId) {
 }

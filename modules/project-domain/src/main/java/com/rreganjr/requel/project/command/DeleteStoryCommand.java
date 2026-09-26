@@ -20,13 +20,12 @@
  */
 package com.rreganjr.requel.project.command;
 
-import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.requel.project.Story;
 
 /**
  * @author ron
  */
-public interface DeleteStoryCommand extends EditCommand {
+public interface DeleteStoryCommand extends VersionCheckedDeleteCommand {
 
 	/**
 	 * Set the story to delete.

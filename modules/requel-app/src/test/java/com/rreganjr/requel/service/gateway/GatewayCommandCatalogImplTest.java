@@ -24,14 +24,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.rreganjr.command.Command;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.requel.gateway.CommandDescriptor;
+import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandRegistration;
 import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.api.dto.EditTagCategoryInput;
 import com.rreganjr.requel.service.api.dto.EditTagInput;
 import com.rreganjr.requel.service.command.ApiCommandFactory;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 class GatewayCommandCatalogImplTest {
@@ -84,8 +94,9 @@ class GatewayCommandCatalogImplTest {
 
     /**
      * A command with no annotation must leave the description null rather than inventing one:
-     * {@code McpWriteService} falls back to the title plus the input's field names, and most of the
-     * catalog still relies on that.
+     * {@code McpWriteService} falls back to the title plus the input's field names. Every
+     * allowlisted command is described (issue #296, pinned by {@code McpToolCatalogLockstepIT}),
+     * so only a newly added one would reach this.
      */
     @Test
     void anUndescribedCommandLeavesTheDescriptionNull() {
@@ -112,6 +123,76 @@ class GatewayCommandCatalogImplTest {
         assertThat(GatewayCommandCatalogImpl.describe(EditTagInput.class))
                 .contains("slug")
                 .contains("con-3685");
+    }
+
+    /** Issue #296: an input-dependent command states its hint, and that wins over derivation. */
+    @Test
+    void theAuthorizationOverrideWinsOverTheDerivedHint() {
+        CommandRegistry registry = mock(CommandRegistry.class);
+        GatewayCommandCatalogImpl catalog =
+                new GatewayCommandCatalogImpl(registry, mock(ApiCommandFactory.class));
+
+        assertThat(catalog.authorizationHint("EditTag", OverriddenInput.class))
+                .isEqualTo("Annotation[Edit] for a project tag");
+        verify(registry, never()).lookup(anyString());
+    }
+
+    /** Issue #296: otherwise the hint is read off a command created with no input. */
+    @Test
+    void theHintIsDerivedFromTheCommand() {
+        AuthorizableCommand command = mock(AuthorizableCommand.class);
+        when(command.getAuthorizationRequirement())
+                .thenReturn(new RequiresStakeholderPermission(Goal.class, "Edit"));
+        CommandRegistry registry = mock(CommandRegistry.class);
+        doReturn(registration(() -> command)).when(registry).lookup("EditGoal");
+        GatewayCommandCatalogImpl catalog =
+                new GatewayCommandCatalogImpl(registry, mock(ApiCommandFactory.class));
+
+        assertThat(catalog.authorizationHint("EditGoal", DescribedInput.class))
+                .isEqualTo("Goal[Edit]");
+    }
+
+    /** A command that cannot be created gets no hint; the lockstep IT turns that into a failure. */
+    @Test
+    void aCommandThatCannotBeCreatedLeavesTheHintNull() {
+        CommandRegistry registry = mock(CommandRegistry.class);
+        doReturn(registration(() -> {
+            throw new IllegalStateException("no bean");
+        })).when(registry).lookup("EditGoal");
+        GatewayCommandCatalogImpl catalog =
+                new GatewayCommandCatalogImpl(registry, mock(ApiCommandFactory.class));
+
+        assertThat(catalog.authorizationHint("EditGoal", DescribedInput.class)).isNull();
+    }
+
+    /**
+     * Issue #296: deriving hints creates commands through the application context, so the catalog
+     * waits for first use instead of doing it while the context is still creating it.
+     */
+    @Test
+    void theCatalogIsBuiltOnFirstUseAndOnlyOnce() {
+        CommandRegistry registry = mock(CommandRegistry.class);
+        when(registry.isRegistered(anyString())).thenReturn(true);
+        ApiCommandFactory factory = mock(ApiCommandFactory.class);
+        doReturn(Object.class).when(factory).getInputType(anyString());
+
+        GatewayCommandCatalogImpl catalog = new GatewayCommandCatalogImpl(registry, factory);
+        verifyNoInteractions(registry, factory);
+
+        catalog.descriptors();
+        catalog.find("EditGoal");
+        catalog.descriptors();
+        verify(registry, times(GatewayPolicyConfig.ALLOWED.size())).isRegistered(anyString());
+    }
+
+    private static CommandRegistration<Object> registration(Supplier<Command> factoryMethod) {
+        return new CommandRegistration<>("EditGoal", Object.class, factoryMethod, null, null, null,
+                null, null);
+    }
+
+    @CommandDescription(value = "Does the thing.",
+            authorization = "Annotation[Edit] for a project tag")
+    private record OverriddenInput(String name) {
     }
 
     @CommandDescription("Does the thing, and slugs what you give it.")

@@ -20,10 +20,19 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 /**
  * Input for AssignTag: attach tag {@code tagId} to the entity identified by
  * {@code entityType} (registry discriminator, e.g. "Goal") and {@code entityId}.
  */
+@CommandDescription(value = "Attaches an existing tag (tagId) to the entity given by entityType"
+        + " and entityId. entityType is case-sensitive: Goal, Project, Actor, Story, Scenario,"
+        + " UseCase, NonUserStakeholder or UserStakeholder. Attaching a tag the entity already"
+        + " carries changes nothing. When the tag's category has rules, looked up in the project"
+        + " first and then globally, its allowed entity types are enforced, and an exclusive"
+        + " category replaces any other tag of that category on the entity. The response is the"
+        + " tag, not the entity.",
+        authorization = "Annotation[Edit] on the tagged entity's project")
 public record AssignTagInput(
         Long tagId,
         String entityType,

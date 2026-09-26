@@ -20,9 +20,15 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Detaches an additional scenario from a use case, by useCaseId and"
+        + " scenarioId, and keeps the scenario in the project; DeleteScenario removes it. Only"
+        + " additional scenarios are affected: the use case's primary scenario, or a scenario that"
+        + " is not attached, changes nothing and reports no error. SetPrimaryScenarioOnUseCase"
+        + " replaces the primary scenario.")
 public record RemoveScenarioFromUseCaseInput(
         @NotBlank String projectName,
         @NotNull Long useCaseId,

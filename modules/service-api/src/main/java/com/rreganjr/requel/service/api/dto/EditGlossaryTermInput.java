@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
 import com.rreganjr.requel.service.api.FromEntityProperty;
 import jakarta.validation.constraints.NotBlank;
 import com.rreganjr.validator.ValidationLimits;
@@ -32,6 +34,12 @@ import jakarta.validation.constraints.Size;
  * On update, a null (or absent) {@code text} leaves the definition as it is; an empty
  * string clears it (issue #316).
  */
+@CommandDescription("Creates or edits a glossary term. Leave termId null to create one, or pass"
+        + " it to edit an existing term. name is required on every call, so send the current name"
+        + " to keep it, and term names are unique within the project, ignoring case."
+        + " canonicalTermId makes this term an alternate of another term in the project; leaving it"
+        + " null keeps any existing link, and this command cannot remove one."
+        + CommandDescriptions.PARTIAL_UPDATE)
 public record EditGlossaryTermInput(
         @NotBlank String projectName,
         Long termId,

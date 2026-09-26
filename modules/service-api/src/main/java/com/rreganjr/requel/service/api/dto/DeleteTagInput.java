@@ -20,9 +20,14 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 /**
  * Input for DeleteTag.
  */
+@CommandDescription(value = "Deletes a tag, selected by tagId: it is removed from every entity"
+        + " that carries it, then deleted. An unknown tagId changes nothing.",
+        authorization = "Annotation[Delete] for a project tag; system administrator for a global"
+                + " tag")
 public record DeleteTagInput(
         Long tagId
 ) {

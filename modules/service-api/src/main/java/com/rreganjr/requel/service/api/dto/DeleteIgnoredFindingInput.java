@@ -32,8 +32,7 @@ import jakarta.validation.constraints.NotNull;
  * @param ignoredFindingId the id of the ignore, from the project's ignored-findings list
  */
 @CommandDescription("Stops ignoring an assistant finding: removes the ignore, unlinks the resolved"
-        + " issue it came from, and re-analyzes the entity so the finding is raised again."
-        + " Requires Project Edit.")
+        + " issue it came from, and re-analyzes the entity so the finding is raised again.")
 public record DeleteIgnoredFindingInput(
         @NotBlank String projectName,
         @NotNull Long ignoredFindingId

@@ -54,7 +54,7 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteScenarioCommand")
 @Scope("prototype")
-public class DeleteScenarioCommandImpl extends AbstractEditProjectCommand implements
+public class DeleteScenarioCommandImpl extends AbstractDeleteProjectEntityCommand implements
 		DeleteScenarioCommand, ProjectScopedCommand, AuthorizableCommand {
 
 	@Override
@@ -93,6 +93,8 @@ public class DeleteScenarioCommandImpl extends AbstractEditProjectCommand implem
 	@Override
 	public void execute() throws Exception {
 		Scenario scenario = getRepository().get(getScenario());
+		// #296: refuse before touching anything if the caller read an older version.
+		refuseStaleDelete(Scenario.class, scenario, scenario.getVersion());
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(scenario.getAnnotations());
 		for (Annotation annotation : annotations) {

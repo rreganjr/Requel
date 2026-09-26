@@ -32,7 +32,7 @@ import jakarta.validation.constraints.NotBlank;
  */
 @CommandDescription("Adds a word to a project's dictionary so the spell checker accepts it in that"
         + " project only. One word, no spaces, at most 80 characters. Adding a word the project"
-        + " already has, in any case, returns the existing entry. Requires Project Edit.")
+        + " already has, in any case, returns the existing entry.")
 public record AddProjectDictionaryWordInput(
         @NotBlank String projectName,
         @NotBlank String lemma

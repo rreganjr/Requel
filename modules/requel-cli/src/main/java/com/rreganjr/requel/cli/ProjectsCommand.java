@@ -20,13 +20,14 @@
  */
 package com.rreganjr.requel.cli;
 
+import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import java.util.List;
 import picocli.CommandLine.Command;
 
 /** {@code requel projects} — list the projects the authenticated user can see. */
-@Command(name = "projects", description = "List projects visible to you.")
+@Command(name = "projects", description = QueryDescriptions.LIST_PROJECTS)
 public class ProjectsCommand extends AbstractQueryCommand {
 
     @Override

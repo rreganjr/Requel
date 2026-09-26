@@ -48,7 +48,7 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteStakeholderCommand")
 @Scope("prototype")
-public class DeleteStakeholderCommandImpl extends AbstractEditProjectCommand implements
+public class DeleteStakeholderCommandImpl extends AbstractDeleteProjectEntityCommand implements
 		DeleteStakeholderCommand, com.rreganjr.requel.project.ProjectScopedCommand, com.rreganjr.platform.command.AuthorizableCommand {
 
 	@Override
@@ -92,6 +92,8 @@ public class DeleteStakeholderCommandImpl extends AbstractEditProjectCommand imp
 	@Override
 	public void execute() throws Exception {
 		Stakeholder stakeholder = getRepository().get(getStakeholder());
+		// #296: refuse before touching anything if the caller read an older version.
+		refuseStaleDelete(Stakeholder.class, stakeholder, stakeholder.getVersion());
 		Set<Annotation> annotations = new HashSet<Annotation>(stakeholder.getAnnotations());
 		for (Annotation annotation : annotations) {
 			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()

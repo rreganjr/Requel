@@ -89,6 +89,25 @@ class TypedCommandsTest {
         assertThat(spec.findOption("--name").required()).isFalse();
     }
 
+    /** Issue #296: the usage text carries the server's description and the permission needed. */
+    @Test
+    void usageShowsTheDescriptionAndTheAuthorizationHint() {
+        CommandInfo described = new CommandInfo("EditGoal", "EditGoalInput", "Edit Goal",
+                "Creates or edits a goal.", true, "Goal[Edit]",
+                schema(Map.of("projectName", Map.of("type", "string")), List.of("projectName")));
+
+        assertThat(TypedCommands.describe(described))
+                .containsExactly("Edit Goal", "Creates or edits a goal.", "Requires: Goal[Edit]");
+    }
+
+    @Test
+    void usageLeavesOutAMissingDescriptionOrHint() {
+        CommandInfo bare = new CommandInfo("EditGoal", "EditGoalInput", "Edit Goal", null, true,
+                null, schema(Map.of(), List.of()));
+
+        assertThat(TypedCommands.describe(bare)).containsExactly("Edit Goal");
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     void invokingATypedSubcommandDispatchesTheAssembledInput() {

@@ -20,13 +20,12 @@
  */
 package com.rreganjr.requel.project.command;
 
-import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.requel.project.Goal;
 
 /**
  * @author ron
  */
-public interface DeleteGoalCommand extends EditCommand {
+public interface DeleteGoalCommand extends VersionCheckedDeleteCommand {
 
 	/**
 	 * Set the goal to delete.

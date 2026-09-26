@@ -20,9 +20,16 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Removes a goal (goalId) from a goal container without deleting the goal."
+        + " containerType is Project, UseCase, Story, Actor or Stakeholder, ignoring case, and"
+        + " goalContainerId is that entity's id. Removing a goal that is not there changes nothing,"
+        + " and removing it from the project container does not take it out of the project;"
+        + " DeleteGoal does that. Returns the updated container, or nothing when the container is"
+        + " the project.")
 public record RemoveGoalFromGoalContainerInput(
         @NotBlank String projectName,
         @NotNull Long goalContainerId,

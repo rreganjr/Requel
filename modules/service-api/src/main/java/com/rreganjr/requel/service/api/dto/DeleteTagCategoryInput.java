@@ -20,9 +20,17 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 /**
  * Input for DeleteTagCategory.
  */
+@CommandDescription(value = "Deletes a tag category, selected by categoryId, and with it the"
+        + " category's rules: exclusivity, allowed entity types and allowed values. Tags that use"
+        + " the category name are neither deleted nor detached; they carry on as ordinary tags,"
+        + " under a global category of the same name if there is one. An unknown categoryId changes"
+        + " nothing.",
+        authorization = "Annotation[Delete] for a project category; system administrator for a"
+                + " global category")
 public record DeleteTagCategoryInput(
         Long categoryId
 ) {

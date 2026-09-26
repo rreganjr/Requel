@@ -21,10 +21,15 @@
 package com.rreganjr.requel.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.gateway.CommandDescriptor;
+import com.rreganjr.requel.annotation.spi.AnnotatableTypeRegistry;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
+import com.rreganjr.requel.gateway.QueryDescriptions;
+import com.rreganjr.requel.gateway.QueryGateway;
+import com.rreganjr.requel.service.api.CommandRegistry;
 import com.rreganjr.requel.service.api.dto.ConvertStepToScenarioInput;
 import com.rreganjr.requel.service.api.dto.DeleteProjectInput;
 import com.rreganjr.requel.service.gateway.GatewayPolicyConfig;
@@ -57,6 +62,123 @@ public class McpToolCatalogLockstepIT extends AbstractIntegrationTestCase {
 	@Autowired
 	protected void setCatalog(GatewayCommandCatalog catalog) {
 		this.catalog = catalog;
+	}
+
+	private CommandRegistry registry;
+	private QueryGateway queryGateway;
+	private AnnotatableTypeRegistry annotatableTypes;
+
+	@Autowired
+	protected void setRegistry(CommandRegistry registry) {
+		this.registry = registry;
+	}
+
+	@Autowired
+	protected void setQueryGateway(QueryGateway queryGateway) {
+		this.queryGateway = queryGateway;
+	}
+
+	@Autowired
+	protected void setAnnotatableTypes(AnnotatableTypeRegistry annotatableTypes) {
+		this.annotatableTypes = annotatableTypes;
+	}
+
+	// ---- issue #296: the catalog a caller reads is complete ------------------------------------
+
+	/**
+	 * The catalog skips an allowlisted command that is not registered, without saying so, so the
+	 * checks below would pass over it. Every allowlisted command is registered in this deployment.
+	 */
+	@Test
+	public void everyAllowedCommandIsRegisteredAndCatalogued() {
+		assertThat(GatewayPolicyConfig.ALLOWED).allSatisfy(type -> {
+			assertThat(registry.isRegistered(type)).as("%s is allowlisted but not registered", type)
+					.isTrue();
+			assertThat(catalog.find(type)).as("%s is missing from the catalog", type).isPresent();
+		});
+	}
+
+	/**
+	 * Stricter than {@link #noAdvertisedCommandHasAnEmptyInputSchema}: every allowlisted command's
+	 * input is a record, which is what {@code CommandInputSchema} derives a schema from. A command
+	 * with no input DTO advertises an empty schema and cannot be called (#252).
+	 */
+	@Test
+	public void everyAllowedCommandHasARecordInput() {
+		assertThat(catalog.descriptors()).allSatisfy(d -> assertThat(d.inputType())
+				.as("%s needs a record input DTO (see #252)", d.commandType())
+				.isNotNull().matches(Class::isRecord, "is a record"));
+	}
+
+	/** A newly allowlisted command without a {@code @CommandDescription} fails here. */
+	@Test
+	public void everyAllowedCommandIsDescribed() {
+		assertThat(catalog.descriptors()).allSatisfy(d -> assertThat(d.description())
+				.as("%s: add a @CommandDescription to %s", d.commandType(),
+						d.inputType() == null ? "its input DTO" : d.inputType().getSimpleName())
+				.isNotBlank());
+	}
+
+	/**
+	 * Every allowlisted command carries a hint. Derived hints come from creating each command
+	 * through its factory, so this also shows that works in the running context; the pins check
+	 * one derived hint of each shape and one override.
+	 */
+	@Test
+	public void everyAllowedCommandCarriesAnAuthorizationHint() {
+		assertThat(catalog.descriptors()).allSatisfy(d -> assertThat(d.authorizationHint())
+				.as("%s has no authorization hint", d.commandType()).isNotBlank());
+
+		assertThat(hint("EditGoal")).isEqualTo("Goal[Edit]");
+		assertThat(hint("DeleteProject")).isEqualTo("Project[Delete] or system administrator");
+		assertThat(hint("DeleteIssue")).isEqualTo("Annotation[Delete]");
+		assertThat(hint("EditTag")).contains("Annotation[Edit]").contains("system administrator");
+		assertThat(hint("EditProject")).contains("createProjects").contains("Project[Edit]");
+	}
+
+	private String hint(String commandType) {
+		return catalog.find(commandType).map(CommandDescriptor::authorizationHint).orElse(null);
+	}
+
+	/** What an MCP client reads: one full stop per sentence, then the permission, then the fields. */
+	@Test
+	public void typedWriteToolDescriptionsAreWellFormed() {
+		assertThat(writeService.toolDescriptors())
+				.filteredOn(t -> catalog.find(t.name()).isPresent())
+				.isNotEmpty()
+				.allSatisfy(t -> assertThat(t.description()).as(t.name())
+						.doesNotContain("..").contains(" Requires: ").contains(" Input fields: "));
+	}
+
+	/**
+	 * The read tools advertise {@code entityType} as an enum, so the lists in
+	 * {@link QueryDescriptions} must match what the application accepts: the annotatable types are
+	 * the registry's keys, and the readable types are exactly those {@code getEntity} does not
+	 * reject as unsupported.
+	 */
+	@Test
+	public void theAdvertisedEntityTypesAreTheOnesTheApplicationAccepts() {
+		assertThat(annotatableTypes.getRegisteredAnnotatableTypes().keySet())
+				.containsExactlyInAnyOrderElementsOf(QueryDescriptions.ANNOTATABLE_ENTITY_TYPES);
+
+		for (String type : QueryDescriptions.READABLE_ENTITY_TYPES) {
+			assertThat(unsupportedByGetEntity(type)).as("getEntity should accept %s", type).isFalse();
+		}
+		for (String type : QueryDescriptions.ANNOTATABLE_ENTITY_TYPES) {
+			if (!QueryDescriptions.READABLE_ENTITY_TYPES.contains(type)) {
+				assertThat(unsupportedByGetEntity(type))
+						.as("%s is readable by getEntity; add it to READABLE_ENTITY_TYPES", type)
+						.isTrue();
+			}
+		}
+	}
+
+	/** Whether {@code getEntity} rejects the type itself, before looking for any project. */
+	private boolean unsupportedByGetEntity(String entityType) {
+		Throwable thrown = catchThrowable(
+				() -> queryGateway.getEntity("#296 no such project", entityType, -1L));
+		return thrown instanceof IllegalArgumentException
+				&& String.valueOf(thrown.getMessage()).contains("Unsupported entity type");
 	}
 
 	@Test

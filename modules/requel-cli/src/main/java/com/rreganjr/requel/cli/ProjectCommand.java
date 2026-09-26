@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.cli;
 
+import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
@@ -29,13 +30,13 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 /** {@code requel project <name> [--tree]} — a project's summary, or its content tree. */
-@Command(name = "project", description = "Show a project's summary, or its content tree with --tree.")
+@Command(name = "project", description = QueryDescriptions.GET_PROJECT)
 public class ProjectCommand extends AbstractQueryCommand {
 
-    @Parameters(index = "0", paramLabel = "PROJECT", description = "Project name.")
+    @Parameters(index = "0", paramLabel = "PROJECT", description = QueryDescriptions.PROJECT_NAME)
     String projectName;
 
-    @Option(names = "--tree", description = "Show the project's content tree instead of a summary.")
+    @Option(names = "--tree", description = QueryDescriptions.GET_PROJECT_TREE)
     boolean tree;
 
     @Override

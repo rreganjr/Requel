@@ -26,6 +26,7 @@ import com.rreganjr.command.Command;
 import com.rreganjr.platform.command.AuthorizableCommand;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.gateway.CommandGateway;
+import com.rreganjr.platform.exception.EntityLockException;
 import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
 import com.rreganjr.requel.gateway.GatewayResult;
@@ -38,6 +39,7 @@ import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.ScenarioType;
 import com.rreganjr.requel.service.api.dto.ScenarioDto;
+import com.rreganjr.requel.service.api.dto.GoalDto;
 import com.rreganjr.requel.service.api.dto.UseCaseDto;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.StakeholderPermissionType;
@@ -56,6 +58,7 @@ import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.project.impl.StakeholderPermissionImpl;
 import com.rreganjr.requel.service.api.CommandRegistration;
 import com.rreganjr.requel.service.api.CommandRegistry;
+import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.gateway.GatewayPolicyConfig;
 import com.rreganjr.requel.user.User;
 import com.rreganjr.requel.user.command.EditUserCommand;
@@ -72,6 +75,9 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -95,6 +101,12 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
 
     @Autowired
     private CommandRegistry commandRegistry;
+
+    @Autowired
+    private QueryGateway queryGateway;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     private String projectName;
     private String editorUsername;
@@ -275,6 +287,76 @@ public class CommandGatewayIT extends AbstractIntegrationTestCase {
         GatewayException delete = assertThrows(GatewayException.class, () -> gateway.execute(
                 new GatewayRequest("DeleteInstallDictionaryWord", Map.of("wordId", 1L))));
         assertEquals(GatewayException.Kind.NOT_ALLOWED, delete.getKind());
+    }
+
+    // ---- issue #296: version on deletes, and the annotation read's project check ----------------
+
+    /**
+     * The seven entity deletes took a version and dropped it. Now a stale one is refused through
+     * the gateway, the entity is kept, and the current version deletes it.
+     */
+    @Test
+    void aDeleteWithAStaleVersionIsRefusedAndTheCurrentVersionDeletes() throws Exception {
+        authenticate(editorUsername);
+        GoalDto goal = (GoalDto) gateway.execute(new GatewayRequest("EditGoal",
+                Map.of("projectName", projectName, "name", "gw-296-" + System.nanoTime(),
+                        "text", "to delete"))).result();
+
+        GatewayException stale = assertThrows(GatewayException.class, () -> gateway.execute(
+                new GatewayRequest("DeleteGoal", Map.of("projectName", projectName,
+                        "goalId", goal.id(), "version", goal.version() + 5))));
+        assertTrue(causedByStaleEntity(stale),
+                "a stale version should be refused as out of date: " + stale.getMessage());
+        assertTrue(goalExists(goal.id()), "a refused delete must leave the goal in place");
+
+        gateway.execute(new GatewayRequest("DeleteGoal", Map.of("projectName", projectName,
+                "goalId", goal.id(), "version", goal.version())));
+        assertFalse(goalExists(goal.id()), "the current version deletes the goal");
+    }
+
+    /** A null version still skips the check, as it does for the edits. */
+    @Test
+    void aDeleteWithoutAVersionIsNotChecked() throws Exception {
+        authenticate(editorUsername);
+        GoalDto goal = (GoalDto) gateway.execute(new GatewayRequest("EditGoal",
+                Map.of("projectName", projectName, "name", "gw-296-nov-" + System.nanoTime(),
+                        "text", "to delete"))).result();
+
+        gateway.execute(new GatewayRequest("DeleteGoal",
+                Map.of("projectName", projectName, "goalId", goal.id())));
+        assertFalse(goalExists(goal.id()));
+    }
+
+    private static boolean causedByStaleEntity(Throwable thrown) {
+        for (Throwable t = thrown; t != null; t = t.getCause()) {
+            if (t instanceof EntityLockException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean goalExists(Long id) throws Exception {
+        return getProjectRepository().findProjectByName(projectName).getGoals().stream()
+                .anyMatch(g -> g.getId().equals(id));
+    }
+
+    /**
+     * getAnnotations loaded any entity by type and id for any signed-in user. A user who is not a
+     * stakeholder on the project is now refused; a stakeholder still reads.
+     */
+    @Test
+    void annotationsAreReadOnlyByThoseWhoCanReadTheProject() {
+        authenticate(noAccessUsername);
+        ResponseStatusException refused = assertThrows(ResponseStatusException.class,
+                () -> queryGateway.getAnnotations(projectName, "Goal", goalId));
+        assertEquals(403, refused.getStatusCode().value());
+
+        // The read walks the entity's lazy annotations, which a web request's open session
+        // covers; here a transaction does (as in IssueSeverityIT).
+        authenticate(editorUsername);
+        assertNotNull(new TransactionTemplate(transactionManager).execute(
+                status -> queryGateway.getAnnotations(projectName, "Goal", goalId)));
     }
 
     @Test

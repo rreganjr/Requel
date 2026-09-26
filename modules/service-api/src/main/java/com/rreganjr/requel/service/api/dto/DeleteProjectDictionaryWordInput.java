@@ -32,7 +32,7 @@ import jakarta.validation.constraints.NotNull;
  * @param wordId the id of the word, from the project's dictionary list
  */
 @CommandDescription("Removes one word from a project's dictionary by its id. Text already analyzed"
-        + " is not re-checked. Requires Project Edit.")
+        + " is not re-checked.")
 public record DeleteProjectDictionaryWordInput(
         @NotBlank String projectName,
         @NotNull Long wordId

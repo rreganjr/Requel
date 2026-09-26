@@ -20,7 +20,14 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record DeleteScenarioInput(@NotBlank String projectName, @NotNull Long scenarioId, int version) {}
+@CommandDescription("Deletes a scenario, selected by scenarioId, removing it from every scenario"
+        + " it is nested in and from every use case that has it as an additional scenario. Deleting"
+        + " a use case's primary scenario fails; give the use case another primary scenario with"
+        + " SetPrimaryScenarioOnUseCase first. Scenarios nested inside it are kept on their own."
+        + CommandDescriptions.VERSION_CHECKED_ON_DELETE)
+public record DeleteScenarioInput(@NotBlank String projectName, @NotNull Long scenarioId, Integer version) {}

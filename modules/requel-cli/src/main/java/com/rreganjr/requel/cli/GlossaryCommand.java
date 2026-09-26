@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.cli;
 
+import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import java.util.List;
@@ -27,10 +28,10 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
 /** {@code requel glossary <project>} — the project's glossary terms. */
-@Command(name = "glossary", description = "List a project's glossary terms.")
+@Command(name = "glossary", description = QueryDescriptions.GET_GLOSSARY)
 public class GlossaryCommand extends AbstractQueryCommand {
 
-    @Parameters(index = "0", paramLabel = "PROJECT", description = "Project name.")
+    @Parameters(index = "0", paramLabel = "PROJECT", description = QueryDescriptions.PROJECT_NAME)
     String projectName;
 
     @Override

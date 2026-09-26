@@ -20,12 +20,17 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 /**
  * Input DTO for deleting a glossary term.
  */
+@CommandDescription("Deletes a glossary term, selected by termId. Notes and issues on it are"
+        + " removed, and deleted when nothing else carries them; entities that referred to it stop"
+        + " doing so, and terms that had it as their canonical term stand alone. The assistant's"
+        + " pending suggestion to add a term of that name to the glossary is removed too.")
 public record DeleteGlossaryTermInput(
         @NotBlank String projectName,
         @NotNull Long termId

@@ -223,14 +223,31 @@ public class McpWriteService {
 
 	// ---- schema + description helpers ----------------------------------------------------------
 
-	/** Human-readable tool description: the catalog title/description plus the input field names. */
-	private static String describe(CommandDescriptor descriptor) {
+	/**
+	 * Human-readable tool description: the catalog description (or the title when there is none),
+	 * the permission it needs, and the input field names.
+	 */
+	static String describe(CommandDescriptor descriptor) {
 		String base = descriptor.description() != null && !descriptor.description().isBlank()
-				? descriptor.description()
+				? descriptor.description().strip()
 				: descriptor.title();
+		String hint = descriptor.authorizationHint() == null || descriptor.authorizationHint().isBlank()
+				? "" : " Requires: " + sentence(descriptor.authorizationHint().strip());
 		List<String> fields = CommandInputSchema.fieldNames(descriptor.inputType());
 		String fieldHint = fields.isEmpty() ? "" : " Input fields: " + String.join(", ", fields) + ".";
-		return base + "." + fieldHint;
+		return sentence(base) + hint + fieldHint;
+	}
+
+	/**
+	 * Ends {@code text} with a full stop unless it already ends a sentence. Every catalog
+	 * description does, and appending one regardless gave callers "stored.." (issue #296).
+	 */
+	static String sentence(String text) {
+		if (text.isEmpty()) {
+			return text;
+		}
+		char last = text.charAt(text.length() - 1);
+		return last == '.' || last == '!' || last == '?' ? text : text + ".";
 	}
 
 	private Map<String, Object> runCommandSchema() {
