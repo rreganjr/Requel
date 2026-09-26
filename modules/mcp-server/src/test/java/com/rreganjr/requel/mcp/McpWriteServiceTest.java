@@ -142,6 +142,19 @@ class McpWriteServiceTest {
 						McpWriteService.UPSERT_GOAL);
 	}
 
+	@Test
+	@SuppressWarnings("unchecked")
+	void typedToolSchemaCarriesAllowedValues() {
+		// Issue #257: an @AllowedValues field reaches the MCP client as a JSON-schema enum.
+		McpWriteService enabled = new McpWriteService(new RecordingGateway(), catalog,
+				objectMapper, true);
+		McpToolDescriptor editIssue = enabled.toolDescriptors().stream()
+				.filter(d -> d.name().equals("EditIssue")).findFirst().orElseThrow();
+		Map<String, Object> props = (Map<String, Object>) editIssue.inputSchema().get("properties");
+		assertThat((Map<String, Object>) props.get("severity"))
+				.containsEntry("enum", List.of("LOW", "MEDIUM", "HIGH"));
+	}
+
 	// ---- composite tool: upsertGoalFromRequirement (issue #71) ---------------------------------
 
 	/** CommandGateway double returning real Goal/Note DTOs and recording the carried client id. */

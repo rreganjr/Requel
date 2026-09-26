@@ -18,25 +18,18 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.service.api.dto;
+package com.rreganjr.requel;
 
 /**
- * A relationship between two goals.
- * Used in the goal detail view — relationsFromThisGoal shows outgoing,
- * relationsToThisGoal shows incoming.
- *
- * @param id            relation id
- * @param version       optimistic lock version
- * @param goalId        the other goal's id (toGoal for outgoing, fromGoal for incoming)
- * @param goalName      the other goal's display name
- * @param relationType  a {@code GoalRelationType} name, e.g. "Supports"; the labels, and whether
- *                      the type is symmetric, come from {@code GET /api/projects/goal-relation-types}
+ * A value in a small closed vocabulary that carries a caller-facing meaning, so the meaning is
+ * declared once, next to the value, and every consumer (a UI picker, a gateway input schema, a
+ * validation message) reads it from there instead of keeping its own copy. Issue #257.
  */
-public record GoalRelationDto(
-        Long id,
-        int version,
-        Long goalId,
-        String goalName,
-        String relationType
-) {
+public interface DescribedValue {
+
+	/**
+	 * @return one sentence saying what the value means, written for the person or agent choosing
+	 *         it.
+	 */
+	String getDescription();
 }

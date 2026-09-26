@@ -37,8 +37,10 @@ import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.OptimisticLock;
 import org.hibernate.annotations.SortNatural;
+import org.hibernate.type.SqlTypes;
 
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.impl.AbstractAnnotation;
@@ -127,8 +129,15 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 				+ getToGoal().getName();
 	}
 
+	/**
+	 * Stored by name in a {@code VARCHAR} column (V23), not a native enum column, so the enum is
+	 * the only list of values; {@code @JdbcTypeCode} keeps H2's generated schema the same shape
+	 * as the Flyway one. Issue #257.
+	 */
 	@Override
 	@Enumerated(EnumType.STRING)
+	@JdbcTypeCode(SqlTypes.VARCHAR)
+	@Column(name = "relation_type", length = 32)
 	@XmlAttribute(name = "relationType")
 	@XmlJavaTypeAdapter(GoalRelationTypeAdapter.class)
 	public GoalRelationType getRelationType() {
@@ -352,9 +361,14 @@ public class GoalRelationImpl implements GoalRelation, Serializable {
 	@XmlTransient
 	public static class GoalRelationTypeAdapter extends XmlAdapter<String, GoalRelationType> {
 
+		/**
+		 * Not on the live import path (the streaming importer reads {@code relationType} as a
+		 * string and skips unknown values with a WARN, issue #257); legacy JAXB unmarshalling of
+		 * an unknown value yields null here rather than failing the whole document.
+		 */
 		@Override
 		public GoalRelationType unmarshal(String typeString) throws Exception {
-			return GoalRelationType.valueOf(typeString);
+			return GoalRelationType.parse(typeString).orElse(null);
 		}
 
 		@Override

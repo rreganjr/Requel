@@ -238,7 +238,7 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
             var goal = goalAssembler.assemble(draft, unitOfWork);
             recordAnnotationLinks(annotationLinks, goal, draft.getAnnotationExternalIds());
         });
-        goalDrafts.forEach(draft -> goalAssembler.attachSupports(draft, unitOfWork));
+        goalDrafts.forEach(draft -> goalAssembler.attachRelations(draft, unitOfWork));
 
         // Then import actors and link to already-registered goals.
         List<ActorImportDraft> drafts = actorStaxImporter.readActors(new ByteArrayInputStream(xmlBytes));

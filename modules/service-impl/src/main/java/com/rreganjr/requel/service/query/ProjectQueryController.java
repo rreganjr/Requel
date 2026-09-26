@@ -23,6 +23,7 @@ package com.rreganjr.requel.service.query;
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.requel.service.api.dto.DictionaryWordDto;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -52,6 +53,7 @@ import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
 import com.rreganjr.requel.project.GoalRelation;
+import com.rreganjr.requel.project.GoalRelationType;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
@@ -81,6 +83,7 @@ import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ReportGeneratorDto;
 import com.rreganjr.requel.service.api.dto.GoalDto;
 import com.rreganjr.requel.service.api.dto.GoalRelationDto;
+import com.rreganjr.requel.service.api.dto.GoalRelationTypeDto;
 import com.rreganjr.requel.service.api.dto.NonUserStakeholderDetails;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.UseCaseDto;
@@ -170,6 +173,20 @@ public class ProjectQueryController {
                         p.getPermissionKey(),
                         p.getEntityType().getSimpleName(),
                         p.getPermissionType().name()))
+                .toList();
+    }
+
+    /**
+     * GET /api/projects/goal-relation-types — the goal relation vocabulary, in declaration order,
+     * so the goal editor renders the picker and both relation lists from the server instead of
+     * keeping its own copy (issue #257). The same for every project, so no project access check.
+     * Declared before /{name} like /stakeholder-permissions.
+     */
+    @GetMapping("/goal-relation-types")
+    public List<GoalRelationTypeDto> listGoalRelationTypes() {
+        return Arrays.stream(GoalRelationType.values())
+                .map(t -> new GoalRelationTypeDto(t.name(), t.getLabel(), t.getDescription(),
+                        t.isSymmetric(), t.getInverseLabel()))
                 .toList();
     }
 

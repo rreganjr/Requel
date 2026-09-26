@@ -179,18 +179,20 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 				getToGoal());
 		Goal fromGoal = getProjectRepository().findGoalByProjectOrDomainAndName(
 				getProjectOrDomain(), getFromGoal());
-		GoalRelationType goalRelationType;
-		try {
-			goalRelationType = GoalRelationType.valueOf(getRelationType());
-		} catch (Exception e) {
-			throw EntityValidationException.validationFailed(GoalRelation.class, "relationType",
-					"The goal relation type cannot be " + getRelationType());
-		}
+		GoalRelationType goalRelationType = GoalRelationType.parse(getRelationType())
+				.orElseThrow(() -> EntityValidationException.validationFailed(GoalRelation.class,
+						"relationType", "The goal relation type cannot be " + getRelationType()
+								+ "; permitted values are " + GoalRelationType.permittedValues()
+								+ "."));
 
 		if (toGoal.equals(fromGoal)) {
 			throw GoalSelfRelationException.forGoal(toGoal);
 		}
-		// TODO: check for uniqueness?
+		Long editedId = goalRelationImpl == null ? null : goalRelationImpl.getId();
+		checkNoOtherRelation(fromGoal, toGoal, editedId);
+		if (goalRelationType.isSymmetric()) {
+			checkNoSymmetricReverse(fromGoal, toGoal, goalRelationType, editedId);
+		}
 		if (goalRelationImpl == null) {
 			goalRelationImpl = getProjectRepository().persist(
 					new GoalRelationImpl(fromGoal, toGoal, goalRelationType, editedBy));
@@ -208,6 +210,44 @@ public class EditGoalRelationCommandImpl extends AbstractProjectCommand implemen
 			goalRelationImpl = getProjectRepository().merge(goalRelationImpl);
 		}
 		setGoalRelation(goalRelationImpl);
+	}
+
+	/**
+	 * A pair of goals holds at most one relation in each direction (the {@code goal_relations}
+	 * unique key); refuse a second one here as a field-level error rather than let it fail at
+	 * flush. The relation being edited does not collide with itself. Issue #257.
+	 */
+	private static void checkNoOtherRelation(Goal fromGoal, Goal toGoal, Long editedId) {
+		for (GoalRelation existing : fromGoal.getRelationsFromThisGoal()) {
+			if (existing.getToGoal().equals(toGoal) && !isSameRelation(existing, editedId)) {
+				throw EntityValidationException.validationFailed(GoalRelation.class, "toGoal",
+						"\"" + fromGoal.getName() + "\" already has a "
+								+ existing.getRelationType().getLabel() + " relation to \""
+								+ toGoal.getName() + "\"; change that relation's type instead.");
+			}
+		}
+	}
+
+	/**
+	 * A symmetric type holds in both directions, so the reverse of an existing one states the
+	 * same fact twice. Relations are stored as entered, not normalised, so check the other
+	 * direction explicitly. Issue #257.
+	 */
+	private static void checkNoSymmetricReverse(Goal fromGoal, Goal toGoal, GoalRelationType type,
+			Long editedId) {
+		for (GoalRelation existing : toGoal.getRelationsFromThisGoal()) {
+			if (existing.getToGoal().equals(fromGoal) && existing.getRelationType() == type
+					&& !isSameRelation(existing, editedId)) {
+				throw EntityValidationException.validationFailed(GoalRelation.class, "toGoal",
+						"\"" + toGoal.getName() + "\" already has a " + type.getLabel()
+								+ " relation to \"" + fromGoal.getName() + "\"; a "
+								+ type.getLabel() + " relation holds in both directions.");
+			}
+		}
+	}
+
+	private static boolean isSameRelation(GoalRelation relation, Long editedId) {
+		return editedId != null && editedId.equals(relation.getId());
 	}
 
 	@Override

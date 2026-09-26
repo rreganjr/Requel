@@ -619,6 +619,25 @@ class ProjectQueryControllerTest {
     }
 
     @Test
+    void listGoalRelationTypesServesTheVocabularyInOrder() throws Exception {
+        // Issue #257: the goal editor renders its picker and both relation lists from this.
+        mockMvc.perform(get("/api/projects/goal-relation-types"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(7))
+                .andExpect(jsonPath("$[0].value").value("Supports"))
+                .andExpect(jsonPath("$[0].inverseLabel").value("Supported by"))
+                .andExpect(jsonPath("$[0].symmetric").value(false))
+                .andExpect(jsonPath("$[1].value").value("Conflicts"))
+                .andExpect(jsonPath("$[1].symmetric").value(true))
+                .andExpect(jsonPath("$[1].inverseLabel").value("Conflicts"))
+                .andExpect(jsonPath("$[4].value").value("DependsOn"))
+                .andExpect(jsonPath("$[4].label").value("Depends on"))
+                .andExpect(jsonPath("$[4].inverseLabel").value("Required by"))
+                .andExpect(jsonPath("$[6].value").value("Measures"))
+                .andExpect(jsonPath("$[6].description").isNotEmpty());
+    }
+
+    @Test
     void getMyPermissionsReturnsStakeholderPermissions() throws Exception {
         ProjectUserRole role = mock(ProjectUserRole.class);
         StakeholderPermission permission = stubStakeholderPermission(Goal.class, StakeholderPermissionType.Edit);

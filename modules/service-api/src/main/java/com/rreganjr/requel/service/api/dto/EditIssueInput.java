@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.annotation.IssueSeverity;
+import com.rreganjr.requel.service.api.AllowedValues;
 import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -53,6 +55,7 @@ public record EditIssueInput(
         Boolean mustBeResolved,
         @Pattern(regexp = "\\s*(LOW|MEDIUM|HIGH)\\s*", flags = Pattern.Flag.CASE_INSENSITIVE,
                 message = "must be one of LOW, MEDIUM, HIGH")
+        @AllowedValues(IssueSeverity.class)
         String severity
 ) {
 }

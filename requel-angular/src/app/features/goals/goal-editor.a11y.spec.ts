@@ -34,7 +34,7 @@ describe('GoalEditorComponent — relation-type dialog accessibility', () => {
         provideNoopAnimations(),
         provideRouter([]),
         { provide: ActivatedRoute, useValue: { paramMap: paramMap$.asObservable() } },
-        { provide: GoalService, useValue: { getGoal: vi.fn().mockResolvedValue(MOCK_GOAL) } },
+        { provide: GoalService, useValue: { getGoal: vi.fn().mockResolvedValue(MOCK_GOAL), getRelationTypes: vi.fn().mockResolvedValue([]) } },
         { provide: TagService, useValue: {
             getTagsOnEntity: vi.fn().mockResolvedValue([]),
             getTagsForProject: vi.fn().mockResolvedValue([]),

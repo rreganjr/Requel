@@ -22,6 +22,8 @@ package com.rreganjr.requel.imports.project;
 
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -33,7 +35,12 @@ public class GoalImportDraft {
     private final String createdByExternalId;
     private final String name;
     private final String description;
-    private final Set<String> relationTargets; // IDs this goal supports
+    /**
+     * Target goal external id → relation type name, in document order. The type stays a string
+     * because this module sits below {@code project-domain}; the assembler parses it and skips an
+     * unknown value (issue #257).
+     */
+    private final Map<String, String> relations;
     private final Set<String> annotationExternalIds;
     private final Set<String> glossaryTermExternalIds;
 
@@ -42,7 +49,7 @@ public class GoalImportDraft {
         this.createdByExternalId = builder.createdByExternalId;
         this.name = builder.name;
         this.description = builder.description;
-        this.relationTargets = Collections.unmodifiableSet(new HashSet<>(builder.relationTargets));
+        this.relations = Collections.unmodifiableMap(new LinkedHashMap<>(builder.relations));
         this.annotationExternalIds =
                 Collections.unmodifiableSet(new HashSet<>(builder.annotationExternalIds));
         this.glossaryTermExternalIds =
@@ -65,8 +72,11 @@ public class GoalImportDraft {
         return description;
     }
 
-    public Set<String> getRelationTargets() {
-        return relationTargets;
+    /**
+     * @return target goal external id → relation type name, in document order
+     */
+    public Map<String, String> getRelations() {
+        return relations;
     }
 
     public Set<String> getAnnotationExternalIds() {
@@ -86,7 +96,7 @@ public class GoalImportDraft {
         private String createdByExternalId;
         private String name;
         private String description;
-        private Set<String> relationTargets = new HashSet<>();
+        private Map<String, String> relations = new LinkedHashMap<>();
         private Set<String> annotationExternalIds = new HashSet<>();
         private Set<String> glossaryTermExternalIds = new HashSet<>();
 
@@ -110,9 +120,13 @@ public class GoalImportDraft {
             return this;
         }
 
-        public Builder relationTargets(Set<String> relationTargets) {
-            if (relationTargets != null) {
-                this.relationTargets.addAll(relationTargets);
+        /**
+         * Add a relation from this goal to the target. The first relation to a target wins: a
+         * pair of goals holds at most one relation in each direction.
+         */
+        public Builder relation(String targetExternalId, String relationType) {
+            if (targetExternalId != null) {
+                this.relations.putIfAbsent(targetExternalId, relationType);
             }
             return this;
         }

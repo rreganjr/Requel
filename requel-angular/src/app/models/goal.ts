@@ -36,5 +36,22 @@ export interface GoalRelationDto {
   version: number;
   goalId: number;
   goalName: string;
-  relationType: 'Supports' | 'Conflicts';
+  /** A GoalRelationType name; its labels come from {@link GoalRelationTypeDto} (#257). */
+  relationType: string;
+}
+
+/**
+ * One goal relation type, served by GET /api/projects/goal-relation-types so the editor never
+ * keeps its own copy of the vocabulary (#257).
+ */
+export interface GoalRelationTypeDto {
+  /** The name sent as EditGoalRelation.relationType, e.g. 'DependsOn'. */
+  value: string;
+  /** Display name read from the from goal's side, e.g. 'Depends on'. */
+  label: string;
+  description: string;
+  /** True when the relation holds in both directions. */
+  symmetric: boolean;
+  /** Display name read from the to goal's side, e.g. 'Required by'. */
+  inverseLabel: string;
 }

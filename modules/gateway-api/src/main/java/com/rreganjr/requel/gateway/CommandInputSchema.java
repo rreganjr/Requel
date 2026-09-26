@@ -22,9 +22,14 @@ package com.rreganjr.requel.gateway;
 
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
+import com.rreganjr.requel.DescribedValue;
+import com.rreganjr.requel.service.api.AllowedValues;
 
 /**
  * Derives a JSON schema for a gateway command's input DTO, so every front-end generates its command
@@ -39,6 +44,11 @@ import java.util.Map;
  * are matched by fully-qualified name so this module needs no compile-time dependency on the
  * validation API. Unknown fields are rejected ({@code additionalProperties:false}) so typos surface
  * early. A {@code null}/{@link Void} or non-record input type yields an empty object schema.
+ *
+ * <p>A {@code String} component annotated {@link AllowedValues} lists its enum's constant names
+ * as the property's {@code enum}, and, when the enum is a {@link DescribedValue}, a
+ * {@code description} giving each value's meaning, so a caller learns the vocabulary from the
+ * schema without guessing (issue #257).
  *
  * <p>Pure JDK (reflection + collections); no Jackson or Spring, so it is safe to share from
  * {@code gateway-api}.
@@ -61,7 +71,9 @@ public final class CommandInputSchema {
         Map<String, Object> properties = new LinkedHashMap<>();
         List<String> required = new ArrayList<>();
         for (RecordComponent component : inputType.getRecordComponents()) {
-            properties.put(component.getName(), jsonType(component.getType()));
+            AllowedValues allowed = allowedValues(component);
+            properties.put(component.getName(),
+                    allowed != null ? enumType(allowed.value()) : jsonType(component.getType()));
             if (isRequired(component)) {
                 required.add(component.getName());
             }
@@ -122,6 +134,29 @@ public final class CommandInputSchema {
             }
         }
         return false;
+    }
+
+    private static AllowedValues allowedValues(RecordComponent component) {
+        AllowedValues allowed = component.getAnnotation(AllowedValues.class);
+        return allowed != null ? allowed : component.getAccessor().getAnnotation(AllowedValues.class);
+    }
+
+    /**
+     * A string node restricted to the enum's constant names, in declaration order; described
+     * value by value when the enum is a {@link DescribedValue}.
+     */
+    static Map<String, Object> enumType(Class<? extends Enum<?>> enumType) {
+        Enum<?>[] constants = enumType.getEnumConstants();
+        List<String> names = Arrays.stream(constants).map(Enum::name).toList();
+        Map<String, Object> node = new LinkedHashMap<>();
+        node.put("type", "string");
+        node.put("enum", names);
+        if (DescribedValue.class.isAssignableFrom(enumType)) {
+            node.put("description", Arrays.stream(constants)
+                    .map(c -> c.name() + ": " + ((DescribedValue) c).getDescription())
+                    .collect(Collectors.joining(" ")));
+        }
+        return node;
     }
 
     /** Map a Java type to a JSON-schema type node. */

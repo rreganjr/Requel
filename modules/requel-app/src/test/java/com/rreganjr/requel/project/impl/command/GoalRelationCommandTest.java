@@ -32,16 +32,19 @@ import com.rreganjr.requel.project.command.EditGoalRelationCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.exception.GoalSelfRelationException;
 import com.rreganjr.requel.user.User;
+import com.rreganjr.validator.EntityValidationException;
 import static org.junit.jupiter.api.Assertions.*;
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 /**
  * Integration tests for goal relation commands:
  * {@link EditGoalRelationCommand} and {@link DeleteGoalRelationCommand}.
  *
- * Goal relations link two distinct goals with a type of either Supports or
- * Conflicts. The command resolves goals by name at execute time, so only the
- * string names are needed — not the Goal objects themselves.
+ * Goal relations link two distinct goals with a {@link GoalRelationType}. The
+ * command resolves goals by name at execute time, so only the string names are
+ * needed — not the Goal objects themselves. Issue #257 added five types, the
+ * permitted-values message, and the one-per-direction and symmetric-reverse checks.
  */
 public class GoalRelationCommandTest extends AbstractIntegrationTestCase {
 
@@ -72,9 +75,133 @@ public class GoalRelationCommandTest extends AbstractIntegrationTestCase {
 		return cmd.getGoal();
 	}
 
+	/** Create (relation null) or edit a relation by goal names. */
+	private GoalRelation relate(Project project, GoalRelation relation, String from, String to,
+			String type) throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		EditGoalRelationCommand cmd = getProjectCommandFactory().newEditGoalRelationCommand();
+		cmd.setEditedBy(admin);
+		cmd.setProjectOrDomain(project);
+		cmd.setGoalRelation(relation);
+		cmd.setFromGoal(from);
+		cmd.setToGoal(to);
+		cmd.setRelationType(type);
+		return getCommandHandler().execute(cmd).getGoalRelation();
+	}
+
+	private EntityValidationException refused(Project project, GoalRelation relation, String from,
+			String to, String type) {
+		return assertThrows(EntityValidationException.class,
+				() -> relate(project, relation, from, to, type));
+	}
+
+	private static void assertRefusedOn(EntityValidationException e, String property) {
+		assertTrue(Arrays.asList(e.getEntityPropertyNames()).contains(property),
+				"refused on " + property + ": " + Arrays.toString(e.getEntityPropertyNames()));
+	}
+
 	// -------------------------------------------------------------------------
 	// EditGoalRelationCommand
 	// -------------------------------------------------------------------------
+
+	@Test
+	public void everyRelationTypeIsAcceptedAndReadBack() throws Exception {
+		Project project = createProject("GoalRelation-all-types");
+		createGoal(project, "Hub");
+		for (GoalRelationType type : GoalRelationType.values()) {
+			createGoal(project, "Spoke " + type.name());
+			GoalRelation relation = relate(project, null, "Hub", "Spoke " + type.name(), type.name());
+			assertEquals(type, relation.getRelationType(), type.name());
+		}
+		Goal hub = getProjectRepository().findGoalByProjectOrDomainAndName(project, "Hub");
+		assertEquals(GoalRelationType.values().length, hub.getRelationsFromThisGoal().size());
+	}
+
+	@Test
+	public void relationTypeIsCaseInsensitive() throws Exception {
+		Project project = createProject("GoalRelation-case");
+		createGoal(project, "Lower from");
+		createGoal(project, "Lower to");
+		GoalRelation relation = relate(project, null, "Lower from", "Lower to", " dependson ");
+		assertEquals(GoalRelationType.DependsOn, relation.getRelationType());
+	}
+
+	@Test
+	public void unknownRelationTypeNamesThePermittedValues() throws Exception {
+		Project project = createProject("GoalRelation-unknown");
+		createGoal(project, "Unknown from");
+		createGoal(project, "Unknown to");
+		EntityValidationException e = refused(project, null, "Unknown from", "Unknown to", "Blocks");
+		assertRefusedOn(e, "relationType");
+		assertTrue(e.getMessage().contains("Blocks"), e.getMessage());
+		assertTrue(e.getMessage().contains(GoalRelationType.permittedValues()), e.getMessage());
+	}
+
+	@Test
+	public void secondRelationInTheSameDirectionIsRefused() throws Exception {
+		Project project = createProject("GoalRelation-repeat");
+		createGoal(project, "Repeat from");
+		createGoal(project, "Repeat to");
+		relate(project, null, "Repeat from", "Repeat to", "Supports");
+
+		EntityValidationException e = refused(project, null, "Repeat from", "Repeat to", "Measures");
+		assertRefusedOn(e, "toGoal");
+		assertTrue(e.getMessage().contains("already has a Supports relation"), e.getMessage());
+		Goal from = getProjectRepository().findGoalByProjectOrDomainAndName(project, "Repeat from");
+		assertEquals(1, from.getRelationsFromThisGoal().size(), "no second row");
+	}
+
+	@Test
+	public void reverseOfASymmetricRelationWithTheSameTypeIsRefused() throws Exception {
+		Project project = createProject("GoalRelation-symmetric");
+		createGoal(project, "Sym A");
+		createGoal(project, "Sym B");
+		relate(project, null, "Sym A", "Sym B", "Conflicts");
+
+		EntityValidationException e = refused(project, null, "Sym B", "Sym A", "Conflicts");
+		assertRefusedOn(e, "toGoal");
+		assertTrue(e.getMessage().contains("holds in both directions"), e.getMessage());
+	}
+
+	@Test
+	public void reverseWithADifferentTypeIsAllowed() throws Exception {
+		Project project = createProject("GoalRelation-reverse-other");
+		createGoal(project, "Rev A");
+		createGoal(project, "Rev B");
+		createGoal(project, "Rev C");
+		relate(project, null, "Rev A", "Rev B", "Conflicts");
+		relate(project, null, "Rev A", "Rev C", "Conflicts");
+
+		assertEquals(GoalRelationType.Supports,
+				relate(project, null, "Rev B", "Rev A", "Supports").getRelationType());
+		assertEquals(GoalRelationType.Duplicates,
+				relate(project, null, "Rev C", "Rev A", "Duplicates").getRelationType());
+	}
+
+	@Test
+	public void changingATypeToASymmetricOneWhoseReverseExistsIsRefused() throws Exception {
+		Project project = createProject("GoalRelation-edit-symmetric");
+		createGoal(project, "Edit A");
+		createGoal(project, "Edit B");
+		GoalRelation forward = relate(project, null, "Edit A", "Edit B", "Supports");
+		relate(project, null, "Edit B", "Edit A", "Conflicts");
+
+		EntityValidationException e = refused(project, forward, "Edit A", "Edit B", "Conflicts");
+		assertRefusedOn(e, "toGoal");
+	}
+
+	@Test
+	public void editingARelationDoesNotCollideWithItself() throws Exception {
+		Project project = createProject("GoalRelation-self-collide");
+		createGoal(project, "Self A");
+		createGoal(project, "Self B");
+		GoalRelation relation = relate(project, null, "Self A", "Self B", "Conflicts");
+
+		assertEquals(GoalRelationType.Conflicts,
+				relate(project, relation, "Self A", "Self B", "Conflicts").getRelationType());
+		assertEquals(GoalRelationType.Duplicates,
+				relate(project, relation, "Self A", "Self B", "Duplicates").getRelationType());
+	}
 
 	@Test
 	public void createSupportingRelation() throws Exception {

@@ -34,4 +34,24 @@ describe('GoalService', () => {
     const result = await promise;
     expect(result.id).toBe(42);
   });
+
+  it('getRelationTypes() fetches the vocabulary once and serves later calls from the cache', async () => {
+    const first = service.getRelationTypes();
+    const req = httpMock.expectOne('/api/projects/goal-relation-types');
+    expect(req.request.method).toBe('GET');
+    req.flush([{ value: 'Supports', label: 'Supports', description: 'd', symmetric: false, inverseLabel: 'Supported by' }]);
+    expect((await first)[0].inverseLabel).toBe('Supported by');
+    const second = await service.getRelationTypes();
+    httpMock.expectNone('/api/projects/goal-relation-types');
+    expect(second).toHaveLength(1);
+  });
+
+  it('getRelationTypes() retries after a failed request', async () => {
+    const first = service.getRelationTypes();
+    httpMock.expectOne('/api/projects/goal-relation-types').flush('no', { status: 500, statusText: 'Server Error' });
+    await expect(first).rejects.toBeTruthy();
+    const second = service.getRelationTypes();
+    httpMock.expectOne('/api/projects/goal-relation-types').flush([]);
+    expect(await second).toEqual([]);
+  });
 });
