@@ -42,11 +42,15 @@ export interface NoteDto {
   createdBy: string | null;
 }
 
+/** Issue severity (#271). The server orders every issue list by it, HIGH first. */
+export type IssueSeverity = 'LOW' | 'MEDIUM' | 'HIGH';
+
 export interface IssueDto {
   id: number;
   version: number;
   text: string;
   mustBeResolved: boolean;
+  severity: IssueSeverity;
   resolved: boolean;
   resolvedBy: string | null;
   resolvedByPosition: string | null;
@@ -57,6 +61,27 @@ export interface IssueDto {
 export interface AnnotationsDto {
   notes: NoteDto[];
   issues: IssueDto[];
+}
+
+export const ISSUE_SEVERITY_OPTIONS: { label: string; value: IssueSeverity }[] = [
+  { label: 'High', value: 'HIGH' },
+  { label: 'Medium', value: 'MEDIUM' },
+  { label: 'Low', value: 'LOW' },
+];
+
+/** Ordering weight of a severity, 0 for a missing or unknown one; sort descending. */
+export function severityRank(severity: string | null | undefined): number {
+  switch (severity) {
+    case 'HIGH': return 3;
+    case 'MEDIUM': return 2;
+    case 'LOW': return 1;
+    default: return 0;
+  }
+}
+
+/** Display label for a severity ('HIGH' -> 'High'). */
+export function severityLabel(severity: string | null | undefined): string {
+  return ISSUE_SEVERITY_OPTIONS.find(o => o.value === severity)?.label ?? (severity ?? '');
 }
 
 export const SUPPORT_LEVEL_OPTIONS = [

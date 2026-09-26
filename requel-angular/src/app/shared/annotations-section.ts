@@ -26,7 +26,7 @@ import { TextareaModule } from 'primeng/textarea';
 import { CheckboxModule } from 'primeng/checkbox';
 import { SelectModule } from 'primeng/select';
 import { MessageService } from 'primeng/api';
-import { AnnotationsDto, IssueDto, NoteDto, PositionDto, SUPPORT_LEVEL_OPTIONS } from '../models/annotation';
+import { AnnotationsDto, ISSUE_SEVERITY_OPTIONS, IssueDto, IssueSeverity, NoteDto, PositionDto, SUPPORT_LEVEL_OPTIONS, severityLabel } from '../models/annotation';
 import { AnnotationService } from '../core/annotation.service';
 import { PermissionService } from '../core/permission.service';
 import { AppCardComponent } from './app-card';
@@ -35,7 +35,7 @@ import { ErrorStateComponent } from './error-state';
 import { SubmitErrorComponent } from './app-submit-error';
 import { InlineErrorComponent } from './app-inline-error';
 import { notBlank } from './form-errors';
-import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
+import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, supportLevelTone } from './severity';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -119,6 +119,13 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
               <p-checkbox formControlName="mustResolve" [binary]="true" inputId="mustResolve" />
               <label for="mustResolve">Must be resolved</label>
             </div>
+            <div class="severity-row">
+              <label for="annotation-issue-severity">Severity</label>
+              <p-select formControlName="severity" [options]="severityOptions"
+                        optionLabel="label" optionValue="value"
+                        inputId="annotation-issue-severity" ariaLabel="Severity"
+                        data-testid="annotation-issue-severity" />
+            </div>
             <div class="form-actions">
               <p-button label="Save Issue" icon="pi pi-check" size="small" severity="warn"
                         data-testid="annotation-save-issue" (onClick)="saveIssue()" />
@@ -159,6 +166,10 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
                        [tone]="issue.resolved ? 'success' : 'warning'"
                        [icon]="issue.resolved ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'"
                        [label]="issue.resolved ? 'Resolved' : 'Issue'" />
+              <app-tag data-testid="annotation-issue-severity-badge"
+                       [attr.data-severity]="issue.severity"
+                       [tone]="severityTone(issue.severity)" [icon]="severityIcon(issue.severity)"
+                       [label]="formatSeverity(issue.severity)" />
               @if (issue.mustBeResolved && !issue.resolved) {
                 <app-tag [tone]="'danger'" icon="pi pi-exclamation-circle" label="Must Resolve" />
               }
@@ -291,6 +302,7 @@ import { RqTone, supportLevelIcon, supportLevelTone } from './severity';
     .add-textarea { width: 100%; }
     .add-input { width: 100%; }
     .must-resolve-row { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
+    .severity-row { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
     .form-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
 
     .annotation { border: 1px solid var(--p-surface-200); border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; }
@@ -384,6 +396,7 @@ export class AnnotationsSectionComponent implements OnChanges {
   readonly issueForm = new FormGroup({
     text: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
     mustResolve: new FormControl(false, { nonNullable: true }),
+    severity: new FormControl<IssueSeverity>('MEDIUM', { nonNullable: true }),
   });
   readonly positionForm = new FormGroup({
     text: new FormControl('', { nonNullable: true, validators: [notBlank()] }),
@@ -398,6 +411,7 @@ export class AnnotationsSectionComponent implements OnChanges {
   protected readonly argSubmitted = signal(false);
 
   readonly supportLevelOptions = SUPPORT_LEVEL_OPTIONS;
+  readonly severityOptions = ISSUE_SEVERITY_OPTIONS;
 
   constructor(
     private annotationService: AnnotationService,
@@ -461,7 +475,7 @@ export class AnnotationsSectionComponent implements OnChanges {
       return;
     }
     const raw = this.issueForm.getRawValue();
-    const result = await this.annotationService.addIssue(this.projectName, this.entityType, this.entityId, raw.text.trim(), raw.mustResolve);
+    const result = await this.annotationService.addIssue(this.projectName, this.entityType, this.entityId, raw.text.trim(), raw.mustResolve, raw.severity);
     if (result.success) {
       this.messageService.add({ severity: 'success', summary: 'Issue added', life: 3000 });
       this.cancelIssue();
@@ -473,7 +487,7 @@ export class AnnotationsSectionComponent implements OnChanges {
 
   cancelIssue(): void {
     this.showIssueForm.set(false);
-    this.issueForm.reset({ text: '', mustResolve: false });
+    this.issueForm.reset({ text: '', mustResolve: false, severity: 'MEDIUM' });
     this.issueSubmitted.set(false);
   }
 
@@ -562,6 +576,19 @@ export class AnnotationsSectionComponent implements OnChanges {
   /** Argument support level -> app-tag leading icon. */
   supportIcon(supportLevel: string): string {
     return supportLevelIcon(supportLevel);
+  }
+
+  /** Issue severity (#271) -> app-tag tone / icon / label. */
+  severityTone(severity: string): RqTone {
+    return issueSeverityTone(severity);
+  }
+
+  severityIcon(severity: string): string {
+    return issueSeverityIcon(severity);
+  }
+
+  formatSeverity(severity: string): string {
+    return severityLabel(severity);
   }
 
   formatSupportLevel(level: string): string {

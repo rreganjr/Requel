@@ -23,6 +23,7 @@ package com.rreganjr.requel.service.command;
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
@@ -128,7 +129,11 @@ public class AnnotationCommandRegistrar {
                     c.setAnnotatable(annotatable);
                     c.setGroupingObject(getProject(annotatable));
                     c.setText(i.text());
-                    c.setMustBeResolved(Boolean.TRUE.equals(i.mustBeResolved()));
+                    // #271: null = unchanged on update (#316's contract); false/default on create.
+                    // An unknown severity maps to null here, but ValidatingCommandHandler rejects
+                    // the input on its @Pattern before the command executes.
+                    c.setMustBeResolved(i.mustBeResolved());
+                    c.setSeverity(IssueSeverity.parse(i.severity()).orElse(null));
                     if (i.issueId() != null) {
                         c.setIssue(entityManager.find(IssueImpl.class, i.issueId()));
                     }
@@ -257,6 +262,14 @@ public class AnnotationCommandRegistrar {
         );
     }
 
+    /**
+     * #271: ordering weight of a DTO's severity name, 0 for a missing or unknown one. Lists sort
+     * by it descending, so HIGH lists first.
+     */
+    public static int severityRank(String severity) {
+        return IssueSeverity.parse(severity).map(IssueSeverity::rank).orElse(0);
+    }
+
     public static IssueDto toIssueDto(Issue issue) {
         if (issue == null) return null;
         List<PositionDto> positions = issue.getPositions().stream()
@@ -268,6 +281,7 @@ public class AnnotationCommandRegistrar {
                 0,
                 issue.getText(),
                 issue.isMustBeResolved(),
+                issue.getSeverity() != null ? issue.getSeverity().name() : IssueSeverity.MEDIUM.name(),
                 issue.isResolved(),
                 issue.getResolvedByUser() != null ? issue.getResolvedByUser().getDisplayName() : null,
                 issue.getResolvedByPosition() != null ? issue.getResolvedByPosition().getText() : null,

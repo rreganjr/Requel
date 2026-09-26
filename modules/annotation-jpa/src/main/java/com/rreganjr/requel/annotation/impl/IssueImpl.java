@@ -25,8 +25,11 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
@@ -38,10 +41,12 @@ import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlElementWrapper;
 import jakarta.xml.bind.annotation.XmlIDREF;
 import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlTransient;
 import jakarta.xml.bind.annotation.XmlType;
 import jakarta.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.annotation.impl.PositionImpl.Position2PositionImplAdapter;
 import com.rreganjr.platform.identity.User;
@@ -59,6 +64,7 @@ public class IssueImpl extends AbstractAnnotation implements Issue {
 
 	private Set<Position> positions = new TreeSet<Position>();
 	private boolean mustBeResolved;
+	private IssueSeverity severity;
 	private Position resolvedByPosition;
 	private User resolvedByUser;
 	private Date resolvedDate;
@@ -95,6 +101,7 @@ public class IssueImpl extends AbstractAnnotation implements Issue {
 			User createdBy) {
 		super(type, groupingObject, text, createdBy);
 		setMustBeResolved(mustBeResolved);
+		setSeverity(defaultSeverity());
 	}
 
 	protected IssueImpl() {
@@ -134,6 +141,46 @@ public class IssueImpl extends AbstractAnnotation implements Issue {
 	 */
 	public void setMustBeResolved(boolean mustBeResolved) {
 		this.mustBeResolved = mustBeResolved;
+	}
+
+	/**
+	 * Issue #271. Never null: a row that predates the column and missed the V22 backfill, or one
+	 * written by a path that did not set it, reads as this kind's {@link #defaultSeverity()}.
+	 * The persistent property is {@link #getPersistedSeverity()}, kept separate so reading the
+	 * fallback never makes a loaded entity dirty.
+	 */
+	@Override
+	@Transient
+	@XmlAttribute(name = "severity")
+	public IssueSeverity getSeverity() {
+		return severity != null ? severity : defaultSeverity();
+	}
+
+	/**
+	 * @param severity -
+	 *            the new severity; null restores this kind's default
+	 */
+	public void setSeverity(IssueSeverity severity) {
+		this.severity = severity != null ? severity : defaultSeverity();
+	}
+
+	/**
+	 * @return the severity an issue of this kind gets when none is supplied: {@code MEDIUM}.
+	 *         {@link LexicalIssue} overrides it with {@code LOW}.
+	 */
+	public IssueSeverity defaultSeverity() {
+		return IssueSeverity.MEDIUM;
+	}
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "severity", length = 20)
+	@XmlTransient
+	protected IssueSeverity getPersistedSeverity() {
+		return severity;
+	}
+
+	protected void setPersistedSeverity(IssueSeverity severity) {
+		this.severity = severity;
 	}
 
 	@Transient

@@ -62,6 +62,21 @@ export function supportLevelTone(supportLevel: string): RqTone {
   return 'neutral';
 }
 
+/** Issue severity (#271) -> tone: HIGH danger, MEDIUM warning, LOW info. */
+export function issueSeverityTone(severity: string | null | undefined): RqTone {
+  if (severity === 'HIGH') return 'danger';
+  if (severity === 'MEDIUM') return 'warning';
+  if (severity === 'LOW') return 'info';
+  return 'neutral';
+}
+
+/** Domain icon for an issue severity, paired with {@link issueSeverityTone}. */
+export function issueSeverityIcon(severity: string | null | undefined): string {
+  if (severity === 'HIGH') return 'pi pi-angle-double-up';
+  if (severity === 'LOW') return 'pi pi-angle-down';
+  return 'pi pi-minus';
+}
+
 /** Domain icon for an argument support level, paired with {@link supportLevelTone}. */
 export function supportLevelIcon(supportLevel: string): string {
   const tone = supportLevelTone(supportLevel);

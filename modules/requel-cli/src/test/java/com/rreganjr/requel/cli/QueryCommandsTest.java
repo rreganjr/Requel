@@ -136,14 +136,15 @@ class QueryCommandsTest {
     void openIssues() {
         QueryGateway gw = mock(QueryGateway.class);
         when(gw.getOpenIssues("Demo")).thenReturn(List.of(
-                new OpenIssueDto(5L, "Ambiguous wording", true, "Goal", 3L, "Login goal")));
+                new OpenIssueDto(5L, "Ambiguous wording", true, "HIGH", "Goal", 3L, "Login goal")));
         OpenIssuesCommand cmd = new OpenIssuesCommand();
         cmd.parent = parent(OutputFormat.TEXT);
         cmd.queryOverride = gw;
         cmd.projectName = "Demo";
 
         String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
-        assertThat(out).contains("[Goal Login goal] Ambiguous wording").contains("(must resolve)");
+        assertThat(out).contains("HIGH   [Goal Login goal] Ambiguous wording")
+                .contains("(must resolve)");
     }
 
     @Test

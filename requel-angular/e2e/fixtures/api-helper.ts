@@ -694,7 +694,8 @@ export async function addIssue(
   entityType: string,
   entityId: number,
   text: string,
-  mustBeResolved = false
+  mustBeResolved = false,
+  severity?: 'LOW' | 'MEDIUM' | 'HIGH'
 ): Promise<IssueFixture> {
   const token = await getAdminToken(api);
   const result = await command(api, token, 'EditIssue', {
@@ -703,6 +704,8 @@ export async function addIssue(
     entityId,
     text,
     mustBeResolved,
+    // #271: omitted means the server default (MEDIUM).
+    ...(severity ? { severity } : {}),
   });
   const entity = result['entity'] as { id: number };
   return { id: entity.id, projectName };

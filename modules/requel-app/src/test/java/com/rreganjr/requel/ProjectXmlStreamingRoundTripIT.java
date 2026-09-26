@@ -396,6 +396,82 @@ class ProjectXmlStreamingRoundTripIT {
 	}
 
 	/**
+	 * Issue #271: an issue's severity is exported and imported, and a file exported before #271
+	 * (no {@code severity} attribute) imports each issue with its kind's default.
+	 */
+	@Test
+	@Transactional
+	void issueSeverityRoundTripsAndOldFilesGetTheDefault() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String ts = Long.toString(System.nanoTime());
+
+		com.rreganjr.requel.annotation.command.EditIssueCommand high =
+				annotationCommandFactory.newEditIssueCommand();
+		high.setEditedBy(projectUser);
+		high.setGroupingObject(originalProject);
+		high.setAnnotatable(goal);
+		high.setText("Admin console may be tenant-wide " + ts);
+		high.setMustBeResolved(true);
+		high.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+		commandHandler.execute(high);
+
+		com.rreganjr.requel.annotation.command.EditLexicalIssueCommand lexical =
+				annotationCommandFactory.newEditLexicalIssueCommand();
+		lexical.setEditedBy(projectUser);
+		lexical.setGroupingObject(originalProject);
+		lexical.setAnnotatable(goal);
+		lexical.setWord("zorblat" + ts);
+		lexical.setAnnotatableEntityPropertyName("Name");
+		lexical.setText("The word zorblat" + ts + " is not recognized.");
+		lexical.setMustBeResolved(true);
+		commandHandler.execute(lexical);
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML").contains("severity=\"HIGH\"").contains("severity=\"LOW\"");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " Severity " + Instant.now().toEpochMilli();
+		importProject(exportedBytes, projectUser, reName);
+		// An export from before #271: the same file with every severity attribute removed.
+		byte[] oldBytes = xml.replaceAll(" severity=\"[A-Z]+\"", "")
+				.getBytes(StandardCharsets.UTF_8);
+		assertXmlMatchesProjectSchema(oldBytes);
+		String oldName = originalProject.getName() + " PreSeverity " + Instant.now().toEpochMilli();
+		importProject(oldBytes, projectUser, oldName);
+		entityManager.flush();
+		entityManager.clear();
+
+		List<com.rreganjr.requel.annotation.Issue> roundTripped = issuesOnGoal(reName, goal);
+		assertThat(issueWithText(roundTripped, "Admin console may be tenant-wide " + ts)
+				.getSeverity()).isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+		assertThat(issueWithText(roundTripped, "The word zorblat" + ts + " is not recognized.")
+				.getSeverity()).isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.LOW);
+
+		List<com.rreganjr.requel.annotation.Issue> fromOldFile = issuesOnGoal(oldName, goal);
+		assertThat(issueWithText(fromOldFile, "Admin console may be tenant-wide " + ts)
+				.getSeverity()).as("plain issue default")
+				.isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.MEDIUM);
+		assertThat(issueWithText(fromOldFile, "The word zorblat" + ts + " is not recognized.")
+				.getSeverity()).as("lexical issue default")
+				.isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.LOW);
+	}
+
+	private List<com.rreganjr.requel.annotation.Issue> issuesOnGoal(String projectName, Goal goal) {
+		Goal importedGoal = projectRepository.findProjectByName(projectName).getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow(() -> new AssertionError("goal " + goal.getName() + " not imported"));
+		return importedGoal.getAnnotations().stream()
+				.map(org.hibernate.Hibernate::unproxy)
+				.filter(com.rreganjr.requel.annotation.Issue.class::isInstance)
+				.map(com.rreganjr.requel.annotation.Issue.class::cast).collect(Collectors.toList());
+	}
+
+	/**
 	 * Issue #320: ignored findings and the IgnorePosition marker round-trip, with each key
 	 * rebuilt for the entity's new id and pointing at the imported issue.
 	 */

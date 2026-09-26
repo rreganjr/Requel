@@ -102,6 +102,36 @@ test.describe('Open Issues', () => {
     await page.close();
   });
 
+  test('issues are listed by severity, highest first (#271)', async ({ adminContext, request }) => {
+    const lowText = `Low issue ${Date.now()}`;
+    const highText = `High issue ${Date.now()}`;
+
+    goalToCleanup = await createGoal(request, PROJECT_NAME, `e2e-open-severity-${Date.now()}`);
+    await addIssue(request, PROJECT_NAME, 'Goal', goalToCleanup.id, lowText, false, 'LOW');
+    await addIssue(request, PROJECT_NAME, 'Goal', goalToCleanup.id, highText, false, 'HIGH');
+
+    const page = await adminContext.newPage();
+    const [response] = await Promise.all([
+      page.waitForResponse(r => r.url().includes(`/api/projects/${encodeURIComponent(PROJECT_NAME)}/open-issues`) && r.status() === 200),
+      page.goto(`/projects/${encodeURIComponent(PROJECT_NAME)}/open-issues`),
+    ]);
+
+    // The server orders by severity; other tests' and the assistants' issues share the project,
+    // so check the order is non-increasing rather than assuming ours are the only rows.
+    const rank: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+    const issues = await response.json() as { issueText: string; severity: string }[];
+    expect(issues.every(i => i.severity in rank)).toBe(true);
+    const ranks = issues.map(i => rank[i.severity]);
+    expect(ranks).toEqual([...ranks].sort((a, b) => b - a));
+
+    await expect(page.getByRole('row', { name: new RegExp(highText) })
+      .getByTestId('open-issue-severity')).toHaveText('High');
+    // The first row on the page is a High one.
+    await expect(page.getByTestId('open-issue-severity').first()).toHaveAttribute('data-severity', 'HIGH');
+
+    await page.close();
+  });
+
   test('clicking issue entity link navigates to actor and story editors', async ({ adminContext, request }) => {
     const actorIssueText = `Actor issue ${Date.now()}`;
     const storyIssueText = `Story issue ${Date.now()}`;

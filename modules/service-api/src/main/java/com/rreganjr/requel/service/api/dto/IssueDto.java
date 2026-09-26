@@ -30,6 +30,8 @@ public record IssueDto(
         int version,
         String text,
         boolean mustBeResolved,
+        /** LOW, MEDIUM or HIGH; never null (#271). */
+        String severity,
         boolean resolved,
         String resolvedBy,
         String resolvedByPosition,
