@@ -20,7 +20,15 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Copies a use case, selected by useCaseId, within its project. The copy is"
+        + " named after the original with the first free number appended (\"Login 1\", \"Login"
+        + " 2\"); the name cannot be chosen here, so rename the copy with EditUseCase. Its primary"
+        + " scenario is copied, with its steps copied under numbered names too; its actors, goals,"
+        + " stories, glossary terms and annotations are shared with the original rather than"
+        + " copied. Additional scenarios are not carried over; attach them with"
+        + " AddScenarioToUseCase.")
 public record CopyUseCaseInput(@NotBlank String projectName, @NotNull Long useCaseId) {}

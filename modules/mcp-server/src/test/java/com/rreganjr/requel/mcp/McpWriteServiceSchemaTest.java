@@ -134,6 +134,47 @@ class McpWriteServiceSchemaTest {
 		assertThat(ping.description()).isEqualTo("Ping.");
 	}
 
+	/**
+	 * Issue #296: every catalog description ends in a full stop, and {@code describe} used to
+	 * append another, so callers saw "Does a thing.." before the field list.
+	 */
+	@Test
+	void aDescriptionEndingInAFullStopGetsNoSecond() {
+		McpWriteService svc = serviceFor(
+				new CommandDescriptor("Rich", RichInput.class, "Rich", "Does a thing.", true, null));
+		String description = tool(svc, "Rich").description();
+		assertThat(description).startsWith("Does a thing. Input fields:").doesNotContain("..");
+	}
+
+	/** Issue #296: the authorization hint follows the description, before the field list. */
+	@Test
+	void theAuthorizationHintFollowsTheDescription() {
+		McpWriteService svc = serviceFor(
+				new CommandDescriptor("Rich", RichInput.class, "Rich", "Does a thing.", true,
+						"Goal[Edit]"));
+		assertThat(tool(svc, "Rich").description())
+				.isEqualTo("Does a thing. Requires: Goal[Edit]. Input fields: name, id, count, flag,"
+						+ " ratio, color, tags, blob.");
+	}
+
+	@Test
+	void aNullOrBlankHintIsLeftOut() {
+		McpWriteService svc = serviceFor(
+				new CommandDescriptor("Rich", RichInput.class, "Rich", "Does a thing.", true, null),
+				new CommandDescriptor("Blank", RichInput.class, "Blank", "Does a thing.", true, " "));
+		assertThat(tool(svc, "Rich").description()).doesNotContain("Requires");
+		assertThat(tool(svc, "Blank").description()).doesNotContain("Requires");
+	}
+
+	@Test
+	void sentenceAddsAFullStopOnlyWhenOneIsMissing() {
+		assertThat(McpWriteService.sentence("Done")).isEqualTo("Done.");
+		assertThat(McpWriteService.sentence("Done.")).isEqualTo("Done.");
+		assertThat(McpWriteService.sentence("Done?")).isEqualTo("Done?");
+		assertThat(McpWriteService.sentence("Done!")).isEqualTo("Done!");
+		assertThat(McpWriteService.sentence("")).isEmpty();
+	}
+
 	@Test
 	void callingAToolNotInTheCatalogIsRejected() {
 		McpWriteService svc = serviceFor(

@@ -20,13 +20,12 @@
  */
 package com.rreganjr.requel.project.command;
 
-import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.requel.project.Stakeholder;
 
 /**
  * @author ron
  */
-public interface DeleteStakeholderCommand extends EditCommand {
+public interface DeleteStakeholderCommand extends VersionCheckedDeleteCommand {
 
 	/**
 	 * Set the stakeholder to delete.

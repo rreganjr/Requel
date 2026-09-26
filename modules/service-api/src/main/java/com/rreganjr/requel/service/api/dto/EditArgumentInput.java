@@ -20,12 +20,18 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 /**
  * Input DTO for EditArgument command. argumentId null = create new argument on position.
  */
+@CommandDescription("Creates or edits an argument for or against the position given by"
+        + " positionId. supportLevel is exactly one of StronglyFor, For, Neutral, Against or"
+        + " StronglyAgainst. Leave argumentId null to create one, or pass it to replace an"
+        + " argument's text and supportLevel; an argument stays on the position it was created on."
+        + " An unknown argumentId creates a new argument rather than failing.")
 public record EditArgumentInput(
         String projectName,
         @NotNull Long positionId,

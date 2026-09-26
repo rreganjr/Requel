@@ -20,7 +20,10 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Deletes an argument, selected by argumentId, and removes it from its"
+        + " position.")
 public record DeleteArgumentInput(String projectName, @NotNull Long argumentId) {
 }

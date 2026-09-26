@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.cli;
 
+import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
@@ -29,10 +30,10 @@ import picocli.CommandLine.Parameters;
  * open issues), the same bundle an agent would prime on. Text output shows it as formatted JSON since
  * it is a composite; use {@code --output json} for the raw bundle.
  */
-@Command(name = "context", description = "Show a project's composite context bundle.")
+@Command(name = "context", description = QueryDescriptions.GET_PROJECT_CONTEXT)
 public class ContextCommand extends AbstractQueryCommand {
 
-    @Parameters(index = "0", paramLabel = "PROJECT", description = "Project name.")
+    @Parameters(index = "0", paramLabel = "PROJECT", description = QueryDescriptions.PROJECT_NAME)
     String projectName;
 
     @Override

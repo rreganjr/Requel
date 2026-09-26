@@ -20,7 +20,10 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Deletes a position, selected by positionId: it is removed from every issue"
+        + " it answers and its arguments are deleted. An issue it had resolved becomes unresolved.")
 public record DeletePositionInput(String projectName, @NotNull Long positionId) {
 }

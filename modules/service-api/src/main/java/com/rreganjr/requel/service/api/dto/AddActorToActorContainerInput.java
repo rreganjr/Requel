@@ -20,9 +20,16 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Adds an existing actor (actorId) to a container. containerType is Project,"
+        + " UseCase or Story, ignoring case, and actorContainerId is the project's id or the id of"
+        + " a use case or story in the project; any other type is refused. On a use case or story"
+        + " this adds the actor to its actors, never as the primary actor, which EditUseCase and"
+        + " EditStory set. Adding an actor that is already there changes nothing. Returns the"
+        + " updated use case or story, or nothing when the container is the project.")
 public record AddActorToActorContainerInput(
         @NotBlank String projectName,
         @NotNull Long actorContainerId,

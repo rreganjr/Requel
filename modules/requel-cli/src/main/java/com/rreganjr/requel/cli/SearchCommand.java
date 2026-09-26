@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.cli;
 
+import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import java.util.List;
@@ -27,13 +28,13 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
 /** {@code requel search <project> <query>} — find project entities by name (case-insensitive). */
-@Command(name = "search", description = "Search a project's entities by name.")
+@Command(name = "search", description = QueryDescriptions.SEARCH_PROJECT_ENTITIES)
 public class SearchCommand extends AbstractQueryCommand {
 
-    @Parameters(index = "0", paramLabel = "PROJECT", description = "Project name.")
+    @Parameters(index = "0", paramLabel = "PROJECT", description = QueryDescriptions.PROJECT_NAME)
     String projectName;
 
-    @Parameters(index = "1", paramLabel = "QUERY", description = "Name substring to match.")
+    @Parameters(index = "1", paramLabel = "QUERY", description = QueryDescriptions.SEARCH_QUERY)
     String queryText;
 
     @Override

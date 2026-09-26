@@ -20,12 +20,21 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 /**
  * Input DTO for EditPosition command. positionId null = create new position on issue.
  */
+@CommandDescription("Creates or edits a position: a proposed answer to the issue given by"
+        + " issueId. Leave positionId null to create one; when a position with the same text"
+        + " already exists on any issue in the project, that position is linked to this issue"
+        + " instead, and any duplicates of that text are first merged into the one with the lowest"
+        + " id. Pass positionId to replace a position's text. A position can answer several issues,"
+        + " so the change shows on all of them, and text that another position in the project"
+        + " already has is refused, naming that position's id so you can edit it instead. An"
+        + " unknown positionId creates a new position rather than failing.")
 public record EditPositionInput(
         String projectName,
         @NotNull Long issueId,

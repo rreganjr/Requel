@@ -20,10 +20,16 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 /**
  * Input for UnassignTag: detach tag {@code tagId} from the entity identified by
  * {@code entityType} (registry discriminator) and {@code entityId}.
  */
+@CommandDescription(value = "Detaches a tag (tagId) from the entity given by entityType and"
+        + " entityId. entityType is case-sensitive: Goal, Project, Actor, Story, Scenario, UseCase,"
+        + " NonUserStakeholder or UserStakeholder. The tag itself is kept, and detaching a tag the"
+        + " entity does not carry changes nothing.",
+        authorization = "Annotation[Edit] on the tagged entity's project")
 public record UnassignTagInput(
         Long tagId,
         String entityType,

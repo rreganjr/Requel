@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
@@ -36,6 +37,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import picocli.CommandLine;
+import picocli.CommandLine.Model.CommandSpec;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
 
@@ -51,6 +54,42 @@ class QueryCommandsTest {
     private static ProjectDto project(String name) {
         return new ProjectDto(1L, 0, name, "A demo project", "Org", "ron", "ACTIVE",
                 2, 3, 4, 5, 6, 7, 8, 0, 0, false);
+    }
+
+    /**
+     * Issue #296: the read commands' help comes from {@link QueryDescriptions}, the same text the
+     * MCP read tools publish, so the two surfaces say the same thing.
+     */
+    @Test
+    void readCommandHelpComesFromTheSharedQueryDescriptions() {
+        CommandSpec entity = new CommandLine(new EntityCommand()).getCommandSpec();
+        assertThat(entity.usageMessage().description())
+                .containsExactly(QueryDescriptions.GET_ENTITY);
+        assertThat(entity.findOption("--neighbors").description())
+                .containsExactly(QueryDescriptions.GET_ENTITY_NEIGHBORS);
+        assertThat(entity.positionalParameters().get(1).description())
+                .containsExactly(QueryDescriptions.READABLE_ENTITY_TYPE);
+
+        CommandSpec project = new CommandLine(new ProjectCommand()).getCommandSpec();
+        assertThat(project.usageMessage().description())
+                .containsExactly(QueryDescriptions.GET_PROJECT);
+        assertThat(project.findOption("--tree").description())
+                .containsExactly(QueryDescriptions.GET_PROJECT_TREE);
+        assertThat(project.positionalParameters().get(0).description())
+                .containsExactly(QueryDescriptions.PROJECT_NAME);
+
+        assertThat(new CommandLine(new OpenIssuesCommand()).getCommandSpec().usageMessage()
+                .description()).containsExactly(QueryDescriptions.GET_OPEN_ISSUES);
+    }
+
+    /** Picocli formats help text, so rendering every read command's usage must not throw. */
+    @Test
+    void readCommandUsageRenders() {
+        for (Object command : List.of(new ProjectsCommand(), new ProjectCommand(),
+                new GlossaryCommand(), new OpenIssuesCommand(), new EntityCommand(),
+                new SearchCommand(), new ContextCommand())) {
+            assertThat(new CommandLine(command).getUsageMessage()).isNotBlank();
+        }
     }
 
     @Test

@@ -20,7 +20,6 @@
  */
 package com.rreganjr.requel.project.command;
 
-import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.requel.project.GoalRelation;
 
 /**
@@ -28,7 +27,7 @@ import com.rreganjr.requel.project.GoalRelation;
  * 
  * @author ron
  */
-public interface DeleteGoalRelationCommand extends EditCommand {
+public interface DeleteGoalRelationCommand extends VersionCheckedDeleteCommand {
 
 	/**
 	 * set the goal relation to delete.

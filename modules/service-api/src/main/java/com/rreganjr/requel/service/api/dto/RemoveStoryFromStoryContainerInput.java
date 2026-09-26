@@ -20,9 +20,15 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Removes a story (storyId) from a container without deleting the story."
+        + " containerType is Project or UseCase, ignoring case, and storyContainerId is the"
+        + " project's id or the use case's id. Removing a story that is not there changes nothing,"
+        + " and removing it from the project container leaves it in the project. Returns the"
+        + " updated use case, or nothing when the container is the project.")
 public record RemoveStoryFromStoryContainerInput(
         @NotBlank String projectName,
         @NotNull Long storyContainerId,

@@ -25,8 +25,15 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.impl.IssueImpl;
 import com.rreganjr.requel.annotation.impl.NoteImpl;
 import com.rreganjr.requel.annotation.spi.AnnotatableTypeRegistry;
+import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.exception.NoSuchProjectException;
+import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -58,12 +65,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Collaborators mocked:
  * - {@code AnnotatableTypeRegistry} — discriminator → entity class resolution
  * - {@code EntityManager}           — entity lookup by class and id
+ * - {@code ProjectRepository}       — projectName → project
+ * - {@code CurrentUserResolver}     — the caller (a system administrator unless a test says not)
  *
  * Scenarios covered:
  * - Unknown entity type → 400 BAD_REQUEST
  * - Entity not found (null from EntityManager) → 404 Not Found
  * - Entity found with no annotations → 200 with empty notes and issues arrays
  * - Entity found with one note and one issue → 200 with populated arrays, sorted by id
+ * - Issue #296: unknown project → 404; a project the caller cannot read → 403 before the entity
+ *   is loaded; an entity in another project → 404
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
@@ -75,6 +86,22 @@ class AnnotationQueryControllerTest {
 
     @MockBean AnnotatableTypeRegistry annotatableTypeRegistry;
     @MockBean EntityManager entityManager;
+    @MockBean ProjectRepository projectRepository;
+    @MockBean CurrentUserResolver currentUserResolver;
+
+    private Project project;
+    private User caller;
+
+    @BeforeEach
+    void theCallerIsAnAdministratorReadingTestProject() {
+        project = mock(Project.class);
+        when(project.getId()).thenReturn(7L);
+        when(project.getStakeholders()).thenReturn(Set.of());
+        when(projectRepository.findProjectByName("TestProject")).thenReturn(project);
+        caller = mock(User.class);
+        when(caller.hasRole(SystemAdminUserRole.class)).thenReturn(true);
+        when(currentUserResolver.resolve()).thenReturn(caller);
+    }
 
     // -------------------------------------------------------------------------
     // Error cases
@@ -106,13 +133,60 @@ class AnnotationQueryControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void unknownProjectReturnsNotFound() throws Exception {
+        when(annotatableTypeRegistry.resolveEntityType("Goal"))
+                .thenReturn(Optional.of(stubAnnotatableClass()));
+        when(projectRepository.findProjectByName("NoSuchProject"))
+                .thenThrow(NoSuchProjectException.forName("NoSuchProject"));
+
+        mockMvc.perform(get("/api/annotations")
+                        .param("projectName", "NoSuchProject")
+                        .param("entityType", "Goal")
+                        .param("entityId", "1"))
+                .andExpect(status().isNotFound());
+    }
+
+    /**
+     * Issue #296: this endpoint used to load any entity by type and id for any signed-in user.
+     * A caller who is neither an administrator nor a user stakeholder is refused, and the entity
+     * is never looked up.
+     */
+    @Test
+    void aProjectTheCallerCannotReadIsForbidden() throws Exception {
+        stubAnnotatable(Set.of());
+        when(caller.hasRole(SystemAdminUserRole.class)).thenReturn(false);
+
+        mockMvc.perform(get("/api/annotations")
+                        .param("projectName", "TestProject")
+                        .param("entityType", "Goal")
+                        .param("entityId", "1"))
+                .andExpect(status().isForbidden());
+        verify(entityManager, never()).find(any(), eq(1L));
+    }
+
+    /** Issue #296: projectName now scopes the lookup; an entity from another project is not found. */
+    @Test
+    void anEntityInAnotherProjectIsNotFound() throws Exception {
+        Goal goal = stubAnnotatable(Set.of());
+        Project other = mock(Project.class);
+        when(other.getId()).thenReturn(8L);
+        when(goal.getProjectOrDomain()).thenReturn(other);
+
+        mockMvc.perform(get("/api/annotations")
+                        .param("projectName", "TestProject")
+                        .param("entityType", "Goal")
+                        .param("entityId", "1"))
+                .andExpect(status().isNotFound());
+    }
+
     // -------------------------------------------------------------------------
     // Success cases
     // -------------------------------------------------------------------------
 
     @Test
     void entityWithNoAnnotationsReturnsEmptyLists() throws Exception {
-        Annotatable annotatable = stubAnnotatable(Set.of());
+        stubAnnotatable(Set.of());
 
         mockMvc.perform(get("/api/annotations")
                         .param("projectName", "TestProject")
@@ -184,16 +258,20 @@ class AnnotationQueryControllerTest {
         return (Class<? extends Annotatable>) (Class<?>) Annotatable.class;
     }
 
-    /** Wire registry + EntityManager to return the given annotatable for entityId=1. */
-    private Annotatable stubAnnotatable(Set<Annotation> annotations) {
-        Annotatable annotatable = mock(Annotatable.class);
-        when(annotatable.getAnnotations()).thenReturn(annotations);
+    /**
+     * Wire registry + EntityManager to return a goal in TestProject, carrying the given
+     * annotations, for entityId=1.
+     */
+    private Goal stubAnnotatable(Set<Annotation> annotations) {
+        Goal goal = mock(Goal.class);
+        when(goal.getAnnotations()).thenReturn(annotations);
+        when(goal.getProjectOrDomain()).thenReturn(project);
 
         Class<? extends Annotatable> clazz = stubAnnotatableClass();
         when(annotatableTypeRegistry.resolveEntityType("Goal")).thenReturn(Optional.of(clazz));
-        when(entityManager.find(any(), eq(1L))).thenReturn(annotatable);
+        when(entityManager.find(any(), eq(1L))).thenReturn(goal);
 
-        return annotatable;
+        return goal;
     }
 
     private NoteImpl stubNote(Long id, String text) {

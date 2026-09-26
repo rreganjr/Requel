@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -30,6 +32,10 @@ import jakarta.validation.constraints.NotNull;
  * @param stakeholderId  id of the stakeholder to delete
  * @param version        optimistic lock version
  */
+@CommandDescription("Deletes a non-user stakeholder, selected by stakeholderId, along with its"
+        + " annotations; goals attached to it are unlinked, not deleted. A user stakeholder (a"
+        + " project member) is refused."
+        + CommandDescriptions.VERSION_CHECKED_ON_DELETE)
 public record DeleteStakeholderInput(
         @NotBlank String projectName,
         @NotNull Long stakeholderId,

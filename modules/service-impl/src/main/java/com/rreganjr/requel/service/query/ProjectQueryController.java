@@ -542,10 +542,7 @@ public class ProjectQueryController {
      */
     private User requireProjectAccess(Project project) {
         User user = currentUserResolver.resolve();
-        if (user.hasRole(SystemAdminUserRole.class)) {
-            return user;
-        }
-        if (findUserStakeholder(project, user) != null) {
+        if (ProjectReadAccess.canRead(project, user)) {
             return user;
         }
         throw new AuthorizationException("You do not have access to this project.");

@@ -24,6 +24,7 @@ import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
 import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
 import com.rreganjr.validator.ValidationLimits;
 import jakarta.validation.constraints.Size;
 
@@ -45,12 +46,14 @@ import jakarta.validation.constraints.Size;
         + " existing scenario, or leave it null to create one."
         + " The steps array is the entire step list and replaces what the scenario had: an entry"
         + " with no stepId creates a step, an entry with a stepId edits or links that one, and a"
-        + " step you leave out is removed from this scenario."
+        + " step you leave out is removed from this scenario, and deleted unless another scenario"
+        + " also uses it. Leave steps out altogether to keep the step list as it is."
         + " Step and scenario names are unique together within a project. A new entry whose name is"
         + " already taken is refused, not reused, because steps are shared between scenarios and"
         + " editing one through the wrong scenario would change it everywhere. Link the existing"
         + " one instead: send its stepId for a step, or its id as stepId with isScenario true to"
-        + " nest an existing scenario. The refusal names the id to use.")
+        + " nest an existing scenario. The refusal names the id to use."
+        + CommandDescriptions.PARTIAL_UPDATE)
 public record EditScenarioInput(
     @NotBlank String projectName,
     Long scenarioId,

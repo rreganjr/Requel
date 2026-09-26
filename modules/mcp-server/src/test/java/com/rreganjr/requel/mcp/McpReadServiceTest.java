@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
+import com.rreganjr.requel.gateway.QueryDescriptions;
 
 class McpReadServiceTest {
 
@@ -213,6 +214,31 @@ class McpReadServiceTest {
 				.isTrue();
 	}
 
+	/**
+	 * Issue #296: an issue draft's mustResolve defaults to false, as EditIssue's mustBeResolved
+	 * does, so a draft saved as-is makes the issue it describes. It used to default to true.
+	 */
+	@Test
+	void draftAnnotationDefaultsMustResolveToFalseAndKeepsAnExplicitValue() {
+		JsonNode defaulted = draft("""
+				{ "entityType": "Goal", "entityId": 10, "kind": "ISSUE", "text": "Clarify the SLA" }
+				""");
+		assertThat(defaulted.at("/metadata/mustResolve").asBoolean(true)).isFalse();
+
+		JsonNode explicit = draft("""
+				{ "entityType": "Goal", "entityId": 10, "kind": "ISSUE", "text": "Clarify the SLA",
+				  "mustResolve": true }
+				""");
+		assertThat(explicit.at("/metadata/mustResolve").asBoolean(false)).isTrue();
+	}
+
+	private JsonNode draft(String arguments) {
+		Map<String, Object> response = service.callTool(json(
+				"{ \"name\": \"draftAnnotation\", \"arguments\": " + arguments + " }"));
+		JsonNode content = objectMapper.valueToTree(response.get("content"));
+		return json(content.get(0).path("text").asText());
+	}
+
 	@Test
 	void draftAnnotationRejectsUnknownSeverity() {
 		// #271: an unrecognised severity is an error, not a silent drop.
@@ -236,6 +262,81 @@ class McpReadServiceTest {
 		JsonNode schema = objectMapper.valueToTree(draft.inputSchema());
 		assertThat(schema.at("/properties/severity/enum").toString())
 				.isEqualTo("[\"LOW\",\"MEDIUM\",\"HIGH\"]");
+	}
+
+	@SuppressWarnings("unchecked")
+	private List<McpToolDescriptor> readTools() {
+		return (List<McpToolDescriptor>) service.listTools().get("tools");
+	}
+
+	private JsonNode schemaOf(String toolName) {
+		McpToolDescriptor tool = readTools().stream().filter(t -> toolName.equals(t.name()))
+				.findFirst().orElseThrow();
+		return objectMapper.valueToTree(tool.inputSchema());
+	}
+
+	/**
+	 * Issue #296: every read tool reaches a caller with a real description. This service is
+	 * built read-only, so {@code listTools()} returns exactly the read tools; a new one (#274,
+	 * #72) added without text fails here.
+	 */
+	@Test
+	void everyReadToolIsDescribed() {
+		assertThat(readTools()).isNotEmpty().allSatisfy(tool -> assertThat(tool.description())
+				.as(tool.name()).isNotBlank().hasSizeGreaterThan(40).endsWith("."));
+	}
+
+	/** Issue #296: every property of every read tool's input schema says what it is. */
+	@Test
+	void everyReadToolPropertyIsDescribed() {
+		for (McpToolDescriptor tool : readTools()) {
+			JsonNode properties = objectMapper.valueToTree(tool.inputSchema()).path("properties");
+			properties.fields().forEachRemaining(property -> assertThat(
+					property.getValue().path("description").asText())
+					.as(tool.name() + "." + property.getKey()).isNotBlank());
+		}
+	}
+
+	/**
+	 * Issue #296: {@code entityType} is an enum where the accepted set is fixed. The detail reads
+	 * accept only the types {@code InProcessQueryGateway.getEntity} switches on; the annotation
+	 * reads accept every annotatable type. {@code McpToolCatalogLockstepIT} pins both lists to
+	 * the running application.
+	 */
+	@Test
+	void entityTypeIsAnEnumOfTheTypesEachToolAccepts() {
+		for (String tool : List.of("getEntity", "getEntityNeighbors")) {
+			assertThat(schemaOf(tool).at("/properties/entityType/enum").toString()).as(tool)
+					.isEqualTo(objectMapper.valueToTree(QueryDescriptions.READABLE_ENTITY_TYPES)
+							.toString());
+		}
+		for (String tool : List.of("getAnnotations", "draftAnnotation")) {
+			assertThat(schemaOf(tool).at("/properties/entityType/enum").toString()).as(tool)
+					.isEqualTo(objectMapper.valueToTree(QueryDescriptions.ANNOTATABLE_ENTITY_TYPES)
+							.toString());
+		}
+	}
+
+	/**
+	 * The entityType descriptions spell the lists out in prose because the CLI shows them as
+	 * picocli annotation text, which must be a constant; this keeps the prose and the lists in step.
+	 */
+	@Test
+	void entityTypeDescriptionsNameEveryAcceptedType() {
+		assertThat(QueryDescriptions.READABLE_ENTITY_TYPE)
+				.contains(QueryDescriptions.READABLE_ENTITY_TYPES);
+		assertThat(QueryDescriptions.ANNOTATABLE_ENTITY_TYPE)
+				.contains(QueryDescriptions.ANNOTATABLE_ENTITY_TYPES);
+	}
+
+	/** Picocli formats description text, so a stray per-cent sign would break the CLI help. */
+	@Test
+	void readDescriptionsHoldNoPercentSign() throws IllegalAccessException {
+		for (java.lang.reflect.Field field : QueryDescriptions.class.getFields()) {
+			if (field.getType() == String.class) {
+				assertThat((String) field.get(null)).as(field.getName()).doesNotContain("%");
+			}
+		}
 	}
 
 	private JsonNode json(String json) {

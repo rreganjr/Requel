@@ -20,9 +20,15 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Copies a story, selected by storyId, within its project. The copy gets the"
+        + " original's text, type, actors, goals and glossary terms and shares its annotations, but"
+        + " not its primary actor or its use cases. newStoryName is optional and defaults to the"
+        + " original's name. A name already taken gets a number appended (\"Login 1\", \"Login 2\")"
+        + " instead of being refused, so read the response for the name used.")
 public record CopyStoryInput(
         @NotBlank String projectName,
         @NotNull Long storyId,

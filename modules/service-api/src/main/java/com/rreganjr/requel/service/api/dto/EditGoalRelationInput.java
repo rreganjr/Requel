@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 
 /**
@@ -31,6 +32,13 @@ import jakarta.validation.constraints.NotBlank;
  * @param relationType   "Supports" or "Conflicts"
  * @param version        optimistic lock version (null for create)
  */
+@CommandDescription("Creates a directed relation from one goal to another, or changes the type of"
+        + " an existing one. The goals are given by name, not id: fromGoalName and toGoalName."
+        + " relationType is exactly Supports or Conflicts, and a goal cannot be related to itself."
+        + " Without version a new relation is always created, so repeating an existing one fails;"
+        + " with version the existing relation's type is updated, and the goal names must then"
+        + " match exactly, including case. Nothing is returned: read the goal to see the relation"
+        + " and its id.")
 public record EditGoalRelationInput(
         @NotBlank String projectName,
         @NotBlank String fromGoalName,

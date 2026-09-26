@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -33,6 +34,16 @@ import jakarta.validation.constraints.Pattern;
  * {@code severity} is case-insensitive; anything outside {@code LOW | MEDIUM | HIGH} is a
  * field-level validation error on {@code severity}.
  */
+@CommandDescription("Creates or edits an issue attached to the entity given by entityType and"
+        + " entityId. entityType is case-sensitive: Project, ProjectTeam, Goal, GoalRelation,"
+        + " UseCase, Scenario, Step, Story, Actor, GlossaryTerm, NonUserStakeholder or"
+        + " UserStakeholder. Leave issueId null to create one; when the entity already has an issue"
+        + " with exactly the same text, that issue is reused and only a supplied severity is"
+        + " applied to it. severity is LOW, MEDIUM or HIGH, ignoring case, and cannot be cleared; a"
+        + " new issue gets MEDIUM and mustBeResolved false. When editing, a null mustBeResolved or"
+        + " severity keeps its current value. Editing an issue attached elsewhere also attaches it"
+        + " to this entity, and an unknown issueId creates a new issue rather than failing. Issues"
+        + " are resolved in the Requel UI, not through the gateway.")
 public record EditIssueInput(
         String projectName,
         @NotBlank String entityType,

@@ -20,9 +20,15 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Attaches an existing scenario to a use case as an additional scenario, such"
+        + " as an alternative or exception flow, by useCaseId and scenarioId. The scenario is"
+        + " linked, not copied, so a change to it shows in every use case that uses it. Attaching"
+        + " one that is already attached changes nothing. The primary scenario is not checked for,"
+        + " so do not attach it here. Create the scenario first with EditScenario.")
 public record AddScenarioToUseCaseInput(
         @NotBlank String projectName,
         @NotNull Long useCaseId,

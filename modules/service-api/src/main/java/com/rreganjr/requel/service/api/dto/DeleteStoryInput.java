@@ -20,9 +20,16 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Deletes a story, selected by storyId. It is first detached from its use"
+        + " cases, actors (its primary actor included), goals and glossary terms, which are all"
+        + " kept; annotations only it carries are deleted and shared ones unlinked, and its ignored"
+        + " assistant findings are removed."
+        + CommandDescriptions.VERSION_CHECKED_ON_DELETE)
 public record DeleteStoryInput(
         @NotBlank String projectName,
         @NotNull Long storyId,

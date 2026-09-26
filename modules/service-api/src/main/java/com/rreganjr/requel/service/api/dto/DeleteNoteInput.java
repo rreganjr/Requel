@@ -20,7 +20,10 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Deletes a note, selected by noteId. A note can be attached to several"
+        + " entities, and it is removed from all of them.")
 public record DeleteNoteInput(String projectName, @NotNull Long noteId) {
 }

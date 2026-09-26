@@ -20,9 +20,16 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Removes an actor (actorId) from a container without deleting the actor."
+        + " containerType is Project, UseCase or Story, ignoring case, and actorContainerId is that"
+        + " entity's id. It removes the actor from the container's actors only and does not clear a"
+        + " primary actor. Removing an actor that is not there changes nothing, and removing it"
+        + " from the project container leaves it in the project. Returns the updated use case or"
+        + " story, or nothing when the container is the project.")
 public record RemoveActorFromActorContainerInput(
         @NotBlank String projectName,
         @NotNull Long actorContainerId,

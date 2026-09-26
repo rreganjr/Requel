@@ -20,13 +20,12 @@
  */
 package com.rreganjr.requel.project.command;
 
-import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.requel.project.Scenario;
 
 /**
  * @author ron
  */
-public interface DeleteScenarioCommand extends EditCommand {
+public interface DeleteScenarioCommand extends VersionCheckedDeleteCommand {
 
 	/**
 	 * Set the scenario to delete.

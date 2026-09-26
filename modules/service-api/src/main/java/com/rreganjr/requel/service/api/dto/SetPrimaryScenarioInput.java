@@ -20,9 +20,15 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Makes an existing scenario the primary scenario of a use case, by useCaseId"
+        + " and scenarioId. Any scenario in the project can be used, including one already attached"
+        + " as an additional scenario or another use case's primary scenario, which the two use"
+        + " cases then share. The previous primary scenario is neither deleted nor attached as an"
+        + " additional scenario; it stays in the project on its own.")
 public record SetPrimaryScenarioInput(
         @NotBlank String projectName,
         @NotNull Long useCaseId,

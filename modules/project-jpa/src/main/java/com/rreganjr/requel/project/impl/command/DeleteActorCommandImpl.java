@@ -61,7 +61,7 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteActorCommand")
 @Scope("prototype")
-public class DeleteActorCommandImpl extends AbstractEditProjectCommand implements
+public class DeleteActorCommandImpl extends AbstractDeleteProjectEntityCommand implements
 		DeleteActorCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Actor actor;
@@ -94,6 +94,8 @@ public class DeleteActorCommandImpl extends AbstractEditProjectCommand implement
 	@Override
 	public void execute() throws Exception {
 		Actor actor = getRepository().get(getActor());
+		// #296: refuse before touching anything if the caller read an older version.
+		refuseStaleDelete(Actor.class, actor, actor.getVersion());
 		User editedBy = getRepository().get(getEditedBy());
 
 		// #247: the former "proactive" native DELETE FROM annotation_annotatable WHERE

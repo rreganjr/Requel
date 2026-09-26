@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
 import com.rreganjr.validator.ValidationLimits;
 import jakarta.validation.constraints.Size;
@@ -32,6 +34,13 @@ import jakarta.validation.constraints.Size;
  * On update, a null (or absent) {@code description} leaves it as it is; an empty string
  * clears it (issue #316).
  */
+@CommandDescription("Creates or edits an actor: someone or something that takes part in use cases"
+        + " and stories. Leave actorId null to create one, or pass it to edit an existing actor."
+        + " name is required on every call, so send the current name to keep it, and actor names"
+        + " are unique within the project, ignoring case. description is the actor's text. Saving"
+        + " asks the assistant to analyze the actor."
+        + CommandDescriptions.PARTIAL_UPDATE
+        + CommandDescriptions.VERSION_CHECKED)
 public record EditActorInput(
         @NotBlank String projectName,
         Long actorId,

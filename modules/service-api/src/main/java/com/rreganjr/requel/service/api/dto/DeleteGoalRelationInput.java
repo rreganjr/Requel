@@ -20,9 +20,14 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Deletes one goal relation, selected by goalRelationId; the goals it"
+        + " connected are kept. Reading a goal lists its relations with their ids."
+        + CommandDescriptions.VERSION_CHECKED_ON_DELETE)
 public record DeleteGoalRelationInput(
         @NotBlank String projectName,
         @NotNull Long goalRelationId,

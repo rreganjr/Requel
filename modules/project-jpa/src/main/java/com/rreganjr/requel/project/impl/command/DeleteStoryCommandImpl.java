@@ -59,7 +59,7 @@ import com.rreganjr.requel.user.UserRepository;
  */
 @Controller("deleteStoryCommand")
 @Scope("prototype")
-public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implements
+public class DeleteStoryCommandImpl extends AbstractDeleteProjectEntityCommand implements
 		DeleteStoryCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Story story;
@@ -92,6 +92,8 @@ public class DeleteStoryCommandImpl extends AbstractEditProjectCommand implement
 	@Override
 	public void execute() throws Exception {
 		Story story = getRepository().get(getStory());
+		// #296: refuse before touching anything if the caller read an older version.
+		refuseStaleDelete(Story.class, story, story.getVersion());
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(story.getAnnotations());
 		for (Annotation annotation : annotations) {

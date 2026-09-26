@@ -30,14 +30,15 @@ import com.rreganjr.requel.service.api.CommandDescription;
  * {@code TagNormalizer.slug} — see {@link CommandDescription} on this record for the
  * caller-facing statement of that.
  */
-@CommandDescription("Creates or edits a single tag. Pass tagId to edit an existing tag, or leave it"
-        + " null to create one; a null or blank projectName makes the tag global. category may be"
-        + " null for a flat tag; value is required."
-        + " Both category and value are stored as slugs: trimmed, lower-cased, and with each run of"
-        + " non-alphanumeric characters collapsed to a single hyphen. \"CON-3685\" is stored as"
-        + " \"con-3685\" and \"v2.0\" as \"v2-0\"."
-        + " The slug is the uniqueness key and the text you supplied is not retained, so read the"
-        + " response to see what was stored.")
+@CommandDescription(value = "Creates or edits a single tag. Pass tagId to edit an existing tag,"
+        + " or leave it null to create one; a null or blank projectName makes the tag global."
+        + " category may be null for a flat tag; value is required. Both category and value are"
+        + " stored as slugs: trimmed, lower-cased, and with each run of non-alphanumeric characters"
+        + " collapsed to a single hyphen. \"CON-3685\" is stored as \"con-3685\" and \"v2.0\" as"
+        + " \"v2-0\". The slug is the uniqueness key and the text you supplied is not retained, so"
+        + " read the response to see what was stored.",
+        authorization = "Annotation[Edit] for a project tag; system administrator for a global"
+                + " tag")
 public record EditTagInput(
         Long tagId,
         String projectName,

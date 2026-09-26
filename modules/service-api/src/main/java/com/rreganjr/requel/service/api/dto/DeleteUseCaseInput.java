@@ -20,7 +20,15 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record DeleteUseCaseInput(@NotBlank String projectName, @NotNull Long useCaseId, int version) {}
+@CommandDescription("Deletes a use case, selected by useCaseId, and detaches its actors, goals,"
+        + " stories, glossary terms and annotations, which are kept. Its primary scenario and every"
+        + " additional scenario attached to it are deleted too, with their nested scenarios and"
+        + " steps, even ones other scenarios also use; only a scenario that is still another use"
+        + " case's primary scenario is kept."
+        + CommandDescriptions.VERSION_CHECKED_ON_DELETE)
+public record DeleteUseCaseInput(@NotBlank String projectName, @NotNull Long useCaseId, Integer version) {}

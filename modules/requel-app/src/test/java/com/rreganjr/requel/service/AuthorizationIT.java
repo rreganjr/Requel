@@ -341,10 +341,12 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
     @Test
     void deleterCanDeleteGoal() throws Exception {
         Long id = createGoalForDeleteTest("deleter-deletes-goal-" + System.currentTimeMillis());
+        // #296: DeleteGoal now checks version, and the assistant's analysis of the new goal can
+        // move it past 0, so send the version the goal is at.
         mockMvc.perform(post("/api/commands/DeleteGoal")
                         .header("Authorization", "Bearer " + deleterToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(deleteGoalJson(id, 0)))
+                        .content(deleteGoalJson(id, currentGoalVersion(id))))
                 .andExpect(status().isOk());
     }
 
@@ -432,10 +434,11 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
     @Test
     void deleterCanDeleteActor() throws Exception {
         Long id = createActorForDeleteTest("deleter-deletes-actor-" + System.currentTimeMillis());
+        // #296: DeleteActor now checks version; send the one the actor is at (see deleterCanDeleteGoal).
         mockMvc.perform(post("/api/commands/DeleteActor")
                         .header("Authorization", "Bearer " + deleterToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(deleteActorJson(id, 0)))
+                        .content(deleteActorJson(id, currentActorVersion(id))))
                 .andExpect(status().isOk());
     }
 
@@ -960,6 +963,16 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
         cmd.setText("delete target");
         cmd = getCommandHandler().execute(cmd);
         return cmd.getGoal().getId();
+    }
+
+    private int currentGoalVersion(Long id) throws Exception {
+        return getProjectRepository().findProjectByName(testProjectName).getGoals().stream()
+                .filter(g -> g.getId().equals(id)).findFirst().orElseThrow().getVersion();
+    }
+
+    private int currentActorVersion(Long id) throws Exception {
+        return getProjectRepository().findProjectByName(testProjectName).getActors().stream()
+                .filter(a -> a.getId().equals(id)).findFirst().orElseThrow().getVersion();
     }
 
     private Long createActorForDeleteTest(String name) throws Exception {

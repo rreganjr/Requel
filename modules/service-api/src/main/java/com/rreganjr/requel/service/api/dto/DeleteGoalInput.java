@@ -20,9 +20,14 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Deletes a goal, selected by goalId, after removing it from every container"
+        + " and deleting every relation to or from it, and its annotations."
+        + CommandDescriptions.VERSION_CHECKED_ON_DELETE)
 public record DeleteGoalInput(
         @NotBlank String projectName,
         @NotNull Long goalId,

@@ -32,14 +32,15 @@ import jakarta.validation.constraints.Size;
  * statement of that, which is what an MCP client and the CLI actually see.
  * {@code allowedEntityTypes}/{@code values} may be null or empty (no restriction).
  */
-@CommandDescription("Creates or edits a tag category and its controlled values. Pass categoryId to"
-        + " edit an existing category, or leave it null to create one; a null or blank projectName"
-        + " makes the category global."
-        + " The name and every entry in values are stored as slugs: trimmed, lower-cased, and with"
-        + " each run of non-alphanumeric characters collapsed to a single hyphen. \"Source\" is"
-        + " stored as \"source\", \"CON-3685\" as \"con-3685\", \"v2.0\" as \"v2-0\"."
-        + " The slug is the uniqueness key and the text you supplied is not retained, so read the"
-        + " response to see what was stored.")
+@CommandDescription(value = "Creates or edits a tag category and its controlled values. Pass"
+        + " categoryId to edit an existing category, or leave it null to create one; a null or"
+        + " blank projectName makes the category global. The name and every entry in values are"
+        + " stored as slugs: trimmed, lower-cased, and with each run of non-alphanumeric characters"
+        + " collapsed to a single hyphen. \"Source\" is stored as \"source\", \"CON-3685\" as"
+        + " \"con-3685\", \"v2.0\" as \"v2-0\". The slug is the uniqueness key and the text you"
+        + " supplied is not retained, so read the response to see what was stored.",
+        authorization = "Annotation[Edit] for a project category; system administrator for a"
+                + " global category")
 public record EditTagCategoryInput(
         Long categoryId,
         String projectName,

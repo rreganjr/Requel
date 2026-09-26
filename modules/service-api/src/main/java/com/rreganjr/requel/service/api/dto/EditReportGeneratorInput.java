@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
+import com.rreganjr.requel.service.api.CommandDescriptions;
 import jakarta.validation.constraints.NotBlank;
 import com.rreganjr.validator.ValidationLimits;
 import jakarta.validation.constraints.Size;
@@ -31,6 +33,13 @@ import jakarta.validation.constraints.Size;
  * On update, a null (or absent) {@code text} leaves it as it is; an empty string clears it
  * (issue #316).
  */
+@CommandDescription("Creates or edits a report generator: a named XSLT stylesheet that turns the"
+        + " project's XML export into a report. Leave reportId null to create one, or pass it to"
+        + " edit an existing one. name is required on every call, so send the current name to keep"
+        + " it, and it is unique within the project, ignoring case. text is the stylesheet, stored"
+        + " as given and not checked. This stores the definition only; reports are not generated"
+        + " through the gateway."
+        + CommandDescriptions.PARTIAL_UPDATE)
 public record EditReportGeneratorInput(
         @NotBlank String projectName,
         Long reportId,

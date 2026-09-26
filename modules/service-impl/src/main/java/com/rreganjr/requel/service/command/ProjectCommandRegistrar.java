@@ -303,6 +303,7 @@ public class ProjectCommandRegistrar {
                     Project project = projectRepository.findProjectByName(i.projectName());
                     Stakeholder stakeholder = findStakeholderById(project, i.stakeholderId());
                     c.setStakeholder(stakeholder);
+                    c.setExpectedVersion(i.version()); // #296: was accepted and dropped
                 });
 
         // Goals
@@ -352,6 +353,7 @@ public class ProjectCommandRegistrar {
                     DeleteGoalRelationInput i = (DeleteGoalRelationInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
                     c.setGoalRelation(findGoalRelationByIdFromProject(project, i.goalRelationId()));
+                    c.setExpectedVersion(i.version()); // #296: was accepted and dropped
                 });
 
         registry.register("CopyGoal", CopyGoalInput.class,
@@ -373,6 +375,7 @@ public class ProjectCommandRegistrar {
                     DeleteGoalInput i = (DeleteGoalInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
                     c.setGoal(findGoalById(project, i.goalId()));
+                    c.setExpectedVersion(i.version()); // #296: was accepted and dropped
                 });
 
         registry.register("AddGoalToGoalContainer", AddGoalToGoalContainerInput.class,
@@ -449,6 +452,7 @@ public class ProjectCommandRegistrar {
                     DeleteStoryInput i = (DeleteStoryInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
                     c.setStory(findStoryById(project, i.storyId()));
+                    c.setExpectedVersion(i.version()); // #296: was accepted and dropped
                 });
 
         registry.register("AddStoryToStoryContainer", AddStoryToStoryContainerInput.class,
@@ -553,6 +557,7 @@ public class ProjectCommandRegistrar {
                     DeleteActorInput i = (DeleteActorInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
                     c.setActor(findActorById(project, i.actorId()));
+                    c.setExpectedVersion(i.version()); // #296: was accepted and dropped
                 });
 
         // Use Cases & Scenarios
@@ -698,6 +703,7 @@ public class ProjectCommandRegistrar {
                     DeleteScenarioInput i = (DeleteScenarioInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
                     c.setScenario(findScenarioById(project, i.scenarioId()));
+                    c.setExpectedVersion(i.version()); // #296: was accepted and dropped
                 });
 
         registry.register("EditScenarioStep", factory::newEditScenarioStepCommand);
@@ -742,6 +748,7 @@ public class ProjectCommandRegistrar {
                     DeleteUseCaseInput i = (DeleteUseCaseInput) input;
                     Project project = projectRepository.findProjectByName(i.projectName());
                     c.setUseCase(findUseCaseById(project, i.useCaseId()));
+                    c.setExpectedVersion(i.version()); // #296: was accepted and dropped
                 });
         registry.register("DeleteScenarioStep", factory::newDeleteScenarioStepCommand);
 

@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.cli;
 
+import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import java.util.List;
@@ -33,19 +34,19 @@ import picocli.CommandLine.Parameters;
  * simple name (e.g. Goal, Story, Actor, UseCase, Scenario, GlossaryTerm) and id, or its related
  * entities grouped by relationship with {@code --neighbors}.
  */
-@Command(name = "entity", description = "Read one project entity by type + id (or its --neighbors).")
+@Command(name = "entity", description = QueryDescriptions.GET_ENTITY)
 public class EntityCommand extends AbstractQueryCommand {
 
-    @Parameters(index = "0", paramLabel = "PROJECT", description = "Project name.")
+    @Parameters(index = "0", paramLabel = "PROJECT", description = QueryDescriptions.PROJECT_NAME)
     String projectName;
 
-    @Parameters(index = "1", paramLabel = "TYPE", description = "Entity type, e.g. Goal, Story, Actor.")
+    @Parameters(index = "1", paramLabel = "TYPE", description = QueryDescriptions.READABLE_ENTITY_TYPE)
     String entityType;
 
-    @Parameters(index = "2", paramLabel = "ID", description = "Entity id.")
+    @Parameters(index = "2", paramLabel = "ID", description = QueryDescriptions.ENTITY_ID)
     long entityId;
 
-    @Option(names = "--neighbors", description = "Show related entities grouped by relationship.")
+    @Option(names = "--neighbors", description = QueryDescriptions.GET_ENTITY_NEIGHBORS)
     boolean neighbors;
 
     @Override

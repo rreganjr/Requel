@@ -20,13 +20,12 @@
  */
 package com.rreganjr.requel.project.command;
 
-import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.requel.project.UseCase;
 
 /**
  * @author ron
  */
-public interface DeleteUseCaseCommand extends EditCommand {
+public interface DeleteUseCaseCommand extends VersionCheckedDeleteCommand {
 
 	/**
 	 * Set the usecase to delete.

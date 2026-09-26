@@ -255,11 +255,18 @@ final class TypedCommands {
         return prefix + field + typeHint;
     }
 
-    private static String[] describe(CommandInfo d) {
+    /**
+     * The usage description: the title, the server's description of the command, and the
+     * permission it needs (issue #296).
+     */
+    static String[] describe(CommandInfo d) {
         List<String> lines = new ArrayList<>();
         lines.add(d.title() != null ? d.title() : d.commandType());
         if (d.description() != null && !d.description().isBlank()) {
             lines.add(d.description());
+        }
+        if (d.authorizationHint() != null && !d.authorizationHint().isBlank()) {
+            lines.add("Requires: " + d.authorizationHint());
         }
         return lines.toArray(new String[0]);
     }

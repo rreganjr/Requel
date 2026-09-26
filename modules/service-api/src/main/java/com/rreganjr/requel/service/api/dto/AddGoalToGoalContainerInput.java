@@ -20,9 +20,15 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+@CommandDescription("Adds an existing goal (goalId) to a goal container. containerType is"
+        + " Project, UseCase, Story, Actor or Stakeholder, ignoring case (UserStakeholder and"
+        + " NonUserStakeholder are accepted too), and goalContainerId is the id of an entity of"
+        + " that type in the project. Adding a goal that is already there changes nothing. Returns"
+        + " the updated container, or nothing when the container is the project.")
 public record AddGoalToGoalContainerInput(
         @NotBlank String projectName,
         @NotNull Long goalContainerId,

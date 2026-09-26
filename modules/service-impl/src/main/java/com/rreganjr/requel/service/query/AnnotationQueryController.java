@@ -29,7 +29,12 @@ import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.IssueDto;
 import com.rreganjr.requel.service.api.dto.NoteDto;
 import com.rreganjr.requel.service.command.AnnotationCommandRegistrar;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.exception.NoSuchProjectException;
+import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import jakarta.persistence.EntityManager;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -49,16 +54,26 @@ public class AnnotationQueryController {
 
     private final AnnotatableTypeRegistry annotatableTypeRegistry;
     private final EntityManager entityManager;
+    private final ProjectRepository projectRepository;
+    private final CurrentUserResolver currentUserResolver;
 
     public AnnotationQueryController(AnnotatableTypeRegistry annotatableTypeRegistry,
-                                     EntityManager entityManager) {
+            EntityManager entityManager, ProjectRepository projectRepository,
+            CurrentUserResolver currentUserResolver) {
         this.annotatableTypeRegistry = annotatableTypeRegistry;
         this.entityManager = entityManager;
+        this.projectRepository = projectRepository;
+        this.currentUserResolver = currentUserResolver;
     }
 
     /**
      * GET /api/annotations?projectName={name}&entityType={type}&entityId={id}
      * Returns all notes and issues attached to the specified entity.
+     *
+     * <p>Issue #296: the caller must be able to read {@code projectName} (a system administrator,
+     * or a user stakeholder on it), and the entity must belong to that project. A project that
+     * does not exist, or an entity that is not in it, is 404; a project the caller cannot read is
+     * 403, checked before the entity is loaded so a non-member learns nothing about it.
      */
     @GetMapping
     public ResponseEntity<AnnotationsDto> getAnnotations(
@@ -70,8 +85,18 @@ public class AnnotationQueryController {
                 .resolveEntityType(entityType)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown entity type: " + entityType));
 
+        Project project;
+        try {
+            project = projectRepository.findProjectByName(projectName);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        }
+        if (!ProjectReadAccess.canRead(project, currentUserResolver.resolve())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         Annotatable annotatable = entityManager.find(entityClass, entityId);
-        if (annotatable == null) {
+        if (annotatable == null || !ProjectReadAccess.belongsTo(annotatable, project)) {
             return ResponseEntity.notFound().build();
         }
 
