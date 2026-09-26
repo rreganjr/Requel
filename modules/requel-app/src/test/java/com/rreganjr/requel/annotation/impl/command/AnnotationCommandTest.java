@@ -24,6 +24,7 @@ import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.annotation.Argument;
 import com.rreganjr.requel.annotation.ArgumentPositionSupportLevel;
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.annotation.command.DeleteArgumentCommand;
@@ -184,6 +185,138 @@ public class AnnotationCommandTest extends AbstractIntegrationTestCase {
         assertEquals("Updated issue text after review", updated.getText(),
                 "issue text should reflect the update");
         assertTrue(updated.isMustBeResolved(), "mustBeResolved should be true after update");
+    }
+
+    // -------------------------------------------------------------------------
+    // Issue #271: severity, and mustBeResolved as a partial update
+    // -------------------------------------------------------------------------
+
+    private EditIssueCommand issueCommand(Project project, Goal goal, String text) {
+        User admin = getUserRepository().findUserByUsername("admin");
+        EditIssueCommand cmd = getAnnotationCommandFactory().newEditIssueCommand();
+        cmd.setEditedBy(admin);
+        cmd.setGroupingObject(project);
+        cmd.setAnnotatable(goal);
+        cmd.setText(text);
+        return cmd;
+    }
+
+    private EditLexicalIssueCommand lexicalCommand(Project project, Goal goal, String word) {
+        User admin = getUserRepository().findUserByUsername("admin");
+        EditLexicalIssueCommand cmd = getAnnotationCommandFactory().newEditLexicalIssueCommand();
+        cmd.setEditedBy(admin);
+        cmd.setGroupingObject(project);
+        cmd.setAnnotatable(goal);
+        cmd.setText("Possible misspelling: " + word);
+        cmd.setMustBeResolved(false);
+        cmd.setWord(word);
+        cmd.setAnnotatableEntityPropertyName("Text");
+        return cmd;
+    }
+
+    private Issue reload(Issue issue) {
+        return getAnnotationRepository().findById(Issue.class, issue.getId());
+    }
+
+    @Test
+    public void issueWithoutSeverityDefaultsToMedium() throws Exception {
+        Project project = createProject("Annotation-severity-default");
+        Goal goal = createGoal(project, "Severity default goal");
+
+        Issue issue = createIssue(project, goal, "No severity supplied");
+
+        assertEquals(IssueSeverity.MEDIUM, reload(issue).getSeverity());
+    }
+
+    @Test
+    public void lexicalIssueWithoutSeverityDefaultsToLow() throws Exception {
+        Project project = createProject("Annotation-severity-lexical");
+        Goal goal = createGoal(project, "Severity lexical goal");
+
+        Issue issue = getCommandHandler().execute(lexicalCommand(project, goal, "zorblat"))
+                .getIssue();
+
+        assertEquals(IssueSeverity.LOW, reload(issue).getSeverity());
+    }
+
+    @Test
+    public void suppliedSeverityIsPersisted() throws Exception {
+        Project project = createProject("Annotation-severity-supplied");
+        Goal goal = createGoal(project, "Severity supplied goal");
+        EditIssueCommand cmd = issueCommand(project, goal, "Admin console may be tenant-wide");
+        cmd.setSeverity(IssueSeverity.HIGH);
+
+        Issue issue = getCommandHandler().execute(cmd).getIssue();
+
+        assertEquals(IssueSeverity.HIGH, reload(issue).getSeverity());
+    }
+
+    @Test
+    public void updateWithoutSeverityOrMustBeResolvedLeavesThemUnchanged() throws Exception {
+        Project project = createProject("Annotation-severity-partial");
+        Goal goal = createGoal(project, "Severity partial goal");
+        EditIssueCommand create = issueCommand(project, goal, "Original text");
+        create.setSeverity(IssueSeverity.HIGH);
+        create.setMustBeResolved(true);
+        Issue issue = getCommandHandler().execute(create).getIssue();
+
+        // A text-only update: neither setter called. Before #271 this cleared mustBeResolved.
+        EditIssueCommand update = issueCommand(project, goal, "Reworded text");
+        update.setIssue(issue);
+        getCommandHandler().execute(update);
+
+        Issue reloaded = reload(issue);
+        assertEquals("Reworded text", reloaded.getText());
+        assertEquals(IssueSeverity.HIGH, reloaded.getSeverity());
+        assertTrue(reloaded.isMustBeResolved(), "an update that leaves out mustBeResolved keeps it");
+    }
+
+    @Test
+    public void updateWithSeverityChangesIt() throws Exception {
+        Project project = createProject("Annotation-severity-update");
+        Goal goal = createGoal(project, "Severity update goal");
+        Issue issue = createIssue(project, goal, "To be downgraded");
+
+        EditIssueCommand update = issueCommand(project, goal, "To be downgraded");
+        update.setIssue(issue);
+        update.setSeverity(IssueSeverity.LOW);
+        getCommandHandler().execute(update);
+
+        assertEquals(IssueSeverity.LOW, reload(issue).getSeverity());
+    }
+
+    @Test
+    public void textMatchAppliesSuppliedSeverityButNotMustBeResolved() throws Exception {
+        // Decision 12 of the #271 plan: an existing issue reused because its text matches takes a
+        // supplied severity; its mustBeResolved stays as it was.
+        Project project = createProject("Annotation-severity-match");
+        Goal goal = createGoal(project, "Severity match goal");
+        Issue existing = createIssue(project, goal, "Same text twice"); // MEDIUM, not required
+
+        EditIssueCommand again = issueCommand(project, goal, "Same text twice");
+        again.setSeverity(IssueSeverity.HIGH);
+        again.setMustBeResolved(true);
+        Issue matched = getCommandHandler().execute(again).getIssue();
+
+        assertEquals(existing.getId(), matched.getId(), "the text match reuses the issue");
+        Issue reloaded = reload(existing);
+        assertEquals(IssueSeverity.HIGH, reloaded.getSeverity());
+        assertFalse(reloaded.isMustBeResolved());
+    }
+
+    @Test
+    public void lexicalMatchByWordAppliesSuppliedSeverity() throws Exception {
+        Project project = createProject("Annotation-severity-lexmatch");
+        Goal goal = createGoal(project, "Severity lexical match goal");
+        Issue existing = getCommandHandler().execute(lexicalCommand(project, goal, "frobnitz"))
+                .getIssue();
+
+        EditLexicalIssueCommand again = lexicalCommand(project, goal, "frobnitz");
+        again.setSeverity(IssueSeverity.MEDIUM);
+        Issue matched = getCommandHandler().execute(again).getIssue();
+
+        assertEquals(existing.getId(), matched.getId(), "the word match reuses the issue");
+        assertEquals(IssueSeverity.MEDIUM, reload(existing).getSeverity());
     }
 
     // -------------------------------------------------------------------------

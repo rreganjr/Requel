@@ -29,15 +29,25 @@ import { BadgeModule } from 'primeng/badge';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ListPageComponent } from '../../shared/list-page';
 import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
+import { AppTagComponent } from '../../shared/app-tag';
+import { IssueSeverity, severityLabel, severityRank } from '../../models/annotation';
+import { issueSeverityIcon, issueSeverityTone, RqTone } from '../../shared/severity';
 
 interface OpenIssueDto {
   issueId: number;
   issueText: string;
   mustBeResolved: boolean;
+  severity: IssueSeverity;
   entityType: string;
   entityId: number;
   entityName: string;
 }
+
+/**
+ * A row with its severity's numeric rank (#271). The table sorts on the rank, not the name:
+ * alphabetically HIGH < LOW < MEDIUM.
+ */
+type OpenIssueRow = OpenIssueDto & { severityRank: number };
 
 /** Maps entity type simple names to their Angular route segment. */
 const ENTITY_ROUTES: Record<string, string> = {
@@ -56,15 +66,15 @@ const ENTITY_ROUTES: Record<string, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-open-issues',
   standalone: true,
-  imports: [ListPageComponent, AppDataTableComponent, RouterLink, ButtonModule, BadgeModule, SubmitErrorComponent],
+  imports: [ListPageComponent, AppDataTableComponent, AppTagComponent, RouterLink, ButtonModule, BadgeModule, SubmitErrorComponent],
   template: `
     <app-list-page title="Open Issues" [fill]="true" [showSearch]="false">
       <app-submit-error [message]="errorMessage()" testid="open-issues-error" [retryable]="true" (retry)="loadIssues()" />
 
       <app-data-table scrollHeight="flex" [value]="issues()" [columns]="columns" [loading]="loading()"
                       [rowClickable]="false" [defaultActions]="false" [rows]="25"
-                      sortField="entityType" [sortOrder]="1" searchPlaceholder="Search issues..."
-                      [globalFilterFields]="['entityType', 'entityName', 'issueText']"
+                      sortField="severityRank" [sortOrder]="-1" searchPlaceholder="Search issues..."
+                      [globalFilterFields]="['severity', 'entityType', 'entityName', 'issueText']"
                       testid="open-issues" emptyTitle="No open issues"
                       emptyMessage="All clear — everything in this project is resolved." emptyIcon="pi-check-circle">
         <div toolbarActions>
@@ -81,6 +91,11 @@ const ENTITY_ROUTES: Record<string, string> = {
       } @else {
         <span data-testid="open-issue-entity-name">{{ issue.entityName }}</span>
       }
+    </ng-template>
+    <ng-template #severityCell let-issue>
+      <app-tag data-testid="open-issue-severity" [attr.data-severity]="issue.severity"
+               [tone]="severityTone(issue.severity)" [icon]="severityIcon(issue.severity)"
+               [label]="formatSeverity(issue.severity)" />
     </ng-template>
     <ng-template #requiredCell let-issue>
       @if (issue.mustBeResolved) {
@@ -103,13 +118,14 @@ const ENTITY_ROUTES: Record<string, string> = {
   `]
 })
 export class OpenIssuesComponent implements OnInit {
-  issues = signal<OpenIssueDto[]>([]);
+  issues = signal<OpenIssueRow[]>([]);
   loading = signal(true);
   errorMessage = signal<string | null>(null);
   mustResolveCount = signal(0);
 
   @ViewChild('entityCell', { static: true }) entityCell!: TemplateRef<{ $implicit: OpenIssueDto }>;
   @ViewChild('requiredCell', { static: true }) requiredCell!: TemplateRef<{ $implicit: OpenIssueDto }>;
+  @ViewChild('severityCell', { static: true }) severityCell!: TemplateRef<{ $implicit: OpenIssueDto }>;
   columns: DataTableColumn<OpenIssueDto>[] = [];
 
   private projectName = '';
@@ -123,6 +139,7 @@ export class OpenIssuesComponent implements OnInit {
 
   ngOnInit(): void {
     this.columns = [
+      { field: 'severityRank', header: 'Severity', sortable: true, cellTemplate: this.severityCell },
       { field: 'entityType', header: 'Type', sortable: true },
       { field: 'entityName', header: 'Entity', sortable: true, cellTemplate: this.entityCell },
       { field: 'issueText', header: 'Issue', sortable: true },
@@ -143,13 +160,26 @@ export class OpenIssuesComponent implements OnInit {
       const data = await firstValueFrom(
         this.http.get<OpenIssueDto[]>(projectApiUrl(this.projectName, 'open-issues'))
       );
-      this.issues.set(data);
+      // The server already orders by severity; the rank keeps a client-side re-sort consistent.
+      this.issues.set(data.map(i => ({ ...i, severityRank: severityRank(i.severity) })));
       this.mustResolveCount.set(data.filter(i => i.mustBeResolved).length);
     } catch {
       this.errorMessage.set('Failed to load open issues.');
     } finally {
       this.loading.set(false);
     }
+  }
+
+  severityTone(severity: string): RqTone {
+    return issueSeverityTone(severity);
+  }
+
+  severityIcon(severity: string): string {
+    return issueSeverityIcon(severity);
+  }
+
+  formatSeverity(severity: string): string {
+    return severityLabel(severity);
   }
 
   /** Router link array for the issue's entity, or null when the type has no route. */

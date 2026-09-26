@@ -45,6 +45,10 @@ public class AnnotationImportXml {
     @XmlAttribute(name = "mustBeResolved")
     private Boolean mustBeResolved;
 
+    // Issue #271: an issue's severity. Absent in files exported before #271.
+    @XmlAttribute(name = "severity")
+    private String severity;
+
     @XmlAttribute(name = "word")
     private String word;
 
@@ -74,6 +78,7 @@ public class AnnotationImportXml {
     public String getCreatedBy() { return createdBy; }
     public String getText() { return text; }
     public Boolean getMustBeResolved() { return mustBeResolved; }
+    public String getSeverity() { return severity; }
     public String getWord() { return word; }
     public String getAnnotatablePropertyName() { return annotatablePropertyName; }
     public List<String> getPositionRefs() { return positionRefs; }

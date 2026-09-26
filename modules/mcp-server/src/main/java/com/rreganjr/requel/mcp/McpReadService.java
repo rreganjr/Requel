@@ -21,6 +21,7 @@
 package com.rreganjr.requel.mcp;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.gateway.GatewayCommandCatalog;
@@ -179,7 +181,7 @@ public class McpReadService {
 					"Unsupported annotation kind: " + kind + " (expected NOTE or ISSUE)");
 		};
 		EntityRef targetRef = EntityRef.of(entityType, entityId);
-		String severity = optionalText(arguments, "severity");
+		String severity = severity(optionalText(arguments, "severity"));
 		Map<String, Object> metadata = actionType == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE
 				? Map.<String, Object>of("mustResolve", optionalBoolean(arguments, "mustResolve", true))
 				: Map.of();
@@ -189,6 +191,24 @@ public class McpReadService {
 				List.of(), metadata);
 	}
 
+	/** The vocabulary {@code draftAnnotation} advertises and accepts (#271). */
+	private static final List<String> SEVERITIES = Arrays.stream(IssueSeverity.values())
+			.map(Enum::name).toList();
+
+	/**
+	 * #271: a supplied severity must be in the vocabulary. It is normalised to its upper-case name,
+	 * so the draft carries exactly what {@code EditIssue} stores. Absent stays null, and the issue
+	 * gets its kind's default when persisted.
+	 */
+	private static String severity(String value) {
+		if (value == null) {
+			return null;
+		}
+		return IssueSeverity.parse(value).map(Enum::name)
+				.orElseThrow(() -> new McpInvalidParamsException("Unsupported severity: " + value
+						+ " (expected LOW, MEDIUM or HIGH)"));
+	}
+
 	private Map<String, Object> draftAnnotationSchema() {
 		return Map.of("type", "object",
 				"properties", Map.of(
@@ -196,7 +216,7 @@ public class McpReadService {
 						"entityId", Map.of("type", "integer"),
 						"kind", Map.of("type", "string", "enum", List.of("NOTE", "ISSUE")),
 						"text", Map.of("type", "string"),
-						"severity", Map.of("type", "string"),
+						"severity", Map.of("type", "string", "enum", SEVERITIES),
 						"mustResolve", Map.of("type", "boolean")),
 				"required", List.of("entityType", "entityId", "kind", "text"),
 				"additionalProperties", false);

@@ -62,6 +62,7 @@ import com.rreganjr.requel.annotation.command.DeletePositionCommand;
 import com.rreganjr.requel.annotation.command.EditArgumentCommand;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.annotation.command.EditChangeSpellingPositionCommand;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
 import com.rreganjr.requel.annotation.command.EditNoteCommand;
@@ -527,6 +528,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		String text = truncate(action.text(), MAX_TEXT_LENGTH);
 		boolean mustResolve = booleanMeta(action, "mustResolve", true);
 		String kind = stringMeta(action, "kind");
+		IssueSeverity severity = issueSeverity(action);
 
 		// Idempotency is keyed on the action key via the AssistantFinding's applied
 		// annotation id, not on content. This lets the same word raise distinct issues
@@ -551,6 +553,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			command.setGroupingObject(grouping);
 			command.setText(text);
 			command.setMustBeResolved(mustResolve);
+			command.setSeverity(severity);
 			command.setAnnotatable(annotatable);
 			command.setEditedBy(editedBy);
 			command = commandHandler.execute(command);
@@ -563,6 +566,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			command.setGroupingObject(grouping);
 			command.setText(text);
 			command.setMustBeResolved(mustResolve);
+			command.setSeverity(severity);
 			command.setAnnotatable(annotatable);
 			command.setEditedBy(editedBy);
 			command = commandHandler.execute(command);
@@ -570,6 +574,24 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		}
 		createdByActionKey.put(action.actionKey(), issue);
 		return new AppliedAction(issue.getId());
+	}
+
+	/**
+	 * #271: the issue severity an action carries. Absent (the legacy NLP assistants send none) is
+	 * null: the issue kind's default on create, unchanged on update. The applicator is lenient: an
+	 * unrecognised value from a model is logged and treated as absent, so one bad reply doesn't
+	 * drop a real finding. The finding row still records the raw value.
+	 */
+	private static IssueSeverity issueSeverity(AnnotationAction action) {
+		String raw = action.severity();
+		if (raw == null || raw.isBlank()) {
+			return null;
+		}
+		return IssueSeverity.parse(raw).orElseGet(() -> {
+			log.warn("assistant action {} sent unknown severity '{}'; using the default",
+					action.actionKey(), raw);
+			return null;
+		});
 	}
 
 	private AppliedAction applyPosition(AnnotationAction action, User editedBy,

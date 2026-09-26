@@ -58,6 +58,45 @@ test.describe('Annotations (IBIS)', () => {
     await page.close();
   });
 
+  test('add issue with High severity → badge shows High and it lists above a Medium issue (#271)', async ({ adminContext, request }) => {
+    const mediumText = `Medium issue ${Date.now()}`;
+    const highText = `High issue ${Date.now()}`;
+    goalFixture = await createGoal(request, PROJECT_NAME, `e2e-ann-severity-${Date.now()}`);
+    // Created first, so id order alone would list it above the High one.
+    await addIssue(request, PROJECT_NAME, 'Goal', goalFixture.id, mediumText);
+
+    const page = await adminContext.newPage();
+    const listPage = new GoalListPage(page);
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickGoal(goalFixture.name);
+
+    await expect(page.getByTestId('annotations-section')).toBeVisible();
+    await page.getByTestId('annotation-add-issue').click();
+    await page.getByTestId('annotation-issue-text').fill(highText);
+    await page.getByTestId('annotation-issue-severity').click();
+    await page.getByRole('option', { name: 'High', exact: true }).click();
+
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/commands/EditIssue')),
+      page.getByTestId('annotation-save-issue').click(),
+    ]);
+
+    const highItem = page.getByTestId('annotation-issue').filter({ hasText: highText });
+    await expect(highItem.getByTestId('annotation-issue-severity-badge')).toHaveText('High');
+    const mediumItem = page.getByTestId('annotation-issue').filter({ hasText: mediumText });
+    await expect(mediumItem.getByTestId('annotation-issue-severity-badge')).toHaveText('Medium');
+
+    // Severity first, then creation order; the assistant's lexical issues are Low, so they sort
+    // below both.
+    const texts = await page.getByTestId('annotation-issue').allTextContents();
+    const highIndex = texts.findIndex(t => t.includes(highText));
+    const mediumIndex = texts.findIndex(t => t.includes(mediumText));
+    expect(highIndex).toBeGreaterThanOrEqual(0);
+    expect(highIndex).toBeLessThan(mediumIndex);
+
+    await page.close();
+  });
+
   test('add position to issue → nested under issue', async ({ adminContext, request }) => {
     const issueText = 'Issue needing a position';
     const positionText = 'This is a test position';

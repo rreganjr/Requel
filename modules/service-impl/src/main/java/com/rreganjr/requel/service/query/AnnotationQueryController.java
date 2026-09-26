@@ -87,7 +87,10 @@ public class AnnotationQueryController {
         }
 
         notes.sort(Comparator.comparing(NoteDto::id));
-        issues.sort(Comparator.comparing(IssueDto::id));
+        // #271: highest severity first, then creation order.
+        issues.sort(Comparator.comparingInt(
+                (IssueDto i) -> -AnnotationCommandRegistrar.severityRank(i.severity()))
+                .thenComparing(IssueDto::id));
 
         return ResponseEntity.ok(new AnnotationsDto(notes, issues));
     }

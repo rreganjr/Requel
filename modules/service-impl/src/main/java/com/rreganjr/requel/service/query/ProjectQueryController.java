@@ -75,6 +75,7 @@ import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.impl.IssueImpl;
+import com.rreganjr.requel.service.command.AnnotationCommandRegistrar;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.ReportGeneratorDto;
@@ -1114,13 +1115,17 @@ public class ProjectQueryController {
                                 issue.getId(),
                                 issue.getText(),
                                 issue.isMustBeResolved(),
+                                issue.getSeverity().name(),
                                 entityType,
                                 entity.getId(),
                                 entity.getName()));
                     }
                 }
             }
-            issues.sort(Comparator.comparing(OpenIssueDto::entityType)
+            // #271: highest severity first; within a severity, the pre-#271 order.
+            issues.sort(Comparator.comparingInt(
+                    (OpenIssueDto i) -> -AnnotationCommandRegistrar.severityRank(i.severity()))
+                    .thenComparing(OpenIssueDto::entityType)
                     .thenComparing(OpenIssueDto::entityName)
                     .thenComparing(OpenIssueDto::issueText));
             return ResponseEntity.ok(issues);

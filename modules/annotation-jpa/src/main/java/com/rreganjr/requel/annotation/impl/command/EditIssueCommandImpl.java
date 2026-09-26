@@ -34,6 +34,7 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.NoSuchAnnotationException;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
@@ -54,7 +55,8 @@ public class EditIssueCommandImpl extends AbstractAnnotationCommand
 		implements EditIssueCommand, AuthorizableCommand, ProjectScopedCommand {
 
 	private Issue issue;
-	private boolean mustBeResolved;
+	private Boolean mustBeResolved;
+	private IssueSeverity severity;
 
 	/**
 	 * @param commandHandler
@@ -75,12 +77,48 @@ public class EditIssueCommandImpl extends AbstractAnnotationCommand
 		this.issue = issue;
 	}
 
+	/**
+	 * @return the value for a new issue: an unset {@code mustBeResolved} creates the issue with
+	 *         {@code false}.
+	 */
 	protected boolean getMustBeResolved() {
+		return Boolean.TRUE.equals(mustBeResolved);
+	}
+
+	/**
+	 * @return the supplied value, or null when the caller left it out (unchanged on update).
+	 */
+	protected Boolean getMustBeResolvedOrNull() {
 		return mustBeResolved;
 	}
 
 	public void setMustBeResolved(boolean mustBeResolved) {
 		this.mustBeResolved = mustBeResolved;
+	}
+
+	public void setMustBeResolved(Boolean mustBeResolved) {
+		this.mustBeResolved = mustBeResolved;
+	}
+
+	/**
+	 * @return the supplied severity, or null for "the kind's default" on create and "unchanged" on
+	 *         update.
+	 */
+	protected IssueSeverity getSeverity() {
+		return severity;
+	}
+
+	public void setSeverity(IssueSeverity severity) {
+		this.severity = severity;
+	}
+
+	/**
+	 * Apply a supplied severity; a null one leaves the issue's current (or default) severity.
+	 */
+	protected void applySeverity(IssueImpl issue) {
+		if (severity != null) {
+			issue.setSeverity(severity);
+		}
 	}
 
 	@Override
@@ -91,17 +129,25 @@ public class EditIssueCommandImpl extends AbstractAnnotationCommand
 		Annotatable annotatable = getRepository().get(getAnnotatable());
 		IssueImpl issueImpl = (IssueImpl) getIssue();
 		if (issueImpl == null) {
-			// TODO: look for an issue with the existing text
 			try {
+				// Reuse an existing issue with the same text. Only a supplied severity is applied
+				// to it (#271); its mustBeResolved is left as it is.
 				issueImpl = (IssueImpl) getAnnotationRepository().findIssue(groupingObject,
 						annotatable, getText());
+				applySeverity(issueImpl);
 			} catch (NoSuchAnnotationException e) {
-				issueImpl = getRepository().persist(
-						new IssueImpl(groupingObject, getText(), getMustBeResolved(), editedBy));
+				IssueImpl created = new IssueImpl(groupingObject, getText(), getMustBeResolved(),
+						editedBy);
+				applySeverity(created);
+				issueImpl = getRepository().persist(created);
 			}
 		} else {
 			issueImpl.setText(getText());
-			issueImpl.setMustBeResolved(getMustBeResolved());
+			// #271: a property the caller left out is unchanged (#316's partial-update contract).
+			if (getMustBeResolvedOrNull() != null) {
+				issueImpl.setMustBeResolved(getMustBeResolvedOrNull());
+			}
+			applySeverity(issueImpl);
 			issueImpl = getRepository().merge(issueImpl);
 		}
 		if (annotatable != null) {

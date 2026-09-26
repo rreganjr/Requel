@@ -26,6 +26,7 @@ package com.rreganjr.requel.service.api.dto;
  * @param issueId        annotation id of the issue
  * @param issueText      the issue description text
  * @param mustBeResolved whether this issue must be resolved before the project is complete
+ * @param severity       LOW, MEDIUM or HIGH; never null (#271). Lists are ordered by it.
  * @param entityType     simple interface name of the annotated entity (e.g. "Goal", "Story")
  * @param entityId       id of the annotated entity
  * @param entityName     name of the annotated entity
@@ -34,6 +35,7 @@ public record OpenIssueDto(
         Long issueId,
         String issueText,
         boolean mustBeResolved,
+        String severity,
         String entityType,
         Long entityId,
         String entityName

@@ -50,7 +50,10 @@ public class OpenIssuesCommand extends AbstractQueryCommand {
             if (sb.length() > 0) {
                 sb.append('\n');
             }
-            sb.append('[').append(i.entityType()).append(' ').append(i.entityName()).append("] ")
+            // #271: severity first, padded so the entity column lines up; the server already
+            // orders by it.
+            sb.append(String.format("%-7s", i.severity() == null ? "" : i.severity()))
+                    .append('[').append(i.entityType()).append(' ').append(i.entityName()).append("] ")
                     .append(i.issueText());
             if (i.mustBeResolved()) {
                 sb.append("  (must resolve)");

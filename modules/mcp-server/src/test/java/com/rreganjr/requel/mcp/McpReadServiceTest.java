@@ -178,6 +178,66 @@ class McpReadServiceTest {
 				.isInstanceOf(McpInvalidParamsException.class);
 	}
 
+	@Test
+	void draftAnnotationNormalisesSeverity() {
+		// #271: case-insensitive, and the draft carries the upper-case name EditIssue stores.
+		Map<String, Object> response = service.callTool(json("""
+				{
+				  "name": "draftAnnotation",
+				  "arguments": {
+				    "entityType": "Goal", "entityId": 10, "kind": "ISSUE",
+				    "text": "Admin console may be open to the whole tenant", "severity": "high"
+				  }
+				}
+				"""));
+
+		JsonNode content = objectMapper.valueToTree(response.get("content"));
+		JsonNode draft = json(content.get(0).path("text").asText());
+		assertThat(draft.path("severity").asText()).isEqualTo("HIGH");
+		assertThat(response.get("isError")).isEqualTo(false);
+	}
+
+	@Test
+	void draftAnnotationWithoutSeverityLeavesItNull() {
+		Map<String, Object> response = service.callTool(json("""
+				{
+				  "name": "draftAnnotation",
+				  "arguments": { "entityType": "Goal", "entityId": 10, "kind": "ISSUE",
+				    "text": "Clarify the SLA" }
+				}
+				"""));
+
+		JsonNode content = objectMapper.valueToTree(response.get("content"));
+		JsonNode draft = json(content.get(0).path("text").asText());
+		assertThat(draft.path("severity").isNull() || draft.path("severity").isMissingNode())
+				.isTrue();
+	}
+
+	@Test
+	void draftAnnotationRejectsUnknownSeverity() {
+		// #271: an unrecognised severity is an error, not a silent drop.
+		assertThatThrownBy(() -> service.callTool(json("""
+				{
+				  "name": "draftAnnotation",
+				  "arguments": { "entityType": "Goal", "entityId": 10, "kind": "ISSUE",
+				    "text": "x", "severity": "urgent" }
+				}
+				""")))
+				.isInstanceOf(McpInvalidParamsException.class)
+				.hasMessageContaining("urgent");
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void draftAnnotationSchemaListsTheSeverityVocabulary() {
+		List<McpToolDescriptor> tools = (List<McpToolDescriptor>) service.listTools().get("tools");
+		McpToolDescriptor draft = tools.stream()
+				.filter(t -> "draftAnnotation".equals(t.name())).findFirst().orElseThrow();
+		JsonNode schema = objectMapper.valueToTree(draft.inputSchema());
+		assertThat(schema.at("/properties/severity/enum").toString())
+				.isEqualTo("[\"LOW\",\"MEDIUM\",\"HIGH\"]");
+	}
+
 	private JsonNode json(String json) {
 		try {
 			return objectMapper.readTree(json);

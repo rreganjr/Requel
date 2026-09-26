@@ -34,6 +34,7 @@ public class AnnotationImportDraft {
     private final String text;
     private final Type type;
     private final boolean mustBeResolved;
+    private final String severity;
     private final Set<String> positionExternalIds;
     private final Set<String> annotatableExternalIds;
     private final String word;
@@ -48,6 +49,7 @@ public class AnnotationImportDraft {
         this.text = builder.text;
         this.type = builder.type;
         this.mustBeResolved = builder.mustBeResolved;
+        this.severity = builder.severity;
         this.positionExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.positionExternalIds));
         this.annotatableExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.annotatableExternalIds));
         this.word = builder.word;
@@ -62,6 +64,12 @@ public class AnnotationImportDraft {
     public String getText() { return text; }
     public Type getType() { return type; }
     public boolean isMustBeResolved() { return mustBeResolved; }
+    /**
+     * The issue's severity name as written in the file, or null when the file has none (exports
+     * before #271). Parsed by the assembler; a String because this module sits below
+     * annotation-domain.
+     */
+    public String getSeverity() { return severity; }
     public Set<String> getPositionExternalIds() { return positionExternalIds; }
     public Set<String> getAnnotatableExternalIds() { return annotatableExternalIds; }
     public String getWord() { return word; }
@@ -79,6 +87,7 @@ public class AnnotationImportDraft {
         private String text;
         private Type type = Type.NOTE;
         private boolean mustBeResolved = false;
+        private String severity;
         private Set<String> positionExternalIds = new HashSet<>();
         private Set<String> annotatableExternalIds = new HashSet<>();
         private String word;
@@ -92,6 +101,7 @@ public class AnnotationImportDraft {
         public Builder text(String text) { this.text = text; return this; }
         public Builder type(Type type) { this.type = type; return this; }
         public Builder mustBeResolved(boolean mustBeResolved) { this.mustBeResolved = mustBeResolved; return this; }
+        public Builder severity(String severity) { this.severity = severity; return this; }
         public Builder positionExternalIds(Set<String> ids) { if (ids != null) this.positionExternalIds.addAll(ids); return this; }
         public Builder annotatableExternalIds(Set<String> ids) { if (ids != null) this.annotatableExternalIds.addAll(ids); return this; }
         public Builder word(String word) { this.word = word; return this; }

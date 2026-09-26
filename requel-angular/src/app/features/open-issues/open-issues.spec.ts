@@ -7,10 +7,11 @@ import { BehaviorSubject } from 'rxjs';
 import { OpenIssuesComponent } from './open-issues';
 import { expectNoAxeViolations } from '../../shared/testing/a11y';
 
+// Server order (#271): severity first.
 const MOCK_ISSUES = [
-  { issueId: 1, issueText: 'Missing details', mustBeResolved: true,
+  { issueId: 1, issueText: 'Missing details', mustBeResolved: true, severity: 'HIGH' as const,
     entityType: 'Goal', entityId: 10, entityName: 'Goal A' },
-  { issueId: 2, issueText: 'Ambiguous text', mustBeResolved: false,
+  { issueId: 2, issueText: 'Ambiguous text', mustBeResolved: false, severity: 'LOW' as const,
     entityType: 'Story', entityId: 20, entityName: 'Story B' }
 ];
 
@@ -118,6 +119,20 @@ describe('OpenIssuesComponent', () => {
     await flush();
     fixture.detectChanges();
     await expectNoAxeViolations(fixture.nativeElement);
+  });
+
+  // #271: severity column, sorted by rank (not alphabetically: HIGH < LOW < MEDIUM).
+  it('adds a severity rank to each row and sorts by it, highest first', async () => {
+    fixture.detectChanges();
+    httpTesting.expectOne(r => r.url.includes('open-issues')).flush(MOCK_ISSUES);
+    await flush();
+    expect(comp.issues().map(i => i.severityRank)).toEqual([3, 1]);
+    expect(comp.columns[0].field).toBe('severityRank');
+    fixture.detectChanges();
+    const tags = fixture.nativeElement.querySelectorAll('[data-testid="open-issue-severity"]');
+    expect(Array.from(tags as NodeListOf<Element>).map(t => t.getAttribute('data-severity')))
+      .toEqual(['HIGH', 'LOW']);
+    expect(tags[0].textContent.trim()).toBe('High');
   });
 
   it('errorMessage set when HTTP request fails', async () => {

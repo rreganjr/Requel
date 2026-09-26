@@ -21,7 +21,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { AnnotationsDto } from '../models/annotation';
+import { AnnotationsDto, IssueSeverity } from '../models/annotation';
 import { CommandService } from './command.service';
 
 @Injectable({ providedIn: 'root' })
@@ -46,8 +46,9 @@ export class AnnotationService {
     return this.commandService.execute('DeleteNote', { projectName, noteId });
   }
 
-  addIssue(projectName: string, entityType: string, entityId: number, text: string, mustBeResolved: boolean) {
-    return this.commandService.execute('EditIssue', { projectName, entityType, entityId, text, mustBeResolved });
+  addIssue(projectName: string, entityType: string, entityId: number, text: string, mustBeResolved: boolean,
+           severity: IssueSeverity = 'MEDIUM') {
+    return this.commandService.execute('EditIssue', { projectName, entityType, entityId, text, mustBeResolved, severity });
   }
 
   deleteIssue(projectName: string, issueId: number) {

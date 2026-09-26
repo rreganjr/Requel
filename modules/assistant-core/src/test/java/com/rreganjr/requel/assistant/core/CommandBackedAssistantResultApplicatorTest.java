@@ -22,6 +22,8 @@ package com.rreganjr.requel.assistant.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -41,9 +43,13 @@ import org.junit.jupiter.api.Test;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.AnnotationRepository;
+import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.DeleteNoteCommand;
+import com.rreganjr.requel.annotation.command.EditIssueCommand;
+import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
@@ -260,6 +266,88 @@ class CommandBackedAssistantResultApplicatorTest {
 		verify(commandHandler).execute(command);
 		// A glossary-term referer produces no finding.
 		verifyNoInteractions(findingRepository);
+	}
+
+	// ---- #271: issue severity ------------------------------------------------
+
+	@Test
+	void issueActionSeverityIsWrittenToTheIssue() throws Exception {
+		EditIssueCommand command = stubIssueCommand();
+
+		applyIssueAction("ai-review:Goal:1:ambiguous", "HIGH", Map.of("mustResolve", true));
+
+		verify(command).setSeverity(IssueSeverity.HIGH);
+		verify(commandHandler).execute(command);
+	}
+
+	@Test
+	void lowerCaseSeverityIsAccepted() throws Exception {
+		EditIssueCommand command = stubIssueCommand();
+
+		applyIssueAction("ai-review:Goal:1:ambiguous", "medium", Map.of());
+
+		verify(command).setSeverity(IssueSeverity.MEDIUM);
+	}
+
+	@Test
+	void lexicalIssueWithoutSeverityGetsTheKindDefault() throws Exception {
+		// The legacy NLP assistants send no severity; null lets the command pick the kind's
+		// default (LOW for a lexical issue) on create and leave it unchanged on update.
+		EditLexicalIssueCommand command = mock(EditLexicalIssueCommand.class);
+		when(annotationCommandFactory.newEditLexicalIssueCommand()).thenReturn(command);
+		when(commandHandler.execute(command)).thenReturn(command);
+		Issue issue = mock(Issue.class);
+		when(issue.getId()).thenReturn(42L);
+		when(command.getIssue()).thenReturn(issue);
+
+		applyIssueAction("legacy-lexical:Goal:1:spelling:Name:zorblat", null,
+				Map.of("kind", "LEXICAL", "word", "zorblat"));
+
+		verify(command).setSeverity(null);
+		verify(commandHandler).execute(command);
+	}
+
+	@Test
+	void unknownSeverityFallsBackToTheDefaultAndKeepsTheRawValueOnTheFinding() throws Exception {
+		// Lenient on the assistant path: a bad model reply must not drop a real finding.
+		EditIssueCommand command = stubIssueCommand();
+
+		applyIssueAction("ai-review:Goal:1:ambiguous", "urgent", Map.of());
+
+		verify(command).setSeverity(null);
+		verify(commandHandler).execute(command);
+		verify(findingRepository, atLeastOnce())
+				.save(argThat((AssistantFindingEntity f) -> "urgent".equals(f.getSeverity())));
+	}
+
+	private EditIssueCommand stubIssueCommand() throws Exception {
+		EditIssueCommand command = mock(EditIssueCommand.class);
+		when(annotationCommandFactory.newEditIssueCommand()).thenReturn(command);
+		when(commandHandler.execute(command)).thenReturn(command);
+		Issue issue = mock(Issue.class);
+		when(issue.getId()).thenReturn(42L);
+		when(command.getIssue()).thenReturn(issue);
+		return command;
+	}
+
+	private void applyIssueAction(String key, String severity, Map<String, Object> metadata) {
+		EntityRef target = EntityRef.of("Goal", 1L);
+		ProjectOrDomainEntity goal = mock(ProjectOrDomainEntity.class);
+		AssistantTargetLoader loader = mock(AssistantTargetLoader.class);
+		when(loader.supports(target)).thenReturn(true);
+		when(loader.loadTarget(target)).thenReturn(Optional.of(goal));
+		when(findingRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+		CommandBackedAssistantResultApplicator applicator = new CommandBackedAssistantResultApplicator(
+				commandHandler, annotationCommandFactory, projectCommandFactory, annotationRepository,
+				userRepository, findingRepository, runRepository, List.of(loader), fixedClock);
+
+		AnnotationAction action = new AnnotationAction(key,
+				AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, target, null,
+				"'fast' is not measurable", severity, 0.7, List.of(), metadata);
+		AssistantResult result = AssistantResult.builder().assistantId(key.split(":")[0])
+				.annotationAction(action).build();
+
+		applicator.apply(context(), result, CleanupPolicy.MANUAL, target);
 	}
 
 	private static AssistantContext context() {

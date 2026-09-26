@@ -209,6 +209,7 @@
           </xs:element>
         </xs:sequence>
         <xs:attribute name="mustBeResolved" type="xs:boolean" use="required"/>
+        <xs:attribute name="severity" type="tns:issueSeverity"/>
         <xs:attribute name="resolvedByPosition" type="xs:IDREF"/>
         <xs:attribute name="resolvedByUser" type="xs:IDREF"/>
         <xs:attribute name="dateResolved" type="xs:string"/>
@@ -719,6 +720,14 @@
       <xs:enumeration value="Neutral"/>
       <xs:enumeration value="Against"/>
       <xs:enumeration value="StronglyAgainst"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="issueSeverity">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="LOW"/>
+      <xs:enumeration value="MEDIUM"/>
+      <xs:enumeration value="HIGH"/>
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>

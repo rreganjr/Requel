@@ -50,6 +50,13 @@ public interface Issue extends Annotation {
 	public Date getResolvedDate();
 
 	/**
+	 * @return how much the issue matters; never null for a persisted issue. An issue created
+	 *         without one gets its kind's default ({@code MEDIUM}, or {@code LOW} for a lexical
+	 *         issue). Issue #271.
+	 */
+	public IssueSeverity getSeverity();
+
+	/**
 	 * Resolve this issue with the given position and user. The resolved date is
 	 * set to the current time.
 	 * 

@@ -21,6 +21,7 @@
 package com.rreganjr.requel.annotation.imports;
 
 import com.rreganjr.requel.annotation.Annotation;
+import com.rreganjr.requel.annotation.IssueSeverity;
 import com.rreganjr.requel.annotation.impl.IssueImpl;
 import com.rreganjr.requel.annotation.impl.NoteImpl;
 import com.rreganjr.requel.annotation.impl.PositionImpl;
@@ -79,6 +80,7 @@ public class AnnotationAssembler implements AggregateAssembler<AnnotationImportD
             } else {
                 issue = new IssueImpl(groupingObject, draft.getText(), draft.isMustBeResolved(), createdBy);
             }
+            restoreSeverity(issue, draft);
             draft.getPositionExternalIds().forEach(posId -> unitOfWork.resolve(PositionImpl.class, posId)
                     .ifPresent(p -> {
                         issue.getPositions().add(p);
@@ -93,6 +95,24 @@ public class AnnotationAssembler implements AggregateAssembler<AnnotationImportD
         }
         unitOfWork.register(Annotation.class, draft.getExternalId(), annotation);
         return annotation;
+    }
+
+    /**
+     * Issue #271: re-apply the exported severity. A file without one (exported before #271) keeps
+     * the kind's default the constructor set. An unknown value is logged and also keeps the
+     * default: an import restores what was exported and should not fail on one attribute.
+     */
+    private void restoreSeverity(IssueImpl issue, AnnotationImportDraft draft) {
+        if (draft.getSeverity() == null) {
+            return;
+        }
+        Optional<IssueSeverity> severity = IssueSeverity.parse(draft.getSeverity());
+        if (severity.isPresent()) {
+            issue.setSeverity(severity.get());
+        } else {
+            log.warn("import: issue {} has unknown severity '{}'; using the default {}",
+                    draft.getExternalId(), draft.getSeverity(), issue.getSeverity());
+        }
     }
 
     /**

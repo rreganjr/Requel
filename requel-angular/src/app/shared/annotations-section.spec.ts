@@ -12,7 +12,7 @@ const MOCK_ANNOTATIONS = {
   ],
   issues: [
     {
-      id: 10, version: 0, text: 'An open issue', mustBeResolved: false,
+      id: 10, version: 0, text: 'An open issue', mustBeResolved: false, severity: 'HIGH' as const,
       resolved: false, createdBy: 'admin', resolvedBy: null, resolvedByPosition: null, positions: []
     }
   ]
@@ -112,6 +112,33 @@ describe('AnnotationsSectionComponent', () => {
     expect(screen.getByText('A note about this goal')).toBeInTheDocument();
     expect(screen.getByText('An open issue')).toBeInTheDocument();
   });
+
+  // #271: every issue shows its severity as a text label, not color alone.
+  it('renders a severity badge on each issue', async () => {
+    annotationServiceMock.getAnnotations.mockResolvedValue(MOCK_ANNOTATIONS);
+    const { fixture } = await render(AnnotationsSectionComponent, {
+      providers: providers(),
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 }
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const badge = fixture.nativeElement.querySelector('[data-testid="annotation-issue-severity-badge"]');
+    expect(badge).not.toBeNull();
+    expect(badge.getAttribute('data-severity')).toBe('HIGH');
+    expect(badge.textContent.trim()).toBe('High');
+  });
+
+  it('shows a severity picker defaulting to Medium in the add-issue form', async () => {
+    const { fixture } = await render(AnnotationsSectionComponent, {
+      providers: providers(true),
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 }
+    });
+    await fixture.whenStable();
+    fixture.componentInstance.showIssueForm.set(true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="annotation-issue-severity"]')).not.toBeNull();
+    expect(fixture.componentInstance.issueForm.controls.severity.value).toBe('MEDIUM');
+  });
 });
 
 describe('AnnotationsSectionComponent (method coverage)', () => {
@@ -119,7 +146,7 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
 
   const MOCK_NOTE = { id: 1, version: 0, text: 'A note', createdBy: 'admin' };
   const MOCK_ISSUE = {
-    id: 10, version: 0, text: 'An issue', mustBeResolved: false,
+    id: 10, version: 0, text: 'An issue', mustBeResolved: false, severity: 'MEDIUM' as const,
     resolved: false, createdBy: 'admin', resolvedBy: null, resolvedByPosition: null, positions: []
   };
   const MOCK_POSITION = {
@@ -214,9 +241,23 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
     comp.issueForm.controls.text.setValue('My issue');
     comp.issueForm.controls.mustResolve.setValue(true);
     await comp.saveIssue();
-    expect(annotationServiceMock.addIssue).toHaveBeenCalledWith('proj1', 'Goal', 42, 'My issue', true);
+    expect(annotationServiceMock.addIssue).toHaveBeenCalledWith('proj1', 'Goal', 42, 'My issue', true, 'MEDIUM');
     expect(comp.showIssueForm()).toBe(false);
     expect(comp.issueForm.controls.mustResolve.value).toBe(false);
+  });
+
+  it('saveIssue() sends the chosen severity and resets it to Medium (#271)', async () => {
+    comp.issueForm.controls.text.setValue('My issue');
+    comp.issueForm.controls.severity.setValue('HIGH');
+    await comp.saveIssue();
+    expect(annotationServiceMock.addIssue).toHaveBeenCalledWith('proj1', 'Goal', 42, 'My issue', false, 'HIGH');
+    expect(comp.issueForm.controls.severity.value).toBe('MEDIUM');
+  });
+
+  it('severityTone() maps severities to app-tag tones', () => {
+    expect(comp.severityTone('HIGH')).toBe('danger');
+    expect(comp.severityTone('MEDIUM')).toBe('warning');
+    expect(comp.severityTone('LOW')).toBe('info');
   });
 
   it('cancelIssue() clears showIssueForm and resets state', () => {
