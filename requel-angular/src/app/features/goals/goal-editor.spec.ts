@@ -20,6 +20,16 @@ const MOCK_GOAL = {
   relationsFromThisGoal: [], relationsToThisGoal: [], referencedBy: []
 };
 
+/** The served vocabulary (#257), trimmed to the cases the specs exercise. */
+const RELATION_TYPES = [
+  { value: 'Supports', label: 'Supports', inverseLabel: 'Supported by', symmetric: false,
+    description: 'The from goal has a positive influence on the success of the to goal.' },
+  { value: 'Conflicts', label: 'Conflicts', inverseLabel: 'Conflicts', symmetric: true,
+    description: 'The two goals cannot both be satisfied.' },
+  { value: 'DependsOn', label: 'Depends on', inverseLabel: 'Required by', symmetric: false,
+    description: 'The from goal cannot be achieved until the to goal is.' }
+];
+
 const flush = () => new Promise(r => setTimeout(r, 0));
 
 /** A stand-in for the wizard's commit handshake, so the host can be driven directly. */
@@ -44,7 +54,7 @@ function commitRequest(key: string): WizardCommitRequest & {
 
 describe('GoalEditorComponent', () => {
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
-  let goalServiceMock: { getGoal: ReturnType<typeof vi.fn> };
+  let goalServiceMock: { getGoal: ReturnType<typeof vi.fn>; getRelationTypes: ReturnType<typeof vi.fn> };
   let commandServiceMock: { execute: ReturnType<typeof vi.fn> };
   let projectServiceMock: { notifyTreeChanged: ReturnType<typeof vi.fn> };
   let permissionServiceMock: { loadForProject: ReturnType<typeof vi.fn>; canEdit: ReturnType<typeof vi.fn>; canDelete: ReturnType<typeof vi.fn> };
@@ -63,7 +73,10 @@ describe('GoalEditorComponent', () => {
   beforeEach(() => {
     paramMap$ = new BehaviorSubject(convertToParamMap({ name: 'proj1', goalId: 'new' }));
 
-    goalServiceMock = { getGoal: vi.fn().mockResolvedValue(MOCK_GOAL) };
+    goalServiceMock = {
+      getGoal: vi.fn().mockResolvedValue(MOCK_GOAL),
+      getRelationTypes: vi.fn().mockResolvedValue(RELATION_TYPES)
+    };
     commandServiceMock = {
       execute: vi.fn().mockResolvedValue({ success: true, entity: MOCK_GOAL })
     };
@@ -650,6 +663,67 @@ describe('GoalEditorComponent', () => {
 
       expect(comp.updateAvailable()).toBe(false);
       expect(comp.detailsForm.getRawValue().name).toBe('Server Name');
+    });
+  });
+  describe('relation types from the server (#257)', () => {
+    const RELATED_GOAL = {
+      ...MOCK_GOAL,
+      relationsFromThisGoal: [{ id: 1, version: 0, goalId: 11, goalName: 'Ship it', relationType: 'DependsOn' }],
+      relationsToThisGoal: [
+        { id: 2, version: 0, goalId: 12, goalName: 'Faster builds', relationType: 'Supports' },
+        { id: 3, version: 0, goalId: 13, goalName: 'Cut scope', relationType: 'Conflicts' },
+        { id: 4, version: 0, goalId: 14, goalName: 'Mystery', relationType: 'FromTheFuture' }
+      ]
+    };
+
+    it('builds the picker options from the served vocabulary, labels as text', async () => {
+      await renderExisting();
+      expect(goalServiceMock.getRelationTypes).toHaveBeenCalledTimes(1);
+      expect(comp.relationTypeOptions()).toEqual([
+        { label: 'Supports', value: 'Supports' },
+        { label: 'Conflicts', value: 'Conflicts' },
+        { label: 'Depends on', value: 'DependsOn' }
+      ]);
+    });
+
+    it('renders the label on this goal\'s relations and the inverse label on related-to rows', async () => {
+      goalServiceMock.getGoal.mockResolvedValue(RELATED_GOAL);
+      await renderExisting();
+      const el: HTMLElement = fixture.nativeElement;
+      const fromTypes = [...el.querySelectorAll('[data-testid="goal-relation-type"]')].map(e => e.textContent?.trim());
+      const toTypes = [...el.querySelectorAll('[data-testid="goal-related-to-type"]')].map(e => e.textContent?.trim());
+      expect(fromTypes).toEqual(['Depends on']);
+      // Directed types read from this goal's side; a symmetric type reads the same both ways;
+      // a name this build does not know falls back to the raw value.
+      expect(toTypes).toEqual(['Supported by', 'Conflicts', 'FromTheFuture']);
+    });
+
+    it('defaults a new relation to the first served type and describes the selection', async () => {
+      await renderExisting();
+      comp.onRelationGoalSelected({ id: 11, name: 'Ship it', entityType: 'Goal' } as never);
+      expect(comp.newRelationType).toBe('Supports');
+      expect(comp.relationTypeDescription('DependsOn'))
+        .toBe('The from goal cannot be achieved until the to goal is.');
+    });
+
+    it('sends the selected value name, not the label, and surfaces a refusal', async () => {
+      await renderExisting();
+      comp.onRelationGoalSelected({ id: 11, name: 'Ship it', entityType: 'Goal' } as never);
+      comp.newRelationType = 'DependsOn';
+      commandServiceMock.execute.mockResolvedValueOnce({
+        success: false, error: '"Improve UX" already has a Supports relation to "Ship it"; change that relation\'s type instead.'
+      });
+      await comp.onConfirmRelation();
+      const call = commandServiceMock.execute.mock.calls.find(c => c[0] === 'EditGoalRelation');
+      expect(call?.[1].relationType).toBe('DependsOn');
+      expect(comp.errorMessage()).toContain('already has a Supports relation');
+    });
+
+    it('reports a vocabulary that fails to load', async () => {
+      goalServiceMock.getRelationTypes.mockRejectedValue(new Error('boom'));
+      await renderExisting();
+      expect(comp.relationTypeOptions()).toEqual([]);
+      expect(comp.errorMessage()).toBe('Could not load the goal relation types.');
     });
   });
 });

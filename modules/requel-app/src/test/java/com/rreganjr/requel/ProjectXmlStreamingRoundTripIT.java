@@ -461,6 +461,76 @@ class ProjectXmlStreamingRoundTripIT {
 				.isEqualTo(com.rreganjr.requel.annotation.IssueSeverity.LOW);
 	}
 
+	/**
+	 * Issue #257: every goal relation type round-trips with its direction. Before #257 the
+	 * streaming import kept only Supports, so a Conflicts relation was lost on every import. A
+	 * type this build does not know is skipped and the rest of the file imports.
+	 */
+	@Test
+	@Transactional
+	void everyGoalRelationTypeRoundTripsAndAnUnknownTypeIsSkipped() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		createGoal(originalProject, "Relation hub", "The goal every relation starts from.", projectUser);
+		for (com.rreganjr.requel.project.GoalRelationType type
+				: com.rreganjr.requel.project.GoalRelationType.values()) {
+			createGoal(originalProject, "Spoke " + type.name(), "Related by " + type.name() + ".",
+					projectUser);
+			com.rreganjr.requel.project.command.EditGoalRelationCommand relate =
+					projectCommandFactory.newEditGoalRelationCommand();
+			relate.setAnalysisEnabled(false);
+			relate.setEditedBy(projectUser);
+			relate.setProjectOrDomain(originalProject);
+			relate.setFromGoal("Relation hub");
+			relate.setToGoal("Spoke " + type.name());
+			relate.setRelationType(type.name());
+			commandHandler.execute(relate);
+		}
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML")
+				.contains("relationType=\"Conflicts\"").contains("relationType=\"Measures\"");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " Relations " + Instant.now().toEpochMilli();
+		importProject(exportedBytes, projectUser, reName);
+		// A newer export, or a hand edit: a relation type this build does not know.
+		byte[] unknownBytes = xml.replace("relationType=\"Obstructs\"", "relationType=\"Blocks\"")
+				.getBytes(StandardCharsets.UTF_8);
+		String unknownName = originalProject.getName() + " Unknown " + Instant.now().toEpochMilli();
+		importProject(unknownBytes, projectUser, unknownName);
+		entityManager.flush();
+		entityManager.clear();
+
+		java.util.Map<String, com.rreganjr.requel.project.GoalRelationType> expected =
+				new java.util.TreeMap<>();
+		for (com.rreganjr.requel.project.GoalRelationType type
+				: com.rreganjr.requel.project.GoalRelationType.values()) {
+			expected.put("Spoke " + type.name(), type);
+		}
+		assertThat(hubRelations(reName)).as("all seven, from the hub").isEqualTo(expected);
+
+		expected.remove("Spoke Obstructs");
+		assertThat(hubRelations(unknownName)).as("the unknown one skipped").isEqualTo(expected);
+		assertThat(projectRepository.findProjectByName(unknownName).getGoals())
+				.as("its goals still import")
+				.anyMatch(goal -> goal.getName().equals("Spoke Obstructs"));
+	}
+
+	/** The imported hub's outgoing relations, target goal name → type. */
+	private java.util.Map<String, com.rreganjr.requel.project.GoalRelationType> hubRelations(
+			String projectName) {
+		Goal hub = findGoalByName(projectRepository.findProjectByName(projectName), "Relation hub");
+		java.util.Map<String, com.rreganjr.requel.project.GoalRelationType> relations =
+				new java.util.TreeMap<>();
+		hub.getRelationsFromThisGoal().forEach(relation -> relations.put(
+				relation.getToGoal().getName(), relation.getRelationType()));
+		return relations;
+	}
+
 	private List<com.rreganjr.requel.annotation.Issue> issuesOnGoal(String projectName, Goal goal) {
 		Goal importedGoal = projectRepository.findProjectByName(projectName).getGoals().stream()
 				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()

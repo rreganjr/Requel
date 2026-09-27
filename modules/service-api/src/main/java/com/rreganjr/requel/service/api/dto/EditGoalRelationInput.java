@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.project.GoalRelationType;
+import com.rreganjr.requel.service.api.AllowedValues;
 import com.rreganjr.requel.service.api.CommandDescription;
 import jakarta.validation.constraints.NotBlank;
 
@@ -29,21 +31,24 @@ import jakarta.validation.constraints.NotBlank;
  * @param projectName    project context
  * @param fromGoalName   name of the origin goal
  * @param toGoalName     name of the target goal
- * @param relationType   "Supports" or "Conflicts"
+ * @param relationType   a {@code GoalRelationType} name, ignoring case; the schema lists them
  * @param version        optimistic lock version (null for create)
  */
 @CommandDescription("Creates a directed relation from one goal to another, or changes the type of"
         + " an existing one. The goals are given by name, not id: fromGoalName and toGoalName."
-        + " relationType is exactly Supports or Conflicts, and a goal cannot be related to itself."
-        + " Without version a new relation is always created, so repeating an existing one fails;"
-        + " with version the existing relation's type is updated, and the goal names must then"
-        + " match exactly, including case. Nothing is returned: read the goal to see the relation"
-        + " and its id.")
+        + " relationType is one of the values the schema lists, ignoring case, and a goal cannot be"
+        + " related to itself. Without version a new relation is created; a pair of goals holds at"
+        + " most one relation in each direction, so relating the same two goals again in the same"
+        + " direction is refused (change that relation's type instead), and because Conflicts and"
+        + " Duplicates hold in both directions, the reverse of an existing one of the same type is"
+        + " refused too. With version the existing relation's type is updated, and the goal names"
+        + " must then match exactly, including case. Nothing is returned: read the goal to see the"
+        + " relation and its id.")
 public record EditGoalRelationInput(
         @NotBlank String projectName,
         @NotBlank String fromGoalName,
         @NotBlank String toGoalName,
-        @NotBlank String relationType,
+        @NotBlank @AllowedValues(GoalRelationType.class) String relationType,
         Integer version
 ) {
 }

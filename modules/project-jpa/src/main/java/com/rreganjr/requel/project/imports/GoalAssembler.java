@@ -33,12 +33,16 @@ import com.rreganjr.requel.project.impl.GlossaryTermImpl;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.user.UserRepository;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 /**
- * Assembles goals from drafts and wires up support relations within the unit-of-work.
+ * Assembles goals from drafts and wires up goal relations within the unit-of-work.
  */
 public class GoalAssembler implements AggregateAssembler<GoalImportDraft, GoalImpl> {
+
+    private static final Logger log = LoggerFactory.getLogger(GoalAssembler.class);
 
     private final Project project;
     private final UserRepository userRepository;
@@ -77,20 +81,30 @@ public class GoalAssembler implements AggregateAssembler<GoalImportDraft, GoalIm
     }
 
     /**
-     * Attach support relations for the given draft after all goals are registered.
+     * Attach the draft's goal relations after all goals are registered. A relation whose type
+     * this build does not know (a newer export, or a hand edit) is skipped with a WARN and the
+     * rest of the file imports; one whose target is not in the file is skipped as before.
+     * Issue #257.
      */
-    public void attachSupports(GoalImportDraft draft, ImportUnitOfWork unitOfWork) {
-        draft.getRelationTargets().forEach(targetId -> {
+    public void attachRelations(GoalImportDraft draft, ImportUnitOfWork unitOfWork) {
+        draft.getRelations().forEach((targetId, typeName) -> {
             Optional<Goal> sourceOpt = unitOfWork.resolve(Goal.class, draft.getExternalId());
             Optional<Goal> targetOpt = unitOfWork.resolve(Goal.class, targetId);
-            if (sourceOpt.isPresent() && targetOpt.isPresent()) {
-                linkSupport((GoalImpl) sourceOpt.get(), targetOpt.get());
+            if (sourceOpt.isEmpty() || targetOpt.isEmpty()) {
+                return;
             }
+            Optional<GoalRelationType> type = GoalRelationType.parse(typeName);
+            if (type.isEmpty()) {
+                log.warn("import: skipping goal relation \"{}\" -> \"{}\": unknown relationType '{}'",
+                        sourceOpt.get().getName(), targetOpt.get().getName(), typeName);
+                return;
+            }
+            link((GoalImpl) sourceOpt.get(), targetOpt.get(), type.get());
         });
     }
 
-    private void linkSupport(GoalImpl source, Goal target) {
-        GoalRelationImpl relation = new GoalRelationImpl(source, target, GoalRelationType.Supports, defaultCreatedBy);
+    private void link(GoalImpl source, Goal target, GoalRelationType type) {
+        GoalRelationImpl relation = new GoalRelationImpl(source, target, type, defaultCreatedBy);
         source.getRelationsFromThisGoal().add(relation);
         target.getRelationsToThisGoal().add(relation);
     }

@@ -157,6 +157,32 @@ test.describe('Goal relations', () => {
     await page.close();
   });
 
+  test('directed relation type → label on this goal, inverse label on the target (#257)', async ({ adminContext, request }) => {
+    const goalAName = `e2e-goal-refines-a-${Date.now()}`;
+    const goalBName = `e2e-goal-refines-b-${Date.now()}`;
+    const goalA = await createGoal(request, PROJECT_NAME, goalAName);
+    const goalB = await createGoal(request, PROJECT_NAME, goalBName);
+    goalToCleanup = goalA;
+    secondGoalToCleanup = goalB;
+
+    const page = await adminContext.newPage();
+    const listPage = new GoalListPage(page);
+    const editorPage = new GoalEditorPage(page);
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickGoal(goalAName);
+
+    await editorPage.addRelation(goalBName, 'Refines');
+    await editorPage.expectRelationType(goalBName, 'Refines');
+
+    // The target goal reads the same relation from its own side.
+    await listPage.goto(PROJECT_NAME);
+    await listPage.clickGoal(goalBName);
+    await editorPage.expectRelatedTo(goalAName, 'Refined by');
+
+    await page.close();
+  });
+
   test('remove goal relation → gone after removal', async ({ adminContext, request }) => {
     const goalAName = `e2e-goal-rmrel-a-${Date.now()}`;
     const goalBName = `e2e-goal-rmrel-b-${Date.now()}`;

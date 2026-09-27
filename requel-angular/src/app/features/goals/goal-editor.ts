@@ -36,7 +36,7 @@ import { DialogModule } from 'primeng/dialog';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { CommandResult } from '../../models/command';
-import { GoalDto, GoalRelationDto } from '../../models/goal';
+import { GoalDto, GoalRelationDto, GoalRelationTypeDto } from '../../models/goal';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { GoalService } from '../../core/goal.service';
 import { CommandService, isNetworkError } from '../../core/command.service';
@@ -220,8 +220,11 @@ const STALE_VERSION_MESSAGE =
                 closeAriaLabel="Close" [style]="{ width: '25rem' }" appendTo="body" [header]="relationDialogHeader()"
                 data-testid="goal-relation-type-dialog">
         <div class="dialog-body">
-          <p-select [(ngModel)]="newRelationType" data-testid="goal-relation-type-select" [options]="relationTypeOptions"
-                    placeholder="Select relation type" appendTo="body" />
+          <p-select [(ngModel)]="newRelationType" data-testid="goal-relation-type-select" [options]="relationTypeOptions()"
+                    placeholder="Select relation type" appendTo="body" ariaLabel="Relation type" />
+          <p class="relation-type-description" data-testid="goal-relation-type-description">
+            {{ relationTypeDescription(newRelationType) }}
+          </p>
           <div class="dialog-actions">
             <p-button label="Add" icon="pi pi-check" data-testid="goal-relation-add" (onClick)="onConfirmRelation()" />
             <p-button label="Cancel" severity="secondary" [outlined]="true"
@@ -270,7 +273,7 @@ const STALE_VERSION_MESSAGE =
       <ng-template #relationsSection let-heading="heading">
         <app-relationship-section #goalRelationSection
           title="This Goal's Relations" [showHeading]="heading" [colWidths]="relColWidths"
-          description="This goal supports or conflicts with other goals."
+          description="How this goal relates to other goals."
           [items]="goal()?.relationsFromThisGoal ?? []" [headers]="['Goal', 'Type']"
           [canAdd]="canEdit() && goalId != null"
           addLabel="Add Relation" addTestid="goal-add-relation"
@@ -281,13 +284,13 @@ const STALE_VERSION_MESSAGE =
           (add)="showRelationSelector = true" (remove)="onDeleteRelation($event)">
           <ng-template #row let-r>
             <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', r.goalId]">{{ r.goalName }}</a></td>
-            <td>{{ r.relationType }}</td>
+            <td data-testid="goal-relation-type">{{ relationLabel(r) }}</td>
           </ng-template>
         </app-relationship-section>
 
         <app-relationship-section
           title="Related To This Goal" [headingLevel]="3" [colWidths]="relColWidths"
-          description="Other goals that support or conflict with this goal."
+          description="Other goals with a relation to this goal."
           [items]="goal()?.relationsToThisGoal ?? []" [headers]="['Goal', 'Type']"
           [canAdd]="false" [canRemove]="false"
           rowTestid="goal-related-to-row" testid="goal-related-to"
@@ -295,7 +298,7 @@ const STALE_VERSION_MESSAGE =
           [trackBy]="relationTrackBy">
           <ng-template #row let-r>
             <td><a class="entity-link" [routerLink]="['/projects', projectName, 'goals', r.goalId]">{{ r.goalName }}</a></td>
-            <td>{{ r.relationType }}</td>
+            <td data-testid="goal-related-to-type">{{ relationInverseLabel(r) }}</td>
           </ng-template>
         </app-relationship-section>
       </ng-template>
@@ -313,6 +316,7 @@ const STALE_VERSION_MESSAGE =
     .entity-link { cursor: pointer; color: var(--p-primary-color); text-decoration: underline; }
     .dialog-body { display: flex; flex-direction: column; }
     .dialog-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+    .relation-type-description { margin: 0.5rem 0 0; min-height: 2.5em; color: var(--p-text-secondary-color); }
   `]
 })
 export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
@@ -401,11 +405,11 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   showRelationSelector = false;
   showReferrerSelector = false;
-  newRelationType = 'Supports';
-  relationTypeOptions = [
-    { label: 'Supports', value: 'Supports' },
-    { label: 'Conflicts', value: 'Conflicts' }
-  ];
+  newRelationType = '';
+  /** The relation vocabulary from the server (#257); the only copy the editor keeps. */
+  relationTypes = signal<GoalRelationTypeDto[]>([]);
+  relationTypeOptions = computed(() =>
+    this.relationTypes().map(t => ({ label: t.label, value: t.value })));
 
   projectName = '';
   goalId: number | null = null;
@@ -427,6 +431,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
   ) {}
 
   ngOnInit(): void {
+    this.loadRelationTypes();
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       const idParam = params.get('goalId') ?? '';
@@ -458,6 +463,34 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
         this.loadGoal();
       }
     });
+  }
+
+  /** Fetch the relation vocabulary once per editor; the service caches it for the session. */
+  private async loadRelationTypes(): Promise<void> {
+    try {
+      this.relationTypes.set(await this.goalService.getRelationTypes());
+    } catch {
+      this.showError('Could not load the goal relation types.');
+    }
+  }
+
+  private relationType(value: string): GoalRelationTypeDto | undefined {
+    return this.relationTypes().find(t => t.value === value);
+  }
+
+  /** The type as read from this goal's side ("Depends on"); the raw name if it is unknown. */
+  relationLabel(r: GoalRelationDto): string {
+    return this.relationType(r.relationType)?.label ?? r.relationType;
+  }
+
+  /** The type as read from the target goal's side ("Required by"); the raw name if unknown. */
+  relationInverseLabel(r: GoalRelationDto): string {
+    return this.relationType(r.relationType)?.inverseLabel ?? r.relationType;
+  }
+
+  /** What the selected type means, shown under the picker so Refines vs Duplicates is a choice. */
+  relationTypeDescription(value: string): string {
+    return this.relationType(value)?.description ?? '';
   }
 
   hasUnsavedChanges(): boolean {
@@ -745,7 +778,7 @@ export class GoalEditorComponent implements OnInit, OnDestroy, DirtyCheckable {
 
   onRelationGoalSelected(ref: EntityReferenceDto): void {
     this.pendingRelationGoal.set(ref);
-    this.newRelationType = 'Supports';
+    this.newRelationType = this.relationTypes()[0]?.value ?? '';
     this.relationDialogVisible.set(true);
   }
 

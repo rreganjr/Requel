@@ -759,6 +759,22 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
     }
 
     @Test
+    void unauthenticatedGoalRelationTypesReturnsUnauthorized() throws Exception {
+        // Issue #257: the vocabulary needs no project access, but still needs a signed-in caller.
+        mockMvc.perform(get("/api/projects/goal-relation-types"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void userWithNoProjectAccessCanReadGoalRelationTypes() throws Exception {
+        // Issue #257: the same for every project, so any signed-in caller may read it.
+        mockMvc.perform(get("/api/projects/goal-relation-types")
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(7));
+    }
+
+    @Test
     void stakeholderCanGetProject() throws Exception {
         mockMvc.perform(get("/api/projects/" + testProjectName)
                         .header("Authorization", "Bearer " + editorToken))

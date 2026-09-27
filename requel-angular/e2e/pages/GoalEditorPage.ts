@@ -180,9 +180,11 @@ export class GoalEditorPage {
 
   /**
    * Click "Add Relation", pick the target goal in the entity-selector dialog,
-   * optionally change the relation type, then confirm.
+   * optionally change the relation type, then confirm. `relationLabel` is the visible label
+   * the server serves for the type (#257), e.g. 'Refines' or 'Depends on'; the first served
+   * type, Supports, is preselected.
    */
-  async addRelation(toGoalName: string, relationType: 'Supports' | 'Conflicts' = 'Supports'): Promise<void> {
+  async addRelation(toGoalName: string, relationLabel = 'Supports'): Promise<void> {
     await this.page.getByTestId('goal-add-relation').click();
     // p-dialog with appendTo="body" renders at document root; use role+name to distinguish
     // from p-confirmDialog (which renders as alertdialog).
@@ -196,9 +198,9 @@ export class GoalEditorPage {
     // host element. Match the real dialog by role+name (header is `Relation to "<goal>"`).
     const relationDialog = this.page.getByRole('dialog', { name: `Relation to "${toGoalName}"` });
     await relationDialog.waitFor({ state: 'visible' });
-    if (relationType !== 'Supports') {
+    if (relationLabel !== 'Supports') {
       await relationDialog.getByTestId('goal-relation-type-select').click();
-      await this.page.getByRole('option', { name: relationType }).click();
+      await this.page.getByRole('option', { name: relationLabel, exact: true }).click();
     }
     const [response] = await Promise.all([
       this.page.waitForResponse(r => r.url().includes('/api/commands/EditGoalRelation')),
@@ -221,6 +223,17 @@ export class GoalEditorPage {
 
   async expectRelationInTable(toGoalName: string): Promise<void> {
     await expect(this.relationRows(toGoalName).first()).toBeVisible();
+  }
+
+  /** The Type cell of this goal's relation to `toGoalName` reads `label` (#257). */
+  async expectRelationType(toGoalName: string, label: string): Promise<void> {
+    await expect(this.relationRows(toGoalName).first().getByTestId('goal-relation-type')).toHaveText(label);
+  }
+
+  /** "Related To This Goal" shows `fromGoalName` with the inverse label `label` (#257). */
+  async expectRelatedTo(fromGoalName: string, label: string): Promise<void> {
+    const row = this.page.getByTestId('goal-related-to-row').filter({ hasText: fromGoalName }).first();
+    await expect(row.getByTestId('goal-related-to-type')).toHaveText(label);
   }
 
   async expectRelationNotInTable(toGoalName: string): Promise<void> {

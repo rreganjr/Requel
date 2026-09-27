@@ -22,6 +22,11 @@ package com.rreganjr.requel.gateway;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.rreganjr.requel.DescribedValue;
+import com.rreganjr.requel.project.GoalRelationType;
+import com.rreganjr.requel.service.api.AllowedValues;
+import com.rreganjr.requel.service.api.dto.EditGoalRelationInput;
+import com.rreganjr.requel.service.api.dto.EditIssueInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -51,6 +56,29 @@ class CommandInputSchemaTest {
 			Color color,
 			List<String> tags,
 			Object blob) {
+	}
+
+	/** A vocabulary that carries its meanings (issue #257). */
+	enum Kind implements DescribedValue {
+		Near("Close by."), Far("A long way off.");
+
+		private final String description;
+
+		Kind(String description) {
+			this.description = description;
+		}
+
+		@Override
+		public String getDescription() {
+			return description;
+		}
+	}
+
+	/** String fields restricted to an enum's names; the input stays a String (issue #257). */
+	record AllowedInput(
+			@NotBlank @AllowedValues(Kind.class) String kind,
+			@AllowedValues(Color.class) String color,
+			String free) {
 	}
 
 	/** Not a record — must be treated like Void (empty schema, no field names). */
@@ -124,5 +152,40 @@ class CommandInputSchemaTest {
 						"properties", Map.of("x", Map.of("type", "string")),
 						"required", List.of("x"),
 						"additionalProperties", false));
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void allowedValuesListsTheEnumNamesAndDescribesADescribedValue() {
+		Map<String, Object> schema = CommandInputSchema.of(AllowedInput.class);
+		var props = (Map<String, Object>) schema.get("properties");
+
+		assertThat(props.get("kind")).isEqualTo(Map.of("type", "string", "enum", List.of("Near", "Far"),
+				"description", "Near: Close by. Far: A long way off."));
+		// A plain enum lists its names with no description.
+		assertThat(props.get("color")).isEqualTo(Map.of("type", "string", "enum", List.of("RED", "GREEN")));
+		assertThat(props.get("free")).isEqualTo(Map.of("type", "string"));
+		// @AllowedValues does not change what is required.
+		assertThat((List<String>) schema.get("required")).containsExactly("kind");
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void editGoalRelationSchemaListsEveryRelationTypeWithItsMeaning() {
+		var props = (Map<String, Object>) CommandInputSchema.of(EditGoalRelationInput.class)
+				.get("properties");
+		var relationType = (Map<String, Object>) props.get("relationType");
+		assertThat((List<String>) relationType.get("enum")).containsExactly("Supports", "Conflicts",
+				"Refines", "Duplicates", "DependsOn", "Obstructs", "Measures");
+		assertThat((String) relationType.get("description"))
+				.contains("Measures: " + GoalRelationType.Measures.getDescription());
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void editIssueSchemaListsTheSeverities() {
+		var props = (Map<String, Object>) CommandInputSchema.of(EditIssueInput.class).get("properties");
+		assertThat(props.get("severity"))
+				.isEqualTo(Map.of("type", "string", "enum", List.of("LOW", "MEDIUM", "HIGH")));
 	}
 }

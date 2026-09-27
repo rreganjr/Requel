@@ -23,7 +23,6 @@ package com.rreganjr.requel.utils.jaxb.imports;
 import com.rreganjr.requel.imports.ImportException;
 import com.rreganjr.requel.imports.project.GoalImportDraft;
 import java.util.HashSet;
-import java.util.Set;
 
 /**
  * Converts goal JAXB DTOs into drafts.
@@ -34,19 +33,20 @@ public class GoalImportXmlMapper {
         if (xml == null) {
             throw new ImportException("goal XML payload is required");
         }
-        Set<String> relations = new HashSet<>();
+        GoalImportDraft.Builder builder = GoalImportDraft.builder();
+        // Every relation type, not only Supports: the type is carried as written and the
+        // assembler parses it, skipping an unknown value with a WARN (issue #257).
         xml.getGoalRelations().forEach(rel -> {
-            if ("Supports".equalsIgnoreCase(rel.getRelationType()) && rel.getToGoal() != null) {
-                relations.add(rel.getToGoal());
+            if (rel.getToGoal() != null) {
+                builder.relation(rel.getToGoal(), rel.getRelationType());
             }
         });
 
-        return GoalImportDraft.builder()
+        return builder
                 .externalId(xml.getId())
                 .createdByExternalId(xml.getCreatedBy())
                 .name(xml.getName())
                 .description(xml.getText())
-                .relationTargets(relations)
                 .annotationExternalIds(new HashSet<>(xml.getAnnotationRefs()))
                 .glossaryTermExternalIds(new HashSet<>(xml.getGlossaryTermRefs()))
                 .build();
