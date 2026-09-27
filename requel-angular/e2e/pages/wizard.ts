@@ -1,12 +1,17 @@
 import { Page, expect } from '@playwright/test';
 
-/** The active step's key, or null once the wizard has unmounted. */
+/**
+ * The active step's key, or null once the wizard has unmounted.
+ *
+ * One DOM read with no auto-wait. It used to be count() then getAttribute(): when the last
+ * Continue navigated away between the two calls, getAttribute() waited for a panel that no longer
+ * existed and hung the caller's poll until its timeout, reported as "wizard did not leave step"
+ * although the wizard had finished (#257 CI, scenario create).
+ */
 async function activeStepKey(page: Page): Promise<string | null> {
-  const panel = page.locator('[data-testid^="wizard-panel-"]');
-  if ((await panel.count()) === 0) {
-    return null;
-  }
-  const id = await panel.first().getAttribute('data-testid');
+  const id = await page
+    .locator('[data-testid^="wizard-panel-"]')
+    .evaluateAll(panels => panels[0]?.getAttribute('data-testid') ?? null);
   return id ? id.replace('wizard-panel-', '') : null;
 }
 
