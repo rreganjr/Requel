@@ -23,7 +23,9 @@ package com.rreganjr.requel.assistant.legacynlp;
 import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,7 +80,18 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 	private static final String SUGGESTED_MORE_SPECIFIC_WORD_MSG =
 			"Change the word \"{0}\" to \"{1}\".";
 
-	private static final double INFO_CONTENT_THRESHOLD = 0.50;
+	/** Below this WordNet information content a word is reported as vague. Public for the #268 dev harness. */
+	public static final double INFO_CONTENT_THRESHOLD = 0.50;
+
+	/**
+	 * Issue #268: weak requirements words WordNet can't score as vague (most are modals or have
+	 * specific-sounding senses), reported whatever their sense. "can" is deliberately absent: in a
+	 * requirement it usually states a capability, not a hedge.
+	 */
+	public static final Set<String> WEAK_WORDS = Set.of("should", "may", "might", "could", "easy",
+			"easily", "fast", "quickly", "robust", "flexible", "sufficient", "adequate",
+			"appropriate", "appropriately", "reasonable", "user-friendly", "efficient", "several",
+			"various", "etc", "etc.");
 
 	private final NLPProcessorFactory nlpProcessorFactory;
 	private final DictionaryRepository dictionaryRepository;
@@ -137,27 +150,50 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 			NLPProcessor<Collection<NLPText>> moreSpecificWordSuggester = nlpProcessorFactory
 					.getMoreSpecificWordSuggester();
 			Linkdef linkType = dictionaryRepository.findLinkDef(1L);
-			// Proper nouns may carry the generic "entity#n#1" root sense; skip those.
 			Sense rootNounSense = dictionaryRepository.findSense("entity", PartOfSpeech.NOUN, 1);
 
 			for (NLPText word : nlpText.getLeaves()) {
-				Sense sense = word.getDictionaryWordSense();
-				if (word.isNamedEntity() || sense == null || sense.getSynset() == null) {
+				if (!isVague(word, linkType, rootNounSense)) {
 					continue;
 				}
-				if (sense.equals(rootNounSense) && word.in(ParseTag.NNP, ParseTag.NNPS)) {
+				// #268/#269: never report a word the author didn't write (a parser fragment).
+				if (!LexicalEvidence.occurs(text, word.getText())) {
+					log.warn("vague-word: dropping \"{}\" on the {} of {}: not in the source text",
+							word.getText(), propertyName, targetRef);
 					continue;
 				}
-				double infoContent = dictionaryRepository.infoContent(sense.getSynset(), linkType);
-				if (infoContent < INFO_CONTENT_THRESHOLD) {
-					emitVagueWordIssue(builder, targetRef, propertyName, word,
-							moreSpecificWordSuggester);
-				}
+				emitVagueWordIssue(builder, targetRef, propertyName, word,
+						moreSpecificWordSuggester);
 			}
 		} catch (RuntimeException e) {
 			log.warn("vague-word analysis of the {} of {} failed; skipping: {}", propertyName,
 					targetRef, e.toString());
 		}
+	}
+
+	/**
+	 * Issue #268: a weak requirements word always is; otherwise only a noun, adjective or adverb
+	 * whose WordNet sense carries little information is. Verbs are never scored: on the roundtable
+	 * project every verb the information-content test flagged ("be", "says", "creates",
+	 * "covering") was noise.
+	 */
+	private boolean isVague(NLPText word, Linkdef linkType, Sense rootNounSense) {
+		String text = word.getText();
+		if (text != null && WEAK_WORDS.contains(text.toLowerCase(Locale.ROOT))) {
+			return true;
+		}
+		if (!word.in(PartOfSpeech.NOUN, PartOfSpeech.ADJECTIVE, PartOfSpeech.ADVERB)) {
+			return false;
+		}
+		Sense sense = word.getDictionaryWordSense();
+		if (word.isNamedEntity() || sense == null || sense.getSynset() == null) {
+			return false;
+		}
+		// Proper nouns may carry the generic "entity#n#1" root sense; skip those.
+		if (sense.equals(rootNounSense) && word.in(ParseTag.NNP, ParseTag.NNPS)) {
+			return false;
+		}
+		return dictionaryRepository.infoContent(sense.getSynset(), linkType) < INFO_CONTENT_THRESHOLD;
 	}
 
 	private void emitVagueWordIssue(AssistantResult.Builder builder, EntityRef targetRef,

@@ -21,11 +21,16 @@
 package com.rreganjr.requel.assistant.legacynlp;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -33,7 +38,14 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
+import com.rreganjr.nlp.dictionary.Linkdef;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.nlp.dictionary.PartOfSpeech;
+import com.rreganjr.nlp.dictionary.Sense;
+import com.rreganjr.nlp.dictionary.Synset;
+import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
@@ -57,6 +69,56 @@ class LexicalVagueWordAssistantTest {
 	void blankTextProducesNoActionsAndNoNlpWork() {
 		AssistantResult result = assistant.analyze(context(), textEntity("", ""));
 		assertThat(result.annotationActions()).isEmpty();
+	}
+
+	/**
+	 * #268: only nouns, adjectives and adverbs are scored ("be" is a verb with a low score and is
+	 * not reported), a weak requirements word is reported whatever its sense ("should"), and "can"
+	 * is not a weak word.
+	 */
+	@Test
+	void scoresOnlyNounsAdjectivesAndAdverbsAndAddsTheWeakWords() {
+		String text = "The system should be ready for the event and can scale fast.";
+		Linkdef linkType = mock(Linkdef.class);
+		when(dictionaryRepository.findLinkDef(1L)).thenReturn(linkType);
+		List<NLPText> leaves = new ArrayList<>();
+		leaves.add(word("should", PartOfSpeech.MODAL, null, 0));
+		leaves.add(word("be", PartOfSpeech.VERB, linkType, 0.42));
+		leaves.add(word("ready", PartOfSpeech.ADJECTIVE, linkType, 0.91));
+		leaves.add(word("event", PartOfSpeech.NOUN, linkType, 0.199));
+		leaves.add(word("can", PartOfSpeech.MODAL, null, 0));
+		leaves.add(word("scale", PartOfSpeech.VERB, linkType, 0.3));
+		leaves.add(word("fast", PartOfSpeech.ADVERB, linkType, 0.95));
+		NLPText nlpText = mock(NLPText.class);
+		when(nlpText.getLeaves()).thenReturn(leaves);
+		when(nlpProcessorFactory.processText(anyString())).thenReturn(nlpText);
+		@SuppressWarnings("unchecked")
+		NLPProcessor<java.util.Collection<NLPText>> suggester = mock(NLPProcessor.class);
+		when(suggester.process(any())).thenReturn(List.of());
+		when(nlpProcessorFactory.getMoreSpecificWordSuggester()).thenReturn(suggester);
+
+		AssistantResult result = assistant.analyze(context(), textEntity("", text));
+
+		assertThat(result.annotationActions()).filteredOn(
+				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
+				.extracting(a -> a.metadata().get("word"))
+				.containsExactly("should", "event", "fast");
+	}
+
+	/** A leaf of the given part of speech whose sense scores {@code infoContent}; no sense if linkType is null. */
+	private NLPText word(String text, PartOfSpeech pos, Linkdef linkType, double infoContent) {
+		NLPText word = mock(NLPText.class);
+		when(word.getText()).thenReturn(text);
+		when(word.in(any(PartOfSpeech[].class)))
+				.thenAnswer(inv -> Arrays.asList(inv.getArguments()).contains(pos));
+		if (linkType != null) {
+			Sense sense = mock(Sense.class);
+			Synset synset = mock(Synset.class);
+			when(sense.getSynset()).thenReturn(synset);
+			when(word.getDictionaryWordSense()).thenReturn(sense);
+			when(dictionaryRepository.infoContent(synset, linkType)).thenReturn(infoContent);
+		}
+		return word;
 	}
 
 	private static AssistantContext context() {

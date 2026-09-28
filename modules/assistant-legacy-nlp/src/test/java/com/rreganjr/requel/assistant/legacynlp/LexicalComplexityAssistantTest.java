@@ -32,7 +32,10 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
+import com.rreganjr.nlp.dictionary.NLPText;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
@@ -49,6 +52,28 @@ class LexicalComplexityAssistantTest {
 	void declaresIdentityAndTargetType() {
 		assertThat(assistant.assistantId()).isEqualTo("legacy-lexical-complexity");
 		assertThat(assistant.targetType()).isEqualTo(TextEntity.class);
+	}
+
+	/** #268/#269: a complex sentence is quoted only if the author wrote it. */
+	@Test
+	void aComplexSentenceIsReportedOnlyIfItIsInTheSourceText() {
+		String written = "The operator rotates the key while the stream that the panel feeds is live.";
+		assertThat(analyzeOneComplexSentence(written, written).annotationActions()).hasSize(2);
+		assertThat(analyzeOneComplexSentence(written, "le, not a person that the panel feeds")
+				.annotationActions()).isEmpty();
+	}
+
+	private AssistantResult analyzeOneComplexSentence(String text, String sentenceText) {
+		@SuppressWarnings("unchecked")
+		NLPProcessor<Integer> depthFinder = mock(NLPProcessor.class);
+		NLPText sentence = mock(NLPText.class);
+		when(nlpProcessorFactory.processText(text)).thenReturn(sentence);
+		when(nlpProcessorFactory.getConstituentTreeDepthFinder()).thenReturn(depthFinder);
+		when(sentence.is(GrammaticalStructureLevel.PARAGRAPH)).thenReturn(false);
+		when(sentence.is(GrammaticalStructureLevel.SENTENCE)).thenReturn(true);
+		when(sentence.getText()).thenReturn(sentenceText);
+		when(depthFinder.process(sentence)).thenReturn(99);
+		return assistant.analyze(context(), textEntity("", text));
 	}
 
 	@Test

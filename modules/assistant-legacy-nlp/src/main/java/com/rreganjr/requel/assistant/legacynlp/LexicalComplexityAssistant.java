@@ -122,7 +122,7 @@ public class LexicalComplexityAssistant implements RequelAssistant<TextEntity> {
 		try {
 			NLPText nlpText = nlpProcessorFactory.processText(text);
 			NLPProcessor<Integer> depthFinder = nlpProcessorFactory.getConstituentTreeDepthFinder();
-			collectComplexSentences(builder, targetRef, propertyName, nlpText, depthFinder);
+			collectComplexSentences(builder, targetRef, propertyName, text, nlpText, depthFinder);
 		} catch (RuntimeException e) {
 			log.warn("complexity analysis of the {} of {} failed; skipping: {}", propertyName,
 					targetRef, e.toString());
@@ -130,14 +130,21 @@ public class LexicalComplexityAssistant implements RequelAssistant<TextEntity> {
 	}
 
 	private void collectComplexSentences(AssistantResult.Builder builder, EntityRef targetRef,
-			String propertyName, NLPText node, NLPProcessor<Integer> depthFinder) {
+			String propertyName, String source, NLPText node, NLPProcessor<Integer> depthFinder) {
 		if (node.is(GrammaticalStructureLevel.PARAGRAPH)) {
 			for (NLPText sentence : node.getChildren()) {
-				collectComplexSentences(builder, targetRef, propertyName, sentence, depthFinder);
+				collectComplexSentences(builder, targetRef, propertyName, source, sentence,
+						depthFinder);
 			}
 		} else if (node.is(GrammaticalStructureLevel.SENTENCE)) {
 			Integer depth = depthFinder.process(node);
 			if (depth != null && depth > COMPLEXITY_DEPTH_THRESHOLD) {
+				// #268/#269: never quote a sentence the author didn't write (a parser fragment).
+				if (!LexicalEvidence.occurs(source, node.getText())) {
+					log.warn("complexity: dropping a sentence on the {} of {}: not in the source text",
+							propertyName, targetRef);
+					return;
+				}
 				emitComplexityIssue(builder, targetRef, propertyName, node);
 			}
 		}

@@ -28,13 +28,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.NLPProcessor;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.NLPText;
@@ -45,13 +50,17 @@ import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.UserRef;
 import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.TextEntity;
 
 class LexicalSpellingAssistantTest {
 
 	private final NLPProcessorFactory nlpProcessorFactory = mock(NLPProcessorFactory.class);
+	private final DictionaryRepository dictionaryRepository = mock(DictionaryRepository.class);
 	private final LexicalSpellingAssistant assistant = new LexicalSpellingAssistant(
-			nlpProcessorFactory);
+			nlpProcessorFactory, dictionaryRepository);
 
 	@Test
 	void declaresIdentityAndTargetType() {
@@ -127,6 +136,89 @@ class LexicalSpellingAssistantTest {
 
 		// 1 issue + add-dictionary + ignore + add-glossary + add-actor, no change-spelling
 		assertThat(result.annotationActions()).hasSize(5);
+	}
+
+	/**
+	 * #268/#269: a token that isn't in the text the author wrote (before #314 the sentencizer cut
+	 * "permissions" to "ermissions") is dropped rather than reported as a misspelling.
+	 */
+	@Test
+	void aWordThatIsNotInTheSourceTextIsNotReported() {
+		@SuppressWarnings("unchecked")
+		NLPProcessor<Boolean> spellChecker = mock(NLPProcessor.class);
+		@SuppressWarnings("unchecked")
+		NLPProcessor<java.util.Collection<NLPText>> similarWordFinder = mock(NLPProcessor.class);
+		NLPText nlpText = mock(NLPText.class);
+		NLPText fragment = mock(NLPText.class);
+
+		when(nlpProcessorFactory.processText(anyString())).thenReturn(nlpText);
+		when(nlpProcessorFactory.getSpellingChecker(7L)).thenReturn(spellChecker);
+		when(nlpProcessorFactory.getSimilarWordFinder(7L)).thenReturn(similarWordFinder);
+		when(nlpText.getLeaves()).thenReturn(List.of(fragment));
+		when(fragment.in(any(PartOfSpeech[].class))).thenReturn(false);
+		when(fragment.in(any(ParseTag[].class))).thenReturn(false);
+		when(fragment.getText()).thenReturn("ermissions");
+		when(spellChecker.process(fragment)).thenReturn(false);
+
+		AssistantResult result = assistant.analyze(context(),
+				textEntity("", "Review the Zoom webinar permissions matrix."));
+
+		assertThat(result.annotationActions()).isEmpty();
+	}
+
+	/**
+	 * #268: the project's own vocabulary and tokens that aren't ordinary words are not reported,
+	 * even though the dictionary doesn't know them; an ordinary unknown word still is.
+	 */
+	@Test
+	void projectVocabularyAndNonWordsAreNotReported() {
+		ProjectOrDomain projectOrDomain = mock(ProjectOrDomain.class);
+		GlossaryTerm webinar = mock(GlossaryTerm.class);
+		when(webinar.getName()).thenReturn("Webinar");
+		SortedSet<GlossaryTerm> terms = new TreeSet<>(Comparator.comparing(GlossaryTerm::getName));
+		terms.add(webinar);
+		Actor host = mock(Actor.class);
+		when(host.getName()).thenReturn("Zoom Host");
+		doReturn(terms).when(projectOrDomain).getGlossaryTerms();
+		doReturn(Set.of(host)).when(projectOrDomain).getActors();
+		when(dictionaryRepository.isKnownWord(7L, "hosts")).thenReturn(false);
+		when(dictionaryRepository.isKnownWord(7L, "host")).thenReturn(true);
+
+		String text = "The Zoom host co-hosts the webinar over RTMP into CloudWatch v1 ENTRA_SETUP datalaek";
+		List<String> tokens = List.of("Zoom", "co-hosts", "webinar", "RTMP", "CloudWatch", "v1",
+				"ENTRA_SETUP", "datalaek");
+		AssistantResult result = analyzeUnknownTokens(projectOrDomain, text, tokens);
+
+		assertThat(result.annotationActions()).filteredOn(
+				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
+				.extracting(a -> a.metadata().get("word")).containsExactly("datalaek");
+	}
+
+	/** Every token is unknown to the spell checker; only the #268 skips can keep it out. */
+	private AssistantResult analyzeUnknownTokens(ProjectOrDomain projectOrDomain, String text,
+			List<String> tokens) {
+		@SuppressWarnings("unchecked")
+		NLPProcessor<Boolean> spellChecker = mock(NLPProcessor.class);
+		@SuppressWarnings("unchecked")
+		NLPProcessor<java.util.Collection<NLPText>> similarWordFinder = mock(NLPProcessor.class);
+		NLPText nlpText = mock(NLPText.class);
+		List<NLPText> leaves = new java.util.ArrayList<>();
+		for (String token : tokens) {
+			NLPText word = mock(NLPText.class);
+			when(word.in(any(PartOfSpeech[].class))).thenReturn(false);
+			when(word.in(any(ParseTag[].class))).thenReturn(false);
+			when(word.getText()).thenReturn(token);
+			leaves.add(word);
+		}
+		when(nlpProcessorFactory.processText(anyString())).thenReturn(nlpText);
+		when(nlpProcessorFactory.getSpellingChecker(7L)).thenReturn(spellChecker);
+		when(nlpProcessorFactory.getSimilarWordFinder(7L)).thenReturn(similarWordFinder);
+		when(nlpText.getLeaves()).thenReturn(leaves);
+		when(spellChecker.process(any())).thenReturn(false);
+		when(similarWordFinder.process(any())).thenReturn(List.of());
+		TextEntity entity = textEntity("", text);
+		doReturn(projectOrDomain).when(entity).getProjectOrDomain();
+		return assistant.analyze(context(), entity);
 	}
 
 	@Test

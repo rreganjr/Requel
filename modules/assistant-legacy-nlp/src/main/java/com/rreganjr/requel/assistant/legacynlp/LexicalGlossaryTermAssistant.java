@@ -148,7 +148,16 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 		try {
 			NLPText nlpText = nlpProcessorFactory.processText(text);
 			for (NLPText term : findPotentialTerms(nlpText)) {
-				handleTerm(builder, targetRef, projectOrDomain, term, emittedTerms);
+				// #268/#269: quote the phrase as the author wrote it ("force-stops", not
+				// "force - stops"), and drop a phrase that isn't in the text at all.
+				String quoted = LexicalEvidence.locate(text,
+						term.isLeaf() ? List.of(term) : term.getLeaves());
+				if (quoted == null) {
+					log.warn("glossary-term: dropping \"{}\" on the {} of {}: not in the source text",
+							term.getText(), propertyName, targetRef);
+					continue;
+				}
+				handleTerm(builder, targetRef, projectOrDomain, term, quoted, emittedTerms);
 			}
 		} catch (RuntimeException e) {
 			log.warn("glossary-term analysis of the {} of {} failed; skipping: {}", propertyName,
@@ -156,7 +165,12 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 		}
 	}
 
-	private Set<NLPText> findPotentialTerms(NLPText nlpText) {
+	/**
+	 * The candidate glossary phrases in {@code nlpText}, after the clause / phrase-type /
+	 * possessive / sub-phrase filters. Public for the #268 dev harness
+	 * ({@code LexicalAnalysisHarness}), which reports what each precision rule would do to them.
+	 */
+	public Set<NLPText> findPotentialTerms(NLPText nlpText) {
 		Set<NLPText> potentialTerms = new HashSet<>();
 		for (NLPText nounPhrase : nlpProcessorFactory.getNounPhraseFinder().process(nlpText)) {
 			if (nounPhrase.getLeaves().size() == 1) {
@@ -220,8 +234,8 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 	}
 
 	private void handleTerm(AssistantResult.Builder builder, EntityRef targetRef,
-			ProjectOrDomain projectOrDomain, NLPText term, Set<String> emittedTerms) {
-		String termText = term.getText();
+			ProjectOrDomain projectOrDomain, NLPText term, String termText,
+			Set<String> emittedTerms) {
 		if (!emittedTerms.add(termText.toLowerCase(Locale.ROOT))) {
 			return;
 		}

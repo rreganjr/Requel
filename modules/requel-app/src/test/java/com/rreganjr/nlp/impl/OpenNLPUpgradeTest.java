@@ -79,6 +79,26 @@ class OpenNLPUpgradeTest {
 	}
 
 	/** Exercises AbstractModelReader, the class GHSA-659w-93r5-9j6m was fixed in, on 2.x. */
+	/**
+	 * #268/#269: a later sentence shorter than an earlier one made the pre-#314 sentencizer call
+	 * {@code substring(begin > end)} and throw, which silently dropped the spelling assistant's
+	 * whole result (Scenario 749's stale "Zzz").
+	 */
+	@Test
+	void sentencizerHandlesALaterSentenceShorterThanAnEarlierOne() {
+		assertEquals(List.of("The operator rotates the stream key while the room is live.",
+				"Then it ends.", "Done."),
+				sentences("The operator rotates the stream key while the room is live. Then it ends. Done."));
+	}
+
+	/** #268/#269: em and en dashes and curly quotes inside sentences don't move the boundaries. */
+	@Test
+	void sentencizerKeepsDashesAndCurlyQuotesInsideTheirSentence() {
+		assertEquals(List.of("End the room \u2014 then archive it.",
+				"Pages 3\u20135 say \u201Cforce-stop\u201D twice."),
+				sentences("End the room \u2014 then archive it. Pages 3\u20135 say \u201Cforce-stop\u201D twice."));
+	}
+
 	@Test
 	void readGISModelLoadsParserBuildAndCheckModels() throws Exception {
 		GISModel build = AbstractOpenNLPTool.readGISModel(OpenNLPParser.PROP_PARSER_BUILD_MODEL_FILE_DEFAULT);
