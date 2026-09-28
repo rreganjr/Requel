@@ -188,6 +188,42 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		return ignoredFindingStore.ignoredKeys(context.projectRef().entityId());
 	}
 
+	/**
+	 * Issue #268: {@code assistant|suffix} for every ignored key, where the suffix is the key after
+	 * {@code assistant:type:id:}. An action with {@code scope=PROJECT} is ignored when any entity's
+	 * finding with the same {@code shareKey} was: ignoring a glossary candidate once ignores it for
+	 * the whole project, and the rows stay per entity, so export, import and the ignore list are
+	 * unchanged.
+	 */
+	private static Set<String> ignoredShareKeys(Set<String> ignoredKeys) {
+		Set<String> shareKeys = new HashSet<String>();
+		for (String key : ignoredKeys) {
+			String[] parts = key.split(":", 4);
+			if (parts.length == 4) {
+				shareKeys.add(parts[0] + "|" + parts[3]);
+			}
+		}
+		return shareKeys;
+	}
+
+	private static boolean isIgnoredProjectWide(String assistantId, AnnotationAction action,
+			Set<String> ignoredShareKeys) {
+		String shareKey = projectShareKey(action);
+		return shareKey != null && assistantId != null
+				&& action.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE
+				&& ignoredShareKeys.contains(assistantId.toLowerCase(java.util.Locale.ROOT) + "|"
+						+ shareKey.toLowerCase(java.util.Locale.ROOT));
+	}
+
+	/** The action's {@code shareKey} when it is {@code scope=PROJECT}, else null (#268). */
+	private static String projectShareKey(AnnotationAction action) {
+		if (action.metadata() == null || !"PROJECT".equals(action.metadata().get("scope"))) {
+			return null;
+		}
+		Object shareKey = action.metadata().get("shareKey");
+		return shareKey instanceof String key && !key.isBlank() ? key : null;
+	}
+
 	private static boolean isIgnored(AnnotationAction action, Set<String> ignoredKeys) {
 		if (ignoredKeys.isEmpty() || action.actionKey() == null) {
 			return false;
@@ -215,10 +251,12 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		Map<EntityRef, Set<String>> producedKeysByTarget = new HashMap<EntityRef, Set<String>>();
 		int newFindings = 0;
 		Set<String> ignoredKeys = ignoredKeys(context);
+		Set<String> ignoredShareKeys = ignoredShareKeys(ignoredKeys);
 
 		for (AnnotationAction action : result.annotationActions()) {
 			try {
-				if (isIgnored(action, ignoredKeys)) {
+				if (isIgnored(action, ignoredKeys)
+						|| isIgnoredProjectWide(result.assistantId(), action, ignoredShareKeys)) {
 					// Issue #320: the user ignored this finding on this entity and property. Not
 					// applying it also skips its positions (their parent isn't in
 					// createdByActionKey), and leaving the key out of producedKeysByTarget lets an
@@ -296,7 +334,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			case CREATE_OR_UPDATE_NOTE:
 				return applyNote(action, editedBy, createdByActionKey);
 			case CREATE_OR_UPDATE_ISSUE:
-				return applyIssue(action, editedBy, createdByActionKey);
+				return applyIssue(context, result, action, editedBy, createdByActionKey);
 			case CREATE_OR_UPDATE_POSITION:
 				return applyPosition(action, editedBy, createdByActionKey);
 			case CREATE_OR_UPDATE_ARGUMENT:
@@ -516,8 +554,9 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		return new AppliedAction(note.getId());
 	}
 
-	private AppliedAction applyIssue(AnnotationAction action, User editedBy,
-			Map<String, Object> createdByActionKey) throws Exception {
+	private AppliedAction applyIssue(AssistantContext context, AssistantResult result,
+			AnnotationAction action, User editedBy, Map<String, Object> createdByActionKey)
+			throws Exception {
 		Annotatable annotatable = resolveAnnotatable(action.targetRef());
 		if (annotatable == null) {
 			log.info("Skipping issue action {} — target {} did not resolve", action.actionKey(),
@@ -535,6 +574,11 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		// from different assistants/finding-types without one overwriting another, and
 		// avoids hijacking human-authored annotations with matching text.
 		Issue existing = loadExistingAnnotation(action.actionKey(), Issue.class);
+		if (existing == null) {
+			// Issue #268: a project-scoped finding joins the open issue another entity's finding
+			// with the same shareKey already applied, instead of raising a second one.
+			existing = findSharedIssue(context, result.assistantId(), projectShareKey(action));
+		}
 
 		Issue issue;
 		if ("LEXICAL".equalsIgnoreCase(kind)) {
@@ -735,6 +779,38 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 * action key and loads the annotation it points at; returns {@code null} for a
 	 * first-time finding or when the linked annotation no longer exists.
 	 */
+	/**
+	 * Issue #268: the open issue behind an {@code ACTIVE} finding of this assistant, in this
+	 * project, whose key suffix (after {@code assistant:type:id:}) is {@code shareKey}; the lowest
+	 * issue id when there are several. Null when there is no share key or no such issue.
+	 */
+	private Issue findSharedIssue(AssistantContext context, String assistantId, String shareKey) {
+		if (shareKey == null || context.projectRef() == null || assistantId == null) {
+			return null;
+		}
+		Issue shared = null;
+		for (AssistantFindingEntity finding : findingRepository.findByAssistantIdAndProjectIdAndState(
+				assistantId, context.projectRef().entityId(), AssistantFindingState.ACTIVE.name())) {
+			String[] parts = finding.getIdempotencyKey() == null ? new String[0]
+					: finding.getIdempotencyKey().split(":", 4);
+			if (parts.length != 4 || !parts[3].equalsIgnoreCase(shareKey)
+					|| finding.getAppliedAnnotationId() == null) {
+				continue;
+			}
+			Issue issue;
+			try {
+				issue = annotationRepository.findById(Issue.class, finding.getAppliedAnnotationId());
+			} catch (RuntimeException e) {
+				continue;
+			}
+			if (issue != null && !issue.isResolved()
+					&& (shared == null || issue.getId() < shared.getId())) {
+				shared = issue;
+			}
+		}
+		return shared;
+	}
+
 	private <T> T loadExistingAnnotation(String actionKey, Class<T> annotationType) {
 		return findingRepository.findByIdempotencyKey(actionKey)
 				.map(AssistantFindingEntity::getAppliedAnnotationId)

@@ -37,6 +37,7 @@ import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
+import com.rreganjr.requel.project.command.ProjectAnalysisRequestSource;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.EditReportGeneratorCommand;
@@ -87,7 +88,7 @@ import org.springframework.util.StringUtils;
 @Controller("importProjectCommand")
 @Scope("prototype")
 public class ImportProjectStreamingCommandImpl extends AbstractEditProjectCommand
-        implements ImportProjectCommand, ProjectScopedCommand {
+        implements ImportProjectCommand, ProjectScopedCommand, ProjectAnalysisRequestSource {
 
     private final ActorStaxImporter actorStaxImporter;
     private final com.rreganjr.requel.utils.jaxb.imports.GoalStaxImporter goalStaxImporter;
@@ -425,11 +426,26 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         }
     }
 
+    /**
+     * Not used: an import is analyzed through the assistant SPI as a whole project
+     * ({@link #getAnalysisProject()}, #268). The old {@code AssistantFacade.analyzeProject}
+     * path no longer runs.
+     */
     @Override
     public void invokeAnalysis() {
-        if (isAnalysisEnabled()) {
-            getAssistantManager().analyzeProject(getProject());
-        }
+    }
+
+    /**
+     * @return the imported project, or {@code null} when analysis is turned off for this import.
+     */
+    @Override
+    public Project getAnalysisProject() {
+        return isAnalysisEnabled() ? getProject() : null;
+    }
+
+    @Override
+    public User getAnalysisTriggeredBy() {
+        return getEditedBy();
     }
 
     private String resolveProjectName() {

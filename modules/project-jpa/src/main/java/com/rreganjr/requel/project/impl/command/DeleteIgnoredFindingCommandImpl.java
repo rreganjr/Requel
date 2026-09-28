@@ -121,7 +121,28 @@ public class DeleteIgnoredFindingCommandImpl extends AbstractProjectCommand
 		if (target != null && ignored.getAnnotationId() != null) {
 			unlinkResolvedIssue(target, ignored.getAnnotationId());
 		}
+		// Issue #268: a glossary candidate is one issue for the whole project, and ignoring it on
+		// any entity ignores it everywhere, so un-ignoring it removes the ignore from every entity.
+		// The entity above is re-analyzed now; the others raise the phrase on their next analysis.
+		if (GLOSSARY_TERM.equals(ignored.getFindingType())) {
+			for (IgnoredFinding sibling : getIgnoredFindingStore().list(project.getId())) {
+				if (sibling.getId().equals(ignored.getId())
+						|| !ignored.getAssistantId().equals(sibling.getAssistantId())
+						|| sibling.getKeySuffix() == null
+						|| !sibling.getKeySuffix().equalsIgnoreCase(ignored.getKeySuffix())) {
+					continue;
+				}
+				ProjectOrDomainEntity siblingTarget = loadTarget(sibling);
+				getIgnoredFindingStore().delete(project.getId(), sibling.getId());
+				if (siblingTarget != null && sibling.getAnnotationId() != null) {
+					unlinkResolvedIssue(siblingTarget, sibling.getAnnotationId());
+				}
+			}
+		}
 	}
+
+	/** The glossary-term finding type, whose ignore applies to the whole project (#268). */
+	private static final String GLOSSARY_TERM = "glossary-term";
 
 	private ProjectOrDomainEntity loadTarget(IgnoredFinding ignored) {
 		Class<?> type = IgnorableEntityTypes.BY_NAME.get(ignored.getTargetType());

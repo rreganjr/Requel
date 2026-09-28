@@ -182,7 +182,7 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 				"kind", "LEXICAL",
 				"word", wordText,
 				"annotatableEntityPropertyName", propertyName,
-				"mustResolve", Boolean.TRUE,
+				"mustResolve", Boolean.FALSE,
 				"findingType", "unknown-word");
 		builder.annotationAction(new AnnotationAction(issueKey,
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, targetRef, null,

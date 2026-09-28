@@ -863,6 +863,28 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 .andExpect(jsonPath("$[?(@.subject == '" + subject + "')]").isEmpty());
     }
 
+    // Issue #268: re-running analysis writes issues on the caller's behalf, so it needs
+    // Annotation[Edit]. The deleter has Annotation[Delete] only.
+    @Test
+    void analyzeProjectNeedsAnnotationEdit() throws Exception {
+        String body = objectMapper.writeValueAsString(Map.of("projectName", testProjectName));
+        mockMvc.perform(post("/api/commands/AnalyzeProject")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/commands/AnalyzeProject")
+                        .header("Authorization", "Bearer " + noAccessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/commands/AnalyzeProject")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+    }
+
     @Test
     void deleterCannotAddAProjectDictionaryWord() throws Exception {
         mockMvc.perform(post("/api/commands/AddProjectDictionaryWord")

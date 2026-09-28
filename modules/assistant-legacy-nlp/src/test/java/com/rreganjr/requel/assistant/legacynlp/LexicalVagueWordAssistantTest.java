@@ -103,6 +103,9 @@ class LexicalVagueWordAssistantTest {
 				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
 				.extracting(a -> a.metadata().get("word"))
 				.containsExactly("should", "event", "fast");
+		assertThat(result.annotationActions()).filteredOn(
+				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
+				.allSatisfy(a -> assertThat(a.metadata()).containsEntry("mustResolve", Boolean.FALSE));
 	}
 
 	/** A leaf of the given part of speech whose sense scores {@code infoContent}; no sense if linkType is null. */

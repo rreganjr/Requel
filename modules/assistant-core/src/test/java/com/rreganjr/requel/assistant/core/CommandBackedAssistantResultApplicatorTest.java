@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,7 @@ import com.rreganjr.requel.annotation.command.DeleteNoteCommand;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.IgnoredFindingStore;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
@@ -320,6 +322,97 @@ class CommandBackedAssistantResultApplicatorTest {
 				.save(argThat((AssistantFindingEntity f) -> "urgent".equals(f.getSeverity())));
 	}
 
+	// ---- #268: one glossary candidate per project ----------------------------
+
+	private static final String GLOSSARY = "legacy-lexical-glossary-term";
+	private static final Map<String, Object> SHARED = Map.of("kind", "LEXICAL",
+			"word", "admin console", "findingType", "glossary-term", "scope", "PROJECT",
+			"shareKey", "glossary-term:admin console");
+
+	@Test
+	void aProjectScopedFindingJoinsTheOpenIssueAnotherEntityAlreadyHas() throws Exception {
+		EditLexicalIssueCommand command = stubLexicalIssueCommand();
+		Issue shared = sharedIssue(77L, false);
+
+		applyIssueAction(GLOSSARY + ":Goal:1:glossary-term:admin console", null, SHARED);
+
+		verify(command).setIssue(shared);
+		verify(commandHandler).execute(command);
+	}
+
+	@Test
+	void aResolvedSharedIssueIsNotJoined() throws Exception {
+		EditLexicalIssueCommand command = stubLexicalIssueCommand();
+		sharedIssue(77L, true);
+
+		applyIssueAction(GLOSSARY + ":Goal:1:glossary-term:admin console", null, SHARED);
+
+		verify(command, never()).setIssue(any());
+		verify(commandHandler).execute(command);
+	}
+
+	@Test
+	void aFindingWithoutProjectScopeNeverJoinsAnotherEntitysIssue() throws Exception {
+		EditLexicalIssueCommand command = stubLexicalIssueCommand();
+		sharedIssue(77L, false);
+
+		applyIssueAction(GLOSSARY + ":Goal:1:glossary-term:admin console", null,
+				Map.of("kind", "LEXICAL", "word", "admin console", "shareKey",
+						"glossary-term:admin console"));
+
+		verify(command, never()).setIssue(any());
+	}
+
+	@Test
+	void ignoringAGlossaryCandidateOnOneEntityIgnoresItOnEveryEntity() throws Exception {
+		stubLexicalIssueCommand();
+		IgnoredFindingStore store = mock(IgnoredFindingStore.class);
+		when(store.ignoredKeys(7L))
+				.thenReturn(Set.of(GLOSSARY + ":story:2:glossary-term:admin console"));
+
+		applyIssueAction(GLOSSARY + ":Goal:1:glossary-term:Admin Console", null, SHARED, store);
+
+		verify(commandHandler, never()).execute(any());
+	}
+
+	@Test
+	void anotherAssistantsIgnoreWithTheSameSuffixDoesNotApply() throws Exception {
+		EditLexicalIssueCommand command = stubLexicalIssueCommand();
+		IgnoredFindingStore store = mock(IgnoredFindingStore.class);
+		when(store.ignoredKeys(7L))
+				.thenReturn(Set.of("legacy-lexical:story:2:glossary-term:admin console"));
+
+		applyIssueAction(GLOSSARY + ":Goal:1:glossary-term:admin console", null, SHARED, store);
+
+		verify(commandHandler).execute(command);
+	}
+
+	private EditLexicalIssueCommand stubLexicalIssueCommand() throws Exception {
+		EditLexicalIssueCommand command = mock(EditLexicalIssueCommand.class);
+		when(annotationCommandFactory.newEditLexicalIssueCommand()).thenReturn(command);
+		when(commandHandler.execute(command)).thenReturn(command);
+		Issue issue = mock(Issue.class);
+		when(issue.getId()).thenReturn(42L);
+		when(command.getIssue()).thenReturn(issue);
+		return command;
+	}
+
+	/** An issue another entity's (Story 2) ACTIVE glossary finding applied. */
+	private Issue sharedIssue(Long id, boolean resolved) {
+		AssistantFindingEntity finding = new AssistantFindingEntity(UUID.randomUUID(),
+				GLOSSARY + ":Story:2:glossary-term:Admin Console", GLOSSARY, "Story", 2L,
+				"glossary-term", AssistantFindingState.ACTIVE.name(), UUID.randomUUID(),
+				Instant.parse("2026-05-29T00:00:00Z"));
+		finding.setAppliedAnnotationId(id);
+		when(findingRepository.findByAssistantIdAndProjectIdAndState(GLOSSARY, 7L,
+				AssistantFindingState.ACTIVE.name())).thenReturn(List.of(finding));
+		Issue issue = mock(Issue.class);
+		when(issue.getId()).thenReturn(id);
+		when(issue.isResolved()).thenReturn(resolved);
+		when(annotationRepository.findById(Issue.class, id)).thenReturn(issue);
+		return issue;
+	}
+
 	private EditIssueCommand stubIssueCommand() throws Exception {
 		EditIssueCommand command = mock(EditIssueCommand.class);
 		when(annotationCommandFactory.newEditIssueCommand()).thenReturn(command);
@@ -331,6 +424,11 @@ class CommandBackedAssistantResultApplicatorTest {
 	}
 
 	private void applyIssueAction(String key, String severity, Map<String, Object> metadata) {
+		applyIssueAction(key, severity, metadata, null);
+	}
+
+	private void applyIssueAction(String key, String severity, Map<String, Object> metadata,
+			IgnoredFindingStore ignoredFindingStore) {
 		EntityRef target = EntityRef.of("Goal", 1L);
 		ProjectOrDomainEntity goal = mock(ProjectOrDomainEntity.class);
 		AssistantTargetLoader loader = mock(AssistantTargetLoader.class);
@@ -340,6 +438,9 @@ class CommandBackedAssistantResultApplicatorTest {
 		CommandBackedAssistantResultApplicator applicator = new CommandBackedAssistantResultApplicator(
 				commandHandler, annotationCommandFactory, projectCommandFactory, annotationRepository,
 				userRepository, findingRepository, runRepository, List.of(loader), fixedClock);
+		if (ignoredFindingStore != null) {
+			applicator.setIgnoredFindingStore(ignoredFindingStore);
+		}
 
 		AnnotationAction action = new AnnotationAction(key,
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, target, null,

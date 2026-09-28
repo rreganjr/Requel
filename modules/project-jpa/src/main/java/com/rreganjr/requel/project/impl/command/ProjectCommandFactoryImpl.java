@@ -227,6 +227,12 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	}
 
 	@Override
+	public com.rreganjr.requel.project.command.AnalyzeProjectCommand newAnalyzeProjectCommand() {
+		return (com.rreganjr.requel.project.command.AnalyzeProjectCommand) getCreationStrategy()
+				.newInstance(AnalyzeProjectCommandImpl.class);
+	}
+
+	@Override
 	public AddInstallDictionaryWordCommand newAddInstallDictionaryWordCommand() {
 		return (AddInstallDictionaryWordCommand) getCreationStrategy().newInstance(
 				AddInstallDictionaryWordCommandImpl.class);

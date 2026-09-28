@@ -99,7 +99,8 @@ class LexicalSpellingAssistantTest {
 		AnnotationAction issue = result.annotationActions().get(0);
 		assertThat(issue.actionType()).isEqualTo(AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE);
 		assertThat(issue.metadata()).containsEntry("kind", "LEXICAL")
-				.containsEntry("word", "datalaek").containsEntry("findingType", "unknown-word");
+				.containsEntry("word", "datalaek").containsEntry("findingType", "unknown-word")
+				.containsEntry("mustResolve", Boolean.FALSE);
 		assertThat(issue.targetRef()).isEqualTo(EntityRef.of("TextEntity", 1L));
 		assertThat(result.annotationActions()).filteredOn(
 				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION)

@@ -326,18 +326,23 @@ Everything else is unchanged, including the #313 project dictionary layer.
   case-insensitive) in the Name or Text of at least three text entities in the project, or it is a
   proper noun. The project's text is read once per run. (Rules revised from the harness; see
   "Glossary rules, revised from the harness".)
-- **One issue per project.** The action carries `scope=PROJECT` and the normalized phrase. The
-  applicator, when it has no existing issue for this entity's action key, looks for an open
-  glossary-candidate `LexicalIssue` in the same project with the same normalized `word` and
-  attaches this entity to it instead of creating a new one. Findings stay per entity (one
-  `assistant_findings` row per entity, all pointing at the same annotation), so the existing
-  per-entity cleanup detaches one entity at a time, and the last detach deletes the issue.
-- **Project-wide ignore.** The action also carries `projectIgnoreKey =
-  legacy-lexical-glossary-term:Project:<projectId>:glossary-term:<normalized>`. `isIgnored`
-  checks it alongside the action key. When a glossary candidate is resolved with an
-  `IgnorePosition`, `FindingResolutionTrackingCommandHandler` records one extra
-  `ignored_findings` row with `target_type = 'Project'`, `target_id = projectId` and that key.
-  The #319 list shows such a row as "whole project"; removing it deletes the project row only.
+- **One issue per project.** The action carries `scope=PROJECT` and `shareKey =
+  glossary-term:<normalized, lower-cased>`. The applicator, when it has no existing issue for
+  this entity's action key, looks at the assistant's `ACTIVE` findings in the project
+  (`AssistantFindingRepository.findByAssistantIdAndProjectIdAndState`) for one whose key suffix
+  (after `assistant:type:id:`) is the share key and whose issue is open, and attaches this entity
+  to that issue instead of creating a new one. Findings stay per entity (one `assistant_findings`
+  row per entity, all pointing at the same annotation), so the existing per-entity cleanup
+  detaches one entity at a time, and the last detach deletes the issue.
+- **Project-wide ignore, derived rather than stored** (revised while implementing; the first
+  design stored an extra `target_type = 'Project'` row). Ignoring the shared issue already records
+  one `ignored_findings` row per finding behind it, i.e. per entity. The applicator treats a
+  `scope=PROJECT` action as ignored when any ignored key in the project has the same assistant
+  and key suffix, so a new entity using the phrase is covered too. No schema, export, import or
+  list change: the rows are ordinary per-entity ignores. `DeleteIgnoredFindingCommandImpl`
+  removes a glossary-term ignore's siblings (same assistant and key suffix) with it, so removing
+  it from the list un-ignores the phrase everywhere; the entity whose row was removed is
+  re-analyzed at once, the others on their next analysis.
 - The glossary check keeps its current skip of determiner-only and possessive phrases.
 
 ### Quoted evidence (#269 remainder, all four assistants)
@@ -382,8 +387,11 @@ glossary check), and whose word the run did not produce, is removed from the ent
   goals, stories, actors, use cases, scenarios, steps and glossary terms in one
   read, builds one `AnalysisRequest` each, and calls a new
   `AssistantDispatcher.dispatchAll(List<AnalysisRequest>)`.
+- The entities are listed in one read-only transaction and dispatched after it ends, so no run
+  starts before the read finishes. Report generators and stakeholders are not analyzed.
 - `dispatchAll` queues every run record, then submits **one** executor task that runs them in
-  order, so a large project takes one executor slot. A rejected submit marks all its runs FAILED.
+  order, so a large project takes one executor slot. A run that throws is logged and the batch
+  goes on. A rejected submit marks all its runs FAILED.
 - New marker interface `ProjectAnalysisRequestSource` (`project-domain`): `Project
   getAnalysisProject()`, `User getAnalysisTriggeredBy()`. `AnalysisInvokingCommandHandler` checks
   it first and calls `dispatchProject`.
@@ -436,19 +444,18 @@ UPDATE `annotations` SET `must_be_resolved` = 0
 3. **Spelling.** Vocabulary, acronym and hyphen skips.
 4. **Vague words.** The rule chosen at the checkpoint.
 5. **Glossary candidates.** Normalization, existing-vocabulary match, verb-phrase filter,
-   proper-noun rule, threshold. Then the project-scoped issue in the applicator and the
-   project-wide ignore in `FindingResolutionTrackingCommandHandler`, `IgnoredFindingStore` and the
-   #319 list.
+   proper-noun rule, threshold. Then the project-scoped issue and the derived project-wide ignore
+   in the applicator, and sibling removal in `DeleteIgnoredFindingCommandImpl`.
 6. **Advisory.** `mustResolve: false` in the four assistants.
 7. **Dispatch.** `dispatchAll`, `ProjectAnalysisRequestSource`, `dispatchProject`; move import
    onto it; `AnalyzeProject` with input DTO, registrar entry, allowlist and description.
 8. **Old issues and partial runs.** Removal of unowned, unresolved lexical issues on an analyzed
    entity; incomplete results, the reconcile skip and `PARTIAL` on the run.
 9. **Settings.** V24, store, registry filter, command, query, delete path.
-10. **Glossary terms.** `EditGlossaryTerm` as an `AnalysisRequestSource`; glossary
-    terms in `dispatchProject`; `ProjectAnnotatableTextEditorConfiguration` entry.
-11. **Angular.** The Assistants panel and Re-run button on the overview page; "whole project"
-    ignores in the #319 list.
+10. **Glossary terms.** `EditGlossaryTerm` as an `AnalysisRequestSource`;
+    `ProjectAnnotatableTextEditorConfiguration` entry. (Glossary terms went into
+    `dispatchProject` in step 7.)
+11. **Angular.** The Assistants panel and Re-run button on the overview page.
 12. **Verify.** `tmp/268-verify.sh` (below). Then on the local stack: add Webinar and Livestream
     as glossary terms in project 621, re-run analysis, run `tmp/268-counts.sql` into
     `tmp/268-after.txt`, and record the before/after table on #268.
@@ -489,7 +496,8 @@ UPDATE `annotations` SET `must_be_resolved` = 0
 - `CommandBackedAssistantResultApplicatorTest`: a `scope=PROJECT` action with an open issue for
   the same phrase on another entity attaches to it (one issue, two annotatables, two findings); a
   re-run on one entity that no longer has the phrase detaches only that entity; detaching the
-  last deletes the issue; `projectIgnoreKey` in the ignored set skips the action.
+  last deletes the issue; an ignored key on another entity with the same assistant and suffix
+  skips the action, and one from another assistant doesn't; a resolved shared issue isn't joined.
 - `SimpleAssistantRegistry`: a disabled switchable assistant is not returned for that project and
   is for another; a non-switchable assistant can't be disabled.
 - `AssistantDispatcherImpl.dispatchAll`: N runs queued, one executor submit, runs in order; a
@@ -502,9 +510,11 @@ UPDATE `annotations` SET `must_be_resolved` = 0
   scenario and re-running auto-resolves the old Name's spelling issue; an old-path issue (native
   `JdbcTemplate` insert with `source` null) on an analyzed entity is removed when the run doesn't
   reproduce it, and a resolved one is kept; `AnalyzeProject` without Annotation[Edit] is refused.
-- `LexicalFindingScopeTest`: the same phrase in two entities yields one glossary issue on both;
-  ignoring it records the project row and a third entity using the phrase raises nothing.
-- `IgnoredFindingTest`: removing the project-wide ignore raises the candidate again on re-run.
+- `LexicalFindingScopeTest`: the same phrase in two entities yields one glossary issue on both
+  (spelling stays one issue per entity).
+- `IgnoredFindingTest`: ignoring the shared issue on one entity leaves a later entity using the
+  phrase unflagged; removing one of the ignore rows removes them all and the phrase is raised
+  again.
 - `ProjectAssistantSettingsIT` (new): disabling spelling stops spelling findings and leaves the
   other three running; the query lists the four; `EditProjectAssistantSetting` needs
   Project[Edit]; deleting the project deletes its rows.
@@ -524,7 +534,6 @@ UPDATE `annotations` SET `must_be_resolved` = 0
 - The Assistants panel (`project-workspace.spec.ts`): renders the four toggles from the query, a toggle sends
   `EditProjectAssistantSetting`, Re-run sends `AnalyzeProject` and announces it, a user without
   Project[Edit] sees the toggles disabled.
-- The #319 list renders a project-wide ignore as "whole project".
 - e2e: the project workspace page object gains the Assistants panel; one flow toggles an assistant and
   re-runs analysis. Runs in CI.
 
@@ -563,6 +572,10 @@ npx ng build --configuration development
 - **Shared issues against #320's scoping.** #320 made lexical lookups per annotatable on purpose.
   The project-scope lookup is opt-in through `scope=PROJECT`, used by the glossary check only, and
   covered by `LexicalFindingScopeTest` in both directions.
+- **A shared issue's provenance key.** `stampProvenance` writes the applying action's key to
+  `annotations.assistant_idempotency_key`, so a shared glossary issue carries the key of the last
+  entity that joined it. Nothing looks an issue up by that column for glossary findings (the
+  findings table is the index), but the value is "one of the entities", not "the" entity.
 - **Threshold cost.** Each glossary run scans the project's text once. Fine at roundtable size
   (≈70 entities); a much larger project would want a per-run cache or an index.
 - **One task per re-analysis.** A big project re-analyzes serially in one executor thread; that is

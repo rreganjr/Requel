@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.assistant.api;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletionStage;
 
 /**
@@ -28,4 +30,19 @@ import java.util.concurrent.CompletionStage;
 public interface AssistantDispatcher {
 
 	CompletionStage<AssistantRunHandle> dispatch(AnalysisRequest request);
+
+	/**
+	 * Queue a batch of requests, such as every entity of a project (#268). The default
+	 * dispatches each request on its own; an implementation may run the batch as one unit of
+	 * executor work so a large project takes a single slot.
+	 *
+	 * @return one stage per request, in request order.
+	 */
+	default List<CompletionStage<AssistantRunHandle>> dispatchAll(List<AnalysisRequest> requests) {
+		List<CompletionStage<AssistantRunHandle>> stages = new ArrayList<>(requests.size());
+		for (AnalysisRequest request : requests) {
+			stages.add(dispatch(request));
+		}
+		return stages;
+	}
 }

@@ -159,6 +159,12 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public DeleteIgnoredFindingCommand newDeleteIgnoredFindingCommand();
 
 	/**
+	 * @return a new command that re-runs the assistants on every text entity of a project;
+	 *         requires {@code Annotation[Edit]} (issue #268).
+	 */
+	public AnalyzeProjectCommand newAnalyzeProjectCommand();
+
+	/**
 	 * @return a new command adding an installation-wide dictionary word; administrators only
 	 *         (issue #319).
 	 */

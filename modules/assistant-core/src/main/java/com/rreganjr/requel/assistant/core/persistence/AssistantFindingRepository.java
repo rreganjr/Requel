@@ -50,6 +50,13 @@ public interface AssistantFindingRepository
 	 * applicator to reconcile a run's findings against previously recorded ones
 	 * (auto-resolving stale {@code ACTIVE} findings the new run no longer reports).
 	 */
+	/**
+	 * Issue #268: one assistant's findings in a project in one state, for the project-scoped
+	 * glossary candidate that several entities share.
+	 */
+	List<AssistantFindingEntity> findByAssistantIdAndProjectIdAndState(String assistantId,
+			Long projectId, String state);
+
 	List<AssistantFindingEntity> findByAssistantIdAndTargetTypeAndTargetIdAndState(
 			String assistantId, String targetType, Long targetId, String state);
 }

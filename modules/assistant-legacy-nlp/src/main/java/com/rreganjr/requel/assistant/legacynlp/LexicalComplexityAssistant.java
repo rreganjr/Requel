@@ -162,7 +162,7 @@ public class LexicalComplexityAssistant implements RequelAssistant<TextEntity> {
 		Map<String, Object> issueMeta = Map.of(
 				"kind", "LEXICAL",
 				"annotatableEntityPropertyName", propertyName,
-				"mustResolve", Boolean.TRUE,
+				"mustResolve", Boolean.FALSE,
 				"findingType", "complex-text");
 		builder.annotationAction(new AnnotationAction(issueKey,
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, targetRef, null,

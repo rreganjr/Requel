@@ -209,7 +209,7 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 				"kind", "LEXICAL",
 				"word", wordText,
 				"annotatableEntityPropertyName", propertyName,
-				"mustResolve", Boolean.TRUE,
+				"mustResolve", Boolean.FALSE,
 				"findingType", "vague-word");
 		builder.annotationAction(new AnnotationAction(issueKey,
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, targetRef, null,

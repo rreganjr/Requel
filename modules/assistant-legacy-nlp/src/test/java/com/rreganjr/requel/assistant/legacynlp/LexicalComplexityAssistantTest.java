@@ -36,6 +36,7 @@ import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
 import com.rreganjr.nlp.dictionary.NLPProcessor;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
@@ -58,7 +59,12 @@ class LexicalComplexityAssistantTest {
 	@Test
 	void aComplexSentenceIsReportedOnlyIfItIsInTheSourceText() {
 		String written = "The operator rotates the key while the stream that the panel feeds is live.";
-		assertThat(analyzeOneComplexSentence(written, written).annotationActions()).hasSize(2);
+		AssistantResult found = analyzeOneComplexSentence(written, written);
+		assertThat(found.annotationActions()).hasSize(2);
+		assertThat(found.annotationActions()).filteredOn(
+				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
+				.singleElement().satisfies(
+						a -> assertThat(a.metadata()).containsEntry("mustResolve", Boolean.FALSE));
 		assertThat(analyzeOneComplexSentence(written, "le, not a person that the panel feeds")
 				.annotationActions()).isEmpty();
 	}

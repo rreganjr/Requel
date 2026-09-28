@@ -813,6 +813,14 @@ public class ProjectCommandRegistrar {
                     c.setIgnoredFindingId(i.ignoredFindingId());
                 });
 
+        registry.register("AnalyzeProject",
+                com.rreganjr.requel.service.api.dto.AnalyzeProjectInput.class,
+                factory::newAnalyzeProjectCommand,
+                (cmd, input) -> ((com.rreganjr.requel.project.command.AnalyzeProjectCommand) cmd)
+                        .setProject(projectRepository.findProjectByName(
+                                ((com.rreganjr.requel.service.api.dto.AnalyzeProjectInput) input)
+                                        .projectName())));
+
         registry.register("AddInstallDictionaryWord", AddInstallDictionaryWordInput.class,
                 factory::newAddInstallDictionaryWordCommand,
                 (cmd, input) -> ((AddInstallDictionaryWordCommand) cmd)
