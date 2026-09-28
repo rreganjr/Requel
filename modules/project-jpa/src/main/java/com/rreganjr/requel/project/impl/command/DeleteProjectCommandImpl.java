@@ -97,6 +97,15 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 public class DeleteProjectCommandImpl extends AbstractEditProjectCommand implements
 		DeleteProjectCommand, AuthorizableCommand, ProjectScopedCommand {
 
+	private com.rreganjr.requel.project.ProjectAssistantSettingsStore assistantSettingsStore;
+
+	/** Issue #268: setter-injected, as the ignored-finding store is; null in plain unit tests. */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setAssistantSettingsStore(
+			com.rreganjr.requel.project.ProjectAssistantSettingsStore assistantSettingsStore) {
+		this.assistantSettingsStore = assistantSettingsStore;
+	}
+
 	private Project project;
 
 	private Integer expectedVersion;
@@ -280,6 +289,10 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 		// Issue #320: the project's ignored findings. Keyed by project id, nothing references them.
 		if (getIgnoredFindingStore() != null) {
 			getIgnoredFindingStore().deleteForProject(project.getId());
+		}
+		// Issue #268: which assistants run in the project. Keyed by project id, like the above.
+		if (assistantSettingsStore != null) {
+			assistantSettingsStore.deleteForProject(project.getId());
 		}
 
 		// 11) The project's own annotations.

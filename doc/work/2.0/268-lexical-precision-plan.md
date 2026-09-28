@@ -416,8 +416,9 @@ no removals for an incomplete result.
 ### Per-project assistant settings
 
 - **Schema (V24):** `project_assistant_settings (project_id bigint, assistant_id varchar(200),
-  enabled bit(1) not null, created_by_id bigint null, date_updated datetime(6) null, primary key
-  (project_id, assistant_id))`. No foreign keys, like `ignored_findings`; the project delete path
+  enabled bit(1) not null, updated_by_id bigint null, date_updated datetime(6) null, primary key
+  (project_id, assistant_id))`. (As built: `updated_by_id`, not `created_by_id`, since a row is
+  rewritten each time the setting changes.) No foreign keys, like `ignored_findings`; the project delete path
   removes the rows.
 - **Domain:** `ProjectAssistantSettingsStore` in `project-domain` (`Set<String>
   disabledAssistants(Long projectId)`, `void setEnabled(Long projectId, String assistantId,
@@ -427,7 +428,10 @@ no removals for an incomplete result.
   false; }` and `default String displayName() { return assistantId(); }`. The four lexical
   assistants return true and a human name. Setting an unknown or non-switchable id is refused.
 - **Registry:** `SimpleAssistantRegistry.findAssistantsFor` drops switchable assistants disabled
-  for `context.projectRef()`. No row means enabled.
+  for `context.projectRef()`. No row means enabled. As built, the registry is also the new
+  `SwitchableAssistantCatalog` (`project-domain`), which the command uses to refuse an unknown id
+  and the query uses for the list, so neither the project layer nor the service layer depends on
+  the assistant SPI. Display names: Spelling, Vague words, Glossary candidates, Complex sentences.
 - **Disabling leaves existing findings as they are;** a re-run with the assistant off doesn't
   reconcile its findings. The UI says so next to the toggle.
 - **Command:** `EditProjectAssistantSetting(projectName, assistantId, enabled)`, project-scoped,

@@ -813,6 +813,17 @@ public class ProjectCommandRegistrar {
                     c.setIgnoredFindingId(i.ignoredFindingId());
                 });
 
+        registry.register("EditProjectAssistantSetting",
+                com.rreganjr.requel.service.api.dto.EditProjectAssistantSettingInput.class,
+                factory::newEditProjectAssistantSettingCommand,
+                (cmd, input) -> {
+                    var c = (com.rreganjr.requel.project.command.EditProjectAssistantSettingCommand) cmd;
+                    var i = (com.rreganjr.requel.service.api.dto.EditProjectAssistantSettingInput) input;
+                    c.setProject(projectRepository.findProjectByName(i.projectName()));
+                    c.setAssistantId(i.assistantId());
+                    c.setEnabled(i.enabled());
+                });
+
         registry.register("AnalyzeProject",
                 com.rreganjr.requel.service.api.dto.AnalyzeProjectInput.class,
                 factory::newAnalyzeProjectCommand,

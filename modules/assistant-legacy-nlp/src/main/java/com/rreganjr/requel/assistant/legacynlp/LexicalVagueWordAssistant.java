@@ -123,6 +123,17 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 		return CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED;
 	}
 
+	/** Issue #268: a project can switch this check off. */
+	@Override
+	public boolean projectSwitchable() {
+		return true;
+	}
+
+	@Override
+	public String displayName() {
+		return "Vague words";
+	}
+
 	@Override
 	public AssistantResult analyze(AssistantContext context, TextEntity target) {
 		String entityType = target.getProjectOrDomainEntityInterface().getSimpleName();
@@ -217,7 +228,9 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION, null, issueKey,
 				IGNORE_WORD_MSG, null, null, evidence, Map.of("kind", "IGNORE")));
 
-		Collection<NLPText> suggestions = moreSpecificWordSuggester.process(word);
+		// #268: a weak word may have no sense ("should"); it has nothing more specific.
+		Collection<NLPText> suggestions = word.getDictionaryWordSense() == null ? null
+				: moreSpecificWordSuggester.process(word);
 		if (suggestions != null) {
 			for (NLPText suggestion : suggestions) {
 				String suggestedWord = suggestion.getText();

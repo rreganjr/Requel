@@ -137,6 +137,17 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 		return CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED;
 	}
 
+	/** Issue #268: a project can switch this check off. */
+	@Override
+	public boolean projectSwitchable() {
+		return true;
+	}
+
+	@Override
+	public String displayName() {
+		return "Glossary candidates";
+	}
+
 	@Override
 	public AssistantResult analyze(AssistantContext context, TextEntity target) {
 		String entityType = target.getProjectOrDomainEntityInterface().getSimpleName();

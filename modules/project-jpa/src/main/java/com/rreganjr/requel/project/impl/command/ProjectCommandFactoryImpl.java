@@ -227,6 +227,12 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	}
 
 	@Override
+	public com.rreganjr.requel.project.command.EditProjectAssistantSettingCommand newEditProjectAssistantSettingCommand() {
+		return (com.rreganjr.requel.project.command.EditProjectAssistantSettingCommand) getCreationStrategy()
+				.newInstance(EditProjectAssistantSettingCommandImpl.class);
+	}
+
+	@Override
 	public com.rreganjr.requel.project.command.AnalyzeProjectCommand newAnalyzeProjectCommand() {
 		return (com.rreganjr.requel.project.command.AnalyzeProjectCommand) getCreationStrategy()
 				.newInstance(AnalyzeProjectCommandImpl.class);

@@ -165,6 +165,12 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public AnalyzeProjectCommand newAnalyzeProjectCommand();
 
 	/**
+	 * @return a new command switching one of a project's assistants on or off; requires
+	 *         {@code Project[Edit]} (issue #268).
+	 */
+	public EditProjectAssistantSettingCommand newEditProjectAssistantSettingCommand();
+
+	/**
 	 * @return a new command adding an installation-wide dictionary word; administrators only
 	 *         (issue #319).
 	 */

@@ -885,6 +885,43 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 .andExpect(status().isOk());
     }
 
+    // Issue #268: switching a project's assistants is a project edit (Project[Edit]); the list
+    // is readable by anyone with project access.
+    @Test
+    void editProjectAssistantSettingNeedsProjectEdit() throws Exception {
+        String off = objectMapper.writeValueAsString(Map.of("projectName", testProjectName,
+                "assistantId", "legacy-lexical-complexity", "enabled", false));
+        mockMvc.perform(post("/api/commands/EditProjectAssistantSetting")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(off))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/commands/EditProjectAssistantSetting")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(off))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/assistants")
+                        .header("Authorization", "Bearer " + deleterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(4))
+                .andExpect(jsonPath("$[?(@.assistantId == 'legacy-lexical-complexity')].enabled")
+                        .value(org.hamcrest.Matchers.contains(false)))
+                .andExpect(jsonPath("$[?(@.assistantId == 'legacy-lexical')].enabled")
+                        .value(org.hamcrest.Matchers.contains(true)));
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/assistants")
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+
+        String on = objectMapper.writeValueAsString(Map.of("projectName", testProjectName,
+                "assistantId", "legacy-lexical-complexity", "enabled", true));
+        mockMvc.perform(post("/api/commands/EditProjectAssistantSetting")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(on))
+                .andExpect(status().isOk());
+    }
+
     @Test
     void deleterCannotAddAProjectDictionaryWord() throws Exception {
         mockMvc.perform(post("/api/commands/AddProjectDictionaryWord")

@@ -60,4 +60,18 @@ public interface RequelAssistant<T> {
 	default CleanupPolicy cleanupPolicy() {
 		return CleanupPolicy.MARK_SUPERSEDED;
 	}
+
+	/**
+	 * Issue #268: whether a project can switch this assistant off. Off by default; the lexical
+	 * assistants opt in. A switched-off assistant is not returned by the registry for that
+	 * project's runs.
+	 */
+	default boolean projectSwitchable() {
+		return false;
+	}
+
+	/** Issue #268: the name the project's assistant settings show. */
+	default String displayName() {
+		return assistantId();
+	}
 }

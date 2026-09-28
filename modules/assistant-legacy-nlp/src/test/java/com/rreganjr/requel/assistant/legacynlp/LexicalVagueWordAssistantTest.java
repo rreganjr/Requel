@@ -25,6 +25,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -82,7 +84,8 @@ class LexicalVagueWordAssistantTest {
 		Linkdef linkType = mock(Linkdef.class);
 		when(dictionaryRepository.findLinkDef(1L)).thenReturn(linkType);
 		List<NLPText> leaves = new ArrayList<>();
-		leaves.add(word("should", PartOfSpeech.MODAL, null, 0));
+		NLPText should = word("should", PartOfSpeech.MODAL, null, 0);
+		leaves.add(should);
 		leaves.add(word("be", PartOfSpeech.VERB, linkType, 0.42));
 		leaves.add(word("ready", PartOfSpeech.ADJECTIVE, linkType, 0.91));
 		leaves.add(word("event", PartOfSpeech.NOUN, linkType, 0.199));
@@ -106,6 +109,9 @@ class LexicalVagueWordAssistantTest {
 		assertThat(result.annotationActions()).filteredOn(
 				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
 				.allSatisfy(a -> assertThat(a.metadata()).containsEntry("mustResolve", Boolean.FALSE));
+		// #268: "should" has no sense, so there is nothing more specific to ask for. Asking threw
+		// inside the dictionary's transaction and failed the whole run.
+		verify(suggester, never()).process(should);
 	}
 
 	/** A leaf of the given part of speech whose sense scores {@code infoContent}; no sense if linkType is null. */
