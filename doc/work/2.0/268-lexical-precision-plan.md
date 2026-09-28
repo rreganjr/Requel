@@ -439,7 +439,9 @@ no removals for an incomplete result.
 - **Query:** `GET /api/projects/{name}/assistants` → `[{assistantId, displayName, enabled}]` for
   the switchable assistants.
 - **Angular:** the "Assistants" panel on the overview page: one toggle per assistant,
-  plus "Re-run analysis" (dispatches `AnalyzeProject`, then says analysis is running).
+  plus "Re-run analysis" (dispatches `AnalyzeProject`, then says analysis is running). As built:
+  its own component, `ProjectAssistantsPanelComponent`, with `ProjectAssistantsService`; a flip
+  applies at once and is put back if the server refuses; status and errors are announced.
 - **Delete:** `DeleteProjectCommandImpl` calls `deleteForProject`.
 
 ### Migration `V24__lexical_advisory_and_assistant_settings.sql`
