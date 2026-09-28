@@ -37,10 +37,8 @@ import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
 import com.rreganjr.requel.annotation.command.ResolveIssueCommand;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.project.Goal;
-import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.StakeholderPermissionType;
-import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
@@ -140,26 +138,20 @@ public class ResolveIssueSpellingIT extends AbstractIntegrationTestCase {
 	}
 
 	/**
-	 * A glossary term is annotatable but no assistant analyses one, so it has no registered
-	 * text editor. Resolving a spelling issue on one refuses with a clear error instead of
-	 * falling back to editing it some other way.
+	 * The project itself is annotatable but no assistant analyses it, so it has no registered
+	 * text editor. Resolving a spelling issue on it refuses with a clear error instead of
+	 * falling back to editing it some other way. (This used a glossary term until #268, which
+	 * made glossary terms analysed and gave them an editor.)
 	 */
 	@Test
 	public void refusesWhenTheAnnotatableHasNoRegisteredTextEditor() throws Exception {
 		Project project = createProject("spelling-unregistered");
 		User admin = getUserRepository().findUserByUsername("admin");
 
-		EditGlossaryTermCommand termCmd = getProjectCommandFactory().newEditGlossaryTermCommand();
-		termCmd.setEditedBy(admin);
-		termCmd.setProjectOrDomain(project);
-		termCmd.setName("systm");
-		termCmd = getCommandHandler().execute(termCmd);
-		GlossaryTerm term = termCmd.getGlossaryTerm();
-
 		EditLexicalIssueCommand lexCmd = getAnnotationCommandFactory().newEditLexicalIssueCommand();
 		lexCmd.setEditedBy(admin);
 		lexCmd.setGroupingObject(project);
-		lexCmd.setAnnotatable(term);
+		lexCmd.setAnnotatable(project);
 		lexCmd.setText(issueText("systm"));
 		lexCmd.setMustBeResolved(false);
 		lexCmd.setWord("systm");
@@ -174,7 +166,7 @@ public class ResolveIssueSpellingIT extends AbstractIntegrationTestCase {
 		resolve.setEditedBy(admin);
 		resolve.setIssue(issue);
 		resolve.setPosition(position);
-		resolve.setAnnotatable(term);
+		resolve.setAnnotatable(project);
 
 		assertThrows(IllegalArgumentException.class,
 				() -> getCommandHandler().execute(resolve),
