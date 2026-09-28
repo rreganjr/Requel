@@ -103,6 +103,23 @@ describe('ProjectAssistantsPanelComponent (#268)', () => {
       .toContain('Analysis is running');
   });
 
+  it('disables Re-run analysis when every check is off, and says why', async () => {
+    list = vi.fn().mockResolvedValue(FOUR.map(a => ({ ...a, enabled: false })));
+    const fixture = await render(true, true);
+    const button = fixture.nativeElement.querySelector('[data-testid="assistants-rerun"] button') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(fixture.nativeElement.querySelector('[data-testid="assistants-all-off"]')).not.toBeNull();
+
+    await fixture.componentInstance.rerun();
+    expect(analyzeProject).not.toHaveBeenCalled();
+
+    // Switching one back on enables it again.
+    await fixture.componentInstance.toggle(fixture.componentInstance.assistants()[0], true);
+    fixture.detectChanges();
+    expect(button.disabled).toBe(false);
+    expect(fixture.nativeElement.querySelector('[data-testid="assistants-all-off"]')).toBeNull();
+  });
+
   it('hides Re-run analysis without Annotation[Edit]', async () => {
     const fixture = await render(true, false);
     expect(fixture.nativeElement.querySelector('[data-testid="assistants-rerun"]')).toBeNull();

@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, ChangeDetectionStrategy, OnChanges, input, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnChanges, computed, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
@@ -60,7 +60,13 @@ import { ProjectAssistantDto } from '../../models/project-assistant';
       }
       @if (canAnalyze()) {
         <p-button label="Re-run analysis" icon="pi pi-refresh" [outlined]="true" size="small"
-                  [loading]="analyzing()" (onClick)="rerun()" data-testid="assistants-rerun" />
+                  [loading]="analyzing()" [disabled]="!anyEnabled()" (onClick)="rerun()"
+                  data-testid="assistants-rerun" />
+        @if (!anyEnabled() && assistants().length > 0) {
+          <p class="ws-hint" data-testid="assistants-all-off">
+            Every check is off. Switch one on to re-run analysis.
+          </p>
+        }
       }
       <p class="ws-status" role="status" aria-live="polite" data-testid="assistants-status">
         {{ status() }}
@@ -102,6 +108,8 @@ export class ProjectAssistantsPanelComponent implements OnChanges {
   readonly analyzing = signal(false);
   readonly status = signal('');
   readonly error = signal<string | null>(null);
+  /** Re-running with every check off would do nothing the panel shows, so it is disabled. */
+  readonly anyEnabled = computed(() => this.assistants().some(a => a.enabled));
 
   constructor(private readonly service: ProjectAssistantsService) {}
 
@@ -142,7 +150,7 @@ export class ProjectAssistantsPanelComponent implements OnChanges {
   }
 
   async rerun(): Promise<void> {
-    if (!this.canAnalyze() || this.analyzing()) return;
+    if (!this.canAnalyze() || this.analyzing() || !this.anyEnabled()) return;
     this.error.set(null);
     this.analyzing.set(true);
     try {
