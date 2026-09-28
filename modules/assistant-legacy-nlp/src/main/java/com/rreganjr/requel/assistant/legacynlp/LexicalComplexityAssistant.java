@@ -109,9 +109,15 @@ public class LexicalComplexityAssistant implements RequelAssistant<TextEntity> {
 				.assistantId(ASSISTANT_ID)
 				.runId(context.runId())
 				.summary("Sentence-complexity analysis");
-		analyzeProperty(builder, targetRef, PROP_NAME, target.getName());
-		analyzeProperty(builder, targetRef, PROP_TEXT, target.getText());
-		return builder.build();
+		// #268: a failure on one property leaves the other's findings and marks the result
+		// incomplete, so nothing is auto-resolved on the strength of it.
+		PropertyChecks checks = new PropertyChecks(log, "complexity", targetRef);
+		checks.run(PROP_NAME, target.getName(),
+				() -> analyzeProperty(builder, targetRef, PROP_NAME, target.getName()));
+		checks.run(PROP_TEXT, target.getText(),
+				() -> analyzeProperty(builder, targetRef, PROP_TEXT, target.getText()));
+		return LegacyLexicalIssues.withRemovals(checks.finish(builder).build(), target, targetRef,
+				LegacyLexicalIssues.COMPLEXITY, checks);
 	}
 
 	private void analyzeProperty(AssistantResult.Builder builder, EntityRef targetRef,
@@ -119,14 +125,9 @@ public class LexicalComplexityAssistant implements RequelAssistant<TextEntity> {
 		if (text == null || text.isBlank()) {
 			return;
 		}
-		try {
-			NLPText nlpText = nlpProcessorFactory.processText(text);
-			NLPProcessor<Integer> depthFinder = nlpProcessorFactory.getConstituentTreeDepthFinder();
-			collectComplexSentences(builder, targetRef, propertyName, text, nlpText, depthFinder);
-		} catch (RuntimeException e) {
-			log.warn("complexity analysis of the {} of {} failed; skipping: {}", propertyName,
-					targetRef, e.toString());
-		}
+		NLPText nlpText = nlpProcessorFactory.processText(text);
+		NLPProcessor<Integer> depthFinder = nlpProcessorFactory.getConstituentTreeDepthFinder();
+		collectComplexSentences(builder, targetRef, propertyName, text, nlpText, depthFinder);
 	}
 
 	private void collectComplexSentences(AssistantResult.Builder builder, EntityRef targetRef,

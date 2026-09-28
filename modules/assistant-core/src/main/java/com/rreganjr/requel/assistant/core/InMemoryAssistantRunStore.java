@@ -69,6 +69,11 @@ public class InMemoryAssistantRunStore implements AssistantRunStore {
 	}
 
 	@Override
+	public void markPartial(UUID runId, String summary) {
+		update(runId, AssistantRunStatus.SUCCEEDED, summary);
+	}
+
+	@Override
 	public void markSkipped(UUID runId, String reason) {
 		update(runId, AssistantRunStatus.SKIPPED, reason);
 	}

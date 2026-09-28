@@ -51,6 +51,7 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.DeleteNoteCommand;
 import com.rreganjr.requel.annotation.command.EditIssueCommand;
 import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
+import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.IgnoredFindingStore;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
@@ -217,6 +218,90 @@ class CommandBackedAssistantResultApplicatorTest {
 				EntityRef.of("Goal", 1L));
 
 		verify(deleteCommand).setEditedBy(triggeringUser);
+	}
+
+	/** #268: an assistant that didn't finish must not auto-resolve on the strength of it. */
+	@Test
+	void anIncompleteResultDoesNotReconcileStaleFindings() {
+		AssistantFindingEntity stale = new AssistantFindingEntity(UUID.randomUUID(),
+				"legacy-lexical:Goal:1:old", "legacy-lexical", "Goal", 1L, "unknown-word",
+				AssistantFindingState.ACTIVE.name(), UUID.randomUUID(),
+				Instant.parse("2026-05-20T00:00:00Z"));
+		when(findingRepository.findByAssistantIdAndTargetTypeAndTargetIdAndState("legacy-lexical",
+				"Goal", 1L, AssistantFindingState.ACTIVE.name())).thenReturn(List.of(stale));
+		AssistantResult result = AssistantResult.builder().assistantId("legacy-lexical")
+				.metadata(Map.of("incomplete", Boolean.TRUE, "failedProperties", List.of("Text")))
+				.build();
+
+		newApplicator().apply(context(), result, CleanupPolicy.MARK_SUPERSEDED,
+				EntityRef.of("Goal", 1L));
+
+		assertThat(stale.getState()).isEqualTo(AssistantFindingState.ACTIVE.name());
+		verify(findingRepository, never()).save(any());
+	}
+
+	/** #268: an unresolved issue the old path left, with no ASSISTANT: source, is detached. */
+	@Test
+	void aLegacyRemovalDetachesAnUnresolvedUnownedIssue() throws Exception {
+		Issue legacy = mock(Issue.class);
+		when(legacy.isResolved()).thenReturn(false);
+		when(legacy.getSource()).thenReturn(null);
+		RemoveAnnotationFromAnnotatableCommand command = applyLegacyRemoval(legacy, false);
+
+		verify(command).setAnnotation(legacy);
+		verify(commandHandler).execute(command);
+		// No finding is involved: the old path never recorded one.
+		verify(findingRepository, never()).save(any());
+	}
+
+	@Test
+	void aLegacyRemovalLeavesAResolvedOrOwnedIssueAlone() throws Exception {
+		Issue resolved = mock(Issue.class);
+		when(resolved.isResolved()).thenReturn(true);
+		applyLegacyRemoval(resolved, false);
+		Issue owned = mock(Issue.class);
+		when(owned.getSource()).thenReturn("ASSISTANT:legacy-lexical");
+		applyLegacyRemoval(owned, false);
+
+		verify(commandHandler, never()).execute(any());
+	}
+
+	@Test
+	void anIncompleteResultMakesNoLegacyRemovals() throws Exception {
+		Issue legacy = mock(Issue.class);
+		applyLegacyRemoval(legacy, true);
+
+		verify(commandHandler, never()).execute(any());
+	}
+
+	private RemoveAnnotationFromAnnotatableCommand applyLegacyRemoval(Issue issue,
+			boolean incomplete) throws Exception {
+		EntityRef goalRef = EntityRef.of("Goal", 1L);
+		ProjectOrDomainEntity goal = mock(ProjectOrDomainEntity.class);
+		AssistantTargetLoader loader = mock(AssistantTargetLoader.class);
+		when(loader.supports(goalRef)).thenReturn(true);
+		when(loader.loadTarget(goalRef)).thenReturn(Optional.of(goal));
+		when(annotationRepository.findAnnotationById(77L)).thenReturn(issue);
+		RemoveAnnotationFromAnnotatableCommand command = mock(
+				RemoveAnnotationFromAnnotatableCommand.class);
+		when(annotationCommandFactory.newRemoveAnnotationFromAnnotatableCommand())
+				.thenReturn(command);
+		when(commandHandler.execute(command)).thenReturn(command);
+		CommandBackedAssistantResultApplicator applicator = new CommandBackedAssistantResultApplicator(
+				commandHandler, annotationCommandFactory, projectCommandFactory, annotationRepository,
+				userRepository, findingRepository, runRepository, List.of(loader), fixedClock);
+		AnnotationAction removal = new AnnotationAction("legacy-lexical:Goal:1:legacy-issue:77",
+				AnnotationAction.ActionType.REMOVE_ANNOTATION_FROM_ANNOTATABLE, goalRef, null, null,
+				null, null, List.of(), Map.of(
+						CommandBackedAssistantResultApplicator.LEGACY_ANNOTATION_ID, 77L));
+		AssistantResult.Builder result = AssistantResult.builder().assistantId("legacy-lexical")
+				.annotationAction(removal);
+		if (incomplete) {
+			result.metadata(Map.of("incomplete", Boolean.TRUE));
+		}
+		applicator.apply(context(), result.build(), CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED,
+				goalRef);
+		return command;
 	}
 
 	@Test

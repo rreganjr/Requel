@@ -154,9 +154,15 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 		// A glossary issue is not property-specific; dedupe terms across Name/Text so
 		// one run does not emit the same term twice.
 		Set<String> emittedTerms = new HashSet<>();
-		analyzeProperty(builder, targetRef, scope, PROP_NAME, target.getName(), emittedTerms);
-		analyzeProperty(builder, targetRef, scope, PROP_TEXT, target.getText(), emittedTerms);
-		return builder.build();
+		// #268: a failure on one property leaves the other's findings and marks the result
+		// incomplete, so nothing is auto-resolved on the strength of it.
+		PropertyChecks checks = new PropertyChecks(log, "glossary-term", targetRef);
+		checks.run(PROP_NAME, target.getName(), () -> analyzeProperty(builder, targetRef, scope,
+				PROP_NAME, target.getName(), emittedTerms));
+		checks.run(PROP_TEXT, target.getText(), () -> analyzeProperty(builder, targetRef, scope,
+				PROP_TEXT, target.getText(), emittedTerms));
+		return LegacyLexicalIssues.withRemovals(checks.finish(builder).build(), target, targetRef,
+				LegacyLexicalIssues.GLOSSARY_TERM, checks);
 	}
 
 	private void analyzeProperty(AssistantResult.Builder builder, EntityRef targetRef,
@@ -164,16 +170,11 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 		if (text == null || text.isBlank()) {
 			return;
 		}
-		try {
-			NLPText nlpText = nlpProcessorFactory.processText(text);
-			Set<NLPText> sentenceStarts = sentenceStarts(nlpText);
-			for (NLPText term : findPotentialTerms(nlpText)) {
-				handleCandidate(builder, targetRef, scope, propertyName, text, term,
-						sentenceStarts, emittedTerms);
-			}
-		} catch (RuntimeException e) {
-			log.warn("glossary-term analysis of the {} of {} failed; skipping: {}", propertyName,
-					targetRef, e.toString());
+		NLPText nlpText = nlpProcessorFactory.processText(text);
+		Set<NLPText> sentenceStarts = sentenceStarts(nlpText);
+		for (NLPText term : findPotentialTerms(nlpText)) {
+			handleCandidate(builder, targetRef, scope, propertyName, text, term, sentenceStarts,
+					emittedTerms);
 		}
 	}
 	/**

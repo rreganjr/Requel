@@ -365,7 +365,8 @@ Everything else is unchanged, including the #313 project dictionary layer.
   it, so nothing is auto-resolved on the strength of an analysis that didn't finish.
 - `AssistantRunWorker` records every thrown or incomplete assistant in the run's `error_summary`
   with `error_kind = 'PARTIAL'`; the status stays `SUCCEEDED` (the other assistants' results are
-  real).
+  real). A result that fails to apply is recorded the same way. As built: the wrapper is
+  `PropertyChecks`, and the store method is `AssistantRunStore.markPartial`.
 
 ### Advisory findings
 
@@ -380,6 +381,17 @@ After an SPI lexical assistant's run is applied, for the dispatch target: every 
 `annotatable_entity_property_name` is one the assistant analyzes (Name/Text, or none for the
 glossary check), and whose word the run did not produce, is removed from the entity through
 `RemoveAnnotationFromAnnotatableCommand`. Resolved issues are never touched.
+
+As built (step 8): each assistant finds these while it analyzes (`LegacyLexicalIssues`) and puts a
+`REMOVE_ANNOTATION_FROM_ANNOTATABLE` action with `metadata.legacyAnnotationId` ahead of its other
+actions. An issue is the assistant's kind by the text the old path wrote ("is not recognized",
+"is vague", "is complex", "potential glossary term"), and is considered only on a property the
+assistant finished (the glossary kind only when both finished). One the run reports again is left
+alone: `EditLexicalIssueCommand` reuses it by word and property, so it becomes the assistant's issue
+with its positions and discussion. A complex-sentence issue has no word, so it is always replaced;
+the removal going first means the run's own issue is created fresh rather than reusing it. The
+applicator checks again at apply time (still unresolved, still no `ASSISTANT:` source) and makes
+no removals for an incomplete result.
 
 ### Import and project re-analysis
 

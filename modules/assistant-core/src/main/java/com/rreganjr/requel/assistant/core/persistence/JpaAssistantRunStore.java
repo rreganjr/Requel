@@ -59,6 +59,12 @@ import com.rreganjr.requel.assistant.core.AssistantRunStore;
 @Component
 public class JpaAssistantRunStore implements AssistantRunStore {
 
+	/** Issue #268: {@code error_kind} of a run in which some assistants did not finish. */
+	public static final String PARTIAL = "PARTIAL";
+
+	/** The {@code error_summary} column's length. */
+	private static final int ERROR_SUMMARY_LENGTH = 1000;
+
 	private final AssistantRunRepository runRepository;
 	private final Clock clock;
 	private final ObjectMapper objectMapper = new ObjectMapper();
@@ -123,6 +129,16 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 
 	@Override
 	@Transactional(propagation = Propagation.REQUIRED)
+	public void markPartial(UUID runId, String summary) {
+		update(runId, AssistantRunStatus.SUCCEEDED, truncate(summary, ERROR_SUMMARY_LENGTH),
+				entity -> {
+					entity.setErrorKind(PARTIAL);
+					entity.setCompletedAt(clock.instant());
+				});
+	}
+
+	@Override
+	@Transactional(propagation = Propagation.REQUIRED)
 	public void markSkipped(UUID runId, String reason) {
 		update(runId, AssistantRunStatus.SKIPPED, reason, entity -> entity.setCompletedAt(clock.instant()));
 	}
@@ -151,6 +167,10 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 		Objects.requireNonNull(runId, "runId");
 		return runRepository.findById(runId.toString())
 				.map(entity -> toRecord(entity, null));
+	}
+
+	private static String truncate(String value, int max) {
+		return value == null || value.length() <= max ? value : value.substring(0, max - 1) + "…";
 	}
 
 	private void update(UUID runId, AssistantRunStatus status, String errorSummary,

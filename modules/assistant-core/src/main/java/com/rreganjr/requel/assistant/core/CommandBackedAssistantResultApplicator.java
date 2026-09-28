@@ -125,6 +125,12 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	private static final Logger log = LoggerFactory
 			.getLogger(CommandBackedAssistantResultApplicator.class);
 
+	/**
+	 * Issue #268: metadata naming an issue the old lexical path left, on a
+	 * {@code REMOVE_ANNOTATION_FROM_ANNOTATABLE} action.
+	 */
+	public static final String LEGACY_ANNOTATION_ID = "legacyAnnotationId";
+
 	private static final int MAX_TEXT_LENGTH = 4000;
 	private static final int MAX_SUMMARY_LENGTH = 500;
 
@@ -252,9 +258,17 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		int newFindings = 0;
 		Set<String> ignoredKeys = ignoredKeys(context);
 		Set<String> ignoredShareKeys = ignoredShareKeys(ignoredKeys);
+		// Issue #268: an assistant that failed on part of the entity says so. Its findings still
+		// apply, but nothing is removed or auto-resolved on the strength of an analysis that
+		// didn't finish.
+		boolean incomplete = isIncomplete(result);
 
 		for (AnnotationAction action : result.annotationActions()) {
 			try {
+				if (incomplete && isLegacyRemoval(action)) {
+					log.debug("Skipping {} from an incomplete result", action.actionKey());
+					continue;
+				}
 				if (isIgnored(action, ignoredKeys)
 						|| isIgnoredProjectWide(result.assistantId(), action, ignoredShareKeys)) {
 					// Issue #320: the user ignored this finding on this entity and property. Not
@@ -308,9 +322,25 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		}
 
 		bumpFindingsCount(context.runId(), newFindings);
-		reconcileStaleFindings(result.assistantId(), cleanupPolicy, dispatchTarget,
-				producedKeysByTarget, editedBy, context.runId());
+		if (incomplete) {
+			log.info("Result of {} for run {} is incomplete (failed: {}); not reconciling stale"
+					+ " findings", result.assistantId(), context.runId(),
+					result.metadata().get("failedProperties"));
+		} else {
+			reconcileStaleFindings(result.assistantId(), cleanupPolicy, dispatchTarget,
+					producedKeysByTarget, editedBy, context.runId());
+		}
 		return new AppliedAssistantResult(annotationIds.size(), annotationIds);
+	}
+
+	/** Issue #268: the result's {@code metadata.incomplete} flag. */
+	static boolean isIncomplete(AssistantResult result) {
+		return Boolean.TRUE.equals(result.metadata().get("incomplete"));
+	}
+
+	private static boolean isLegacyRemoval(AnnotationAction action) {
+		return action.actionType() == AnnotationAction.ActionType.REMOVE_ANNOTATION_FROM_ANNOTATABLE
+				&& action.metadata().get(LEGACY_ANNOTATION_ID) != null;
 	}
 
 	private static boolean isCleanupAction(AnnotationAction.ActionType type) {
@@ -436,6 +466,10 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 
 	private void removeAnnotationFromAnnotatable(AnnotationAction action, User editedBy)
 			throws Exception {
+		if (isLegacyRemoval(action)) {
+			removeLegacyAnnotation(action, editedBy);
+			return;
+		}
 		Annotation annotation = loadExistingAnnotationById(action.actionKey());
 		Annotatable annotatable = resolveAnnotatable(action.targetRef());
 		if (annotation == null || annotatable == null) {
@@ -449,6 +483,34 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		command.setEditedBy(editedBy);
 		commandHandler.execute(command);
 		transitionFinding(action.actionKey(), AssistantFindingState.DROPPED);
+	}
+
+	/**
+	 * Issue #268: detach an issue the old lexical path left on the target, named by
+	 * {@code metadata.legacyAnnotationId}. It has no finding, so nothing transitions. Checked
+	 * again here, in the apply transaction: only an unresolved issue with no {@code ASSISTANT:}
+	 * source is removed, so a user's resolution, or an assistant taking the issue over, between
+	 * analysis and apply wins.
+	 */
+	private void removeLegacyAnnotation(AnnotationAction action, User editedBy) throws Exception {
+		Long annotationId = longMeta(action, LEGACY_ANNOTATION_ID);
+		Annotation annotation = annotationId == null ? null
+				: annotationRepository.findAnnotationById(annotationId);
+		Annotatable annotatable = resolveAnnotatable(action.targetRef());
+		if (annotation == null || annotatable == null || !(annotation instanceof Issue)
+				|| annotation.isResolved() || (annotation.getSource() != null
+						&& annotation.getSource().startsWith("ASSISTANT:"))) {
+			log.debug("Skipping legacy removal {} — the annotation is gone, resolved or owned",
+					action.actionKey());
+			return;
+		}
+		RemoveAnnotationFromAnnotatableCommand command = annotationCommandFactory
+				.newRemoveAnnotationFromAnnotatableCommand();
+		command.setAnnotation(annotation);
+		command.setAnnotatable(annotatable);
+		command.setEditedBy(editedBy);
+		commandHandler.execute(command);
+		log.info("Removed the old lexical issue {} from {}", annotationId, action.targetRef());
 	}
 
 	private void resolveIssue(AnnotationAction action, User editedBy,

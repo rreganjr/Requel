@@ -127,11 +127,15 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 		Long projectId = context.projectRef() == null ? null : context.projectRef().entityId();
 		// Issue #268: the project's glossary and actor names are its own words; read them once.
 		ProjectVocabulary vocabulary = ProjectVocabulary.of(target.getProjectOrDomain());
-		analyzeProperty(builder, targetRef, entityType, target.getId(), PROP_NAME, target.getName(),
-				projectId, vocabulary);
-		analyzeProperty(builder, targetRef, entityType, target.getId(), PROP_TEXT, target.getText(),
-				projectId, vocabulary);
-		return builder.build();
+		// #268: a failure on one property leaves the other's findings and marks the result
+		// incomplete, so nothing is auto-resolved on the strength of it.
+		PropertyChecks checks = new PropertyChecks(log, "spelling", targetRef);
+		checks.run(PROP_NAME, target.getName(), () -> analyzeProperty(builder, targetRef,
+				entityType, target.getId(), PROP_NAME, target.getName(), projectId, vocabulary));
+		checks.run(PROP_TEXT, target.getText(), () -> analyzeProperty(builder, targetRef,
+				entityType, target.getId(), PROP_TEXT, target.getText(), projectId, vocabulary));
+		return LegacyLexicalIssues.withRemovals(checks.finish(builder).build(), target, targetRef,
+				LegacyLexicalIssues.SPELLING, checks);
 	}
 
 	private void analyzeProperty(AssistantResult.Builder builder, EntityRef targetRef,

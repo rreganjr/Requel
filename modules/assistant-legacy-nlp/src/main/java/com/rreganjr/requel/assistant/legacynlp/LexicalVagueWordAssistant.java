@@ -131,9 +131,15 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 				.assistantId(ASSISTANT_ID)
 				.runId(context.runId())
 				.summary("Lexical vague-word analysis");
-		analyzeProperty(builder, targetRef, PROP_NAME, target.getName());
-		analyzeProperty(builder, targetRef, PROP_TEXT, target.getText());
-		return builder.build();
+		// #268: a failure on one property leaves the other's findings and marks the result
+		// incomplete, so nothing is auto-resolved on the strength of it.
+		PropertyChecks checks = new PropertyChecks(log, "vague-word", targetRef);
+		checks.run(PROP_NAME, target.getName(),
+				() -> analyzeProperty(builder, targetRef, PROP_NAME, target.getName()));
+		checks.run(PROP_TEXT, target.getText(),
+				() -> analyzeProperty(builder, targetRef, PROP_TEXT, target.getText()));
+		return LegacyLexicalIssues.withRemovals(checks.finish(builder).build(), target, targetRef,
+				LegacyLexicalIssues.VAGUE_WORD, checks);
 	}
 
 	private void analyzeProperty(AssistantResult.Builder builder, EntityRef targetRef,
@@ -141,33 +147,24 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 		if (text == null || text.isBlank()) {
 			return;
 		}
-		// The legacy assistant wraps each lexical check so a WordNet/dictionary
-		// hiccup degrades that check to "no findings" rather than aborting the
-		// whole analysis. The SPI worker does not yet isolate per-assistant
-		// failures, so keep that resilience here.
-		try {
-			NLPText nlpText = nlpProcessorFactory.processText(text);
-			NLPProcessor<Collection<NLPText>> moreSpecificWordSuggester = nlpProcessorFactory
-					.getMoreSpecificWordSuggester();
-			Linkdef linkType = dictionaryRepository.findLinkDef(1L);
-			Sense rootNounSense = dictionaryRepository.findSense("entity", PartOfSpeech.NOUN, 1);
+		NLPText nlpText = nlpProcessorFactory.processText(text);
+		NLPProcessor<Collection<NLPText>> moreSpecificWordSuggester = nlpProcessorFactory
+				.getMoreSpecificWordSuggester();
+		Linkdef linkType = dictionaryRepository.findLinkDef(1L);
+		Sense rootNounSense = dictionaryRepository.findSense("entity", PartOfSpeech.NOUN, 1);
 
-			for (NLPText word : nlpText.getLeaves()) {
-				if (!isVague(word, linkType, rootNounSense)) {
-					continue;
-				}
-				// #268/#269: never report a word the author didn't write (a parser fragment).
-				if (!LexicalEvidence.occurs(text, word.getText())) {
-					log.warn("vague-word: dropping \"{}\" on the {} of {}: not in the source text",
-							word.getText(), propertyName, targetRef);
-					continue;
-				}
-				emitVagueWordIssue(builder, targetRef, propertyName, word,
-						moreSpecificWordSuggester);
+		for (NLPText word : nlpText.getLeaves()) {
+			if (!isVague(word, linkType, rootNounSense)) {
+				continue;
 			}
-		} catch (RuntimeException e) {
-			log.warn("vague-word analysis of the {} of {} failed; skipping: {}", propertyName,
-					targetRef, e.toString());
+			// #268/#269: never report a word the author didn't write (a parser fragment).
+			if (!LexicalEvidence.occurs(text, word.getText())) {
+				log.warn("vague-word: dropping \"{}\" on the {} of {}: not in the source text",
+						word.getText(), propertyName, targetRef);
+				continue;
+			}
+			emitVagueWordIssue(builder, targetRef, propertyName, word,
+					moreSpecificWordSuggester);
 		}
 	}
 

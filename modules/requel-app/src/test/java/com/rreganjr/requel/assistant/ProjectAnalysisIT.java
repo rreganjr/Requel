@@ -38,6 +38,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.annotation.Issue;
+import com.rreganjr.requel.annotation.command.EditLexicalIssueCommand;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunEntity;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
@@ -48,6 +50,7 @@ import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.AnalyzeProjectCommand;
+import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 
 /**
@@ -105,7 +108,59 @@ public class ProjectAnalysisIT extends AbstractLexicalAssistantTest {
 				"the runs are on behalf of the user who asked");
 	}
 
+	/**
+	 * The old lexical path's issues on an analyzed entity: an unresolved one the run doesn't
+	 * report again is removed; one it reports again is taken over (same issue, now the
+	 * assistant's); a resolved one is kept.
+	 */
+	@Test
+	public void analysisClearsTheOldPathsUnresolvedIssuesItNoLongerReports() throws Exception {
+		ensureDictionaryLoaded();
+		User user = projectUser();
+		Project project = newProject("OldIssues");
+		// Create the goal but hold its analysis run until the old issues are on it.
+		EditGoalCommand create = getProjectCommandFactory().newEditGoalCommand();
+		create.setEditedBy(user);
+		create.setGoalContainer(project);
+		create.setName("groal intake " + stamp());
+		create.setText("The clerk records it.");
+		Goal goal = getCommandHandler().execute(create).getGoal();
+		Goal loaded = getProjectRepository().findById(Goal.class, goal.getId());
+		Issue stale = oldSpellingIssue(project, loaded, user, "grout");
+		Issue kept = oldSpellingIssue(project, loaded, user, "groat");
+		resolve(kept, addPosition(kept, user, "Ignore this word."), loaded, user);
+		Issue reported = oldSpellingIssue(project, loaded, user, "groal");
+
+		runLatestQueuedRun(goal.getId());
+
+		Set<Long> remaining = lexicalIssues(goal.getId()).stream().map(Issue::getId)
+				.collect(Collectors.toSet());
+		assertFalse(remaining.contains(stale.getId()), "the unresolved old issue is removed");
+		assertTrue(remaining.contains(kept.getId()), "the resolved old issue is kept");
+		assertTrue(remaining.contains(reported.getId()), "the reported-again issue is kept");
+		assertEquals(1, spellingIssues(goal.getId(), "groal").size(),
+				"the assistant took the old 'groal' issue over rather than raising a second");
+		assertEquals("ASSISTANT:" + SPELLING, lexicalIssues(goal.getId()).stream()
+				.filter(issue -> issue.getId().equals(reported.getId())).findFirst()
+				.orElseThrow().getSource());
+	}
+
 	// ---- fixtures -------------------------------------------------------------------------
+
+	/** A spelling issue on the goal's Name as the old path wrote it: no ASSISTANT: source. */
+	private Issue oldSpellingIssue(Project project, Goal goal, User user, String word)
+			throws Exception {
+		EditLexicalIssueCommand command = getAnnotationCommandFactory().newEditLexicalIssueCommand();
+		command.setEditedBy(user);
+		command.setGroupingObject(project);
+		command.setAnnotatable(goal);
+		command.setWord(word);
+		command.setAnnotatableEntityPropertyName("Name");
+		command.setText("The word \"" + word + "\" in the Name is not recognized and may be"
+				+ " spelled incorrectly.");
+		command.setMustBeResolved(true);
+		return getCommandHandler().execute(command).getIssue();
+	}
 
 	private Project importProject(boolean analysisEnabled) throws Exception {
 		ensureDictionaryLoaded();
