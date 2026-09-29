@@ -130,6 +130,33 @@ class EntityContextPackBuilderTest {
 		assertThat(pack.annotations()).extracting(AnnotationSnapshot::id).containsExactly(301L);
 	}
 
+	/** #270: the old lexical path wrote no source, but wrote as the assistant user. */
+	@Test
+	void excludesOldPathIssuesTheAssistantUserWroteWithoutASource() {
+		Goal goal = mock(Goal.class);
+		when(goal.getId()).thenReturn(42L);
+		when(goal.getVersion()).thenReturn(1);
+		when(goal.getName()).thenReturn("G");
+		when(goal.getText()).thenReturn("text");
+		LinkedHashSet<Annotation> annotations = new LinkedHashSet<>();
+		Issue human = stubIssue(301L, 1, "human concern", false, false);
+		com.rreganjr.platform.identity.User ron = mock(com.rreganjr.platform.identity.User.class);
+		when(ron.getUsername()).thenReturn("ron");
+		when(human.getCreatedBy()).thenReturn(ron);
+		Issue oldPath = stubIssue(303L, 1, "The word \"Zzz\" may be misspelled", false, false);
+		com.rreganjr.platform.identity.User assistant = mock(com.rreganjr.platform.identity.User.class);
+		when(assistant.getUsername()).thenReturn("assistant");
+		when(oldPath.getCreatedBy()).thenReturn(assistant);
+		annotations.add(human);
+		annotations.add(oldPath);
+		when(goal.getAnnotations()).thenReturn(annotations);
+		when(goal.getGlossaryTerms()).thenReturn(Set.of());
+
+		EntityContextPack pack = builder.build(goal);
+
+		assertThat(pack.annotations()).extracting(AnnotationSnapshot::id).containsExactly(301L);
+	}
+
 	@Test
 	void throwsForUnsupportedTargetType() {
 		assertThatThrownBy(() -> builder.build("not a domain entity"))

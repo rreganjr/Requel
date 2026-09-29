@@ -127,12 +127,63 @@ describe('OpenIssuesComponent', () => {
     httpTesting.expectOne(r => r.url.includes('open-issues')).flush(MOCK_ISSUES);
     await flush();
     expect(comp.issues().map(i => i.severityRank)).toEqual([3, 1]);
-    expect(comp.columns[0].field).toBe('severityRank');
+    // #270: the Severity column sorts on severity, then fresh before stale.
+    expect(comp.columns[0].field).toBe('sortRank');
     fixture.detectChanges();
     const tags = fixture.nativeElement.querySelectorAll('[data-testid="open-issue-severity"]');
     expect(Array.from(tags as NodeListOf<Element>).map(t => t.getAttribute('data-severity')))
       .toEqual(['HIGH', 'LOW']);
     expect(tags[0].textContent.trim()).toBe('High');
+  });
+
+  // #270: issues that may no longer apply.
+  describe('stale issues', () => {
+    const row = (issueId: number, severity: 'HIGH' | 'MEDIUM' | 'LOW', stale: boolean) => ({
+      issueId, issueText: `Issue ${issueId}`, mustBeResolved: false, severity,
+      entityType: 'Goal', entityId: 10, entityName: 'Goal A',
+      source: stale ? 'ASSISTANT:requirements-review' : null, stale
+    });
+    // Server order: severity, then fresh before stale.
+    const STALE_ISSUES = [row(1, 'HIGH', false), row(2, 'HIGH', true), row(3, 'LOW', false)];
+
+    async function load(data: object[] = STALE_ISSUES) {
+      fixture.detectChanges();
+      httpTesting.expectOne(r => r.url.includes('open-issues')).flush(data);
+      await flush();
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('sort key puts a stale HIGH after a fresh HIGH and before a fresh LOW', async () => {
+      await load();
+      const keys = comp.issues().map(i => i.sortRank);
+      expect(keys).toEqual([7, 6, 3]);
+      expect([...keys].sort((a, b) => b - a)).toEqual(keys);
+    });
+
+    it('badges and mutes a stale issue only', async () => {
+      const el = await load();
+      const badges = el.querySelectorAll('[data-testid="open-issue-stale"]');
+      expect(badges.length).toBe(1);
+      expect(badges[0].textContent!.trim()).toBe('May no longer apply');
+      expect(el.querySelectorAll('[data-testid="open-issue-text"][data-stale="true"]').length).toBe(1);
+    });
+
+    it('Hide stale drops the stale rows and Show stale restores them', async () => {
+      const el = await load();
+      const toggle = el.querySelector('[data-testid="open-issues-hide-stale"] button') as HTMLButtonElement;
+      toggle.click();
+      fixture.detectChanges();
+      expect(comp.issues().map(i => i.issueId)).toEqual([1, 3]);
+      toggle.click();
+      fixture.detectChanges();
+      expect(comp.issues().map(i => i.issueId)).toEqual([1, 2, 3]);
+    });
+
+    it('has no Hide stale toggle when nothing is stale', async () => {
+      const el = await load(MOCK_ISSUES);
+      expect(el.querySelector('[data-testid="open-issues-hide-stale"]')).toBeNull();
+    });
   });
 
   it('errorMessage set when HTTP request fails', async () => {

@@ -59,6 +59,10 @@ public class OpenIssuesCommand extends AbstractQueryCommand {
             if (i.mustBeResolved()) {
                 sb.append("  (must resolve)");
             }
+            // #270: an assistant's issue raised against text that has since changed.
+            if (i.stale()) {
+                sb.append("  (may no longer apply)");
+            }
         }
         return sb.toString();
     }

@@ -58,7 +58,7 @@ class StubProjectQueryGateway implements QueryGateway {
 	@Override
 	public List<OpenIssueDto> getOpenIssues(String projectName) {
 		return List.of(new OpenIssueDto(5L, "What is the SLA?", true, "MEDIUM", "Goal", 10L,
-				"Improve login"));
+				"Improve login", null, false));
 	}
 
 	@Override

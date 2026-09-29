@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.assistant.core.persistence;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -59,4 +60,12 @@ public interface AssistantFindingRepository
 
 	List<AssistantFindingEntity> findByAssistantIdAndTargetTypeAndTargetIdAndState(
 			String assistantId, String targetType, Long targetId, String state);
+
+	/**
+	 * Issue #270: the findings linked to any of {@code appliedAnnotationIds} in one of
+	 * {@code states}, for working out which annotations are stale on which entity. One query per
+	 * read, however many annotations it covers.
+	 */
+	List<AssistantFindingEntity> findByAppliedAnnotationIdInAndStateIn(
+			Collection<Long> appliedAnnotationIds, Collection<String> states);
 }

@@ -163,7 +163,7 @@ public class AnalysisRequestDispatcher {
 	}
 
 	private UserRef assistantUserRef() {
-		User assistant = userRepository.findUserByUsername("assistant");
+		User assistant = userRepository.findUserByUsername(User.ASSISTANT_USERNAME);
 		return new UserRef(assistant.getId(), assistant.getUsername());
 	}
 }

@@ -64,4 +64,30 @@ describe('AnnotationsSectionComponent — accessibility (issue #138)', () => {
     await expectNoAxeViolations(noteFs);
     await expectNoAxeViolations(issueFs);
   });
+
+  // #270: the stale badge, muted rows and the Hide stale toggle.
+  it('stays accessible with stale annotations and the Hide stale toggle', async () => {
+    const stale = {
+      notes: [{ id: 2, version: 0, text: 'Stale note', createdBy: 'assistant', source: 'ASSISTANT:x', stale: true }],
+      issues: [{
+        id: 11, version: 0, text: 'Stale issue', mustBeResolved: false, severity: 'HIGH' as const,
+        resolved: false, createdBy: 'assistant', resolvedBy: null, resolvedByPosition: null,
+        positions: [], source: 'ASSISTANT:x', stale: true
+      }]
+    };
+    const provs = providers();
+    const annotationService = provs.find(p => (p as { provide?: unknown }).provide === AnnotationService) as
+      { useValue: { getAnnotations: ReturnType<typeof vi.fn> } };
+    annotationService.useValue.getAnnotations.mockResolvedValue(stale);
+    const { fixture } = await render(AnnotationsSectionComponent, {
+      providers: provs,
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 },
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-testid="annotation-hide-stale"]')).not.toBeNull();
+    expect(el.querySelectorAll('[data-testid="annotation-stale-badge"]').length).toBe(2);
+    await expectNoAxeViolations(el);
+  });
 });

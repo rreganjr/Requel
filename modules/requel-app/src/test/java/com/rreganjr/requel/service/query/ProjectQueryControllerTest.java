@@ -855,6 +855,39 @@ class ProjectQueryControllerTest {
                 .andExpect(jsonPath("$[1].entityType").value("Story"));
     }
 
+    /** #270: stale and source on every open issue; severity first, then fresh before stale. */
+    @Test
+    void getOpenIssuesFlagsStaleIssuesAndListsThemAfterFreshOnesOfTheSameSeverity() throws Exception {
+        Goal goal = stubGoal(21L, "Goal Entity");
+        doReturn(Goal.class).when(goal).getProjectOrDomainEntityInterface();
+        IssueImpl staleHigh = new IssueImpl(project, "Stale high", false, user);
+        staleHigh.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+        staleHigh.setSource("ASSISTANT:requirements-review");
+        IssueImpl freshHigh = new IssueImpl(project, "Z fresh high", false, user);
+        freshHigh.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.HIGH);
+        IssueImpl freshLow = new IssueImpl(project, "Fresh low", false, user);
+        freshLow.setSeverity(com.rreganjr.requel.annotation.IssueSeverity.LOW);
+        when(goal.getAnnotations()).thenReturn(Set.of(staleHigh, freshHigh, freshLow));
+        when(project.getProjectEntities()).thenReturn(Set.of(goal));
+        ProjectQueryController controller = new ProjectQueryController(projectRepository,
+                projectCommandFactory, commandHandler, currentUserResolver, entityManager,
+                dictionaryRepository);
+        controller.setAnnotationFreshness(annotatables ->
+                (annotatable, annotation) -> annotation == staleHigh);
+        MockMvc staleMvc = MockMvcBuilders.standaloneSetup(controller).build();
+
+        staleMvc.perform(get("/api/projects/TestProject/open-issues"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].issueText").value("Z fresh high"))
+                .andExpect(jsonPath("$[0].stale").value(false))
+                .andExpect(jsonPath("$[0].source").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$[1].issueText").value("Stale high"))
+                .andExpect(jsonPath("$[1].stale").value(true))
+                .andExpect(jsonPath("$[1].source").value("ASSISTANT:requirements-review"))
+                .andExpect(jsonPath("$[2].issueText").value("Fresh low"));
+    }
+
     // -------------------------------------------------------------------------
     // Stub helpers
     // -------------------------------------------------------------------------

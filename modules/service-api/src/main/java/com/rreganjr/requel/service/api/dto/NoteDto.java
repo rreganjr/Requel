@@ -27,6 +27,10 @@ public record NoteDto(
         Long id,
         int version,
         String text,
-        String createdBy
+        String createdBy,
+        /** The provenance label: {@code ASSISTANT:<id>} for an assistant's, null for a person's (#270). */
+        String source,
+        /** True when an assistant raised it against text that has since changed, or no longer reports it: it may no longer apply (#270). */
+        boolean stale
 ) {
 }

@@ -306,7 +306,7 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
             // The assistant holds its own, narrower set rather than the creator's full matrix
             // (issue #302), and holds exactly that set: a project imported over an existing one
             // can carry an assistant row this path over-granted before #302.
-            addUserAsStakeholder(targetProject, getUserRepository().findUserByUsername("assistant"),
+            addUserAsStakeholder(targetProject, getUserRepository().findUserByUsername(User.ASSISTANT_USERNAME),
                     createdBy, getProjectRepository().findAssistantStakeholderPermissions(), true);
         } catch (NoSuchUserException e) {
             log.warn("The assistant user doesn't exist and could not be added as a stakeholder to " + targetProject.getName());

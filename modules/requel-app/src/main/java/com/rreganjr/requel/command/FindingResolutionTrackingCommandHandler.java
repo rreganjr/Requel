@@ -48,7 +48,8 @@ import com.rreganjr.requel.assistant.core.persistence.AssistantFindingState;
 /**
  * A {@link CommandHandler} decorator that records the human side of the assistant
  * finding state machine: when a user resolves an assistant-raised issue, the
- * finding that produced that issue is moved {@code ACTIVE -> MANUALLY_RESOLVED}.
+ * finding that produced that issue is moved {@code ACTIVE -> MANUALLY_RESOLVED} (or
+ * {@code SUPERSEDED -> MANUALLY_RESOLVED}, issue #270).
  *
  * <p>
  * This is the counterpart to the applicator's {@code AUTO_RESOLVE_IF_UNTOUCHED}
@@ -167,7 +168,10 @@ public class FindingResolutionTrackingCommandHandler implements CommandHandler {
 				.findByAppliedAnnotationId(issue.getId());
 		Instant now = clock.instant();
 		for (AssistantFindingEntity finding : findings) {
-			if (AssistantFindingState.ACTIVE.name().equals(finding.getState())) {
+			// Issue #270: a SUPERSEDED finding's issue is still open (it reads stale), so a human
+			// resolving it closes the finding too.
+			if (AssistantFindingState.ACTIVE.name().equals(finding.getState())
+					|| AssistantFindingState.SUPERSEDED.name().equals(finding.getState())) {
 				finding.setState(AssistantFindingState.MANUALLY_RESOLVED.name());
 				finding.setClosedAt(now);
 				findingRepository.save(finding);

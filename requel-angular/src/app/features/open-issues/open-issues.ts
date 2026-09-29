@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { Component, OnInit, TemplateRef, ViewChild, signal, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, signal, computed, ChangeDetectionStrategy, inject, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -30,7 +30,7 @@ import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ListPageComponent } from '../../shared/list-page';
 import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
 import { AppTagComponent } from '../../shared/app-tag';
-import { IssueSeverity, severityLabel, severityRank } from '../../models/annotation';
+import { IssueSeverity, STALE_LABEL, STALE_TOOLTIP, severityLabel, severityRank } from '../../models/annotation';
 import { issueSeverityIcon, issueSeverityTone, RqTone } from '../../shared/severity';
 
 interface OpenIssueDto {
@@ -41,13 +41,18 @@ interface OpenIssueDto {
   entityType: string;
   entityId: number;
   entityName: string;
+  /** `ASSISTANT:<id>` when an assistant raised it, otherwise null (#270). */
+  source?: string | null;
+  /** An assistant raised it against text that has since changed: it may no longer apply (#270). */
+  stale?: boolean;
 }
 
 /**
- * A row with its severity's numeric rank (#271). The table sorts on the rank, not the name:
- * alphabetically HIGH < LOW < MEDIUM.
+ * A row with its severity's numeric rank (#271) and the Severity column's sort key (#270). The
+ * table sorts on the key, not the name (alphabetically HIGH < LOW < MEDIUM): severity first, then
+ * fresh before stale, so sorting descending lists a fresh HIGH, a stale HIGH, a fresh MEDIUM...
  */
-type OpenIssueRow = OpenIssueDto & { severityRank: number };
+type OpenIssueRow = OpenIssueDto & { severityRank: number; sortRank: number };
 
 /** Maps entity type simple names to their Angular route segment. */
 const ENTITY_ROUTES: Record<string, string> = {
@@ -73,11 +78,20 @@ const ENTITY_ROUTES: Record<string, string> = {
 
       <app-data-table scrollHeight="flex" [value]="issues()" [columns]="columns" [loading]="loading()"
                       [rowClickable]="false" [defaultActions]="false" [rows]="25"
-                      sortField="severityRank" [sortOrder]="-1" searchPlaceholder="Search issues..."
+                      sortField="sortRank" [sortOrder]="-1" searchPlaceholder="Search issues..."
                       [globalFilterFields]="['severity', 'entityType', 'entityName', 'issueText']"
                       testid="open-issues" emptyTitle="No open issues"
                       emptyMessage="All clear — everything in this project is resolved." emptyIcon="pi-check-circle">
         <div toolbarActions>
+          @if (staleCount() > 0) {
+            <p-button [label]="hideStale() ? 'Show stale' : 'Hide stale'"
+                      [icon]="hideStale() ? 'pi pi-eye' : 'pi pi-eye-slash'"
+                      size="small" severity="secondary" [text]="true"
+                      data-testid="open-issues-hide-stale"
+                      [ariaLabel]="hideStale() ? 'Show issues that may no longer apply' : 'Hide issues that may no longer apply'"
+                      [attr.aria-pressed]="hideStale()"
+                      (onClick)="hideStale.set(!hideStale())" />
+          }
           @if (mustResolveCount() > 0) {
             <p-badge [value]="mustResolveCount().toString()" severity="danger" data-testid="open-issues-badge" />
           }
@@ -97,6 +111,15 @@ const ENTITY_ROUTES: Record<string, string> = {
                [tone]="severityTone(issue.severity)" [icon]="severityIcon(issue.severity)"
                [label]="formatSeverity(issue.severity)" />
     </ng-template>
+    <ng-template #issueCell let-issue>
+      <span class="issue-text" [class.stale]="issue.stale" [attr.data-stale]="issue.stale ? 'true' : null"
+            data-testid="open-issue-text">{{ issue.issueText }}</span>
+      @if (issue.stale) {
+        <span [attr.title]="staleTooltip">
+          <app-tag data-testid="open-issue-stale" [tone]="'neutral'" icon="pi pi-history" [label]="staleLabel" />
+        </span>
+      }
+    </ng-template>
     <ng-template #requiredCell let-issue>
       @if (issue.mustBeResolved) {
         <span class="must-resolve" data-testid="open-issue-required">Yes</span>
@@ -115,10 +138,21 @@ const ENTITY_ROUTES: Record<string, string> = {
        white table cell (issue #141: red-500 on white is only 3.76:1). */
     .must-resolve { color: var(--p-red-700); font-weight: 600; }
     .optional { color: var(--p-text-secondary-color); }
+    /* #270: muted; the "May no longer apply" tag carries the meaning, not the colour. */
+    .issue-text.stale { opacity: 0.7; }
+    .issue-text + span { margin-left: 0.5rem; }
   `]
 })
 export class OpenIssuesComponent implements OnInit {
-  issues = signal<OpenIssueRow[]>([]);
+  private readonly allIssues = signal<OpenIssueRow[]>([]);
+  /** #270: hide issues that may no longer apply. Off by default, not persisted. */
+  readonly hideStale = signal(false);
+  readonly staleCount = computed(() => this.allIssues().filter(i => i.stale).length);
+  /** The rows the table shows: every open issue, less the stale ones when hidden. */
+  readonly issues = computed(() =>
+    this.hideStale() ? this.allIssues().filter(i => !i.stale) : this.allIssues());
+  readonly staleLabel = STALE_LABEL;
+  readonly staleTooltip = STALE_TOOLTIP;
   loading = signal(true);
   errorMessage = signal<string | null>(null);
   mustResolveCount = signal(0);
@@ -126,6 +160,7 @@ export class OpenIssuesComponent implements OnInit {
   @ViewChild('entityCell', { static: true }) entityCell!: TemplateRef<{ $implicit: OpenIssueDto }>;
   @ViewChild('requiredCell', { static: true }) requiredCell!: TemplateRef<{ $implicit: OpenIssueDto }>;
   @ViewChild('severityCell', { static: true }) severityCell!: TemplateRef<{ $implicit: OpenIssueDto }>;
+  @ViewChild('issueCell', { static: true }) issueCell!: TemplateRef<{ $implicit: OpenIssueDto }>;
   columns: DataTableColumn<OpenIssueDto>[] = [];
 
   private projectName = '';
@@ -139,10 +174,10 @@ export class OpenIssuesComponent implements OnInit {
 
   ngOnInit(): void {
     this.columns = [
-      { field: 'severityRank', header: 'Severity', sortable: true, cellTemplate: this.severityCell },
+      { field: 'sortRank', header: 'Severity', sortable: true, cellTemplate: this.severityCell },
       { field: 'entityType', header: 'Type', sortable: true },
       { field: 'entityName', header: 'Entity', sortable: true, cellTemplate: this.entityCell },
-      { field: 'issueText', header: 'Issue', sortable: true },
+      { field: 'issueText', header: 'Issue', sortable: true, cellTemplate: this.issueCell },
       { field: 'mustBeResolved', header: 'Required', cellTemplate: this.requiredCell }
     ];
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
@@ -160,8 +195,12 @@ export class OpenIssuesComponent implements OnInit {
       const data = await firstValueFrom(
         this.http.get<OpenIssueDto[]>(projectApiUrl(this.projectName, 'open-issues'))
       );
-      // The server already orders by severity; the rank keeps a client-side re-sort consistent.
-      this.issues.set(data.map(i => ({ ...i, severityRank: severityRank(i.severity) })));
+      // The server already orders by severity, then fresh before stale (#270); the sort key
+      // keeps a client-side re-sort consistent.
+      this.allIssues.set(data.map(i => {
+        const rank = severityRank(i.severity);
+        return { ...i, severityRank: rank, sortRank: rank * 2 + (i.stale ? 0 : 1) };
+      }));
       this.mustResolveCount.set(data.filter(i => i.mustBeResolved).length);
     } catch {
       this.errorMessage.set('Failed to load open issues.');

@@ -105,7 +105,7 @@ class UpsertGoalCommandTest {
             }
             case "EditNote" -> {
                 EditNoteInput i = (EditNoteInput) request.input();
-                yield new GatewayResult("EditNote", new NoteDto(1L, 0, i.text(), "t"));
+                yield new GatewayResult("EditNote", new NoteDto(1L, 0, i.text(), "t", null, false));
             }
             default -> throw new IllegalStateException("unexpected " + request.commandType());
         };

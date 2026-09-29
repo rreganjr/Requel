@@ -128,6 +128,96 @@ describe('AnnotationsSectionComponent', () => {
     expect(badge.textContent.trim()).toBe('High');
   });
 
+  // #270: annotations that may no longer apply.
+  describe('stale annotations', () => {
+    const issue = (id: number, severity: 'HIGH' | 'MEDIUM' | 'LOW', stale: boolean) => ({
+      id, version: 0, text: `Issue ${id}`, mustBeResolved: false, severity, resolved: false,
+      createdBy: 'assistant', resolvedBy: null, resolvedByPosition: null, positions: [],
+      source: 'ASSISTANT:requirements-review', stale
+    });
+    const STALE_ANNOTATIONS = {
+      notes: [
+        { id: 2, version: 0, text: 'Stale note', createdBy: 'assistant', source: 'ASSISTANT:x', stale: true },
+        { id: 3, version: 0, text: 'Fresh note', createdBy: 'admin', source: null, stale: false }
+      ],
+      // Deliberately out of order: the component sorts severity, then fresh before stale.
+      issues: [issue(10, 'MEDIUM', false), issue(11, 'HIGH', true), issue(12, 'LOW', false),
+        issue(13, 'HIGH', false), issue(14, 'MEDIUM', true)]
+    };
+
+    async function renderStale(annotations: unknown = STALE_ANNOTATIONS) {
+      annotationServiceMock.getAnnotations.mockResolvedValue(annotations);
+      const { fixture } = await render(AnnotationsSectionComponent, {
+        providers: providers(),
+        inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 }
+      });
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    const issueIds = (el: HTMLElement) =>
+      Array.from(el.querySelectorAll('[data-testid="annotation-issue"] .annotation-text'))
+        .filter(t => t.textContent!.startsWith('Issue '))
+        .map(t => Number(t.textContent!.replace('Issue ', '')));
+
+    it('badges and mutes a stale issue and note, and not a fresh one', async () => {
+      const el = (await renderStale()).nativeElement as HTMLElement;
+      const staleIssue = el.querySelectorAll('[data-testid="annotation-issue"][data-stale="true"]');
+      expect(staleIssue.length).toBe(2);
+      expect(staleIssue[0].classList).toContain('stale');
+      const staleNote = el.querySelectorAll('[data-testid="annotation-note"][data-stale="true"]');
+      expect(staleNote.length).toBe(1);
+      const badges = el.querySelectorAll('[data-testid="annotation-stale-badge"]');
+      expect(badges.length).toBe(3);
+      expect(badges[0].textContent!.trim()).toBe('May no longer apply');
+      expect(badges[0].parentElement!.getAttribute('title')).toContain('text that has since changed');
+    });
+
+    it('sorts issues by severity, then fresh before stale; a stale HIGH before a fresh LOW', async () => {
+      const el = (await renderStale()).nativeElement as HTMLElement;
+      expect(issueIds(el)).toEqual([13, 11, 10, 14, 12]);
+    });
+
+    it('lists fresh notes before stale ones', async () => {
+      const el = (await renderStale()).nativeElement as HTMLElement;
+      const notes = Array.from(el.querySelectorAll('[data-testid="annotation-note"] .annotation-text'))
+        .map(t => t.textContent!.trim());
+      expect(notes).toEqual(['Fresh note', 'Stale note']);
+    });
+
+    it('Hide stale hides the stale ones and Show stale brings them back', async () => {
+      const fixture = await renderStale();
+      const el = fixture.nativeElement as HTMLElement;
+      const toggle = el.querySelector('[data-testid="annotation-hide-stale"] button') as HTMLButtonElement;
+      expect(toggle.textContent).toContain('Hide stale');
+      toggle.click();
+      fixture.detectChanges();
+      expect(issueIds(el)).toEqual([13, 10, 12]);
+      expect(el.querySelectorAll('[data-testid="annotation-note"]').length).toBe(1);
+      expect(el.querySelector('[data-testid="annotation-stale-badge"]')).toBeNull();
+      expect(toggle.textContent).toContain('Show stale');
+      toggle.click();
+      fixture.detectChanges();
+      expect(issueIds(el)).toEqual([13, 11, 10, 14, 12]);
+    });
+
+    it('says so when hiding stale leaves nothing', async () => {
+      const fixture = await renderStale({ notes: [], issues: [issue(11, 'HIGH', true)] });
+      const el = fixture.nativeElement as HTMLElement;
+      (el.querySelector('[data-testid="annotation-hide-stale"] button') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      expect(el.querySelector('[data-testid="annotation-all-stale-hidden"]')).not.toBeNull();
+      expect(screen.queryByText('No annotations.')).not.toBeInTheDocument();
+    });
+
+    it('has no Hide stale toggle when nothing is stale', async () => {
+      const el = (await renderStale(MOCK_ANNOTATIONS)).nativeElement as HTMLElement;
+      expect(el.querySelector('[data-testid="annotation-hide-stale"]')).toBeNull();
+      expect(el.querySelector('[data-testid="annotation-stale-badge"]')).toBeNull();
+    });
+  });
+
   it('shows a severity picker defaulting to Medium in the add-issue form', async () => {
     const { fixture } = await render(AnnotationsSectionComponent, {
       providers: providers(true),

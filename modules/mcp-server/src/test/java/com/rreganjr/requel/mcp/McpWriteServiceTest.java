@@ -176,7 +176,7 @@ class McpWriteServiceTest {
 				case "EditNote" -> {
 					EditNoteInput i = (EditNoteInput) request.input();
 					long id = i.noteId() != null ? i.noteId() : nextNoteId++;
-					yield new GatewayResult("EditNote", new NoteDto(id, 0, i.text(), "t"));
+					yield new GatewayResult("EditNote", new NoteDto(id, 0, i.text(), "t", null, false));
 				}
 				default -> throw new IllegalArgumentException(request.commandType());
 			};

@@ -356,6 +356,181 @@ class CommandBackedAssistantResultApplicatorTest {
 		verifyNoInteractions(findingRepository);
 	}
 
+	// ---- #270: fingerprint and human discussion --------------------------------
+
+	@Test
+	void aNewFindingRecordsTheFingerprintTheWorkerTookAtAnalysis() throws Exception {
+		stubIssueCommand();
+
+		applyIssueAction("ai-review:Goal:1:ambiguous", "HIGH", Map.of(), null,
+				contextWith(Map.of(CommandBackedAssistantResultApplicator.TARGET_FINGERPRINT,
+						"analyzed-fingerprint")),
+				Map.of());
+
+		verify(findingRepository, atLeastOnce()).save(argThat(f -> f instanceof AssistantFindingEntity
+				&& "analyzed-fingerprint".equals(((AssistantFindingEntity) f).getTargetFingerprint())));
+	}
+
+	@Test
+	void aReReportedFindingIsRefreshedToTheNewFingerprint() throws Exception {
+		stubIssueCommand();
+		String key = "ai-review:Goal:1:ambiguous";
+		AssistantFindingEntity existing = new AssistantFindingEntity(UUID.randomUUID(), key,
+				"ai-review", "Goal", 1L, "AMBIGUOUS", AssistantFindingState.ACTIVE.name(),
+				UUID.randomUUID(), Instant.parse("2026-05-20T00:00:00Z"));
+		existing.setTargetFingerprint("old-fingerprint");
+		when(findingRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(existing));
+
+		applyIssueAction(key, "HIGH", Map.of(), null,
+				contextWith(Map.of(CommandBackedAssistantResultApplicator.TARGET_FINGERPRINT,
+						"new-fingerprint")),
+				Map.of());
+
+		assertThat(existing.getTargetFingerprint()).isEqualTo("new-fingerprint");
+	}
+
+	@Test
+	void withoutTheWorkersFingerprintTheEntityIsFingerprintedAsItIsNow() throws Exception {
+		stubIssueCommand();
+		com.rreganjr.requel.project.Goal goal = mock(com.rreganjr.requel.project.Goal.class);
+		when(goal.getName()).thenReturn("Login");
+		when(goal.getText()).thenReturn("Users log in fast.");
+
+		applyIssueAction("ai-review:Goal:1:ambiguous", "HIGH", Map.of(), null, context(),
+				Map.of(), goal);
+
+		String expected = com.rreganjr.requel.assistant.core.freshness.TargetFingerprint
+				.of("Login", "Users log in fast.");
+		verify(findingRepository, atLeastOnce()).save(argThat(f -> f instanceof AssistantFindingEntity
+				&& expected.equals(((AssistantFindingEntity) f).getTargetFingerprint())));
+	}
+
+	@Test
+	void autoResolveKeepsAnIssueWithAHumanPositionAndSupersedesTheFinding() throws Exception {
+		Issue issue = assistantIssue(Set.of(position("ron")));
+		AssistantFindingEntity stale = staleFinding();
+
+		RemoveAnnotationFromAnnotatableCommand remove = reconcileAutoResolve(issue);
+
+		verify(commandHandler, never()).execute(remove);
+		assertThat(stale.getState()).isEqualTo(AssistantFindingState.SUPERSEDED.name());
+		assertThat(stale.getSupersededByRunId()).isNotNull();
+	}
+
+	@Test
+	void autoResolveKeepsAnIssueWithAHumanArgumentOnAnAssistantPosition() throws Exception {
+		com.rreganjr.requel.annotation.Position suggested = position("assistant");
+		com.rreganjr.requel.annotation.Argument argument = mock(
+				com.rreganjr.requel.annotation.Argument.class);
+		com.rreganjr.platform.identity.User ron = user("ron");
+		when(argument.getCreatedBy()).thenReturn(ron);
+		when(suggested.getArguments()).thenReturn(Set.of(argument));
+		Issue issue = assistantIssue(Set.of(suggested));
+		AssistantFindingEntity stale = staleFinding();
+
+		RemoveAnnotationFromAnnotatableCommand remove = reconcileAutoResolve(issue);
+
+		verify(commandHandler, never()).execute(remove);
+		assertThat(stale.getState()).isEqualTo(AssistantFindingState.SUPERSEDED.name());
+	}
+
+	@Test
+	void autoResolveRemovesAnIssueWhoseOnlyPositionsTheAssistantSuggested() throws Exception {
+		Issue issue = assistantIssue(Set.of(position("assistant")));
+		AssistantFindingEntity stale = staleFinding();
+
+		RemoveAnnotationFromAnnotatableCommand remove = reconcileAutoResolve(issue);
+
+		verify(commandHandler).execute(remove);
+		assertThat(stale.getState()).isEqualTo(AssistantFindingState.AUTO_RESOLVED.name());
+	}
+
+	@Test
+	void aPositionWithNoAuthorCountsAsHumanDiscussion() throws Exception {
+		com.rreganjr.requel.annotation.Position anonymous = mock(
+				com.rreganjr.requel.annotation.Position.class);
+		Issue issue = assistantIssue(Set.of(anonymous));
+		AssistantFindingEntity stale = staleFinding();
+
+		RemoveAnnotationFromAnnotatableCommand remove = reconcileAutoResolve(issue);
+
+		verify(commandHandler, never()).execute(remove);
+		assertThat(stale.getState()).isEqualTo(AssistantFindingState.SUPERSEDED.name());
+	}
+
+	@Test
+	void aLegacyRemovalKeepsAnIssueCarryingHumanDiscussion() throws Exception {
+		Issue legacy = mock(Issue.class);
+		when(legacy.isResolved()).thenReturn(false);
+		when(legacy.getSource()).thenReturn(null);
+		com.rreganjr.requel.annotation.Position human = position("ron");
+		when(legacy.getPositions()).thenReturn(Set.of(human));
+
+		applyLegacyRemoval(legacy, false);
+
+		verify(commandHandler, never()).execute(any());
+	}
+
+	private AssistantFindingEntity staleFinding() {
+		AssistantFindingEntity stale = new AssistantFindingEntity(UUID.randomUUID(),
+				"legacy-lexical:Goal:1:spelling:Text:zorblat", "legacy-lexical", "Goal", 1L,
+				"spelling", AssistantFindingState.ACTIVE.name(), UUID.randomUUID(),
+				Instant.parse("2026-05-20T00:00:00Z"));
+		stale.setAppliedAnnotationId(99L);
+		when(findingRepository.findByAssistantIdAndTargetTypeAndTargetIdAndState("legacy-lexical",
+				"Goal", 1L, AssistantFindingState.ACTIVE.name())).thenReturn(List.of(stale));
+		return stale;
+	}
+
+	private RemoveAnnotationFromAnnotatableCommand reconcileAutoResolve(Issue issue)
+			throws Exception {
+		EntityRef goalRef = EntityRef.of("Goal", 1L);
+		ProjectOrDomainEntity goal = mock(ProjectOrDomainEntity.class);
+		AssistantTargetLoader loader = mock(AssistantTargetLoader.class);
+		when(loader.supports(goalRef)).thenReturn(true);
+		when(loader.loadTarget(goalRef)).thenReturn(Optional.of(goal));
+		when(annotationRepository.findAnnotationById(99L)).thenReturn(issue);
+		RemoveAnnotationFromAnnotatableCommand command = mock(
+				RemoveAnnotationFromAnnotatableCommand.class);
+		when(annotationCommandFactory.newRemoveAnnotationFromAnnotatableCommand())
+				.thenReturn(command);
+		when(commandHandler.execute(command)).thenReturn(command);
+		CommandBackedAssistantResultApplicator applicator = new CommandBackedAssistantResultApplicator(
+				commandHandler, annotationCommandFactory, projectCommandFactory, annotationRepository,
+				userRepository, findingRepository, runRepository, List.of(loader), fixedClock);
+		applicator.apply(context(), AssistantResult.builder().assistantId("legacy-lexical").build(),
+				CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED, goalRef);
+		return command;
+	}
+
+	private static Issue assistantIssue(Set<com.rreganjr.requel.annotation.Position> positions) {
+		Issue issue = mock(Issue.class);
+		when(issue.getSource()).thenReturn("ASSISTANT:legacy-lexical");
+		when(issue.isResolved()).thenReturn(false);
+		when(issue.getPositions()).thenReturn(positions);
+		return issue;
+	}
+
+	private static com.rreganjr.requel.annotation.Position position(String author) {
+		com.rreganjr.requel.annotation.Position position = mock(
+				com.rreganjr.requel.annotation.Position.class);
+		com.rreganjr.platform.identity.User user = user(author);
+		when(position.getCreatedBy()).thenReturn(user);
+		return position;
+	}
+
+	private static com.rreganjr.platform.identity.User user(String username) {
+		com.rreganjr.platform.identity.User user = mock(com.rreganjr.platform.identity.User.class);
+		when(user.getUsername()).thenReturn(username);
+		return user;
+	}
+
+	private static AssistantContext contextWith(Map<String, Object> attributes) {
+		return new AssistantContext(UUID.randomUUID(), new UserRef(3L, "ron"),
+				new UserRef(11L, "assistant"), EntityRef.of("Project", 7L), null, Locale.US,
+				Clock.systemUTC(), attributes);
+	}
+
 	// ---- #271: issue severity ------------------------------------------------
 
 	@Test
@@ -661,8 +836,14 @@ class CommandBackedAssistantResultApplicatorTest {
 	private void applyIssueAction(String key, String severity, Map<String, Object> metadata,
 			IgnoredFindingStore ignoredFindingStore, AssistantContext context,
 			Map<String, Object> resultMetadata) {
+		applyIssueAction(key, severity, metadata, ignoredFindingStore, context, resultMetadata,
+				mock(ProjectOrDomainEntity.class));
+	}
+
+	private void applyIssueAction(String key, String severity, Map<String, Object> metadata,
+			IgnoredFindingStore ignoredFindingStore, AssistantContext context,
+			Map<String, Object> resultMetadata, ProjectOrDomainEntity goal) {
 		EntityRef target = EntityRef.of("Goal", 1L);
-		ProjectOrDomainEntity goal = mock(ProjectOrDomainEntity.class);
 		AssistantTargetLoader loader = mock(AssistantTargetLoader.class);
 		when(loader.supports(target)).thenReturn(true);
 		when(loader.loadTarget(target)).thenReturn(Optional.of(goal));

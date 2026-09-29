@@ -37,18 +37,19 @@ public enum CleanupPolicy {
 	MANUAL,
 
 	/**
-	 * When a later run reports the same logical finding with different evidence,
-	 * mark the prior finding {@code SUPERSEDED} (annotation left open, a system
-	 * position noting the supersession is posted). Findings simply omitted by a
-	 * later run are left untouched. This is the default.
+	 * When a later run of the assistant on the same entity no longer reports a finding, mark it
+	 * {@code SUPERSEDED} and leave its annotation open; the annotation reads stale ("may no
+	 * longer apply", issue #270) until a run reports it again or a human acts on it. This is the
+	 * default.
 	 */
 	MARK_SUPERSEDED,
 
 	/**
-	 * In addition to {@link #MARK_SUPERSEDED} behavior, when a later run omits a
-	 * finding entirely and the linked annotation has no human edits, replies, or
-	 * non-assistant positions, close the annotation and mark the finding
-	 * {@code AUTO_RESOLVED}.
+	 * When a later run no longer reports a finding and its annotation carries no human
+	 * discussion (unresolved, and every position and argument on it written by the assistant
+	 * user), remove the annotation and mark the finding {@code AUTO_RESOLVED}. When a human has
+	 * resolved or discussed it, keep the annotation and mark the finding {@code SUPERSEDED}, as
+	 * {@link #MARK_SUPERSEDED} does (issue #270).
 	 */
 	AUTO_RESOLVE_IF_UNTOUCHED
 }

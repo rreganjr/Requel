@@ -74,6 +74,8 @@ import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
+import com.rreganjr.requel.assistant.core.freshness.MachineAnnotations;
+import com.rreganjr.requel.assistant.core.freshness.TargetFingerprint;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingRepository;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingState;
@@ -91,8 +93,8 @@ import com.rreganjr.requel.user.UserRepository;
  * Command-backed applicator: turns each {@link AnnotationAction} into a call
  * through the existing command + {@link CommandHandler} chain so authorization,
  * validation, audit, optimistic locking, and SSE behave exactly as they do for
- * UI-driven edits. Commands are executed as the triggering user (resolved by
- * username), which is what {@code AuthorizingCommandHandler} checks via
+ * UI-driven edits. Commands are executed as the assistant user (issue #302,
+ * {@link #resolveAssistantUser}), which is what {@code AuthorizingCommandHandler} checks via
  * {@code getEditedBy()}.
  *
  * <p>
@@ -130,6 +132,13 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 * {@code REMOVE_ANNOTATION_FROM_ANNOTATABLE} action.
 	 */
 	public static final String LEGACY_ANNOTATION_ID = "legacyAnnotationId";
+
+	/**
+	 * Issue #270: the {@link AssistantContext#attributes()} entry carrying the
+	 * {@link TargetFingerprint} of the dispatch target as the run analyzed it. Written by
+	 * {@code AssistantRunWorker} in the analyze transaction.
+	 */
+	public static final String TARGET_FINGERPRINT = "targetFingerprint";
 
 	private static final int MAX_TEXT_LENGTH = 4000;
 	private static final int MAX_SUMMARY_LENGTH = 500;
@@ -309,7 +318,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 							.computeIfAbsent(action.targetRef(), key -> new HashSet<String>())
 							.add(action.actionKey());
 					if (upsertFinding(context, result, action, applied.annotationId(),
-							createdByActionKey.get(action.actionKey()))) {
+							createdByActionKey.get(action.actionKey()), dispatchTarget)) {
 						newFindings++;
 					}
 				}
@@ -490,7 +499,8 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 * {@code metadata.legacyAnnotationId}. It has no finding, so nothing transitions. Checked
 	 * again here, in the apply transaction: only an unresolved issue with no {@code ASSISTANT:}
 	 * source is removed, so a user's resolution, or an assistant taking the issue over, between
-	 * analysis and apply wins.
+	 * analysis and apply wins. Issue #270: nor is one carrying human discussion
+	 * ({@link MachineAnnotations#hasHumanDiscussion}).
 	 */
 	private void removeLegacyAnnotation(AnnotationAction action, User editedBy) throws Exception {
 		// Non-null: isLegacyRemoval checked it.
@@ -498,10 +508,16 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		Annotation annotation = annotationRepository.findAnnotationById(annotationId);
 		Annotatable annotatable = resolveAnnotatable(action.targetRef());
 		if (annotation == null || annotatable == null || !(annotation instanceof Issue)
-				|| annotation.isResolved() || (annotation.getSource() != null
-						&& annotation.getSource().startsWith("ASSISTANT:"))) {
+				|| annotation.isResolved() || MachineAnnotations.isAssistantSourced(annotation)) {
 			log.debug("Skipping legacy removal {} — the annotation is gone, resolved or owned",
 					action.actionKey());
+			return;
+		}
+		if (MachineAnnotations.hasHumanDiscussion(annotation)) {
+			// Issue #270: removing the issue from its only entity deletes it, positions and
+			// arguments included. A human's discussion is never deleted by an assistant.
+			log.info("Keeping the old lexical issue {} on {}: it carries human discussion",
+					annotationId, action.targetRef());
 			return;
 		}
 		RemoveAnnotationFromAnnotatableCommand command = annotationCommandFactory
@@ -895,13 +911,21 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 * Leaving the old state meant {@link #reconcileStaleFindings}, which only considers
 	 * {@code ACTIVE} findings, never cleaned the open issue up again.
 	 *
+	 * <p>
+	 * Issue #270: both paths record the fingerprint of the text the finding was derived from, so a
+	 * later edit makes it read stale until a run reports it again.
+	 *
 	 * @param annotation
 	 *            the annotation this run applied for the action, or null
+	 * @param dispatchTarget
+	 *            the entity the run analyzed, whose fingerprint the worker took
 	 * @return true if a new finding row was created (vs touching an existing one).
 	 */
 	private boolean upsertFinding(AssistantContext context, AssistantResult result,
-			AnnotationAction action, Long annotationId, Object annotation) {
+			AnnotationAction action, Long annotationId, Object annotation,
+			EntityRef dispatchTarget) {
 		Instant now = clock.instant();
+		String fingerprint = targetFingerprint(context, action.targetRef(), dispatchTarget);
 		Optional<AssistantFindingEntity> existing = findingRepository
 				.findByIdempotencyKey(action.actionKey());
 		if (existing.isPresent()) {
@@ -910,6 +934,9 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			finding.setLastSeenAt(now);
 			if (annotationId != null) {
 				finding.setAppliedAnnotationId(annotationId);
+			}
+			if (fingerprint != null) {
+				finding.setTargetFingerprint(fingerprint);
 			}
 			if (!AssistantFindingState.ACTIVE.name().equals(finding.getState())
 					&& isOpen(annotation)) {
@@ -937,8 +964,27 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		finding.setSummary(truncate(action.text(), MAX_SUMMARY_LENGTH));
 		finding.setEvidenceJson(evidenceJson(action));
 		finding.setAppliedAnnotationId(annotationId);
+		finding.setTargetFingerprint(fingerprint);
 		findingRepository.save(finding);
 		return true;
+	}
+
+	/**
+	 * Issue #270: the fingerprint of the finding's target as the run analyzed it. For the dispatch
+	 * target that is the one the worker took in the analyze transaction; an entity changed between
+	 * analysis and apply must leave the finding stale. A finding on another entity, or a result
+	 * applied without the worker (tests, callers with their own context), falls back to the entity
+	 * as it is now.
+	 */
+	private String targetFingerprint(AssistantContext context, EntityRef targetRef,
+			EntityRef dispatchTarget) {
+		Object analyzed = context.attributes().get(TARGET_FINGERPRINT);
+		if (analyzed instanceof String value && targetRef != null
+				&& targetRef.equals(dispatchTarget)) {
+			return value;
+		}
+		Object entity = resolveTargetEntity(targetRef);
+		return entity == null ? null : TargetFingerprint.of(entity);
 	}
 
 	/** An unresolved issue, or a note: an annotation a human still has to act on or read. */
@@ -968,7 +1014,8 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 * <ul>
 	 * <li>{@link CleanupPolicy#AUTO_RESOLVE_IF_UNTOUCHED} — remove the annotation and
 	 * mark the finding {@code AUTO_RESOLVED}, but only if it is still assistant-owned
-	 * and untouched by a human (see {@link #autoResolveIfUntouched}).</li>
+	 * and untouched by a human (see {@link #autoResolveIfUntouched}); otherwise mark it
+	 * {@code SUPERSEDED} and keep the annotation (issue #270).</li>
 	 * <li>{@link CleanupPolicy#MARK_SUPERSEDED} (the default) — mark the finding
 	 * {@code SUPERSEDED} (stamped with {@code superseded_by_run_id} = this run) and
 	 * leave the annotation in place; the finding is kept for history.</li>
@@ -1007,7 +1054,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 					continue;
 				}
 				if (cleanupPolicy == CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED) {
-					autoResolveIfUntouched(finding, target, editedBy);
+					autoResolveIfUntouched(finding, target, editedBy, runId);
 				} else {
 					markSuperseded(finding, runId);
 				}
@@ -1018,7 +1065,9 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	/**
 	 * Mark a stale finding {@code SUPERSEDED}: record the run that superseded it and
 	 * close it, leaving its annotation untouched. Used by the default
-	 * {@link CleanupPolicy#MARK_SUPERSEDED} when a re-run no longer reports the finding.
+	 * {@link CleanupPolicy#MARK_SUPERSEDED} when a re-run no longer reports the finding, and
+	 * (issue #270) by {@link CleanupPolicy#AUTO_RESOLVE_IF_UNTOUCHED} when human discussion keeps
+	 * the annotation. A SUPERSEDED finding's annotation reads stale.
 	 */
 	private void markSuperseded(AssistantFindingEntity finding, UUID runId) {
 		finding.setState(AssistantFindingState.SUPERSEDED.name());
@@ -1032,12 +1081,12 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	/**
 	 * Auto-resolve one stale finding: if its applied annotation is still present
 	 * and {@link #isUntouched untouched} by a human, remove the annotation from
-	 * its target and mark the finding {@code AUTO_RESOLVED}. If the annotation was
-	 * edited or resolved by a human (or already gone) the finding is left
-	 * {@code ACTIVE} so the human's work is preserved.
+	 * its target and mark the finding {@code AUTO_RESOLVED}. If a human resolved or
+	 * discussed the annotation it is kept and the finding marked {@code SUPERSEDED}
+	 * (issue #270); if the annotation is already gone the finding is closed.
 	 */
 	private void autoResolveIfUntouched(AssistantFindingEntity finding, EntityRef target,
-			User editedBy) {
+			User editedBy, UUID runId) {
 		Long annotationId = finding.getAppliedAnnotationId();
 		if (annotationId == null) {
 			// Nothing was applied; the finding is purely advisory. Close it.
@@ -1051,7 +1100,10 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			return;
 		}
 		if (!isUntouched(annotation)) {
-			// A human edited or resolved it — leave it (and the finding) alone.
+			// A human resolved it or discussed it: keep the annotation. Issue #270: the run no
+			// longer reports it, so it is SUPERSEDED (reads "may no longer apply") rather than
+			// left ACTIVE with a fingerprint that still matches.
+			markSuperseded(finding, runId);
 			return;
 		}
 		Annotatable annotatable = resolveAnnotatable(target);
@@ -1083,33 +1135,17 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	}
 
 	/**
-	 * An annotation is "untouched" — safe to auto-remove — when it is still
-	 * assistant-owned and unresolved: its {@code source} is an {@code ASSISTANT:}
-	 * label and it is not resolved. A resolved annotation means a human acted on
-	 * the finding, so it is preserved. This mirrors the legacy
-	 * {@code removeUnneededLexicalIssues}, which removed a no-longer-relevant
-	 * lexical issue only when it was unresolved.
-	 *
-	 * <p>
-	 * Positions are not inspected: {@code PositionImpl} is not an
-	 * {@link AbstractAnnotation}, so it carries no provenance {@code source}, and
-	 * commands run as the triggering user, so a position's {@code createdBy} cannot
-	 * distinguish an assistant-authored position from a human one. The resolved
-	 * flag is the reliable human-engagement signal.
+	 * An annotation is "untouched" — safe to auto-remove — when it is still assistant-owned (an
+	 * {@code ASSISTANT:} source) and carries no human discussion: it is unresolved and every
+	 * position and argument on it was written by the assistant user (issue #270,
+	 * {@link MachineAnnotations#hasHumanDiscussion}). Since #302 assistant runs write as the
+	 * assistant user, so the positions an assistant suggests do not block the cleanup, and a
+	 * position or argument a person added does. Removing the annotation from its only entity
+	 * deletes it, positions and arguments included, so this check is what keeps human discussion.
 	 */
 	private static boolean isUntouched(Annotation annotation) {
-		if (!isAssistantSourced(annotation)) {
-			return false;
-		}
-		return !annotation.isResolved();
-	}
-
-	private static boolean isAssistantSourced(Annotation annotation) {
-		if (annotation instanceof AbstractAnnotation persistentAnnotation) {
-			String source = persistentAnnotation.getSource();
-			return source != null && source.startsWith("ASSISTANT:");
-		}
-		return false;
+		return MachineAnnotations.isAssistantSourced(annotation)
+				&& !MachineAnnotations.hasHumanDiscussion(annotation);
 	}
 
 	// ---- resolution helpers ---------------------------------------------------

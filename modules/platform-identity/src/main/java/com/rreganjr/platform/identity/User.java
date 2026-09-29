@@ -30,6 +30,19 @@ import java.util.Comparator;
 public interface User extends Comparable<User> {
 
     /**
+     * The username of the built-in assistant account that assistant runs write their findings
+     * as (issues #302, #270). Created by {@code AssistantUserInitializer}.
+     */
+    String ASSISTANT_USERNAME = "assistant";
+
+    /**
+     * @return true if {@code user} is the built-in assistant account; false for null.
+     */
+    static boolean isAssistant(User user) {
+        return user != null && ASSISTANT_USERNAME.equals(user.getUsername());
+    }
+
+    /**
      * @return stable database identifier, or {@code null} for transient records.
      */
     Long getId();

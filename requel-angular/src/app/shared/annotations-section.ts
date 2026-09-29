@@ -26,7 +26,7 @@ import { TextareaModule } from 'primeng/textarea';
 import { CheckboxModule } from 'primeng/checkbox';
 import { SelectModule } from 'primeng/select';
 import { MessageService } from 'primeng/api';
-import { AnnotationsDto, ISSUE_SEVERITY_OPTIONS, IssueDto, IssueSeverity, NoteDto, PositionDto, SUPPORT_LEVEL_OPTIONS, severityLabel } from '../models/annotation';
+import { AnnotationsDto, ISSUE_SEVERITY_OPTIONS, IssueDto, IssueSeverity, NoteDto, PositionDto, STALE_LABEL, STALE_TOOLTIP, SUPPORT_LEVEL_OPTIONS, severityLabel, severityRank } from '../models/annotation';
 import { AnnotationService } from '../core/annotation.service';
 import { PermissionService } from '../core/permission.service';
 import { AppCardComponent } from './app-card';
@@ -57,6 +57,15 @@ import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, support
           -->
           <h2 class="rq-section-title">Annotations</h2>
           <div class="header-actions">
+            @if (hasStale()) {
+              <p-button [label]="hideStale() ? 'Show stale' : 'Hide stale'"
+                        [icon]="hideStale() ? 'pi pi-eye' : 'pi pi-eye-slash'"
+                        size="small" severity="secondary" [text]="true"
+                        data-testid="annotation-hide-stale"
+                        [ariaLabel]="hideStale() ? 'Show annotations that may no longer apply' : 'Hide annotations that may no longer apply'"
+                        [attr.aria-pressed]="hideStale()"
+                        (onClick)="hideStale.set(!hideStale())" />
+            }
             @if (annotations().issues.length > 0) {
               <p-button [label]="allIssuesCollapsed() ? 'Expand all' : 'Collapse all'"
                         [icon]="allIssuesCollapsed() ? 'pi pi-angle-down' : 'pi pi-angle-up'"
@@ -136,10 +145,16 @@ import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, support
         }
 
         <!-- Notes list -->
-        @for (note of annotations().notes; track note.id) {
-          <div class="annotation note-item" data-testid="annotation-note">
+        @for (note of visibleNotes(); track note.id) {
+          <div class="annotation note-item" data-testid="annotation-note"
+               [class.stale]="note.stale" [attr.data-stale]="note.stale ? 'true' : null">
             <div class="annotation-row">
               <app-tag data-testid="annotation-note-badge" [tone]="'info'" icon="pi pi-comment" label="Note" />
+              @if (note.stale) {
+                <span [attr.title]="staleTooltip">
+                  <app-tag data-testid="annotation-stale-badge" [tone]="'neutral'" icon="pi pi-history" [label]="staleLabel" />
+                </span>
+              }
               <span class="annotation-text">{{ note.text }}</span>
               <span class="annotation-creator">{{ note.createdBy }}</span>
               @if (canEditAnnotations()) {
@@ -152,9 +167,10 @@ import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, support
         }
 
         <!-- Issues list -->
-        @for (issue of annotations().issues; track issue.id) {
+        @for (issue of visibleIssues(); track issue.id) {
           <div class="annotation issue-item" data-testid="annotation-issue"
                [attr.data-resolved]="issue.resolved" [class.resolved]="issue.resolved"
+               [class.stale]="issue.stale" [attr.data-stale]="issue.stale ? 'true' : null"
                [class.collapsed]="isCollapsed(issue.id)">
             <div class="annotation-row">
               <p-button [icon]="isCollapsed(issue.id) ? 'pi pi-angle-right' : 'pi pi-angle-down'"
@@ -172,6 +188,11 @@ import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, support
                        [label]="formatSeverity(issue.severity)" />
               @if (issue.mustBeResolved && !issue.resolved) {
                 <app-tag [tone]="'danger'" icon="pi pi-exclamation-circle" label="Must Resolve" />
+              }
+              @if (issue.stale) {
+                <span [attr.title]="staleTooltip">
+                  <app-tag data-testid="annotation-stale-badge" [tone]="'neutral'" icon="pi pi-history" [label]="staleLabel" />
+                </span>
               }
               <span class="annotation-text">{{ issue.text }}</span>
               <span class="annotation-creator">{{ issue.createdBy }}</span>
@@ -285,6 +306,8 @@ import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, support
 
         @if (annotations().notes.length === 0 && annotations().issues.length === 0 && !showNoteForm() && !showIssueForm()) {
           <p class="empty-text">No annotations.</p>
+        } @else if (hideStale() && visibleNotes().length === 0 && visibleIssues().length === 0) {
+          <p class="empty-text" data-testid="annotation-all-stale-hidden">Every annotation here may no longer apply and is hidden.</p>
         }
         </app-card>
       </div>
@@ -311,6 +334,9 @@ import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, support
     .note-item { border-left: 3px solid var(--rq-tag-info-fg); }
     .issue-item { border-left: 3px solid var(--rq-tag-warning-fg); }
     .issue-item.resolved { border-left-color: var(--rq-tag-success-fg); opacity: 0.8; }
+    /* #270: an assistant's annotation raised against text that has since changed. Muted, with a
+       neutral strip; the "May no longer apply" tag carries the meaning, not the colour. */
+    .annotation.stale { opacity: 0.7; border-left-color: var(--rq-tag-neutral-fg); }
     .position-item { margin-left: 1.5rem; border-left: 3px solid var(--p-surface-400); padding: 0.4rem 0.75rem; margin-top: 0.4rem; }
     .argument-item { margin-left: 1.5rem; padding: 0.25rem 0.5rem; margin-top: 0.25rem; }
 
@@ -344,6 +370,34 @@ export class AnnotationsSectionComponent implements OnChanges {
 
   private _annotations = signal<AnnotationsDto>({ notes: [], issues: [] });
   annotations = this._annotations.asReadonly();
+
+  readonly staleLabel = STALE_LABEL;
+  readonly staleTooltip = STALE_TOOLTIP;
+  /** #270: hide notes and issues that may no longer apply. Off by default, not persisted. */
+  readonly hideStale = signal(false);
+  /** True when any note or issue here may no longer apply; the toggle shows only then. */
+  readonly hasStale = computed(() => {
+    const a = this.annotations();
+    return a.notes.some(n => n.stale) || a.issues.some(i => i.stale);
+  });
+  /** Notes in creation order, stale ones last (#270), less the stale ones when hidden. */
+  readonly visibleNotes = computed(() => {
+    const notes = [...this.annotations().notes]
+      .sort((a, b) => Number(!!a.stale) - Number(!!b.stale) || a.id - b.id);
+    return this.hideStale() ? notes.filter(n => !n.stale) : notes;
+  });
+  /**
+   * Issues highest severity first (#271), then fresh before stale (#270), then creation order,
+   * less the stale ones when hidden. The server sends them in this order already; sorting here
+   * keeps it after a local change too.
+   */
+  readonly visibleIssues = computed(() => {
+    const issues = [...this.annotations().issues].sort((a, b) =>
+      severityRank(b.severity) - severityRank(a.severity)
+      || Number(!!a.stale) - Number(!!b.stale)
+      || a.id - b.id);
+    return this.hideStale() ? issues.filter(i => !i.stale) : issues;
+  });
   // Non-blocking inline warning when the supplemental annotation load fails,
   // instead of the previous silent swallow (issue #131).
   private _loadError = signal<string | null>(null);

@@ -71,8 +71,6 @@ public class RepairProjectStakeholdersCommandImpl extends AbstractEditProjectCom
 	private static final Logger log = LoggerFactory
 			.getLogger(RepairProjectStakeholdersCommandImpl.class);
 
-	private static final String ASSISTANT_USERNAME = "assistant";
-
 	private String projectName;
 
 	private int projectsScanned;
@@ -232,7 +230,7 @@ public class RepairProjectStakeholdersCommandImpl extends AbstractEditProjectCom
 	 */
 	private com.rreganjr.requel.user.User resolveAssistant() {
 		try {
-			return getUserRepository().findUserByUsername(ASSISTANT_USERNAME);
+			return getUserRepository().findUserByUsername(User.ASSISTANT_USERNAME);
 		} catch (Exception e) {
 			log.warn("The assistant user does not resolve; skipping assistant stakeholder"
 					+ " repair: {}", e.getMessage());

@@ -22,7 +22,9 @@ package com.rreganjr.requel.assistant.core;
 
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -43,6 +45,7 @@ import com.rreganjr.requel.assistant.api.AssistantRegistry;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
+import com.rreganjr.requel.assistant.core.freshness.TargetFingerprint;
 
 /**
  * Runs queued assistant work in two short transactions (issue #247).
@@ -261,9 +264,16 @@ public class AssistantRunWorker {
 		}
 
 		Object target = targetValue.get();
+		// Issue #270: fingerprint the target as this run analyzes it, in this transaction. The
+		// apply runs in another one, and an edit in between must leave the findings stale.
+		Map<String, Object> attributes = new HashMap<>(request.attributes());
+		String fingerprint = TargetFingerprint.of(target);
+		if (fingerprint != null) {
+			attributes.put(CommandBackedAssistantResultApplicator.TARGET_FINGERPRINT, fingerprint);
+		}
 		AssistantContext context = new AssistantContext(record.runId(), request.triggeringUser(),
 				request.assistantUser(), request.projectRef(), request.taskType(),
-				request.locale(), clock, request.attributes());
+				request.locale(), clock, attributes);
 		List<RequelAssistant<?>> matched = assistantRegistry.findAssistantsFor(target, context);
 		if (matched.isEmpty()) {
 			return new Analysis("No assistants registered for " + target.getClass().getName());

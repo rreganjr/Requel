@@ -129,7 +129,7 @@ public class AssistantTaskRunner {
 	}
 
 	private User assistantUser() {
-		return userRepository.findUserByUsername("assistant");
+		return userRepository.findUserByUsername(User.ASSISTANT_USERNAME);
 	}
 
 	private LexicalAssistant newLexicalAssistant() {
