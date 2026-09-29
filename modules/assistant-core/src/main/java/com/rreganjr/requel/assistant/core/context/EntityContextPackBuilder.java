@@ -34,6 +34,7 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.assistant.core.freshness.MachineAnnotations;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
@@ -94,7 +95,7 @@ public class EntityContextPackBuilder {
 				// Keep machine-generated annotations out of the context: assistants (especially
 				// smaller models) tend to echo existing automated findings back as their own
 				// instead of analyzing the requirement. Human annotations remain as useful context.
-				if (isAssistantSourced(annotation)) {
+				if (isMachineGenerated(annotation)) {
 					continue;
 				}
 				if (count >= maxAnnotations) {
@@ -257,13 +258,12 @@ public class EntityContextPackBuilder {
 	 * path, not for pack-level reads.
 	 */
 	/**
-	 * True if the annotation was created by an assistant (source {@code "ASSISTANT:<id>"}), so it
-	 * should be excluded from context packs. Human annotations (source {@code "HUMAN"} or
-	 * {@code null}) are kept.
+	 * True if an assistant wrote the annotation, so it is kept out of context packs: an
+	 * {@code "ASSISTANT:<id>"} source, or (issue #270) no source and created by the assistant user,
+	 * which is what the old lexical path left. Human annotations are kept.
 	 */
-	private static boolean isAssistantSourced(Annotation annotation) {
-		String source = annotation.getSource();
-		return source != null && source.startsWith("ASSISTANT:");
+	private static boolean isMachineGenerated(Annotation annotation) {
+		return MachineAnnotations.isMachineGenerated(annotation);
 	}
 
 	private static AnnotationKind annotationKind(Annotation annotation) {

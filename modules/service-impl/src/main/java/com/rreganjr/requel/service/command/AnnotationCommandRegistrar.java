@@ -253,12 +253,19 @@ public class AnnotationCommandRegistrar {
     // value once the Angular edit flow is confirmed to round-trip versions.
 
     public static NoteDto toNoteDto(Note note) {
+        return toNoteDto(note, false);
+    }
+
+    /** @param stale whether the note may no longer apply on the entity it is read for (#270) */
+    public static NoteDto toNoteDto(Note note, boolean stale) {
         if (note == null) return null;
         return new NoteDto(
                 note.getId(),
                 0,
                 note.getText(),
-                note.getCreatedBy() != null ? note.getCreatedBy().getDisplayName() : null
+                note.getCreatedBy() != null ? note.getCreatedBy().getDisplayName() : null,
+                note.getSource(),
+                stale
         );
     }
 
@@ -270,7 +277,16 @@ public class AnnotationCommandRegistrar {
         return IssueSeverity.parse(severity).map(IssueSeverity::rank).orElse(0);
     }
 
+    /**
+     * An issue as a command returns it: just written, so not stale (#270). Reads use
+     * {@link #toIssueDto(Issue, boolean)}.
+     */
     public static IssueDto toIssueDto(Issue issue) {
+        return toIssueDto(issue, false);
+    }
+
+    /** @param stale whether the issue may no longer apply on the entity it is read for (#270) */
+    public static IssueDto toIssueDto(Issue issue, boolean stale) {
         if (issue == null) return null;
         List<PositionDto> positions = issue.getPositions().stream()
                 .sorted(Comparator.naturalOrder())
@@ -286,7 +302,9 @@ public class AnnotationCommandRegistrar {
                 issue.getResolvedByUser() != null ? issue.getResolvedByUser().getDisplayName() : null,
                 issue.getResolvedByPosition() != null ? issue.getResolvedByPosition().getText() : null,
                 issue.getCreatedBy() != null ? issue.getCreatedBy().getDisplayName() : null,
-                positions
+                positions,
+                issue.getSource(),
+                stale
         );
     }
 

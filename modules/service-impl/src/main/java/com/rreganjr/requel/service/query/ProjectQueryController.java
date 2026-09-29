@@ -35,6 +35,7 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -77,6 +78,7 @@ import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.impl.IssueImpl;
+import com.rreganjr.requel.annotation.spi.AnnotationFreshness;
 import com.rreganjr.requel.service.command.AnnotationCommandRegistrar;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
@@ -152,6 +154,15 @@ public class ProjectQueryController {
         this.currentUserResolver = currentUserResolver;
         this.entityManager = entityManager;
         this.dictionaryRepository = dictionaryRepository;
+    }
+
+    /** #270: which issues may no longer apply; none are, without the assistant module. */
+    private AnnotationFreshness annotationFreshness = AnnotationFreshness.NONE;
+
+    @Autowired(required = false)
+    public void setAnnotationFreshness(AnnotationFreshness annotationFreshness) {
+        this.annotationFreshness = annotationFreshness != null ? annotationFreshness
+                : AnnotationFreshness.NONE;
     }
 
     /**
@@ -1164,6 +1175,9 @@ public class ProjectQueryController {
             requireProjectAccess(project);
 
             List<OpenIssueDto> issues = new ArrayList<>();
+            // #270: one staleness lookup for every entity in the project.
+            AnnotationFreshness.StaleAnnotations stale = annotationFreshness
+                    .staleAnnotations(project.getProjectEntities());
             for (ProjectOrDomainEntity entity : project.getProjectEntities()) {
                 String entityType = entity.getProjectOrDomainEntityInterface().getSimpleName();
                 for (Annotation annotation : entity.getAnnotations()) {
@@ -1175,13 +1189,17 @@ public class ProjectQueryController {
                                 issue.getSeverity().name(),
                                 entityType,
                                 entity.getId(),
-                                entity.getName()));
+                                entity.getName(),
+                                issue.getSource(),
+                                stale.isStale(entity, issue)));
                     }
                 }
             }
-            // #271: highest severity first; within a severity, the pre-#271 order.
+            // #271: highest severity first; #270: then fresh before stale; within those, the
+            // pre-#271 order.
             issues.sort(Comparator.comparingInt(
                     (OpenIssueDto i) -> -AnnotationCommandRegistrar.severityRank(i.severity()))
+                    .thenComparing(OpenIssueDto::stale)
                     .thenComparing(OpenIssueDto::entityType)
                     .thenComparing(OpenIssueDto::entityName)
                     .thenComparing(OpenIssueDto::issueText));

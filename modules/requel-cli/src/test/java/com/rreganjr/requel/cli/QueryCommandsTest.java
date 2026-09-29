@@ -175,15 +175,20 @@ class QueryCommandsTest {
     void openIssues() {
         QueryGateway gw = mock(QueryGateway.class);
         when(gw.getOpenIssues("Demo")).thenReturn(List.of(
-                new OpenIssueDto(5L, "Ambiguous wording", true, "HIGH", "Goal", 3L, "Login goal")));
+                new OpenIssueDto(5L, "Ambiguous wording", true, "HIGH", "Goal", 3L, "Login goal",
+                        null, false),
+                new OpenIssueDto(6L, "Untestable", false, "MEDIUM", "Goal", 3L, "Login goal",
+                        "ASSISTANT:requirements-review", true)));
         OpenIssuesCommand cmd = new OpenIssuesCommand();
         cmd.parent = parent(OutputFormat.TEXT);
         cmd.queryOverride = gw;
         cmd.projectName = "Demo";
 
         String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
-        assertThat(out).contains("HIGH   [Goal Login goal] Ambiguous wording")
-                .contains("(must resolve)");
+        assertThat(out).contains("HIGH   [Goal Login goal] Ambiguous wording  (must resolve)\n")
+                // #270: a stale issue says so; a fresh one does not.
+                .contains("MEDIUM [Goal Login goal] Untestable  (may no longer apply)")
+                .doesNotContain("Ambiguous wording  (must resolve)  (may no longer apply)");
     }
 
     @Test

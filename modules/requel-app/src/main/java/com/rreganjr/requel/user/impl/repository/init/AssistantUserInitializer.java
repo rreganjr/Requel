@@ -31,6 +31,7 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.command.EditUserCommand;
 import com.rreganjr.requel.user.exception.NoSuchUserException;
+import com.rreganjr.platform.identity.User;
 
 /**
  * Create the assistant user if it doesn't exist. The assistant user is a
@@ -63,10 +64,10 @@ public class AssistantUserInitializer extends AbstractSystemInitializer {
 	@Override
 	public void initialize() {
 		try {
-			userRepository.findUserByUsername("assistant");
+			userRepository.findUserByUsername(User.ASSISTANT_USERNAME);
 		} catch (NoSuchUserException e) {
 			try {
-				command.setUsername("assistant");
+				command.setUsername(User.ASSISTANT_USERNAME);
 				// TODO: this user shouldn't be able to login, but a password is
 				// required
 				command.setPassword("assistant");

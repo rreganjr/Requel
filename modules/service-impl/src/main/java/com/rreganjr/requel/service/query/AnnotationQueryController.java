@@ -25,6 +25,7 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.annotation.spi.AnnotatableTypeRegistry;
+import com.rreganjr.requel.annotation.spi.AnnotationFreshness;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.IssueDto;
 import com.rreganjr.requel.service.api.dto.NoteDto;
@@ -34,6 +35,7 @@ import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import jakarta.persistence.EntityManager;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -56,14 +58,17 @@ public class AnnotationQueryController {
     private final EntityManager entityManager;
     private final ProjectRepository projectRepository;
     private final CurrentUserResolver currentUserResolver;
+    private final ObjectProvider<AnnotationFreshness> annotationFreshness;
 
     public AnnotationQueryController(AnnotatableTypeRegistry annotatableTypeRegistry,
             EntityManager entityManager, ProjectRepository projectRepository,
-            CurrentUserResolver currentUserResolver) {
+            CurrentUserResolver currentUserResolver,
+            ObjectProvider<AnnotationFreshness> annotationFreshness) {
         this.annotatableTypeRegistry = annotatableTypeRegistry;
         this.entityManager = entityManager;
         this.projectRepository = projectRepository;
         this.currentUserResolver = currentUserResolver;
+        this.annotationFreshness = annotationFreshness;
     }
 
     /**
@@ -102,19 +107,27 @@ public class AnnotationQueryController {
 
         List<NoteDto> notes = new ArrayList<>();
         List<IssueDto> issues = new ArrayList<>();
+        // #270: which of them may no longer apply on this entity, in one lookup.
+        AnnotationFreshness.StaleAnnotations stale = annotationFreshness
+                .getIfAvailable(() -> AnnotationFreshness.NONE)
+                .staleAnnotations(List.of(annotatable));
 
         for (Annotation annotation : annotatable.getAnnotations()) {
             if (annotation instanceof Note note) {
-                notes.add(AnnotationCommandRegistrar.toNoteDto(note));
+                notes.add(AnnotationCommandRegistrar.toNoteDto(note,
+                        stale.isStale(annotatable, note)));
             } else if (annotation instanceof Issue issue) {
-                issues.add(AnnotationCommandRegistrar.toIssueDto(issue));
+                issues.add(AnnotationCommandRegistrar.toIssueDto(issue,
+                        stale.isStale(annotatable, issue)));
             }
         }
 
-        notes.sort(Comparator.comparing(NoteDto::id));
-        // #271: highest severity first, then creation order.
+        // #270: fresh before stale, then creation order.
+        notes.sort(Comparator.comparing(NoteDto::stale).thenComparing(NoteDto::id));
+        // #271: highest severity first; #270: then fresh before stale; then creation order.
         issues.sort(Comparator.comparingInt(
                 (IssueDto i) -> -AnnotationCommandRegistrar.severityRank(i.severity()))
+                .thenComparing(IssueDto::stale)
                 .thenComparing(IssueDto::id));
 
         return ResponseEntity.ok(new AnnotationsDto(notes, issues));

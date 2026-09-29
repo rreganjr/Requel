@@ -138,7 +138,7 @@ class InMemoryGateway implements CommandGateway, QueryGateway {
     }
 
     private static NoteDto noteDto(NoteRow n) {
-        return new NoteDto(n.id(), n.version(), n.text(), "tester");
+        return new NoteDto(n.id(), n.version(), n.text(), "tester", null, false);
     }
 
     // --- unused QueryGateway surface -------------------------------------------------------

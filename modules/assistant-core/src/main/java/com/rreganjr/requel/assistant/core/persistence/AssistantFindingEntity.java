@@ -97,6 +97,13 @@ public class AssistantFindingEntity {
 	@Column(name = "closed_at")
 	private Instant closedAt;
 
+	/**
+	 * Issue #270: SHA-256 hex of the target's name + text as the run that last reported this
+	 * finding analyzed it ({@code TargetFingerprint}). Null for a finding recorded before #270.
+	 */
+	@Column(name = "target_fingerprint", length = 64)
+	private String targetFingerprint;
+
 	protected AssistantFindingEntity() {
 		// for JPA
 	}
@@ -239,5 +246,13 @@ public class AssistantFindingEntity {
 
 	public void setClosedAt(Instant closedAt) {
 		this.closedAt = closedAt;
+	}
+
+	public String getTargetFingerprint() {
+		return targetFingerprint;
+	}
+
+	public void setTargetFingerprint(String targetFingerprint) {
+		this.targetFingerprint = targetFingerprint;
 	}
 }

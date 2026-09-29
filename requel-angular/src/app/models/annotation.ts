@@ -40,6 +40,10 @@ export interface NoteDto {
   version: number;
   text: string;
   createdBy: string | null;
+  /** `ASSISTANT:<id>` when an assistant raised it, otherwise null (#270). */
+  source?: string | null;
+  /** An assistant raised it against text that has since changed: it may no longer apply (#270). */
+  stale?: boolean;
 }
 
 /** Issue severity (#271). The server orders every issue list by it, HIGH first. */
@@ -56,6 +60,10 @@ export interface IssueDto {
   resolvedByPosition: string | null;
   createdBy: string | null;
   positions: PositionDto[];
+  /** `ASSISTANT:<id>` when an assistant raised it, otherwise null (#270). */
+  source?: string | null;
+  /** An assistant raised it against text that has since changed: it may no longer apply (#270). */
+  stale?: boolean;
 }
 
 export interface AnnotationsDto {
@@ -91,3 +99,10 @@ export const SUPPORT_LEVEL_OPTIONS = [
   { label: 'Against', value: 'Against' },
   { label: 'Strongly Against', value: 'StronglyAgainst' },
 ];
+
+/** Badge text for a stale note or issue (#270). */
+export const STALE_LABEL = 'May no longer apply';
+
+/** Tooltip on the stale badge (#270). */
+export const STALE_TOOLTIP = 'An assistant raised this against text that has since changed, or a'
+  + ' later analysis no longer reports it. Re-run analysis, or resolve it if it no longer applies.';

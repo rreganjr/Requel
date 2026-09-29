@@ -70,17 +70,28 @@ public final class QueryDescriptions {
             + " with each term's definition and, for an alternate term, its canonical term. Read a"
             + " single term to see its alternate terms and the entities that refer to it.";
 
+    /**
+     * #270: what {@code stale} and {@code source} on a note or issue mean, shared by the reads
+     * that return them.
+     */
+    public static final String STALE_ANNOTATIONS = " Each note and issue carries its source"
+            + " (ASSISTANT:<id> when an assistant raised it, otherwise empty) and a stale flag:"
+            + " stale is true when an assistant raised it against text that has since changed, or"
+            + " a later analysis no longer reports it, so it may no longer apply; weigh or skip"
+            + " stale entries.";
+
     public static final String GET_OPEN_ISSUES = "Lists the unresolved issues on the entities of a"
             + " project, highest severity first (HIGH, MEDIUM, LOW). An issue is unresolved until a"
             + " position is chosen to resolve it, whether or not it must be resolved, and issues"
             + " the assistant raised, such as spelling, are included. Each entry names the entity"
             + " the issue is attached to. Issues on the project itself and on goal relations are"
-            + " not listed.";
+            + " not listed. Within a severity, stale issues come after the others."
+            + STALE_ANNOTATIONS;
 
     public static final String GET_ANNOTATIONS = "Reads the notes and issues attached to one"
-            + " entity. Notes come in the order they were created. Issues, resolved ones included,"
-            + " come highest severity first and carry their positions and each position's"
-            + " arguments.";
+            + " entity. Notes come in the order they were created, stale ones last. Issues, resolved ones included,"
+            + " come highest severity first, stale ones after the others within a severity, and"
+            + " carry their positions and each position's arguments." + STALE_ANNOTATIONS;
 
     public static final String GET_ENTITY = "Reads one entity's full detail by type and id,"
             + " including its relationships: a goal's relations and their types, a story's or use"
@@ -104,7 +115,7 @@ public final class QueryDescriptions {
 
     public static final String GET_PROJECT_CONTEXT = "Reads a whole project in one call: its"
             + " summary, content tree, glossary and open issues, the same data as reading each of"
-            + " them separately.";
+            + " them separately." + STALE_ANNOTATIONS;
 
     public static final String DRAFT_ANNOTATION = "Builds a note or issue for an entity and returns"
             + " it as a draft. Nothing is saved, and neither the entity nor the project is checked."

@@ -238,7 +238,7 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 		// import path: a deployment without the assistant can still create projects.
 		try {
 			com.rreganjr.requel.user.User assistantUser = getUserRepository()
-					.findUserByUsername("assistant");
+					.findUserByUsername(User.ASSISTANT_USERNAME);
 			UserStakeholderImpl assistantStakeholder = getProjectRepository().persist(
 					new UserStakeholderImpl(projectImpl, user, assistantUser));
 			for (StakeholderPermission permission : getProjectRepository()
