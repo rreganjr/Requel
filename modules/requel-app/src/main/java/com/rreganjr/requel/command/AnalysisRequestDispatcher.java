@@ -124,7 +124,7 @@ public class AnalysisRequestDispatcher {
 			return 0;
 		}
 		List<EntityRef> targets = readTransaction.execute(status -> projectTargets(project));
-		if (targets == null || targets.isEmpty()) {
+		if (targets.isEmpty()) {
 			return 0;
 		}
 		EntityRef projectRef = EntityRef.of("Project", project.getId());

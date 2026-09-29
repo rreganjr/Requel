@@ -45,6 +45,7 @@ import com.rreganjr.nlp.dictionary.NLPProcessor;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.NLPText;
 import com.rreganjr.nlp.dictionary.PartOfSpeech;
+import com.rreganjr.nlp.dictionary.ParseTag;
 import com.rreganjr.nlp.dictionary.Sense;
 import com.rreganjr.nlp.dictionary.Synset;
 import com.rreganjr.requel.assistant.api.AnnotationAction;
@@ -112,6 +113,40 @@ class LexicalVagueWordAssistantTest {
 		// #268: "should" has no sense, so there is nothing more specific to ask for. Asking threw
 		// inside the dictionary's transaction and failed the whole run.
 		verify(suggester, never()).process(should);
+	}
+
+	/**
+	 * #268: a word flagged vague that isn't in the text (a parser fragment) is dropped; a named
+	 * entity, a noun with no sense, and a proper noun given the generic "entity" root sense are
+	 * never vague.
+	 */
+	@Test
+	void fragmentsNamedEntitiesUnsensedAndRootSensedProperNounsAreNotReported() {
+		String text = "Several Acme staff attend the thing.";
+		Linkdef linkType = mock(Linkdef.class);
+		when(dictionaryRepository.findLinkDef(1L)).thenReturn(linkType);
+		NLPText fragment = word("ings", PartOfSpeech.NOUN, linkType, 0.1);
+		NLPText named = word("Acme", PartOfSpeech.NOUN, linkType, 0.1);
+		when(named.isNamedEntity()).thenReturn(true);
+		NLPText unsensed = word("staff", PartOfSpeech.NOUN, null, 0);
+		NLPText rootSensed = word("Entity", PartOfSpeech.NOUN, linkType, 0.1);
+		Sense rootSense = rootSensed.getDictionaryWordSense();
+		when(dictionaryRepository.findSense("entity", PartOfSpeech.NOUN, 1)).thenReturn(rootSense);
+		when(rootSensed.in(any(ParseTag[].class))).thenReturn(true);
+		NLPText weak = word("Several", PartOfSpeech.ADJECTIVE, null, 0);
+		List<NLPText> leaves = List.of(fragment, named, unsensed, rootSensed, weak);
+		NLPText nlpText = mock(NLPText.class);
+		when(nlpText.getLeaves()).thenReturn(leaves);
+		when(nlpProcessorFactory.processText(anyString())).thenReturn(nlpText);
+		@SuppressWarnings("unchecked")
+		NLPProcessor<java.util.Collection<NLPText>> suggester = mock(NLPProcessor.class);
+		when(nlpProcessorFactory.getMoreSpecificWordSuggester()).thenReturn(suggester);
+
+		AssistantResult result = assistant.analyze(context(), textEntity("", text));
+
+		assertThat(result.annotationActions()).filteredOn(
+				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
+				.extracting(a -> a.metadata().get("word")).containsExactly("Several");
 	}
 
 	/** A leaf of the given part of speech whose sense scores {@code infoContent}; no sense if linkType is null. */

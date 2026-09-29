@@ -93,5 +93,36 @@ class LexicalEvidenceTest {
 	void occursRejectsBlankInput() {
 		assertThat(LexicalEvidence.occurs("text", " ")).isFalse();
 		assertThat(LexicalEvidence.occurs(null, "text")).isFalse();
+		assertThat(LexicalEvidence.occurs("text", null)).isFalse();
+	}
+
+	@Test
+	void occursMatchesAPhraseThatStartsOrEndsWithPunctuation() {
+		assertThat(LexicalEvidence.occurs("see (the room) now", "(the room)")).isTrue();
+		assertThat(LexicalEvidence.occurs("see the room now", "(the room)")).isFalse();
+	}
+
+	@Test
+	void locateMapsEveryParserEscapeBackToTheSourceCharacter() {
+		assertThat(LexicalEvidence.locate("the list [draft] is", tokens("-LSB-", "draft", "-RSB-")))
+				.isEqualTo("[draft]");
+		assertThat(LexicalEvidence.locate("the map {key} is", tokens("-LCB-", "key", "-RCB-")))
+				.isEqualTo("{key}");
+		assertThat(LexicalEvidence.locate("it ends — now", tokens("ends", "--", "now")))
+				.isEqualTo("ends — now");
+		assertThat(LexicalEvidence.locate("it ends -- now", tokens("ends", "--", "now")))
+				.isEqualTo("ends -- now");
+		assertThat(LexicalEvidence.locate("it ends – now", tokens("ends", "--", "now")))
+				.isEqualTo("ends – now");
+	}
+
+	@Test
+	void locateReturnsNullForMissingInput() {
+		assertThat(LexicalEvidence.locate(null, tokens("room"))).isNull();
+		assertThat(LexicalEvidence.locate("the room", null)).isNull();
+		assertThat(LexicalEvidence.locate("the room", List.of())).isNull();
+		assertThat(LexicalEvidence.locate("the room", tokens("the", ""))).isNull();
+		assertThat(LexicalEvidence.locate("the room", List.of(new NLPTextImpl((String) null))))
+				.isNull();
 	}
 }

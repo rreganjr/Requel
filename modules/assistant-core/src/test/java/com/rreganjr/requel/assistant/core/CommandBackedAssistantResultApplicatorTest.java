@@ -43,6 +43,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import com.rreganjr.command.CommandHandler;
+import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.IssueSeverity;
@@ -274,7 +275,7 @@ class CommandBackedAssistantResultApplicatorTest {
 		verify(commandHandler, never()).execute(any());
 	}
 
-	private RemoveAnnotationFromAnnotatableCommand applyLegacyRemoval(Issue issue,
+	private RemoveAnnotationFromAnnotatableCommand applyLegacyRemoval(Annotation issue,
 			boolean incomplete) throws Exception {
 		EntityRef goalRef = EntityRef.of("Goal", 1L);
 		ProjectOrDomainEntity goal = mock(ProjectOrDomainEntity.class);
@@ -472,6 +473,146 @@ class CommandBackedAssistantResultApplicatorTest {
 		verify(commandHandler).execute(command);
 	}
 
+	/**
+	 * Only an open issue behind a matching ACTIVE finding is joined, the lowest id when there are
+	 * several; a finding with another suffix, no applied issue, or an issue that can't be loaded
+	 * is passed over.
+	 */
+	@Test
+	void theLowestOpenSharedIssueIsJoined() throws Exception {
+		EditLexicalIssueCommand command = stubLexicalIssueCommand();
+		List<AssistantFindingEntity> findings = List.of(glossaryFinding("junk", null),
+				glossaryFinding(GLOSSARY + ":Story:3:glossary-term:stream key", 60L),
+				glossaryFinding(GLOSSARY + ":Story:4:glossary-term:admin console", null),
+				glossaryFinding(GLOSSARY + ":Story:5:glossary-term:admin console", 91L),
+				glossaryFinding(GLOSSARY + ":Story:6:glossary-term:admin console", 92L),
+				glossaryFinding(GLOSSARY + ":Story:7:glossary-term:admin console", 80L),
+				glossaryFinding(GLOSSARY + ":Story:8:glossary-term:admin console", 78L),
+				glossaryFinding(GLOSSARY + ":Story:9:glossary-term:admin console", 85L),
+				glossaryFinding(GLOSSARY + ":Story:10:glossary-term:admin console", 70L));
+		when(findingRepository.findByAssistantIdAndProjectIdAndState(GLOSSARY, 7L,
+				AssistantFindingState.ACTIVE.name())).thenReturn(findings);
+		when(annotationRepository.findById(Issue.class, 91L))
+				.thenThrow(new IllegalStateException("gone"));
+		issue(60L, false);
+		issue(80L, false);
+		Issue lowest = issue(78L, false);
+		issue(85L, false);
+		issue(70L, true);
+
+		applyIssueAction(GLOSSARY + ":Goal:1:glossary-term:admin console", null, SHARED);
+
+		verify(command).setIssue(lowest);
+	}
+
+	/** A finding with an issue of its own keeps it; no shared issue is looked up. */
+	@Test
+	void aFindingsOwnIssueWinsOverASharedOne() throws Exception {
+		EditLexicalIssueCommand command = stubLexicalIssueCommand();
+		String key = GLOSSARY + ":Goal:1:glossary-term:admin console";
+		AssistantFindingEntity own = glossaryFinding(key, 50L);
+		when(findingRepository.findByIdempotencyKey(key)).thenReturn(Optional.of(own));
+		Issue ownIssue = issue(50L, false);
+		sharedIssue(40L, false);
+
+		applyIssueAction(key, null, SHARED);
+
+		verify(command).setIssue(ownIssue);
+		verify(findingRepository, never()).findByAssistantIdAndProjectIdAndState(any(), any(),
+				any());
+	}
+
+	@Test
+	void aShareKeyMustBeANonBlankStringAndNeedsAProject() throws Exception {
+		EditLexicalIssueCommand command = stubLexicalIssueCommand();
+		sharedIssue(77L, false);
+		String key = GLOSSARY + ":Goal:1:glossary-term:admin console";
+
+		applyIssueAction(key, null, Map.of("kind", "LEXICAL", "word", "admin console", "scope",
+				"PROJECT", "shareKey", 5));
+		applyIssueAction(key, null, Map.of("kind", "LEXICAL", "word", "admin console", "scope",
+				"PROJECT", "shareKey", "  "));
+		applyIssueAction(key, null, Map.of("kind", "LEXICAL", "word", "admin console", "scope",
+				"PROJECT"));
+		applyIssueAction(key, null, SHARED, null, new AssistantContext(UUID.randomUUID(),
+				new UserRef(3L, "ron"), new UserRef(11L, "assistant"), null, Locale.US,
+				Clock.systemUTC(), Map.of()), Map.of());
+
+		verify(command, never()).setIssue(any());
+		verify(findingRepository, never()).findByAssistantIdAndProjectIdAndState(any(), any(),
+				any());
+	}
+
+	/** An ignored key without the assistant:type:id: prefix has no suffix to share. */
+	@Test
+	void anIgnoredKeyWithoutASuffixIgnoresNothingProjectWide() throws Exception {
+		EditLexicalIssueCommand command = stubLexicalIssueCommand();
+		IgnoredFindingStore store = mock(IgnoredFindingStore.class);
+		when(store.ignoredKeys(7L)).thenReturn(Set.of(GLOSSARY + ":admin console"));
+
+		applyIssueAction(GLOSSARY + ":Goal:1:glossary-term:admin console", null, SHARED, store);
+
+		verify(commandHandler).execute(command);
+	}
+
+	/** An incomplete result still applies its findings; only the removals are held back. */
+	@Test
+	void anIncompleteResultStillAppliesItsFindings() throws Exception {
+		EditLexicalIssueCommand command = stubLexicalIssueCommand();
+
+		applyIssueAction(GLOSSARY + ":Goal:1:glossary-term:admin console", null, SHARED, null,
+				context(), Map.of("incomplete", Boolean.TRUE));
+
+		verify(commandHandler).execute(command);
+	}
+
+	/** Without a legacy id, a removal is a cleanup of this assistant's own finding. */
+	@Test
+	void aRemovalWithoutALegacyIdNeedsAFinding() throws Exception {
+		EntityRef goalRef = EntityRef.of("Goal", 1L);
+		AnnotationAction removal = new AnnotationAction("legacy-lexical:Goal:1:old",
+				AnnotationAction.ActionType.REMOVE_ANNOTATION_FROM_ANNOTATABLE, goalRef, null, null,
+				null, null, List.of(), Map.of());
+
+		newApplicator().apply(context(), AssistantResult.builder().assistantId("legacy-lexical")
+				.annotationAction(removal).build(), CleanupPolicy.MANUAL, goalRef);
+
+		verify(commandHandler, never()).execute(any());
+	}
+
+	@Test
+	void aLegacyRemovalLeavesAMissingNoteOrUnloadableTargetAlone() throws Exception {
+		applyLegacyRemoval(mock(Note.class), false);
+		applyLegacyRemoval(null, false);
+		// No target loader: the goal can't be resolved. A string id is read as a number.
+		when(annotationRepository.findAnnotationById(78L)).thenReturn(mock(Issue.class));
+		EntityRef goalRef = EntityRef.of("Goal", 1L);
+		AnnotationAction noTarget = new AnnotationAction("legacy-lexical:Goal:1:legacy-issue:78",
+				AnnotationAction.ActionType.REMOVE_ANNOTATION_FROM_ANNOTATABLE, goalRef, null, null,
+				null, null, List.of(), Map.of(
+						CommandBackedAssistantResultApplicator.LEGACY_ANNOTATION_ID, "78"));
+		newApplicator().apply(context(), AssistantResult.builder().assistantId("legacy-lexical")
+				.annotationAction(noTarget).build(), CleanupPolicy.MANUAL, goalRef);
+
+		verify(commandHandler, never()).execute(any());
+	}
+
+	private static AssistantFindingEntity glossaryFinding(String key, Long appliedId) {
+		AssistantFindingEntity finding = new AssistantFindingEntity(UUID.randomUUID(), key,
+				GLOSSARY, "Story", 2L, "glossary-term", AssistantFindingState.ACTIVE.name(),
+				UUID.randomUUID(), Instant.parse("2026-05-29T00:00:00Z"));
+		finding.setAppliedAnnotationId(appliedId);
+		return finding;
+	}
+
+	private Issue issue(Long id, boolean resolved) {
+		Issue issue = mock(Issue.class);
+		when(issue.getId()).thenReturn(id);
+		when(issue.isResolved()).thenReturn(resolved);
+		when(annotationRepository.findById(Issue.class, id)).thenReturn(issue);
+		return issue;
+	}
+
 	private EditLexicalIssueCommand stubLexicalIssueCommand() throws Exception {
 		EditLexicalIssueCommand command = mock(EditLexicalIssueCommand.class);
 		when(annotationCommandFactory.newEditLexicalIssueCommand()).thenReturn(command);
@@ -514,6 +655,12 @@ class CommandBackedAssistantResultApplicatorTest {
 
 	private void applyIssueAction(String key, String severity, Map<String, Object> metadata,
 			IgnoredFindingStore ignoredFindingStore) {
+		applyIssueAction(key, severity, metadata, ignoredFindingStore, context(), Map.of());
+	}
+
+	private void applyIssueAction(String key, String severity, Map<String, Object> metadata,
+			IgnoredFindingStore ignoredFindingStore, AssistantContext context,
+			Map<String, Object> resultMetadata) {
 		EntityRef target = EntityRef.of("Goal", 1L);
 		ProjectOrDomainEntity goal = mock(ProjectOrDomainEntity.class);
 		AssistantTargetLoader loader = mock(AssistantTargetLoader.class);
@@ -531,9 +678,9 @@ class CommandBackedAssistantResultApplicatorTest {
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, target, null,
 				"'fast' is not measurable", severity, 0.7, List.of(), metadata);
 		AssistantResult result = AssistantResult.builder().assistantId(key.split(":")[0])
-				.annotationAction(action).build();
+				.annotationAction(action).metadata(resultMetadata).build();
 
-		applicator.apply(context(), result, CleanupPolicy.MANUAL, target);
+		applicator.apply(context, result, CleanupPolicy.MANUAL, target);
 	}
 
 	private static AssistantContext context() {

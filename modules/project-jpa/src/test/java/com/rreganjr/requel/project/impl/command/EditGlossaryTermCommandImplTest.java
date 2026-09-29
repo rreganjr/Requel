@@ -18,25 +18,22 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.dev;
+package com.rreganjr.requel.project.impl.command;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import org.junit.jupiter.api.Test;
 
-/**
- * Issue #268: the dev lexical harness's own logic. The evidence, vocabulary and spelling helpers
- * it shares with the assistants are tested in {@code assistant-legacy-nlp}; the harness itself
- * needs the NLP stack and a real project, so it is run by hand against the dev database.
- */
-class LexicalAnalysisHarnessTest {
+import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 
+class EditGlossaryTermCommandImplTest {
+
+	/** #268: a glossary term is analyzed through the assistant SPI, not the old facade. */
 	@Test
-	void onlyLoopbackAddressesAreAllowed() {
-		assertTrue(LexicalAnalysisHarnessController.isLoopback("127.0.0.1"));
-		assertTrue(LexicalAnalysisHarnessController.isLoopback("0:0:0:0:0:0:0:1"));
-		assertFalse(LexicalAnalysisHarnessController.isLoopback("192.168.1.20"));
-		assertFalse(LexicalAnalysisHarnessController.isLoopback(null));
+	void theOldAnalysisPathDoesNotRun() {
+		AssistantFacade facade = mock(AssistantFacade.class);
+		new EditGlossaryTermCommandImpl(facade, null, null, null, null, null).invokeAnalysis();
+		verifyNoInteractions(facade);
 	}
 }

@@ -80,15 +80,15 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 	private static final String SUGGESTED_MORE_SPECIFIC_WORD_MSG =
 			"Change the word \"{0}\" to \"{1}\".";
 
-	/** Below this WordNet information content a word is reported as vague. Public for the #268 dev harness. */
-	public static final double INFO_CONTENT_THRESHOLD = 0.50;
+	/** Below this WordNet information content a word is reported as vague. */
+	static final double INFO_CONTENT_THRESHOLD = 0.50;
 
 	/**
 	 * Issue #268: weak requirements words WordNet can't score as vague (most are modals or have
 	 * specific-sounding senses), reported whatever their sense. "can" is deliberately absent: in a
 	 * requirement it usually states a capability, not a hedge.
 	 */
-	public static final Set<String> WEAK_WORDS = Set.of("should", "may", "might", "could", "easy",
+	static final Set<String> WEAK_WORDS = Set.of("should", "may", "might", "could", "easy",
 			"easily", "fast", "quickly", "robust", "flexible", "sufficient", "adequate",
 			"appropriate", "appropriately", "reasonable", "user-friendly", "efficient", "several",
 			"various", "etc", "etc.");

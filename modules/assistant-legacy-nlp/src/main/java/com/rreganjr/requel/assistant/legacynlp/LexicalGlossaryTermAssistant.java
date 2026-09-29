@@ -178,9 +178,7 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 
 	private void analyzeProperty(AssistantResult.Builder builder, EntityRef targetRef,
 			ProjectScope scope, String propertyName, String text, Set<String> emittedTerms) {
-		if (text == null || text.isBlank()) {
-			return;
-		}
+		// PropertyChecks.run skips a blank property, so text is never blank here.
 		NLPText nlpText = nlpProcessorFactory.processText(text);
 		Set<NLPText> sentenceStarts = sentenceStarts(nlpText);
 		for (NLPText term : findPotentialTerms(nlpText)) {
@@ -188,12 +186,12 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 					emittedTerms);
 		}
 	}
+
 	/**
 	 * The candidate glossary phrases in {@code nlpText}, after the clause / phrase-type /
-	 * possessive / sub-phrase filters. Public for the #268 dev harness
-	 * ({@code LexicalAnalysisHarness}), which reports what each precision rule would do to them.
+	 * possessive / sub-phrase filters.
 	 */
-	public Set<NLPText> findPotentialTerms(NLPText nlpText) {
+	Set<NLPText> findPotentialTerms(NLPText nlpText) {
 		Set<NLPText> potentialTerms = new HashSet<>();
 		for (NLPText nounPhrase : nlpProcessorFactory.getNounPhraseFinder().process(nlpText)) {
 			if (nounPhrase.getLeaves().size() == 1) {
@@ -295,7 +293,9 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 		// As written, but on one line: a phrase can span a line break in the source.
 		String phrase = located.replaceAll("\\s+", " ");
 		String key = phrase.toLowerCase(Locale.ROOT);
-		if (!emittedTerms.add(key)) {
+		// Only an emitted phrase is skipped: one dropped in the Name (a sentence-initial
+		// capital) is still checked in the Text.
+		if (emittedTerms.contains(key)) {
 			return;
 		}
 
@@ -305,6 +305,7 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 			existing = scope.term(singular(key));
 		}
 		if (existing != null) {
+			emittedTerms.add(key);
 			emitGlossaryTermReferer(builder, targetRef, existing, phrase);
 			return;
 		}
@@ -328,19 +329,20 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 		}
 
 		// 4. one issue per project
+		emittedTerms.add(key);
 		emitGlossaryIssue(builder, targetRef, phrase, key);
 	}
 
 	/** Pass 2: shapes that are never glossary terms, whatever their frequency. */
 	private boolean isNotATerm(List<NLPText> body, String source, Set<NLPText> sentenceStarts) {
 		NLPText first = body.get(0);
-		String firstLower = lower(first.getText());
+		String firstLower = lower(first);
 		if (INDEFINITE_OPENERS.contains(firstLower)) {
 			return true;
 		}
 		for (int i = 0; i < body.size(); i++) {
 			NLPText leaf = body.get(i);
-			String text = lower(leaf.getText());
+			String text = lower(leaf);
 			// a determiner after the first word: a verb phrase or clause ("archives the room")
 			if (i > 0 && leaf.in(PartOfSpeech.DETERMINER)) {
 				return true;
@@ -376,9 +378,9 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 		for (NLPText leaf : body) {
 			// #268: the tag alone isn't enough; the parser tags some lowercase words NNP
 			// ("entirely", "ingest" on the roundtable project). A proper noun is capitalized.
-			String text = leaf.getText();
-			if (!leaf.in(ParseTag.NNP, ParseTag.NNPS) || text == null || text.isEmpty()
-					|| !Character.isUpperCase(text.codePointAt(0))) {
+			// The body was located in the source, so every leaf has text.
+			if (!leaf.in(ParseTag.NNP, ParseTag.NNPS)
+					|| !Character.isUpperCase(leaf.getText().codePointAt(0))) {
 				return false;
 			}
 		}
@@ -408,8 +410,9 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 		return phraseLower;
 	}
 
-	private static String lower(String s) {
-		return s == null ? "" : s.toLowerCase(Locale.ROOT);
+	/** Lower-cased text of a leaf; the body was located in the source, so it has text. */
+	private static String lower(NLPText leaf) {
+		return leaf.getText().toLowerCase(Locale.ROOT);
 	}
 
 	/** The first word of each sentence (punctuation skipped), by identity. */

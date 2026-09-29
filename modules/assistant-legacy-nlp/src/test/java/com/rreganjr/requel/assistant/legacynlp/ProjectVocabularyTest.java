@@ -85,4 +85,39 @@ class ProjectVocabularyTest {
 	void noProjectMeansNoVocabulary() {
 		assertThat(ProjectVocabulary.of((ProjectOrDomain) null).contains("room")).isFalse();
 	}
+
+	@Test
+	void aProjectWithNoGlossaryOrActorsHasNoVocabulary() {
+		ProjectOrDomain project = mock(ProjectOrDomain.class);
+		doReturn(null).when(project).getGlossaryTerms();
+		doReturn(null).when(project).getActors();
+
+		ProjectVocabulary vocabulary = ProjectVocabulary.of(project);
+
+		assertThat(vocabulary.contains("room")).isFalse();
+		assertThat(vocabulary.isTermName(null)).isFalse();
+		assertThat(vocabulary.isActorName(null)).isFalse();
+	}
+
+	@Test
+	void blankNamesAndEmptyPartsAddNothing() {
+		ProjectVocabulary vocabulary = ProjectVocabulary.of(
+				java.util.Arrays.asList(null, "  ", "/Stream key/", "co--host", "-lead"), null);
+
+		assertThat(vocabulary.contains("stream")).isTrue();
+		assertThat(vocabulary.contains("key")).isTrue();
+		assertThat(vocabulary.contains("co")).isTrue();
+		assertThat(vocabulary.contains("host")).isTrue();
+		assertThat(vocabulary.contains("-lead")).isTrue();
+		assertThat(vocabulary.contains("lead")).isFalse();
+		assertThat(vocabulary.contains("")).isFalse();
+	}
+
+	@Test
+	void aWholeNameMatchesEvenWhenItIsNotOneOfItsWords() {
+		ProjectVocabulary vocabulary = ProjectVocabulary.of(List.of("Stream key"),
+				List.of("Zoom Host"));
+		assertThat(vocabulary.contains("stream key")).isTrue();
+		assertThat(vocabulary.contains("zoom host")).isTrue();
+	}
 }

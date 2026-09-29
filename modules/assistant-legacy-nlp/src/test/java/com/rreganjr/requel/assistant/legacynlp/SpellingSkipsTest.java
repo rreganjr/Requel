@@ -87,6 +87,19 @@ class SpellingSkipsTest {
 	}
 
 	@Test
+	void anEmptyPartOrAShortUnknownPluralIsNotACompound() {
+		assertThat(reason("co--hosts")).isNull();
+		// "xs" is too short to be treated as a plural of "x"; an unknown short part stays unknown.
+		assertThat(reason("mid-xs")).isNull();
+	}
+
+	@Test
+	void withoutAVocabularyOnlyTheOtherRulesApply() {
+		assertThat(SpellingSkips.reason("remux", null, KNOWN)).isNull();
+		assertThat(SpellingSkips.reason("MP4", null, KNOWN)).isEqualTo("acronym");
+	}
+
+	@Test
 	void withoutADictionaryHyphenatedTokensAreNotExempt() {
 		assertThat(SpellingSkips.reason("co-hosts", VOCABULARY, null)).isNull();
 		assertThat(SpellingSkips.reason("", VOCABULARY, KNOWN)).isNull();

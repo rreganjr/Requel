@@ -177,6 +177,10 @@ supports `GlossaryTerm`.
   the same data).
 - Output is saved to `tmp/268-harness.tsv` (gitignored). Roundtable is Medlive work content, so
   none of its text goes into the repo, into tests or into a committed doc.
+- **Removed before merge.** The harness did its job in step 1 and the before/after counts, and as
+  dev-only code it was the bulk of the PR's uncovered lines. The results below stay; the rules it
+  scored are pinned by the assistants' unit tests. It can be recovered from the branch history
+  if the rules are tuned again.
 
 Candidate vague-word rules the harness scores:
 

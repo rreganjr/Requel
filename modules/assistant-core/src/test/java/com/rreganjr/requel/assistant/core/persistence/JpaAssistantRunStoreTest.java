@@ -128,6 +128,22 @@ class JpaAssistantRunStoreTest {
 	}
 
 	@Test
+	void aShortOrMissingPartialSummaryIsKeptAsIs() {
+		AssistantRunRepository repository = mock(AssistantRunRepository.class);
+		JpaAssistantRunStore store = new JpaAssistantRunStore(repository, fixedClock);
+		AssistantRunEntity entity = new AssistantRunEntity(UUID.randomUUID(), "test", "RUNNING",
+				fixedNow.minusSeconds(2), fixedNow.minusSeconds(1));
+		when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+		store.markPartial(entity.getRunId(), "legacy-lexical failed");
+		assertThat(entity.getErrorSummary()).isEqualTo("legacy-lexical failed");
+
+		store.markPartial(entity.getRunId(), null);
+		assertThat(entity.getErrorSummary()).isNull();
+		assertThat(entity.getErrorKind()).isEqualTo("PARTIAL");
+	}
+
+	@Test
 	void findRunRebuildsRequestFromPersistedFields() {
 		AssistantRunRepository repository = mock(AssistantRunRepository.class);
 		JpaAssistantRunStore store = new JpaAssistantRunStore(repository, fixedClock);

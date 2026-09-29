@@ -74,6 +74,22 @@ class SimpleAssistantRegistryTest {
 				.extracting(RequelAssistant::assistantId).containsExactly("string-assistant");
 	}
 
+	/** #268: settings are per project; without a project context everything runs. */
+	@Test
+	void withoutAProjectContextNoSettingApplies() {
+		SimpleAssistantRegistry registry = new SimpleAssistantRegistry(
+				List.of(new SwitchableStringAssistant()));
+		registry.setSettingsStore(storeDisabling(1L, "switchable-assistant"));
+
+		assertThat(registry.findAssistantsFor("goal", null)).hasSize(1);
+		assertThat(registry.findAssistantsFor("goal", new AssistantContext(UUID.randomUUID(),
+				new UserRef(2L, "human"), new UserRef(3L, "assistant"), null, java.util.Locale.US,
+				Clock.systemUTC(), Map.of()))).hasSize(1);
+		assertThat(registry.findAssistantsFor("goal", new AssistantContext(UUID.randomUUID(),
+				new UserRef(2L, "human"), new UserRef(3L, "assistant"), EntityRef.of("Domain", 1L),
+				java.util.Locale.US, Clock.systemUTC(), Map.of()))).hasSize(1);
+	}
+
 	@Test
 	void theCatalogListsOnlySwitchableAssistants() {
 		SimpleAssistantRegistry registry = new SimpleAssistantRegistry(

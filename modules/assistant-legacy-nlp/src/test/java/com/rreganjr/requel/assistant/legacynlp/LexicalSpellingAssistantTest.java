@@ -22,6 +22,7 @@ package com.rreganjr.requel.assistant.legacynlp;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -220,6 +221,24 @@ class LexicalSpellingAssistantTest {
 		TextEntity entity = textEntity("", text);
 		doReturn(projectOrDomain).when(entity).getProjectOrDomain();
 		return assistant.analyze(context(), entity);
+	}
+
+	/** #268: a dictionary lookup that fails for a hyphen part counts as unknown, not a crash. */
+	@Test
+	void aFailedDictionaryLookupOnAHyphenPartLeavesTheTokenReported() {
+		ProjectOrDomain projectOrDomain = mock(ProjectOrDomain.class);
+		doReturn(new TreeSet<GlossaryTerm>(Comparator.comparing(GlossaryTerm::getName)))
+				.when(projectOrDomain).getGlossaryTerms();
+		doReturn(Set.of()).when(projectOrDomain).getActors();
+		when(dictionaryRepository.isKnownWord(anyLong(), anyString()))
+				.thenThrow(new IllegalStateException("dictionary down"));
+
+		AssistantResult result = analyzeUnknownTokens(projectOrDomain, "The co-hosts join.",
+				List.of("co-hosts"));
+
+		assertThat(result.annotationActions()).filteredOn(
+				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
+				.extracting(a -> a.metadata().get("word")).containsExactly("co-hosts");
 	}
 
 	@Test

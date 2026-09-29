@@ -215,7 +215,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	private static boolean isIgnoredProjectWide(String assistantId, AnnotationAction action,
 			Set<String> ignoredShareKeys) {
 		String shareKey = projectShareKey(action);
-		return shareKey != null && assistantId != null
+		return shareKey != null
 				&& action.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE
 				&& ignoredShareKeys.contains(assistantId.toLowerCase(java.util.Locale.ROOT) + "|"
 						+ shareKey.toLowerCase(java.util.Locale.ROOT));
@@ -223,7 +223,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 
 	/** The action's {@code shareKey} when it is {@code scope=PROJECT}, else null (#268). */
 	private static String projectShareKey(AnnotationAction action) {
-		if (action.metadata() == null || !"PROJECT".equals(action.metadata().get("scope"))) {
+		if (!"PROJECT".equals(action.metadata().get("scope"))) {
 			return null;
 		}
 		Object shareKey = action.metadata().get("shareKey");
@@ -493,9 +493,9 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 * analysis and apply wins.
 	 */
 	private void removeLegacyAnnotation(AnnotationAction action, User editedBy) throws Exception {
+		// Non-null: isLegacyRemoval checked it.
 		Long annotationId = longMeta(action, LEGACY_ANNOTATION_ID);
-		Annotation annotation = annotationId == null ? null
-				: annotationRepository.findAnnotationById(annotationId);
+		Annotation annotation = annotationRepository.findAnnotationById(annotationId);
 		Annotatable annotatable = resolveAnnotatable(action.targetRef());
 		if (annotation == null || annotatable == null || !(annotation instanceof Issue)
 				|| annotation.isResolved() || (annotation.getSource() != null
@@ -847,14 +847,13 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 * issue id when there are several. Null when there is no share key or no such issue.
 	 */
 	private Issue findSharedIssue(AssistantContext context, String assistantId, String shareKey) {
-		if (shareKey == null || context.projectRef() == null || assistantId == null) {
+		if (shareKey == null || context.projectRef() == null) {
 			return null;
 		}
 		Issue shared = null;
 		for (AssistantFindingEntity finding : findingRepository.findByAssistantIdAndProjectIdAndState(
 				assistantId, context.projectRef().entityId(), AssistantFindingState.ACTIVE.name())) {
-			String[] parts = finding.getIdempotencyKey() == null ? new String[0]
-					: finding.getIdempotencyKey().split(":", 4);
+			String[] parts = finding.getIdempotencyKey().split(":", 4);
 			if (parts.length != 4 || !parts[3].equalsIgnoreCase(shareKey)
 					|| finding.getAppliedAnnotationId() == null) {
 				continue;

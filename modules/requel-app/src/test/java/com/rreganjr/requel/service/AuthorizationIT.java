@@ -912,6 +912,9 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
         mockMvc.perform(get("/api/projects/" + testProjectName + "/assistants")
                         .header("Authorization", "Bearer " + noAccessToken))
                 .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/projects/no-such-project-268/assistants")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isNotFound());
 
         String on = objectMapper.writeValueAsString(Map.of("projectName", testProjectName,
                 "assistantId", "legacy-lexical-complexity", "enabled", true));

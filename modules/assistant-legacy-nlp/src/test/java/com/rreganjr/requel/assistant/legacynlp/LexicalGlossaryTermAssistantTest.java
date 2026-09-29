@@ -45,6 +45,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
 import com.rreganjr.nlp.dictionary.NLPProcessor;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.NLPText;
@@ -61,6 +62,8 @@ import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
+import com.rreganjr.requel.project.ReportGenerator;
+import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.TextEntity;
 
 class LexicalGlossaryTermAssistantTest {
@@ -72,15 +75,18 @@ class LexicalGlossaryTermAssistantTest {
 			nlpProcessorFactory, projectRepository, dictionaryRepository);
 
 	private final ProjectOrDomain project = mock(ProjectOrDomain.class);
-	private final SortedSet<GlossaryTerm> terms = new TreeSet<>(
-			Comparator.comparing(GlossaryTerm::getName));
+	private final SortedSet<GlossaryTerm> terms = new TreeSet<>(Comparator.comparing(
+			GlossaryTerm::getName, Comparator.nullsFirst(Comparator.<String>naturalOrder())));
 	private final Set<Actor> actors = new HashSet<>();
 	private final Set<ProjectOrDomainEntity> entities = new LinkedHashSet<>();
+	@SuppressWarnings("unchecked")
+	private final NLPProcessor<Collection<NLPText>> nounPhraseFinder = mock(NLPProcessor.class);
 
 	LexicalGlossaryTermAssistantTest() {
 		doReturn(terms).when(project).getGlossaryTerms();
 		doReturn(actors).when(project).getActors();
 		doReturn(entities).when(project).getProjectEntities();
+		when(nlpProcessorFactory.getNounPhraseFinder()).thenReturn(nounPhraseFinder);
 	}
 
 	@Test
@@ -235,6 +241,146 @@ class LexicalGlossaryTermAssistantTest {
 		assertThat(LexicalGlossaryTermAssistant.singular("entities")).isEqualTo("entity");
 		assertThat(LexicalGlossaryTermAssistant.singular("access")).isEqualTo("access");
 		assertThat(LexicalGlossaryTermAssistant.singular("status")).isEqualTo("status");
+		assertThat(LexicalGlossaryTermAssistant.singular("ties")).isEqualTo("tie");
+		assertThat(LexicalGlossaryTermAssistant.singular("bus")).isEqualTo("bus");
+	}
+
+	@Test
+	void aPhraseInTheNameAndTheTextIsRaisedOnce() {
+		parse("Use Conduit", List.of(verb("Use")), nnp("Conduit"));
+		parse("Deploy Conduit now.", List.of(verb("Deploy")), nnp("Conduit"));
+		assertThat(issueWords(assistant.analyze(context(),
+				textEntity(project, "Use Conduit", "Deploy Conduit now.")))).containsExactly("Conduit");
+	}
+
+	/** A sentence-initial capital in the Name says nothing; the Text is still checked. */
+	@Test
+	void aPhraseDroppedInTheNameIsStillCheckedInTheText() {
+		parse("Conduit", List.of(), nnp("Conduit"));
+		parse("Deploy Conduit now.", List.of(verb("Deploy")), nnp("Conduit"));
+		assertThat(issueWords(assistant.analyze(context(),
+				textEntity(project, "Conduit", "Deploy Conduit now.")))).containsExactly("Conduit");
+	}
+
+	@Test
+	void anActorNameInThePluralRaisesNothing() {
+		String text = "Ask the Zoom Hosts.";
+		NLPText[] candidate = { phrase(leaves(dt("the"), nnp("Zoom"), nnp("Hosts"))) };
+		assertThat(issueWords(analyze(text, List.of(verb("Ask")), candidate)))
+				.containsExactly("Zoom Hosts");
+		actor("Zoom Host");
+		assertThat(issueWords(analyze(text, List.of(verb("Ask")), candidate))).isEmpty();
+	}
+
+	/** "the" + "room" match "theroom", but "room" alone is not a whole word there. */
+	@Test
+	void aPhraseWhoseBodyIsNotAWholeWordRaisesNothing() {
+		term("Room", 5L);
+		AssistantResult result = analyze("Visit theroom now.", List.of(verb("Visit")),
+				phrase(leaves(dt("the"), nn("room"))));
+		assertThat(result.annotationActions()).isEmpty();
+	}
+
+	@Test
+	void aNounPhraseWithNoWordsRaisesNothing() {
+		assertThat(analyze("Deploy it.", List.of(verb("Deploy")), phrase(leaves()))
+				.annotationActions()).isEmpty();
+	}
+
+	@Test
+	void everyCoordinationAndPossessiveShapeIsNotATerm() {
+		used(5, "stream key or RTMP endpoint", "stream key & RTMP endpoint", "Conduit’s manual",
+				"operators' manual");
+		assertThat(issueWords(analyze("Rotate the stream key or RTMP endpoint.",
+				List.of(verb("Rotate"), dt("the")), phrase(leaves(nn("stream"), nn("key"), nn("or"),
+						nnp("RTMP"), nn("endpoint")))))).isEmpty();
+		assertThat(issueWords(analyze("Rotate the stream key & RTMP endpoint.",
+				List.of(verb("Rotate"), dt("the")), phrase(leaves(nn("stream"), nn("key"), cc("&"),
+						nnp("RTMP"), nn("endpoint")))))).isEmpty();
+		assertThat(issueWords(analyze("Read Conduit’s manual.", List.of(verb("Read")),
+				phrase(leaves(nnp("Conduit"), nn("’s"), nn("manual")))))).isEmpty();
+		assertThat(issueWords(analyze("Read the operators' manual.",
+				List.of(verb("Read"), dt("the")),
+				phrase(leaves(nns("operators"), pos("'"), nn("manual")))))).isEmpty();
+	}
+
+	/**
+	 * A sentence-initial plural is read as a verb only when it has a verb sense: not "Boss"
+	 * ("ss"), not "Rooms" (no sense), and not "Specs" when the lookup fails.
+	 */
+	@Test
+	void aSentenceInitialPluralIsATermUnlessItHasAVerbSense() {
+		used(3, "boss mode", "specs page", "rooms list");
+		when(dictionaryRepository.findWord("spec", PartOfSpeech.VERB))
+				.thenThrow(new IllegalStateException("dictionary unavailable"));
+		assertThat(issueWords(analyze("Boss mode is on.", List.of(),
+				phrase(leaves(nn("Boss"), nn("mode")))))).containsExactly("Boss mode");
+		assertThat(issueWords(analyze("Specs page loads.", List.of(),
+				phrase(leaves(nns("Specs"), nn("page")))))).containsExactly("Specs page");
+		assertThat(issueWords(analyze("Rooms list loads.", List.of(),
+				phrase(leaves(nns("Rooms"), nn("list")))))).containsExactly("Rooms list");
+	}
+
+	@Test
+	void withoutADictionaryNoSentenceInitialPluralIsReadAsAVerb() {
+		used(3, "alarms route");
+		LexicalGlossaryTermAssistant noDictionary = new LexicalGlossaryTermAssistant(
+				nlpProcessorFactory, projectRepository, null);
+		String text = "Alarms route to the pager.";
+		parse(text, List.of(), phrase(leaves(nns("Alarms"), nn("route"))));
+		assertThat(issueWords(noDictionary.analyze(context(), textEntity(project, "", text))))
+				.containsExactly("Alarms route");
+	}
+
+	@Test
+	void eachSentenceOfAParagraphStartsAtItsFirstWord() {
+		NLPText archive = nnp("Archive");
+		NLPText conduit = nnp("Conduit");
+		NLPText paragraph = mock(NLPText.class);
+		when(paragraph.is(GrammaticalStructureLevel.PARAGRAPH)).thenReturn(true);
+		List<NLPText> sentences = List.of(sentence(punct("\""), archive, nns("rooms")),
+				sentence(conduit, nn("deploys")), sentence(punct("...")));
+		when(paragraph.getChildren()).thenReturn(sentences);
+
+		Set<NLPText> starts = LexicalGlossaryTermAssistant.sentenceStarts(paragraph);
+
+		assertThat(starts).hasSize(2);
+		assertThat(starts).anyMatch(s -> s == archive).anyMatch(s -> s == conduit);
+	}
+
+	@Test
+	void anUnnamedTermIsSkipped() {
+		term(null, 4L);
+		GlossaryTerm room = term("Room", 5L);
+		assertThat(refererTermIds(analyze("Archive the room.", List.of(verb("Archive")),
+				phrase(leaves(dt("the"), nn("room")))))).containsExactly(room.getId());
+	}
+
+	/**
+	 * Steps count toward a common phrase, with or without a name or text; report generators
+	 * don't, and neither does a project with no entities or terms of its own.
+	 */
+	@Test
+	void stepsCountTowardACommonPhraseButReportGeneratorsDoNot() {
+		doReturn(null).when(project).getGlossaryTerms();
+		doReturn(null).when(project).getProjectEntities();
+		Step named = entity(Step.class, "Open the admin console", null);
+		Step described = entity(Step.class, null, "Log in to the admin console.");
+		ReportGenerator report = entity(ReportGenerator.class, "admin console", "admin console");
+		String text = "Open the admin console as Chris.";
+		List<NLPText> adminConsole = leaves(dt("the"), nn("admin"), nn("console"));
+
+		doReturn(Set.of(named, described)).when(projectRepository).findStepsByProjectOrDomain(any());
+		doReturn(new LinkedHashSet<>(List.of(report))).when(project).getProjectEntities();
+		assertThat(issueWords(analyze(text, List.of(verb("Open")), phrase(adminConsole))))
+				.isEmpty();
+
+		doReturn(null).when(project).getProjectEntities();
+		Step third = entity(Step.class, "Close the admin console", "");
+		doReturn(Set.of(named, described, third)).when(projectRepository)
+				.findStepsByProjectOrDomain(any());
+		assertThat(issueWords(analyze(text, List.of(verb("Open")), phrase(adminConsole))))
+				.containsExactly("admin console");
 	}
 
 	// ---- fixtures -------------------------------------------------------------------------------
@@ -245,6 +391,15 @@ class LexicalGlossaryTermAssistantTest {
 	 * whole parse is its sentence start.
 	 */
 	private AssistantResult analyze(String text, List<NLPText> before, NLPText... candidates) {
+		parse(text, before, candidates);
+		return assistant.analyze(context(), textEntity(project, "", text));
+	}
+
+	/**
+	 * Parse {@code text} as {@code before} followed by the candidates' leaves, with the
+	 * candidates as its noun phrases.
+	 */
+	private void parse(String text, List<NLPText> before, NLPText... candidates) {
 		List<NLPText> all = new ArrayList<>(before);
 		for (NLPText candidate : candidates) {
 			all.addAll(candidate.getLeaves());
@@ -252,11 +407,13 @@ class LexicalGlossaryTermAssistantTest {
 		NLPText nlpText = mock(NLPText.class);
 		when(nlpText.getLeaves()).thenReturn(all);
 		when(nlpProcessorFactory.processText(text)).thenReturn(nlpText);
-		@SuppressWarnings("unchecked")
-		NLPProcessor<Collection<NLPText>> nounPhraseFinder = mock(NLPProcessor.class);
 		when(nounPhraseFinder.process(nlpText)).thenReturn(Arrays.asList(candidates));
-		when(nlpProcessorFactory.getNounPhraseFinder()).thenReturn(nounPhraseFinder);
-		return assistant.analyze(context(), textEntity(project, "", text));
+	}
+
+	private static NLPText sentence(NLPText... leaves) {
+		NLPText sentence = mock(NLPText.class);
+		when(sentence.getLeaves()).thenReturn(List.of(leaves));
+		return sentence;
 	}
 
 	/** {@code count} other entities of the project whose text mentions every phrase. */
@@ -360,6 +517,15 @@ class LexicalGlossaryTermAssistantTest {
 		when(leaf.is(any(PartOfSpeech.class)))
 				.thenAnswer(inv -> inv.getArgument(0) == partOfSpeech);
 		return leaf;
+	}
+
+	private static <T extends TextEntity> T entity(Class<T> type, String name, String text) {
+		T entity = mock(type);
+		doReturn(type).when(entity).getProjectOrDomainEntityInterface();
+		when(entity.getId()).thenReturn((long) (Math.abs((type + name + text).hashCode()) % 100000));
+		when(entity.getName()).thenReturn(name);
+		when(entity.getText()).thenReturn(text);
+		return entity;
 	}
 
 	private static AssistantContext context() {
