@@ -580,8 +580,13 @@ npx ng build --configuration development
 - Glossary term renames. Renaming a term (say "Dry-run event" to "Dry-run webinar", after the
   vague-word finding on "event") changes only the term; text that still says "dry-run event"
   stops matching and comes back as a glossary candidate. Two fixes, both wanted: keep the old
-  name as a synonym of the new one, and offer to rewrite the referers' text. Drafted as a
-  follow-on in `doc/work/2.0/268-followup-glossary-rename-issue.md`; not filed.
+  name as a synonym of the new one, and offer to rewrite the referers' text. Filed as #348
+  (v2.1); body in `doc/work/2.0/268-followup-glossary-rename-issue.md`.
+- Primary verbs for commands. `DependencyPrimaryVerbFinder` finds a verb only through a subject,
+  so "Create the room" has none, and the step-structure check gives a step that names no actor
+  the same could-not-analyze note as text it couldn't parse. Found in step 12 (109 "No primary
+  verb found" lines in one re-run of the roundtable project). Filed as #349 (v2.1); body in
+  `doc/work/2.0/268-followup-imperative-primary-verb-issue.md`.
 - Spelling and vague findings stay per entity and property (#320); only glossary candidates become
   per project.
 
