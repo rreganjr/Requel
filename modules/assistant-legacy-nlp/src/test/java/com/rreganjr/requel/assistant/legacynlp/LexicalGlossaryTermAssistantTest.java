@@ -179,6 +179,9 @@ class LexicalGlossaryTermAssistantTest {
 				phrase(leaves(nnp("Conduit")))))).containsExactly("Conduit");
 		assertThat(issueWords(analyze("IVS records it.", List.of(), phrase(leaves(nnp("IVS"))))))
 				.containsExactly("IVS");
+		// #268: a lowercase word the parser tagged NNP is not a proper noun.
+		assertThat(issueWords(analyze("It is done entirely offline.", List.of(verb("is")),
+				phrase(leaves(nnp("entirely")))))).isEmpty();
 	}
 
 	@Test

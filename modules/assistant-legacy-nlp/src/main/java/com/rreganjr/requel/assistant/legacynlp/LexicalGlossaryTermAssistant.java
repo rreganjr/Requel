@@ -374,7 +374,11 @@ public class LexicalGlossaryTermAssistant implements RequelAssistant<TextEntity>
 	 */
 	private static boolean isProperNoun(List<NLPText> body, Set<NLPText> sentenceStarts) {
 		for (NLPText leaf : body) {
-			if (!leaf.in(ParseTag.NNP, ParseTag.NNPS)) {
+			// #268: the tag alone isn't enough; the parser tags some lowercase words NNP
+			// ("entirely", "ingest" on the roundtable project). A proper noun is capitalized.
+			String text = leaf.getText();
+			if (!leaf.in(ParseTag.NNP, ParseTag.NNPS) || text == null || text.isEmpty()
+					|| !Character.isUpperCase(text.codePointAt(0))) {
 				return false;
 			}
 		}
