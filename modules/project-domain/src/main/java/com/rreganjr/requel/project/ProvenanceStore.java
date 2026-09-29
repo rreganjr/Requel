@@ -32,7 +32,8 @@ import com.rreganjr.platform.identity.User;
  * Issue #272: where external sources and entity-source links live. Both are side tables keyed by
  * entity type and id, like {@code ignored_findings}, so nothing in the entity graph reaches them
  * and no assistant context pack can include them. The entity and project delete paths remove
- * their rows explicitly.
+ * their rows explicitly. Issue #273 adds citations (a link relation) and authority edges between
+ * sources on the same tables, so the same guarantee covers them.
  */
 public interface ProvenanceStore {
 
@@ -45,12 +46,26 @@ public interface ProvenanceStore {
 	int MAX_TITLE_LENGTH = 255;
 	int MAX_FRAGMENT_LENGTH = 255;
 
+	/** Issue #273: longest accepted kind, and source or edge note. */
+	int MAX_KIND_LENGTH = 40;
+	int MAX_NOTE_LENGTH = 1000;
+
 	/**
 	 * What to record about a source. Null {@code locatorType}/{@code locator}/{@code title}/
-	 * {@code contentHash} leave an existing source's values unchanged.
+	 * {@code contentHash} leave an existing source's values unchanged. {@code kind} and
+	 * {@code note} (#273) follow #316's partial-update contract: null leaves the value unchanged
+	 * and a blank value clears it.
 	 */
 	record SourceSpec(Long projectId, String system, String externalId,
-			SourceLocatorType locatorType, String locator, String title, String contentHash) {
+			SourceLocatorType locatorType, String locator, String title, String contentHash,
+			String kind, String note) {
+
+		/** A spec that leaves kind and note alone: the ingest paths, which never set them. */
+		public SourceSpec(Long projectId, String system, String externalId,
+				SourceLocatorType locatorType, String locator, String title, String contentHash) {
+			this(projectId, system, externalId, locatorType, locator, title, contentHash, null,
+					null);
+		}
 	}
 
 	/**
@@ -90,6 +105,31 @@ public interface ProvenanceStore {
 	/** Create or update the link; its key is (source, relation, target, fragment). */
 	EntitySourceLink link(LinkSpec spec, User by);
 
+	/** Issue #273: how many links of one relation a source has. */
+	long countLinks(Long sourceId, SourceLinkRelation relation);
+
+	/**
+	 * Issue #273: delete a source with its links and authority edges. The command refuses a
+	 * source something was derived from; the store does not check.
+	 */
+	void deleteSource(Long sourceId);
+
+	/** Issue #273: a project's authority edges, ordered by subordinate then superior. */
+	List<SourceAuthorityEdge> authorityEdges(Long projectId);
+
+	/**
+	 * Issue #273: record that {@code subordinate} defers to {@code superior}, or update the note
+	 * of the edge already there. {@code note} follows #316: null leaves it, blank clears it.
+	 *
+	 * @throws IllegalArgumentException for a self-edge, sources of different projects, or an edge
+	 *                                  that would close a cycle
+	 */
+	SourceAuthorityEdge addAuthority(ExternalSource subordinate, ExternalSource superior,
+			String note, User by);
+
+	/** Issue #273: @return true if the edge existed and was removed. */
+	boolean removeAuthority(Long subordinateId, Long superiorId);
+
 	/** Fill in a link's entity fingerprint without touching anything else (#272 P6). */
 	void recordFingerprint(Long linkId, String entityFingerprint);
 
@@ -112,6 +152,37 @@ public interface ProvenanceStore {
 	/** The stored form of a system: trimmed and lower-cased. */
 	static String normalizeSystem(String system) {
 		return system == null ? null : system.strip().toLowerCase(Locale.ROOT);
+	}
+
+	/** Issue #273: the stored form of a kind: trimmed and lower-cased, blank = null. */
+	static String normalizeKind(String kind) {
+		if (kind == null) {
+			return null;
+		}
+		String stripped = kind.strip().toLowerCase(Locale.ROOT);
+		return stripped.isEmpty() ? null : stripped;
+	}
+
+	/** Issue #273: the stored form of a note: trimmed, blank = null. */
+	static String normalizeNote(String note) {
+		if (note == null) {
+			return null;
+		}
+		String stripped = note.strip();
+		return stripped.isEmpty() ? null : stripped;
+	}
+
+	/**
+	 * Issue #273: check a note's length.
+	 *
+	 * @throws IllegalArgumentException naming the field when it is too long
+	 */
+	static void validateNote(String field, String note) {
+		String normalized = normalizeNote(note);
+		if (normalized != null && normalized.length() > MAX_NOTE_LENGTH) {
+			throw new IllegalArgumentException(field + " is longer than " + MAX_NOTE_LENGTH
+					+ " characters");
+		}
 	}
 
 	/** The stored form of a fragment: trimmed, blank = null (the whole source). */
@@ -152,6 +223,11 @@ public interface ProvenanceStore {
 			throw new IllegalArgumentException("externalId is longer than " + MAX_EXTERNAL_ID_LENGTH);
 		}
 		validateLocator(spec.locatorType(), spec.locator());
+		String kind = normalizeKind(spec.kind());
+		if (kind != null && kind.length() > MAX_KIND_LENGTH) {
+			throw new IllegalArgumentException("kind is longer than " + MAX_KIND_LENGTH);
+		}
+		validateNote("note", spec.note());
 	}
 
 	/**

@@ -61,8 +61,14 @@ public class ExternalSourceImportXml {
 	@XmlAttribute(name = "lastIngestedAt")
 	private String lastIngestedAt;
 
+	@XmlAttribute(name = "note")
+	private String note;
+
 	@XmlElement(name = "sourceLink", namespace = "http://www.rreganjr.com/requel")
 	private List<Link> links = new ArrayList<>();
+
+	@XmlElement(name = "defersTo", namespace = "http://www.rreganjr.com/requel")
+	private List<DefersTo> defersTo = new ArrayList<>();
 
 	public String getSystem() { return system; }
 	public String getExternalId() { return externalId; }
@@ -73,6 +79,26 @@ public class ExternalSourceImportXml {
 	public String getContentHash() { return contentHash; }
 	public String getLastIngestedAt() { return lastIngestedAt; }
 	public List<Link> getLinks() { return links; }
+	public String getNote() { return note; }
+	public List<DefersTo> getDefersTo() { return defersTo; }
+
+	/** Issue #273: one source this one defers to. */
+	@XmlAccessorType(XmlAccessType.FIELD)
+	public static class DefersTo {
+
+		@XmlAttribute(name = "system")
+		private String system;
+
+		@XmlAttribute(name = "externalId")
+		private String externalId;
+
+		@XmlAttribute(name = "note")
+		private String note;
+
+		public String getSystem() { return system; }
+		public String getExternalId() { return externalId; }
+		public String getNote() { return note; }
+	}
 
 	/** One exported link. */
 	@XmlAccessorType(XmlAccessType.FIELD)

@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.project.SourceLinkRelation;
+import com.rreganjr.requel.service.api.AllowedValues;
 import com.rreganjr.requel.service.api.CommandDescription;
 
 import jakarta.validation.constraints.NotBlank;
@@ -38,13 +40,17 @@ import jakarta.validation.constraints.Size;
  * @param externalId   the source's external id
  * @param fragment     a stable key for the part of the source, e.g. AC-4 or p.12; null for the
  *                     whole source
- * @param fragmentText the fragment's text as the entity reflects it, or null
+ * @param fragmentText the fragment's text as the entity reflects it, or null; DERIVED_FROM only
+ * @param relation     issue #273: DERIVED_FROM (the default) or CITES
  */
 @CommandDescription(value = "Links an existing entity to a fragment of a source recorded with"
-        + " RecordSource, as the entity is now — for adopting an entity built before provenance"
-        + " was recorded. It never edits the entity or raises a conflict; UpsertFromSource is the"
-        + " ingest path. Pass fragmentText so a later UpsertFromSource can tell whether the"
-        + " fragment changed.",
+        + " RecordSource. relation DERIVED_FROM (the default) records that the entity was built"
+        + " from it, as the entity is now — for adopting an entity built before provenance was"
+        + " recorded; pass fragmentText so a later UpsertFromSource can tell whether the fragment"
+        + " changed. relation CITES records that the entity refers to the document (fragment may"
+        + " name a section, e.g. §4, or be null for the whole document); a citation carries no"
+        + " fragmentText and never affects UpsertFromSource. It never edits the entity or raises"
+        + " a conflict; UpsertFromSource is the ingest path.",
         authorization = "Edit on the entity's type (Scenario[Edit] for a step, Stakeholder[Edit]"
                 + " for a stakeholder)")
 public record LinkSourceInput(
@@ -58,6 +64,10 @@ public record LinkSourceInput(
         @NotBlank String system,
         @NotBlank String externalId,
         @Size(max = 255) String fragment,
-        String fragmentText
+        String fragmentText,
+        @Pattern(regexp = "\\s*(DERIVED_FROM|CITES)\\s*", flags = Pattern.Flag.CASE_INSENSITIVE,
+                message = "must be one of DERIVED_FROM, CITES")
+        @AllowedValues(SourceLinkRelation.class)
+        String relation
 ) {
 }

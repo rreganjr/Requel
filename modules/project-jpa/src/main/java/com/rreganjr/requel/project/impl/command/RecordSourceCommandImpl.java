@@ -58,6 +58,8 @@ public class RecordSourceCommandImpl extends AbstractProjectCommand
 	private String locator;
 	private String title;
 	private String contentHash;
+	private String kind;
+	private String note;
 	private User editedBy;
 	private RecordedSource recordedSource;
 
@@ -110,6 +112,16 @@ public class RecordSourceCommandImpl extends AbstractProjectCommand
 	}
 
 	@Override
+	public void setKind(String kind) {
+		this.kind = kind;
+	}
+
+	@Override
+	public void setNote(String note) {
+		this.note = note;
+	}
+
+	@Override
 	public User getEditedBy() {
 		return editedBy;
 	}
@@ -137,7 +149,7 @@ public class RecordSourceCommandImpl extends AbstractProjectCommand
 		}
 		ProvenanceStore store = requireProvenanceStore(getProvenanceStore());
 		ProvenanceStore.SourceSpec spec = new ProvenanceStore.SourceSpec(project.getId(), system,
-				externalId, locatorType, locator, title, contentHash);
+				externalId, locatorType, locator, title, contentHash, kind, note);
 		ProvenanceStore.validateSourceSpec(spec);
 		recordedSource = store.recordSource(spec, getRepository().get(editedBy));
 	}

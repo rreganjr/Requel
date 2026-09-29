@@ -10,13 +10,19 @@ const LINKS: EntitySourceLinkDto[] = [
     editedSinceIngest: false,
     source: { id: 10, system: 'jira', externalId: 'CON-3685', locatorType: 'URL',
       locator: 'https://tracker.example.com/browse/CON-3685', title: null, contentHash: 'v2',
-      lastIngestedAt: null } },
+      lastIngestedAt: null, kind: null, note: null } },
   { id: 2, relation: 'DERIVED_FROM', entityType: 'Goal', entityId: 3, entityName: 'Rooms end',
     fragment: 'p.12', ingestedAt: null, notInLatestSource: true, editedSinceIngest: true,
     source: { id: 11, system: 'doc', externalId: 'guide', locatorType: 'PATH',
       locator: 'docs/Roundtable-Production-Guide.pdf', title: null, contentHash: null,
-      lastIngestedAt: null } },
+      lastIngestedAt: null, kind: null, note: null } },
 ];
+const CITATION: EntitySourceLinkDto = {
+  id: 3, relation: 'CITES', entityType: 'Goal', entityId: 3, entityName: 'Rooms end',
+  fragment: '§4', ingestedAt: '2026-09-29T12:00:00Z', notInLatestSource: true,
+  editedSinceIngest: false,
+  source: { id: 12, system: 'doc', externalId: 'RUNBOOK.md', locatorType: null, locator: null,
+    title: 'Runbook', contentHash: 'v3', lastIngestedAt: null, kind: 'runbook', note: null } };
 const flush = () => new Promise(r => setTimeout(r, 0));
 
 describe('SourcesSectionComponent (#272)', () => {
@@ -78,5 +84,19 @@ describe('SourcesSectionComponent (#272)', () => {
     expect(el.querySelector('[data-testid="sources-section"]')).toBeNull();
     expect(el.querySelector('[data-testid="sources-error"]')?.textContent)
       .toContain('could not be loaded');
+  });
+
+  it('labels each row as derived from or citing its source (#273)', async () => {
+    const { el } = await render(Promise.resolve([...LINKS, CITATION]));
+    const labels = Array.from(el.querySelectorAll('[data-testid="source-relation"]'))
+      .map(e => e.textContent?.trim());
+    expect(labels).toEqual(['Derived from', 'Derived from', 'Cites']);
+    expect(el.querySelector('[data-testid="source-kind"]')?.textContent).toContain('runbook');
+  });
+
+  it('gives a citation no ingest date or staleness flag (#273)', async () => {
+    const { el } = await render(Promise.resolve([CITATION]));
+    expect(el.querySelector('[data-testid="source-stale"]')).toBeNull();
+    expect(el.querySelector('.source-date')).toBeNull();
   });
 });

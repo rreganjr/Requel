@@ -164,7 +164,7 @@ class InMemoryGateway implements CommandGateway, QueryGateway {
                 .toList();
         return found.isEmpty() ? null
                 : new SourceEntitiesDto(new ExternalSourceDto(null, system, externalId, null, null,
-                        null, null, null), found);
+                        null, null, null, null, null), found);
     }
 
     @Override

@@ -24,9 +24,10 @@ import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.requel.project.SourceLinkRelation;
 
 /**
- * Issue #272: remove one derived-from link from an entity. Nothing in the UI does this; it exists
+ * Issue #272: remove one derived-from (or, #273, citation) link from an entity. Nothing in the UI does this; it exists
  * for a link recorded by mistake. Requires the entity's {@code Edit} permission.
  */
 public interface UnlinkSourceCommand extends EditCommand, ProjectScopedCommand {
@@ -40,6 +41,9 @@ public interface UnlinkSourceCommand extends EditCommand, ProjectScopedCommand {
 	void setExternalId(String externalId);
 
 	void setFragment(String fragment);
+
+	/** Issue #273: the relation of the link to remove; null means DERIVED_FROM. */
+	void setRelation(SourceLinkRelation relation);
 
 	/** @return true if a link was removed. */
 	boolean isUnlinked();

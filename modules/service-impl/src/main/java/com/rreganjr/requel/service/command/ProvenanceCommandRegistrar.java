@@ -39,9 +39,12 @@ import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.SourceLinkRelation;
 import com.rreganjr.requel.project.SourceLocatorType;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
+import com.rreganjr.requel.project.command.AddSourceAuthorityCommand;
+import com.rreganjr.requel.project.command.DeleteSourceCommand;
 import com.rreganjr.requel.project.command.EditActorCommand;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
@@ -52,14 +55,19 @@ import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.project.command.LinkSourceCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.command.RecordSourceCommand;
+import com.rreganjr.requel.project.command.RemoveSourceAuthorityCommand;
 import com.rreganjr.requel.project.command.UnlinkSourceCommand;
 import com.rreganjr.requel.project.command.UpsertFromSourceCommand;
 import com.rreganjr.requel.project.impl.ProvenanceEntityTypes;
 import com.rreganjr.requel.service.api.CommandRegistry;
+import com.rreganjr.requel.service.api.dto.AddSourceAuthorityInput;
+import com.rreganjr.requel.service.api.dto.DeleteSourceInput;
 import com.rreganjr.requel.service.api.dto.EntitySourceLinkDto;
 import com.rreganjr.requel.service.api.dto.LinkSourceInput;
 import com.rreganjr.requel.service.api.dto.RecordSourceInput;
 import com.rreganjr.requel.service.api.dto.RecordSourceResultDto;
+import com.rreganjr.requel.service.api.dto.RemoveSourceAuthorityInput;
+import com.rreganjr.requel.service.api.dto.SourceAuthorityDto;
 import com.rreganjr.requel.service.api.dto.UnlinkSourceInput;
 import com.rreganjr.requel.service.api.dto.UpsertFromSourceInput;
 import com.rreganjr.requel.service.api.dto.UpsertFromSourceResultDto;
@@ -69,7 +77,8 @@ import jakarta.annotation.PostConstruct;
 
 /**
  * Registers the provenance commands (issue #272): RecordSource, LinkSource, UnlinkSource and the
- * composite UpsertFromSource, which wraps one of the entity edit commands.
+ * composite UpsertFromSource, which wraps one of the entity edit commands. Issue #273 adds
+ * DeleteSource and the source-authority pair, and a relation on LinkSource/UnlinkSource.
  */
 @Component
 public class ProvenanceCommandRegistrar {
@@ -131,6 +140,8 @@ public class ProvenanceCommandRegistrar {
 					c.setLocator(i.locator());
 					c.setTitle(i.title());
 					c.setContentHash(i.contentHash());
+					c.setKind(i.kind());
+					c.setNote(i.note());
 				},
 				null,
 				cmd -> {
@@ -152,6 +163,7 @@ public class ProvenanceCommandRegistrar {
 					c.setExternalId(i.externalId());
 					c.setFragment(i.fragment());
 					c.setFragmentText(i.fragmentText());
+					c.setRelation(SourceLinkRelation.parse(i.relation()));
 				},
 				null,
 				cmd -> {
@@ -175,9 +187,56 @@ public class ProvenanceCommandRegistrar {
 					c.setSystem(i.system());
 					c.setExternalId(i.externalId());
 					c.setFragment(i.fragment());
+					c.setRelation(SourceLinkRelation.parse(i.relation()));
 				},
 				null,
 				cmd -> Map.of("unlinked", ((UnlinkSourceCommand) cmd).isUnlinked()));
+
+		registry.register("DeleteSource", DeleteSourceInput.class,
+				factory::newDeleteSourceCommand,
+				(cmd, input) -> {
+					DeleteSourceCommand c = (DeleteSourceCommand) cmd;
+					DeleteSourceInput i = (DeleteSourceInput) input;
+					c.setProject(projectRepository.findProjectByName(i.projectName()));
+					c.setSystem(i.system());
+					c.setExternalId(i.externalId());
+				},
+				null,
+				cmd -> Map.of("deleted", true, "citationsRemoved",
+						((DeleteSourceCommand) cmd).getCitationsRemoved()));
+
+		registry.register("AddSourceAuthority", AddSourceAuthorityInput.class,
+				factory::newAddSourceAuthorityCommand,
+				(cmd, input) -> {
+					AddSourceAuthorityCommand c = (AddSourceAuthorityCommand) cmd;
+					AddSourceAuthorityInput i = (AddSourceAuthorityInput) input;
+					c.setProject(projectRepository.findProjectByName(i.projectName()));
+					c.setSystem(i.system());
+					c.setExternalId(i.externalId());
+					c.setDefersToSystem(i.defersToSystem());
+					c.setDefersToExternalId(i.defersToExternalId());
+					c.setNote(i.note());
+				},
+				null,
+				cmd -> {
+					var edge = ((AddSourceAuthorityCommand) cmd).getEdge();
+					return new SourceAuthorityDto(ProvenanceQueryService.toRef(edge.getSubordinate()),
+							ProvenanceQueryService.toRef(edge.getSuperior()), edge.getNote());
+				});
+
+		registry.register("RemoveSourceAuthority", RemoveSourceAuthorityInput.class,
+				factory::newRemoveSourceAuthorityCommand,
+				(cmd, input) -> {
+					RemoveSourceAuthorityCommand c = (RemoveSourceAuthorityCommand) cmd;
+					RemoveSourceAuthorityInput i = (RemoveSourceAuthorityInput) input;
+					c.setProject(projectRepository.findProjectByName(i.projectName()));
+					c.setSystem(i.system());
+					c.setExternalId(i.externalId());
+					c.setDefersToSystem(i.defersToSystem());
+					c.setDefersToExternalId(i.defersToExternalId());
+				},
+				null,
+				cmd -> Map.of("removed", ((RemoveSourceAuthorityCommand) cmd).isRemoved()));
 
 		registry.register("UpsertFromSource", UpsertFromSourceInput.class,
 				factory::newUpsertFromSourceCommand,

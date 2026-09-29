@@ -1014,6 +1014,25 @@ public class ProjectQueryController {
     }
 
     /**
+     * GET /api/projects/{name}/sources — the project's sources and references, with link counts
+     * and the precedence between them (issue #273), for the read-only References card.
+     */
+    @GetMapping("/{name}/sources")
+    public ResponseEntity<?> listSources(@PathVariable String name) {
+        if (provenanceQueryService == null) {
+            return ResponseEntity.ok(new com.rreganjr.requel.service.api.dto.ProjectSourcesDto(
+                    List.of(), List.of()));
+        }
+        try {
+            return ResponseEntity.ok(provenanceQueryService.listSources(name));
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
      * GET /api/projects/{name}/assistants — the assistants the project can switch on and off,
      * and whether each runs there (issue #268). No row means it runs.
      */

@@ -43,6 +43,8 @@ public record ExternalSourceDto(
         String locator,
         String title,
         String contentHash,
-        Date lastIngestedAt
+        Date lastIngestedAt,
+        String kind,
+        String note
 ) {
 }

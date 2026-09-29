@@ -58,6 +58,7 @@ public class UnlinkSourceCommandImpl extends AbstractProjectCommand
 	private String system;
 	private String externalId;
 	private String fragment;
+	private SourceLinkRelation relation;
 	private User editedBy;
 	private boolean unlinked;
 
@@ -100,6 +101,11 @@ public class UnlinkSourceCommandImpl extends AbstractProjectCommand
 	}
 
 	@Override
+	public void setRelation(SourceLinkRelation relation) {
+		this.relation = relation;
+	}
+
+	@Override
 	public User getEditedBy() {
 		return editedBy;
 	}
@@ -134,7 +140,8 @@ public class UnlinkSourceCommandImpl extends AbstractProjectCommand
 		ProvenanceStore store = RecordSourceCommandImpl.requireProvenanceStore(getProvenanceStore());
 		ExternalSource source = RecordSourceCommandImpl.requireSource(store, project, system,
 				externalId);
-		unlinked = store.unlink(source.getId(), SourceLinkRelation.DERIVED_FROM,
+		unlinked = store.unlink(source.getId(),
+				relation == null ? SourceLinkRelation.DERIVED_FROM : relation,
 				ProvenanceEntityTypes.nameOf(target), target.getId(), fragment);
 	}
 }

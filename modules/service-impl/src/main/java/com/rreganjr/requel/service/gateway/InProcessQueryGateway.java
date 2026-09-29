@@ -256,6 +256,19 @@ public class InProcessQueryGateway implements QueryGateway {
 				.getEntitySources(projectName, entityType, entityId));
 	}
 
+	@Override
+	public com.rreganjr.requel.service.api.dto.ProjectSourcesDto listSources(String projectName) {
+		return provenance(() -> requireProvenance().listSources(projectName));
+	}
+
+	@Override
+	public com.rreganjr.requel.service.api.dto.SourceComparisonDto compareSources(
+			String projectName, String system, String externalId, String otherSystem,
+			String otherExternalId) {
+		return provenance(() -> requireProvenance().compareSources(projectName, system,
+				externalId, otherSystem, otherExternalId));
+	}
+
 	private com.rreganjr.requel.service.query.ProvenanceQueryService requireProvenance() {
 		if (provenanceQueryService == null) {
 			throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED,

@@ -26,7 +26,10 @@ import com.rreganjr.platform.identity.User;
 
 /**
  * Issue #272: an external artifact a project's entities were built from — a Jira ticket, a
- * guide, a review — recorded once per project. Requel is authoritative: the source is a pointer,
+ * guide, a review — recorded once per project. Issue #273: every source is also one of the
+ * project's references, whether or not anything was built from it; entities cite it with a
+ * {@link SourceLinkRelation#CITES} link, and one source can defer to another
+ * ({@link SourceAuthorityEdge}). Requel is authoritative: the source is a pointer,
  * never read by Requel and never sent to a model.
  * <p>
  * Identity is ({@code projectId}, {@code system}, {@code externalId}). {@code system} is a
@@ -54,8 +57,18 @@ public interface ExternalSource {
 	/** A human title for the source, or null. */
 	String getTitle();
 
-	/** Reserved for #273's reference kinds; null for now. */
+	/**
+	 * Issue #273: what sort of document this is — an open, lower-cased vocabulary such as
+	 * {@code runbook}, {@code guide}, {@code review}, {@code matrix}, {@code ticket} or {@code repo}
+	 * — or null.
+	 */
 	String getKind();
+
+	/**
+	 * Issue #273: a person's note on why the source matters, or null. Shown to people and emitted;
+	 * never sent to a model.
+	 */
+	String getNote();
 
 	/**
 	 * The caller's hash of the source's content as of the last ingest (for a file, the SHA-256

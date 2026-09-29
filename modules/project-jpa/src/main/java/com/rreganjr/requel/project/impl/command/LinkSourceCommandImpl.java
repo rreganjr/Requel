@@ -62,6 +62,7 @@ public class LinkSourceCommandImpl extends AbstractProjectCommand
 	private String externalId;
 	private String fragment;
 	private String fragmentText;
+	private SourceLinkRelation relation;
 	private User editedBy;
 	private EntitySourceLink link;
 
@@ -109,6 +110,11 @@ public class LinkSourceCommandImpl extends AbstractProjectCommand
 	}
 
 	@Override
+	public void setRelation(SourceLinkRelation relation) {
+		this.relation = relation;
+	}
+
+	@Override
 	public User getEditedBy() {
 		return editedBy;
 	}
@@ -145,9 +151,22 @@ public class LinkSourceCommandImpl extends AbstractProjectCommand
 		ProvenanceEntityTypes.require(typeName);
 		ExternalSource source = RecordSourceCommandImpl.requireSource(store, project, system,
 				externalId);
+		SourceLinkRelation linkRelation = relation == null ? SourceLinkRelation.DERIVED_FROM
+				: relation;
+		if (linkRelation == SourceLinkRelation.CITES) {
+			// #273: a citation records that the entity refers to the source. Nothing was built
+			// from it, so there is no fragment text, source version or entity state to compare.
+			if (fragmentText != null && !fragmentText.isBlank()) {
+				throw new IllegalArgumentException(
+						"fragmentText applies to DERIVED_FROM links only; a CITES link carries none");
+			}
+			link = store.link(new ProvenanceStore.LinkSpec(source, linkRelation, typeName,
+					target.getId(), fragment, null, null, null), getRepository().get(editedBy));
+			return;
+		}
 		String fragmentHash = (fragmentText == null || fragmentText.isBlank()) ? null
 				: CriterionHash.of(fragmentText);
-		link = store.link(new ProvenanceStore.LinkSpec(source, SourceLinkRelation.DERIVED_FROM,
+		link = store.link(new ProvenanceStore.LinkSpec(source, linkRelation,
 				typeName, target.getId(), fragment, fragmentHash, source.getContentHash(),
 				SourceLinks.fingerprint(target)), getRepository().get(editedBy));
 	}

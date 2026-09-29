@@ -257,6 +257,24 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	}
 
 	@Override
+	public com.rreganjr.requel.project.command.DeleteSourceCommand newDeleteSourceCommand() {
+		return (com.rreganjr.requel.project.command.DeleteSourceCommand) getCreationStrategy()
+				.newInstance(DeleteSourceCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.AddSourceAuthorityCommand newAddSourceAuthorityCommand() {
+		return (com.rreganjr.requel.project.command.AddSourceAuthorityCommand) getCreationStrategy()
+				.newInstance(AddSourceAuthorityCommandImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.RemoveSourceAuthorityCommand newRemoveSourceAuthorityCommand() {
+		return (com.rreganjr.requel.project.command.RemoveSourceAuthorityCommand) getCreationStrategy()
+				.newInstance(RemoveSourceAuthorityCommandImpl.class);
+	}
+
+	@Override
 	public com.rreganjr.requel.project.command.AnalyzeProjectCommand newAnalyzeProjectCommand() {
 		return (com.rreganjr.requel.project.command.AnalyzeProjectCommand) getCreationStrategy()
 				.newInstance(AnalyzeProjectCommandImpl.class);

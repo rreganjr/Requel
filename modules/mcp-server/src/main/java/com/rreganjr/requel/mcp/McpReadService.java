@@ -100,7 +100,11 @@ public class McpReadService {
 						QueryDescriptions.FIND_ENTITIES_BY_SOURCE, sourceSchema(true)),
 				new McpToolDescriptor("getEntitySources", QueryDescriptions.GET_ENTITY_SOURCES,
 						entityRefSchema(QueryDescriptions.PROVENANCE_ENTITY_TYPES,
-								QueryDescriptions.PROVENANCE_ENTITY_TYPE))));
+								QueryDescriptions.PROVENANCE_ENTITY_TYPE)),
+				new McpToolDescriptor("listSources", QueryDescriptions.LIST_SOURCES,
+						projectNameSchema()),
+				new McpToolDescriptor("compareSources", QueryDescriptions.COMPARE_SOURCES,
+						compareSourcesSchema())));
 		// Append opt-in write tools (empty unless requel.gateway.write.enabled=true).
 		tools.addAll(writeService.toolDescriptors());
 		return Map.of("tools", tools);
@@ -149,6 +153,12 @@ public class McpReadService {
 			case "getEntitySources" -> projectQueryGateway.getEntitySources(
 					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
 					requiredLong(arguments, "entityId"));
+			case "listSources" -> projectQueryGateway.listSources(
+					requiredText(arguments, "projectName"));
+			case "compareSources" -> projectQueryGateway.compareSources(
+					requiredText(arguments, "projectName"), requiredText(arguments, "system"),
+					requiredText(arguments, "externalId"), requiredText(arguments, "otherSystem"),
+					requiredText(arguments, "otherExternalId"));
 			default -> throw new McpInvalidParamsException("Unknown MCP tool: " + name);
 		};
 		return Map.of("content", List.of(new McpTextContent("text", toJson(result))),
@@ -261,6 +271,20 @@ public class McpReadService {
 		}
 		return Map.of("type", "object", "properties", properties,
 				"required", List.of("projectName", "system", "externalId"),
+				"additionalProperties", false);
+	}
+
+	private Map<String, Object> compareSourcesSchema() {
+		Map<String, Object> properties = new java.util.LinkedHashMap<>();
+		properties.put("projectName", property("string", QueryDescriptions.PROJECT_NAME));
+		properties.put("system", property("string", QueryDescriptions.SOURCE_SYSTEM));
+		properties.put("externalId", property("string", QueryDescriptions.SOURCE_EXTERNAL_ID));
+		properties.put("otherSystem", property("string", QueryDescriptions.OTHER_SOURCE_SYSTEM));
+		properties.put("otherExternalId", property("string",
+				QueryDescriptions.OTHER_SOURCE_EXTERNAL_ID));
+		return Map.of("type", "object", "properties", properties,
+				"required", List.of("projectName", "system", "externalId", "otherSystem",
+						"otherExternalId"),
 				"additionalProperties", false);
 	}
 

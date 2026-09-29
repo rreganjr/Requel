@@ -122,6 +122,23 @@ public class GatewayQueryController {
         return queryGateway.findEntitiesBySource(name, system, externalId, fragment);
     }
 
+    /** Issue #273: every source and reference of the project, with precedence. */
+    @GetMapping("/projects/{name}/sources")
+    public com.rreganjr.requel.service.api.dto.ProjectSourcesDto listSources(
+            @PathVariable String name) {
+        return queryGateway.listSources(name);
+    }
+
+    /** Issue #273: which of two sources wins. */
+    @GetMapping("/projects/{name}/sources/compare")
+    public com.rreganjr.requel.service.api.dto.SourceComparisonDto compareSources(
+            @PathVariable String name, @RequestParam String system,
+            @RequestParam String externalId, @RequestParam String otherSystem,
+            @RequestParam String otherExternalId) {
+        return queryGateway.compareSources(name, system, externalId, otherSystem,
+                otherExternalId);
+    }
+
     /** Issue #272: which sources an entity came from. */
     @GetMapping("/projects/{name}/entity/sources")
     public List<com.rreganjr.requel.service.api.dto.EntitySourceLinkDto> getEntitySources(

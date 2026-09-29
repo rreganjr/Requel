@@ -10,7 +10,7 @@ const LINKS: EntitySourceLinkDto[] = [
     editedSinceIngest: false,
     source: { id: 10, system: 'jira', externalId: 'CON-3685', locatorType: 'URL',
       locator: 'https://tracker.example.com/browse/CON-3685', title: null, contentHash: null,
-      lastIngestedAt: null } },
+      lastIngestedAt: null, kind: null, note: null } },
 ];
 
 describe('SourcesSectionComponent — accessibility (#272)', () => {

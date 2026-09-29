@@ -36,12 +36,17 @@ export interface ExternalSourceDto {
   title: string | null;
   contentHash: string | null;
   lastIngestedAt: string | null;
+  /** Issue #273: what sort of document, lower-cased, e.g. `runbook`; null when not recorded. */
+  kind: string | null;
+  /** Issue #273: why the source matters to the project; null when not recorded. */
+  note: string | null;
 }
 
 export interface EntitySourceLinkDto {
   id: number;
   source: ExternalSourceDto;
-  relation: string;
+  /** `DERIVED_FROM` (the entity was built from it) or `CITES` (it refers to it, #273). */
+  relation: 'DERIVED_FROM' | 'CITES' | string;
   entityType: string;
   entityId: number;
   entityName: string | null;
@@ -52,4 +57,33 @@ export interface EntitySourceLinkDto {
   notInLatestSource: boolean;
   /** The entity changed in Requel since it was ingested. */
   editedSinceIngest: boolean;
+}
+
+/** Issue #273: a source named by its identity, for the ends of a precedence edge. */
+export interface SourceRefDto {
+  system: string;
+  externalId: string;
+  title: string | null;
+}
+
+/** Issue #273: `subordinate` defers to `superior` — where the two disagree, the superior wins. */
+export interface SourceAuthorityDto {
+  subordinate: SourceRefDto;
+  superior: SourceRefDto;
+  note: string | null;
+}
+
+/** Issue #273: one of a project's sources, with its link counts and direct precedence. */
+export interface ProjectSourceDto {
+  source: ExternalSourceDto;
+  derivedCount: number;
+  citedByCount: number;
+  defersTo: SourceRefDto[];
+  outranks: SourceRefDto[];
+}
+
+/** Issue #273: the project's sources and references, and every precedence edge between them. */
+export interface ProjectSourcesDto {
+  sources: ProjectSourceDto[];
+  authority: SourceAuthorityDto[];
 }

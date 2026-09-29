@@ -21,7 +21,9 @@
 package com.rreganjr.requel.service.query;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -34,11 +36,19 @@ import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProvenanceStore;
+import com.rreganjr.requel.project.SourceAuthority;
+import com.rreganjr.requel.project.SourceAuthorityEdge;
+import com.rreganjr.requel.project.SourceLinkRelation;
 import com.rreganjr.requel.project.SourceLinks;
 import com.rreganjr.requel.project.impl.ProvenanceEntityTypes;
 import com.rreganjr.requel.service.api.dto.EntitySourceLinkDto;
 import com.rreganjr.requel.service.api.dto.ExternalSourceDto;
+import com.rreganjr.requel.service.api.dto.ProjectSourceDto;
+import com.rreganjr.requel.service.api.dto.ProjectSourcesDto;
+import com.rreganjr.requel.service.api.dto.SourceAuthorityDto;
+import com.rreganjr.requel.service.api.dto.SourceComparisonDto;
 import com.rreganjr.requel.service.api.dto.SourceEntitiesDto;
+import com.rreganjr.requel.service.api.dto.SourceRefDto;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
 
 /**
@@ -48,6 +58,9 @@ import com.rreganjr.requel.service.auth.CurrentUserResolver;
  * by construction. Each read needs read access to the project, as every project read does.
  * <p>
  * A link whose entity no longer exists (a delete path that bypassed the store) is left out.
+ * <p>
+ * Issue #273: the same holds for references — every source is one — and for citations and the
+ * precedence between sources, which only these reads (and the report generators) return.
  */
 @Service
 @Transactional(readOnly = true)
@@ -117,6 +130,68 @@ public class ProvenanceQueryService {
 		return links;
 	}
 
+	/**
+	 * Issue #273: every source of the project — its references, whether or not anything was
+	 * built from them — with link counts and the precedence edges between them.
+	 */
+	public ProjectSourcesDto listSources(String projectName) {
+		Project project = readableProject(projectName);
+		List<ExternalSource> sources = provenanceStore.listSources(project.getId());
+		List<SourceAuthorityEdge> edges = provenanceStore.authorityEdges(project.getId());
+		Map<Long, ExternalSource> byId = new HashMap<>();
+		sources.forEach(source -> byId.put(source.getId(), source));
+		List<SourceAuthority.Edge> ids = SourceAuthority.edgesOf(edges);
+		List<ProjectSourceDto> dtos = new ArrayList<>();
+		for (ExternalSource source : sources) {
+			dtos.add(new ProjectSourceDto(toSourceDto(source),
+					provenanceStore.countLinks(source.getId(), SourceLinkRelation.DERIVED_FROM),
+					provenanceStore.countLinks(source.getId(), SourceLinkRelation.CITES),
+					refs(SourceAuthority.superiorsOf(ids, source.getId()), byId),
+					refs(SourceAuthority.subordinatesOf(ids, source.getId()), byId)));
+		}
+		List<SourceAuthorityDto> authority = edges.stream()
+				.map(edge -> new SourceAuthorityDto(toRef(edge.getSubordinate()),
+						toRef(edge.getSuperior()), edge.getNote()))
+				.toList();
+		return new ProjectSourcesDto(dtos, authority);
+	}
+
+	/**
+	 * Issue #273: which of two sources wins where they disagree, following "defers to" edges
+	 * transitively.
+	 *
+	 * @throws IllegalArgumentException when either source is not recorded in the project
+	 */
+	public SourceComparisonDto compareSources(String projectName, String system,
+			String externalId, String otherSystem, String otherExternalId) {
+		Project project = readableProject(projectName);
+		ExternalSource a = requireSource(project, system, externalId);
+		ExternalSource b = requireSource(project, otherSystem, otherExternalId);
+		Map<Long, ExternalSource> byId = new HashMap<>();
+		provenanceStore.listSources(project.getId()).forEach(s -> byId.put(s.getId(), s));
+		SourceAuthority.Resolution resolution = SourceAuthority.resolve(
+				SourceAuthority.edgesOf(provenanceStore.authorityEdges(project.getId())),
+				a.getId(), b.getId());
+		return new SourceComparisonDto(resolution.winner().name(), toRef(a), toRef(b),
+				refs(resolution.chain(), byId));
+	}
+
+	private ExternalSource requireSource(Project project, String system, String externalId) {
+		return provenanceStore.findSource(project.getId(), system, externalId)
+				.orElseThrow(() -> new IllegalArgumentException("project '" + project.getName()
+						+ "' has no source " + system + " " + externalId));
+	}
+
+	private static List<SourceRefDto> refs(List<Long> ids, Map<Long, ExternalSource> byId) {
+		return ids.stream().map(byId::get).filter(java.util.Objects::nonNull)
+				.map(ProvenanceQueryService::toRef).toList();
+	}
+
+	public static SourceRefDto toRef(ExternalSource source) {
+		return source == null ? null
+				: new SourceRefDto(source.getSystem(), source.getExternalId(), source.getTitle());
+	}
+
 	private Project readableProject(String projectName) {
 		Project project = projectRepository.findProjectByName(projectName);
 		if (!ProjectReadAccess.canRead(project, currentUserResolver.resolve())) {
@@ -136,7 +211,16 @@ public class ProvenanceQueryService {
 		return Optional.of(new EntitySourceLinkDto(link.getId(), toSourceDto(link.getSource()),
 				link.getRelation().name(), link.getTargetType(), link.getTargetId(),
 				entity.get().getName(), link.getFragment(), link.getIngestedAt(),
-				link.isNotInLatestSource(), SourceLinks.isEditedSinceIngest(link, entity.get())));
+				link.isNotInLatestSource(), editedSinceIngest(link, entity.get())));
+	}
+
+	/**
+	 * A citation (#273) records no entity state, so "edited since ingest" does not apply to it;
+	 * without this it would read as edited, the way a #71 link with no fingerprint does.
+	 */
+	static boolean editedSinceIngest(EntitySourceLink link, ProjectOrDomainEntity entity) {
+		return link.getRelation() != SourceLinkRelation.CITES
+				&& SourceLinks.isEditedSinceIngest(link, entity);
 	}
 
 	public static ExternalSourceDto toSourceDto(ExternalSource source) {
@@ -146,6 +230,6 @@ public class ProvenanceQueryService {
 		return new ExternalSourceDto(source.getId(), source.getSystem(), source.getExternalId(),
 				source.getLocatorType() == null ? null : source.getLocatorType().name(),
 				source.getLocator(), source.getTitle(), source.getContentHash(),
-				source.getLastIngestedAt());
+				source.getLastIngestedAt(), source.getKind(), source.getNote());
 	}
 }

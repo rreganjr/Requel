@@ -32,7 +32,8 @@ import jakarta.xml.bind.annotation.XmlType;
 /**
  * Issue #272: export view of one external source and its entity links. A JAXB-only carrier,
  * like {@link IgnoredFindingXml}: filled for export from the {@code ProvenanceStore} and read on
- * import by the external-source StAX importer. The file never carries a database id.
+ * import by the external-source StAX importer. The file never carries a database id. Issue #273
+ * adds the source's note and the sources it defers to, named by system and external id.
  */
 @XmlType(name = "externalSource", namespace = "http://www.rreganjr.com/requel")
 @XmlAccessorType(XmlAccessType.NONE)
@@ -46,7 +47,9 @@ public class ExternalSourceXml {
 	private String kind;
 	private String contentHash;
 	private String lastIngestedAt;
+	private String note;
 	private List<SourceLinkXml> links = new ArrayList<>();
+	private List<SourceAuthorityXml> defersTo = new ArrayList<>();
 
 	public ExternalSourceXml() {
 		// for JAXB
@@ -94,6 +97,16 @@ public class ExternalSourceXml {
 		return kind;
 	}
 
+	/** Issue #273. */
+	@XmlAttribute(name = "note")
+	public String getNote() {
+		return note;
+	}
+
+	public void setNote(String note) {
+		this.note = note;
+	}
+
 	@XmlAttribute(name = "contentHash")
 	public String getContentHash() {
 		return contentHash;
@@ -107,5 +120,11 @@ public class ExternalSourceXml {
 	@XmlElement(name = "sourceLink", namespace = "http://www.rreganjr.com/requel")
 	public List<SourceLinkXml> getLinks() {
 		return links;
+	}
+
+	/** Issue #273: the sources this one defers to. */
+	@XmlElement(name = "defersTo", namespace = "http://www.rreganjr.com/requel")
+	public List<SourceAuthorityXml> getDefersTo() {
+		return defersTo;
 	}
 }

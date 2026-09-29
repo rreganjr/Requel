@@ -47,5 +47,14 @@ public interface RecordSourceCommand extends EditCommand, ProjectScopedCommand {
 
 	void setContentHash(String contentHash);
 
+	/**
+	 * Issue #273: the kind of document, lower-cased when stored. Null leaves the kind alone and
+	 * blank clears it (#316).
+	 */
+	void setKind(String kind);
+
+	/** Issue #273: a note on why the source matters. Null leaves it alone, blank clears it. */
+	void setNote(String note);
+
 	RecordedSource getRecordedSource();
 }

@@ -83,6 +83,9 @@
 								</ol>								
 								</li>
 							</xsl:if>
+							<xsl:if test="count(rp:externalSources/rp:externalSource) > 0">
+								<li><a href="#resources">Resources</a></li>
+							</xsl:if>
 						</ul>
 					</div>
 					<div class="body">
@@ -94,6 +97,7 @@
 						<xsl:apply-templates select="rp:usecases" />
 						<xsl:apply-templates select="rp:scenarios" />
 						<xsl:apply-templates select="rp:glossary" />
+						<xsl:apply-templates select="rp:externalSources" />
 					</div>
 				</div>
 			</body>
@@ -561,6 +565,102 @@
 	</xsl:template>
 
 	<!-- Glossary -->
+	<!-- Resources (issue #273): every source and reference of the project, in export order
+	     (system, external id), with its kind, locator, note, the sources it defers to, and the
+	     entities derived from and citing it. Everything is output with value-of, so a note or
+	     title is text, never markup; a URL locator is only ever http(s) (#272 P7). -->
+	<xsl:template match="rp:project/rp:externalSources">
+		<xsl:if test="count(rp:externalSource) > 0">
+			<div class="resources">
+				<a name="resources"></a>
+				<h2>Resources</h2>
+				<ul class="resources">
+					<xsl:apply-templates select="rp:externalSource" />
+				</ul>
+			</div>
+		</xsl:if>
+	</xsl:template>
+
+	<xsl:template match="rp:externalSource">
+		<li class="resource">
+			<a name="{generate-id(.)}"></a>
+			<strong>
+				<xsl:choose>
+					<xsl:when test="string-length(@title) > 0"><xsl:value-of select="@title" /></xsl:when>
+					<xsl:otherwise><xsl:value-of select="@externalId" /></xsl:otherwise>
+				</xsl:choose>
+			</strong>
+			<xsl:if test="string-length(@kind) > 0">
+				<xsl:text> (</xsl:text><xsl:value-of select="@kind" /><xsl:text>)</xsl:text>
+			</xsl:if>
+			<div class="body">
+				<div>
+					<xsl:value-of select="@system" /><xsl:text> </xsl:text><xsl:value-of select="@externalId" />
+				</div>
+				<xsl:choose>
+					<xsl:when test="@locatorType = 'URL'">
+						<div><a href="{@locator}" rel="noopener noreferrer"><xsl:value-of select="@locator" /></a></div>
+					</xsl:when>
+					<xsl:when test="@locatorType = 'PATH'">
+						<div><code><xsl:value-of select="@locator" /></code></div>
+					</xsl:when>
+				</xsl:choose>
+				<xsl:if test="string-length(@note) > 0">
+					<div class="note"><xsl:value-of select="@note" /></div>
+				</xsl:if>
+				<xsl:if test="count(rp:defersTo) > 0">
+					<div class="defersTo">
+						<xsl:text>Defers to: </xsl:text>
+						<xsl:for-each select="rp:defersTo">
+							<xsl:variable name="system" select="@system" />
+							<xsl:variable name="externalId" select="@externalId" />
+							<xsl:variable name="superior"
+								select="../../rp:externalSource[@system = $system and @externalId = $externalId]" />
+							<xsl:if test="position() > 1"><xsl:text>; </xsl:text></xsl:if>
+							<a href="#{generate-id($superior)}">
+								<xsl:choose>
+									<xsl:when test="string-length($superior/@title) > 0"><xsl:value-of select="$superior/@title" /></xsl:when>
+									<xsl:otherwise><xsl:value-of select="@externalId" /></xsl:otherwise>
+								</xsl:choose>
+							</a>
+							<xsl:if test="string-length(@note) > 0">
+								<xsl:text> (</xsl:text><xsl:value-of select="@note" /><xsl:text>)</xsl:text>
+							</xsl:if>
+						</xsl:for-each>
+					</div>
+				</xsl:if>
+				<xsl:if test="count(rp:sourceLink[@relation = 'DERIVED_FROM']) > 0">
+					<div class="derived">
+						<xsl:text>Derived: </xsl:text>
+						<xsl:for-each select="rp:sourceLink[@relation = 'DERIVED_FROM']">
+							<xsl:if test="position() > 1"><xsl:text>, </xsl:text></xsl:if>
+							<xsl:call-template name="source-link-entity" />
+						</xsl:for-each>
+					</div>
+				</xsl:if>
+				<xsl:if test="count(rp:sourceLink[@relation = 'CITES']) > 0">
+					<div class="citedBy">
+						<xsl:text>Cited by: </xsl:text>
+						<xsl:for-each select="rp:sourceLink[@relation = 'CITES']">
+							<xsl:if test="position() > 1"><xsl:text>, </xsl:text></xsl:if>
+							<xsl:call-template name="source-link-entity" />
+						</xsl:for-each>
+					</div>
+				</xsl:if>
+			</div>
+		</li>
+	</xsl:template>
+
+	<!-- One linked entity, by name, with the fragment the link names. -->
+	<xsl:template name="source-link-entity">
+		<xsl:variable name="ref-id" select="@entityRef" />
+		<xsl:variable name="entity" select="//*[@id = $ref-id][1]" />
+		<a href="#{generate-id($entity)}"><xsl:value-of select="$entity/rp:name" /></a>
+		<xsl:if test="string-length(@fragment) > 0">
+			<xsl:text> (</xsl:text><xsl:value-of select="@fragment" /><xsl:text>)</xsl:text>
+		</xsl:if>
+	</xsl:template>
+
 	<xsl:template match="rp:project/rp:glossary">
 		<xsl:if test="count(rp:term) > 0">
 			<a name="glossary"></a>

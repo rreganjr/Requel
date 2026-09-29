@@ -25,10 +25,11 @@ import com.rreganjr.requel.project.EntitySourceLink;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.requel.project.SourceLinkRelation;
 
 /**
  * Issue #272: record that an entity was derived from a fragment of an existing source, as the
- * entity is now. The low-level primitive: it records without deciding anything, so it never
+ * entity is now — or, issue #273, that it cites the source. The low-level primitive: it records without deciding anything, so it never
  * raises a conflict — {@link UpsertFromSourceCommand} is the ingest path. Requires the entity's
  * {@code Edit} permission.
  */
@@ -47,6 +48,12 @@ public interface LinkSourceCommand extends EditCommand, ProjectScopedCommand {
 
 	/** The fragment's text as ingested, hashed to detect a later change; may be null. */
 	void setFragmentText(String fragmentText);
+
+	/**
+	 * Issue #273: the relation to record; null means {@link SourceLinkRelation#DERIVED_FROM}. A
+	 * {@link SourceLinkRelation#CITES} link carries no hashes, so fragment text is refused.
+	 */
+	void setRelation(SourceLinkRelation relation);
 
 	EntitySourceLink getLink();
 }
