@@ -143,7 +143,27 @@ public final class QueryDescriptions {
             + " to narrow to one fragment. Returns null when the project has no such source.";
 
     public static final String GET_ENTITY_SOURCES = "Lists the external sources one entity was built"
-            + " from, and which fragment of each — the answer to \"says who?\" for a requirement.";
+            + " from, and which fragment of each — the answer to \"says who?\" for a requirement —"
+            + " and the documents it cites (relation CITES).";
+
+    // ---- references and precedence (#273) -----------------------------------------------------
+
+    public static final String LIST_SOURCES = "Lists every source and reference recorded in a"
+            + " project — tickets, guides, reviews, runbooks, matrices — whether or not an entity"
+            + " was built from it, each with its kind, note, how many entities were derived from"
+            + " it and cite it, and which sources it defers to and outranks directly. authority"
+            + " lists every defers-to edge: where the two disagree the superior wins, and both"
+            + " remain current.";
+
+    public static final String COMPARE_SOURCES = "Says which of two recorded sources wins where they"
+            + " disagree: A (the first), B (the second) or NONE when no chain of defers-to edges"
+            + " joins them. Precedence is transitive; chain lists the sources from the loser up to"
+            + " the winner.";
+
+    public static final String OTHER_SOURCE_SYSTEM = "The second source's system, ignoring case.";
+
+    public static final String OTHER_SOURCE_EXTERNAL_ID = "The second source's external id, exactly"
+            + " as recorded.";
 
     public static final String SOURCE_SYSTEM = "The source family, e.g. jira, github or doc,"
             + " ignoring case.";

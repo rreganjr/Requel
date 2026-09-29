@@ -22,11 +22,12 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { projectApiUrl } from './api-url';
-import { EntitySourceLinkDto } from '../models/provenance';
+import { EntitySourceLinkDto, ProjectSourcesDto } from '../models/provenance';
 
 /**
- * Entity provenance (issue #272): which external sources an entity was built from. Read-only in
- * the UI; sources and links are written by an ingest through the gateway.
+ * Entity provenance (issue #272): which external sources an entity was built from, and (issue
+ * #273) the project's references and the precedence between them. Read-only in the UI; sources,
+ * links and precedence are written through the gateway.
  */
 @Injectable({ providedIn: 'root' })
 export class ProvenanceService {
@@ -36,5 +37,10 @@ export class ProvenanceService {
       Promise<EntitySourceLinkDto[]> {
     return firstValueFrom(this.http.get<EntitySourceLinkDto[]>(
       projectApiUrl(projectName, 'entities', entityType, entityId, 'sources')));
+  }
+
+  getProjectSources(projectName: string): Promise<ProjectSourcesDto> {
+    return firstValueFrom(this.http.get<ProjectSourcesDto>(
+      projectApiUrl(projectName, 'sources')));
   }
 }

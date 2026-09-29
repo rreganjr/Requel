@@ -101,6 +101,21 @@ public interface QueryGateway {
                 "findEntitiesBySource is not supported by this gateway");
     }
 
+    /**
+     * Issue #273: every source and reference of the project, with link counts and the precedence
+     * between them.
+     */
+    default com.rreganjr.requel.service.api.dto.ProjectSourcesDto listSources(String projectName) {
+        throw new UnsupportedOperationException("listSources is not supported by this gateway");
+    }
+
+    /** Issue #273: which of two recorded sources wins where they disagree. */
+    default com.rreganjr.requel.service.api.dto.SourceComparisonDto compareSources(
+            String projectName, String system, String externalId, String otherSystem,
+            String otherExternalId) {
+        throw new UnsupportedOperationException("compareSources is not supported by this gateway");
+    }
+
     /** Issue #272: which sources, and which fragments of them, an entity came from. */
     default List<EntitySourceLinkDto> getEntitySources(String projectName, String entityType,
             long entityId) {

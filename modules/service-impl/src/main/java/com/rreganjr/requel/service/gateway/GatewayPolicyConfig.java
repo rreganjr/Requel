@@ -90,6 +90,9 @@ public class GatewayPolicyConfig {
             // Edit), and create or update an entity from a source fragment (the entity's Edit
             // plus the wrapped edit command's own check)
             "RecordSource", "LinkSource", "UnlinkSource", "UpsertFromSource",
+            // References and precedence (#273; Project[Edit]): delete a source nothing was
+            // derived from, and record or remove "defers to" between two sources
+            "DeleteSource", "AddSourceAuthority", "RemoveSourceAuthority",
             // Reports (definition only; GenerateReport produces a file and is denied)
             "EditReportGenerator", "DeleteReportGenerator",
             // Annotations / IBIS

@@ -33,6 +33,7 @@ import { ProjectDto } from '../../models/project';
 import { projectApiUrl } from '../../core/api-url';
 import { DeleteProjectDialogComponent, DeleteProjectTarget } from './delete-project-dialog';
 import { ProjectAssistantsPanelComponent } from './project-assistants-panel';
+import { ProjectReferencesComponent } from './project-references';
 
 interface CountCard {
   label: string;
@@ -49,8 +50,8 @@ interface NextAction {
 /**
  * Project workspace overview (#154, the former #128 IA scope). The landing page
  * for a project at `/projects/:name`: artifact counts (each a link into that
- * section), an open-issues summary, derived next actions, and (#268) the project's
- * assistants. The project
+ * section), an open-issues summary, derived next actions, (#268) the project's
+ * assistants, and (#273) its references. The project
  * editor moved to `/projects/:name/edit`.
  *
  * "Recent changes" from the original #128 wish list is intentionally omitted —
@@ -61,7 +62,7 @@ interface NextAction {
   selector: 'app-project-workspace',
   standalone: true,
   imports: [RouterLink, ButtonModule, BadgeModule, PageHeaderComponent, SubmitErrorComponent, DeleteProjectDialogComponent,
-    ProjectAssistantsPanelComponent],
+    ProjectAssistantsPanelComponent, ProjectReferencesComponent],
   template: `
     <div class="project-workspace" data-testid="project-workspace">
       <div class="ws-header">
@@ -132,6 +133,8 @@ interface NextAction {
           <app-project-assistants-panel [projectName]="projectName" [canEdit]="canEditProject()"
                                         [canAnalyze]="canAnalyze()" />
         </div>
+
+        <app-project-references [projectName]="projectName" />
       }
     </div>
 

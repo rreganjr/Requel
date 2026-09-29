@@ -118,6 +118,24 @@ public class RestQueryGateway implements QueryGateway {
     }
 
     @Override
+    public com.rreganjr.requel.service.api.dto.ProjectSourcesDto listSources(String projectName) {
+        return http.get().uri(BASE + "/projects/{name}/sources", projectName)
+                .retrieve().body(com.rreganjr.requel.service.api.dto.ProjectSourcesDto.class);
+    }
+
+    @Override
+    public com.rreganjr.requel.service.api.dto.SourceComparisonDto compareSources(
+            String projectName, String system, String externalId, String otherSystem,
+            String otherExternalId) {
+        return http.get()
+                .uri(BASE + "/projects/{name}/sources/compare?system={system}"
+                        + "&externalId={externalId}&otherSystem={otherSystem}"
+                        + "&otherExternalId={otherExternalId}",
+                        projectName, system, externalId, otherSystem, otherExternalId)
+                .retrieve().body(com.rreganjr.requel.service.api.dto.SourceComparisonDto.class);
+    }
+
+    @Override
     public List<com.rreganjr.requel.service.api.dto.EntitySourceLinkDto> getEntitySources(
             String projectName, String entityType, long entityId) {
         return http.get()

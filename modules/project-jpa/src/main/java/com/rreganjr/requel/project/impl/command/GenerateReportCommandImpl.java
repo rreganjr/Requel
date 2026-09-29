@@ -141,7 +141,11 @@ public class GenerateReportCommandImpl extends AbstractProjectCommand implements
 				log.warn("The parser does not support XML validation.");
 			}
 			SAXSource saxSource = new SAXSource(reader, new InputSource(projectInputStream));
-            TransformerFactory tf = TransformerFactory.newInstance();
+            // #273: the JDK's own XSLTC, not whatever factory the classpath supplies. Xalan 2.7.3 is
+            // on the app classpath, and with secure processing on it drops every attribute of a
+            // literal result element ("\"href\" attribute is not allowed on the a element"), so
+            // the bundled generator's links, anchors and classes never reached the output.
+            TransformerFactory tf = TransformerFactory.newDefaultInstance();
             try {
                 tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
                 tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");

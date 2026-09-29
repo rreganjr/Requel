@@ -299,6 +299,39 @@ version of its source is not deleted: its link reads `notInLatestSource`.
 The #71 `requel-provenance` notes were converted by Flyway V26 and deleted; the reconciliation
 section above describes the design they came from.
 
+## References and precedence (#273)
+
+Every recorded source is also one of the project's **references**, whether or not an entity was
+built from it: `RecordSource` attaches a document to the project. For a file, use `system` `doc`
+and the file's relative path as `externalId` (and as a `PATH` locator). Two optional fields
+describe it: `kind`, an open lower-cased vocabulary such as `runbook`, `guide`, `review`,
+`matrix`, `ticket` or `repo`, and `note`, why it matters. Null leaves either as it is, and `""`
+clears it. `UpsertFromSource` never sets them.
+
+**Citing a document.** An entity that refers to a document without being built from it cites it:
+`LinkSource` with `relation` `CITES`, optionally naming a section as the `fragment` (`§4`) and
+never `fragmentText`. A citation takes no part in `UpsertFromSource`'s decision, so citing the
+fragment a goal was derived from never makes an ingest `AMBIGUOUS`. `UnlinkSource` with the same
+`relation` removes it. `getEntitySources` returns both kinds of link, each with its `relation`.
+
+**Precedence.** When two documents say they rank differently ("if the two ever disagree, the
+repository is correct"), record it with `AddSourceAuthority`: the source named by `system` /
+`externalId` defers to the one named by `defersToSystem` / `defersToExternalId`. Where they
+disagree the second wins, and both stay current. This is precedence, not replacement. An edge may
+carry a `note` ("operational detail"), which is shown and never evaluated. Precedence is
+transitive. A self-edge or an edge that would make a cycle is refused. `compareSources` answers
+which of two sources wins (`A`, `B` or `NONE`, with the chain between them), and `listSources`
+returns every source with its kind, note, link counts and direct precedence, plus every edge.
+`RemoveSourceAuthority` removes an edge.
+
+**Removing a reference.** `DeleteSource` removes a source with its citations and edges. It is
+refused while any entity was derived from the source, so provenance is never lost by tidying the
+references; `UnlinkSource` those links first if they are wrong.
+
+References, notes, citations and precedence follow the #272 rule: no context pack and no general
+read carries them, only the provenance reads and the bundled HTML Specification report (its
+Resources section). Project export and import carry them.
+
 ## Security & governance
 
 - External writes opt-in, off by default; prefer per-project enablement.

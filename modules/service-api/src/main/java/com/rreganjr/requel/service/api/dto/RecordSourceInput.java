@@ -39,13 +39,21 @@ import jakarta.validation.constraints.Size;
  * @param title       a human title, or null to leave it as it is
  * @param contentHash the source's current content hash (for a file, the SHA-256 of its bytes),
  *                    or null; the result's {@code changed} compares it with the last one
+ * @param kind        issue #273: what sort of document, e.g. runbook, guide, review, matrix,
+ *                    ticket, repo; stored lower-case. Null leaves it, "" clears it
+ * @param note        issue #273: why the source matters to the project. Null leaves it, ""
+ *                    clears it
  */
-@CommandDescription("Records an external source the project's entities are built from — a ticket,"
-        + " a guide, a review — identified by system and externalId (exact, case-sensitive). Pass"
-        + " contentHash each time you read the source: the result's changed flag says whether it"
-        + " differs from the last version recorded, without reading any entity. Null locator,"
-        + " title or contentHash leave the recorded value as it is. The locator is stored for"
-        + " people and is never passed to a model.")
+@CommandDescription("Records one of the project's sources or references — a ticket, a guide, a"
+        + " review, a runbook, a permissions matrix — identified by system and externalId (exact,"
+        + " case-sensitive; for a file, e.g. system doc and the file's path). Recording it attaches"
+        + " it to the project; an entity that refers to it cites it with LinkSource relation CITES,"
+        + " and AddSourceAuthority says which of two sources wins where they disagree. Pass"
+        + " contentHash each time you read a source you build entities from: the result's changed"
+        + " flag says whether it differs from the last version recorded, without reading any"
+        + " entity. Null locator, title or contentHash leave the recorded value as it is; null kind"
+        + " or note leave it and \"\" clears it. The locator and note are stored for people and are"
+        + " never passed to a model.")
 public record RecordSourceInput(
         @NotBlank String projectName,
         @NotBlank @Size(max = 40) String system,
@@ -56,6 +64,8 @@ public record RecordSourceInput(
         String locatorType,
         @Size(max = 2048) String locator,
         @Size(max = 255) String title,
-        @Size(max = 128) String contentHash
+        @Size(max = 128) String contentHash,
+        @Size(max = 40) String kind,
+        @Size(max = 1000) String note
 ) {
 }

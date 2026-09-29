@@ -432,6 +432,8 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
             return;
         }
         getProjectRepository().flush();
+        java.util.Map<com.rreganjr.requel.utils.jaxb.imports.ExternalSourceImportXml,
+                com.rreganjr.requel.project.ExternalSource> imported = new java.util.LinkedHashMap<>();
         for (com.rreganjr.requel.utils.jaxb.imports.ExternalSourceImportXml xml : sources) {
             com.rreganjr.requel.project.SourceLocatorType locatorType = null;
             String locator = xml.getLocator();
@@ -449,7 +451,7 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
             com.rreganjr.requel.project.ProvenanceStore.SourceSpec spec =
                     new com.rreganjr.requel.project.ProvenanceStore.SourceSpec(targetProject.getId(),
                             xml.getSystem(), xml.getExternalId(), locatorType, locator,
-                            xml.getTitle(), xml.getContentHash());
+                            xml.getTitle(), xml.getContentHash(), xml.getKind(), xml.getNote());
             try {
                 com.rreganjr.requel.project.ProvenanceStore.validateSourceSpec(spec);
             } catch (IllegalArgumentException e) {
@@ -460,7 +462,20 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
             com.rreganjr.requel.project.ExternalSource source = store.recordSource(spec, createdBy)
                     .source();
             store.restoreLastIngestedAt(source.getId(), parseExportDate(xml.getLastIngestedAt()));
+            imported.put(xml, source);
             for (var link : xml.getLinks()) {
+                // #273: before this, every link came back DERIVED_FROM. A blank relation is a
+                // file written before relations were exported, which were all DERIVED_FROM.
+                com.rreganjr.requel.project.SourceLinkRelation relation;
+                try {
+                    relation = com.rreganjr.requel.project.SourceLinkRelation.parse(
+                            link.getRelation());
+                } catch (IllegalArgumentException e) {
+                    log.warn("import: source link " + xml.getSystem() + " " + xml.getExternalId()
+                            + " " + link.getFragment() + " has an unknown relation '"
+                            + link.getRelation() + "'; skipped");
+                    continue;
+                }
                 com.rreganjr.requel.project.ProjectOrDomainEntity target =
                         resolveLinkTarget(link, targetProject, unitOfWork);
                 if (target == null || target.getId() == null) {
@@ -469,15 +484,44 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
                             + link.getEntityRef() + " has no entity in the file; skipped");
                     continue;
                 }
-                com.rreganjr.requel.project.EntitySourceLink imported = store.link(
+                com.rreganjr.requel.project.EntitySourceLink importedLink = store.link(
                         new com.rreganjr.requel.project.ProvenanceStore.LinkSpec(source,
-                                com.rreganjr.requel.project.SourceLinkRelation.DERIVED_FROM,
+                                relation,
                                 com.rreganjr.requel.project.impl.ProvenanceEntityTypes
                                         .nameOf(target),
                                 target.getId(), link.getFragment(), link.getFragmentHash(),
                                 link.getSourceHashSeen(), link.getEntityFingerprint()),
                         createdBy);
-                store.restoreIngestedAt(imported.getId(), parseExportDate(link.getIngestedAt()));
+                store.restoreIngestedAt(importedLink.getId(), parseExportDate(link.getIngestedAt()));
+            }
+        }
+        // #273: authority edges once every source exists, since an edge may name a source that
+        // comes later in the file. The store's checks still apply: a cycle is skipped, not kept.
+        for (var entry : imported.entrySet()) {
+            for (var defersTo : entry.getKey().getDefersTo()) {
+                var superior = store.findSource(targetProject.getId(), defersTo.getSystem(),
+                        defersTo.getExternalId());
+                if (superior.isEmpty()) {
+                    log.warn("import: " + entry.getKey().getSystem() + " "
+                            + entry.getKey().getExternalId() + " defers to "
+                            + defersTo.getSystem() + " " + defersTo.getExternalId()
+                            + ", which is not in the file; skipped");
+                    continue;
+                }
+                try {
+                    // Check before the store: a refusal thrown through the store's transactional
+                    // proxy would mark the whole import for rollback.
+                    AddSourceAuthorityCommandImpl.checkEdge(store, entry.getValue(), superior.get());
+                    com.rreganjr.requel.project.ProvenanceStore.validateNote("note",
+                            defersTo.getNote());
+                    store.addAuthority(entry.getValue(), superior.get(), defersTo.getNote(),
+                            createdBy);
+                } catch (IllegalArgumentException e) {
+                    log.warn("import: " + entry.getKey().getSystem() + " "
+                            + entry.getKey().getExternalId() + " defers to "
+                            + defersTo.getSystem() + " " + defersTo.getExternalId()
+                            + " skipped: " + e.getMessage());
+                }
             }
         }
     }

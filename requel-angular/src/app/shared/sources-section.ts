@@ -31,6 +31,8 @@ import { EntitySourceLinkDto } from '../models/provenance';
  * it came from and when it was ingested, flagged when the source has moved on without it. Only a
  * URL locator is a link (opened in a new tab); a path is shown as text, since Requel never reads
  * it. Read-only, and hidden when the entity has no sources — most entities are written by hand.
+ * Issue #273: each row says whether the entity was derived from the source or cites it, and a
+ * citation has no ingest date or staleness, since nothing was read from it.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -44,6 +46,7 @@ import { EntitySourceLinkDto } from '../models/provenance';
         <ul class="source-list">
           @for (link of links(); track link.id) {
             <li class="source-item" data-testid="source-row">
+              <span class="source-relation" data-testid="source-relation">{{ relationLabel(link) }}</span>
               <span class="source-system">{{ link.source.system }}</span>
               @if (link.source.locatorType === 'URL' && link.source.locator) {
                 <a [href]="link.source.locator" target="_blank" rel="noopener noreferrer"
@@ -54,6 +57,9 @@ import { EntitySourceLinkDto } from '../models/provenance';
               } @else {
                 <span data-testid="source-id">{{ link.source.externalId }}</span>
               }
+              @if (link.source.kind) {
+                <app-tag data-testid="source-kind" [tone]="'neutral'" [label]="link.source.kind" />
+              }
               @if (link.fragment) {
                 <span class="source-fragment" data-testid="source-fragment">{{ link.fragment }}</span>
               }
@@ -61,10 +67,10 @@ import { EntitySourceLinkDto } from '../models/provenance';
                    && link.source.locator !== link.source.externalId) {
                 <span class="source-path" data-testid="source-path">{{ link.source.locator }}</span>
               }
-              @if (link.ingestedAt) {
+              @if (link.ingestedAt && !isCitation(link)) {
                 <span class="source-date">ingested {{ link.ingestedAt | date: 'mediumDate' }}</span>
               }
-              @if (link.notInLatestSource) {
+              @if (link.notInLatestSource && !isCitation(link)) {
                 <app-tag data-testid="source-stale" [tone]="'warning'" icon="pi pi-history"
                          label="Not in latest source"
                          title="The source has a newer version this part was not read from; it may have been removed upstream." />
@@ -82,6 +88,7 @@ import { EntitySourceLinkDto } from '../models/provenance';
   styles: [`
     .source-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
     .source-item { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+    .source-relation { font-size: 0.8rem; font-weight: 600; }
     .source-system { font-size: 0.75rem; text-transform: uppercase; color: var(--p-text-secondary-color); }
     .source-fragment { font-weight: 600; }
     .source-path, .source-date { font-size: 0.8rem; color: var(--p-text-secondary-color); }
@@ -98,6 +105,15 @@ export class SourcesSectionComponent implements OnChanges {
   readonly links = this._links.asReadonly();
   private readonly _loadError = signal<string | null>(null);
   readonly loadError = this._loadError.asReadonly();
+
+  /** Issue #273: a citation — the entity refers to the document; nothing was built from it. */
+  isCitation(link: EntitySourceLinkDto): boolean {
+    return link.relation === 'CITES';
+  }
+
+  relationLabel(link: EntitySourceLinkDto): string {
+    return this.isCitation(link) ? 'Cites' : 'Derived from';
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['entityId'] || changes['entityType'] || changes['projectName']) {

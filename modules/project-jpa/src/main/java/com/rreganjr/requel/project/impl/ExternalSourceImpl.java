@@ -43,7 +43,7 @@ import com.rreganjr.requel.project.SourceLocatorType;
 import com.rreganjr.requel.user.impl.UserImpl;
 
 /**
- * Issue #272: a row of {@code external_sources} (Flyway V26). The project is referred to by id,
+ * Issue #272: a row of {@code external_sources} (Flyway V26; #273's {@code note} is V27). The project is referred to by id,
  * like {@code ignored_findings}; {@code DeleteProjectCommandImpl} removes the rows.
  */
 @Entity
@@ -61,6 +61,7 @@ public class ExternalSourceImpl implements ExternalSource {
 	private String locator;
 	private String title;
 	private String kind;
+	private String note;
 	private String contentHash;
 	private Date lastIngestedAt;
 	private User createdBy;
@@ -159,6 +160,17 @@ public class ExternalSourceImpl implements ExternalSource {
 
 	public void setKind(String kind) {
 		this.kind = kind;
+	}
+
+	/** Issue #273 (Flyway V27). */
+	@Override
+	@Column(name = "note", nullable = true, length = 1000)
+	public String getNote() {
+		return note;
+	}
+
+	public void setNote(String note) {
+		this.note = note;
 	}
 
 	@Override

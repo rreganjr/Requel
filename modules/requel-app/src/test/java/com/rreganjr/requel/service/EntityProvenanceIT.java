@@ -52,6 +52,7 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Position;
 import com.rreganjr.requel.assistant.core.context.EntityContextPackBuilder;
+import com.rreganjr.requel.assistant.core.context.ProjectContextPackBuilder;
 import com.rreganjr.requel.gateway.CommandGateway;
 import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
@@ -63,6 +64,7 @@ import com.rreganjr.requel.project.ExternalSource;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProvenanceStore;
+import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.SourceLinkRelation;
 import com.rreganjr.requel.project.StakeholderPermissionType;
@@ -72,9 +74,14 @@ import com.rreganjr.requel.project.command.DeleteProjectCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditUserStakeholderCommand;
+import com.rreganjr.requel.project.command.GenerateReportCommand;
 import com.rreganjr.requel.project.impl.StakeholderPermissionImpl;
 import com.rreganjr.requel.service.api.dto.EntitySourceLinkDto;
 import com.rreganjr.requel.service.api.dto.ExternalSourceDto;
+import com.rreganjr.requel.service.api.dto.ProjectSourceDto;
+import com.rreganjr.requel.service.api.dto.ProjectSourcesDto;
+import com.rreganjr.requel.service.api.dto.SourceComparisonDto;
+import com.rreganjr.requel.service.api.dto.SourceRefDto;
 import com.rreganjr.requel.service.api.dto.RecordSourceResultDto;
 import com.rreganjr.requel.service.api.dto.SourceEntitiesDto;
 import com.rreganjr.requel.service.api.dto.UpsertFromSourceResultDto;
@@ -84,7 +91,8 @@ import com.rreganjr.requel.user.command.EditUserCommand;
 /**
  * Issue #272: entity provenance through the real command and query gateways — the
  * UpsertFromSource decision table, fan-out, the provenance reads, delete paths, and the rule that
- * no general read or context pack carries a source or its locator.
+ * no general read or context pack carries a source or its locator. Issue #273: references,
+ * citations and the precedence between sources, on the same record and under the same rule.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class EntityProvenanceIT extends AbstractIntegrationTestCase {
@@ -102,6 +110,9 @@ public class EntityProvenanceIT extends AbstractIntegrationTestCase {
 
 	@Autowired
 	private EntityContextPackBuilder contextPackBuilder;
+
+	@Autowired
+	private ProjectContextPackBuilder projectContextPackBuilder;
 
 	@Autowired
 	private PlatformTransactionManager transactionManager;
@@ -508,7 +519,386 @@ public class EntityProvenanceIT extends AbstractIntegrationTestCase {
 		assertFalse(pack.contains(key), pack);
 	}
 
+	// ---- #273: references, citations and precedence ----------------------------------------------
+
+	@Test
+	void aReferenceIsRecordedOnTheProjectCitedByAnEntityAndReadBackOnBoth() throws Exception {
+		authenticate(editorUsername);
+		String runbook = "RUNBOOK-" + System.nanoTime() + ".md";
+		String matrix = "zoom-matrix-" + System.nanoTime();
+		reference(runbook, "Runbook", "The operational source of truth");
+		reference(matrix, null, null);
+		Long goal = createGoal("Hosts start the stream " + runbook, "Only the Zoom host starts it");
+
+		cite("Goal", goal, runbook, "§4");
+
+		ProjectSourcesDto sources = queryGateway.listSources(projectName);
+		ProjectSourceDto recorded = projectSource(sources, runbook);
+		assertEquals("runbook", recorded.source().kind(), "kind is lower-cased");
+		assertEquals("The operational source of truth", recorded.source().note());
+		assertEquals(1, recorded.citedByCount());
+		assertEquals(0, recorded.derivedCount());
+		assertNotNull(projectSource(sources, matrix), "a reference nothing cites is still listed");
+
+		List<EntitySourceLinkDto> cited = queryGateway.getEntitySources(projectName, "Goal", goal);
+		assertEquals(1, cited.size());
+		EntitySourceLinkDto citation = cited.get(0);
+		assertEquals("CITES", citation.relation());
+		assertEquals("§4", citation.fragment());
+		assertFalse(citation.editedSinceIngest(), "a citation records no entity state");
+		assertFalse(citation.notInLatestSource());
+		assertEquals("runbook", citation.source().kind());
+	}
+
+	@Test
+	void kindAndNoteFollowThePartialUpdateContract() throws Exception {
+		authenticate(editorUsername);
+		String key = "guide-" + System.nanoTime();
+		reference(key, "guide", "Twenty-five pages of operator procedure");
+		reference(key, null, null);
+		ExternalSourceDto kept = queryGateway.getSource(projectName, "doc", key);
+		assertEquals("guide", kept.kind(), "null leaves the kind");
+		assertEquals("Twenty-five pages of operator procedure", kept.note(), "null leaves the note");
+
+		reference(key, "", "");
+		ExternalSourceDto cleared = queryGateway.getSource(projectName, "doc", key);
+		assertNull(cleared.kind(), "\"\" clears the kind");
+		assertNull(cleared.note(), "\"\" clears the note");
+
+		assertInvalid(() -> reference(key, null, "x".repeat(1001)));
+		assertInvalid(() -> reference(key, "k".repeat(41), null));
+	}
+
+	@Test
+	void anUpsertNeverSetsKindOrNote() throws Exception {
+		authenticate(editorUsername);
+		String key = source("kind");
+		upsertGoal(key, "AC-1", "Admins end rooms", null);
+		Map<String, Object> request = new HashMap<>();
+		request.put("projectName", projectName);
+		request.put("system", "jira");
+		request.put("externalId", key);
+		request.put("kind", "ticket");
+		request.put("note", "The handoff epic");
+		gateway.execute(new GatewayRequest("RecordSource", request));
+
+		upsertGoal(key, "AC-1", "Admins end rooms on time", null);
+		ExternalSourceDto after = queryGateway.getSource(projectName, "jira", key);
+		assertEquals("ticket", after.kind());
+		assertEquals("The handoff epic", after.note());
+	}
+
+	@Test
+	void aCitationCarriesNoFragmentTextAndTakesNoPartInAnUpsert() throws Exception {
+		authenticate(editorUsername);
+		String key = source("cites");
+		UpsertFromSourceResultDto derived = upsertGoal(key, "AC-1", "Alarms route to Conduit", null);
+		Long citing = createGoal("Alarm owner " + key, "Conduit owns the alarm subscription");
+
+		assertInvalid(() -> linkWith("Goal", citing, "jira", key, "AC-1", "Alarms route to Conduit",
+				"CITES"));
+		linkWith("Goal", citing, "jira", key, "AC-1", null, "CITES");
+		// The citing goal names the same fragment, but it was not built from it: still one
+		// candidate, so the upsert is not ambiguous.
+		assertEquals("UNCHANGED", upsertGoal(key, "AC-1", "Alarms route to Conduit", null).status());
+
+		// The derived goal can cite the source too, and removing the citation leaves the link it
+		// was built from.
+		linkWith("Goal", derived.entityId(), "jira", key, "AC-1", null, "CITES");
+		unlinkWith("Goal", derived.entityId(), key, "AC-1", "CITES");
+		List<EntitySourceLinkDto> left = queryGateway.getEntitySources(projectName, "Goal",
+				derived.entityId());
+		assertEquals(List.of("DERIVED_FROM"), left.stream().map(EntitySourceLinkDto::relation)
+				.toList());
+		assertInvalid(() -> linkWith("Goal", citing, "jira", key, null, null, "SUPERSEDES"));
+	}
+
+	@Test
+	void precedenceIsRecordedResolvedTransitivelyAndRefusesCycles() throws Exception {
+		authenticate(editorUsername);
+		String ts = String.valueOf(System.nanoTime());
+		String guide = "guide-" + ts;
+		String runbook = "runbook-" + ts;
+		String repo = "repo-" + ts;
+		String review = "review-" + ts;
+		for (String key : List.of(guide, runbook, repo, review)) {
+			reference(key, null, null);
+		}
+		defer(guide, runbook, "operational detail");
+		defer(runbook, repo, null);
+		defer(review, repo, null);
+
+		SourceComparisonDto guideVsRepo = compare(guide, repo);
+		assertEquals("B", guideVsRepo.winner());
+		assertEquals(List.of(guide, runbook, repo), guideVsRepo.chain().stream()
+				.map(SourceRefDto::externalId).toList());
+		assertEquals("A", compare(repo, guide).winner());
+		assertEquals("NONE", compare(guide, review).winner(), "no chain joins them");
+
+		defer(guide, runbook, "operational detail only");
+		ProjectSourcesDto sources = queryGateway.listSources(projectName);
+		assertEquals("operational detail only", sources.authority().stream()
+				.filter(e -> e.subordinate().externalId().equals(guide)).findFirst().orElseThrow()
+				.note(), "a repeated edge updates its note");
+		assertEquals(List.of(runbook), projectSource(sources, guide).defersTo().stream()
+				.map(SourceRefDto::externalId).toList());
+		assertEquals(Set.of(runbook, review), projectSource(sources, repo).outranks().stream()
+				.map(SourceRefDto::externalId).collect(Collectors.toSet()));
+
+		assertInvalid(() -> defer(guide, guide, null));
+		assertInvalid(() -> defer(repo, guide, null));
+		assertInvalid(() -> defer(guide, "missing-" + ts, null));
+
+		Map<String, Object> remove = authorityRequest(runbook, repo);
+		assertEquals(Map.of("removed", true), gateway.execute(new GatewayRequest(
+				"RemoveSourceAuthority", remove)).result());
+		assertEquals("NONE", compare(guide, repo).winner());
+		assertEquals("B", compare(guide, runbook).winner(), "the other edge is kept");
+	}
+
+	@Test
+	void anEdgeBetweenSourcesOfDifferentProjectsIsRefusedByTheStore() throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		Project other = createProject("provenance-other-" + System.nanoTime());
+		String key = "shared-" + System.nanoTime();
+		ExternalSource here = provenanceStore.recordSource(new ProvenanceStore.SourceSpec(
+				project.getId(), "doc", key, null, null, null, null), admin).source();
+		ExternalSource there = provenanceStore.recordSource(new ProvenanceStore.SourceSpec(
+				other.getId(), "doc", key, null, null, null, null), admin).source();
+		// The store's own guard, in its own transaction; the command never gets this far (it
+		// names sources within one project). Spring translates the IllegalArgumentException.
+		RuntimeException refused = assertThrows(RuntimeException.class,
+				() -> provenanceStore.addAuthority(here, there, null, admin));
+		assertTrue(String.valueOf(refused.getMessage()).contains("same project"),
+				refused.getMessage());
+		assertTrue(provenanceStore.authorityEdges(project.getId()).stream()
+				.noneMatch(e -> e.getSubordinate().getId().equals(here.getId())));
+	}
+
+	@Test
+	void deletingAReferenceRemovesItsCitationsAndEdgesButNeverProvenance() throws Exception {
+		authenticate(editorUsername);
+		String ts = String.valueOf(System.nanoTime());
+		String derivedKey = source("derived");
+		upsertGoal(derivedKey, "AC-1", "Rooms end on time", null);
+		String matrix = "matrix-" + ts;
+		String runbook = "runbook-" + ts;
+		reference(matrix, "matrix", null);
+		reference(runbook, null, null);
+		Long goal = createGoal("Permissions " + ts, "Co-hosts cannot start the stream");
+		cite("Goal", goal, matrix, null);
+		defer(matrix, runbook, null);
+
+		GatewayException refused = assertThrows(GatewayException.class,
+				() -> deleteSource("jira", derivedKey));
+		assertEquals(GatewayException.Kind.INVALID_INPUT, refused.getKind());
+		assertTrue(refused.getMessage().contains("derived from it"), refused.getMessage());
+		assertNotNull(queryGateway.getSource(projectName, "jira", derivedKey));
+
+		assertEquals(Map.of("deleted", true, "citationsRemoved", 1L), deleteSource("doc", matrix));
+		assertNull(queryGateway.getSource(projectName, "doc", matrix));
+		assertTrue(queryGateway.getEntitySources(projectName, "Goal", goal).isEmpty());
+		assertTrue(queryGateway.listSources(projectName).authority().stream()
+				.noneMatch(e -> e.subordinate().externalId().equals(matrix)));
+		assertNotNull(queryGateway.getSource(projectName, "doc", runbook), "the other end is kept");
+	}
+
+	@Test
+	void theReferenceWritesNeedTheirPermissions() throws Exception {
+		authenticate(editorUsername);
+		String ts = String.valueOf(System.nanoTime());
+		String a = "a-" + ts;
+		String b = "b-" + ts;
+		reference(a, null, null);
+		reference(b, null, null);
+		Long goal = createGoal("Permission check " + ts, "Needs Goal Edit");
+
+		authenticate(readerUsername);
+		for (org.junit.jupiter.api.function.Executable write : List.<org.junit.jupiter.api.function.Executable>of(
+				() -> reference("c-" + ts, null, null),
+				() -> defer(a, b, null),
+				() -> gateway.execute(new GatewayRequest("RemoveSourceAuthority",
+						authorityRequest(a, b))),
+				() -> deleteSource("doc", a),
+				() -> cite("Goal", goal, a, null))) {
+			GatewayException e = assertThrows(GatewayException.class, write);
+			assertEquals(GatewayException.Kind.UNAUTHORIZED, e.getKind(), e.getMessage());
+		}
+	}
+
+	@Test
+	void noGeneralReadOrContextPackCarriesAReferenceItsNoteOrPrecedence() throws Exception {
+		authenticate(editorUsername);
+		String ts = String.valueOf(System.nanoTime());
+		String key = "ENTRA_SETUP-" + ts;
+		String superior = "RUNBOOK-" + ts;
+		String note = "NOTE-MARKER-" + ts;
+		String edgeNote = "EDGE-MARKER-" + ts;
+		reference(key, "setup-" + ts, note);
+		reference(superior, null, null);
+		defer(key, superior, edgeNote);
+		Long goal = createGoal("Admin gate " + ts, "Only Conduit admins reach /admin");
+		cite("Goal", goal, key, "§2");
+
+		String entity = json(() -> queryGateway.getEntity(projectName, "Goal", goal));
+		String annotations = json(() -> queryGateway.getAnnotations(projectName, "Goal", goal));
+		String context = json(() -> queryGateway.getProjectContext(projectName));
+		String pack = json(() -> contextPackBuilder.build(
+				getProjectRepository().findById(Goal.class, goal)));
+		String projectPack = json(() -> projectContextPackBuilder.build(
+				getProjectRepository().findById(Project.class, project.getId())));
+		for (String read : List.of(entity, annotations, context, pack, projectPack)) {
+			for (String marker : List.of(key, superior, note, edgeNote, "setup-" + ts, "CITES")) {
+				assertFalse(read.contains(marker), marker + " leaked into " + read);
+			}
+		}
+	}
+
+	@Test
+	void theBundledGeneratorRendersAResourcesSectionTheSameEveryRun() throws Exception {
+		User admin = getUserRepository().findUserByUsername("admin");
+		String ts = String.valueOf(System.nanoTime());
+		Project reported = createProject("provenance-report-" + ts);
+		Long goal = inTransaction(() -> {
+			try {
+				EditGoalCommand goalCmd = getProjectCommandFactory().newEditGoalCommand();
+				goalCmd.setEditedBy(admin);
+				goalCmd.setGoalContainer(getProjectRepository().findById(Project.class,
+						reported.getId()));
+				goalCmd.setName("Admin gate " + ts);
+				goalCmd.setText("Only Conduit admins reach /admin");
+				return getCommandHandler().execute(goalCmd).getGoal().getId();
+			} catch (Exception e) {
+				throw new IllegalStateException(e);
+			}
+		});
+		inTransaction(() -> {
+			ExternalSource guide = provenanceStore.recordSource(new ProvenanceStore.SourceSpec(
+					reported.getId(), "doc", "docs/Roundtable-Production-Guide.pdf",
+					com.rreganjr.requel.project.SourceLocatorType.PATH,
+					"docs/Roundtable-Production-Guide.pdf", "Roundtable Production Guide", null,
+					"guide", "Operator procedures <script>alert(1)</script>"), admin).source();
+			ExternalSource runbook = provenanceStore.recordSource(new ProvenanceStore.SourceSpec(
+					reported.getId(), "doc", "RUNBOOK.md",
+					com.rreganjr.requel.project.SourceLocatorType.URL,
+					"https://github.example.com/roundtable/RUNBOOK.md", "Runbook", null, "runbook",
+					null), admin).source();
+			provenanceStore.addAuthority(guide, runbook, "operational detail", admin);
+			provenanceStore.link(new ProvenanceStore.LinkSpec(runbook, SourceLinkRelation.CITES,
+					"Goal", goal, "§4", null, null, null), admin);
+			return null;
+		});
+
+		String first = report(reported);
+		String second = report(reported);
+		assertEquals(first, second, "an unchanged project renders byte-identically");
+		assertTrue(first.contains("<h2>Resources</h2>"), first);
+		assertTrue(first.contains("href=\"#resources\""), "a table-of-contents entry: " + first);
+		assertTrue(first.contains("Roundtable Production Guide"), first);
+		assertTrue(first.contains("(guide)"), first);
+		assertTrue(first.contains("<code>docs/Roundtable-Production-Guide.pdf</code>"), first);
+		assertTrue(first.contains("href=\"https://github.example.com/roundtable/RUNBOOK.md\""), first);
+		assertTrue(first.contains("Defers to: "), first);
+		assertTrue(first.contains("(operational detail)"), first);
+		assertTrue(first.contains("Cited by: "), first);
+		assertTrue(first.contains("Admin gate " + ts), first);
+		assertTrue(first.contains("(§4)"), first);
+		assertFalse(first.contains("<script>"), "a note is text, never markup");
+		assertTrue(first.contains("&lt;script&gt;"), first);
+
+		Project empty = createProject("provenance-report-empty-" + ts);
+		assertFalse(report(empty).contains("Resources"), "no sources, no section");
+	}
+
 	// ---- helpers -----------------------------------------------------------------------------------
+
+	private void reference(String key, String kind, String note) throws GatewayException {
+		Map<String, Object> request = new HashMap<>();
+		request.put("projectName", projectName);
+		request.put("system", "doc");
+		request.put("externalId", key);
+		request.put("kind", kind);
+		request.put("note", note);
+		gateway.execute(new GatewayRequest("RecordSource", request));
+	}
+
+	private void cite(String entityType, Long entityId, String key, String fragment)
+			throws GatewayException {
+		linkWith(entityType, entityId, "doc", key, fragment, null, "CITES");
+	}
+
+	private void linkWith(String entityType, Long entityId, String system, String key,
+			String fragment, String fragmentText, String relation) throws GatewayException {
+		Map<String, Object> request = new HashMap<>();
+		request.put("projectName", projectName);
+		request.put("entityType", entityType);
+		request.put("entityId", entityId);
+		request.put("system", system);
+		request.put("externalId", key);
+		request.put("fragment", fragment);
+		request.put("fragmentText", fragmentText);
+		request.put("relation", relation);
+		gateway.execute(new GatewayRequest("LinkSource", request));
+	}
+
+	private void unlinkWith(String entityType, Long entityId, String key, String fragment,
+			String relation) throws GatewayException {
+		Map<String, Object> request = new HashMap<>();
+		request.put("projectName", projectName);
+		request.put("entityType", entityType);
+		request.put("entityId", entityId);
+		request.put("system", "jira");
+		request.put("externalId", key);
+		request.put("fragment", fragment);
+		request.put("relation", relation);
+		gateway.execute(new GatewayRequest("UnlinkSource", request));
+	}
+
+	private Map<String, Object> authorityRequest(String key, String defersTo) {
+		Map<String, Object> request = new HashMap<>();
+		request.put("projectName", projectName);
+		request.put("system", "doc");
+		request.put("externalId", key);
+		request.put("defersToSystem", "doc");
+		request.put("defersToExternalId", defersTo);
+		return request;
+	}
+
+	private void defer(String key, String defersTo, String note) throws GatewayException {
+		Map<String, Object> request = authorityRequest(key, defersTo);
+		request.put("note", note);
+		gateway.execute(new GatewayRequest("AddSourceAuthority", request));
+	}
+
+	private SourceComparisonDto compare(String a, String b) {
+		return queryGateway.compareSources(projectName, "doc", a, "doc", b);
+	}
+
+	private Object deleteSource(String system, String key) throws GatewayException {
+		Map<String, Object> request = new HashMap<>();
+		request.put("projectName", projectName);
+		request.put("system", system);
+		request.put("externalId", key);
+		return gateway.execute(new GatewayRequest("DeleteSource", request)).result();
+	}
+
+	private static ProjectSourceDto projectSource(ProjectSourcesDto sources, String externalId) {
+		return sources.sources().stream()
+				.filter(s -> s.source().externalId().equals(externalId)).findFirst()
+				.orElse(null);
+	}
+
+	private String report(Project target) throws Exception {
+		ReportGenerator generator = inTransaction(() -> getProjectRepository()
+				.findById(Project.class, target.getId()).getReportGenerators().stream()
+				.filter(g -> "HTML Specification".equals(g.getName())).findFirst().orElseThrow());
+		java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+		GenerateReportCommand command = getProjectCommandFactory().newGenerateReportCommand();
+		command.setReportGenerator(generator);
+		command.setOutputStream(out);
+		getCommandHandler().execute(command);
+		return out.toString(java.nio.charset.StandardCharsets.UTF_8);
+	}
 
 	private String source(String label) {
 		return "CON-" + label + "-" + System.nanoTime();

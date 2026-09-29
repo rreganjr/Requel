@@ -21,11 +21,35 @@
 package com.rreganjr.requel.project;
 
 /**
- * Issue #272: how an entity relates to an {@link ExternalSource}. #272 records only where an
- * entity came from; #273 adds a citation relation on the same record.
+ * Issues #272 and #273: how an entity relates to an {@link ExternalSource}. One record serves
+ * both: where an entity came from, and which documents it refers to.
  */
 public enum SourceLinkRelation {
 
 	/** The entity was built from (a fragment of) the source. */
-	DERIVED_FROM
+	DERIVED_FROM,
+
+	/**
+	 * Issue #273: the entity refers to the source (or one section of it); nothing was built from
+	 * it. A citation carries no hashes or fingerprint and takes no part in an ingest decision.
+	 */
+	CITES;
+
+	/**
+	 * @return the relation named {@code value}, case-insensitively; {@link #DERIVED_FROM} for null
+	 *         or blank, which is what every link was before #273.
+	 * @throws IllegalArgumentException for any other value
+	 */
+	public static SourceLinkRelation parse(String value) {
+		if (value == null || value.isBlank()) {
+			return DERIVED_FROM;
+		}
+		String wanted = value.strip();
+		for (SourceLinkRelation relation : values()) {
+			if (relation.name().equalsIgnoreCase(wanted)) {
+				return relation;
+			}
+		}
+		throw new IllegalArgumentException("relation must be one of DERIVED_FROM, CITES");
+	}
 }

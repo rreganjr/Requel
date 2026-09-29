@@ -196,6 +196,24 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public UpsertFromSourceCommand newUpsertFromSourceCommand();
 
 	/**
+	 * @return a new command deleting a project source that nothing was derived from; requires
+	 *         {@code Project[Edit]} (issue #273).
+	 */
+	public DeleteSourceCommand newDeleteSourceCommand();
+
+	/**
+	 * @return a new command recording that one source defers to another; requires
+	 *         {@code Project[Edit]} (issue #273).
+	 */
+	public AddSourceAuthorityCommand newAddSourceAuthorityCommand();
+
+	/**
+	 * @return a new command removing a "defers to" edge between sources; requires
+	 *         {@code Project[Edit]} (issue #273).
+	 */
+	public RemoveSourceAuthorityCommand newRemoveSourceAuthorityCommand();
+
+	/**
 	 * @return a new command adding an installation-wide dictionary word; administrators only
 	 *         (issue #319).
 	 */

@@ -185,6 +185,8 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 			entities.put(entity.getProjectOrDomainEntityInterface().getSimpleName() + ":"
 					+ entity.getId(), entity);
 		}
+		java.util.List<com.rreganjr.requel.project.SourceAuthorityEdge> edges = getProvenanceStore()
+				.authorityEdges(projectImpl.getId());
 		for (com.rreganjr.requel.project.ExternalSource source : getProvenanceStore()
 				.listSources(projectImpl.getId())) {
 			com.rreganjr.requel.project.impl.ExternalSourceXml carrier =
@@ -193,6 +195,14 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 							source.getLocatorType() == null ? null : source.getLocatorType().name(),
 							source.getLocator(), source.getTitle(), source.getKind(),
 							source.getContentHash(), format(source.getLastIngestedAt()));
+			carrier.setNote(source.getNote());
+			for (com.rreganjr.requel.project.SourceAuthorityEdge edge : edges) {
+				if (edge.getSubordinate().getId().equals(source.getId())) {
+					carrier.getDefersTo().add(new com.rreganjr.requel.project.impl.SourceAuthorityXml(
+							edge.getSuperior().getSystem(), edge.getSuperior().getExternalId(),
+							edge.getNote()));
+				}
+			}
 			for (com.rreganjr.requel.project.EntitySourceLink link : getProvenanceStore()
 					.linksForSource(source.getId())) {
 				com.rreganjr.requel.project.ProjectOrDomainEntity entity = entities

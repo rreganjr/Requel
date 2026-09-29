@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.service.api.dto;
 
+import com.rreganjr.requel.project.SourceLinkRelation;
+import com.rreganjr.requel.service.api.AllowedValues;
 import com.rreganjr.requel.service.api.CommandDescription;
 
 import jakarta.validation.constraints.NotBlank;
@@ -35,9 +37,11 @@ import jakarta.validation.constraints.Pattern;
  * @param system      the source's system
  * @param externalId  the source's external id
  * @param fragment    the fragment the link names, or null for a whole-source link
+ * @param relation    issue #273: the link's relation, DERIVED_FROM (the default) or CITES
  */
-@CommandDescription(value = "Removes one entity's link to a fragment of a source, for a link recorded by"
-        + " mistake. The source itself is kept.",
+@CommandDescription(value = "Removes one entity's link to a fragment of a source — a derived-from link"
+        + " recorded by mistake, or a citation (relation CITES) that no longer applies. The source"
+        + " itself is kept; DeleteSource removes a reference.",
         authorization = "Edit on the entity's type (Scenario[Edit] for a step, Stakeholder[Edit]"
                 + " for a stakeholder)")
 public record UnlinkSourceInput(
@@ -50,6 +54,10 @@ public record UnlinkSourceInput(
         @NotNull Long entityId,
         @NotBlank String system,
         @NotBlank String externalId,
-        String fragment
+        String fragment,
+        @Pattern(regexp = "\\s*(DERIVED_FROM|CITES)\\s*", flags = Pattern.Flag.CASE_INSENSITIVE,
+                message = "must be one of DERIVED_FROM, CITES")
+        @AllowedValues(SourceLinkRelation.class)
+        String relation
 ) {
 }

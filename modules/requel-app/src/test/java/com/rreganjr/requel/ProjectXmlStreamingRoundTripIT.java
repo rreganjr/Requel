@@ -685,6 +685,79 @@ class ProjectXmlStreamingRoundTripIT {
 		assertThat(provenanceStore.listSources(originalProject.getId())).hasSize(2);
 	}
 
+	/**
+	 * Issue #273: a reference's kind and note, a citation (which import used to turn into a
+	 * DERIVED_FROM link) and a defers-to edge travel with the project. A link with an unknown
+	 * relation, or an edge naming a source that is not in the file, is skipped rather than failing
+	 * the import.
+	 */
+	@Test
+	@Transactional
+	void referencesCitationsAndPrecedenceRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String ts = String.valueOf(System.nanoTime());
+		var guide = provenanceStore.recordSource(new com.rreganjr.requel.project.ProvenanceStore
+				.SourceSpec(originalProject.getId(), "doc", "guide-" + ts, null, null, "The guide",
+						null, "guide", "Operator procedures"), projectUser).source();
+		var runbook = provenanceStore.recordSource(new com.rreganjr.requel.project.ProvenanceStore
+				.SourceSpec(originalProject.getId(), "doc", "RUNBOOK-" + ts, null, null, null, null,
+						"runbook", null), projectUser).source();
+		provenanceStore.addAuthority(guide, runbook, "operational detail", projectUser);
+		provenanceStore.link(new com.rreganjr.requel.project.ProvenanceStore.LinkSpec(runbook,
+				com.rreganjr.requel.project.SourceLinkRelation.CITES, "Goal", goal.getId(), "§4",
+				null, null, null), projectUser);
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).contains("relation=\"CITES\"").contains("<defersTo ")
+				.contains("note=\"Operator procedures\"");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		Project reimported = importProject(exportedBytes, projectUser,
+				originalProject.getName() + " Refs " + Instant.now().toEpochMilli());
+		entityManager.flush();
+		Goal importedGoal = reimported.getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow();
+		var importedGuide = provenanceStore.findSource(reimported.getId(), "doc", "guide-" + ts)
+				.orElseThrow();
+		assertThat(importedGuide.getKind()).isEqualTo("guide");
+		assertThat(importedGuide.getNote()).isEqualTo("Operator procedures");
+		var importedRunbook = provenanceStore.findSource(reimported.getId(), "doc", "RUNBOOK-" + ts)
+				.orElseThrow();
+		var links = provenanceStore.linksForSource(importedRunbook.getId());
+		assertThat(links).hasSize(1);
+		assertThat(links.get(0).getRelation()).as("the relation survives import")
+				.isEqualTo(com.rreganjr.requel.project.SourceLinkRelation.CITES);
+		assertThat(links.get(0).getTargetId()).isEqualTo(importedGoal.getId());
+		assertThat(links.get(0).getFragment()).isEqualTo("§4");
+		var edges = provenanceStore.authorityEdges(reimported.getId());
+		assertThat(edges).hasSize(1);
+		assertThat(edges.get(0).getSubordinate().getId()).isEqualTo(importedGuide.getId());
+		assertThat(edges.get(0).getSuperior().getId()).isEqualTo(importedRunbook.getId());
+		assertThat(edges.get(0).getNote()).isEqualTo("operational detail");
+
+		// A hand-edited file: an unknown relation and an edge to a source that is not there.
+		String tampered = xml.replace("relation=\"CITES\"", "relation=\"SUPERSEDES\"")
+				.replaceAll("(<(?:\\w+:)?defersTo\\b[^>]*externalId=\")RUNBOOK-" + ts,
+						"$1MISSING-" + ts);
+		assertThat(tampered).contains("SUPERSEDES").contains("MISSING-" + ts);
+		Project skipped = importProject(tampered.getBytes(StandardCharsets.UTF_8), projectUser,
+				originalProject.getName() + " Tampered " + Instant.now().toEpochMilli());
+		entityManager.flush();
+		var skippedRunbook = provenanceStore.findSource(skipped.getId(), "doc", "RUNBOOK-" + ts)
+				.orElseThrow();
+		assertThat(provenanceStore.linksForSource(skippedRunbook.getId()))
+				.as("the unknown relation is skipped").isEmpty();
+		assertThat(provenanceStore.authorityEdges(skipped.getId()))
+				.as("the edge to a missing source is skipped").isEmpty();
+		assertThat(provenanceStore.findSource(skipped.getId(), "doc", "guide-" + ts)).isPresent();
+	}
+
 	private com.rreganjr.requel.annotation.Issue addIssue(Project project, Goal goal, User editor,
 			String text) throws Exception {
 		com.rreganjr.requel.annotation.command.EditIssueCommand command =
