@@ -162,14 +162,52 @@ public class IgnoredFindingTest extends AbstractLexicalAssistantTest {
 		ensureDictionaryLoaded();
 		User user = projectUser();
 		Project project = newProject("Phrase");
-		Goal goal = newGoal(project, user, "Intake " + stamp(), "The clerk completes the form.");
-		Issue issue = glossaryIssue(goal.getId(), "the form");
-		assertNotNull(issue, "expected a glossary issue for 'the form'");
+		Goal goal = newGoal(project, user, "Intake " + stamp(), "The clerk opens Zoom.");
+		Issue issue = glossaryIssue(goal.getId(), "Zoom");
+		assertNotNull(issue, "expected a glossary issue for 'Zoom'");
 		resolve(issue, positionWithText(issue, "Ignore this phrase."), goal, user);
 		deleteIssue(issue, user);
 
-		editGoal(goal, user, freshGoalName(goal.getId()), "The clerk completes the form now.");
-		assertNull(glossaryIssue(goal.getId(), "the form"));
+		editGoal(goal, user, freshGoalName(goal.getId()), "The clerk opens Zoom now.");
+		assertNull(glossaryIssue(goal.getId(), "Zoom"));
+	}
+
+	/**
+	 * #268: a glossary candidate is one issue for the project, so ignoring it on one entity
+	 * ignores it on every entity, including one that starts using the phrase later; removing the
+	 * ignore removes it from every entity.
+	 */
+	@Test
+	public void anIgnoredGlossaryPhraseIsIgnoredOnEveryEntityUntilTheIgnoreIsRemoved()
+			throws Exception {
+		ensureDictionaryLoaded();
+		User user = projectUser();
+		Project project = newProject("PhraseWide");
+		String ts = stamp();
+		Goal first = newGoal(project, user, "Intake " + ts, "The clerk opens Zoom.");
+		Goal second = newGoal(project, user, "Output " + ts, "The clerk closes Zoom.");
+		Issue issue = glossaryIssue(first.getId(), "Zoom");
+		assertNotNull(issue, "expected a glossary issue for 'Zoom'");
+		assertEquals(issue.getId(), glossaryIssue(second.getId(), "Zoom").getId());
+		resolve(issue, positionWithText(issue, "Ignore this phrase."), first, user);
+
+		Goal later = newGoal(project, user, "Review " + ts, "The clerk reviews Zoom.");
+		assertNull(glossaryIssue(later.getId(), "Zoom"),
+				"a phrase ignored on one entity is ignored on a new one");
+		List<IgnoredFinding> ignores = ignoredFindingStore.list(project.getId());
+		assertEquals(2, ignores.size(), "one ignore row per entity the issue was on");
+
+		DeleteIgnoredFindingCommand command = getProjectCommandFactory()
+				.newDeleteIgnoredFindingCommand();
+		command.setEditedBy(user);
+		command.setProject(project);
+		command.setIgnoredFindingId(ignores.get(0).getId());
+		getCommandHandler().execute(command);
+
+		assertTrue(ignoredFindingStore.list(project.getId()).isEmpty(),
+				"removing one row removes the phrase's ignore from every entity");
+		editGoal(later, user, freshGoalName(later.getId()), "The clerk reviews Zoom again.");
+		assertNotNull(glossaryIssue(later.getId(), "Zoom"), "the phrase is raised again");
 	}
 
 	@Test

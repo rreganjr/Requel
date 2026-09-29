@@ -41,6 +41,7 @@ import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
+import com.rreganjr.requel.project.command.AnalysisRequestSource;
 import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.GlossaryTermImpl;
@@ -54,7 +55,7 @@ import com.rreganjr.requel.user.UserRepository;
 @Controller("editGlossaryTermCommand")
 @Scope("prototype")
 public class EditGlossaryTermCommandImpl extends AbstractEditProjectOrDomainEntityCommand implements
-		EditGlossaryTermCommand, AuthorizableCommand, ProjectScopedCommand {
+		EditGlossaryTermCommand, AuthorizableCommand, ProjectScopedCommand, AnalysisRequestSource {
 
 	private Set<ProjectOrDomainEntity> referers;
 	private Set<ProjectOrDomainEntity> addReferers;
@@ -204,11 +205,23 @@ public class EditGlossaryTermCommandImpl extends AbstractEditProjectOrDomainEnti
 		setGlossaryTerm(glossaryTermImpl);
 	}
 
+	/**
+	 * Not used: a glossary term is analyzed through the assistant SPI
+	 * ({@link #getAnalysisTarget()}, #268). Spelling, vague words and complex sentences run on
+	 * it; the glossary-candidate check skips glossary terms.
+	 */
 	@Override
 	public void invokeAnalysis() {
-		if (isAnalysisEnabled()) {
-			// TODO: analyze the glossary term?
-		}
+	}
+
+	@Override
+	public ProjectOrDomainEntity getAnalysisTarget() {
+		return getGlossaryTerm();
+	}
+
+	@Override
+	public User getAnalysisTriggeredBy() {
+		return getEditedBy();
 	}
 
 	@Override

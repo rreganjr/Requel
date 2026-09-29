@@ -201,7 +201,15 @@ public class AssistantRunWorker {
 			switch (outcome.status) {
 				case SKIPPED -> runStore.markSkipped(runId, outcome.reason);
 				case CANCELLED -> runStore.markCancelled(runId, outcome.reason);
-				default -> runStore.markSucceeded(runId);
+				default -> {
+					List<String> problems = new ArrayList<>(analysis.problems);
+					problems.addAll(outcome.problems);
+					if (problems.isEmpty()) {
+						runStore.markSucceeded(runId);
+					} else {
+						runStore.markPartial(runId, String.join("; ", problems));
+					}
+				}
 			}
 		} catch (RuntimeException e) {
 			runStore.markFailed(runId, e);
@@ -223,20 +231,24 @@ public class AssistantRunWorker {
 		final AssistantContext context;
 		final List<RequelAssistant<?>> assistants;
 		final List<AssistantResult> results;
+		/** #268: assistants that threw or returned an incomplete result, for the run record. */
+		final List<String> problems;
 
 		Analysis(String skipReason) {
 			this.skipReason = skipReason;
 			this.context = null;
 			this.assistants = List.of();
 			this.results = List.of();
+			this.problems = List.of();
 		}
 
 		Analysis(AssistantContext context, List<RequelAssistant<?>> assistants,
-				List<AssistantResult> results) {
+				List<AssistantResult> results, List<String> problems) {
 			this.skipReason = null;
 			this.context = context;
 			this.assistants = assistants;
 			this.results = results;
+			this.problems = problems;
 		}
 	}
 
@@ -277,38 +289,48 @@ public class AssistantRunWorker {
 		// reload, registry) still fail the run via the caller's catch.
 		List<AssistantResult> results = new ArrayList<>(assistants.size());
 		List<RequelAssistant<?>> producers = new ArrayList<>(assistants.size());
+		List<String> problems = new ArrayList<>();
 		for (RequelAssistant<?> assistant : assistants) {
 			try {
-				results.add(analyze(assistant, context, target));
+				AssistantResult result = analyze(assistant, context, target);
+				results.add(result);
 				producers.add(assistant);
+				if (CommandBackedAssistantResultApplicator.isIncomplete(result)) {
+					problems.add(assistant.assistantId() + " incomplete (failed: "
+							+ result.metadata().get("failedProperties") + ")");
+				}
 			} catch (RuntimeException | AssistantException e) {
 				log.warn("assistant {} failed for run {}: {}", assistant.assistantId(),
 						record.runId(), e.toString(), e);
+				problems.add(assistant.assistantId() + " failed: " + e);
 			}
 		}
-		return new Analysis(context, producers, results);
+		return new Analysis(context, producers, results, problems);
 	}
 
 	/** What the apply phase decided. */
 	private static final class Outcome {
 		final AssistantRunStatus status;
 		final String reason;
+		/** #268: assistants whose result failed to apply. */
+		final List<String> problems;
 
-		private Outcome(AssistantRunStatus status, String reason) {
+		private Outcome(AssistantRunStatus status, String reason, List<String> problems) {
 			this.status = status;
 			this.reason = reason;
+			this.problems = problems;
 		}
 
-		static Outcome applied() {
-			return new Outcome(AssistantRunStatus.SUCCEEDED, null);
+		static Outcome applied(List<String> problems) {
+			return new Outcome(AssistantRunStatus.SUCCEEDED, null, problems);
 		}
 
 		static Outcome skipped(String reason) {
-			return new Outcome(AssistantRunStatus.SKIPPED, reason);
+			return new Outcome(AssistantRunStatus.SKIPPED, reason, List.of());
 		}
 
 		static Outcome cancelled(String reason) {
-			return new Outcome(AssistantRunStatus.CANCELLED, reason);
+			return new Outcome(AssistantRunStatus.CANCELLED, reason, List.of());
 		}
 	}
 
@@ -347,6 +369,7 @@ public class AssistantRunWorker {
 			return Outcome.skipped("Target " + request.targetRef().entityType() + "#"
 					+ request.targetRef().entityId() + " no longer exists; findings discarded");
 		}
+		List<String> problems = new ArrayList<>();
 		for (int i = 0; i < analysis.results.size(); i++) {
 			RequelAssistant<?> assistant = analysis.assistants.get(i);
 			try {
@@ -355,9 +378,10 @@ public class AssistantRunWorker {
 			} catch (RuntimeException e) {
 				log.warn("applying assistant {} result failed for run {}: {}",
 						assistant.assistantId(), record.runId(), e.toString(), e);
+				problems.add(assistant.assistantId() + " apply failed: " + e);
 			}
 		}
-		return Outcome.applied();
+		return Outcome.applied(problems);
 	}
 
 	private Optional<Object> loadTarget(AnalysisRequest request) {

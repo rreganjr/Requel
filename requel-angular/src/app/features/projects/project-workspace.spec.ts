@@ -7,6 +7,7 @@ import { HttpClient } from '@angular/common/http';
 import { ProjectWorkspaceComponent } from './project-workspace';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
+import { ProjectAssistantsService } from '../../core/project-assistants.service';
 import { ProjectDto } from '../../models/project';
 
 function makeProject(over: Partial<ProjectDto> = {}): ProjectDto {
@@ -23,6 +24,7 @@ describe('ProjectWorkspaceComponent (#154)', () => {
   let getProject: ReturnType<typeof vi.fn>;
   let httpGet: ReturnType<typeof vi.fn>;
   let canDeleteFn: ReturnType<typeof vi.fn>;
+  let canEditFn: ReturnType<typeof vi.fn>;
   let paramMap$: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
   function setup() {
@@ -38,6 +40,12 @@ describe('ProjectWorkspaceComponent (#154)', () => {
         { provide: PermissionService, useValue: {
           loadForProject: vi.fn().mockResolvedValue(undefined),
           canDelete: canDeleteFn,
+          canEdit: canEditFn,
+        } },
+        { provide: ProjectAssistantsService, useValue: {
+          list: vi.fn().mockResolvedValue([]),
+          setEnabled: vi.fn(),
+          analyzeProject: vi.fn(),
         } },
       ],
     });
@@ -51,6 +59,7 @@ describe('ProjectWorkspaceComponent (#154)', () => {
     getProject = vi.fn().mockResolvedValue(makeProject({ goalCount: 3, stakeholderCount: 2 }));
     httpGet = vi.fn().mockReturnValue(of([]));
     canDeleteFn = vi.fn().mockReturnValue(false);
+    canEditFn = vi.fn().mockReturnValue(false);
   });
 
   it('renders a count card per artifact type with the project counts', async () => {
@@ -113,6 +122,19 @@ describe('ProjectWorkspaceComponent (#154)', () => {
     await flush();
     fixture.detectChanges();
     expect(fixture.componentInstance.errorMessage()).toBe('Failed to load the project workspace.');
+  });
+
+  it('shows the Assistants panel and passes it the Project and Annotation edit permissions (#268)', async () => {
+    canEditFn = vi.fn((type: string) => type === 'Annotation');
+    const fixture = setup();
+    fixture.detectChanges();
+    await flush();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="workspace-assistants"]')).not.toBeNull();
+    expect(fixture.componentInstance.canEditProject()).toBe(false);
+    expect(fixture.componentInstance.canAnalyze()).toBe(true);
+    expect(canEditFn).toHaveBeenCalledWith('Project');
+    expect(canEditFn).toHaveBeenCalledWith('Annotation');
   });
 
   it('hides the Delete action when the user lacks Project[Delete]', async () => {

@@ -63,14 +63,17 @@ public class ProjectAnnotatableTextEditorConfigurationTest {
 	public void registersAnEditorForEveryAnalysableEntityType() throws Exception {
 		DefaultAnnotatableTextEditRegistry registry = registry();
 
-		// Exactly the types AssistantTaskRunner analyses: goals, stories and actors directly,
-		// use cases fanning out to scenarios and actors, and scenario steps.
+		// Exactly the types the lexical assistants analyse: goals, stories, actors, use cases,
+		// scenarios, scenario steps and glossary terms.
 		assertTrue(registry.resolveTextEditor(GoalImpl.class).isPresent(), "GoalImpl");
 		assertTrue(registry.resolveTextEditor(StoryImpl.class).isPresent(), "StoryImpl");
 		assertTrue(registry.resolveTextEditor(ActorImpl.class).isPresent(), "ActorImpl");
 		assertTrue(registry.resolveTextEditor(UseCaseImpl.class).isPresent(), "UseCaseImpl");
 		assertTrue(registry.resolveTextEditor(ScenarioImpl.class).isPresent(), "ScenarioImpl");
 		assertTrue(registry.resolveTextEditor(StepImpl.class).isPresent(), "StepImpl");
+		// #268: glossary terms are analysed, so a Fix Spelling on one needs an editor too.
+		assertTrue(registry.resolveTextEditor(GlossaryTermImpl.class).isPresent(),
+				"GlossaryTermImpl");
 	}
 
 	@Test
@@ -90,7 +93,7 @@ public class ProjectAnnotatableTextEditorConfigurationTest {
 		// surfaces, alongside the parity test above.
 		DefaultAnnotatableTextEditRegistry registry = registry();
 
+		// (Glossary terms were here until #268 taught the lexical assistants to analyse them.)
 		assertTrue(registry.resolveTextEditor(ProjectTeamImpl.class).isEmpty(), "ProjectTeamImpl");
-		assertTrue(registry.resolveTextEditor(GlossaryTermImpl.class).isEmpty(), "GlossaryTermImpl");
 	}
 }

@@ -20,10 +20,14 @@
  */
 package com.rreganjr.requel.assistant.core;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
@@ -40,6 +44,8 @@ import com.rreganjr.requel.assistant.api.AssistantRunHandle;
  */
 @Component
 public class AssistantDispatcherImpl implements AssistantDispatcher {
+
+	private static final Logger log = LoggerFactory.getLogger(AssistantDispatcherImpl.class);
 
 	private final TaskExecutor taskExecutor;
 	private final AssistantRunStore runStore;
@@ -69,5 +75,49 @@ public class AssistantDispatcherImpl implements AssistantDispatcher {
 			return CompletableFuture.failedStage(e);
 		}
 		return CompletableFuture.completedFuture(new AssistantRunHandle(record.runId()));
+	}
+
+	/**
+	 * Queues every run, then submits one executor task that runs them in order (#268), so a
+	 * whole-project analysis takes one executor slot instead of filling the queue. A run that
+	 * throws is logged and the next one still runs. A rejected submit marks every run FAILED.
+	 */
+	@Override
+	public List<CompletionStage<AssistantRunHandle>> dispatchAll(List<AnalysisRequest> requests) {
+		Objects.requireNonNull(requests, "requests");
+		if (requests.isEmpty()) {
+			return List.of();
+		}
+		List<AssistantRunRecord> records = new ArrayList<>(requests.size());
+		for (AnalysisRequest request : requests) {
+			records.add(runStore.queueRun(Objects.requireNonNull(request, "request")));
+		}
+		try {
+			taskExecutor.execute(new Runnable() {
+				@Override
+				public void run() {
+					for (AssistantRunRecord record : records) {
+						try {
+							runWorker.run(record.runId());
+						} catch (RuntimeException e) {
+							log.warn("Assistant run {} failed in a batch of {}: {}", record.runId(),
+									records.size(), e.getMessage(), e);
+						}
+					}
+				}
+			});
+		} catch (TaskRejectedException e) {
+			List<CompletionStage<AssistantRunHandle>> failed = new ArrayList<>(records.size());
+			for (AssistantRunRecord record : records) {
+				runStore.markFailed(record.runId(), e);
+				failed.add(CompletableFuture.failedStage(e));
+			}
+			return failed;
+		}
+		List<CompletionStage<AssistantRunHandle>> stages = new ArrayList<>(records.size());
+		for (AssistantRunRecord record : records) {
+			stages.add(CompletableFuture.completedFuture(new AssistantRunHandle(record.runId())));
+		}
+		return stages;
 	}
 }

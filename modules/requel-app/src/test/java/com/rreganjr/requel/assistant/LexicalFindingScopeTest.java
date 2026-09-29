@@ -102,8 +102,8 @@ public class LexicalFindingScopeTest extends AbstractLexicalAssistantTest {
 		User user = projectUser();
 		Project project = newProject("Scope");
 		String ts = stamp();
-		Goal first = newGoal(project, user, "groal intake " + ts, "The clerk completes the form.");
-		Goal second = newGoal(project, user, "groal output " + ts, "The clerk completes the form.");
+		Goal first = newGoal(project, user, "groal intake " + ts, "The clerk opens Zoom.");
+		Goal second = newGoal(project, user, "groal output " + ts, "The clerk opens Zoom.");
 
 		Issue firstSpelling = spellingIssue(first.getId(), "groal");
 		Issue secondSpelling = spellingIssue(second.getId(), "groal");
@@ -114,14 +114,16 @@ public class LexicalFindingScopeTest extends AbstractLexicalAssistantTest {
 		assertEquals(Set.of("GoalImpl:" + first.getId()), annotatablesOf(firstSpelling.getId()));
 		assertEquals(Set.of("GoalImpl:" + second.getId()), annotatablesOf(secondSpelling.getId()));
 
-		// A glossary phrase the two goals share goes through the same fallback lookup.
-		Issue firstPhrase = glossaryIssue(first.getId(), "the form");
-		Issue secondPhrase = glossaryIssue(second.getId(), "the form");
-		assertNotNull(firstPhrase, "first goal: expected a glossary issue for 'the form'");
-		assertNotNull(secondPhrase, "second goal: expected a glossary issue for 'the form'");
-		assertNotEquals(firstPhrase.getId(), secondPhrase.getId(),
-				"each goal must get its own glossary issue");
-		assertEquals(Set.of("GoalImpl:" + second.getId()), annotatablesOf(secondPhrase.getId()));
+		// #268: a glossary candidate is the exception. It is one issue for the whole project,
+		// attached to every entity that uses the phrase (here the proper noun "Zoom").
+		Issue firstPhrase = glossaryIssue(first.getId(), "Zoom");
+		Issue secondPhrase = glossaryIssue(second.getId(), "Zoom");
+		assertNotNull(firstPhrase, "first goal: expected a glossary issue for 'Zoom'");
+		assertNotNull(secondPhrase, "second goal: expected a glossary issue for 'Zoom'");
+		assertEquals(firstPhrase.getId(), secondPhrase.getId(),
+				"the two goals share the project's glossary issue");
+		assertEquals(Set.of("GoalImpl:" + first.getId(), "GoalImpl:" + second.getId()),
+				annotatablesOf(firstPhrase.getId()));
 	}
 
 	@Test

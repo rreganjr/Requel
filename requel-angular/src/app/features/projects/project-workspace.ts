@@ -32,6 +32,7 @@ import { PermissionService } from '../../core/permission.service';
 import { ProjectDto } from '../../models/project';
 import { projectApiUrl } from '../../core/api-url';
 import { DeleteProjectDialogComponent, DeleteProjectTarget } from './delete-project-dialog';
+import { ProjectAssistantsPanelComponent } from './project-assistants-panel';
 
 interface CountCard {
   label: string;
@@ -48,7 +49,8 @@ interface NextAction {
 /**
  * Project workspace overview (#154, the former #128 IA scope). The landing page
  * for a project at `/projects/:name`: artifact counts (each a link into that
- * section), an open-issues summary, and derived next actions. The project
+ * section), an open-issues summary, derived next actions, and (#268) the project's
+ * assistants. The project
  * editor moved to `/projects/:name/edit`.
  *
  * "Recent changes" from the original #128 wish list is intentionally omitted —
@@ -58,7 +60,8 @@ interface NextAction {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-project-workspace',
   standalone: true,
-  imports: [RouterLink, ButtonModule, BadgeModule, PageHeaderComponent, SubmitErrorComponent, DeleteProjectDialogComponent],
+  imports: [RouterLink, ButtonModule, BadgeModule, PageHeaderComponent, SubmitErrorComponent, DeleteProjectDialogComponent,
+    ProjectAssistantsPanelComponent],
   template: `
     <div class="project-workspace" data-testid="project-workspace">
       <div class="ws-header">
@@ -125,6 +128,9 @@ interface NextAction {
               </ul>
             }
           </section>
+
+          <app-project-assistants-panel [projectName]="projectName" [canEdit]="canEditProject()"
+                                        [canAnalyze]="canAnalyze()" />
         </div>
       }
     </div>
@@ -185,6 +191,10 @@ export class ProjectWorkspaceComponent implements OnInit {
   // _permissions() stays null and this reads false, hiding the action rather than blanking the
   // workspace.
   readonly canDelete = computed(() => this.permissionService.canDelete('Project'));
+  // #268: the Assistants panel. Switching an assistant is a project edit; re-running analysis
+  // writes issues, so it needs Annotation[Edit]. Both read false until permissions load.
+  readonly canEditProject = computed(() => this.permissionService.canEdit('Project'));
+  readonly canAnalyze = computed(() => this.permissionService.canEdit('Annotation'));
   readonly deleteTarget = signal<DeleteProjectTarget | null>(null);
   readonly deleteVisible = signal(false);
   projectName = '';

@@ -101,6 +101,17 @@ public class LexicalComplexityAssistant implements RequelAssistant<TextEntity> {
 		return CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED;
 	}
 
+	/** Issue #268: a project can switch this check off. */
+	@Override
+	public boolean projectSwitchable() {
+		return true;
+	}
+
+	@Override
+	public String displayName() {
+		return "Complex sentences";
+	}
+
 	@Override
 	public AssistantResult analyze(AssistantContext context, TextEntity target) {
 		String entityType = target.getProjectOrDomainEntityInterface().getSimpleName();
@@ -109,9 +120,15 @@ public class LexicalComplexityAssistant implements RequelAssistant<TextEntity> {
 				.assistantId(ASSISTANT_ID)
 				.runId(context.runId())
 				.summary("Sentence-complexity analysis");
-		analyzeProperty(builder, targetRef, PROP_NAME, target.getName());
-		analyzeProperty(builder, targetRef, PROP_TEXT, target.getText());
-		return builder.build();
+		// #268: a failure on one property leaves the other's findings and marks the result
+		// incomplete, so nothing is auto-resolved on the strength of it.
+		PropertyChecks checks = new PropertyChecks(log, "complexity", targetRef);
+		checks.run(PROP_NAME, target.getName(),
+				() -> analyzeProperty(builder, targetRef, PROP_NAME, target.getName()));
+		checks.run(PROP_TEXT, target.getText(),
+				() -> analyzeProperty(builder, targetRef, PROP_TEXT, target.getText()));
+		return LegacyLexicalIssues.withRemovals(checks.finish(builder).build(), target, targetRef,
+				LegacyLexicalIssues.COMPLEXITY, checks);
 	}
 
 	private void analyzeProperty(AssistantResult.Builder builder, EntityRef targetRef,
@@ -119,25 +136,27 @@ public class LexicalComplexityAssistant implements RequelAssistant<TextEntity> {
 		if (text == null || text.isBlank()) {
 			return;
 		}
-		try {
-			NLPText nlpText = nlpProcessorFactory.processText(text);
-			NLPProcessor<Integer> depthFinder = nlpProcessorFactory.getConstituentTreeDepthFinder();
-			collectComplexSentences(builder, targetRef, propertyName, nlpText, depthFinder);
-		} catch (RuntimeException e) {
-			log.warn("complexity analysis of the {} of {} failed; skipping: {}", propertyName,
-					targetRef, e.toString());
-		}
+		NLPText nlpText = nlpProcessorFactory.processText(text);
+		NLPProcessor<Integer> depthFinder = nlpProcessorFactory.getConstituentTreeDepthFinder();
+		collectComplexSentences(builder, targetRef, propertyName, text, nlpText, depthFinder);
 	}
 
 	private void collectComplexSentences(AssistantResult.Builder builder, EntityRef targetRef,
-			String propertyName, NLPText node, NLPProcessor<Integer> depthFinder) {
+			String propertyName, String source, NLPText node, NLPProcessor<Integer> depthFinder) {
 		if (node.is(GrammaticalStructureLevel.PARAGRAPH)) {
 			for (NLPText sentence : node.getChildren()) {
-				collectComplexSentences(builder, targetRef, propertyName, sentence, depthFinder);
+				collectComplexSentences(builder, targetRef, propertyName, source, sentence,
+						depthFinder);
 			}
 		} else if (node.is(GrammaticalStructureLevel.SENTENCE)) {
 			Integer depth = depthFinder.process(node);
 			if (depth != null && depth > COMPLEXITY_DEPTH_THRESHOLD) {
+				// #268/#269: never quote a sentence the author didn't write (a parser fragment).
+				if (!LexicalEvidence.occurs(source, node.getText())) {
+					log.warn("complexity: dropping a sentence on the {} of {}: not in the source text",
+							propertyName, targetRef);
+					return;
+				}
 				emitComplexityIssue(builder, targetRef, propertyName, node);
 			}
 		}
@@ -155,7 +174,7 @@ public class LexicalComplexityAssistant implements RequelAssistant<TextEntity> {
 		Map<String, Object> issueMeta = Map.of(
 				"kind", "LEXICAL",
 				"annotatableEntityPropertyName", propertyName,
-				"mustResolve", Boolean.TRUE,
+				"mustResolve", Boolean.FALSE,
 				"findingType", "complex-text");
 		builder.annotationAction(new AnnotationAction(issueKey,
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, targetRef, null,

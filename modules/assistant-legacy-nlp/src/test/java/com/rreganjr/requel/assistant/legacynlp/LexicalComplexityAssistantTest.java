@@ -32,7 +32,11 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.rreganjr.nlp.dictionary.GrammaticalStructureLevel;
+import com.rreganjr.nlp.dictionary.NLPProcessor;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
+import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
@@ -49,6 +53,63 @@ class LexicalComplexityAssistantTest {
 	void declaresIdentityAndTargetType() {
 		assertThat(assistant.assistantId()).isEqualTo("legacy-lexical-complexity");
 		assertThat(assistant.targetType()).isEqualTo(TextEntity.class);
+	}
+
+	/** #268/#269: a complex sentence is quoted only if the author wrote it. */
+	@Test
+	void aComplexSentenceIsReportedOnlyIfItIsInTheSourceText() {
+		String written = "The operator rotates the key while the stream that the panel feeds is live.";
+		AssistantResult found = analyzeOneComplexSentence(written, written);
+		assertThat(found.annotationActions()).hasSize(2);
+		assertThat(found.annotationActions()).filteredOn(
+				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
+				.singleElement().satisfies(
+						a -> assertThat(a.metadata()).containsEntry("mustResolve", Boolean.FALSE));
+		assertThat(analyzeOneComplexSentence(written, "le, not a person that the panel feeds")
+				.annotationActions()).isEmpty();
+	}
+
+	/** A paragraph is checked sentence by sentence; only the deep one is reported. */
+	@Test
+	void eachSentenceOfAParagraphIsCheckedOnItsOwn() {
+		String text = "The host starts. The operator rotates the key while the stream that the panel feeds is live.";
+		@SuppressWarnings("unchecked")
+		NLPProcessor<Integer> depthFinder = mock(NLPProcessor.class);
+		NLPText paragraph = mock(NLPText.class);
+		NLPText shallow = mock(NLPText.class);
+		NLPText deep = mock(NLPText.class);
+		when(nlpProcessorFactory.processText(text)).thenReturn(paragraph);
+		when(nlpProcessorFactory.getConstituentTreeDepthFinder()).thenReturn(depthFinder);
+		when(paragraph.is(GrammaticalStructureLevel.PARAGRAPH)).thenReturn(true);
+		when(paragraph.getChildren()).thenReturn(java.util.List.of(shallow, deep));
+		for (NLPText sentence : java.util.List.of(shallow, deep)) {
+			when(sentence.is(GrammaticalStructureLevel.PARAGRAPH)).thenReturn(false);
+			when(sentence.is(GrammaticalStructureLevel.SENTENCE)).thenReturn(true);
+		}
+		when(shallow.getText()).thenReturn("The host starts.");
+		when(deep.getText()).thenReturn(
+				"The operator rotates the key while the stream that the panel feeds is live.");
+		when(depthFinder.process(shallow)).thenReturn(3);
+		when(depthFinder.process(deep)).thenReturn(99);
+
+		AssistantResult result = assistant.analyze(context(), textEntity("", text));
+
+		assertThat(result.annotationActions()).filteredOn(
+				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
+				.singleElement().satisfies(a -> assertThat(a.text()).contains("rotates the key"));
+	}
+
+	private AssistantResult analyzeOneComplexSentence(String text, String sentenceText) {
+		@SuppressWarnings("unchecked")
+		NLPProcessor<Integer> depthFinder = mock(NLPProcessor.class);
+		NLPText sentence = mock(NLPText.class);
+		when(nlpProcessorFactory.processText(text)).thenReturn(sentence);
+		when(nlpProcessorFactory.getConstituentTreeDepthFinder()).thenReturn(depthFinder);
+		when(sentence.is(GrammaticalStructureLevel.PARAGRAPH)).thenReturn(false);
+		when(sentence.is(GrammaticalStructureLevel.SENTENCE)).thenReturn(true);
+		when(sentence.getText()).thenReturn(sentenceText);
+		when(depthFinder.process(sentence)).thenReturn(99);
+		return assistant.analyze(context(), textEntity("", text));
 	}
 
 	@Test

@@ -85,7 +85,10 @@ public class DependencyPrimaryVerbFinder implements NLPProcessor<NLPText> {
 						}
 					}
 				} catch (NLPProcessorException e) {
-					log.warn(e.toString());
+					// #268: expected, not a problem. Names ("Webinar"), bracketed notes and commands
+					// ("Create the room", #349) have no subject, so no primary verb; at WARN this
+					// flooded the log on every whole-project analysis.
+					log.debug(e.toString());
 				}
 			}
 		}

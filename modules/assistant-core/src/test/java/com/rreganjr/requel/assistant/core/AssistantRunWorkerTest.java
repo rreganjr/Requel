@@ -142,10 +142,48 @@ class AssistantRunWorkerTest {
 
 		worker.run(record.runId());
 
-		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
-				updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED));
+		// #268: the run is PARTIAL - it succeeded, and the summary names the assistant that threw.
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> {
+			assertThat(updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED);
+			assertThat(updated.errorSummary()).contains("throwing-assistant failed")
+					.contains("analyze boom").doesNotContain("string-assistant");
+		});
 		assertThat(applicator.appliedResults).hasSize(1);
 		assertThat(applicator.appliedResults.get(0).assistantId()).isEqualTo("string-assistant");
+	}
+
+	@Test
+	void anIncompleteResultIsAppliedAndTheRunIsPartial() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		RecordingApplicator applicator = new RecordingApplicator();
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new IncompleteAssistant(), new StringAssistant())),
+				applicator, List.of(new StringTargetLoader()));
+
+		worker.run(record.runId());
+
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> {
+			assertThat(updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED);
+			assertThat(updated.errorSummary()).contains("incomplete-assistant incomplete")
+					.contains("Text");
+		});
+		assertThat(applicator.appliedResults).extracting(AssistantResult::assistantId)
+				.containsExactly("incomplete-assistant", "string-assistant");
+	}
+
+	@Test
+	void aCompleteRunHasNoErrorSummary() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new StringAssistant())), new RecordingApplicator(),
+				List.of(new StringTargetLoader()));
+
+		worker.run(record.runId());
+
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(
+				updated -> assertThat(updated.errorSummary()).isNull());
 	}
 
 	@Test
@@ -171,8 +209,10 @@ class AssistantRunWorkerTest {
 
 		worker.run(record.runId());
 
-		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
-				updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED));
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> {
+			assertThat(updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED);
+			assertThat(updated.errorSummary()).contains("string-assistant apply failed");
+		});
 		assertThat(applicator.appliedResults).hasSize(1);
 	}
 
@@ -545,6 +585,32 @@ class AssistantRunWorkerTest {
 			this.seenTaskType = context.taskType();
 			return AssistantResult.builder().assistantId(assistantId()).runId(context.runId())
 					.summary(target).build();
+		}
+	}
+
+	/** Returns a result that says its Text wasn't analyzed (#268). */
+	private static final class IncompleteAssistant implements RequelAssistant<String> {
+		@Override
+		public String assistantId() {
+			return "incomplete-assistant";
+		}
+
+		@Override
+		public Class<String> targetType() {
+			return String.class;
+		}
+
+		@Override
+		public boolean handlesTask(String taskType) {
+			return true;
+		}
+
+		@Override
+		public AssistantResult analyze(AssistantContext context, String target) {
+			return AssistantResult.builder().assistantId(assistantId()).runId(context.runId())
+					.summary(target).metadata(java.util.Map.of("incomplete", Boolean.TRUE,
+							"failedProperties", List.of("Text")))
+					.build();
 		}
 	}
 

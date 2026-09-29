@@ -30,6 +30,7 @@ import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.spi.AnnotatableTextEditRegistry;
 import com.rreganjr.requel.annotation.spi.AnnotatableTextEditor;
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Step;
@@ -37,6 +38,7 @@ import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.TextEntity;
 import com.rreganjr.requel.project.UseCase;
 import com.rreganjr.requel.project.command.EditActorCommand;
+import com.rreganjr.requel.project.command.EditGlossaryTermCommand;
 import com.rreganjr.requel.project.command.EditGoalCommand;
 import com.rreganjr.requel.project.command.EditScenarioCommand;
 import com.rreganjr.requel.project.command.EditScenarioStepCommand;
@@ -45,6 +47,7 @@ import com.rreganjr.requel.project.command.EditTextEntityCommand;
 import com.rreganjr.requel.project.command.EditUseCaseCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ActorImpl;
+import com.rreganjr.requel.project.impl.GlossaryTermImpl;
 import com.rreganjr.requel.project.impl.GoalImpl;
 import com.rreganjr.requel.project.impl.ScenarioImpl;
 import com.rreganjr.requel.project.impl.StepImpl;
@@ -57,11 +60,10 @@ import com.rreganjr.requel.project.impl.assistant.ProjectOrDomainEntityAssistant
  * is resolved (issue #305), so the correction runs as that entity's own authorized edit
  * instead of a reflective setter.
  * <p>
- * Six entries, matching exactly what {@code AssistantTaskRunner} analyses: goals, stories,
- * actors, use cases, scenarios and steps. A lexical issue cannot attach to anything else, so
- * nothing else needs an editor &mdash; {@code ProjectAssistant} fans out to these types
- * rather than annotating the project itself, and no assistant touches project teams, goal
- * relations, glossary terms or stakeholders. Adding an assistant for a new entity type means
+ * Seven entries, matching exactly what the lexical assistants analyse: goals, stories, actors,
+ * use cases, scenarios, steps and (since #268) glossary terms. A lexical issue cannot attach to
+ * anything else, so nothing else needs an editor &mdash; no assistant touches the project
+ * itself, project teams, goal relations or stakeholders. Adding an assistant for a new entity type means
  * adding its editor here; {@code ProjectAnnotatableTextEditorConfigurationTest} is what
  * catches forgetting to.
  */
@@ -102,6 +104,13 @@ public class ProjectAnnotatableTextEditorConfiguration {
 			registry.registerTextEditor(StepImpl.class, editor(annotatable -> {
 				EditScenarioStepCommand command = commandFactory.newEditScenarioStepCommand();
 				command.setStep((Step) annotatable);
+				return command;
+			}));
+			// #268: glossary terms are analysed too. A name-only fix leaves the definition alone
+			// and a text-only fix the name, as for the others.
+			registry.registerTextEditor(GlossaryTermImpl.class, editor(annotatable -> {
+				EditGlossaryTermCommand command = commandFactory.newEditGlossaryTermCommand();
+				command.setGlossaryTerm((GlossaryTerm) annotatable);
 				return command;
 			}));
 		};

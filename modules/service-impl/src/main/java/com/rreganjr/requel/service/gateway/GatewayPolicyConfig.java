@@ -83,6 +83,9 @@ public class GatewayPolicyConfig {
             "AddProjectDictionaryWord", "DeleteProjectDictionaryWord",
             // Ignored assistant findings (#320; Project[Edit] at the command layer)
             "DeleteIgnoredFinding",
+            // Re-run the assistants on a whole project (#268; Annotation[Edit]) and switch
+            // them on or off per project (#268; Project[Edit])
+            "AnalyzeProject", "EditProjectAssistantSetting",
             // Reports (definition only; GenerateReport produces a file and is denied)
             "EditReportGenerator", "DeleteReportGenerator",
             // Annotations / IBIS

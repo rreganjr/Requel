@@ -26,11 +26,14 @@ import org.slf4j.LoggerFactory;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.project.command.AnalysisRequestSource;
+import com.rreganjr.requel.project.command.ProjectAnalysisRequestSource;
 
 /**
  * A CommandHandler decorator that executes a command and then triggers analysis
  * of the result. Two paths are supported:
  * <ul>
+ * <li>Commands that implement {@link ProjectAnalysisRequestSource} (import, re-run analysis)
+ * have every text entity of the project dispatched through the assistant SPI (#268).</li>
  * <li>Commands that implement {@link AnalysisRequestSource} are dispatched
  * through the assistant SPI via {@link AnalysisRequestDispatcher} — this keeps
  * the project/command modules free of any SPI dependency.</li>
@@ -57,7 +60,17 @@ public class AnalysisInvokingCommandHandler implements CommandHandler {
 
 	public <T extends Command> T execute(T command) throws Exception {
 		T executedCommand = commandHandler.execute(command);
-		if (executedCommand instanceof AnalysisRequestSource source
+		if (executedCommand instanceof ProjectAnalysisRequestSource projectSource) {
+			if (projectSource.getAnalysisProject() != null) {
+				try {
+					analysisRequestDispatcher.dispatchProject(projectSource.getAnalysisProject(),
+							projectSource.getAnalysisTriggeredBy());
+				} catch (Exception e) {
+					log.warn("Project analysis dispatch failed for command {}: {}",
+							command.getClass().getSimpleName(), e.getMessage(), e);
+				}
+			}
+		} else if (executedCommand instanceof AnalysisRequestSource source
 				&& source.getAnalysisTarget() != null) {
 			try {
 				analysisRequestDispatcher.dispatch(source.getAnalysisTarget(),

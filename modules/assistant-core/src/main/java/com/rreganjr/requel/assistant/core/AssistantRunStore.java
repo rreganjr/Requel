@@ -36,6 +36,14 @@ public interface AssistantRunStore {
 
 	void markSucceeded(UUID runId);
 
+	/**
+	 * Issue #268: the run succeeded, but an assistant threw, or returned an incomplete result,
+	 * or its result failed to apply. The other assistants' results are real, so the status is
+	 * {@code SUCCEEDED}; {@code error_kind} is {@code PARTIAL} and {@code summary} names the
+	 * assistants.
+	 */
+	void markPartial(UUID runId, String summary);
+
 	void markSkipped(UUID runId, String reason);
 
 	/**

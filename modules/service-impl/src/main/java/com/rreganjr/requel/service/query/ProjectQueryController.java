@@ -124,6 +124,22 @@ public class ProjectQueryController {
         this.ignoredFindingStore = store;
     }
 
+    private com.rreganjr.requel.project.ProjectAssistantSettingsStore assistantSettingsStore;
+    private com.rreganjr.requel.project.SwitchableAssistantCatalog assistantCatalog;
+
+    /** Issue #268: setter-injected, as the ignored-finding store is. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAssistantSettingsStore(
+            com.rreganjr.requel.project.ProjectAssistantSettingsStore store) {
+        this.assistantSettingsStore = store;
+    }
+
+    /** Issue #268: the assistants a project can switch; the assistant registry. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAssistantCatalog(com.rreganjr.requel.project.SwitchableAssistantCatalog catalog) {
+        this.assistantCatalog = catalog;
+    }
+
     public ProjectQueryController(ProjectRepository projectRepository,
                                   ProjectCommandFactory projectCommandFactory,
                                   CommandHandler commandHandler,
@@ -948,6 +964,33 @@ public class ProjectQueryController {
                             entityName(f.getTargetType(), f.getTargetId()), f.getPropertyName(),
                             f.getCreatedBy() == null ? null : f.getCreatedBy().getUsername(),
                             f.getDateCreated()))
+                    .toList();
+            return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/assistants — the assistants the project can switch on and off,
+     * and whether each runs there (issue #268). No row means it runs.
+     */
+    @GetMapping("/{name}/assistants")
+    public ResponseEntity<?> listProjectAssistants(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            if (assistantCatalog == null) {
+                return ResponseEntity.ok(List.of());
+            }
+            java.util.Set<String> disabled = assistantSettingsStore == null ? java.util.Set.of()
+                    : assistantSettingsStore.disabledAssistants(project.getId());
+            List<com.rreganjr.requel.service.api.dto.ProjectAssistantDto> dtos = assistantCatalog
+                    .switchableAssistants().stream()
+                    .map(a -> new com.rreganjr.requel.service.api.dto.ProjectAssistantDto(
+                            a.assistantId(), a.displayName(), !disabled.contains(a.assistantId())))
                     .toList();
             return ResponseEntity.ok(dtos);
         } catch (NoSuchProjectException e) {

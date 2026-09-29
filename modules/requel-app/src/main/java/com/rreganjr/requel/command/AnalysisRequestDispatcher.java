@@ -20,20 +20,28 @@
  */
 package com.rreganjr.requel.command;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.assistant.api.AnalysisRequest;
 import com.rreganjr.requel.assistant.api.AssistantDispatcher;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.user.UserRepository;
 
 /**
@@ -47,15 +55,30 @@ import com.rreganjr.requel.user.UserRepository;
 @Component("analysisRequestDispatcher")
 public class AnalysisRequestDispatcher {
 
+	/**
+	 * The entity types a whole-project analysis covers, in dispatch order (#268). These are the
+	 * text entities the assistants' target loader resolves; report generators and stakeholders
+	 * are not analyzed.
+	 */
+	static final List<String> PROJECT_ANALYSIS_TYPES = List.of("Goal", "Story", "Actor",
+			"UseCase", "Scenario", "Step", "GlossaryTerm");
+
 	private final AssistantDispatcher assistantDispatcher;
 	private final UserRepository userRepository;
+	private final ProjectRepository projectRepository;
+	private final TransactionTemplate readTransaction;
 
 	@Autowired
 	public AnalysisRequestDispatcher(AssistantDispatcher assistantDispatcher,
-			UserRepository userRepository) {
+			UserRepository userRepository, ProjectRepository projectRepository,
+			PlatformTransactionManager transactionManager) {
 		this.assistantDispatcher = Objects.requireNonNull(assistantDispatcher,
 				"assistantDispatcher");
 		this.userRepository = Objects.requireNonNull(userRepository, "userRepository");
+		this.projectRepository = Objects.requireNonNull(projectRepository, "projectRepository");
+		this.readTransaction = new TransactionTemplate(
+				Objects.requireNonNull(transactionManager, "transactionManager"));
+		this.readTransaction.setReadOnly(true);
 	}
 
 	/**
@@ -85,6 +108,58 @@ public class AnalysisRequestDispatcher {
 		AnalysisRequest request = new AnalysisRequest(targetRef, projectRef, triggeringUserRef,
 				assistantUserRef(), taskType, Locale.getDefault(), Map.of());
 		assistantDispatcher.dispatch(request);
+	}
+
+	/**
+	 * Dispatch analysis of every text entity in {@code project} on behalf of
+	 * {@code triggeringUser} (#268): import and the explicit re-run. The entities are listed in
+	 * one read-only transaction, then handed to {@link AssistantDispatcher#dispatchAll} outside
+	 * it, so the runs are queued (and may start) only after the read has finished. No-op when
+	 * either argument is {@code null}.
+	 *
+	 * @return the number of analysis requests dispatched.
+	 */
+	public int dispatchProject(Project project, User triggeringUser) {
+		if (project == null || project.getId() == null || triggeringUser == null) {
+			return 0;
+		}
+		List<EntityRef> targets = readTransaction.execute(status -> projectTargets(project));
+		if (targets.isEmpty()) {
+			return 0;
+		}
+		EntityRef projectRef = EntityRef.of("Project", project.getId());
+		UserRef triggeringUserRef = new UserRef(triggeringUser.getId(), triggeringUser.getUsername());
+		UserRef assistantUserRef = assistantUserRef();
+		List<AnalysisRequest> requests = new ArrayList<>(targets.size());
+		for (EntityRef target : targets) {
+			requests.add(new AnalysisRequest(target, projectRef, triggeringUserRef, assistantUserRef,
+					null, Locale.getDefault(), Map.of()));
+		}
+		assistantDispatcher.dispatchAll(requests);
+		return requests.size();
+	}
+
+	/** The project's analyzable entities, deduplicated, ordered by type then id. */
+	private List<EntityRef> projectTargets(Project project) {
+		Project loaded = projectRepository.get(project);
+		List<ProjectOrDomainEntity> all = new ArrayList<>();
+		if (loaded.getProjectEntities() != null) {
+			all.addAll(loaded.getProjectEntities());
+		}
+		// Steps are not project entities; scenarios can come back from both lists.
+		all.addAll(projectRepository.findStepsByProjectOrDomain(loaded));
+		Map<String, EntityRef> byKey = new LinkedHashMap<>();
+		for (ProjectOrDomainEntity entity : all) {
+			String type = entity.getProjectOrDomainEntityInterface().getSimpleName();
+			if (PROJECT_ANALYSIS_TYPES.contains(type) && entity.getId() != null) {
+				byKey.putIfAbsent(type + ":" + entity.getId(), EntityRef.of(type, entity.getId()));
+			}
+		}
+		List<EntityRef> targets = new ArrayList<>(byKey.values());
+		targets.sort(Comparator
+				.comparingInt((EntityRef ref) -> PROJECT_ANALYSIS_TYPES.indexOf(ref.entityType()))
+				.thenComparing(EntityRef::entityId));
+		return targets;
 	}
 
 	private UserRef assistantUserRef() {

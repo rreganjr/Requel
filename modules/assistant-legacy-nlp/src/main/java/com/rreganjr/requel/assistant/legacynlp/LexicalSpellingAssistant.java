@@ -26,10 +26,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.nlp.dictionary.NLPProcessor;
 import com.rreganjr.nlp.dictionary.NLPProcessorFactory;
 import com.rreganjr.nlp.dictionary.NLPText;
@@ -63,6 +66,8 @@ import com.rreganjr.requel.project.TextEntity;
 @Component
 public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 
+	private static final Logger log = LoggerFactory.getLogger(LexicalSpellingAssistant.class);
+
 	public static final String ASSISTANT_ID = "legacy-lexical";
 
 	private static final String PROP_NAME = "Name";
@@ -77,10 +82,13 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 	private static final String ADD_AS_ACTOR_MSG = "Add \"{0}\" as an actor to the project.";
 
 	private final NLPProcessorFactory nlpProcessorFactory;
+	private final DictionaryRepository dictionaryRepository;
 
 	@Autowired
-	public LexicalSpellingAssistant(NLPProcessorFactory nlpProcessorFactory) {
+	public LexicalSpellingAssistant(NLPProcessorFactory nlpProcessorFactory,
+			DictionaryRepository dictionaryRepository) {
 		this.nlpProcessorFactory = nlpProcessorFactory;
+		this.dictionaryRepository = dictionaryRepository;
 	}
 
 	@Override
@@ -105,6 +113,17 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 		return CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED;
 	}
 
+	/** Issue #268: a project can switch this check off. */
+	@Override
+	public boolean projectSwitchable() {
+		return true;
+	}
+
+	@Override
+	public String displayName() {
+		return "Spelling";
+	}
+
 	@Override
 	public AssistantResult analyze(AssistantContext context, TextEntity target) {
 		String entityType = target.getProjectOrDomainEntityInterface().getSimpleName();
@@ -117,15 +136,22 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 		// project ref is nullable on AssistantContext, and a null project means the two
 		// installation-wide layers alone.
 		Long projectId = context.projectRef() == null ? null : context.projectRef().entityId();
-		analyzeProperty(builder, targetRef, entityType, target.getId(), PROP_NAME, target.getName(),
-				projectId);
-		analyzeProperty(builder, targetRef, entityType, target.getId(), PROP_TEXT, target.getText(),
-				projectId);
-		return builder.build();
+		// Issue #268: the project's glossary and actor names are its own words; read them once.
+		ProjectVocabulary vocabulary = ProjectVocabulary.of(target.getProjectOrDomain());
+		// #268: a failure on one property leaves the other's findings and marks the result
+		// incomplete, so nothing is auto-resolved on the strength of it.
+		PropertyChecks checks = new PropertyChecks(log, "spelling", targetRef);
+		checks.run(PROP_NAME, target.getName(), () -> analyzeProperty(builder, targetRef,
+				entityType, target.getId(), PROP_NAME, target.getName(), projectId, vocabulary));
+		checks.run(PROP_TEXT, target.getText(), () -> analyzeProperty(builder, targetRef,
+				entityType, target.getId(), PROP_TEXT, target.getText(), projectId, vocabulary));
+		return LegacyLexicalIssues.withRemovals(checks.finish(builder).build(), target, targetRef,
+				LegacyLexicalIssues.SPELLING, checks);
 	}
 
 	private void analyzeProperty(AssistantResult.Builder builder, EntityRef targetRef,
-			String entityType, Long entityId, String propertyName, String text, Long projectId) {
+			String entityType, Long entityId, String propertyName, String text, Long projectId,
+			ProjectVocabulary vocabulary) {
 		if (text == null || text.isBlank()) {
 			return;
 		}
@@ -139,6 +165,18 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 				continue;
 			}
 			if (Boolean.TRUE.equals(spellChecker.process(word))) {
+				continue;
+			}
+			// Issue #268: project vocabulary, acronyms, CamelCase names, identifiers and
+			// hyphenated compounds of known words aren't misspellings.
+			if (SpellingSkips.reason(word.getText(), vocabulary,
+					part -> isKnownWord(projectId, part)) != null) {
+				continue;
+			}
+			// #268/#269: never report a word the author didn't write (a parser fragment).
+			if (!LexicalEvidence.occurs(text, word.getText())) {
+				log.warn("spelling: dropping \"{}\" on the {} of {}: not in the source text",
+						word.getText(), propertyName, targetRef);
 				continue;
 			}
 			emitSpellingIssue(builder, targetRef, entityType, entityId, propertyName, word,
@@ -159,7 +197,7 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 				"kind", "LEXICAL",
 				"word", wordText,
 				"annotatableEntityPropertyName", propertyName,
-				"mustResolve", Boolean.TRUE,
+				"mustResolve", Boolean.FALSE,
 				"findingType", "unknown-word");
 		builder.annotationAction(new AnnotationAction(issueKey,
 				AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, targetRef, null,
@@ -189,6 +227,15 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 						null, evidence, Map.of("kind", "CHANGE_SPELLING", "proposedWord",
 								suggestedWord)));
 			}
+		}
+	}
+
+	private boolean isKnownWord(Long projectId, String word) {
+		try {
+			return Boolean.TRUE.equals(dictionaryRepository.isKnownWord(projectId, word));
+		} catch (RuntimeException e) {
+			log.debug("dictionary lookup of \"{}\" failed: {}", word, e.toString());
+			return false;
 		}
 	}
 
