@@ -34,7 +34,7 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import com.rreganjr.requel.assistant.core.freshness.TargetFingerprint;
+import com.rreganjr.requel.project.TargetFingerprint;
 
 /**
  * The V25 migration (issue #270) on a database that already has findings: migrate to V24, write

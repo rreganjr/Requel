@@ -1,5 +1,8 @@
 # Entity provenance — notes and options
 
+> Implemented by #272 (Option C, shared with #273's references): see
+> `doc/work/2.0/272-entity-provenance-plan.md`.
+
 Where an entity came from. Written while building the **PlatformQ Roundtable** project by ingesting
 two Jira tickets through the MCP gateway (see `doc/work/2.0/pq-roundtable-case-study.md`), which is where the
 empirical bits below come from.

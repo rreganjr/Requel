@@ -74,6 +74,20 @@ public class CommandEventPublisher {
                         String excludeSessionId) {
         publishProjectChangedIfScoped(command);
         publishPermissionsChangedIfStakeholderWrite(command);
+        // Issue #272: an upsert from a source wraps the entity it wrote (or raised a conflict
+        // issue on), so an open page for that entity refreshes as it would after the edit itself.
+        if (primaryResult instanceof com.rreganjr.requel.service.api.dto.UpsertFromSourceResultDto upsert) {
+            if (upsert.entityId() != null && upsert.entityType() != null
+                    && !"UNCHANGED".equals(upsert.status())) {
+                try {
+                    streamEventPublisher.publishTargetUpdate(upsert.entityType(), upsert.entityId(),
+                            Map.of("type", "refresh"), excludeSessionId);
+                } catch (Exception e) {
+                    log.warn("Failed to publish entity-changed SSE event: {}", e.getMessage());
+                }
+            }
+            return;
+        }
         TargetRef primary = publishTargeted(primaryResult, excludeSessionId, null);
         publishTargeted(secondaryResult, excludeSessionId, primary);
     }

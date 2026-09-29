@@ -105,6 +105,31 @@ public class GatewayQueryController {
         return queryGateway.searchProjectEntities(name, query);
     }
 
+    /** Issue #272: a source by system and external id; an empty body when there is none. */
+    @GetMapping("/projects/{name}/source")
+    public com.rreganjr.requel.service.api.dto.ExternalSourceDto getSource(
+            @PathVariable String name, @RequestParam String system,
+            @RequestParam String externalId) {
+        return queryGateway.getSource(name, system, externalId);
+    }
+
+    /** Issue #272: the entities a source produced; an empty body when there is no such source. */
+    @GetMapping("/projects/{name}/source/entities")
+    public com.rreganjr.requel.service.api.dto.SourceEntitiesDto findEntitiesBySource(
+            @PathVariable String name, @RequestParam String system,
+            @RequestParam String externalId,
+            @RequestParam(required = false) String fragment) {
+        return queryGateway.findEntitiesBySource(name, system, externalId, fragment);
+    }
+
+    /** Issue #272: which sources an entity came from. */
+    @GetMapping("/projects/{name}/entity/sources")
+    public List<com.rreganjr.requel.service.api.dto.EntitySourceLinkDto> getEntitySources(
+            @PathVariable String name, @RequestParam String entityType,
+            @RequestParam long entityId) {
+        return queryGateway.getEntitySources(name, entityType, entityId);
+    }
+
     @GetMapping("/projects/{name}/context")
     public Map<String, Object> getProjectContext(@PathVariable String name) {
         return queryGateway.getProjectContext(name);

@@ -74,6 +74,7 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project, Tag
 	private Set<Annotation> annotations = new TreeSet<Annotation>();
 	private Set<TagAssignmentXml> exportTagAssignments = new HashSet<TagAssignmentXml>();
 	private java.util.List<IgnoredFindingXml> exportIgnoredFindings = new java.util.ArrayList<IgnoredFindingXml>();
+	private java.util.List<ExternalSourceXml> exportExternalSources = new java.util.ArrayList<ExternalSourceXml>();
 
 	/**
 	 * @param name
@@ -187,6 +188,22 @@ public class ProjectImpl extends AbstractProjectOrDomain implements Project, Tag
 
 	public void setExportIgnoredFindings(java.util.List<IgnoredFindingXml> exportIgnoredFindings) {
 		this.exportIgnoredFindings = exportIgnoredFindings;
+	}
+
+	/**
+	 * Export carrier for the project's external sources and their entity links (issue #272). Not
+	 * persistent; filled by {@code ExportProjectCommandImpl} from the {@code ProvenanceStore}, the
+	 * same way the ignored findings above are.
+	 */
+	@Transient
+	@XmlElementWrapper(name = "externalSources", namespace = "http://www.rreganjr.com/requel", required = false)
+	@XmlElement(name = "externalSource", namespace = "http://www.rreganjr.com/requel")
+	public java.util.List<ExternalSourceXml> getExportExternalSources() {
+		return exportExternalSources;
+	}
+
+	public void setExportExternalSources(java.util.List<ExternalSourceXml> exportExternalSources) {
+		this.exportExternalSources = exportExternalSources;
 	}
 
 	@XmlElementWrapper(name = "annotations", namespace = "http://www.rreganjr.com/requel", required = false)

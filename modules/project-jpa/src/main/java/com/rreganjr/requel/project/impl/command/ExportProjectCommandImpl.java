@@ -168,6 +168,54 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 	}
 
 	/**
+	 * Issue #272: one carrier per source, each with its links to entities still in the project,
+	 * referenced by IDREF.
+	 */
+	private java.util.List<com.rreganjr.requel.project.impl.ExternalSourceXml> exportExternalSources(
+			ProjectImpl projectImpl) {
+		java.util.List<com.rreganjr.requel.project.impl.ExternalSourceXml> carriers =
+				new java.util.ArrayList<>();
+		if (getProvenanceStore() == null) {
+			return carriers;
+		}
+		java.util.Map<String, com.rreganjr.requel.project.ProjectOrDomainEntity> entities =
+				new java.util.HashMap<>();
+		for (com.rreganjr.requel.project.ProjectOrDomainEntity entity : projectImpl
+				.getProjectEntities()) {
+			entities.put(entity.getProjectOrDomainEntityInterface().getSimpleName() + ":"
+					+ entity.getId(), entity);
+		}
+		for (com.rreganjr.requel.project.ExternalSource source : getProvenanceStore()
+				.listSources(projectImpl.getId())) {
+			com.rreganjr.requel.project.impl.ExternalSourceXml carrier =
+					new com.rreganjr.requel.project.impl.ExternalSourceXml(source.getSystem(),
+							source.getExternalId(),
+							source.getLocatorType() == null ? null : source.getLocatorType().name(),
+							source.getLocator(), source.getTitle(), source.getKind(),
+							source.getContentHash(), format(source.getLastIngestedAt()));
+			for (com.rreganjr.requel.project.EntitySourceLink link : getProvenanceStore()
+					.linksForSource(source.getId())) {
+				com.rreganjr.requel.project.ProjectOrDomainEntity entity = entities
+						.get(link.getTargetType() + ":" + link.getTargetId());
+				if (entity == null) {
+					continue;
+				}
+				carrier.getLinks().add(new com.rreganjr.requel.project.impl.SourceLinkXml(
+						link.getRelation().name(), link.getTargetType(), entity,
+						link.getFragment(), link.getFragmentHash(), link.getSourceHashSeen(),
+						link.getEntityFingerprint(), format(link.getIngestedAt())));
+			}
+			carriers.add(carrier);
+		}
+		return carriers;
+	}
+
+	private static String format(java.util.Date date) {
+		return date == null ? null
+				: com.rreganjr.requel.utils.DateUtils.standardDateAndTime.format(date);
+	}
+
+	/**
 	 * @see com.rreganjr.requel.project.command.ExportProjectCommand#setProject(com.rreganjr.requel.project.Project)
 	 */
 	@Override
@@ -211,6 +259,9 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 
 				// Issue #320: the project's ignored findings, from the store that owns them.
 				projectImpl.setExportIgnoredFindings(exportIgnoredFindings(projectImpl));
+
+				// Issue #272: the project's external sources and their entity links.
+				projectImpl.setExportExternalSources(exportExternalSources(projectImpl));
 			}
 
 			JAXBContext context = JAXBContext.newInstance(CLASSES_FOR_JAXB);

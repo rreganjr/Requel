@@ -984,6 +984,35 @@ public class ProjectQueryController {
         }
     }
 
+    private ProvenanceQueryService provenanceQueryService;
+
+    /** Issue #272: setter-injected, as the ignored-finding store is. */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setProvenanceQueryService(ProvenanceQueryService provenanceQueryService) {
+        this.provenanceQueryService = provenanceQueryService;
+    }
+
+    /**
+     * GET /api/projects/{name}/entities/{type}/{id}/sources — which external sources, and which
+     * fragments of them, an entity came from (issue #272), for the read-only Sources card.
+     */
+    @GetMapping("/{name}/entities/{type}/{id}/sources")
+    public ResponseEntity<?> getEntitySources(@PathVariable String name, @PathVariable String type,
+            @PathVariable Long id) {
+        if (provenanceQueryService == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        try {
+            return ResponseEntity.ok(provenanceQueryService.getEntitySources(name, type, id));
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     /**
      * GET /api/projects/{name}/assistants — the assistants the project can switch on and off,
      * and whether each runs there (issue #268). No row means it runs.

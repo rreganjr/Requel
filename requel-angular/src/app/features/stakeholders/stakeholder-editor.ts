@@ -22,6 +22,7 @@ import { Component, computed, OnDestroy, OnInit, signal, ViewChild, ChangeDetect
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PageHeaderComponent } from '../../shared/page-header';
 import { AppCardComponent } from '../../shared/app-card';
+import { SourcesSectionComponent } from '../../shared/sources-section';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
 import { DirtyCheckable } from '../../core/dirty-check.guard';
@@ -75,7 +76,7 @@ interface PermissionGroup {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-stakeholder-editor',
   standalone: true,
-  imports: [PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule, RouterLink,
+  imports: [SourcesSectionComponent, PageHeaderComponent, AppCardComponent, NgTemplateOutlet, ReactiveFormsModule, RouterLink,
             ButtonModule, InputText, TextareaModule, SelectModule,
             CheckboxModule, SubmitErrorComponent, UpdateBannerComponent, ConfirmDialogModule, RelationshipSectionComponent,
             EntitySelectorDialogComponent, AppFieldComponent, AppFieldControlDirective,
@@ -153,6 +154,15 @@ interface PermissionGroup {
 
         <ng-container [ngTemplateOutlet]="goalsSection"
                       [ngTemplateOutletContext]="{ heading: true }" />
+
+        <!-- #272: where a non-user stakeholder came from; a user stakeholder is never ingested. -->
+        @if (!isUserType()) {
+          <app-sources-section
+            [projectName]="projectName"
+            entityType="NonUserStakeholder"
+            [entityId]="stakeholderId"
+            />
+        }
       }
 
       <app-entity-selector-dialog

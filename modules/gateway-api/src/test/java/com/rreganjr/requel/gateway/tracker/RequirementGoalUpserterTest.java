@@ -23,22 +23,20 @@ package com.rreganjr.requel.gateway.tracker;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
-import com.rreganjr.requel.gateway.provenance.CriterionHash;
 import com.rreganjr.requel.gateway.provenance.GoalNameDerivation;
-import com.rreganjr.requel.gateway.provenance.ProvenanceDescriptor;
-import com.rreganjr.requel.gateway.provenance.ProvenanceNotes;
+import com.rreganjr.requel.project.CriterionHash;
 import com.rreganjr.requel.service.api.dto.EditGoalInput;
 
 /**
- * Behavioural tests for {@link RequirementGoalUpserter} (issue #71) over the in-memory gateway
- * double, covering the issue's testing strategy: idempotency, the edited-requirement orphan, name
- * collision, provenance-note update-by-id, and the raw create conflict that proves the lookup path
- * is required.
+ * Behavioural tests for {@link RequirementGoalUpserter} over the in-memory gateway double: what it
+ * sends to UpsertFromSource (issue #272), the default fragment, name derivation and the collision
+ * rule. The server-side decision table, conflicts included, is {@code EntityProvenanceIT}.
  */
 class RequirementGoalUpserterTest {
 
@@ -56,22 +54,30 @@ class RequirementGoalUpserterTest {
                 "https://example/browse/" + sourceRef, "AC-1", "claude-desktop");
     }
 
+    private static UpsertGoalRequest reqWithoutRef(String criterionText, String sourceRef) {
+        return UpsertGoalRequest.of("Demo", criterionText, "jira", sourceRef, null, null,
+                "claude-desktop");
+    }
+
     @Test
-    void createsGoalWithParseableProvenanceNote() throws Exception {
-        UpsertGoalResult result = upserter.upsert(req("The system shall allow login.", "PROJ-1#1"));
+    void createsAGoalThroughUpsertFromSourceAndWritesNoNote() throws Exception {
+        UpsertGoalResult result = upserter.upsert(req("The system shall allow login.", "PROJ-1"));
 
         assertThat(result.created()).isTrue();
+        assertThat(result.status()).isEqualTo("CREATED");
         assertThat(result.goalId()).isNotNull();
-        assertThat(result.noteId()).isNotNull();
         assertThat(result.goalName()).isEqualTo("The system shall allow login");
+        assertThat(result.fragment()).isEqualTo("AC-1");
         assertThat(gateway.goalCount()).isEqualTo(1);
-        assertThat(gateway.noteCount()).isEqualTo(1);
 
-        ProvenanceDescriptor prov = provenanceOn(result.goalId());
-        assertThat(prov.sourceSystem()).isEqualTo("jira");
-        assertThat(prov.sourceRef()).isEqualTo("PROJ-1#1");
-        assertThat(prov.criterionHash())
-                .isEqualTo(CriterionHash.of("The system shall allow login."));
+        assertThat(gateway.lastUpsert).containsEntry("command", "EditGoal")
+                .containsEntry("system", "jira")
+                .containsEntry("externalId", "PROJ-1")
+                .containsEntry("locatorType", "URL")
+                .containsEntry("locator", "https://example/browse/PROJ-1")
+                .containsEntry("fragment", "AC-1")
+                .containsEntry("fragmentText", "The system shall allow login.");
+        assertThat(gateway.lastClient).isEqualTo("claude-desktop");
     }
 
     @Test
@@ -85,46 +91,97 @@ class RequirementGoalUpserterTest {
     }
 
     @Test
-    void reRunUpdatesInPlaceWithNoDuplicateAndSameIds() throws Exception {
-        UpsertGoalRequest request = req("The system shall allow login.", "PROJ-1#1");
+    void aSourceWithoutAUrlSendsNoLocator() throws Exception {
+        upserter.upsert(reqWithoutRef("The system shall allow login.", "PROJ-1"));
+
+        assertThat(gateway.lastUpsert).doesNotContainKeys("locatorType", "locator");
+    }
+
+    @Test
+    void reRunIsUnchangedWithNoDuplicate() throws Exception {
+        UpsertGoalRequest request = req("The system shall allow login.", "PROJ-1");
 
         UpsertGoalResult first = upserter.upsert(request);
         UpsertGoalResult second = upserter.upsert(request);
 
         assertThat(second.created()).isFalse();
+        assertThat(second.status()).isEqualTo("UNCHANGED");
         assertThat(second.goalId()).isEqualTo(first.goalId());
-        assertThat(second.noteId()).isEqualTo(first.noteId()); // provenance note updated, not added
         assertThat(gateway.goalCount()).isEqualTo(1);
-        assertThat(gateway.noteCount()).isEqualTo(1);
     }
 
     @Test
-    void editedRequirementCreatesNewGoalAndLeavesPriorAsOrphan() throws Exception {
-        UpsertGoalResult original = upserter.upsert(req("The system shall allow login.", "PROJ-1#1"));
-        // Same source ref, minor edit to the text -> different derived name and hash.
+    void anEditedCriterionWithACriterionRefUpdatesItsGoalInPlace() throws Exception {
+        UpsertGoalResult original = upserter.upsert(req("The system shall allow login.", "PROJ-1"));
         UpsertGoalResult edited =
-                upserter.upsert(req("The system shall allow secure login.", "PROJ-1#1"));
+                upserter.upsert(req("The system shall allow secure login.", "PROJ-1"));
 
-        assertThat(edited.created()).isTrue();
-        assertThat(edited.goalId()).isNotEqualTo(original.goalId());
-        assertThat(gateway.goalCount()).isEqualTo(2); // prior goal discoverable as an orphan
+        assertThat(edited.status()).isEqualTo("UPDATED");
+        assertThat(edited.goalId()).isEqualTo(original.goalId());
+        assertThat(edited.goalName()).isEqualTo("The system shall allow secure login");
+        assertThat(gateway.goalCount()).isEqualTo(1); // #71 left an orphan here
+    }
+
+    @Test
+    void withoutACriterionRefTheFragmentIsTheCriterionHashAsIn71() throws Exception {
+        UpsertGoalResult original = upserter.upsert(
+                reqWithoutRef("The system shall allow login.", "PROJ-1"));
+        UpsertGoalResult edited = upserter.upsert(
+                reqWithoutRef("The system shall allow secure login.", "PROJ-1"));
+
+        assertThat(original.fragment())
+                .isEqualTo("hash:" + CriterionHash.of("The system shall allow login.")
+                        .substring(0, 12));
+        assertThat(edited.created()).isTrue(); // the criterion's text is its identity
+        assertThat(gateway.goalCount()).isEqualTo(2);
     }
 
     @Test
     void distinctRequirementsSharingADerivedNameAreDisambiguated() throws Exception {
-        UpsertGoalResult a = upserter.upsert(req("Allow login. Via SSO.", "PROJ-1#1"));
-        UpsertGoalResult b = upserter.upsert(req("Allow login. Via password.", "PROJ-2#1"));
+        UpsertGoalResult a = upserter.upsert(req("Allow login. Via SSO.", "PROJ-1"));
+        UpsertGoalResult b = upserter.upsert(req("Allow login. Via password.", "PROJ-2"));
 
         assertThat(a.goalName()).isEqualTo("Allow login");
         assertThat(b.created()).isTrue();
-        assertThat(b.goalName()).isNotEqualTo(a.goalName());
         assertThat(b.goalName()).startsWith("Allow login-");
         assertThat(gateway.goalCount()).isEqualTo(2); // no uniqueness conflict, both persisted
     }
 
     @Test
+    void theGoalAFragmentProducedKeepsItsNameOnUpdate() throws Exception {
+        UpsertGoalResult first = upserter.upsert(req("Allow login. Via SSO.", "PROJ-1"));
+        UpsertGoalResult second = upserter.upsert(req("Allow login. Via SSO or password.",
+                "PROJ-1"));
+
+        assertThat(second.status()).isEqualTo("UPDATED");
+        assertThat(second.goalName()).isEqualTo(first.goalName()); // not disambiguated against itself
+    }
+
+    @Test
+    void severalGoalsFromOneCriterionAreAmbiguousUntilAGoalIdPicksOne() throws Exception {
+        UpsertGoalResult first = upserter.upsert(req("Ownership moves to Conduit.", "PROJ-1"));
+        gateway.execute(new GatewayRequest("EditGoal",
+                new EditGoalInput("Demo", null, "Ownership record", "x", null), null));
+        gateway.link("jira", "PROJ-1", "AC-1", 2L, "Ownership moves to Conduit.");
+
+        UpsertGoalResult ambiguous = upserter.upsert(req("Ownership moves to Conduit now.",
+                "PROJ-1"));
+        assertThat(ambiguous.status()).isEqualTo("AMBIGUOUS");
+        assertThat(ambiguous.candidates()).containsExactlyInAnyOrder(first.goalId(), 2L);
+
+        UpsertGoalRequest pick = new UpsertGoalRequest("Demo", "Ownership moves to Conduit now.",
+                null, null, "jira", "PROJ-1", null, "AC-1", "claude-desktop", null, first.goalId(),
+                "v2");
+        UpsertGoalResult picked = upserter.upsert(pick);
+        assertThat(picked.status()).isEqualTo("UPDATED");
+        assertThat(picked.goalId()).isEqualTo(first.goalId());
+        assertThat(gateway.lastUpsert).containsEntry("entityId", first.goalId())
+                .containsEntry("sourceVersion", "v2");
+    }
+
+    @Test
     void rawCreateWithCollidingNameSurfacesUniquenessConflict() throws Exception {
-        // Proves why the upserter must resolve an id: a bare second create by the same name fails.
+        // Why the collision rule exists: a bare second create by the same name fails.
         gateway.execute(new GatewayRequest("EditGoal",
                 new EditGoalInput("Demo", null, "Allow login", "x", null), null));
 
@@ -133,12 +190,11 @@ class RequirementGoalUpserterTest {
                         new EditGoalInput("Demo", null, "Allow login", "y", null), null)));
     }
 
-    private ProvenanceDescriptor provenanceOn(Long goalId) {
-        return gateway.getAnnotations("Demo", "Goal", goalId).notes().stream()
-                .map(n -> ProvenanceNotes.parse(n.text()))
-                .filter(java.util.Optional::isPresent)
-                .map(java.util.Optional::get)
-                .findFirst()
-                .orElseThrow();
+    @Test
+    void theDefaultFragmentPrefersTheCriterionRef() {
+        assertThat(RequirementGoalUpserter.defaultFragment(" AC-2 ", "abcdef0123456789"))
+                .isEqualTo("AC-2");
+        assertThat(RequirementGoalUpserter.defaultFragment(null, "abcdef0123456789"))
+                .isEqualTo("hash:abcdef012345");
     }
 }

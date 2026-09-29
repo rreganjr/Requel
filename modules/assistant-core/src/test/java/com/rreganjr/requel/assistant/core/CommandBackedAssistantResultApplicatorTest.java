@@ -399,7 +399,7 @@ class CommandBackedAssistantResultApplicatorTest {
 		applyIssueAction("ai-review:Goal:1:ambiguous", "HIGH", Map.of(), null, context(),
 				Map.of(), goal);
 
-		String expected = com.rreganjr.requel.assistant.core.freshness.TargetFingerprint
+		String expected = com.rreganjr.requel.project.TargetFingerprint
 				.of("Login", "Users log in fast.");
 		verify(findingRepository, atLeastOnce()).save(argThat(f -> f instanceof AssistantFindingEntity
 				&& expected.equals(((AssistantFindingEntity) f).getTargetFingerprint())));

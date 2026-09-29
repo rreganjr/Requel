@@ -171,6 +171,31 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public EditProjectAssistantSettingCommand newEditProjectAssistantSettingCommand();
 
 	/**
+	 * @return a new command creating or updating a project's external source; requires
+	 *         {@code Project[Edit]} (issue #272).
+	 */
+	public RecordSourceCommand newRecordSourceCommand();
+
+	/**
+	 * @return a new command linking an entity to a fragment of a source; requires the entity's
+	 *         {@code Edit} (issue #272).
+	 */
+	public LinkSourceCommand newLinkSourceCommand();
+
+	/**
+	 * @return a new command removing an entity's link to a source; requires the entity's
+	 *         {@code Edit} (issue #272).
+	 */
+	public UnlinkSourceCommand newUnlinkSourceCommand();
+
+	/**
+	 * @return a new command creating or updating an entity from a fragment of a source, raising a
+	 *         conflict instead of overwriting a Requel edit; requires the entity's {@code Edit}
+	 *         (issue #272).
+	 */
+	public UpsertFromSourceCommand newUpsertFromSourceCommand();
+
+	/**
 	 * @return a new command adding an installation-wide dictionary word; administrators only
 	 *         (issue #319).
 	 */

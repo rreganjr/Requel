@@ -53,6 +53,7 @@ import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dial
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { SourcesSectionComponent } from '../../shared/sources-section';
 import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
@@ -103,7 +104,7 @@ type StepGroup = FormGroup<{
   imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet,
             ReactiveFormsModule, ButtonModule, InputText, TextareaModule, SelectModule,
             MessageModule, SubmitErrorComponent, UpdateBannerComponent, DialogModule, ConfirmDialogModule, TooltipModule, DragDropModule,
-            ScenarioSelectorDialogComponent, AnnotationsSectionComponent, LoadingStateComponent,
+            ScenarioSelectorDialogComponent, AnnotationsSectionComponent, SourcesSectionComponent, LoadingStateComponent,
             ErrorStateComponent, AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent, InlineErrorComponent,
             EntitySelectorDialogComponent, RelationshipSectionComponent],
@@ -276,6 +277,11 @@ type StepGroup = FormGroup<{
           entityType="Scenario"
           [entityId]="scenarioId"
           />
+          <app-sources-section
+            [projectName]="projectName"
+            entityType="Scenario"
+            [entityId]="scenarioId"
+            />
       }
 
       <p-confirmDialog />

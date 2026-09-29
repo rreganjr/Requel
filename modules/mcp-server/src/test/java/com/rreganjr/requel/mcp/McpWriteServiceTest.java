@@ -31,10 +31,7 @@ import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
 import com.rreganjr.requel.gateway.GatewayResult;
 import com.rreganjr.requel.gateway.tracker.UpsertGoalResult;
-import com.rreganjr.requel.service.api.dto.EditGoalInput;
-import com.rreganjr.requel.service.api.dto.EditNoteInput;
-import com.rreganjr.requel.service.api.dto.GoalDto;
-import com.rreganjr.requel.service.api.dto.NoteDto;
+import com.rreganjr.requel.service.api.dto.UpsertFromSourceResultDto;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -157,29 +154,23 @@ class McpWriteServiceTest {
 
 	// ---- composite tool: upsertGoalFromRequirement (issue #71) ---------------------------------
 
-	/** CommandGateway double returning real Goal/Note DTOs and recording the carried client id. */
+	/** CommandGateway double answering UpsertFromSource (#272) and recording the carried client id. */
 	private static final class UpsertRecordingGateway implements CommandGateway {
-		String editGoalClientId;
+		String upsertClientId;
 		long nextGoalId = 1;
-		long nextNoteId = 1;
 
 		@Override
 		public GatewayResult execute(GatewayRequest request) {
-			return switch (request.commandType()) {
-				case "EditGoal" -> {
-					EditGoalInput i = (EditGoalInput) request.input();
-					editGoalClientId = request.clientId();
-					long id = i.goalId() != null ? i.goalId() : nextGoalId++;
-					yield new GatewayResult("EditGoal",
-							new GoalDto(id, 0, i.name(), i.text(), "t", null, null, null));
-				}
-				case "EditNote" -> {
-					EditNoteInput i = (EditNoteInput) request.input();
-					long id = i.noteId() != null ? i.noteId() : nextNoteId++;
-					yield new GatewayResult("EditNote", new NoteDto(id, 0, i.text(), "t", null, false));
-				}
-				default -> throw new IllegalArgumentException(request.commandType());
-			};
+			if (!"UpsertFromSource".equals(request.commandType())) {
+				throw new IllegalArgumentException(request.commandType());
+			}
+			upsertClientId = request.clientId();
+			@SuppressWarnings("unchecked")
+			Map<String, Object> goal = (Map<String, Object>) ((Map<String, Object>) request.input())
+					.get("input");
+			return new GatewayResult("UpsertFromSource", new UpsertFromSourceResultDto("CREATED",
+					"Goal", nextGoalId++, (String) goal.get("name"), null, false, null, List.of(),
+					null));
 		}
 	}
 
@@ -223,8 +214,8 @@ class McpWriteServiceTest {
 		UpsertGoalResult upsert = (UpsertGoalResult) result;
 		assertThat(upsert.created()).isTrue();
 		assertThat(upsert.goalId()).isNotNull();
-		assertThat(upsert.noteId()).isNotNull();
-		assertThat(gw.editGoalClientId).isEqualTo("claude-desktop");
+		assertThat(upsert.status()).isEqualTo("CREATED");
+		assertThat(gw.upsertClientId).isEqualTo("claude-desktop");
 	}
 
 	// ---- delegation ----------------------------------------------------------------------------

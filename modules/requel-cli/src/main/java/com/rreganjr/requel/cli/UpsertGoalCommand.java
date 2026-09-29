@@ -37,16 +37,16 @@ import picocli.CommandLine.ParentCommand;
 
 /**
  * {@code requel upsert-goal} — create or update a project goal from one requirement / acceptance
- * criterion, attaching a machine-parseable provenance note that links it to the source tracker
- * item (issue #71). Orchestrates the REST-backed {@link CommandGateway} (writes) and
- * {@link QueryGateway} (reads) through {@link RequirementGoalUpserter}: it resolves an existing
- * goal by provenance and updates it in place on a re-run, otherwise creates a new goal. Useful for
- * scripting bulk requirement import from any tracker; the client reads the issue, this command
- * hands Requel one discrete statement at a time.
+ * criterion of a source tracker item (issue #71; recorded as entity provenance since #272).
+ * Orchestrates the REST-backed {@link CommandGateway} (writes) and {@link QueryGateway} (reads)
+ * through {@link RequirementGoalUpserter}: a re-run resolves the goal the criterion produced and
+ * updates it in place, leaves it alone when nothing changed, and raises a conflict issue instead of
+ * overwriting a goal edited in Requel. Useful for scripting bulk requirement import from any
+ * tracker; the client reads the issue, this command hands Requel one discrete statement at a time.
  */
 @Command(name = "upsert-goal",
-        description = "Create or update a goal from a requirement, with a provenance note linking "
-                + "it to a source tracker item.")
+        description = "Create or update a goal from a requirement of a source tracker item, "
+                + "recording where it came from.")
 public class UpsertGoalCommand implements Callable<Integer> {
 
     @ParentCommand
@@ -65,7 +65,7 @@ public class UpsertGoalCommand implements Callable<Integer> {
     String sourceSystem;
 
     @Option(names = "--source-ref", required = true, paramLabel = "REF",
-            description = "Reference to the source item/criterion, e.g. PROJ-123#ac2.")
+            description = "The source item's id, e.g. PROJ-123.")
     String sourceRef;
 
     @Option(names = "--name", paramLabel = "NAME",
@@ -81,12 +81,23 @@ public class UpsertGoalCommand implements Callable<Integer> {
     String sourceUrl;
 
     @Option(names = "--criterion-ref", paramLabel = "REF",
-            description = "Human-readable criterion label, e.g. AC-2.")
+            description = "A stable key for the criterion within the item, e.g. AC-2. With it, an "
+                    + "edited criterion updates its goal; without it the criterion's text is its "
+                    + "identity.")
     String criterionRef;
 
-    @Option(names = "--criterion-hash", paramLabel = "HASH",
-            description = "Precomputed reconciliation hash (computed from --criterion when omitted).")
+    @Option(names = "--criterion-hash", paramLabel = "HASH", hidden = true,
+            description = "Ignored since #272; accepted so existing scripts keep working.")
     String criterionHash;
+
+    @Option(names = "--goal-id", paramLabel = "ID",
+            description = "Which goal to update when several came from the same criterion.")
+    Long goalId;
+
+    @Option(names = "--source-version", paramLabel = "HASH",
+            description = "The source item's current content hash, recorded so a later read can "
+                    + "tell whether it changed.")
+    String sourceVersion;
 
     /** Test seams: when set, used instead of building REST-backed gateways from the parent. */
     CommandGateway commandGatewayOverride;
@@ -104,7 +115,8 @@ public class UpsertGoalCommand implements Callable<Integer> {
         UpsertGoalRequest request;
         try {
             request = new UpsertGoalRequest(project, criterionText, name, text, sourceSystem,
-                    sourceRef, sourceUrl, criterionRef, "requel-cli", criterionHash);
+                    sourceRef, sourceUrl, criterionRef, "requel-cli", criterionHash, goalId,
+                    sourceVersion);
         } catch (IllegalArgumentException e) {
             System.err.println("Invalid input: " + e.getMessage());
             return ExitCode.USAGE;
@@ -130,8 +142,23 @@ public class UpsertGoalCommand implements Callable<Integer> {
             }
             return;
         }
-        System.out.println((result.created() ? "Created" : "Updated") + " goal "
-                + result.goalId() + " \"" + result.goalName() + "\" (provenance note "
-                + result.noteId() + ")");
+        switch (result.status()) {
+            case "AMBIGUOUS" -> System.out.println("Ambiguous: goals " + result.candidates()
+                    + " came from " + result.fragment() + "; pass --goal-id with one of them");
+            case "CONFLICT" -> System.out.println("Conflict: goal " + result.goalId() + " \""
+                    + result.goalName() + "\" was edited in Requel since it was ingested, so it"
+                    + " was not updated; issue " + result.issueId() + " carries the new wording");
+            default -> System.out.println(label(result.status()) + " goal " + result.goalId()
+                    + " \"" + result.goalName() + "\" (" + result.fragment() + ")");
+        }
+    }
+
+    private static String label(String status) {
+        return switch (status) {
+            case "CREATED" -> "Created";
+            case "UPDATED" -> "Updated";
+            case "UNCHANGED" -> "Unchanged";
+            default -> status;
+        };
     }
 }

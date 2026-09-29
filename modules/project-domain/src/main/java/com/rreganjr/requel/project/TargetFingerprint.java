@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.assistant.core.freshness;
+package com.rreganjr.requel.project;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -26,17 +26,17 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
 import com.rreganjr.platform.domain.NamedEntity;
-import com.rreganjr.requel.project.TextEntity;
 
 /**
- * Issue #270: the fingerprint of the text an assistant finding was derived from. It is the
+ * Issue #270: the fingerprint of the text an assistant finding was derived from (moved from
+ * assistant-core in #272, which also fingerprints an entity when it is ingested from a source). It is the
  * SHA-256 hex of the entity's name and text, each trimmed and with runs of whitespace collapsed
  * to one space (case is kept, a null reads as empty), so an edit that only reflows the text does
  * not make a finding stale, and a tag, relation or primary-actor change does not touch it.
  *
  * <p>
  * The one place the rule lives: the applicator writes it (as the run analyzed the target) and
- * {@link FindingFreshness} compares it with the entity as it is now.
+ * {@code FindingFreshness} (assistant-core) compares it with the entity as it is now.
  */
 public final class TargetFingerprint {
 

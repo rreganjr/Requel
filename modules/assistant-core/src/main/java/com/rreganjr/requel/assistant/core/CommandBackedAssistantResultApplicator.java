@@ -75,7 +75,7 @@ import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
 import com.rreganjr.requel.assistant.core.freshness.MachineAnnotations;
-import com.rreganjr.requel.assistant.core.freshness.TargetFingerprint;
+import com.rreganjr.requel.project.TargetFingerprint;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingRepository;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingState;

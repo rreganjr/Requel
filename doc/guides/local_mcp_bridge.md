@@ -196,7 +196,9 @@ the same dispatch path, not a second write path.
 
 `requel.listProjects`, `requel.getProject`, `requel.getProjectContext`, `requel.getProjectTree`,
 `requel.getEntity`, `requel.getEntityNeighbors`, `requel.getAnnotations`,
-`requel.searchProjectEntities`, plus the non-persisting `requel.draftAnnotation`.
+`requel.searchProjectEntities`, plus the non-persisting `requel.draftAnnotation`, and the three
+provenance reads `getSource`, `findEntitiesBySource` and `getEntitySources` (#272; see
+[Entity provenance](#entity-provenance-272)).
 
 ## The issue tracker → Goals workflow (end to end)
 
@@ -207,9 +209,10 @@ Source-agnostic; Jira shown as the example.
    requirements from the body. (No Requel involvement.)
 2. **Resolve the target project** (`requel.getProject` / `requel.listProjects`).
 3. **Load existing goals** (`requel.getProjectContext`) to compare against the requirements.
-4. **For each requirement:** `EditGoal` (create/update), then `EditNote` on the
-   returned goal id with provenance: client, `sourceSystem`/`sourceRef`/`sourceUrl`, criterion
-   reference.
+4. **For each requirement:** `upsertGoalFromRequirement` (or `UpsertFromSource` for any entity
+   type), which records where the goal came from and resolves it on a re-run. Before #272 this
+   step was `EditGoal` plus an `EditNote` carrying the provenance; see
+   [Entity provenance](#entity-provenance-272).
 5. **Report** goals created vs. updated, with ids and the source ref, for review.
 
 Relevant input shapes (today):
@@ -259,6 +262,42 @@ Phased plan:
   whose provenance note references the same source ref; upgrade to embeddings later without
   changing the contract or any write path. Note current queries don't expose full goal text, so
   this ticket also adds a candidate-goal query.
+
+## Entity provenance (#272)
+
+Since #272 an entity records which external source it came from in two side tables, not in a
+note: a project's **external sources** (`system` + `externalId`, exact, with an optional
+locator — an http(s) `URL` or a relative `PATH` — and the content hash of the last version
+recorded) and each entity's **DERIVED_FROM links** to a fragment of a source. Requel is the
+authority: a source is a pointer it never reads. Nothing in the entity graph reaches these
+tables, so no assistant context pack and no general read (`getEntity`, `getProjectContext`,
+`getAnnotations`) carries a source or its locator; only the three provenance reads return them.
+
+**Ingest protocol.** For each part of a source, call `UpsertFromSource` with the entity's own edit
+command and input (without its id), the source (`system`, `externalId`, locator, `sourceVersion`
+= a hash of the source as read), a stable `fragment` key and the fragment's current text. It
+returns:
+
+| status | meaning |
+| --- | --- |
+| `CREATED` | no entity came from this fragment yet; the edit command created one |
+| `UNCHANGED` | the fragment's text is what was ingested; nothing was edited |
+| `UPDATED` | the fragment changed and the entity was not edited in Requel since; it was updated |
+| `CONFLICT` | the fragment changed and the entity was edited in Requel since; it was left alone and an issue carrying the new wording was raised on it |
+| `AMBIGUOUS` | several entities came from the fragment; pass `entityId`, one of `candidates` |
+
+`upsertGoalFromRequirement` is the goal-specific wrapper: it derives the goal name, applies the
+name-collision rule, and uses `criterionRef` as the fragment (or `hash:<12>` of the criterion text
+without one, #71's behaviour). The fragment must be a **stable** key — `AC-3` works only while the
+criteria keep their numbers; a position that renumbers makes a re-ingest create a new entity.
+
+`RecordSource` records a source on its own (its `changed` flag answers "has the source changed?"
+without reading any entity), `LinkSource` adopts an entity built before provenance was recorded,
+and `UnlinkSource` removes a link made by mistake. A fragment that is no longer in the latest
+version of its source is not deleted: its link reads `notInLatestSource`.
+
+The #71 `requel-provenance` notes were converted by Flyway V26 and deleted; the reconciliation
+section above describes the design they came from.
 
 ## Security & governance
 

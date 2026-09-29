@@ -676,6 +676,14 @@
                 </xs:sequence>
               </xs:complexType>
             </xs:element>
+            <xs:element name="externalSources" form="qualified" minOccurs="0" maxOccurs="1">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="externalSource" type="tns:externalSource" form="qualified"
+                              minOccurs="0" maxOccurs="unbounded"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
           </xs:choice>
           <xs:element ref="tns:organization"/>
           <xs:element name="status" type="xs:string" form="qualified" minOccurs="0"/>
@@ -697,6 +705,34 @@
     <xs:attribute name="annotationRef" type="xs:IDREF"/>
     <xs:attribute name="createdBy" type="xs:string"/>
     <xs:attribute name="dateCreated" type="xs:string"/>
+  </xs:complexType>
+
+  <!-- An external artifact the project's entities were built from, and the entities built from
+       each of its fragments (issue #272). Requel never reads the locator. -->
+  <xs:complexType name="externalSource">
+    <xs:sequence>
+      <xs:element name="sourceLink" type="tns:sourceLink" form="qualified" minOccurs="0"
+                  maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="system" type="xs:string" use="required"/>
+    <xs:attribute name="externalId" type="xs:string" use="required"/>
+    <xs:attribute name="locatorType" type="xs:string"/>
+    <xs:attribute name="locator" type="xs:string"/>
+    <xs:attribute name="title" type="xs:string"/>
+    <xs:attribute name="kind" type="xs:string"/>
+    <xs:attribute name="contentHash" type="xs:string"/>
+    <xs:attribute name="lastIngestedAt" type="xs:string"/>
+  </xs:complexType>
+
+  <xs:complexType name="sourceLink">
+    <xs:attribute name="relation" type="xs:string" use="required"/>
+    <xs:attribute name="entityType" type="xs:string" use="required"/>
+    <xs:attribute name="entityRef" type="xs:IDREF" use="required"/>
+    <xs:attribute name="fragment" type="xs:string"/>
+    <xs:attribute name="fragmentHash" type="xs:string"/>
+    <xs:attribute name="sourceHashSeen" type="xs:string"/>
+    <xs:attribute name="entityFingerprint" type="xs:string"/>
+    <xs:attribute name="ingestedAt" type="xs:string"/>
   </xs:complexType>
 
   <xs:complexType name="tagAssignment">

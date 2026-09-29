@@ -20,63 +20,54 @@
  */
 package com.rreganjr.requel.gateway.tracker;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.rreganjr.requel.gateway.CommandGateway;
 import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
-import com.rreganjr.requel.gateway.GatewayResult;
 import com.rreganjr.requel.gateway.QueryGateway;
-import com.rreganjr.requel.gateway.provenance.CriterionHash;
 import com.rreganjr.requel.gateway.provenance.GoalNameDerivation;
-import com.rreganjr.requel.gateway.provenance.ProvenanceDescriptor;
-import com.rreganjr.requel.gateway.provenance.ProvenanceNotes;
-import com.rreganjr.requel.service.api.dto.AnnotationsDto;
-import com.rreganjr.requel.service.api.dto.EditGoalInput;
-import com.rreganjr.requel.service.api.dto.EditNoteInput;
+import com.rreganjr.requel.project.CriterionHash;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
-import com.rreganjr.requel.service.api.dto.GoalDto;
-import com.rreganjr.requel.service.api.dto.NoteDto;
+import com.rreganjr.requel.service.api.dto.EntitySourceLinkDto;
+import com.rreganjr.requel.service.api.dto.SourceEntitiesDto;
+import com.rreganjr.requel.service.api.dto.UpsertFromSourceResultDto;
 
 /**
- * Implements the convenience {@code requel.upsertGoalFromRequirement} capability (issue #71):
- * turn one discrete requirement into a provenance-noted goal, resolving an existing goal id first
- * so a re-run <em>updates</em> rather than duplicates.
+ * Implements the convenience {@code upsertGoalFromRequirement} capability: turn one discrete
+ * requirement into a goal built from a fragment of a tracker item, so a re-run updates rather
+ * than duplicates.
  *
- * <p>This is deliberately front-end-agnostic: it composes the existing {@link CommandGateway}
- * (writes) and {@link QueryGateway} (reads) plus the shared provenance utilities, so the MCP
- * tools, the CLI, and the remote connector can all reuse it. It adds no new write path — every
- * mutation still goes through {@code EditGoal}/{@code EditNote} and the normal
- * authorization/audit/SSE chain.</p>
+ * <p>Since #272 it is a thin, goal-specific wrapper over the {@code UpsertFromSource} command,
+ * which records the source, resolves the goal by (source, fragment), and refuses to overwrite a
+ * goal edited in Requel since the last ingest (it raises a conflict issue instead). What this
+ * class adds is the goal-specific part #71 defined: the goal name derived from the criterion, the
+ * collision rule for a derived name another goal already has, and the default fragment.</p>
  *
- * <h2>Resolution (v1)</h2>
- * <ol>
- *   <li><b>Provenance match:</b> scan the project's goals' notes for a {@code requel-provenance}
- *       block whose {@code sourceSystem} + {@code sourceRef} + {@code criterionHash} equal this
- *       request's. A match is the same requirement on a re-run → update that goal by id and
- *       update its provenance note by id.</li>
- *   <li><b>No match → create:</b> create a new goal. If the derived name already belongs to some
- *       other goal, apply the collision rule (append a short {@code criterionHash} disambiguator)
- *       so the create never trips the {@code EditGoal} uniqueness conflict, then attach a fresh
- *       provenance note.</li>
- * </ol>
+ * <h2>Fragment</h2>
+ * The fragment is {@code criterionRef} when the caller gives one. Without it, it is
+ * {@code hash:<first 12 of criterionHash>} — #71's behaviour, where the criterion's text was its
+ * identity, kept so existing callers keep resolving to the goals they made (#272 P4). The same
+ * default is what V26 used to convert #71's provenance notes. With a {@code criterionRef}, an
+ * edited criterion updates its goal in place; without one it cannot, because its identity changed.
  *
- * <p><b>Accepted v1 limitation:</b> a minor edit to a requirement changes both the derived name
- * and the hash, so it neither matches provenance nor collides by name — it creates a new goal and
- * leaves the prior one as a discoverable orphan (same {@code sourceRef}, different hash). Fuzzy
- * resolution is ticket 4.</p>
- *
- * <p><b>Cost:</b> the provenance scan reads the notes of each goal in the project (O(#goals) read
- * calls) per upsert. This is correctness-first for v1; ticket 4 adds a candidate query to narrow
- * it.</p>
+ * <h2>Name collision</h2>
+ * If the derived name already belongs to a goal that did not come from this fragment, a short
+ * {@code criterionHash} disambiguator is appended ({@link GoalNameDerivation#disambiguate}), so
+ * the create cannot hit the goal-name uniqueness conflict.
  */
 public class RequirementGoalUpserter {
 
     private static final String GOAL_TYPE = "Goal";
     /** Upper bound on goal body text accepted at the tool boundary (client text is untrusted). */
     static final int MAX_TEXT_LENGTH = 20_000;
+    /** Length of the criterion-hash prefix used as the default fragment. */
+    static final int HASH_FRAGMENT_LENGTH = 12;
 
     private final CommandGateway commandGateway;
     private final QueryGateway queryGateway;
@@ -87,107 +78,81 @@ public class RequirementGoalUpserter {
     }
 
     /**
-     * Create or update the goal for {@code request}'s requirement and (re)attach its provenance
-     * note.
+     * Create or update the goal for {@code request}'s requirement.
      *
-     * @throws GatewayException if an underlying command is rejected, unauthorized, or fails
+     * @throws GatewayException if the upsert is rejected, unauthorized, or fails
      */
     public UpsertGoalResult upsert(UpsertGoalRequest request) throws GatewayException {
         Objects.requireNonNull(request, "request");
 
         String project = request.projectName();
-        String hash = request.criterionHash() != null && !request.criterionHash().isBlank()
-                ? request.criterionHash()
-                : CriterionHash.of(request.criterionText());
+        String hash = CriterionHash.of(request.criterionText());
+        String fragment = defaultFragment(request.criterionRef(), hash);
         String derivedName = request.name() != null && !request.name().isBlank()
                 ? capName(request.name())
                 : GoalNameDerivation.deriveName(request.criterionText());
         String text = capText(request.text() != null ? request.text() : request.criterionText());
 
-        List<EntityReferenceDto> goals = goalRefs(project);
-        Match match = findProvenanceMatch(project, goals, request.sourceSystem(),
-                request.sourceRef(), hash);
+        // A derived name another goal already has is disambiguated, unless that goal is the one
+        // this fragment already produced (then it is simply being updated).
+        Set<Long> fromFragment = goalsFromFragment(project, request.sourceSystem(),
+                request.sourceRef(), fragment);
+        String name = nameTakenByAnotherGoal(project, derivedName, fromFragment)
+                ? GoalNameDerivation.disambiguate(derivedName, hash)
+                : derivedName;
 
-        ProvenanceDescriptor provenance = new ProvenanceDescriptor(
-                ProvenanceDescriptor.CURRENT_VERSION, request.client(), request.sourceSystem(),
-                request.sourceRef(), request.sourceUrl(), request.criterionRef(), hash);
-        String noteText = ProvenanceNotes.render(provenance);
-
-        long goalId;
-        String finalName;
-        boolean created;
-        Long existingNoteId;
-        if (match != null) {
-            // Same requirement, re-run: update the goal in place and refresh its provenance note.
-            GoalDto goal = editGoal(project, match.goalId(), derivedName, text, request.client());
-            goalId = goal.id();
-            finalName = goal.name();
-            existingNoteId = match.noteId();
-            created = false;
-        } else {
-            // New requirement: create, disambiguating the name only if it collides with an
-            // unrelated goal so the create cannot hit the uniqueness conflict.
-            finalName = nameContained(goals, derivedName)
-                    ? GoalNameDerivation.disambiguate(derivedName, hash)
-                    : derivedName;
-            GoalDto goal = editGoal(project, null, finalName, text, request.client());
-            goalId = goal.id();
-            finalName = goal.name();
-            existingNoteId = null;
-            created = true;
+        Map<String, Object> goal = new HashMap<>();
+        goal.put("name", name);
+        goal.put("text", text);
+        Map<String, Object> upsert = new HashMap<>();
+        upsert.put("projectName", project);
+        upsert.put("command", "EditGoal");
+        upsert.put("input", goal);
+        upsert.put("system", request.sourceSystem());
+        upsert.put("externalId", request.sourceRef());
+        if (request.sourceUrl() != null && !request.sourceUrl().isBlank()) {
+            upsert.put("locatorType", "URL");
+            upsert.put("locator", request.sourceUrl());
         }
+        upsert.put("sourceVersion", request.sourceVersion());
+        upsert.put("fragment", fragment);
+        upsert.put("fragmentText", request.criterionText());
+        upsert.put("entityId", request.goalId());
 
-        NoteDto note = editNote(project, goalId, existingNoteId, noteText, request.client());
-        return new UpsertGoalResult(goalId, finalName, note.id(), created, hash);
+        UpsertFromSourceResultDto result = (UpsertFromSourceResultDto) commandGateway.execute(
+                new GatewayRequest("UpsertFromSource", upsert, request.client())).result();
+        return new UpsertGoalResult(result.entityId(), result.entityName(),
+                "CREATED".equals(result.status()), hash, result.status(), fragment,
+                result.issueId(), result.candidates());
     }
 
-    private Match findProvenanceMatch(String project, List<EntityReferenceDto> goals,
-            String sourceSystem, String sourceRef, String hash) {
-        for (EntityReferenceDto ref : goals) {
-            AnnotationsDto annotations = queryGateway.getAnnotations(project, GOAL_TYPE, ref.id());
-            if (annotations == null || annotations.notes() == null) {
-                continue;
-            }
-            for (NoteDto note : annotations.notes()) {
-                Optional<ProvenanceDescriptor> parsed = ProvenanceNotes.parse(note.text());
-                if (parsed.isPresent() && matches(parsed.get(), sourceSystem, sourceRef, hash)) {
-                    return new Match(ref.id(), note.id());
-                }
-            }
+    /** {@code criterionRef}, or {@code hash:<12>} when there is none (#272 P4). */
+    static String defaultFragment(String criterionRef, String criterionHash) {
+        if (criterionRef != null && !criterionRef.isBlank()) {
+            return criterionRef.strip();
         }
-        return null;
+        return "hash:" + criterionHash.substring(0, HASH_FRAGMENT_LENGTH);
     }
 
-    private static boolean matches(ProvenanceDescriptor p, String sourceSystem, String sourceRef,
-            String hash) {
-        return Objects.equals(p.sourceSystem(), sourceSystem)
-                && Objects.equals(p.sourceRef(), sourceRef)
-                && Objects.equals(p.criterionHash(), hash);
+    private Set<Long> goalsFromFragment(String project, String system, String externalId,
+            String fragment) {
+        SourceEntitiesDto produced = queryGateway.findEntitiesBySource(project, system, externalId,
+                fragment);
+        if (produced == null || produced.links() == null) {
+            return Set.of();
+        }
+        return produced.links().stream()
+                .filter(link -> GOAL_TYPE.equals(link.entityType()))
+                .map(EntitySourceLinkDto::entityId)
+                .collect(Collectors.toSet());
     }
 
-    private List<EntityReferenceDto> goalRefs(String project) {
-        // Empty query matches every entity; keep only goals.
-        return queryGateway.searchProjectEntities(project, "").stream()
+    private boolean nameTakenByAnotherGoal(String project, String name, Set<Long> fromFragment) {
+        List<EntityReferenceDto> goals = queryGateway.searchProjectEntities(project, name).stream()
                 .filter(ref -> GOAL_TYPE.equals(ref.entityType()))
                 .toList();
-    }
-
-    private static boolean nameContained(List<EntityReferenceDto> goals, String name) {
-        return goals.stream().anyMatch(ref -> name.equals(ref.name()));
-    }
-
-    private GoalDto editGoal(String project, Long goalId, String name, String text, String client)
-            throws GatewayException {
-        GatewayResult result = commandGateway.execute(new GatewayRequest("EditGoal",
-                new EditGoalInput(project, goalId, name, text, null), client));
-        return (GoalDto) result.result();
-    }
-
-    private NoteDto editNote(String project, long goalId, Long noteId, String text, String client)
-            throws GatewayException {
-        GatewayResult result = commandGateway.execute(new GatewayRequest("EditNote",
-                new EditNoteInput(project, GOAL_TYPE, goalId, noteId, text), client));
-        return (NoteDto) result.result();
+        return goals.stream().anyMatch(ref -> name.equalsIgnoreCase(ref.name())
+                && !fromFragment.contains(ref.id()));
     }
 
     private static String capName(String name) {
@@ -202,9 +167,5 @@ public class RequirementGoalUpserter {
             return null;
         }
         return text.length() <= MAX_TEXT_LENGTH ? text : text.substring(0, MAX_TEXT_LENGTH);
-    }
-
-    /** A resolved existing goal and its provenance note. */
-    private record Match(long goalId, Long noteId) {
     }
 }

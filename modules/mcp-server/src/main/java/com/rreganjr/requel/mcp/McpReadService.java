@@ -93,7 +93,14 @@ public class McpReadService {
 				new McpToolDescriptor("getProjectContext", QueryDescriptions.GET_PROJECT_CONTEXT,
 						projectNameSchema()),
 				new McpToolDescriptor("draftAnnotation", QueryDescriptions.DRAFT_ANNOTATION,
-						draftAnnotationSchema())));
+						draftAnnotationSchema()),
+				new McpToolDescriptor("getSource", QueryDescriptions.GET_SOURCE,
+						sourceSchema(false)),
+				new McpToolDescriptor("findEntitiesBySource",
+						QueryDescriptions.FIND_ENTITIES_BY_SOURCE, sourceSchema(true)),
+				new McpToolDescriptor("getEntitySources", QueryDescriptions.GET_ENTITY_SOURCES,
+						entityRefSchema(QueryDescriptions.PROVENANCE_ENTITY_TYPES,
+								QueryDescriptions.PROVENANCE_ENTITY_TYPE))));
 		// Append opt-in write tools (empty unless requel.gateway.write.enabled=true).
 		tools.addAll(writeService.toolDescriptors());
 		return Map.of("tools", tools);
@@ -133,6 +140,15 @@ public class McpReadService {
 			case "getProjectContext" -> projectQueryGateway.getProjectContext(
 					requiredText(arguments, "projectName"));
 			case "draftAnnotation" -> draftAnnotation(arguments);
+			case "getSource" -> projectQueryGateway.getSource(
+					requiredText(arguments, "projectName"), requiredText(arguments, "system"),
+					requiredText(arguments, "externalId"));
+			case "findEntitiesBySource" -> projectQueryGateway.findEntitiesBySource(
+					requiredText(arguments, "projectName"), requiredText(arguments, "system"),
+					requiredText(arguments, "externalId"), optionalText(arguments, "fragment"));
+			case "getEntitySources" -> projectQueryGateway.getEntitySources(
+					requiredText(arguments, "projectName"), requiredText(arguments, "entityType"),
+					requiredLong(arguments, "entityId"));
 			default -> throw new McpInvalidParamsException("Unknown MCP tool: " + name);
 		};
 		return Map.of("content", List.of(new McpTextContent("text", toJson(result))),
@@ -231,6 +247,20 @@ public class McpReadService {
 						"mustResolve", property("boolean",
 								QueryDescriptions.ANNOTATION_MUST_RESOLVE)),
 				"required", List.of("entityType", "entityId", "kind", "text"),
+				"additionalProperties", false);
+	}
+
+	/** A source by system and external id, optionally narrowed to one fragment (#272). */
+	private Map<String, Object> sourceSchema(boolean withFragment) {
+		Map<String, Object> properties = new java.util.LinkedHashMap<>();
+		properties.put("projectName", property("string", QueryDescriptions.PROJECT_NAME));
+		properties.put("system", property("string", QueryDescriptions.SOURCE_SYSTEM));
+		properties.put("externalId", property("string", QueryDescriptions.SOURCE_EXTERNAL_ID));
+		if (withFragment) {
+			properties.put("fragment", property("string", QueryDescriptions.SOURCE_FRAGMENT));
+		}
+		return Map.of("type", "object", "properties", properties,
+				"required", List.of("projectName", "system", "externalId"),
 				"additionalProperties", false);
 	}
 
