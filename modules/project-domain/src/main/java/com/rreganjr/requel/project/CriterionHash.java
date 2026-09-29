@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.gateway.provenance;
+package com.rreganjr.requel.project;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -40,9 +40,10 @@ import java.util.Objects;
  *       {@code . , ; : ! ?}).</li>
  * </ol>
  *
- * <p>Because the criterion text has no stable per-item id in free-text trackers, this hash is the
- * v1 provenance match key. A minor edit to the requirement changes the hash — the accepted v1
- * limitation documented in the plan.</p>
+ * <p>Issue #71 used this hash as the provenance match key, so an edited requirement produced a
+ * second goal. Since #272 identity is the source, the fragment and the entity, and this hash only
+ * detects change: it is an {@link EntitySourceLink}'s {@code fragmentHash}. It moved here from
+ * gateway-api so the server-side ingest and the gateway clients share one normalization.</p>
  *
  * <p>Stateless and thread-safe.</p>
  */

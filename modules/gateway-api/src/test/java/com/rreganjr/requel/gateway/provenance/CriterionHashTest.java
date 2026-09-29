@@ -25,6 +25,8 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import org.junit.jupiter.api.Test;
 
+import com.rreganjr.requel.project.CriterionHash;
+
 /**
  * Canonical-normalization and SHA-256 vector tests for {@link CriterionHash} (issue #71). The
  * concrete digest pins the exact algorithm so this ticket and the ticket-4 matcher agree.

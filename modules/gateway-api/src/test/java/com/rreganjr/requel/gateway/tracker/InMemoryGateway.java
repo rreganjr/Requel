@@ -25,60 +25,117 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import com.rreganjr.requel.gateway.CommandGateway;
 import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayRequest;
 import com.rreganjr.requel.gateway.GatewayResult;
 import com.rreganjr.requel.gateway.QueryGateway;
+import com.rreganjr.requel.project.CriterionHash;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EditGoalInput;
-import com.rreganjr.requel.service.api.dto.EditNoteInput;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
+import com.rreganjr.requel.service.api.dto.EntitySourceLinkDto;
+import com.rreganjr.requel.service.api.dto.ExternalSourceDto;
 import com.rreganjr.requel.service.api.dto.GoalDto;
-import com.rreganjr.requel.service.api.dto.NoteDto;
+import com.rreganjr.requel.service.api.dto.SourceEntitiesDto;
+import com.rreganjr.requel.service.api.dto.UpsertFromSourceResultDto;
 
 /**
- * In-memory {@link CommandGateway} + {@link QueryGateway} double for {@link RequirementGoalUpserter}
- * tests. It models just enough of Requel's goal/note behavior — crucially the
- * <b>{@code EditGoal} uniqueness conflict on create by name</b> — to exercise the upserter's
- * resolution logic without Spring or JPA.
+ * An in-memory stand-in for the gateways {@link RequirementGoalUpserter} talks to (issue #272):
+ * goals with EditGoal's name uniqueness, and a simplified UpsertFromSource that resolves by
+ * (system, externalId, fragment) and decides CREATED / UNCHANGED / UPDATED / AMBIGUOUS. The real
+ * decision table, conflicts included, is covered by {@code EntityProvenanceIT}.
  */
 class InMemoryGateway implements CommandGateway, QueryGateway {
 
     private record GoalRow(long id, int version, String name, String text) {
     }
 
-    private record NoteRow(long id, int version, String text, long goalId) {
+    private record LinkRow(String system, String externalId, String fragment, long goalId,
+            String fragmentHash) {
     }
 
     private final Map<Long, GoalRow> goals = new LinkedHashMap<>();
-    private final Map<Long, NoteRow> notes = new LinkedHashMap<>();
+    private final List<LinkRow> links = new ArrayList<>();
     private long nextGoalId = 1;
-    private long nextNoteId = 1;
+    Map<String, Object> lastUpsert;
+    String lastClient;
 
     int goalCount() {
         return goals.size();
     }
 
-    int noteCount() {
-        return notes.size();
+    String goalText(long goalId) {
+        return goals.get(goalId).text();
+    }
+
+    /** Link an existing goal to a fragment, as LinkSource would. */
+    void link(String system, String externalId, String fragment, long goalId, String text) {
+        links.add(new LinkRow(system, externalId, fragment, goalId, CriterionHash.of(text)));
     }
 
     @Override
     public GatewayResult execute(GatewayRequest request) throws GatewayException {
         return switch (request.commandType()) {
             case "EditGoal" -> new GatewayResult("EditGoal", editGoal((EditGoalInput) request.input()));
-            case "EditNote" -> new GatewayResult("EditNote", editNote((EditNoteInput) request.input()));
+            case "UpsertFromSource" -> {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> input = (Map<String, Object>) request.input();
+                lastUpsert = input;
+                lastClient = request.clientId();
+                yield new GatewayResult("UpsertFromSource", upsert(input));
+            }
             default -> throw new GatewayException(GatewayException.Kind.NOT_FOUND,
                     "unknown command " + request.commandType());
         };
     }
 
+    @SuppressWarnings("unchecked")
+    private UpsertFromSourceResultDto upsert(Map<String, Object> i) throws GatewayException {
+        String system = (String) i.get("system");
+        String externalId = (String) i.get("externalId");
+        String fragment = (String) i.get("fragment");
+        String hash = CriterionHash.of((String) i.get("fragmentText"));
+        Map<String, Object> goal = (Map<String, Object>) i.get("input");
+        Long entityId = (Long) i.get("entityId");
+        List<LinkRow> matches = links.stream()
+                .filter(l -> l.system().equals(system) && l.externalId().equals(externalId)
+                        && Objects.equals(l.fragment(), fragment))
+                .filter(l -> entityId == null || l.goalId() == entityId)
+                .toList();
+        if (matches.size() > 1) {
+            return result("AMBIGUOUS", null, matches.stream().map(LinkRow::goalId).toList());
+        }
+        if (matches.isEmpty()) {
+            GoalDto created = editGoal(new EditGoalInput((String) i.get("projectName"), null,
+                    (String) goal.get("name"), (String) goal.get("text"), null));
+            links.add(new LinkRow(system, externalId, fragment, created.id(), hash));
+            return result("CREATED", goals.get(created.id()), List.of());
+        }
+        LinkRow link = matches.get(0);
+        if (link.fragmentHash().equals(hash)) {
+            return result("UNCHANGED", goals.get(link.goalId()), List.of());
+        }
+        editGoal(new EditGoalInput((String) i.get("projectName"), link.goalId(),
+                (String) goal.get("name"), (String) goal.get("text"), null));
+        links.remove(link);
+        links.add(new LinkRow(system, externalId, fragment, link.goalId(), hash));
+        return result("UPDATED", goals.get(link.goalId()), List.of());
+    }
+
+    private static UpsertFromSourceResultDto result(String status, GoalRow goal,
+            List<Long> candidates) {
+        return new UpsertFromSourceResultDto(status, "Goal", goal == null ? null : goal.id(),
+                goal == null ? null : goal.name(), null, false, null, candidates, null);
+    }
+
     private GoalDto editGoal(EditGoalInput i) throws GatewayException {
         if (i.goalId() == null) {
             // Create: mirror EditGoalCommandImpl's uniqueness conflict on duplicate name.
-            boolean nameTaken = goals.values().stream().anyMatch(g -> g.name().equals(i.name()));
+            boolean nameTaken = goals.values().stream()
+                    .anyMatch(g -> g.name().equalsIgnoreCase(i.name()));
             if (nameTaken) {
                 throw new GatewayException(GatewayException.Kind.EXECUTION_ERROR,
                         "a goal named '" + i.name() + "' already exists");
@@ -96,20 +153,18 @@ class InMemoryGateway implements CommandGateway, QueryGateway {
         return goalDto(updated);
     }
 
-    private NoteDto editNote(EditNoteInput i) throws GatewayException {
-        if (i.noteId() == null) {
-            long id = nextNoteId++;
-            notes.put(id, new NoteRow(id, 0, i.text(), i.entityId()));
-            return noteDto(notes.get(id));
-        }
-        NoteRow existing = notes.get(i.noteId());
-        if (existing == null) {
-            throw new GatewayException(GatewayException.Kind.NOT_FOUND, "no note " + i.noteId());
-        }
-        NoteRow updated = new NoteRow(existing.id(), existing.version() + 1, i.text(),
-                existing.goalId());
-        notes.put(updated.id(), updated);
-        return noteDto(updated);
+    @Override
+    public SourceEntitiesDto findEntitiesBySource(String projectName, String system,
+            String externalId, String fragment) {
+        List<EntitySourceLinkDto> found = links.stream()
+                .filter(l -> l.system().equals(system) && l.externalId().equals(externalId)
+                        && (fragment == null || fragment.equals(l.fragment())))
+                .map(l -> new EntitySourceLinkDto(null, null, "DERIVED_FROM", "Goal", l.goalId(),
+                        goals.get(l.goalId()).name(), l.fragment(), null, false, false))
+                .toList();
+        return found.isEmpty() ? null
+                : new SourceEntitiesDto(new ExternalSourceDto(null, system, externalId, null, null,
+                        null, null, null), found);
     }
 
     @Override
@@ -126,19 +181,11 @@ class InMemoryGateway implements CommandGateway, QueryGateway {
 
     @Override
     public AnnotationsDto getAnnotations(String projectName, String entityType, long entityId) {
-        List<NoteDto> goalNotes = notes.values().stream()
-                .filter(n -> n.goalId() == entityId)
-                .map(InMemoryGateway::noteDto)
-                .toList();
-        return new AnnotationsDto(goalNotes, List.of());
+        return new AnnotationsDto(List.of(), List.of());
     }
 
     private static GoalDto goalDto(GoalRow g) {
         return new GoalDto(g.id(), g.version(), g.name(), g.text(), "tester", null, null, null);
-    }
-
-    private static NoteDto noteDto(NoteRow n) {
-        return new NoteDto(n.id(), n.version(), n.text(), "tester", null, false);
     }
 
     // --- unused QueryGateway surface -------------------------------------------------------

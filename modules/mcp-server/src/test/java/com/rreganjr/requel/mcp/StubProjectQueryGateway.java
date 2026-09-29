@@ -84,6 +84,13 @@ class StubProjectQueryGateway implements QueryGateway {
 		return List.of(new EntityReferenceDto("Goal", 10L, "Improve login"));
 	}
 
+	/** Issue #272: no source has been recorded in the stub project. */
+	@Override
+	public com.rreganjr.requel.service.api.dto.SourceEntitiesDto findEntitiesBySource(
+			String projectName, String system, String externalId, String fragment) {
+		return null;
+	}
+
 	@Override
 	public Map<String, Object> getProjectContext(String projectName) {
 		return Map.of("project", project(), "tree", getProjectTree(projectName),

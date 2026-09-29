@@ -290,6 +290,11 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 		if (getIgnoredFindingStore() != null) {
 			getIgnoredFindingStore().deleteForProject(project.getId());
 		}
+		// Issue #272: the project's external sources and every entity's links to them. Keyed by
+		// project id; the links go first (they carry the only foreign key, to the sources).
+		if (getProvenanceStore() != null) {
+			getProvenanceStore().deleteForProject(project.getId());
+		}
 		// Issue #268: which assistants run in the project. Keyed by project id, like the above.
 		if (assistantSettingsStore != null) {
 			assistantSettingsStore.deleteForProject(project.getId());

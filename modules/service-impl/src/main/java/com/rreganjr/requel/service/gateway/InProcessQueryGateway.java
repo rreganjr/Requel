@@ -226,6 +226,57 @@ public class InProcessQueryGateway implements QueryGateway {
 		return refs;
 	}
 
+	private com.rreganjr.requel.service.query.ProvenanceQueryService provenanceQueryService;
+
+	/** Issue #272: setter-injected so the two-argument constructor stays as it is. */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setProvenanceQueryService(
+			com.rreganjr.requel.service.query.ProvenanceQueryService provenanceQueryService) {
+		this.provenanceQueryService = provenanceQueryService;
+	}
+
+	@Override
+	public com.rreganjr.requel.service.api.dto.ExternalSourceDto getSource(String projectName,
+			String system, String externalId) {
+		return provenance(() -> requireProvenance()
+				.getSource(projectName, system, externalId).orElse(null));
+	}
+
+	@Override
+	public com.rreganjr.requel.service.api.dto.SourceEntitiesDto findEntitiesBySource(
+			String projectName, String system, String externalId, String fragment) {
+		return provenance(() -> requireProvenance()
+				.findEntitiesBySource(projectName, system, externalId, fragment).orElse(null));
+	}
+
+	@Override
+	public List<com.rreganjr.requel.service.api.dto.EntitySourceLinkDto> getEntitySources(
+			String projectName, String entityType, long entityId) {
+		return provenance(() -> requireProvenance()
+				.getEntitySources(projectName, entityType, entityId));
+	}
+
+	private com.rreganjr.requel.service.query.ProvenanceQueryService requireProvenance() {
+		if (provenanceQueryService == null) {
+			throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED,
+					"provenance reads are not available");
+		}
+		return provenanceQueryService;
+	}
+
+	/** The status mapping the controller-backed reads get from their ResponseEntity. */
+	private static <T> T provenance(java.util.function.Supplier<T> read) {
+		try {
+			return read.get();
+		} catch (com.rreganjr.requel.project.exception.NoSuchProjectException e) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+		} catch (com.rreganjr.platform.command.AuthorizationException e) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage(), e);
+		} catch (IllegalArgumentException e) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+		}
+	}
+
 	private <T> T unwrap(ResponseEntity<?> response, Class<T> bodyType) {
 		Object body = unwrap(response);
 		if (!bodyType.isInstance(body)) {

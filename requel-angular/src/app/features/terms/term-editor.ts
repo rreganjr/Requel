@@ -40,6 +40,7 @@ import { TermService } from '../../core/term.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { SourcesSectionComponent } from '../../shared/sources-section';
 import { AppCardComponent } from '../../shared/app-card';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { LoadingStateComponent } from '../../shared/loading-state';
@@ -71,7 +72,7 @@ const SEPARATOR = '; ';
     TableModule,
     SubmitErrorComponent, UpdateBannerComponent,
     ConfirmDialogModule,
-    AnnotationsSectionComponent,
+    AnnotationsSectionComponent, SourcesSectionComponent,
     AppFieldComponent,
     AppFieldControlDirective,
     LoadingStateComponent,
@@ -232,6 +233,11 @@ const SEPARATOR = '; ';
           entityType="GlossaryTerm"
           [entityId]="termId()"
           />
+          <app-sources-section
+            [projectName]="projectName"
+            entityType="GlossaryTerm"
+            [entityId]="termId()"
+            />
       }
 
     </div>

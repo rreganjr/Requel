@@ -46,6 +46,7 @@ import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { SourcesSectionComponent } from '../../shared/sources-section';
 import { TagSelectorComponent } from '../../shared/tag-selector';
 import { AppCardComponent } from '../../shared/app-card';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
@@ -70,7 +71,7 @@ const STALE_VERSION_MESSAGE =
             ButtonModule, InputText, TextareaModule, SelectModule,
             SubmitErrorComponent, DialogModule, ConfirmDialogModule, EntitySelectorDialogComponent,
             RelationshipSectionComponent,
-            AnnotationsSectionComponent, TagSelectorComponent, AppCardComponent, AppFieldComponent,
+            AnnotationsSectionComponent, SourcesSectionComponent, TagSelectorComponent, AppCardComponent, AppFieldComponent,
             AppFieldControlDirective, AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent, UpdateBannerComponent],
   providers: [ConfirmationService],
@@ -193,6 +194,11 @@ const STALE_VERSION_MESSAGE =
           entityType="Goal"
           [entityId]="goalId"
           />
+          <app-sources-section
+            [projectName]="projectName"
+            entityType="Goal"
+            [entityId]="goalId"
+            />
       }
 
       <!-- Add Relation Dialog -->

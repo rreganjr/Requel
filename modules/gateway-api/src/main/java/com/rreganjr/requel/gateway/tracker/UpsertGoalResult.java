@@ -20,22 +20,33 @@
  */
 package com.rreganjr.requel.gateway.tracker;
 
+import java.util.List;
+
 /**
- * Outcome of a single {@link RequirementGoalUpserter#upsert(UpsertGoalRequest)} call (issue #71),
- * suitable for the client's created-vs-updated report.
+ * Outcome of a single {@link RequirementGoalUpserter#upsert(UpsertGoalRequest)} call, suitable for
+ * the client's created-vs-updated report. Since #272 there is no provenance note, so #71's
+ * {@code noteId} is gone; {@code status} says what happened.
  *
- * @param goalId        the created or updated goal's id
- * @param goalName      the goal's final name (may be a disambiguated form on a name collision)
- * @param noteId        the provenance note's id
- * @param created       {@code true} if a new goal was created, {@code false} if an existing goal
- *                      was updated in place
- * @param criterionHash the reconciliation key recorded in the provenance note
+ * @param goalId        the created, updated, unchanged or conflicting goal's id; null when
+ *                      AMBIGUOUS
+ * @param goalName      the goal's name (may be a disambiguated form on a name collision)
+ * @param created       {@code true} if a new goal was created
+ * @param criterionHash the hash of the criterion text, which change is detected against
+ * @param status        CREATED, UNCHANGED, UPDATED, CONFLICT or AMBIGUOUS (see UpsertFromSource)
+ * @param fragment      the fragment the goal is linked by: the criterionRef, or
+ *                      {@code hash:<12>} without one
+ * @param issueId       the conflict issue raised on the goal, when CONFLICT
+ * @param candidates    the goals that came from the criterion, when AMBIGUOUS: pass one as
+ *                      goalId
  */
 public record UpsertGoalResult(
         Long goalId,
         String goalName,
-        Long noteId,
         boolean created,
-        String criterionHash
+        String criterionHash,
+        String status,
+        String fragment,
+        Long issueId,
+        List<Long> candidates
 ) {
 }

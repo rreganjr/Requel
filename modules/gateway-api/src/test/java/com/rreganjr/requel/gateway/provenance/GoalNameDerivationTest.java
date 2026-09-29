@@ -25,6 +25,8 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 
 import org.junit.jupiter.api.Test;
 
+import com.rreganjr.requel.project.CriterionHash;
+
 /**
  * Deterministic goal-name derivation and collision-disambiguator tests (issue #71).
  */

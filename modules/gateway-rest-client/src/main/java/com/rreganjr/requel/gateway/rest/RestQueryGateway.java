@@ -96,6 +96,39 @@ public class RestQueryGateway implements QueryGateway {
     }
 
     @Override
+    public com.rreganjr.requel.service.api.dto.ExternalSourceDto getSource(String projectName,
+            String system, String externalId) {
+        return http.get()
+                .uri(BASE + "/projects/{name}/source?system={system}&externalId={externalId}",
+                        projectName, system, externalId)
+                .retrieve().body(com.rreganjr.requel.service.api.dto.ExternalSourceDto.class);
+    }
+
+    @Override
+    public com.rreganjr.requel.service.api.dto.SourceEntitiesDto findEntitiesBySource(
+            String projectName, String system, String externalId, String fragment) {
+        return http.get()
+                .uri(fragment == null
+                        ? BASE + "/projects/{name}/source/entities?system={system}"
+                                + "&externalId={externalId}"
+                        : BASE + "/projects/{name}/source/entities?system={system}"
+                                + "&externalId={externalId}&fragment={fragment}",
+                        projectName, system, externalId, fragment)
+                .retrieve().body(com.rreganjr.requel.service.api.dto.SourceEntitiesDto.class);
+    }
+
+    @Override
+    public List<com.rreganjr.requel.service.api.dto.EntitySourceLinkDto> getEntitySources(
+            String projectName, String entityType, long entityId) {
+        return http.get()
+                .uri(BASE + "/projects/{name}/entity/sources?entityType={type}&entityId={id}",
+                        projectName, entityType, entityId)
+                .retrieve().body(new org.springframework.core.ParameterizedTypeReference<
+                        List<com.rreganjr.requel.service.api.dto.EntitySourceLinkDto>>() {
+                });
+    }
+
+    @Override
     public Object getEntity(String projectName, String entityType, long entityId) {
         return http.get()
                 .uri(BASE + "/projects/{name}/entity?entityType={type}&entityId={id}",

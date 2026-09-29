@@ -123,6 +123,40 @@ public final class QueryDescriptions {
             + " writes) with projectName and the draft's targetRef.entityType, targetRef.entityId,"
             + " text and severity, and for an issue its metadata.mustResolve as mustBeResolved.";
 
+    // ---- provenance (#272): the only reads that return a source or its locator ----------------
+
+    /** The entity types a source link can be recorded on. */
+    public static final List<String> PROVENANCE_ENTITY_TYPES = List.of(
+            "Goal", "Story", "Actor", "UseCase", "Scenario", "Step", "GlossaryTerm",
+            "NonUserStakeholder");
+
+    public static final String GET_SOURCE = "Reads one external source recorded in a project — a"
+            + " ticket, a guide, a review the project's entities were built from — by system and"
+            + " externalId (exact, case-sensitive). Returns null when the project has none. Its"
+            + " contentHash is the version last recorded: compare it with the hash of the source as"
+            + " it is now to tell whether the source changed, without reading any entity.";
+
+    public static final String FIND_ENTITIES_BY_SOURCE = "Lists the entities built from an external"
+            + " source, each with the fragment it came from (an acceptance criterion, a page),"
+            + " notInLatestSource (the fragment was not part of the latest ingest — it may have been"
+            + " removed upstream) and editedSinceIngest (it changed in Requel since). Pass fragment"
+            + " to narrow to one fragment. Returns null when the project has no such source.";
+
+    public static final String GET_ENTITY_SOURCES = "Lists the external sources one entity was built"
+            + " from, and which fragment of each — the answer to \"says who?\" for a requirement.";
+
+    public static final String SOURCE_SYSTEM = "The source family, e.g. jira, github or doc,"
+            + " ignoring case.";
+
+    public static final String SOURCE_EXTERNAL_ID = "The source's own identifier, e.g. CON-3685,"
+            + " exactly as recorded.";
+
+    public static final String SOURCE_FRAGMENT = "Optional: one fragment of the source, e.g. AC-4,"
+            + " exactly as recorded.";
+
+    public static final String PROVENANCE_ENTITY_TYPE = "The entity's type, case-sensitive: Goal,"
+            + " Story, Actor, UseCase, Scenario, Step, GlossaryTerm or NonUserStakeholder.";
+
     // ---- properties / parameters ---------------------------------------------------------------
 
     public static final String PROJECT_NAME = "The project's name, exactly as it is listed.";

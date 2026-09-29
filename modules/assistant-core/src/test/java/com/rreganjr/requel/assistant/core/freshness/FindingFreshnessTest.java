@@ -44,6 +44,7 @@ import com.rreganjr.requel.assistant.core.persistence.AssistantFindingEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingRepository;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingState;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.TargetFingerprint;
 
 /** Issue #270: the stale rule over the assistant findings. */
 class FindingFreshnessTest {

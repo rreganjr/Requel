@@ -109,6 +109,21 @@ public abstract class AbstractProjectCommand extends AbstractUserCommand
 		return ignoredFindingStore;
 	}
 
+	private com.rreganjr.requel.project.ProvenanceStore provenanceStore;
+
+	/**
+	 * Issue #272: setter-injected for the same reason as the ignored-finding store. Null in unit
+	 * tests that construct a command directly.
+	 */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setProvenanceStore(com.rreganjr.requel.project.ProvenanceStore provenanceStore) {
+		this.provenanceStore = provenanceStore;
+	}
+
+	protected com.rreganjr.requel.project.ProvenanceStore getProvenanceStore() {
+		return provenanceStore;
+	}
+
 	/**
 	 * #247: the last step before {@code getRepository().delete(entity)} in every
 	 * project-entity delete. Unlinks the entity from every annotation using the
@@ -131,6 +146,13 @@ public abstract class AbstractProjectCommand extends AbstractUserCommand
 		if (ignoredFindingStore != null
 				&& entity instanceof com.rreganjr.requel.project.ProjectOrDomainEntity projectEntity) {
 			ignoredFindingStore.deleteForTarget(
+					projectEntity.getProjectOrDomainEntityInterface().getSimpleName(),
+					projectEntity.getId());
+		}
+		// Issue #272: so do its source links, keyed the same way.
+		if (provenanceStore != null
+				&& entity instanceof com.rreganjr.requel.project.ProjectOrDomainEntity projectEntity) {
+			provenanceStore.deleteForTarget(
 					projectEntity.getProjectOrDomainEntityInterface().getSimpleName(),
 					projectEntity.getId());
 		}

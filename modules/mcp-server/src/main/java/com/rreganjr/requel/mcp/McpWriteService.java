@@ -65,7 +65,7 @@ public class McpWriteService {
 	/** Generic escape hatch: run any allowlisted command by type + input. */
 	static final String RUN_COMMAND = "runCommand";
 
-	/** Convenience tool: create/update a goal from a requirement + provenance (issue #71). */
+	/** Convenience tool: create/update a goal from a requirement of a source (issues #71, #272). */
 	static final String UPSERT_GOAL = "upsertGoalFromRequirement";
 
 	/**
@@ -176,9 +176,9 @@ public class McpWriteService {
 	}
 
 	/**
-	 * Composite tool: create or update a goal from one requirement and (re)attach its provenance
-	 * note (issue #71). The per-client identity is taken from the request context, not the
-	 * arguments, mirroring {@link #execute}.
+	 * Composite tool: create or update a goal from one requirement of a source, through
+	 * UpsertFromSource (issues #71, #272). The per-client identity is taken from the request
+	 * context, not the arguments, mirroring {@link #execute}.
 	 */
 	private Object upsertGoalFromRequirement(JsonNode arguments) {
 		UpsertGoalRequest request;
@@ -193,7 +193,9 @@ public class McpWriteService {
 					optionalText(arguments, "sourceUrl"),
 					optionalText(arguments, "criterionRef"),
 					McpClientContext.clientId(),
-					optionalText(arguments, "criterionHash"));
+					optionalText(arguments, "criterionHash"),
+					optionalLong(arguments, "goalId"),
+					optionalText(arguments, "sourceVersion"));
 		} catch (IllegalArgumentException e) {
 			throw new McpInvalidParamsException(e.getMessage());
 		}
@@ -259,13 +261,19 @@ public class McpWriteService {
 
 	private static McpToolDescriptor upsertGoalDescriptor() {
 		return new McpToolDescriptor(UPSERT_GOAL,
-				"Create or update a project goal from one requirement / acceptance criterion and"
-						+ " attach a machine-parseable provenance note linking it to the source"
-						+ " tracker item. Resolves an existing goal by provenance"
-						+ " (sourceSystem + sourceRef + criterionHash) and updates it in place on a"
-						+ " re-run; otherwise creates a new goal (disambiguating the name on a"
-						+ " collision). name, text and criterionHash are derived from criterionText"
-						+ " when omitted. Subject to the caller's Goal Edit permission.",
+				"Create or update a project goal from one requirement / acceptance criterion of a"
+						+ " source tracker item, recording where it came from. A re-run resolves the"
+						+ " goal by sourceSystem + sourceRef + criterionRef and returns status:"
+						+ " CREATED, UNCHANGED, UPDATED, CONFLICT (the criterion changed but the goal"
+						+ " was edited in Requel since, so it was left alone and an issue carrying"
+						+ " the new wording was raised on it) or AMBIGUOUS (several goals came from"
+						+ " the criterion: pass goalId, one of candidates). criterionRef must be a"
+						+ " stable key, not a position that renumbers; without it the criterion's"
+						+ " text is its identity and an edited criterion makes a new goal. name and"
+						+ " text are derived from criterionText when omitted, and a derived name"
+						+ " another goal has is disambiguated. Pass sourceVersion (a content hash of"
+						+ " the item) to record its version. The sourceUrl is stored for people and"
+						+ " never passed to a model. Subject to the caller's Goal Edit permission.",
 				upsertGoalSchema());
 	}
 
@@ -280,6 +288,8 @@ public class McpWriteService {
 		properties.put("sourceUrl", CommandInputSchema.stringType());
 		properties.put("criterionRef", CommandInputSchema.stringType());
 		properties.put("criterionHash", CommandInputSchema.stringType());
+		properties.put("goalId", CommandInputSchema.integerType());
+		properties.put("sourceVersion", CommandInputSchema.stringType());
 		// client is intentionally omitted: it is taken from the MCP client context, not arguments.
 		return CommandInputSchema.objectSchema(properties,
 				List.of("projectName", "criterionText", "sourceSystem", "sourceRef"));
@@ -295,6 +305,11 @@ public class McpWriteService {
 			throw new McpInvalidParamsException("Missing required string field: " + fieldName);
 		}
 		return params.get(fieldName).asText();
+	}
+
+	private static Long optionalLong(JsonNode params, String fieldName) {
+		JsonNode value = params == null ? null : params.get(fieldName);
+		return value == null || value.isNull() || !value.canConvertToLong() ? null : value.asLong();
 	}
 
 	private static String optionalText(JsonNode params, String fieldName) {

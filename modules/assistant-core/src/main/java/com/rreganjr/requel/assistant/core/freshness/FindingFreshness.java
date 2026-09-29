@@ -39,6 +39,7 @@ import com.rreganjr.requel.assistant.core.persistence.AssistantFindingEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingRepository;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingState;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.project.TargetFingerprint;
 
 /**
  * Issue #270: staleness from the assistant findings. An annotation is stale on an entity when at

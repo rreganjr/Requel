@@ -27,11 +27,7 @@ import com.rreganjr.requel.gateway.GatewayException;
 import com.rreganjr.requel.gateway.GatewayResult;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
-import com.rreganjr.requel.service.api.dto.EditGoalInput;
-import com.rreganjr.requel.service.api.dto.EditNoteInput;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
-import com.rreganjr.requel.service.api.dto.GoalDto;
-import com.rreganjr.requel.service.api.dto.NoteDto;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -93,21 +89,28 @@ class UpsertGoalCommandTest {
         public Map<String, Object> getProjectContext(String projectName) {
             throw new UnsupportedOperationException();
         }
+
+        /** Issue #272: no source recorded yet. */
+        @Override
+        public com.rreganjr.requel.service.api.dto.SourceEntitiesDto findEntitiesBySource(
+                String projectName, String system, String externalId, String fragment) {
+            return null;
+        }
     }
 
-    /** Command side that satisfies EditGoal (create) + EditNote with real DTOs. */
+    /** Command side that answers UpsertFromSource (#272) with a created goal. */
+    @SuppressWarnings("unchecked")
     private static CommandGateway creatingGateway() {
-        return request -> switch (request.commandType()) {
-            case "EditGoal" -> {
-                EditGoalInput i = (EditGoalInput) request.input();
-                yield new GatewayResult("EditGoal",
-                        new GoalDto(1L, 0, i.name(), i.text(), "t", null, null, null));
+        return request -> {
+            if (!"UpsertFromSource".equals(request.commandType())) {
+                throw new IllegalStateException("unexpected " + request.commandType());
             }
-            case "EditNote" -> {
-                EditNoteInput i = (EditNoteInput) request.input();
-                yield new GatewayResult("EditNote", new NoteDto(1L, 0, i.text(), "t", null, false));
-            }
-            default -> throw new IllegalStateException("unexpected " + request.commandType());
+            Map<String, Object> goal = (Map<String, Object>) ((Map<String, Object>) request.input())
+                    .get("input");
+            return new GatewayResult("UpsertFromSource",
+                    new com.rreganjr.requel.service.api.dto.UpsertFromSourceResultDto("CREATED",
+                            "Goal", 1L, (String) goal.get("name"), null, false, null, List.of(),
+                            null));
         };
     }
 

@@ -354,6 +354,10 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         // dictionary words: they are keyed by the new ids of the project, the entity and the issue.
         importIgnoredFindings(xmlBytes, targetProject, unitOfWork, createdBy);
 
+        // Issue #272: the project's external sources and their entity links, after the persist:
+        // the links are keyed by the entities' new ids.
+        importExternalSources(xmlBytes, targetProject, unitOfWork, createdBy);
+
         // Import tag assignments (issue #112, Phase 5) AFTER the project and its entities are
         // persisted, so the tag @ManyToAny never references a transient entity. Entities are resolved
         // here (this command owns the unit of work) and applied through the TagImportHandler SPI, so
@@ -407,6 +411,106 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
                     targetProject.getId(), xml.getEntityType(), target.getId(), xml.getAssistant(),
                     xml.getFindingType(), xml.getProperty(), xml.getKeySuffix(), xml.getSubject(),
                     annotationId), createdBy);
+        }
+    }
+
+    /**
+     * Issue #272: record each exported source for the imported project, and each of its links
+     * against the imported entity, keeping the recorded hashes, fingerprint and ingest times (the
+     * entity's content is the same). A link whose entity isn't in the file is skipped with a
+     * WARN.
+     */
+    private void importExternalSources(byte[] xmlBytes, Project targetProject,
+            ImportUnitOfWork unitOfWork, User createdBy) {
+        com.rreganjr.requel.project.ProvenanceStore store = getProvenanceStore();
+        if (store == null || targetProject.getId() == null) {
+            return;
+        }
+        var sources = new com.rreganjr.requel.utils.jaxb.imports.ExternalSourceStaxImporter()
+                .readExternalSources(new ByteArrayInputStream(xmlBytes));
+        if (sources.isEmpty()) {
+            return;
+        }
+        getProjectRepository().flush();
+        for (com.rreganjr.requel.utils.jaxb.imports.ExternalSourceImportXml xml : sources) {
+            com.rreganjr.requel.project.SourceLocatorType locatorType = null;
+            String locator = xml.getLocator();
+            try {
+                locatorType = StringUtils.hasText(xml.getLocatorType())
+                        ? com.rreganjr.requel.project.SourceLocatorType.parse(xml.getLocatorType())
+                        : null;
+                com.rreganjr.requel.project.ProvenanceStore.validateLocator(locatorType, locator);
+            } catch (IllegalArgumentException e) {
+                log.warn("import: source " + xml.getSystem() + " " + xml.getExternalId()
+                        + " has an unusable locator (" + e.getMessage() + "); imported without it");
+                locatorType = null;
+                locator = null;
+            }
+            com.rreganjr.requel.project.ProvenanceStore.SourceSpec spec =
+                    new com.rreganjr.requel.project.ProvenanceStore.SourceSpec(targetProject.getId(),
+                            xml.getSystem(), xml.getExternalId(), locatorType, locator,
+                            xml.getTitle(), xml.getContentHash());
+            try {
+                com.rreganjr.requel.project.ProvenanceStore.validateSourceSpec(spec);
+            } catch (IllegalArgumentException e) {
+                log.warn("import: source " + xml.getSystem() + " " + xml.getExternalId()
+                        + " skipped: " + e.getMessage());
+                continue;
+            }
+            com.rreganjr.requel.project.ExternalSource source = store.recordSource(spec, createdBy)
+                    .source();
+            store.restoreLastIngestedAt(source.getId(), parseExportDate(xml.getLastIngestedAt()));
+            for (var link : xml.getLinks()) {
+                com.rreganjr.requel.project.ProjectOrDomainEntity target =
+                        resolveLinkTarget(link, targetProject, unitOfWork);
+                if (target == null || target.getId() == null) {
+                    log.warn("import: source link " + xml.getSystem() + " " + xml.getExternalId()
+                            + " " + link.getFragment() + " to " + link.getEntityType() + " "
+                            + link.getEntityRef() + " has no entity in the file; skipped");
+                    continue;
+                }
+                com.rreganjr.requel.project.EntitySourceLink imported = store.link(
+                        new com.rreganjr.requel.project.ProvenanceStore.LinkSpec(source,
+                                com.rreganjr.requel.project.SourceLinkRelation.DERIVED_FROM,
+                                com.rreganjr.requel.project.impl.ProvenanceEntityTypes
+                                        .nameOf(target),
+                                target.getId(), link.getFragment(), link.getFragmentHash(),
+                                link.getSourceHashSeen(), link.getEntityFingerprint()),
+                        createdBy);
+                store.restoreIngestedAt(imported.getId(), parseExportDate(link.getIngestedAt()));
+            }
+        }
+    }
+
+    private com.rreganjr.requel.project.ProjectOrDomainEntity resolveLinkTarget(
+            com.rreganjr.requel.utils.jaxb.imports.ExternalSourceImportXml.Link link,
+            Project targetProject, ImportUnitOfWork unitOfWork) {
+        Class<? extends com.rreganjr.requel.project.ProjectOrDomainEntity> type =
+                com.rreganjr.requel.project.impl.ProvenanceEntityTypes.BY_NAME
+                        .get(link.getEntityType());
+        if (type == null) {
+            return null;
+        }
+        // Stakeholders are registered with the unit of work as Stakeholder, not NonUserStakeholder.
+        Class<?> registered = com.rreganjr.requel.project.NonUserStakeholder.class.equals(type)
+                ? com.rreganjr.requel.project.Stakeholder.class : type;
+        Object resolved = StringUtils.hasText(link.getEntityRef())
+                ? unitOfWork.resolve(registered, link.getEntityRef()).orElse(null)
+                : null;
+        return type.isInstance(resolved) ? type.cast(resolved) : null;
+    }
+
+    /** An export timestamp, or null when absent or unreadable (the store's "now" then stands). */
+    private static java.util.Date parseExportDate(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            synchronized (com.rreganjr.requel.utils.DateUtils.standardDateAndTime) {
+                return com.rreganjr.requel.utils.DateUtils.standardDateAndTime.parse(value);
+            }
+        } catch (java.text.ParseException e) {
+            return null;
         }
     }
 

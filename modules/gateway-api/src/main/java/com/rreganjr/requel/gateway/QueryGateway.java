@@ -27,8 +27,11 @@ import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
+import com.rreganjr.requel.service.api.dto.EntitySourceLinkDto;
+import com.rreganjr.requel.service.api.dto.ExternalSourceDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
+import com.rreganjr.requel.service.api.dto.SourceEntitiesDto;
 
 /**
  * Read side of the gateway: authorized, DTO-shaped project queries for external clients. This is
@@ -77,4 +80,31 @@ public interface QueryGateway {
      * issues — keyed {@code project} / {@code tree} / {@code glossary} / {@code openIssues}.
      */
     Map<String, Object> getProjectContext(String projectName);
+
+    /**
+     * Issue #272: a project's external source by system and external id (exact), or null when the
+     * project has none. Its {@code contentHash} is the version last recorded, so comparing it with
+     * the source's current hash tells a changed source from an unchanged one without reading any
+     * entity. One of the three provenance reads — the only reads that return a locator.
+     */
+    default ExternalSourceDto getSource(String projectName, String system, String externalId) {
+        throw new UnsupportedOperationException("getSource is not supported by this gateway");
+    }
+
+    /**
+     * Issue #272: the entities a source produced, with each link's fragment and derived state;
+     * {@code fragment} narrows to one fragment (null for all). Null when there is no such source.
+     */
+    default SourceEntitiesDto findEntitiesBySource(String projectName, String system,
+            String externalId, String fragment) {
+        throw new UnsupportedOperationException(
+                "findEntitiesBySource is not supported by this gateway");
+    }
+
+    /** Issue #272: which sources, and which fragments of them, an entity came from. */
+    default List<EntitySourceLinkDto> getEntitySources(String projectName, String entityType,
+            long entityId) {
+        throw new UnsupportedOperationException(
+                "getEntitySources is not supported by this gateway");
+    }
 }

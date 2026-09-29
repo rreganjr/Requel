@@ -22,15 +22,16 @@ package com.rreganjr.requel.gateway.tracker;
 
 /**
  * Input to {@link RequirementGoalUpserter#upsert(UpsertGoalRequest)} (issue #71): one discrete
- * requirement statement plus the source descriptor needed for provenance and reconciliation.
+ * requirement statement plus the source descriptor needed for provenance (#272).
  *
  * <p>The workflow is source-agnostic — {@code sourceSystem}/{@code sourceRef}/{@code sourceUrl}
  * describe any tracker (Jira, GitHub, Linear, …); Requel never contacts the tracker.</p>
  *
  * <p>Only {@code projectName}, {@code criterionText}, {@code sourceSystem} and {@code sourceRef}
- * are required. When {@code name}, {@code text} or {@code criterionHash} are omitted they are
- * derived deterministically from {@code criterionText} by the upserter, so callers cannot drift
- * from the reconciliation key.</p>
+ * are required. When {@code name} or {@code text} are omitted they are derived deterministically
+ * from {@code criterionText} by the upserter. Since #272 the change-detection hash is always
+ * computed from {@code criterionText}; a supplied {@code criterionHash} is accepted for
+ * compatibility and ignored.</p>
  *
  * @param projectName   target project
  * @param criterionText the requirement / acceptance-criterion statement (source of the derived
@@ -43,7 +44,11 @@ package com.rreganjr.requel.gateway.tracker;
  * @param criterionRef  optional human-readable criterion reference (e.g. {@code AC-2})
  * @param client        optional external-client id for audit attribution (e.g.
  *                      {@code claude-desktop})
- * @param criterionHash optional precomputed hash (computed from {@code criterionText} if null)
+ * @param criterionHash ignored since #272 (kept so existing callers still bind)
+ * @param goalId        which goal to update when several came from the same criterion (#272);
+ *                      normally null
+ * @param sourceVersion the tracker item's current content hash, recorded on the source so a
+ *                      later read can tell whether it changed (#272); may be null
  */
 public record UpsertGoalRequest(
         String projectName,
@@ -55,7 +60,9 @@ public record UpsertGoalRequest(
         String sourceUrl,
         String criterionRef,
         String client,
-        String criterionHash
+        String criterionHash,
+        Long goalId,
+        String sourceVersion
 ) {
 
     public UpsertGoalRequest {
@@ -76,6 +83,6 @@ public record UpsertGoalRequest(
             String sourceSystem, String sourceRef, String sourceUrl, String criterionRef,
             String client) {
         return new UpsertGoalRequest(projectName, criterionText, null, null, sourceSystem,
-                sourceRef, sourceUrl, criterionRef, client, null);
+                sourceRef, sourceUrl, criterionRef, client, null, null, null);
     }
 }

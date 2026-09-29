@@ -53,6 +53,7 @@ import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
 import { RelationshipSectionComponent } from '../../shared/app-relationship-section';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
+import { SourcesSectionComponent } from '../../shared/sources-section';
 import { AppFieldComponent, AppFieldControlDirective } from '../../shared/app-field';
 import { LoadingStateComponent } from '../../shared/loading-state';
 import { ErrorStateComponent } from '../../shared/error-state';
@@ -80,7 +81,7 @@ const STALE_VERSION_MESSAGE =
   imports: [PageHeaderComponent, AppCardComponent, RouterLink, NgTemplateOutlet, ReactiveFormsModule,
             ButtonModule, InputText, TextareaModule, SubmitErrorComponent, UpdateBannerComponent,
             ConfirmDialogModule, TableModule, TooltipModule, SelectModule, RelationshipSectionComponent,
-            EntitySelectorDialogComponent, AnnotationsSectionComponent,
+            EntitySelectorDialogComponent, AnnotationsSectionComponent, SourcesSectionComponent,
             AppFieldComponent, AppFieldControlDirective,
             AppFormWizardComponent, AppWizardStepComponent,
             LoadingStateComponent, ErrorStateComponent],
@@ -237,6 +238,11 @@ const STALE_VERSION_MESSAGE =
         entityType="UseCase"
         [entityId]="useCaseId"
         />
+        <app-sources-section
+          [projectName]="projectName"
+          entityType="UseCase"
+          [entityId]="useCaseId"
+          />
 
       <p-confirmDialog />
 

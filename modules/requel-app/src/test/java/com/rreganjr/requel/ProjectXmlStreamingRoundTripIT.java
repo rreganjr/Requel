@@ -156,6 +156,9 @@ class ProjectXmlStreamingRoundTripIT {
 	@Autowired
 	private com.rreganjr.requel.project.IgnoredFindingStore ignoredFindingStore;
 
+	@Autowired
+	private com.rreganjr.requel.project.ProvenanceStore provenanceStore;
+
 	@jakarta.persistence.PersistenceContext
 	private jakarta.persistence.EntityManager entityManager;
 
@@ -612,6 +615,74 @@ class ProjectXmlStreamingRoundTripIT {
 				.isInstanceOf(com.rreganjr.requel.annotation.impl.IgnorePosition.class);
 		// The original keeps its own.
 		assertThat(ignoredFindingStore.list(originalProject.getId())).hasSize(1);
+	}
+
+	/**
+	 * Issue #272: sources and their links travel with the project. The external id keeps its
+	 * case, the hashes and the fingerprint are kept, and the links point at the imported entities.
+	 */
+	@Test
+	@Transactional
+	void externalSourcesAndTheirLinksRoundTrip() throws Exception {
+		initializeBaselineData();
+		User projectUser = ensureProjectUserExists();
+		Project originalProject = createSampleProject(projectUser);
+		Goal goal = originalProject.getGoals().iterator().next();
+		String key = "CON-" + System.nanoTime();
+		var source = provenanceStore.recordSource(new com.rreganjr.requel.project.ProvenanceStore
+				.SourceSpec(originalProject.getId(), "jira", key,
+						com.rreganjr.requel.project.SourceLocatorType.URL,
+						"https://tracker.example.com/browse/" + key, "The ticket", "v7"),
+				projectUser).source();
+		String fingerprint = com.rreganjr.requel.project.TargetFingerprint.of(goal);
+		var originalLink = provenanceStore.link(new com.rreganjr.requel.project.ProvenanceStore
+				.LinkSpec(source, com.rreganjr.requel.project.SourceLinkRelation.DERIVED_FROM, "Goal",
+						goal.getId(), "AC-1", "fragmenthash", "v7", fingerprint), projectUser);
+		java.util.Date ingested = java.util.Date.from(Instant.parse("2026-01-02T03:04:05Z"));
+		provenanceStore.restoreIngestedAt(originalLink.getId(), ingested);
+		provenanceStore.restoreLastIngestedAt(source.getId(), ingested);
+		var guide = provenanceStore.recordSource(new com.rreganjr.requel.project.ProvenanceStore
+				.SourceSpec(originalProject.getId(), "doc", "docs/guide.pdf",
+						com.rreganjr.requel.project.SourceLocatorType.PATH, "docs/guide.pdf", null,
+						null), projectUser).source();
+		entityManager.flush();
+
+		byte[] exportedBytes = exportProject(originalProject);
+		String xml = new String(exportedBytes, StandardCharsets.UTF_8);
+		assertThat(xml).as("exported XML").contains("<externalSource ").contains("<sourceLink ");
+		assertXmlMatchesProjectSchema(exportedBytes);
+
+		String reName = originalProject.getName() + " Sources " + Instant.now().toEpochMilli();
+		Project reimported = importProject(exportedBytes, projectUser, reName);
+		entityManager.flush();
+
+		Goal importedGoal = reimported.getGoals().stream()
+				.filter(candidate -> candidate.getName().equals(goal.getName())).findFirst()
+				.orElseThrow(() -> new AssertionError("goal " + goal.getName() + " not imported"));
+		var sources = provenanceStore.listSources(reimported.getId());
+		assertThat(sources).extracting(com.rreganjr.requel.project.ExternalSource::getExternalId)
+				.containsExactlyInAnyOrder(key, "docs/guide.pdf");
+		var imported = provenanceStore.findSource(reimported.getId(), "jira", key).orElseThrow();
+		assertThat(imported.getLocator()).isEqualTo("https://tracker.example.com/browse/" + key);
+		assertThat(imported.getContentHash()).isEqualTo("v7");
+		assertThat(imported.getTitle()).isEqualTo("The ticket");
+		var links = provenanceStore.linksForSource(imported.getId());
+		assertThat(links).hasSize(1);
+		var link = links.get(0);
+		assertThat(link.getTargetId()).isEqualTo(importedGoal.getId());
+		assertThat(link.getFragment()).isEqualTo("AC-1");
+		assertThat(link.getFragmentHash()).isEqualTo("fragmenthash");
+		assertThat(link.getSourceHashSeen()).isEqualTo("v7");
+		assertThat(link.getEntityFingerprint()).isEqualTo(fingerprint)
+				.isEqualTo(com.rreganjr.requel.project.TargetFingerprint.of(importedGoal));
+		assertThat(link.getIngestedAt()).as("ingest time kept").isEqualTo(ingested);
+		assertThat(imported.getLastIngestedAt()).as("source ingest time kept").isEqualTo(ingested);
+		assertThat(provenanceStore.findSource(reimported.getId(), "doc", "docs/guide.pdf")
+				.orElseThrow().getLocatorType())
+				.isEqualTo(com.rreganjr.requel.project.SourceLocatorType.PATH);
+		assertThat(guide.getId()).isNotNull();
+		// The original keeps its own.
+		assertThat(provenanceStore.listSources(originalProject.getId())).hasSize(2);
 	}
 
 	private com.rreganjr.requel.annotation.Issue addIssue(Project project, Goal goal, User editor,

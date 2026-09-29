@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import org.junit.jupiter.api.Test;
 
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.TargetFingerprint;
 
 /** Issue #270: the fingerprint rule. */
 class TargetFingerprintTest {

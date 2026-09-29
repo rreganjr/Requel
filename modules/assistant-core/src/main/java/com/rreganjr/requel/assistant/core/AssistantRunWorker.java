@@ -45,7 +45,7 @@ import com.rreganjr.requel.assistant.api.AssistantRegistry;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
-import com.rreganjr.requel.assistant.core.freshness.TargetFingerprint;
+import com.rreganjr.requel.project.TargetFingerprint;
 
 /**
  * Runs queued assistant work in two short transactions (issue #247).
