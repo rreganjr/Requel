@@ -43,6 +43,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
+import com.rreganjr.requel.assistant.api.AssistantException;
 import com.rreganjr.requel.assistant.api.AssistantMessage;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
@@ -210,7 +211,8 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	}
 
 	@Override
-	public AssistantResult analyze(AssistantContext context, TextEntity target) {
+	public AssistantResult analyze(AssistantContext context, TextEntity target)
+			throws AssistantException {
 		String skipReason = skipReason(context);
 		if (skipReason != null) {
 			log.debug("RequirementsReviewAssistant skipping run {}: {}", context.runId(), skipReason);
@@ -256,10 +258,11 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 				}
 			}
 		} catch (AiAnalysisException e) {
+			// #259: propagate, so the run records the failure (FAILED when this was the run's only
+			// assistant) instead of reading as a successful review that found nothing.
 			log.warn("AI requirements review failed for run {}: {}", context.runId(), e.getMessage(),
 					e);
-			result.summary("AI requirements review failed")
-					.message(AssistantMessage.error(e.getMessage()));
+			throw new AssistantException("AI requirements review failed: " + e.getMessage(), e);
 		}
 		return result.build();
 	}

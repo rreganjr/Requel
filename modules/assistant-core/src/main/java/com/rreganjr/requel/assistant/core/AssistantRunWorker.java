@@ -175,6 +175,9 @@ public class AssistantRunWorker {
 		Objects.requireNonNull(runId, "runId");
 		Optional<AssistantRunRecord> recordValue = runStore.findRun(runId);
 		if (recordValue.isEmpty()) {
+			// #259: this used to be silent, leaving a QUEUED row that never runs when the row was
+			// not yet visible (queued inside an uncommitted transaction).
+			log.warn("Assistant run {} not found when the worker started; not run", runId);
 			return;
 		}
 		AssistantRunRecord record = recordValue.get();
@@ -187,6 +190,13 @@ public class AssistantRunWorker {
 			Analysis analysis = analyzeTransaction.execute(status -> analyze(record));
 			if (analysis.skipReason != null) {
 				runStore.markSkipped(runId, analysis.skipReason);
+				return;
+			}
+			// #259: every matching assistant threw, so there is nothing to apply and the run did
+			// not do its job. (Some failing is PARTIAL, below.) Each failure was already logged.
+			if (analysis.allFailed()) {
+				runStore.markFailed(runId,
+						new AssistantWorkerException(String.join("; ", analysis.problems)));
 				return;
 			}
 
@@ -236,6 +246,10 @@ public class AssistantRunWorker {
 		final List<AssistantResult> results;
 		/** #268: assistants that threw or returned an incomplete result, for the run record. */
 		final List<String> problems;
+		/** #259: how many matching assistants threw (an incomplete result does not count). */
+		final int thrownCount;
+		/** How many assistants matched the run's task and were run. */
+		final int attemptedCount;
 
 		Analysis(String skipReason) {
 			this.skipReason = skipReason;
@@ -243,15 +257,25 @@ public class AssistantRunWorker {
 			this.assistants = List.of();
 			this.results = List.of();
 			this.problems = List.of();
+			this.thrownCount = 0;
+			this.attemptedCount = 0;
 		}
 
 		Analysis(AssistantContext context, List<RequelAssistant<?>> assistants,
-				List<AssistantResult> results, List<String> problems) {
+				List<AssistantResult> results, List<String> problems, int thrownCount,
+				int attemptedCount) {
 			this.skipReason = null;
 			this.context = context;
 			this.assistants = assistants;
 			this.results = results;
 			this.problems = problems;
+			this.thrownCount = thrownCount;
+			this.attemptedCount = attemptedCount;
+		}
+
+		/** Every assistant that ran threw: a failed run, not a partial one. */
+		boolean allFailed() {
+			return attemptedCount > 0 && thrownCount == attemptedCount;
 		}
 	}
 
@@ -300,6 +324,7 @@ public class AssistantRunWorker {
 		List<AssistantResult> results = new ArrayList<>(assistants.size());
 		List<RequelAssistant<?>> producers = new ArrayList<>(assistants.size());
 		List<String> problems = new ArrayList<>();
+		int thrown = 0;
 		for (RequelAssistant<?> assistant : assistants) {
 			try {
 				AssistantResult result = analyze(assistant, context, target);
@@ -313,9 +338,10 @@ public class AssistantRunWorker {
 				log.warn("assistant {} failed for run {}: {}", assistant.assistantId(),
 						record.runId(), e.toString(), e);
 				problems.add(assistant.assistantId() + " failed: " + e);
+				thrown++;
 			}
 		}
-		return new Analysis(context, producers, results, problems);
+		return new Analysis(context, producers, results, problems, thrown, assistants.size());
 	}
 
 	/** What the apply phase decided. */

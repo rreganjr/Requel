@@ -183,7 +183,10 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 		}
 		AssistantRunEntity entity = found.get();
 		entity.setStatus(status.name());
-		entity.setErrorSummary(errorSummary);
+		// #259: every status is capped to the column, not just PARTIAL. An uncapped FAILED
+		// summary (a CLI's stderr excerpt runs to 2 KB) was "Data too long" on MySQL, so the
+		// failure could not be recorded and the run stayed RUNNING.
+		entity.setErrorSummary(truncate(errorSummary, ERROR_SUMMARY_LENGTH));
 		entity.setUpdatedAt(clock.instant());
 		if (mutator != null) {
 			mutator.accept(entity);

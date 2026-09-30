@@ -114,6 +114,7 @@ sets that provider's transport defaults (base URL, default model). You then supp
 | `ai-ollama` | Local Ollama | No key needed. The model must be **pulled** on the Ollama server first (`ollama pull llama3.1`); set `REQUEL_AI_MODEL` to that model. Point at a remote/container server with `REQUEL_AI_BASE_URL` (default `http://localhost:11434`). |
 | `ai-gemini` | Google Gemini | Uses Gemini's OpenAI-compatible endpoint. Needs `REQUEL_AI_API_KEY` (Google AI Studio key). Default model `gemini-2.0-flash`. |
 | `ai-anthropic` | Anthropic Claude | Native Spring AI Anthropic starter. Needs `REQUEL_AI_API_KEY` (an `sk-ant-...` key). Default model `claude-3-5-sonnet-latest`. |
+| `ai-cli` | Your local `claude` / `codex` CLI | **Development only.** No API key: drives the CLI you are logged in to. See [Section 10](#10-development-only-the-cli-provider). |
 
 Activate a profile alongside your normal run profile (comma-separated). For example, with the
 packaged JAR:
@@ -464,7 +465,7 @@ bridges them to the matching `spring.ai.*` setting.
 | Environment variable | Property | Default | What it does |
 | --- | --- | --- | --- |
 | `REQUEL_AI_ENABLED` | `requel.ai.enabled` | `false` | Master switch. Must be `true` to register the assistant. |
-| `REQUEL_AI_PROVIDER` | `requel.ai.provider` | `noop` | Selects the client: `openai`, `openai-compat` (local/self-hosted), or `noop` (stub, no network). `anthropic` is a fast-follow — not yet available. Exactly one is active. |
+| `REQUEL_AI_PROVIDER` | `requel.ai.provider` | `noop` | Selects the client: `openai`, `openai-compat` (local/self-hosted), `noop` (stub, no network), or `cli` (development only, [Section 10](#10-development-only-the-cli-provider)). `anthropic` is a fast-follow — not yet available. Exactly one is active. |
 | `REQUEL_AI_MODEL` | `requel.ai.model` | `noop` | Model id; also bridged to `spring.ai.openai.chat.options.model` so the call and the usage report stay in sync. |
 | `REQUEL_AI_MAX_INPUT_TOKENS` | `requel.ai.max-input-tokens` | `16000` | App-side safety cap on input size; oversize reviews are skipped with a warning. |
 | `REQUEL_AI_PROJECT_ALLOWLIST` | `requel.ai.project-allowlist` | *(empty = all)* | CSV of project ids permitted to use AI. |
@@ -482,6 +483,93 @@ bridges them to the matching `spring.ai.*` setting.
 > `REQUEL_AI_STRUCTURED_OUTPUT_MODE` (Spring AI owns structured output),
 > `REQUEL_AI_API_KEY_ENVIRONMENT_VARIABLE`, and `REQUEL_AI_TIMEOUT` (HTTP timeout is now Spring AI's;
 > a configurable knob is a tracked follow-up). Setting them has no effect.
+
+---
+
+## 10. Development only: the cli provider
+
+> **Development only.** The `cli` provider drives an interactively authenticated `claude` or
+> `codex` CLI on **your own machine**, on your own subscription. It is **not** a supported
+> deployment provider, does **not** work in the Docker image (there is no logged-in CLI there), and
+> must **not** be used to serve other users. Until #262 lands it sends project text unredacted, so
+> run it on test projects only.
+
+It exists so prompt and analysis work (epic #258) can move forward without an API key.
+
+**How it works.** Requel writes the review prompt (task guidance, the JSON request, and the output
+schema with a "reply with JSON only" instruction) to the CLI's **stdin** and reads its reply from
+stdout. The command is an argv list from configuration, so no project text is ever put on a command
+line. The child process:
+
+- gets only `PATH`, `HOME`, `USER`, `LANG`, `TMPDIR`, plus any names you list in
+  `requel.ai.cli.env`. Tokens in your shell (e.g. `GH_TOKEN`) never reach it;
+- runs in a fresh empty temp directory, deleted afterwards;
+- runs with tools off and no MCP servers, so a review cannot edit files, run commands, or call back
+  into Requel's own `/api/mcp`;
+- is killed at `requel.ai.cli.timeout`, and its output is rejected if it exceeds
+  `requel.ai.cli.max-output-bytes`.
+
+A CLI that fails (not logged in, non-zero exit, timeout, non-JSON reply) fails the review run: the
+run is `FAILED` with the error and the first part of the CLI's stderr, and no annotations are
+written.
+
+**claude (default in the profile):**
+
+```bash
+java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
+  --spring.profiles.active=dev,ai-cli --server.port=8080 \
+  --requel.ai.cli.command="$(which claude)" \
+  '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
+  --spring.datasource.username=root --spring.datasource.password=password
+```
+
+Then request a review as in [Section 5](#5-using-the-assistant) (`POST /api/ai/reviews`); the UI has
+no review button yet.
+
+The profile invokes `claude -p --output-format json --tools "" --strict-mcp-config --max-turns 1`.
+The JSON envelope reports tokens and cost, so `assistant_usages` rows carry them.
+
+**codex:** override the output format and the whole args list on the command line. A list given
+in one property source replaces the profile's list entirely, so no claude arguments are left over:
+
+```bash
+java -jar modules/requel-app/target/requel-app-2.0.0-dev.jar \
+  --spring.profiles.active=dev,ai-cli --server.port=8080 \
+  --requel.ai.cli.command="$(which codex)" --requel.ai.model=codex-cli \
+  --requel.ai.cli.output-format=raw \
+  '--requel.ai.cli.args[0]=exec' '--requel.ai.cli.args[1]=--sandbox' \
+  '--requel.ai.cli.args[2]=read-only' '--requel.ai.cli.args[3]=--skip-git-repo-check' \
+  '--requel.ai.cli.args[4]=-' \
+  '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
+  --spring.datasource.username=root --spring.datasource.password=password
+```
+
+codex reports no usage, so only latency is recorded.
+
+**Settings (`requel.ai.cli.*`):**
+
+| Property | Default | What it does |
+| --- | --- | --- |
+| `command` | *(none)* | Absolute path to the CLI. Required; the app refuses to start without it. Also `REQUEL_AI_CLI_COMMAND`. |
+| `args` | profile's claude set | argv after the command. Use indexed form (`args[4]=`) for an empty argument. |
+| `output-format` | `claude-json` | `claude-json` (the `-p --output-format json` envelope) or `raw` (stdout is the reply). |
+| `env` | *(empty)* | Extra environment variable names passed through when set. |
+| `timeout` | `180s` | Kill the CLI after this long. |
+| `max-output-bytes` | `1048576` | Larger output is rejected, not parsed. |
+| `max-error-bytes` | `65536` | How much stderr is kept for the error message. |
+
+**Troubleshooting.**
+
+- *`requel.ai.provider=cli requires requel.ai.cli.command` at startup:* pass
+  `--requel.ai.cli.command="$(which claude)"` (an absolute path).
+- *Run `FAILED` with "claude reported: … Not logged in · Please run /login":* run `claude`, type
+  `/login`, sign in, then `/exit`. A logged-in desktop app does not log in the CLI. If
+  it keeps its credentials somewhere that needs another environment variable (e.g.
+  `CLAUDE_CONFIG_DIR`), add that name to `requel.ai.cli.env`.
+- *Run `FAILED` with an unknown-option error:* CLI flags change between releases. Check
+  `claude --help` / `codex exec --help` and adjust `requel.ai.cli.args`.
+- *Run `FAILED` with "timed out":* raise `requel.ai.cli.timeout`; a large context can take a few
+  minutes.
 
 ---
 

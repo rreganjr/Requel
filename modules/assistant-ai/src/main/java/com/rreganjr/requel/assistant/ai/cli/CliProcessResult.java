@@ -18,20 +18,22 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.assistant.core;
+package com.rreganjr.requel.assistant.ai.cli;
+
+import java.time.Duration;
+import java.util.Objects;
 
 /**
- * Runtime wrapper used when asynchronous worker execution fails.
+ * What a CLI run produced. {@code stdout} holds at most the invocation's
+ * {@code maxOutputBytes}; {@code stdoutTruncated} says more was written and discarded.
+ * {@code exitCode} is {@code -1} when the run timed out.
  */
-public class AssistantWorkerException extends RuntimeException {
-	private static final long serialVersionUID = 1L;
+public record CliProcessResult(int exitCode, byte[] stdout, boolean stdoutTruncated,
+		String stderr, boolean timedOut, Duration elapsed) {
 
-	/** #259: a run whose every assistant failed; the message names each failure. */
-	public AssistantWorkerException(String message) {
-		super(message);
-	}
-
-	public AssistantWorkerException(String message, Throwable cause) {
-		super(message, cause);
+	public CliProcessResult {
+		Objects.requireNonNull(stdout, "stdout");
+		stderr = stderr == null ? "" : stderr;
+		Objects.requireNonNull(elapsed, "elapsed");
 	}
 }
