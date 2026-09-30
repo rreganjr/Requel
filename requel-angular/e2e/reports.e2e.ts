@@ -117,6 +117,31 @@ test.describe('Report generator management', () => {
     await page.close();
   });
 
+  // #275: a run the server refuses with a reason (422 REPORT_FAILED) shows that reason.
+  test('run report from list shows the server\'s reason when it gives one', async ({ adminContext, request }) => {
+    const reportName = `e2e-report-run-reason-${Date.now()}`;
+    const report = await createReport(request, PROJECT_NAME, reportName, MINIMAL_XSLT);
+    reportToCleanup = report;
+    const reason = `Report "${reportName}" failed: The report references step STP_9, which is not in the project.`;
+
+    const page = await adminContext.newPage();
+    const listPage = new ReportListPage(page);
+
+    await page.route(`**/api/projects/${encodeURIComponent(PROJECT_NAME)}/reports/${report.id}/run`, async route => {
+      await route.fulfill({
+        status: 422,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'REPORT_FAILED', message: reason }),
+      });
+    });
+
+    await listPage.goto(PROJECT_NAME);
+    await listPage.runFromList(reportName);
+    await listPage.expectError(reason);
+
+    await page.close();
+  });
+
   test('create report → appears in report list', async ({ adminContext }) => {
     const reportName = `e2e-report-create-${Date.now()}`;
     const page = await adminContext.newPage();

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { ReportService } from './report.service';
+import { ReportRunError, ReportService } from './report.service';
 
 describe('ReportService', () => {
   let service: ReportService;
@@ -60,8 +60,15 @@ describe('ReportService', () => {
     }), { status: 422, headers: { 'Content-Type': 'application/json' } });
     expect(await ReportService.failureMessage(failed))
       .toBe('Report "Broken" failed: The report references step STP_9, which is not in the project.');
-    expect(await ReportService.failureMessage(new Response('', { status: 500 })))
-      .toBe('Report generation failed: 500');
+    expect(await ReportService.failureMessage(new Response('boom', { status: 500 }))).toBeNull();
+  });
+
+  it('ReportRunError keeps the status and whether the server gave a reason (#275)', () => {
+    const withReason = new ReportRunError(422, 'Report "X" failed: no goal named Blocking check');
+    expect(withReason.serverMessage).toBe('Report "X" failed: no goal named Blocking check');
+    const bare = new ReportRunError(500, null);
+    expect(bare.serverMessage).toBeNull();
+    expect(bare.message).toBe('Report generation failed: 500');
   });
 
   it('deleteReport() dispatches DeleteReportGenerator command', async () => {

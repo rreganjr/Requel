@@ -33,7 +33,7 @@ import { isNetworkError } from '../../core/command.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ReportGeneratorDto } from '../../models/report';
-import { ReportService } from '../../core/report.service';
+import { ReportRunError, ReportService } from '../../core/report.service';
 import { PermissionService } from '../../core/permission.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { FileUploadButtonComponent } from '../../shared/file-upload-button';
@@ -410,8 +410,10 @@ export class ReportEditorComponent implements OnInit, DirtyCheckable {
     try {
       await this.reportService.downloadReport(this.projectName, this.reportId()!, this.reportName());
     } catch (e) {
-      // #275: a failed run names its cause (e.g. the reference the template could not resolve).
-      this.errorMessage.set(e instanceof Error && e.message ? e.message : 'Failed to generate report.');
+      // #275: a failed run the server explained names its cause (e.g. the reference the template
+      // could not resolve); anything else keeps the generic message.
+      this.errorMessage.set(e instanceof ReportRunError && e.serverMessage
+        ? e.serverMessage : 'Failed to generate report.');
     } finally {
       this.running.set(false);
     }

@@ -4,7 +4,7 @@ import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angul
 import { BehaviorSubject } from 'rxjs';
 import { MessageService } from 'primeng/api';
 import { ReportEditorComponent } from './report-editor';
-import { ReportService } from '../../core/report.service';
+import { ReportRunError, ReportService } from '../../core/report.service';
 import { PermissionService } from '../../core/permission.service';
 
 const MOCK_REPORT = {
@@ -194,9 +194,18 @@ describe('ReportEditorComponent', () => {
       expect(el().querySelector('[data-testid="report-bundled-hint"]')).toBeNull();
     });
 
+    it('keeps the generic message when the server gave no reason', async () => {
+      reportServiceMock.downloadReport.mockRejectedValue(new ReportRunError(500, null));
+      paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+      fixture.detectChanges();
+      await flush();
+      await comp.onRun();
+      expect(comp.errorMessage()).toBe('Failed to generate report.');
+    });
+
     it('shows the server\'s reason when a run fails', async () => {
-      reportServiceMock.downloadReport.mockRejectedValue(
-        new Error('Report "Requirements Doc" failed: The report references step STP_9, which is not in the project.'));
+      reportServiceMock.downloadReport.mockRejectedValue(new ReportRunError(422,
+        'Report "Requirements Doc" failed: The report references step STP_9, which is not in the project.'));
       paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
       fixture.detectChanges();
       await flush();

@@ -26,6 +26,18 @@ import { CommandService } from './command.service';
 import { AuthService } from './auth.service';
 import { projectApiUrl } from './api-url';
 
+/**
+ * #275: a report run that failed. {@link serverMessage} is the server's reason when it gave one
+ * (a 422 REPORT_FAILED names the reference a template could not resolve); callers show it and
+ * fall back to their own wording when it is absent, e.g. a bare 500.
+ */
+export class ReportRunError extends Error {
+  constructor(readonly status: number, readonly serverMessage: string | null) {
+    super(serverMessage ?? `Report generation failed: ${status}`);
+    this.name = 'ReportRunError';
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class ReportService {
   constructor(
@@ -56,7 +68,7 @@ export class ReportService {
    *
    * #275: the file name (and so its extension — `.md` for the ticket generator, `.html` for the
    * HTML one) comes from the server's Content-Disposition. A failed run throws an Error carrying
-   * the server's message, e.g. the reference a template could not resolve.
+   * the server's message ({@link ReportRunError}), e.g. the reference a template could not resolve.
    */
   async downloadReport(projectName: string, reportId: number, reportName: string): Promise<void> {
     const token = this.authService.token();
@@ -65,7 +77,7 @@ export class ReportService {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
     if (!response.ok) {
-      throw new Error(await ReportService.failureMessage(response));
+      throw new ReportRunError(response.status, await ReportService.failureMessage(response));
     }
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
@@ -82,8 +94,8 @@ export class ReportService {
     return match ? match[1] : reportName.replace(/[^a-zA-Z0-9._-]/g, '_') + '.html';
   }
 
-  /** The server's error message (a 422 REPORT_FAILED names the cause), else the status. */
-  static async failureMessage(response: Response): Promise<string> {
+  /** The server's error message (a 422 REPORT_FAILED names the cause), or null when it gave none. */
+  static async failureMessage(response: Response): Promise<string | null> {
     try {
       const body = await response.json();
       if (body && typeof body.message === 'string' && body.message.length > 0) {
@@ -92,6 +104,6 @@ export class ReportService {
     } catch {
       // not JSON: fall through to the status
     }
-    return `Report generation failed: ${response.status}`;
+    return null;
   }
 }
