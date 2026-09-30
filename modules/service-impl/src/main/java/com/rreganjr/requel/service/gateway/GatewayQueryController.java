@@ -147,6 +147,13 @@ public class GatewayQueryController {
         return queryGateway.getEntitySources(name, entityType, entityId);
     }
 
+    /** Issue #274: the project's whole normative content; {@code annotations} is none, open or all. */
+    @GetMapping("/projects/{name}/content")
+    public com.rreganjr.requel.service.api.dto.ProjectContentDto getProjectContent(
+            @PathVariable String name, @RequestParam(required = false) String annotations) {
+        return queryGateway.getProjectContent(name, annotations);
+    }
+
     @GetMapping("/projects/{name}/context")
     public Map<String, Object> getProjectContext(@PathVariable String name) {
         return queryGateway.getProjectContext(name);

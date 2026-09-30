@@ -705,6 +705,14 @@ public class ProjectQueryController {
         );
     }
 
+    /**
+     * #274: the project summary for a read that has already checked access, as
+     * {@code GET /api/projects/{name}} returns it to the current user.
+     */
+    public ProjectDto toProjectDto(Project project) {
+        return toDto(project, currentUserResolver.resolve());
+    }
+
     private ProjectDto toDto(Project project, User user) {
         return new ProjectDto(
                 project.getId(),

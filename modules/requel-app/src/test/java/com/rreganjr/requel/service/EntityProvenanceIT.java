@@ -509,7 +509,9 @@ public class EntityProvenanceIT extends AbstractIntegrationTestCase {
 		String annotations = json(() -> queryGateway.getAnnotations(projectName, "Goal",
 				goal.entityId()));
 		String context = json(() -> queryGateway.getProjectContext(projectName));
-		for (String read : List.of(entity, annotations, context)) {
+		// #274: the project content read is a general read too.
+		String content = json(() -> queryGateway.getProjectContent(projectName, "all"));
+		for (String read : List.of(entity, annotations, context, content)) {
 			assertFalse(read.contains(LOCATOR), read);
 			assertFalse(read.contains(key), read);
 		}
@@ -743,11 +745,12 @@ public class EntityProvenanceIT extends AbstractIntegrationTestCase {
 		String entity = json(() -> queryGateway.getEntity(projectName, "Goal", goal));
 		String annotations = json(() -> queryGateway.getAnnotations(projectName, "Goal", goal));
 		String context = json(() -> queryGateway.getProjectContext(projectName));
+		String content = json(() -> queryGateway.getProjectContent(projectName, "all"));
 		String pack = json(() -> contextPackBuilder.build(
 				getProjectRepository().findById(Goal.class, goal)));
 		String projectPack = json(() -> projectContextPackBuilder.build(
 				getProjectRepository().findById(Project.class, project.getId())));
-		for (String read : List.of(entity, annotations, context, pack, projectPack)) {
+		for (String read : List.of(entity, annotations, context, content, pack, projectPack)) {
 			for (String marker : List.of(key, superior, note, edgeNote, "setup-" + ts, "CITES")) {
 				assertFalse(read.contains(marker), marker + " leaked into " + read);
 			}

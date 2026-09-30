@@ -149,6 +149,47 @@ class McpReadServiceTest {
 	}
 
 	@Test
+	void callsGetProjectContentToolWithTheAnnotationMode() {
+		Map<String, Object> response = service.callTool(json("""
+				{ "name": "getProjectContent",
+				  "arguments": { "projectName": "Sample", "annotations": "open" } }
+				"""));
+
+		JsonNode body = readJson(objectMapper.valueToTree(response.get("content")).get(0)
+				.path("text").asText());
+		assertThat(body.path("annotations").asText()).isEqualTo("OPEN");
+		assertThat(body.at("/goals/0/text").asText()).isEqualTo("Stub goal text");
+		assertThat(response.get("isError")).isEqualTo(false);
+	}
+
+	@Test
+	void getProjectContentWithoutAModePassesNull() {
+		Map<String, Object> response = service.callTool(json("""
+				{ "name": "getProjectContent", "arguments": { "projectName": "Sample" } }
+				"""));
+
+		JsonNode body = readJson(objectMapper.valueToTree(response.get("content")).get(0)
+				.path("text").asText());
+		assertThat(body.path("annotations").asText()).isEqualTo("ALL");
+	}
+
+	@Test
+	void getProjectContentSchemaOffersTheThreeAnnotationModes() {
+		JsonNode schema = schemaOf("getProjectContent");
+		assertThat(schema.at("/properties/annotations/enum").toString())
+				.isEqualTo("[\"none\",\"open\",\"all\"]");
+		assertThat(schema.at("/required").toString()).isEqualTo("[\"projectName\"]");
+	}
+
+	private JsonNode readJson(String text) {
+		try {
+			return objectMapper.readTree(text);
+		} catch (Exception e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
+	@Test
 	void draftAnnotationReturnsUnpersistedDraft() {
 		Map<String, Object> response = service.callTool(json("""
 				{

@@ -194,7 +194,8 @@ the same dispatch path, not a second write path.
 
 ### Read tools (reuse existing)
 
-`requel.listProjects`, `requel.getProject`, `requel.getProjectContext`, `requel.getProjectTree`,
+`requel.listProjects`, `requel.getProject`, `requel.getProjectContext`,
+`requel.getProjectContent` (the whole project's content in one call, #274), `requel.getProjectTree`,
 `requel.getEntity`, `requel.getEntityNeighbors`, `requel.getAnnotations`,
 `requel.searchProjectEntities`, plus the non-persisting `requel.draftAnnotation`, and the three
 provenance reads `getSource`, `findEntitiesBySource` and `getEntitySources` (#272; see
@@ -208,7 +209,8 @@ Source-agnostic; Jira shown as the example.
    acceptance criteria — from an explicit AC section if present, else inferred discrete
    requirements from the body. (No Requel involvement.)
 2. **Resolve the target project** (`requel.getProject` / `requel.listProjects`).
-3. **Load existing goals** (`requel.getProjectContext`) to compare against the requirements.
+3. **Load existing goals** (`requel.getProjectContent`, which carries each goal's text; #274) to
+   compare against the requirements.
 4. **For each requirement:** `upsertGoalFromRequirement` (or `UpsertFromSource` for any entity
    type), which records where the goal came from and resolves it on a re-run. Before #272 this
    step was `EditGoal` plus an `EditNote` carrying the provenance; see
@@ -271,7 +273,8 @@ locator — an http(s) `URL` or a relative `PATH` — and the content hash of th
 recorded) and each entity's **DERIVED_FROM links** to a fragment of a source. Requel is the
 authority: a source is a pointer it never reads. Nothing in the entity graph reaches these
 tables, so no assistant context pack and no general read (`getEntity`, `getProjectContext`,
-`getAnnotations`) carries a source or its locator; only the three provenance reads return them.
+`getProjectContent`, `getAnnotations`) carries a source or its locator; only the provenance reads
+return them.
 
 **Ingest protocol.** For each part of a source, call `UpsertFromSource` with the entity's own edit
 command and input (without its id), the source (`system`, `externalId`, locator, `sourceVersion`

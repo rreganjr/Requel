@@ -21,6 +21,7 @@
 package com.rreganjr.requel.service.config;
 
 import com.rreganjr.platform.command.AuthorizationException;
+import com.rreganjr.requel.gateway.ProjectContentTooLargeException;
 import com.rreganjr.requel.service.api.dto.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,6 +39,16 @@ public class ApiExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAuthorization(AuthorizationException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ErrorResponse.of("FORBIDDEN", e.getMessage()));
+    }
+
+    /**
+     * #274: a project content read over the character cap. 422 with the message, which names the
+     * overflow; {@code RestQueryGateway} rebuilds the exception from it.
+     */
+    @ExceptionHandler(ProjectContentTooLargeException.class)
+    public ResponseEntity<ErrorResponse> handleContentTooLarge(ProjectContentTooLargeException e) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ErrorResponse.of(ProjectContentTooLargeException.CODE, e.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

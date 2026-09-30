@@ -29,6 +29,7 @@ import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
 import com.rreganjr.requel.service.api.dto.EntitySourceLinkDto;
 import com.rreganjr.requel.service.api.dto.ExternalSourceDto;
+import com.rreganjr.requel.service.api.dto.ProjectContentDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
 import com.rreganjr.requel.service.api.dto.SourceEntitiesDto;
@@ -80,6 +81,19 @@ public interface QueryGateway {
      * issues — keyed {@code project} / {@code tree} / {@code glossary} / {@code openIssues}.
      */
     Map<String, Object> getProjectContext(String projectName);
+
+    /**
+     * Issue #274: a project's whole normative content in one call — every stakeholder, goal,
+     * story, actor, use case, scenario, step and glossary term with its text, relations and tags,
+     * referring to one another by id. Never carries provenance (#272 P7).
+     *
+     * @param annotations none, open or all (ignoring case); null means all
+     * @throws ProjectContentTooLargeException when the content is over the configured cap
+     */
+    default ProjectContentDto getProjectContent(String projectName, String annotations) {
+        throw new UnsupportedOperationException(
+                "getProjectContent is not supported by this gateway");
+    }
 
     /**
      * Issue #272: a project's external source by system and external id (exact), or null when the

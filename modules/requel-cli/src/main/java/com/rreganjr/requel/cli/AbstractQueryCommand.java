@@ -22,6 +22,7 @@ package com.rreganjr.requel.cli;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rreganjr.requel.gateway.ProjectContentTooLargeException;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.gateway.rest.RestQueryGateway;
 import java.util.concurrent.Callable;
@@ -59,6 +60,10 @@ abstract class AbstractQueryCommand implements Callable<Integer> {
         Object result;
         try {
             result = query(gateway);
+        } catch (ProjectContentTooLargeException e) {
+            // #274: the server's message names the overflow; a bare "422" would not.
+            System.err.println("Error: " + e.getMessage());
+            return ExitCode.REQUEST_ERROR;
         } catch (RestClientResponseException e) {
             System.err.println("Error: " + e.getStatusCode().value() + " " + e.getStatusText());
             int status = e.getStatusCode().value();

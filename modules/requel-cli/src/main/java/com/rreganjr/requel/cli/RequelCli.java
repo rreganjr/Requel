@@ -40,7 +40,7 @@ import picocli.CommandLine.Option;
         subcommands = {RunCommand.class, UpsertGoalCommand.class, CommandsCommand.class,
                 ProjectsCommand.class, ProjectCommand.class, GlossaryCommand.class,
                 OpenIssuesCommand.class, SearchCommand.class, EntityCommand.class, ContextCommand.class,
-                LoginCommand.class, LogoutCommand.class})
+                ContentCommand.class, LoginCommand.class, LogoutCommand.class})
 public class RequelCli implements Runnable {
 
     @Option(names = "--url", paramLabel = "URL",

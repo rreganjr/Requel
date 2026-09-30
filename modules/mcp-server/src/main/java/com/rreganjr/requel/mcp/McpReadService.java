@@ -92,6 +92,8 @@ public class McpReadService {
 						QueryDescriptions.SEARCH_PROJECT_ENTITIES, searchSchema()),
 				new McpToolDescriptor("getProjectContext", QueryDescriptions.GET_PROJECT_CONTEXT,
 						projectNameSchema()),
+				new McpToolDescriptor("getProjectContent", QueryDescriptions.GET_PROJECT_CONTENT,
+						projectContentSchema()),
 				new McpToolDescriptor("draftAnnotation", QueryDescriptions.DRAFT_ANNOTATION,
 						draftAnnotationSchema()),
 				new McpToolDescriptor("getSource", QueryDescriptions.GET_SOURCE,
@@ -143,6 +145,8 @@ public class McpReadService {
 					requiredText(arguments, "projectName"), requiredText(arguments, "query"));
 			case "getProjectContext" -> projectQueryGateway.getProjectContext(
 					requiredText(arguments, "projectName"));
+			case "getProjectContent" -> projectQueryGateway.getProjectContent(
+					requiredText(arguments, "projectName"), optionalText(arguments, "annotations"));
 			case "draftAnnotation" -> draftAnnotation(arguments);
 			case "getSource" -> projectQueryGateway.getSource(
 					requiredText(arguments, "projectName"), requiredText(arguments, "system"),
@@ -179,6 +183,16 @@ public class McpReadService {
 		return Map.of("type", "object",
 				"properties", Map.of("projectName",
 						property("string", QueryDescriptions.PROJECT_NAME)),
+				"required", List.of("projectName"), "additionalProperties", false);
+	}
+
+	/** #274: the project name plus the optional annotation mode. */
+	private Map<String, Object> projectContentSchema() {
+		return Map.of("type", "object",
+				"properties", Map.of(
+						"projectName", property("string", QueryDescriptions.PROJECT_NAME),
+						"annotations", enumProperty(QueryDescriptions.CONTENT_ANNOTATION_MODES,
+								QueryDescriptions.CONTENT_ANNOTATIONS)),
 				"required", List.of("projectName"), "additionalProperties", false);
 	}
 
