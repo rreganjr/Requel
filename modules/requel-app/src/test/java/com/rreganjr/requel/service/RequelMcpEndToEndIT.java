@@ -179,6 +179,12 @@ public class RequelMcpEndToEndIT extends AbstractIntegrationTestCase {
 			JsonNode context = callTool("getProjectContext",
 					Map.of("projectName", projectName));
 			assertThat(context.toString()).contains("E2E Goal");
+
+			// 6. #274: the content read carries the goal's text and the note, over the transport.
+			JsonNode content = callTool("getProjectContent",
+					Map.of("projectName", projectName));
+			assertThat(content.path("goals").toString()).contains("E2E Goal")
+					.contains("a note added over MCP");
 		} finally {
 			SecurityContextHolder.clearContext();
 		}

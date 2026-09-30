@@ -113,9 +113,34 @@ public final class QueryDescriptions {
             + " name within each, with no limit on the number of results; an empty query matches"
             + " everything.";
 
-    public static final String GET_PROJECT_CONTEXT = "Reads a whole project in one call: its"
-            + " summary, content tree, glossary and open issues, the same data as reading each of"
-            + " them separately." + STALE_ANNOTATIONS;
+    public static final String GET_PROJECT_CONTEXT = "Reads a project's summary, content tree"
+            + " (names only), glossary and open issues in one call, the same data as reading each"
+            + " of them separately. For the text of every entity, scenarios with their steps, and"
+            + " all annotations, read the project's content instead." + STALE_ANNOTATIONS;
+
+    /** #274: the project content read. */
+    public static final String GET_PROJECT_CONTENT = "Reads a project's whole content in one call:"
+            + " the summary with its entity counts, then every stakeholder, goal, story, actor,"
+            + " use case, scenario, step and glossary term with its name, text, type, tags and"
+            + " annotations, each list sorted by id. Entities refer to one another by id (a goal's"
+            + " relations, a story's goals and actors, a use case's primary actor, scenarios,"
+            + " goals, actors and stories, a glossary term's canonical term). A scenario lists its"
+            + " steps in order as Step or Scenario references; a step shared by several scenarios"
+            + " has the same id in each and is listed once under steps. A user stakeholder's"
+            + " account details are left out. Sources and references are not included; list"
+            + " them separately. A project over the configured character cap is refused with a"
+            + " message giving each section's size rather than cut short; the result also reports"
+            + " the characters it counted and the cap. A large result may still be truncated by"
+            + " the client, so on a large project read with annotations open or none."
+            + STALE_ANNOTATIONS;
+
+    /** #274: the {@code annotations} parameter of the project content read. */
+    public static final String CONTENT_ANNOTATIONS = "Which annotations to include, ignoring case:"
+            + " all (the default) for every note and issue with its positions and arguments, open"
+            + " for notes and unresolved issues only, none for no annotations.";
+
+    /** #274: the values {@link #CONTENT_ANNOTATIONS} accepts. */
+    public static final List<String> CONTENT_ANNOTATION_MODES = List.of("none", "open", "all");
 
     public static final String DRAFT_ANNOTATION = "Builds a note or issue for an entity and returns"
             + " it as a draft. Nothing is saved, and neither the entity nor the project is checked."

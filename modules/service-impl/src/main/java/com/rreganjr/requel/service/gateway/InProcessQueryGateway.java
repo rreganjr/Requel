@@ -238,35 +238,56 @@ public class InProcessQueryGateway implements QueryGateway {
 	@Override
 	public com.rreganjr.requel.service.api.dto.ExternalSourceDto getSource(String projectName,
 			String system, String externalId) {
-		return provenance(() -> requireProvenance()
+		return serviceRead(() -> requireProvenance()
 				.getSource(projectName, system, externalId).orElse(null));
 	}
 
 	@Override
 	public com.rreganjr.requel.service.api.dto.SourceEntitiesDto findEntitiesBySource(
 			String projectName, String system, String externalId, String fragment) {
-		return provenance(() -> requireProvenance()
+		return serviceRead(() -> requireProvenance()
 				.findEntitiesBySource(projectName, system, externalId, fragment).orElse(null));
 	}
 
 	@Override
 	public List<com.rreganjr.requel.service.api.dto.EntitySourceLinkDto> getEntitySources(
 			String projectName, String entityType, long entityId) {
-		return provenance(() -> requireProvenance()
+		return serviceRead(() -> requireProvenance()
 				.getEntitySources(projectName, entityType, entityId));
 	}
 
 	@Override
 	public com.rreganjr.requel.service.api.dto.ProjectSourcesDto listSources(String projectName) {
-		return provenance(() -> requireProvenance().listSources(projectName));
+		return serviceRead(() -> requireProvenance().listSources(projectName));
 	}
 
 	@Override
 	public com.rreganjr.requel.service.api.dto.SourceComparisonDto compareSources(
 			String projectName, String system, String externalId, String otherSystem,
 			String otherExternalId) {
-		return provenance(() -> requireProvenance().compareSources(projectName, system,
+		return serviceRead(() -> requireProvenance().compareSources(projectName, system,
 				externalId, otherSystem, otherExternalId));
+	}
+
+	private com.rreganjr.requel.service.query.ProjectContentQueryService projectContentQueryService;
+
+	/** Issue #274: setter-injected, as the provenance service is. */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setProjectContentQueryService(
+			com.rreganjr.requel.service.query.ProjectContentQueryService projectContentQueryService) {
+		this.projectContentQueryService = projectContentQueryService;
+	}
+
+	@Override
+	public com.rreganjr.requel.service.api.dto.ProjectContentDto getProjectContent(
+			String projectName, String annotations) {
+		return serviceRead(() -> {
+			if (projectContentQueryService == null) {
+				throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED,
+						"the project content read is not available");
+			}
+			return projectContentQueryService.read(projectName, annotations);
+		});
 	}
 
 	private com.rreganjr.requel.service.query.ProvenanceQueryService requireProvenance() {
@@ -277,8 +298,13 @@ public class InProcessQueryGateway implements QueryGateway {
 		return provenanceQueryService;
 	}
 
-	/** The status mapping the controller-backed reads get from their ResponseEntity. */
-	private static <T> T provenance(java.util.function.Supplier<T> read) {
+	/**
+	 * The status mapping the controller-backed reads get from their ResponseEntity, for the reads
+	 * backed by a service (provenance, #272; project content, #274). A
+	 * {@link com.rreganjr.requel.gateway.ProjectContentTooLargeException} is not mapped: it passes
+	 * through with its message.
+	 */
+	private static <T> T serviceRead(java.util.function.Supplier<T> read) {
 		try {
 			return read.get();
 		} catch (com.rreganjr.requel.project.exception.NoSuchProjectException e) {

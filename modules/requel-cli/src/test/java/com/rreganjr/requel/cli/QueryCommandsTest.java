@@ -24,11 +24,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.rreganjr.requel.gateway.ProjectContentTooLargeException;
 import com.rreganjr.requel.gateway.QueryDescriptions;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
+import com.rreganjr.requel.service.api.dto.ProjectContentDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
 import java.io.ByteArrayOutputStream;
@@ -87,7 +89,7 @@ class QueryCommandsTest {
     void readCommandUsageRenders() {
         for (Object command : List.of(new ProjectsCommand(), new ProjectCommand(),
                 new GlossaryCommand(), new OpenIssuesCommand(), new EntityCommand(),
-                new SearchCommand(), new ContextCommand())) {
+                new SearchCommand(), new ContextCommand(), new ContentCommand())) {
             assertThat(new CommandLine(command).getUsageMessage()).isNotBlank();
         }
     }
@@ -250,6 +252,43 @@ class QueryCommandsTest {
 
         String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
         assertThat(out).contains("\"project\"").contains("Demo");
+    }
+
+    @Test
+    void contentPassesTheAnnotationModeAndRendersJson() {
+        QueryGateway gw = mock(QueryGateway.class);
+        when(gw.getProjectContent("Demo", "open")).thenReturn(new ProjectContentDto(
+                project("Demo"), "OPEN", 12, 400000, List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of()));
+        ContentCommand cmd = new ContentCommand();
+        cmd.parent = parent(OutputFormat.TEXT);
+        cmd.queryOverride = gw;
+        new CommandLine(cmd).parseArgs("Demo", "--annotations", "open");
+
+        String out = capture(() -> assertThat(cmd.call()).isEqualTo(ExitCode.SUCCESS));
+        assertThat(out).contains("\"annotations\" : \"OPEN\"").contains("Demo");
+    }
+
+    @Test
+    void contentOverTheCapPrintsTheServersMessage() {
+        QueryGateway gw = mock(QueryGateway.class);
+        when(gw.getProjectContent("Demo", null)).thenThrow(
+                new ProjectContentTooLargeException("Project 'Demo' content is 900 characters"));
+        ContentCommand cmd = new ContentCommand();
+        cmd.parent = parent(OutputFormat.TEXT);
+        cmd.queryOverride = gw;
+        cmd.projectName = "Demo";
+
+        PrintStream original = System.err;
+        ByteArrayOutputStream err = new ByteArrayOutputStream();
+        System.setErr(new PrintStream(err, true, StandardCharsets.UTF_8));
+        try {
+            assertThat(cmd.call()).isEqualTo(ExitCode.REQUEST_ERROR);
+        } finally {
+            System.setErr(original);
+        }
+        assertThat(err.toString(StandardCharsets.UTF_8))
+                .contains("Project 'Demo' content is 900 characters");
     }
 
     @Test

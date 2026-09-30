@@ -20,17 +20,20 @@
  */
 package com.rreganjr.requel.gateway.rest;
 
+import com.rreganjr.requel.gateway.ProjectContentTooLargeException;
 import com.rreganjr.requel.gateway.QueryGateway;
 import com.rreganjr.requel.service.api.dto.AnnotationsDto;
 import com.rreganjr.requel.service.api.dto.EntityReferenceDto;
 import com.rreganjr.requel.service.api.dto.GlossaryTermDto;
 import com.rreganjr.requel.service.api.dto.OpenIssueDto;
+import com.rreganjr.requel.service.api.dto.ProjectContentDto;
 import com.rreganjr.requel.service.api.dto.ProjectDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
 import java.util.List;
 import java.util.Map;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * REST-backed {@link QueryGateway}: the read side of {@code gateway-rest-client}, calling the
@@ -174,5 +177,43 @@ public class RestQueryGateway implements QueryGateway {
     public Map<String, Object> getProjectContext(String projectName) {
         return http.get().uri(BASE + "/projects/{name}/context", projectName)
                 .retrieve().body(new ParameterizedTypeReference<>() { });
+    }
+
+    /**
+     * Issue #274. A 422 {@code CONTENT_TOO_LARGE} comes back as
+     * {@link ProjectContentTooLargeException} with the server's message, which names the overflow.
+     */
+    @Override
+    public ProjectContentDto getProjectContent(String projectName, String annotations) {
+        try {
+            return http.get()
+                    .uri(annotations == null
+                                    ? BASE + "/projects/{name}/content"
+                                    : BASE + "/projects/{name}/content?annotations={annotations}",
+                            projectName, annotations)
+                    .retrieve().body(ProjectContentDto.class);
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 422) {
+                String message = contentTooLargeMessage(e);
+                if (message != null) {
+                    throw new ProjectContentTooLargeException(message);
+                }
+            }
+            throw e;
+        }
+    }
+
+    /** The server's message when the body is a {@code CONTENT_TOO_LARGE} error, else null. */
+    private static String contentTooLargeMessage(RestClientResponseException e) {
+        try {
+            Map<?, ?> body = e.getResponseBodyAs(Map.class);
+            if (body != null && ProjectContentTooLargeException.CODE.equals(body.get("error"))
+                    && body.get("message") instanceof String message) {
+                return message;
+            }
+        } catch (RuntimeException unreadable) {
+            // not the expected shape: fall through to the plain HTTP error
+        }
+        return null;
     }
 }

@@ -98,6 +98,19 @@ class StubProjectQueryGateway implements QueryGateway {
 				getOpenIssues(projectName));
 	}
 
+	/** #274: echoes the mode it was asked for ("ALL" when absent) so a test can see it passed. */
+	@Override
+	public com.rreganjr.requel.service.api.dto.ProjectContentDto getProjectContent(
+			String projectName, String annotations) {
+		return new com.rreganjr.requel.service.api.dto.ProjectContentDto(project(),
+				annotations == null ? "ALL" : annotations.toUpperCase(java.util.Locale.ROOT), 0,
+				400000, List.of(), List.of(new com.rreganjr.requel.service.api.dto.GoalContentDto(
+						11L, 0, "Stub goal", "Stub goal text", List.of(), List.of(),
+						new com.rreganjr.requel.service.api.dto.AnnotationsDto(List.of(),
+								List.of()))),
+				List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+	}
+
 	private ProjectDto project() {
 		return new ProjectDto(1L, 2, "Sample", "A sample project", "Requel", "admin",
 				"ACTIVE", 1, 2, 3, 4, 5, 6, 7, 8, 0, false);
