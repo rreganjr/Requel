@@ -152,6 +152,30 @@ class AssistantRunWorkerTest {
 		assertThat(applicator.appliedResults.get(0).assistantId()).isEqualTo("string-assistant");
 	}
 
+	/**
+	 * #259: when every assistant on the run threw, the run did not do its job - it is FAILED,
+	 * not a partial success, and nothing is applied. (A review run has exactly one assistant, so
+	 * a provider failure lands here.)
+	 */
+	@Test
+	void theRunFailsWhenEveryAssistantThrows() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		RecordingApplicator applicator = new RecordingApplicator();
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new ThrowingAssistant())), applicator,
+				List.of(new StringTargetLoader()));
+
+		worker.run(record.runId());
+
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> {
+			assertThat(updated.status()).isEqualTo(AssistantRunStatus.FAILED);
+			assertThat(updated.errorSummary()).contains("throwing-assistant failed")
+					.contains("analyze boom");
+		});
+		assertThat(applicator.appliedResults).isEmpty();
+	}
+
 	@Test
 	void anIncompleteResultIsAppliedAndTheRunIsPartial() {
 		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();

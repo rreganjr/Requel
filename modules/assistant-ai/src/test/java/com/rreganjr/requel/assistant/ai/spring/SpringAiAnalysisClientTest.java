@@ -21,7 +21,6 @@
 package com.rreganjr.requel.assistant.ai.spring;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 import java.time.Clock;
@@ -32,17 +31,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rreganjr.requel.assistant.ai.AiAnalysisException;
 import com.rreganjr.requel.assistant.ai.AiAnalysisResponse;
 import com.rreganjr.requel.assistant.ai.AiFindingDraft;
 import com.rreganjr.requel.assistant.ai.AiProperties;
 import com.rreganjr.requel.assistant.api.AssistantMessage;
-import com.rreganjr.requel.assistant.ai.spring.SpringAiAnalysisClient.ReviewResult;
-import com.rreganjr.requel.assistant.ai.spring.SpringAiAnalysisClient.ReviewResult.Finding;
+import com.rreganjr.requel.assistant.ai.ReviewResultMapper.ReviewResult;
+import com.rreganjr.requel.assistant.ai.ReviewResultMapper.ReviewResult.Finding;
 
 /**
- * Network-free unit tests for the Requel-side validation and the
- * {@code ReviewResult -> AiAnalysisResponse}/{@code AiFindingDraft} mapping. The Spring AI call
+ * Network-free unit tests for the Spring AI client's
+ * {@code ReviewResult -> AiAnalysisResponse} mapping: the reply half is delegated to
+ * {@code ReviewResultMapper} (whose validation cases live in {@code ReviewResultMapperTest}), the
+ * usage/metadata half is the client's own. The Spring AI call
  * itself ({@code chat.prompt()...responseEntity}) is covered separately against a stubbed
  * ChatClient; here we exercise the pure glue.
  */
@@ -58,34 +58,6 @@ class SpringAiAnalysisClientTest {
 		p.setProvider("openai");
 		p.setModel("gpt-4o-mini");
 		return p;
-	}
-
-	@Test
-	void validateAcceptsAWellFormedResult() throws AiAnalysisException {
-		ReviewResult result = new ReviewResult("ok",
-				List.of(new Finding("clarity", "MEDIUM", 0.8, List.of("g1"), "issue", "note",
-						List.of("pos"))),
-				List.of());
-		// no exception
-		SpringAiAnalysisClient.validate(result);
-	}
-
-	@Test
-	void validateRejectsMissingSummary() {
-		ReviewResult result = new ReviewResult("  ", List.of(), List.of());
-		assertThatThrownBy(() -> SpringAiAnalysisClient.validate(result))
-				.isInstanceOf(AiAnalysisException.class)
-				.hasMessageContaining("summary");
-	}
-
-	@Test
-	void validateRejectsBlankFindingType() {
-		ReviewResult result = new ReviewResult("ok",
-				List.of(new Finding("  ", "LOW", null, List.of(), null, null, List.of())),
-				List.of());
-		assertThatThrownBy(() -> SpringAiAnalysisClient.validate(result))
-				.isInstanceOf(AiAnalysisException.class)
-				.hasMessageContaining("findingType");
 	}
 
 	@Test

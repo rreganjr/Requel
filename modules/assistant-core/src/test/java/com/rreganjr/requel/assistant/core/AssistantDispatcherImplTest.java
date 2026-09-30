@@ -33,6 +33,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.rreganjr.requel.assistant.api.AnalysisRequest;
 import com.rreganjr.requel.assistant.api.AssistantRunHandle;
@@ -56,6 +58,53 @@ class AssistantDispatcherImplTest {
 			assertThat(record.status()).isEqualTo(AssistantRunStatus.SKIPPED);
 			assertThat(record.errorSummary()).contains("No assistant target loader");
 		});
+	}
+
+	/**
+	 * #259: inside a caller's transaction the run row is not committed yet, so a worker started
+	 * immediately would not find it and the run would stay QUEUED. The submit waits for commit.
+	 */
+	@Test
+	void insideATransactionTheSubmitWaitsForCommit() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AtomicInteger submits = new AtomicInteger();
+		AssistantDispatcherImpl dispatcher = new AssistantDispatcherImpl(
+				task -> submits.incrementAndGet(), runStore, new RecordingWorker(runStore, null));
+
+		TransactionSynchronizationManager.initSynchronization();
+		try {
+			dispatcher.dispatch(request());
+			dispatcher.dispatchAll(List.of(request(1L), request(2L)));
+			assertThat(submits).hasValue(0);
+
+			for (TransactionSynchronization sync : TransactionSynchronizationManager
+					.getSynchronizations()) {
+				sync.afterCommit();
+			}
+			assertThat(submits).hasValue(2);
+		} finally {
+			TransactionSynchronizationManager.clearSynchronization();
+		}
+	}
+
+	@Test
+	void aRolledBackTransactionNeverSubmits() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AtomicInteger submits = new AtomicInteger();
+		AssistantDispatcherImpl dispatcher = new AssistantDispatcherImpl(
+				task -> submits.incrementAndGet(), runStore, new RecordingWorker(runStore, null));
+
+		TransactionSynchronizationManager.initSynchronization();
+		try {
+			dispatcher.dispatch(request());
+			for (TransactionSynchronization sync : TransactionSynchronizationManager
+					.getSynchronizations()) {
+				sync.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK);
+			}
+			assertThat(submits).hasValue(0);
+		} finally {
+			TransactionSynchronizationManager.clearSynchronization();
+		}
 	}
 
 	@Test

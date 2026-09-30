@@ -33,6 +33,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.rreganjr.requel.assistant.api.AnalysisRequest;
 import com.rreganjr.requel.assistant.api.AssistantDispatcher;
@@ -63,13 +65,11 @@ public class AssistantDispatcherImpl implements AssistantDispatcher {
 	public CompletionStage<AssistantRunHandle> dispatch(AnalysisRequest request) {
 		Objects.requireNonNull(request, "request");
 		AssistantRunRecord record = runStore.queueRun(request);
+		if (deferUntilCommit(() -> submitOne(record))) {
+			return CompletableFuture.completedFuture(new AssistantRunHandle(record.runId()));
+		}
 		try {
-			taskExecutor.execute(new Runnable() {
-				@Override
-				public void run() {
-					runWorker.run(record.runId());
-				}
-			});
+			submitOne(record);
 		} catch (TaskRejectedException e) {
 			runStore.markFailed(record.runId(), e);
 			return CompletableFuture.failedStage(e);
@@ -92,20 +92,15 @@ public class AssistantDispatcherImpl implements AssistantDispatcher {
 		for (AnalysisRequest request : requests) {
 			records.add(runStore.queueRun(Objects.requireNonNull(request, "request")));
 		}
+		if (deferUntilCommit(() -> submitBatch(records))) {
+			List<CompletionStage<AssistantRunHandle>> stages = new ArrayList<>(records.size());
+			for (AssistantRunRecord record : records) {
+				stages.add(CompletableFuture.completedFuture(new AssistantRunHandle(record.runId())));
+			}
+			return stages;
+		}
 		try {
-			taskExecutor.execute(new Runnable() {
-				@Override
-				public void run() {
-					for (AssistantRunRecord record : records) {
-						try {
-							runWorker.run(record.runId());
-						} catch (RuntimeException e) {
-							log.warn("Assistant run {} failed in a batch of {}: {}", record.runId(),
-									records.size(), e.getMessage(), e);
-						}
-					}
-				}
-			});
+			submitBatch(records);
 		} catch (TaskRejectedException e) {
 			List<CompletionStage<AssistantRunHandle>> failed = new ArrayList<>(records.size());
 			for (AssistantRunRecord record : records) {
@@ -119,5 +114,54 @@ public class AssistantDispatcherImpl implements AssistantDispatcher {
 			stages.add(CompletableFuture.completedFuture(new AssistantRunHandle(record.runId())));
 		}
 		return stages;
+	}
+
+	private void submitOne(AssistantRunRecord record) {
+		taskExecutor.execute(new Runnable() {
+			@Override
+			public void run() {
+				runWorker.run(record.runId());
+			}
+		});
+	}
+
+	private void submitBatch(List<AssistantRunRecord> records) {
+		taskExecutor.execute(new Runnable() {
+			@Override
+			public void run() {
+				for (AssistantRunRecord record : records) {
+					try {
+						runWorker.run(record.runId());
+					} catch (RuntimeException e) {
+						log.warn("Assistant run {} failed in a batch of {}: {}", record.runId(),
+								records.size(), e.getMessage(), e);
+					}
+				}
+			}
+		});
+	}
+
+	/**
+	 * #259: a dispatch made inside a caller's transaction queues its run row in that transaction,
+	 * so a worker started now looks the row up before it is committed, finds nothing, and the run
+	 * stays QUEUED forever. When a transaction is active the submit waits for its commit (and never
+	 * happens on rollback, which also removes the row). Returns whether it was deferred.
+	 */
+	private boolean deferUntilCommit(Runnable submit) {
+		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+			return false;
+		}
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				try {
+					submit.run();
+				} catch (TaskRejectedException e) {
+					// The caller's transaction is already committed; the run stays QUEUED.
+					log.warn("Assistant run submit rejected after commit: {}", e.getMessage(), e);
+				}
+			}
+		});
+		return true;
 	}
 }

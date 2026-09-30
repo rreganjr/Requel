@@ -21,9 +21,11 @@
 package com.rreganjr.requel.assistant.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +41,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
+import com.rreganjr.requel.assistant.api.AssistantException;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
@@ -64,7 +67,7 @@ class RequirementsReviewAssistantTest {
 	}
 
 	@Test
-	void skipsWhenNotRequirementsReviewTask() {
+	void skipsWhenNotRequirementsReviewTask() throws Exception {
 		AssistantResult result = newAssistant(enabledProperties())
 				.analyze(context(null), goalTarget());
 
@@ -73,7 +76,7 @@ class RequirementsReviewAssistantTest {
 	}
 
 	@Test
-	void skipsWhenAiDisabled() {
+	void skipsWhenAiDisabled() throws Exception {
 		AiProperties disabled = new AiProperties(); // enabled defaults to false
 		AssistantResult result = newAssistant(disabled)
 				.analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
@@ -83,7 +86,7 @@ class RequirementsReviewAssistantTest {
 	}
 
 	@Test
-	void skipsWhenProjectNotAllowed() {
+	void skipsWhenProjectNotAllowed() throws Exception {
 		AiProperties props = enabledProperties();
 		props.setProjectAllowlist(List.of("999")); // run's project id is 2
 		AssistantResult result = newAssistant(props)
@@ -94,7 +97,7 @@ class RequirementsReviewAssistantTest {
 	}
 
 	@Test
-	void callsProviderWhenRequirementsReviewEnabledAndAllowed() {
+	void callsProviderWhenRequirementsReviewEnabledAndAllowed() throws Exception {
 		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
 
 		AssistantResult result = newAssistant(enabledProperties())
@@ -115,7 +118,7 @@ class RequirementsReviewAssistantTest {
 	}
 
 	@Test
-	void skipsProviderWhenContextExceedsInputCap() {
+	void skipsProviderWhenContextExceedsInputCap() throws Exception {
 		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
 		AiProperties props = enabledProperties();
 		props.setMaxInputTokens(-1); // force any estimate to exceed the cap
@@ -129,7 +132,22 @@ class RequirementsReviewAssistantTest {
 	}
 
 	@Test
-	void mapsFindingsToAnnotationActions() {
+	void providerFailurePropagatesSoTheRunRecordsIt() {
+		// #259: an AiAnalysisException used to be swallowed into a result, so the run read as a
+		// successful review that found nothing.
+		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		aiClient.failure = new AiAnalysisException("AI CLI exited with status 2");
+
+		assertThatThrownBy(() -> newAssistant(enabledProperties())
+				.analyze(context("REQUIREMENTS_REVIEW"), goalTarget()))
+				.isInstanceOf(AssistantException.class)
+				.hasMessageContaining("AI CLI exited with status 2")
+				.hasCauseInstanceOf(AiAnalysisException.class);
+		verify(usageRepository, never()).save(any()); // no usage row for a failed call
+	}
+
+	@Test
+	void mapsFindingsToAnnotationActions() throws Exception {
 		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
 		aiClient.response = new AiAnalysisResponse("found two issues", NullNode.getInstance(),
 				List.of(
@@ -197,11 +215,15 @@ class RequirementsReviewAssistantTest {
 		private AiAnalysisResponse response = new AiAnalysisResponse("noop summary",
 				NullNode.getInstance(), List.of(), List.of(), AiUsage.noop("noop", Duration.ZERO),
 				Map.of());
+		private AiAnalysisException failure;
 
 		@Override
-		public AiAnalysisResponse analyze(AiAnalysisRequest request) {
+		public AiAnalysisResponse analyze(AiAnalysisRequest request) throws AiAnalysisException {
 			this.calls++;
 			this.lastRequest = request;
+			if (failure != null) {
+				throw failure;
+			}
 			return response;
 		}
 	}

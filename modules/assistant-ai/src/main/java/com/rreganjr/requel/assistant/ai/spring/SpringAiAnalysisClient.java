@@ -23,9 +23,7 @@ package com.rreganjr.requel.assistant.ai.spring;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -35,18 +33,16 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.beans.factory.ObjectProvider;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.rreganjr.requel.assistant.ai.AiAnalysisClient;
 import com.rreganjr.requel.assistant.ai.AiAnalysisException;
 import com.rreganjr.requel.assistant.ai.AiAnalysisRequest;
 import com.rreganjr.requel.assistant.ai.AiAnalysisResponse;
-import com.rreganjr.requel.assistant.ai.AiFindingDraft;
+import com.rreganjr.requel.assistant.ai.AiPromptBuilder;
 import com.rreganjr.requel.assistant.ai.AiProperties;
 import com.rreganjr.requel.assistant.ai.AiUsage;
-import com.rreganjr.requel.assistant.api.AssistantMessage;
+import com.rreganjr.requel.assistant.ai.ReviewResultMapper;
+import com.rreganjr.requel.assistant.ai.ReviewResultMapper.ReviewResult;
 
 /**
  * Single {@link AiAnalysisClient} backed by Spring AI's {@link ChatClient}. The configured
@@ -58,7 +54,8 @@ import com.rreganjr.requel.assistant.api.AssistantMessage;
  * <p>
  * Structured output is <em>requested</em> via Spring AI's structured-output support
  * ({@code responseEntity(ReviewResult.class)} forces + binds the reply) and then
- * <em>validated</em> by Requel against the provider-neutral contract before use. Registered as a
+ * <em>validated</em> by Requel against the provider-neutral contract before use; validation and
+ * mapping live in {@link ReviewResultMapper}, shared with the CLI client (#259). Registered as a
  * bean by {@link com.rreganjr.requel.assistant.ai.AiConfiguration} when
  * {@code requel.ai.provider} is {@code openai} or {@code openai-compat}; mutually exclusive with
  * the {@code noop} client.
@@ -66,11 +63,6 @@ import com.rreganjr.requel.assistant.api.AssistantMessage;
 public class SpringAiAnalysisClient implements AiAnalysisClient {
 
 	private static final Logger log = LoggerFactory.getLogger(SpringAiAnalysisClient.class);
-
-	private static final String DEFAULT_GUIDANCE =
-			"You are a Requel requirements analysis assistant. Analyze the target requirement and "
-					+ "report quality problems. Findings are drafts for reviewable Requel "
-					+ "annotations; do not invent commands that directly mutate project data.";
 
 	/**
 	 * Supplies the {@link ChatClient.Builder} lazily. Injected as an {@link ObjectProvider} (rather
@@ -84,7 +76,8 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 	private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
 	private volatile ChatClient chat;
 	private final AiProperties properties;
-	private final ObjectMapper objectMapper;
+	private final ReviewResultMapper mapper;
+	private final AiPromptBuilder promptBuilder;
 	private final Clock clock;
 
 	public SpringAiAnalysisClient(ObjectProvider<ChatClient.Builder> chatClientBuilderProvider,
@@ -92,7 +85,8 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 		this.chatClientBuilderProvider = Objects.requireNonNull(chatClientBuilderProvider,
 				"chatClientBuilderProvider");
 		this.properties = Objects.requireNonNull(properties, "properties");
-		this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
+		this.mapper = new ReviewResultMapper(Objects.requireNonNull(objectMapper, "objectMapper"));
+		this.promptBuilder = new AiPromptBuilder(objectMapper, properties);
 		this.clock = Clock.systemUTC();
 	}
 
@@ -101,7 +95,8 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 		this.chat = Objects.requireNonNull(chat, "chat");
 		this.chatClientBuilderProvider = null;
 		this.properties = Objects.requireNonNull(properties, "properties");
-		this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
+		this.mapper = new ReviewResultMapper(Objects.requireNonNull(objectMapper, "objectMapper"));
+		this.promptBuilder = new AiPromptBuilder(objectMapper, properties);
 		this.clock = Objects.requireNonNull(clock, "clock");
 	}
 
@@ -132,8 +127,10 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 			// Structured Outputs on OpenAI, prompt-embedded format on compatible servers), binds
 			// the reply, AND exposes the ChatResponse so we can read usage/finish metadata.
 			var responseEntity = chat().prompt()
-					.system(instructions(request))
-					.user(prompt(request))
+					// Spring AI's structured-output converter appends the JSON-shape format
+					// instructions, so only the shared task guidance and body are supplied here.
+					.system(promptBuilder.instructions(request))
+					.user(promptBuilder.prompt(request))
 					.call()
 					.responseEntity(ReviewResult.class);
 			result = responseEntity.entity();
@@ -142,7 +139,7 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 			throw new AiAnalysisException("Spring AI chat request failed", e);
 		}
 
-		validate(result);
+		ReviewResultMapper.validate(result);
 		Duration latency = Duration.between(startedAt, clock.instant());
 		if (log.isDebugEnabled()) {
 			log.debug("spring-ai structured output for run {} ({} findings)", request.runId(),
@@ -151,98 +148,12 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 		return toResponse(result, chatResponse, latency);
 	}
 
-	// ---- prompt construction -------------------------------------------------
+	// ---- mapping (pure; unit-tested without the network) ------------------
 
-	private String instructions(AiAnalysisRequest request) {
-		String guidance = request.instructions() != null && !request.instructions().isBlank()
-				? request.instructions()
-				: DEFAULT_GUIDANCE;
-		// Spring AI's structured-output converter appends the JSON-shape format instructions, so we
-		// only supply the task guidance here.
-		return guidance
-				+ "\n\nTask type: " + request.taskType()
-				+ "\nLocale: " + request.locale().toLanguageTag();
-	}
-
-	private String prompt(AiAnalysisRequest request) {
-		ObjectNode root = objectMapper.createObjectNode();
-		root.put("assistantId", request.assistantId());
-		root.put("runId", request.runId().toString());
-		root.put("taskType", request.taskType());
-		root.set("targetRef", objectMapper.valueToTree(request.targetRef()));
-		root.set("projectRef", objectMapper.valueToTree(request.projectRef()));
-		root.put("locale", request.locale().toLanguageTag());
-		root.set("contextPacks", objectMapper.valueToTree(request.contextPacks()));
-		root.put("outputSchemaName", request.outputSchemaName());
-		root.put("outputSchemaVersion", request.outputSchemaVersion());
-		root.set("dataHandlingFlags", objectMapper.valueToTree(request.dataHandlingFlags()));
-		root.set("attributes", objectMapper.valueToTree(request.attributes()));
-		root.put("approximateInputTokenBudget", properties.getMaxInputTokens());
-		try {
-			return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(root);
-		} catch (JsonProcessingException e) {
-			throw new IllegalStateException("Could not serialize AI analysis prompt", e);
-		}
-	}
-
-	// ---- validation + mapping (pure; unit-tested without the network) --------
-
-	/** Requel-side validation of the requested structured output. */
-	static void validate(ReviewResult result) throws AiAnalysisException {
-		if (result == null) {
-			throw new AiAnalysisException("Spring AI structured output was null");
-		}
-		if (result.summary() == null || result.summary().isBlank()) {
-			throw new AiAnalysisException("Spring AI structured output missing summary");
-		}
-		if (result.findings() != null) {
-			for (ReviewResult.Finding finding : result.findings()) {
-				if (finding == null || finding.findingType() == null
-						|| finding.findingType().isBlank()) {
-					throw new AiAnalysisException("Spring AI finding missing findingType");
-				}
-			}
-		}
-	}
-
+	/** Maps a validated result: the reply via {@link ReviewResultMapper}, usage from Spring AI. */
 	AiAnalysisResponse toResponse(ReviewResult result, ChatResponse chatResponse, Duration latency) {
-		JsonNode structuredOutput = objectMapper.valueToTree(result);
-		AiUsage usage = usage(chatResponse, latency);
-		Map<String, Object> metadata = providerMetadata(chatResponse);
-		return new AiAnalysisResponse(result.summary(), structuredOutput, findings(result),
-				messages(result), usage, metadata);
-	}
-
-	private List<AiFindingDraft> findings(ReviewResult result) {
-		List<AiFindingDraft> findings = new ArrayList<AiFindingDraft>();
-		if (result.findings() == null) {
-			return findings;
-		}
-		for (ReviewResult.Finding finding : result.findings()) {
-			findings.add(new AiFindingDraft(
-					finding.findingType(),
-					finding.severity(),
-					finding.confidence(),
-					orEmpty(finding.evidenceReferences()),
-					finding.suggestedIssueText(),
-					finding.suggestedNoteText(),
-					orEmpty(finding.suggestedPositions()),
-					Map.of()));
-		}
-		return findings;
-	}
-
-	private List<AssistantMessage> messages(ReviewResult result) {
-		if (result.warnings() == null || result.warnings().isEmpty()) {
-			return List.of();
-		}
-		List<AssistantMessage> messages = new ArrayList<AssistantMessage>();
-		for (String warning : result.warnings()) {
-			if (warning != null && !warning.isBlank()) {
-				messages.add(AssistantMessage.warning(warning));
-			}
-		}
-		return messages;
+		return mapper.toResponse(result, usage(chatResponse, latency),
+				providerMetadata(chatResponse));
 	}
 
 	private AiUsage usage(ChatResponse chatResponse, Duration latency) {
@@ -278,20 +189,5 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 	/** Token-count getters returned {@code Long} historically and {@code Integer} now; accept both. */
 	private static Integer asInt(Object value) {
 		return value instanceof Number number ? number.intValue() : null;
-	}
-
-	private static List<String> orEmpty(List<String> values) {
-		return values == null ? List.of() : values;
-	}
-
-	/**
-	 * Mirrors today's provider-neutral output schema ({@code summary} / {@code findings} /
-	 * {@code warnings}). Spring AI binds the model reply to this record.
-	 */
-	public record ReviewResult(String summary, List<Finding> findings, List<String> warnings) {
-		public record Finding(String findingType, String severity, Double confidence,
-				List<String> evidenceReferences, String suggestedIssueText, String suggestedNoteText,
-				List<String> suggestedPositions) {
-		}
 	}
 }

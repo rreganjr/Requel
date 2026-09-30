@@ -110,6 +110,23 @@ class JpaAssistantRunStoreTest {
 		assertThat(entity.getCompletedAt()).isEqualTo(fixedNow);
 	}
 
+	/** #259: a long failure message (a CLI's stderr excerpt) is capped to the column too. */
+	@Test
+	void markFailedTruncatesALongSummary() {
+		AssistantRunRepository repository = mock(AssistantRunRepository.class);
+		JpaAssistantRunStore store = new JpaAssistantRunStore(repository, fixedClock);
+		AssistantRunEntity entity = new AssistantRunEntity(UUID.randomUUID(), "test", "RUNNING",
+				fixedNow.minusSeconds(2), fixedNow.minusSeconds(1));
+		when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+		store.markFailed(entity.getRunId(),
+				new IllegalStateException("AI CLI exited with status 2; stderr: " + "e".repeat(3000)));
+
+		assertThat(entity.getStatus()).isEqualTo("FAILED");
+		assertThat(entity.getErrorKind()).isEqualTo("IllegalStateException");
+		assertThat(entity.getErrorSummary()).startsWith("AI CLI exited with status 2").hasSize(1000);
+	}
+
 	/** #268: some assistants didn't finish; the run still succeeded. */
 	@Test
 	void markPartialSucceedsWithKindPartialAndATruncatedSummary() {
