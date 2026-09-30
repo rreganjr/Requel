@@ -272,6 +272,9 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 
 				// Issue #272: the project's external sources and their entity links.
 				projectImpl.setExportExternalSources(exportExternalSources(projectImpl));
+
+				// Issue #275: which annotations are stale on which entities (#270).
+				staleMarked = markStale(projectImpl);
 			}
 
 			JAXBContext context = JAXBContext.newInstance(CLASSES_FOR_JAXB);
@@ -295,6 +298,64 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 		} catch (Exception e) {
 			log.error("Could not export project XML", e);
 			throw new IllegalStateException("Could not export project XML", e);
+		} finally {
+			for (com.rreganjr.requel.annotation.impl.AbstractAnnotation annotation : staleMarked) {
+				annotation.setExportStaleOn(null);
+			}
 		}
+	}
+
+	private java.util.List<com.rreganjr.requel.annotation.impl.AbstractAnnotation> staleMarked =
+			java.util.List.of();
+
+	private com.rreganjr.requel.annotation.spi.AnnotationFreshness annotationFreshness =
+			com.rreganjr.requel.annotation.spi.AnnotationFreshness.NONE;
+
+	/** Issue #275: optional, as the other stores are; nothing is stale without the assistant module. */
+	@Autowired(required = false)
+	public void setAnnotationFreshness(
+			com.rreganjr.requel.annotation.spi.AnnotationFreshness annotationFreshness) {
+		this.annotationFreshness = annotationFreshness == null
+				? com.rreganjr.requel.annotation.spi.AnnotationFreshness.NONE
+				: annotationFreshness;
+	}
+
+	/**
+	 * Issue #275: one staleness lookup for every entity of the project (sub-scenarios and shared
+	 * steps included), then each stale annotation carries the entities it is stale on, sorted by
+	 * type and id so the attribute is byte-stable.
+	 *
+	 * @return the annotations marked, to clear after the marshal
+	 */
+	private java.util.List<com.rreganjr.requel.annotation.impl.AbstractAnnotation> markStale(
+			ProjectImpl projectImpl) {
+		java.util.Set<com.rreganjr.requel.project.ProjectOrDomainEntity> entities =
+				new java.util.LinkedHashSet<>(projectImpl.getProjectEntities());
+		for (Object step : projectImpl.getAllScenariosAndSteps()) {
+			if (step instanceof com.rreganjr.requel.project.ProjectOrDomainEntity entity) {
+				entities.add(entity);
+			}
+		}
+		java.util.List<com.rreganjr.requel.project.ProjectOrDomainEntity> ordered =
+				new java.util.ArrayList<>(entities);
+		ordered.sort(java.util.Comparator
+				.comparing((com.rreganjr.requel.project.ProjectOrDomainEntity e) -> e
+						.getProjectOrDomainEntityInterface().getSimpleName())
+				.thenComparing(com.rreganjr.requel.project.ProjectOrDomainEntity::getId,
+						java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())));
+		com.rreganjr.requel.annotation.spi.AnnotationFreshness.StaleAnnotations stale =
+				annotationFreshness.staleAnnotations(ordered);
+		java.util.Map<com.rreganjr.requel.annotation.impl.AbstractAnnotation, java.util.List<Object>> marks =
+				new java.util.LinkedHashMap<>();
+		for (com.rreganjr.requel.project.ProjectOrDomainEntity entity : ordered) {
+			for (com.rreganjr.requel.annotation.Annotation annotation : entity.getAnnotations()) {
+				if (annotation instanceof com.rreganjr.requel.annotation.impl.AbstractAnnotation impl
+						&& stale.isStale(entity, annotation)) {
+					marks.computeIfAbsent(impl, a -> new java.util.ArrayList<>()).add(entity);
+				}
+			}
+		}
+		marks.forEach((annotation, on) -> annotation.setExportStaleOn(on));
+		return new java.util.ArrayList<>(marks.keySet());
 	}
 }

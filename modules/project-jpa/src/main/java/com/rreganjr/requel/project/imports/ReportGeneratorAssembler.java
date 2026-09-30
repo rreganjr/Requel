@@ -26,12 +26,17 @@ import com.rreganjr.requel.imports.ImportException;
 import com.rreganjr.requel.imports.ImportUnitOfWork;
 import com.rreganjr.requel.imports.project.ReportGeneratorImportDraft;
 import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.impl.BuiltinReportGenerators;
 import com.rreganjr.requel.project.impl.ReportGeneratorImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Assembles report generators from import drafts.
  */
 public class ReportGeneratorAssembler implements AggregateAssembler<ReportGeneratorImportDraft, ReportGeneratorImpl> {
+
+    private static final Logger log = LoggerFactory.getLogger(ReportGeneratorAssembler.class);
 
     private final Project project;
     private final User defaultCreatedBy;
@@ -57,6 +62,17 @@ public class ReportGeneratorAssembler implements AggregateAssembler<ReportGenera
             throw new ImportException("report generator draft is required");
         }
         ReportGeneratorImpl report = new ReportGeneratorImpl(project, defaultCreatedBy, draft.getName(), draft.getText());
+        // Issue #275: keep the link to a bundled template this installation has; a key it does
+        // not know (an export from a newer Requel) is dropped and the stored text renders.
+        if (draft.getBuiltinKey() != null) {
+            if (BuiltinReportGenerators.forKey(draft.getBuiltinKey()).isPresent()) {
+                report.setBuiltinKey(draft.getBuiltinKey());
+            } else {
+                log.warn("import: report generator \"" + draft.getName()
+                        + "\" names unknown bundled generator \"" + draft.getBuiltinKey()
+                        + "\"; its own text will render");
+            }
+        }
         project.getReportGenerators().add(report);
         unitOfWork.register(ReportGeneratorImpl.class, draft.getExternalId(), report);
         unitOfWork.register(com.rreganjr.requel.project.ReportGenerator.class, draft.getExternalId(), report);

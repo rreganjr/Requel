@@ -244,6 +244,26 @@ public class UseCaseImpl extends AbstractTextEntity implements UseCase, Taggable
 		this.additionalScenarios = additionalScenarios;
 	}
 
+	/**
+	 * Issue #275: the additional scenarios in the XML export, which dropped them before (the JPA
+	 * property is {@code @XmlTransient}), so an export/import round trip lost them and an emitted
+	 * document could not place them under their use case. Sorted by id so the export is stable.
+	 */
+	@Transient
+	@XmlIDREF
+	@XmlElementWrapper(name = "additionalScenarios", namespace = "http://www.rreganjr.com/requel")
+	@XmlElement(name = "scenarioRef", type = ScenarioImpl.class, namespace = "http://www.rreganjr.com/requel")
+	public java.util.List<Scenario> getExportAdditionalScenarios() {
+		java.util.List<Scenario> sorted = new java.util.ArrayList<>(getAdditionalScenarios());
+		sorted.sort(java.util.Comparator.comparing(Scenario::getId,
+				java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())));
+		return sorted;
+	}
+
+	public void setExportAdditionalScenarios(java.util.List<Scenario> scenarios) {
+		// export only: the streaming import reads additionalScenarios itself
+	}
+
 	@Override
 	public int compareTo(UseCase o) {
 		return getName().compareToIgnoreCase(o.getName());

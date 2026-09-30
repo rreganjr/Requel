@@ -35,6 +35,7 @@ public class ReportGeneratorImportXmlMapper {
                 .createdByExternalId(xml.getCreatedBy())
                 .name(xml.getName())
                 .text(xml.getText())
+                .builtinKey(xml.getBuiltin())
                 .annotationExternalIds(new HashSet<>(xml.getAnnotationRefs()))
                 .build();
     }

@@ -30,6 +30,7 @@ public class ReportGeneratorImportDraft {
     private final String createdByExternalId;
     private final String name;
     private final String text;
+    private final String builtinKey;
     private final Set<String> annotationExternalIds;
 
     private ReportGeneratorImportDraft(Builder builder) {
@@ -37,6 +38,7 @@ public class ReportGeneratorImportDraft {
         this.createdByExternalId = builder.createdByExternalId;
         this.name = builder.name;
         this.text = builder.text;
+        this.builtinKey = builder.builtinKey;
         this.annotationExternalIds = Collections.unmodifiableSet(new HashSet<>(builder.annotationExternalIds));
     }
 
@@ -56,6 +58,11 @@ public class ReportGeneratorImportDraft {
         return text;
     }
 
+    /** Issue #275: the bundled generator key from the export's {@code builtin} attribute. */
+    public String getBuiltinKey() {
+        return builtinKey;
+    }
+
     public Set<String> getAnnotationExternalIds() {
         return annotationExternalIds;
     }
@@ -69,6 +76,7 @@ public class ReportGeneratorImportDraft {
         private String createdByExternalId;
         private String name;
         private String text;
+        private String builtinKey;
         private Set<String> annotationExternalIds = new HashSet<>();
 
         public Builder externalId(String externalId) {
@@ -88,6 +96,11 @@ public class ReportGeneratorImportDraft {
 
         public Builder text(String text) {
             this.text = text;
+            return this;
+        }
+
+        public Builder builtinKey(String builtinKey) {
+            this.builtinKey = builtinKey;
             return this;
         }
 

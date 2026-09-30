@@ -54,6 +54,7 @@ public class EditReportGeneratorCommandImpl extends AbstractEditProjectOrDomainE
 
 	private ReportGenerator reportGenerator;
 	private String text;
+	private String builtinKey;
 
 	/**
 	 * @param assistantManager
@@ -90,6 +91,11 @@ public class EditReportGeneratorCommandImpl extends AbstractEditProjectOrDomainE
 	}
 
 	@Override
+	public void setBuiltinKey(String builtinKey) {
+		this.builtinKey = builtinKey;
+	}
+
+	@Override
 	public void execute() {
 		User editedBy = getProjectRepository().get(getEditedBy());
 		ReportGeneratorImpl reportGeneratorImpl = (ReportGeneratorImpl) getReportGenerator();
@@ -113,14 +119,23 @@ public class EditReportGeneratorCommandImpl extends AbstractEditProjectOrDomainE
 		}
 
 		if (reportGeneratorImpl == null) {
-			reportGeneratorImpl = getProjectRepository().persist(
-					new ReportGeneratorImpl(projectOrDomain, editedBy, getName(), getText()));
+			ReportGeneratorImpl created = new ReportGeneratorImpl(projectOrDomain, editedBy,
+					getName(), getText());
+			created.setBuiltinKey(builtinKey);
+			reportGeneratorImpl = getProjectRepository().persist(created);
 		} else {
 			// Null leaves a property as it is; "" clears the text (issue #316).
 			if (getName() != null) {
 				reportGeneratorImpl.setName(getName());
 			}
 			if (getText() != null) {
+				// Issue #275: new text on a bundled generator detaches it, so the user's template
+				// is what renders from now on and a bundle update never overwrites it. Saving
+				// the text unchanged (the editor sends name and text together) keeps the link.
+				if (reportGeneratorImpl.getBuiltinKey() != null
+						&& !getText().equals(reportGeneratorImpl.getText())) {
+					reportGeneratorImpl.setBuiltinKey(null);
+				}
 				reportGeneratorImpl.setText(getText());
 			}
 		}

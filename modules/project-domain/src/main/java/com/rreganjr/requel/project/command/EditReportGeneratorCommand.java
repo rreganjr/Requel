@@ -40,4 +40,12 @@ public interface EditReportGeneratorCommand extends EditTextEntityCommand {
 	 * @return
 	 */
 	public ReportGenerator getReportGenerator();
+
+	/**
+	 * Issue #275: on create only, link the new generator to a bundled template
+	 * ({@link com.rreganjr.requel.project.ReportGenerator#getBuiltinKey()}). Ignored on edit.
+	 */
+	default void setBuiltinKey(String builtinKey) {
+		throw new UnsupportedOperationException("setBuiltinKey");
+	}
 }

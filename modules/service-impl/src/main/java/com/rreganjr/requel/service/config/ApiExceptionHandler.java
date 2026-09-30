@@ -51,6 +51,16 @@ public class ApiExceptionHandler {
                 .body(ErrorResponse.of(ProjectContentTooLargeException.CODE, e.getMessage()));
     }
 
+    /** #275: a report generator that could not produce its document. 422 with the cause. */
+    @ExceptionHandler(com.rreganjr.requel.project.exception.ReportGenerationException.class)
+    public ResponseEntity<ErrorResponse> handleReportFailed(
+            com.rreganjr.requel.project.exception.ReportGenerationException e) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ErrorResponse.of(
+                        com.rreganjr.requel.project.exception.ReportGenerationException.CODE,
+                        e.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(IllegalArgumentException e) {
         return ResponseEntity.badRequest()

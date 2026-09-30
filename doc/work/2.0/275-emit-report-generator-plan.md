@@ -254,6 +254,50 @@ statement, blocking check, intentional behaviour, open questions). #258 defines 
 CORPUS today; an EMIT kind would take the structural output of the ticket generator plus the open
 issues and write those sections. No change to #258's scope now.
 
-## Implementation notes
+## Implementation notes (2026-09-30)
 
-(filled in during the build)
+- **Additional scenarios were not in the export.** `UseCaseImpl.getAdditionalScenarios` is
+  `@XmlTransient`, so an export/import round trip dropped them and the ticket could only list them
+  under "Other Scenarios". Folded in: an export-only `additionalScenarios/scenarioRef` wrapper,
+  read back by the streaming import (`UseCaseImportXml` -> draft -> `UseCaseAssembler`), and added
+  to both `project.xsd` copies with the new `staleOn` (annotation) and `builtin` (report)
+  attributes.
+- **XSLTC drops every node** when a `for-each` sorts a node-set passed in with `xsl:with-param`.
+  The ticket generator sorts reference lists at the call site with `apply-templates mode="ref-list"`
+  instead; noted in `doc/guides/emit-ticket-format.md`.
+- **`project2html.xslt` renders no annotations** (its annotation template has been commented out
+  since 2009), so "marks stale issues too" has nothing to mark. It only swaps `@revision` for
+  `$projectVersion`. It keeps `generate-id()` for its anchors, which follow input order, so the
+  HTML is not promised byte-identical and has no golden file; the ticket generator is.
+- **Stories** are counted in Traceability but not rendered, as in both hand-written emissions.
+- **`runReport` returns `ResponseEntity<byte[]>`** and exposes `Content-Disposition` to the
+  browser (`Access-Control-Expose-Headers`) so the Angular download takes the server's file name.
+- **Tests:** `Project2TicketXsltTest` (golden file `emit/ticket-fixture.golden.md`, export-order
+  independence, issue ordering, per-entity stale, dangling reference); `ReportGenerationIT`
+  (sections, counts vs the summary, byte-identical rerun, version edit/revert, HTML version,
+  422 on a missing entity and on a broken template with no export file left behind, bundled keys,
+  detach, upgrader adopt/add/leave/idempotent, export round trip, `staleOn` in the export);
+  `ProjectQueryControllerTest` (media type, file name, 422); Angular report service and editor
+  specs.
+- **Roundtable (621), run 2026-09-30:** the Ticket (Markdown) generator rendered the project with
+  no hand-editing; the output is `doc/work/2.0/roundtable/pq-roundtable-emitted-CON-3685-v3.md`.
+  Against v2's structural sections: all 11 goals, 5 actors and 7 use cases are present; the
+  recovery ladder and the six-step manual verification pass come out as scenarios with their
+  ordered steps, the manual pass under "Run a roundtable session" (it is an additional scenario,
+  so the export fix above is what put it there); the three dry-run synonyms point at the
+  canonical term; counts are 11 goals, 5 actors, 7 use cases, 8 scenarios, 15 steps, 4 stories,
+  12 glossary terms. Differences from v2 are content, not rendering: v2's goal wording is the
+  proposed rewording written by hand, and v3 prints the model's names and text. What the run
+  showed:
+  - The project has no sources recorded, so there was no Sources line or Resources section, and
+    a reader could not tell "none" from "left out". The header now always says
+    `Sources: none recorded` when there are none.
+  - Five use cases have a primary scenario with no steps, which rendered as a heading with nothing
+    under it. A stepless scenario now reads `_No steps recorded._`.
+  - All 11 open issues are MEDIUM: the case-study findings were written before #271, so none
+    carries a severity, and the ranking cannot surface the admin-gate finding (review L1) the way
+    v2's Blocking Check did. That is data: set the severities with EditIssue.
+  - Three of the 11 are legacy "subject of the step text ... does not match a known actor"
+    findings, still `mustBeResolved`: #268 made the lexical issues advisory but not these
+    scenario-step ones.
+  - Two glossary terms ("Webinar", "Livestream") carry joke definitions in the local database.

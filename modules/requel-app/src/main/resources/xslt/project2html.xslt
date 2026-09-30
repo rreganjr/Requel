@@ -11,6 +11,11 @@
 
 	<xsl:output method="xml" encoding="UTF-8" indent="yes" />
 
+	<!-- Issue #275: the project version (content fingerprint), passed in by the run path. The
+	     project's own @revision is its row's optimistic-lock version and does not change when an
+	     entity is edited, so it is not shown. -->
+	<xsl:param name="projectVersion" select="''" />
+
 	<xsl:template match="/rp:project">
 		<html>
 			<head>
@@ -23,7 +28,7 @@
 				<div class="project">
 					<h1>Requirements for &quot;<xsl:value-of select="rp:name" />&quot;</h1>
 					<h5>Client: <xsl:value-of select="rp:organization/@name" /></h5>
-					<h5>Revision: <xsl:value-of select="@revision" /></h5>
+					<h5>Project version: <xsl:choose><xsl:when test="string-length($projectVersion) > 0"><xsl:value-of select="$projectVersion" /></xsl:when><xsl:otherwise>unknown</xsl:otherwise></xsl:choose></h5>
 					<h4>Table of Contents</h4>
 					<div class="toc">
 						<ul>

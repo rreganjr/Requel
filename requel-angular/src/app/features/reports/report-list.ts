@@ -123,8 +123,10 @@ export class ReportListComponent implements OnInit {
     this.runningId.set(r.id);
     try {
       await this.reportService.downloadReport(this.projectName, r.id, r.name);
-    } catch {
-      this.errorMessage.set(`Failed to generate report "${r.name}".`);
+    } catch (e) {
+      // #275: a failed run names its cause.
+      this.errorMessage.set(e instanceof Error && e.message
+        ? e.message : `Failed to generate report "${r.name}".`);
     } finally {
       this.runningId.set(null);
     }

@@ -39,6 +39,10 @@ public class ReportGeneratorImportXml {
     @XmlAttribute(name = "createdBy")
     private String createdBy;
 
+    /** Issue #275: the bundled generator this one renders, if any. */
+    @XmlAttribute(name = "builtin")
+    private String builtin;
+
     @XmlElement(name = "name", namespace = "http://www.rreganjr.com/requel")
     private String name;
 
@@ -51,6 +55,7 @@ public class ReportGeneratorImportXml {
 
     public String getId() { return id; }
     public String getCreatedBy() { return createdBy; }
+    public String getBuiltin() { return builtin; }
     public String getName() { return name; }
     public String getText() { return text; }
     public List<String> getAnnotationRefs() { return annotationRefs; }
