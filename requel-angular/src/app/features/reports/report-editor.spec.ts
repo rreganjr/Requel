@@ -4,7 +4,7 @@ import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angul
 import { BehaviorSubject } from 'rxjs';
 import { MessageService } from 'primeng/api';
 import { ReportEditorComponent } from './report-editor';
-import { ReportService } from '../../core/report.service';
+import { ReportRunError, ReportService } from '../../core/report.service';
 import { PermissionService } from '../../core/permission.service';
 
 const MOCK_REPORT = {
@@ -172,6 +172,46 @@ describe('ReportEditorComponent', () => {
 
       expect(el().querySelector('[data-testid="report-editor-loading"]')).toBeNull();
       expect(el().querySelector('input#name')).not.toBeNull();
+    });
+
+    // #275: a bundled generator says that new text detaches it; a user's own does not.
+    it('explains that editing a bundled generator detaches it', async () => {
+      reportServiceMock.getReport.mockResolvedValue({ ...MOCK_REPORT, builtinKey: 'ticket-markdown' });
+      paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+      expect(el().querySelector('[data-testid="report-bundled-hint"]')?.textContent)
+        .toContain('Saving new template');
+    });
+
+    it('shows no bundled note for a generator of the project\'s own', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+      expect(el().querySelector('input#name')).not.toBeNull();
+      expect(el().querySelector('[data-testid="report-bundled-hint"]')).toBeNull();
+    });
+
+    it('keeps the generic message when the server gave no reason', async () => {
+      reportServiceMock.downloadReport.mockRejectedValue(new ReportRunError(500, null));
+      paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+      fixture.detectChanges();
+      await flush();
+      await comp.onRun();
+      expect(comp.errorMessage()).toBe('Failed to generate report.');
+    });
+
+    it('shows the server\'s reason when a run fails', async () => {
+      reportServiceMock.downloadReport.mockRejectedValue(new ReportRunError(422,
+        'Report "Requirements Doc" failed: The report references step STP_9, which is not in the project.'));
+      paramMap$.next(convertToParamMap({ name: 'proj1', reportId: '7' }));
+      fixture.detectChanges();
+      await flush();
+      await comp.onRun();
+      expect(comp.errorMessage()).toBe(
+        'Report "Requirements Doc" failed: The report references step STP_9, which is not in the project.');
     });
 
     // The create route never loads, so the gate has to be resolved synchronously in ngOnInit -

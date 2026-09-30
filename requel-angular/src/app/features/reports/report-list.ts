@@ -24,7 +24,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ReportGeneratorDto } from '../../models/report';
-import { ReportService } from '../../core/report.service';
+import { ReportRunError, ReportService } from '../../core/report.service';
 import { PermissionService } from '../../core/permission.service';
 import { ListPageComponent } from '../../shared/list-page';
 import { AppDataTableComponent, DataTableColumn } from '../../shared/app-data-table';
@@ -123,8 +123,11 @@ export class ReportListComponent implements OnInit {
     this.runningId.set(r.id);
     try {
       await this.reportService.downloadReport(this.projectName, r.id, r.name);
-    } catch {
-      this.errorMessage.set(`Failed to generate report "${r.name}".`);
+    } catch (e) {
+      // #275: a failed run the server explained names its cause; anything else keeps the
+      // generic message.
+      this.errorMessage.set(e instanceof ReportRunError && e.serverMessage
+        ? e.serverMessage : `Failed to generate report "${r.name}".`);
     } finally {
       this.runningId.set(null);
     }

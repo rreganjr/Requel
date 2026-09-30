@@ -37,6 +37,7 @@ public class UseCaseImportXmlMapper {
                 .description(xml.getText())
                 .primaryActorExternalId(xml.getPrimaryActorRef())
                 .scenarioExternalId(xml.getScenarioRef())
+                .additionalScenarioExternalIds(xml.getAdditionalScenarioRefs())
                 .storyExternalIds(new HashSet<>(xml.getStoryRefs()))
                 .goalExternalIds(new HashSet<>(xml.getGoalRefs()))
                 .actorExternalIds(new HashSet<>(xml.getActorRefs()))

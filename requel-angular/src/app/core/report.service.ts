@@ -26,6 +26,18 @@ import { CommandService } from './command.service';
 import { AuthService } from './auth.service';
 import { projectApiUrl } from './api-url';
 
+/**
+ * #275: a report run that failed. {@link serverMessage} is the server's reason when it gave one
+ * (a 422 REPORT_FAILED names the reference a template could not resolve); callers show it and
+ * fall back to their own wording when it is absent, e.g. a bare 500.
+ */
+export class ReportRunError extends Error {
+  constructor(readonly status: number, readonly serverMessage: string | null) {
+    super(serverMessage ?? `Report generation failed: ${status}`);
+    this.name = 'ReportRunError';
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class ReportService {
   constructor(
@@ -53,6 +65,10 @@ export class ReportService {
   /**
    * Trigger a browser download of the generated report.
    * Uses native fetch to include the Bearer token, then creates a Blob URL.
+   *
+   * #275: the file name (and so its extension — `.md` for the ticket generator, `.html` for the
+   * HTML one) comes from the server's Content-Disposition. A failed run throws an Error carrying
+   * the server's message ({@link ReportRunError}), e.g. the reference a template could not resolve.
    */
   async downloadReport(projectName: string, reportId: number, reportName: string): Promise<void> {
     const token = this.authService.token();
@@ -61,14 +77,33 @@ export class ReportService {
       headers: token ? { 'Authorization': `Bearer ${token}` } : {}
     });
     if (!response.ok) {
-      throw new Error(`Report generation failed: ${response.status}`);
+      throw new ReportRunError(response.status, await ReportService.failureMessage(response));
     }
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = reportName.replace(/[^a-zA-Z0-9._-]/g, '_') + '.html';
+    a.download = ReportService.fileName(response.headers.get('Content-Disposition'), reportName);
     a.click();
     URL.revokeObjectURL(blobUrl);
+  }
+
+  /** The Content-Disposition filename, else the report name as .html (the old behaviour). */
+  static fileName(contentDisposition: string | null, reportName: string): string {
+    const match = contentDisposition ? /filename="([^"]+)"/.exec(contentDisposition) : null;
+    return match ? match[1] : reportName.replace(/[^a-zA-Z0-9._-]/g, '_') + '.html';
+  }
+
+  /** The server's error message (a 422 REPORT_FAILED names the cause), or null when it gave none. */
+  static async failureMessage(response: Response): Promise<string | null> {
+    try {
+      const body = await response.json();
+      if (body && typeof body.message === 'string' && body.message.length > 0) {
+        return body.message;
+      }
+    } catch {
+      // not JSON: fall through to the status
+    }
+    return null;
   }
 }

@@ -31,7 +31,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  * @param name      template name (unique within a project)
  * @param text      XSLT stylesheet content (detail view only, null in list view)
  * @param createdBy display name of creator
+ * @param builtinKey the bundled generator this one renders (issue #275), null for one whose own
+ *                   text is the template; editing a bundled generator's text detaches it
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record ReportGeneratorDto(Long id, int version, String name, String text, String createdBy) {
+public record ReportGeneratorDto(Long id, int version, String name, String text, String createdBy,
+        String builtinKey) {
 }

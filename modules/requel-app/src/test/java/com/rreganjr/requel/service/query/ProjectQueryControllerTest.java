@@ -39,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -828,11 +829,49 @@ class ProjectQueryControllerTest {
         when(projectCommandFactory.newGenerateReportCommand()).thenReturn(command);
 
         mockMvc.perform(get("/api/projects/TestProject/reports/16/run"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "text/html;charset=UTF-8"))
+                .andExpect(header().string("Content-Disposition",
+                        "attachment; filename=\"HTML_Spec.html\""));
 
         verify(command).setReportGenerator(report);
         verify(command).setOutputStream(any());
         verify(commandHandler).execute(command);
+    }
+
+    /** #275: the generator's media type and extension name the download. */
+    @Test
+    void runReportUsesTheGeneratorsMediaType() throws Exception {
+        ReportGenerator report = stubReportGenerator(17L, "Ticket (Markdown)");
+        GenerateReportCommand command = mock(GenerateReportCommand.class);
+        when(command.getMediaType()).thenReturn("text/markdown");
+        when(command.getFileExtension()).thenReturn(".md");
+        when(project.getReportGenerators()).thenReturn(Set.of(report));
+        when(projectCommandFactory.newGenerateReportCommand()).thenReturn(command);
+
+        mockMvc.perform(get("/api/projects/TestProject/reports/17/run"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "text/markdown;charset=UTF-8"))
+                .andExpect(header().string("Content-Disposition",
+                        "attachment; filename=\"Ticket__Markdown_.md\""));
+    }
+
+    /** #275: a failing generator is a 422 naming the cause, not an empty 200. */
+    @Test
+    void runReportFailureIsA422NamingTheCause() throws Exception {
+        ReportGenerator report = stubReportGenerator(18L, "Broken");
+        GenerateReportCommand command = mock(GenerateReportCommand.class);
+        when(project.getReportGenerators()).thenReturn(Set.of(report));
+        when(projectCommandFactory.newGenerateReportCommand()).thenReturn(command);
+        when(commandHandler.execute(command)).thenThrow(
+                new com.rreganjr.requel.project.exception.ReportGenerationException(
+                        "Report \"Broken\" failed: no goal named 'Missing'"));
+
+        mockMvc.perform(get("/api/projects/TestProject/reports/18/run"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error").value("REPORT_FAILED"))
+                .andExpect(jsonPath("$.message").value(
+                        "Report \"Broken\" failed: no goal named 'Missing'"));
     }
 
     @Test

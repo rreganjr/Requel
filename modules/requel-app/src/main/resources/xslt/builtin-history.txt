@@ -1,0 +1,8 @@
+# Issue #275: SHA-256 of every bundled version of a report generator, with line endings
+# normalized to LF. A stored copy whose text matches one of these is unedited, so the startup
+# upgrader links it to the bundle. The current bundled text always matches too and is not listed.
+# key hash commit
+project-html 489c01a778992015fcfa72a80c451e2f5a5eee91b1cc81f5a6ddb04a04dccf4f d13c1325
+project-html 4719f5f1f7e50d4b08c8faf220b1d25a9855967dcc9ddf11c6e35a310c9b4fd3 9567c893
+project-html 4f5733407491c43ac0de6e15fb35a7668cbc638d0d888ebf1e9467dd039b0d8f ed779345
+project-html 4da6df2b748a354a367db240f7b3ab0c41bb1115554bfd35c61982ffe93817ce e5d06ad2

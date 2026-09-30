@@ -51,6 +51,11 @@ public class UseCaseImportXml {
     @XmlElement(name = "scenarioRef", namespace = "http://www.rreganjr.com/requel")
     private String scenarioRef;
 
+    /** Issue #275: the use case's additional scenarios. */
+    @XmlElementWrapper(name = "additionalScenarios", namespace = "http://www.rreganjr.com/requel")
+    @XmlElement(name = "scenarioRef", namespace = "http://www.rreganjr.com/requel")
+    private List<String> additionalScenarioRefs = new ArrayList<>();
+
     @XmlElementWrapper(name = "stories", namespace = "http://www.rreganjr.com/requel")
     @XmlElement(name = "storyRef", namespace = "http://www.rreganjr.com/requel")
     private List<String> storyRefs = new ArrayList<>();
@@ -74,6 +79,7 @@ public class UseCaseImportXml {
     public String getPrimaryActorRef() { return primaryActorRef; }
     public String getScenarioRef() { return scenarioRef; }
     public List<String> getStoryRefs() { return storyRefs; }
+    public List<String> getAdditionalScenarioRefs() { return additionalScenarioRefs; }
     public List<String> getGoalRefs() { return goalRefs; }
     public List<String> getActorRefs() { return actorRefs; }
     public List<String> getAnnotationRefs() { return annotationRefs; }

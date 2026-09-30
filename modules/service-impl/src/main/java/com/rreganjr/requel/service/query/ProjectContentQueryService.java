@@ -163,7 +163,19 @@ public class ProjectContentQueryService {
 		if (!ProjectReadAccess.canRead(project, currentUserResolver.resolve())) {
 			throw new AuthorizationException("You do not have access to this project.");
 		}
+		return build(project, mode, true);
+	}
 
+	/**
+	 * Issue #275: the same read for an in-process caller that has already checked access (the
+	 * report run computing the project version). No character cap: a version must exist for any
+	 * project that can be rendered.
+	 */
+	public ProjectContentDto readUncapped(Project project, AnnotationMode mode) {
+		return build(project, mode, false);
+	}
+
+	private ProjectContentDto build(Project project, AnnotationMode mode, boolean enforceCap) {
 		List<Scenario> scenarios = new ArrayList<>();
 		List<Step> steps = new ArrayList<>();
 		collectScenariosAndSteps(project, scenarios, steps);
@@ -188,7 +200,7 @@ public class ProjectContentQueryService {
 				.map(t -> build.term(t)).toList();
 
 		int characters = build.totalCharacters();
-		if (maxCharacters > 0 && characters > maxCharacters) {
+		if (enforceCap && maxCharacters > 0 && characters > maxCharacters) {
 			throw new ProjectContentTooLargeException(project.getName(), characters,
 					maxCharacters, build.sections());
 		}

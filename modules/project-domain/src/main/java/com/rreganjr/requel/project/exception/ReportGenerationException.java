@@ -18,17 +18,26 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.project;
+
+package com.rreganjr.requel.project.exception;
 
 /**
- * @author ron
+ * Issue #275: a report generator could not produce its document — a transform error, a reference
+ * the template could not resolve, or an entity it asked for by name that is not in the project.
+ * The message names the cause (the template's own {@code xsl:message} text when it stopped
+ * itself), and no partial output was written.
  */
-public interface ReportGenerator extends TextEntity, Comparable<ReportGenerator> {
+public class ReportGenerationException extends RuntimeException {
+	static final long serialVersionUID = 0;
 
-	/**
-	 * Issue #275: the key of the bundled generator this one renders ("project-html",
-	 * "ticket-markdown"), or null for a generator whose own text is the template. A keyed generator
-	 * always renders the current bundled template; editing its text detaches it (clears the key).
-	 */
-	String getBuiltinKey();
+	/** Error code returned over REST (422). */
+	public static final String CODE = "REPORT_FAILED";
+
+	public ReportGenerationException(String message) {
+		super(message);
+	}
+
+	public ReportGenerationException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

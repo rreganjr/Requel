@@ -20,9 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
-import java.io.InputStream;
 
-import org.apache.commons.io.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
@@ -46,6 +44,7 @@ import com.rreganjr.requel.project.ProjectUserRole;
 import com.rreganjr.requel.project.StakeholderPermission;
 import com.rreganjr.requel.project.command.EditProjectCommand;
 import com.rreganjr.requel.project.command.EditReportGeneratorCommand;
+import com.rreganjr.requel.project.impl.BuiltinReportGenerators;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.ProjectImpl;
 import com.rreganjr.requel.project.impl.UserStakeholderImpl;
@@ -67,7 +66,7 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 
 	private static final Logger log = LoggerFactory.getLogger(EditProjectCommandImpl.class);
 
-	public static final String BUILTIN_REPORT_GENERATOR_PATH = "xslt/project2html.xslt";
+	public static final String BUILTIN_REPORT_GENERATOR_PATH = BuiltinReportGenerators.PROJECT_HTML.resourcePath();
 
 	private String name;
 	private String description;
@@ -270,7 +269,7 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 		ProjectUserRole role = requelUser.getRoleForType(ProjectUserRole.class);
 		role.getActiveProjects().add(projectImpl);
 
-		addBuiltinReportGenerator(projectImpl, user);
+		addBuiltinReportGenerators(projectImpl, user);
 
 		return projectImpl;
 	}
@@ -301,19 +300,25 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 		return null;
 	}
 
-	private void addBuiltinReportGenerator(Project project, User user) {
-		try {
-			InputStream inputStream = getClass().getClassLoader().getResourceAsStream(
-					BUILTIN_REPORT_GENERATOR_PATH);
-			EditReportGeneratorCommand command = getProjectCommandFactory()
-					.newEditReportGeneratorCommand();
-			command.setEditedBy(user);
-			command.setProjectOrDomain(project);
-			command.setName("HTML Specification");
-			command.setText(IOUtils.toString(inputStream));
-			getCommandHandler().execute(command);
-		} catch (Exception e) {
-			log.error("The builtin report generator could not be added to " + project, e);
+	/**
+	 * Issue #275: every bundled generator, keyed so it renders the current bundle. The stored text
+	 * is the bundle at creation time, which keeps an exported project portable.
+	 */
+	private void addBuiltinReportGenerators(Project project, User user) {
+		for (BuiltinReportGenerators.Builtin builtin : BuiltinReportGenerators.ALL) {
+			try {
+				EditReportGeneratorCommand command = getProjectCommandFactory()
+						.newEditReportGeneratorCommand();
+				command.setEditedBy(user);
+				command.setProjectOrDomain(project);
+				command.setName(builtin.name());
+				command.setText(builtin.text());
+				command.setBuiltinKey(builtin.key());
+				getCommandHandler().execute(command);
+			} catch (Exception e) {
+				log.error("The builtin report generator " + builtin.key() + " could not be added to "
+						+ project, e);
+			}
 		}
 	}
 }

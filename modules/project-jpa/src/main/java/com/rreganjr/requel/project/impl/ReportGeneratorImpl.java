@@ -64,6 +64,23 @@ public class ReportGeneratorImpl extends AbstractTextEntity implements ReportGen
 		super(projectOrDomain, createdBy, name, text);
 	}
 
+	private String builtinKey;
+
+	/**
+	 * Issue #275: see {@link ReportGenerator#getBuiltinKey()}. Exported as the {@code builtin}
+	 * attribute so an import keeps the link to the bundled template.
+	 */
+	@Override
+	@Column(name = "builtin_key", length = 64, nullable = true)
+	@XmlAttribute(name = "builtin", required = false)
+	public String getBuiltinKey() {
+		return builtinKey;
+	}
+
+	public void setBuiltinKey(String builtinKey) {
+		this.builtinKey = builtinKey;
+	}
+
 	protected ReportGeneratorImpl() {
 		super();
 		// for reflection (hibernate, jaxb, etc.)

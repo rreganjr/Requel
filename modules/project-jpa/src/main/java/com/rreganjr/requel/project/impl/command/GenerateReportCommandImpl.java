@@ -20,16 +20,20 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
-import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import javax.xml.transform.ErrorListener;
+import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.XMLConstants;
@@ -54,6 +58,8 @@ import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.command.ExportProjectCommand;
 import com.rreganjr.requel.project.command.GenerateReportCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
+import com.rreganjr.requel.project.exception.ReportGenerationException;
+import com.rreganjr.requel.project.impl.BuiltinReportGenerators;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.requel.user.UserRepository;
 
@@ -69,6 +75,9 @@ public class GenerateReportCommandImpl extends AbstractProjectCommand implements
 
 	private ReportGenerator reportGenerator;
 	private OutputStream outputStream;
+	private final Map<String, String> parameters = new LinkedHashMap<>();
+	private String mediaType = "text/html";
+	private String fileExtension = ".html";
 
 	/**
 	 * @param assistantManager
@@ -109,77 +118,174 @@ public class GenerateReportCommandImpl extends AbstractProjectCommand implements
 	}
 
 	/**
+	 * Issue #275: the transform writes into a buffer, and only a complete document reaches the
+	 * output stream. Any failure — a transform error, or the template stopping itself with
+	 * {@code <xsl:message terminate="yes">} over an unresolved reference — throws a
+	 * {@link ReportGenerationException} carrying the template's message, and nothing is written.
+	 *
 	 * @see com.rreganjr.command.Command#execute()
 	 */
 	@Override
 	public void execute() {
+		ReportGenerator reportGenerator = getRepository().get(getReportGenerator());
+		File tmpExport = null;
+		MessageCollector messages = new MessageCollector();
 		try {
-			ReportGenerator reportGenerator = getRepository().get(getReportGenerator());
-
 			// export the project to a tmp file
 			ExportProjectCommand exportCommand = getProjectCommandFactory()
 					.newExportProjectCommand();
 			exportCommand.setProject((Project) reportGenerator.getProjectOrDomain());
-			File tmpUpload = File.createTempFile("projectExport", ".xml");
-			OutputStream projectOutputStream = new FileOutputStream(tmpUpload);
-			exportCommand.setOutputStream(projectOutputStream);
-			exportCommand = getCommandHandler().execute(exportCommand);
-			projectOutputStream.close();
-
-			InputStream projectInputStream = new FileInputStream(tmpUpload);
-			InputStream xsltInputStream = new ByteArrayInputStream(reportGenerator.getText()
-					.getBytes());
+			tmpExport = File.createTempFile("projectExport", ".xml");
+			try (OutputStream projectOutputStream = new FileOutputStream(tmpExport)) {
+				exportCommand.setOutputStream(projectOutputStream);
+				getCommandHandler().execute(exportCommand);
+			}
 
 			// create an XMLReader so we can set parsing features on and off
 			XMLReader reader = XMLReaderFactory.createXMLReader();
-
-			// enable validation if supported
 			try {
 				reader.setFeature("http://xml.org/sax/features/validation", false);
 				reader.setFeature("http://apache.org/xml/features/validation/schema", false);
 			} catch (SAXNotSupportedException e) {
 				log.warn("The parser does not support XML validation.");
 			}
-			SAXSource saxSource = new SAXSource(reader, new InputSource(projectInputStream));
-            // #273: the JDK's own XSLTC, not whatever factory the classpath supplies. Xalan 2.7.3 is
-            // on the app classpath, and with secure processing on it drops every attribute of a
-            // literal result element ("\"href\" attribute is not allowed on the a element"), so
-            // the bundled generator's links, anchors and classes never reached the output.
-            TransformerFactory tf = TransformerFactory.newDefaultInstance();
-            try {
-                tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-                tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-                tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
-            } catch (Throwable t) {
-                // ignore if not supported
-            }
-            Transformer transformer = tf.newTransformer(new StreamSource(xsltInputStream));
-			transformer.setErrorListener(new AnErrorListener());
-			transformer.transform(saxSource, new StreamResult(new BufferedWriter(
-					new OutputStreamWriter(getOutputStream(), "UTF8"))));
+			// #273: the JDK's own XSLTC, not whatever factory the classpath supplies. Xalan 2.7.3 is
+			// on the app classpath, and with secure processing on it drops every attribute of a
+			// literal result element ("\"href\" attribute is not allowed on the a element"), so
+			// the bundled generator's links, anchors and classes never reached the output.
+			TransformerFactory tf = TransformerFactory.newDefaultInstance();
+			try {
+				tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+				tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+				tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+			} catch (Throwable t) {
+				// ignore if not supported
+			}
+			tf.setErrorListener(messages);
+			Transformer transformer = tf.newTransformer(new StreamSource(new StringReader(
+					templateText(reportGenerator))));
+			transformer.setErrorListener(messages);
+			for (Map.Entry<String, String> parameter : parameters.entrySet()) {
+				transformer.setParameter(parameter.getKey(), parameter.getValue());
+			}
+			resolveMediaType(transformer);
+
+			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+			try (InputStream projectInputStream = new FileInputStream(tmpExport)) {
+				transformer.transform(new SAXSource(reader, new InputSource(projectInputStream)),
+						new StreamResult(buffer));
+			}
+			getOutputStream().write(buffer.toByteArray());
+			getOutputStream().flush();
+		} catch (ReportGenerationException e) {
+			throw e;
 		} catch (Exception e) {
-			log.error(e, e);
+			String message = messages.describe(e);
+			log.warn("Report generator \"" + reportGenerator.getName() + "\" failed: " + message);
+			throw new ReportGenerationException("Report \"" + reportGenerator.getName()
+					+ "\" failed: " + message, e);
+		} finally {
+			if (tmpExport != null && !tmpExport.delete()) {
+				tmpExport.deleteOnExit();
+			}
 		}
 	}
 
 	/**
-	 * Handle processing errors: throw an exception on error and fatalError,
-	 * only log warnings.
+	 * @return the bundled template for a keyed generator, else the generator's own text.
 	 */
-	private class AnErrorListener implements ErrorListener {
-		public void warning(TransformerException e) throws TransformerException {
-			// only log warnings
-			log.warn("Parser warning:  " + e.getMessage());
+	private static String templateText(ReportGenerator reportGenerator) {
+		return BuiltinReportGenerators.forKey(reportGenerator.getBuiltinKey())
+				.map(BuiltinReportGenerators.Builtin::text)
+				.orElseGet(() -> reportGenerator.getText() == null ? "" : reportGenerator.getText());
+	}
+
+	/**
+	 * The generator's {@code xsl:output} decides the media type: an explicit media-type wins;
+	 * the xml and html methods are rendered as HTML (the bundled HTML generator emits XHTML with
+	 * method="xml"); text is plain text.
+	 */
+	private void resolveMediaType(Transformer transformer) {
+		String method = transformer.getOutputProperty(OutputKeys.METHOD);
+		String declared = transformer.getOutputProperties().getProperty(OutputKeys.MEDIA_TYPE);
+		String type;
+		if (declared != null && !declared.isBlank() && !"text/xml".equals(declared)
+				&& !"text/plain".equals(declared)) {
+			type = declared.trim();
+		} else if ("text".equals(method)) {
+			type = "text/plain";
+		} else {
+			type = "text/html";
+		}
+		mediaType = type;
+		fileExtension = switch (type) {
+			case "text/markdown", "text/x-markdown" -> ".md";
+			case "text/plain" -> ".txt";
+			case "application/json" -> ".json";
+			case "application/xml" -> ".xml";
+			default -> ".html";
+		};
+	}
+
+	@Override
+	public void setParameter(String name, String value) {
+		parameters.put(name, value);
+	}
+
+	@Override
+	public String getMediaType() {
+		return mediaType;
+	}
+
+	@Override
+	public String getFileExtension() {
+		return fileExtension;
+	}
+
+	/**
+	 * Collects the template's {@code xsl:message} text and the processor's errors, so a failure
+	 * names what the template said rather than "Termination forced by an xsl:message
+	 * instruction". Warnings are kept (XSLTC reports xsl:message through warning); errors and
+	 * fatal errors stop the transform.
+	 */
+	private class MessageCollector implements ErrorListener {
+		private final List<String> collected = new ArrayList<>();
+
+		public void warning(TransformerException e) {
+			collected.add(e.getMessage());
 		}
 
 		public void error(TransformerException e) throws TransformerException {
-			log.error("Parsing error:  " + e.getMessage());
+			collected.add(e.getMessage());
 			throw e;
 		}
 
 		public void fatalError(TransformerException e) throws TransformerException {
-			log.error("Fatal parsing error:  " + e.getMessage());
+			collected.add(e.getMessage());
 			throw e;
+		}
+
+		String describe(Exception e) {
+			List<String> parts = new ArrayList<>();
+			for (String message : collected) {
+				if (message != null && !message.isBlank() && !isTerminationNoise(message)
+						&& !parts.contains(message.trim())) {
+					parts.add(message.trim());
+				}
+			}
+			if (parts.isEmpty()) {
+				Throwable cause = e;
+				while (cause.getCause() != null && cause.getCause() != cause) {
+					cause = cause.getCause();
+				}
+				parts.add(cause.getMessage() != null ? cause.getMessage()
+						: cause.getClass().getSimpleName());
+			}
+			return String.join("; ", parts);
+		}
+
+		private boolean isTerminationNoise(String message) {
+			return message.contains("Termination forced by an xsl:message instruction");
 		}
 	}
 }

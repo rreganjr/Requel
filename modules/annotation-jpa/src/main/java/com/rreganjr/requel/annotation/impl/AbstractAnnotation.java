@@ -81,6 +81,7 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 	private String text;
 	private String type;
 	private Set<Annotatable> annotatables = new HashSet<>();
+	private java.util.List<Object> exportStaleOn;
 	// private Set<Annotation> annotations = new TreeSet<Annotation>();
 	private User createdBy;
 	private Date dateCreated = new Date();
@@ -100,6 +101,23 @@ public abstract class AbstractAnnotation implements Annotation, Serializable {
 
 	protected AbstractAnnotation() {
 		// for hibernate
+	}
+
+	/**
+	 * Issue #275: export-only. The entities this annotation is stale on (#270: the entity changed
+	 * since the finding behind it was raised), written as the {@code staleOn} IDREFS attribute and
+	 * omitted when there are none. Set by the export for the length of one marshal; never read on
+	 * import, because staleness is always derived.
+	 */
+	@Transient
+	@XmlAttribute(name = "staleOn", required = false)
+	@XmlIDREF
+	public java.util.List<Object> getExportStaleOn() {
+		return exportStaleOn == null || exportStaleOn.isEmpty() ? null : exportStaleOn;
+	}
+
+	public void setExportStaleOn(java.util.List<Object> exportStaleOn) {
+		this.exportStaleOn = exportStaleOn;
 	}
 
 	@Override

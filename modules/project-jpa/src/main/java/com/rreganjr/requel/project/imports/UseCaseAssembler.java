@@ -85,6 +85,10 @@ public class UseCaseAssembler implements AggregateAssembler<UseCaseImportDraft, 
                     actor.getReferers().add(useCase);
                 }));
 
+        // Issue #275: additional scenarios travel with the use case now.
+        draft.getAdditionalScenarioExternalIds().forEach(scenarioId -> resolveScenario(scenarioId, unitOfWork)
+                .ifPresent(additional -> useCase.getAdditionalScenarios().add(additional)));
+
         draft.getStoryExternalIds().forEach(storyId -> resolveStory(storyId, unitOfWork)
                 .ifPresent(story -> {
                     useCase.getStories().add(story);

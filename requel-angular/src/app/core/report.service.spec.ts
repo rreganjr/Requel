@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { ReportService } from './report.service';
+import { ReportRunError, ReportService } from './report.service';
 
 describe('ReportService', () => {
   let service: ReportService;
@@ -45,6 +45,30 @@ describe('ReportService', () => {
     req.flush({ success: true, entityType: 'EditReportGenerator', entity: null, error: null, violations: null });
     const result = await promise;
     expect(result.success).toBe(true);
+  });
+
+  it('fileName() takes the server\'s Content-Disposition name (#275)', () => {
+    expect(ReportService.fileName('attachment; filename="Ticket__Markdown_.md"', 'Ticket (Markdown)'))
+      .toBe('Ticket__Markdown_.md');
+    expect(ReportService.fileName(null, 'HTML Specification')).toBe('HTML_Specification.html');
+  });
+
+  it('failureMessage() returns the server\'s message for a failed run (#275)', async () => {
+    const failed = new Response(JSON.stringify({
+      error: 'REPORT_FAILED',
+      message: 'Report "Broken" failed: The report references step STP_9, which is not in the project.'
+    }), { status: 422, headers: { 'Content-Type': 'application/json' } });
+    expect(await ReportService.failureMessage(failed))
+      .toBe('Report "Broken" failed: The report references step STP_9, which is not in the project.');
+    expect(await ReportService.failureMessage(new Response('boom', { status: 500 }))).toBeNull();
+  });
+
+  it('ReportRunError keeps the status and whether the server gave a reason (#275)', () => {
+    const withReason = new ReportRunError(422, 'Report "X" failed: no goal named Blocking check');
+    expect(withReason.serverMessage).toBe('Report "X" failed: no goal named Blocking check');
+    const bare = new ReportRunError(500, null);
+    expect(bare.serverMessage).toBeNull();
+    expect(bare.message).toBe('Report generation failed: 500');
   });
 
   it('deleteReport() dispatches DeleteReportGenerator command', async () => {

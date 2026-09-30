@@ -33,7 +33,7 @@ import { isNetworkError } from '../../core/command.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ReportGeneratorDto } from '../../models/report';
-import { ReportService } from '../../core/report.service';
+import { ReportRunError, ReportService } from '../../core/report.service';
 import { PermissionService } from '../../core/permission.service';
 import { AnnotationsSectionComponent } from '../../shared/annotations-section';
 import { FileUploadButtonComponent } from '../../shared/file-upload-button';
@@ -116,6 +116,12 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
               />
             </app-field>
 
+            @if (report()?.builtinKey) {
+              <p class="bundled-hint" data-testid="report-bundled-hint">
+                Bundled generator: it renders the current bundled template. Saving new template
+                text detaches it, and from then on your text is what renders.
+              </p>
+            }
             <app-field
               label="XSLT Template"
               controlId="text"
@@ -176,6 +182,7 @@ import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
     app-field input { width: 100%; }
     .upload-row { display: flex; align-items: center; gap: var(--rq-space-3); }
     .upload-hint { font-size: var(--rq-font-size-xs); color: var(--p-text-secondary-color); }
+    .bundled-hint { font-size: var(--rq-font-size-sm); color: var(--p-text-secondary-color); margin: 0 0 var(--rq-space-3); }
     .form-actions { margin-block: var(--rq-space-4) var(--rq-space-6); }
   `]
 })
@@ -402,8 +409,11 @@ export class ReportEditorComponent implements OnInit, DirtyCheckable {
     this.errorMessage.set(null);
     try {
       await this.reportService.downloadReport(this.projectName, this.reportId()!, this.reportName());
-    } catch {
-      this.errorMessage.set('Failed to generate report.');
+    } catch (e) {
+      // #275: a failed run the server explained names its cause (e.g. the reference the template
+      // could not resolve); anything else keeps the generic message.
+      this.errorMessage.set(e instanceof ReportRunError && e.serverMessage
+        ? e.serverMessage : 'Failed to generate report.');
     } finally {
       this.running.set(false);
     }

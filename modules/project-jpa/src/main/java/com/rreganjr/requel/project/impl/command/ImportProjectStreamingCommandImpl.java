@@ -71,7 +71,6 @@ import java.io.InputStream;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import org.apache.commons.io.IOUtils;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
@@ -324,9 +323,7 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
             }
         });
 
-        if (targetProject.getReportGenerators().isEmpty()) {
-            addBuiltinReportGenerator(targetProject, createdBy);
-        }
+        addMissingBuiltinReportGenerators(targetProject, createdBy);
 
         setProject(getProjectRepository().persist(targetProject));
 
@@ -558,21 +555,44 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         }
     }
 
-    private void addBuiltinReportGenerator(Project project, User user) {
-        try {
-            InputStream inputStream = getClass().getClassLoader().getResourceAsStream(
-                    EditProjectCommandImpl.BUILTIN_REPORT_GENERATOR_PATH);
-            EditReportGeneratorCommand command = getProjectCommandFactory()
-                    .newEditReportGeneratorCommand();
-            command.setEditedBy(user);
-            command.setProjectOrDomain(project);
-            command.setName("HTML Specification");
-            command.setText(IOUtils.toString(inputStream));
-            getCommandHandler().execute(command);
-        } catch (Exception e) {
-            log.error("The builtin report generator could not be added to " + project, e);
+    /**
+     * Issue #275: add each bundled generator the imported project does not already carry (by
+     * key), so an import from before #275, or from an export that dropped them, still gets the
+     * current set. A name already taken by one of the project's own generators gets a
+     * " (bundled)" suffix.
+     */
+    private void addMissingBuiltinReportGenerators(Project project, User user) {
+        java.util.Set<String> keys = new java.util.HashSet<>();
+        java.util.Set<String> names = new java.util.HashSet<>();
+        for (com.rreganjr.requel.project.ReportGenerator existing : project.getReportGenerators()) {
+            if (existing.getBuiltinKey() != null) {
+                keys.add(existing.getBuiltinKey());
+            }
+            names.add(existing.getName().toLowerCase(java.util.Locale.ROOT));
+        }
+        for (com.rreganjr.requel.project.impl.BuiltinReportGenerators.Builtin builtin
+                : com.rreganjr.requel.project.impl.BuiltinReportGenerators.ALL) {
+            if (keys.contains(builtin.key())) {
+                continue;
+            }
+            String name = names.contains(builtin.name().toLowerCase(java.util.Locale.ROOT))
+                    ? builtin.name() + " (bundled)" : builtin.name();
+            try {
+                EditReportGeneratorCommand command = getProjectCommandFactory()
+                        .newEditReportGeneratorCommand();
+                command.setEditedBy(user);
+                command.setProjectOrDomain(project);
+                command.setName(name);
+                command.setText(builtin.text());
+                command.setBuiltinKey(builtin.key());
+                getCommandHandler().execute(command);
+            } catch (Exception e) {
+                log.error("The builtin report generator " + builtin.key()
+                        + " could not be added to " + project, e);
+            }
         }
     }
+
 
     /**
      * Not used: an import is analyzed through the assistant SPI as a whole project

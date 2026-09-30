@@ -26,7 +26,8 @@ import com.rreganjr.command.Command;
 import com.rreganjr.requel.project.ReportGenerator;
 
 /**
- * Export the supplied project to the supplied stream.
+ * Render the supplied report generator over its project to the supplied stream. Nothing is
+ * written to the stream when generation fails (issue #275); a ReportGenerationException is thrown.
  * 
  * @author ron
  */
@@ -42,4 +43,20 @@ public interface GenerateReportCommand extends Command {
 	 *            the stream to write the generated report to.
 	 */
 	public void setOutputStream(OutputStream outputStream);
+
+	/**
+	 * Issue #275: a stylesheet parameter ({@code <xsl:param name="...">}), e.g. projectVersion.
+	 */
+	public void setParameter(String name, String value);
+
+	/**
+	 * @return after execute, the media type of the generated document, read from the generator's
+	 *         {@code xsl:output} (text/html for the xml and html methods).
+	 */
+	public String getMediaType();
+
+	/**
+	 * @return after execute, the file extension for the generated document, including the dot.
+	 */
+	public String getFileExtension();
 }

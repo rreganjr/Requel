@@ -25,4 +25,9 @@ export interface ReportGeneratorDto {
   /** XSLT stylesheet — included in detail view, null in list view */
   text: string | null;
   createdBy: string | null;
+  /**
+   * #275: the bundled generator this one renders ("project-html", "ticket-markdown"), absent for
+   * one whose own text is the template. Saving new text detaches it.
+   */
+  builtinKey?: string | null;
 }

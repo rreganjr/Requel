@@ -22,6 +22,7 @@ package com.rreganjr.requel.service.query;
 
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.requel.service.api.dto.DictionaryWordDto;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -70,6 +71,7 @@ import com.rreganjr.requel.project.UserStakeholder;
 import com.rreganjr.requel.project.command.ExportProjectCommand;
 import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.exception.NoSuchProjectException;
+import com.rreganjr.requel.project.exception.ReportGenerationException;
 import com.rreganjr.requel.project.NonUserStakeholder;
 import com.rreganjr.requel.service.api.dto.ActorDto;
 import com.rreganjr.requel.service.api.dto.ScenarioDto;
@@ -1170,12 +1172,28 @@ public class ProjectQueryController {
         }
     }
 
+    private ProjectFingerprint projectFingerprint;
+
     /**
-     * GET /api/projects/{name}/reports/{reportId}/run — run the XSLT transform and stream HTML output.
+     * Issue #275: setter-injected and lazy — the fingerprint reads through
+     * ProjectContentQueryService, which itself depends on this controller.
+     */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    public void setProjectFingerprint(ProjectFingerprint projectFingerprint) {
+        this.projectFingerprint = projectFingerprint;
+    }
+
+    /**
+     * GET /api/projects/{name}/reports/{reportId}/run — run the generator and return the document.
+     *
+     * <p>Issue #275: the document is produced in full before anything is sent, so a failure is a
+     * 422 {@code REPORT_FAILED} naming the cause rather than an empty 200. The content type and
+     * file extension come from the generator's {@code xsl:output}. The generator is passed the
+     * project version as the {@code projectVersion} parameter.
      */
     @GetMapping("/{name}/reports/{reportId}/run")
-    public void runReport(@PathVariable String name, @PathVariable Long reportId,
-                          HttpServletResponse response) {
+    public ResponseEntity<?> runReport(@PathVariable String name, @PathVariable Long reportId) {
         try {
             Project project = projectRepository.findProjectByName(name);
             requireProjectAccess(project);
@@ -1187,37 +1205,65 @@ public class ProjectQueryController {
                 }
             }
             if (rg == null) {
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                return;
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
             }
-            String filename = rg.getName().replaceAll("[^a-zA-Z0-9._-]", "_") + ".html";
-            response.setContentType("text/html; charset=UTF-8");
-            response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
-
+            ByteArrayOutputStream document = new ByteArrayOutputStream();
             GenerateReportCommand cmd = projectCommandFactory.newGenerateReportCommand();
             cmd.setReportGenerator(rg);
-            cmd.setOutputStream(response.getOutputStream());
-            commandHandler.execute(cmd);
+            cmd.setOutputStream(document);
+            if (projectFingerprint != null) {
+                cmd.setParameter("projectVersion", projectFingerprint.of(project));
+            }
+            GenerateReportCommand ran = commandHandler.execute(cmd);
+            if (ran != null) {
+                cmd = ran;
+            }
+            String mediaType = cmd.getMediaType() != null ? cmd.getMediaType() : "text/html";
+            String extension = cmd.getFileExtension() != null ? cmd.getFileExtension() : ".html";
+            String filename = rg.getName().replaceAll("[^a-zA-Z0-9._-]", "_") + extension;
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.parseMediaType(
+                            mediaType + ";charset=UTF-8"))
+                    .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+                    .header("Access-Control-Expose-Headers", "Content-Disposition")
+                    .body(document.toByteArray());
         } catch (NoSuchProjectException e) {
-            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         } catch (AuthorizationException e) {
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (Exception e) {
+            ReportGenerationException failure = findCause(e, ReportGenerationException.class);
+            if (failure != null) {
+                return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                        .body(com.rreganjr.requel.service.api.dto.ErrorResponse.of(
+                                ReportGenerationException.CODE, failure.getMessage()));
+            }
             log.error("Failed to generate report {}/{}: {}", name, reportId, e.getMessage(), e);
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    private static <T extends Throwable> T findCause(Throwable e, Class<T> type) {
+        for (Throwable t = e; t != null; t = t.getCause() == t ? null : t.getCause()) {
+            if (type.isInstance(t)) {
+                return type.cast(t);
+            }
+        }
+        return null;
     }
 
     public static ReportGeneratorDto toReportGeneratorSummaryDto(ReportGenerator r) {
         return new ReportGeneratorDto(
                 r.getId(), r.getVersion(), r.getName(), null,
-                r.getCreatedBy() != null ? r.getCreatedBy().getDisplayName() : null);
+                r.getCreatedBy() != null ? r.getCreatedBy().getDisplayName() : null,
+                r.getBuiltinKey());
     }
 
     public static ReportGeneratorDto toReportGeneratorDetailDto(ReportGenerator r) {
         return new ReportGeneratorDto(
                 r.getId(), r.getVersion(), r.getName(), r.getText(),
-                r.getCreatedBy() != null ? r.getCreatedBy().getDisplayName() : null);
+                r.getCreatedBy() != null ? r.getCreatedBy().getDisplayName() : null,
+                r.getBuiltinKey());
     }
 
     /**
