@@ -125,6 +125,11 @@ class JpaAssistantRunStoreTest {
 
 		store.recordResultSummary(entity.getRunId(), "  ");
 		assertThat(entity.getResultSummary()).isNull();
+
+		store.recordResultSummary(entity.getRunId(), "short");
+		assertThat(entity.getResultSummary()).isEqualTo("short");
+		store.recordResultSummary(entity.getRunId(), null);
+		assertThat(entity.getResultSummary()).isNull();
 	}
 
 	@Test
