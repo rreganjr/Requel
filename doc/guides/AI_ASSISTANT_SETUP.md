@@ -573,6 +573,53 @@ codex reports no usage, so only latency is recorded.
 
 ---
 
+## 11. What leaves the server: redaction and external providers
+
+Every AI review builds a *context pack*: the entity's name and text, its human annotations and
+related glossary terms. Before any provider sees it (#262):
+
+- **Sensitive text is masked in place** with a typed placeholder, so the sentence still reads:
+  `Mail [REDACTED:EMAIL] using [REDACTED:CREDENTIALS].` The default policy is deterministic
+  pattern matching, with five categories:
+
+  | Category | What it masks |
+  | --- | --- |
+  | `credentials` | API-key shapes (`sk-…`, `sk-ant-…`, `ghp_…`, `AKIA…`, `xox?-…`), bearer tokens, JWTs, PEM private-key blocks, the password in `scheme://user:password@host`, and the value in `password=` / `secret:` / `token=` / `api_key=` pairs |
+  | `email` | email addresses |
+  | `phone` | `+` international numbers, and US numbers written with separators |
+  | `ssn` | US social security numbers (`###-##-####`, invalid ranges excluded) |
+  | `card` | 13–19 digit card numbers that pass the Luhn check |
+
+  Names are masked as well as text.
+- **Usernames never leave.** Annotation authors appear as `assistant`, `user-1`, `user-2`, …,
+  numbered within the pack.
+- **The run records what was masked**: `assistant_runs.redaction_count` and
+  `redaction_categories`.
+
+**External providers.** `cli`, `openai`, `anthropic`, and `openai-compat` pointed anywhere except
+this machine (`localhost`, `127.*`, `::1`, `host.docker.internal`) are *remote*. A remote provider
+sends nothing unless the request says the project allows it; a request without that flag is refused
+too. A refused review fails with "Project … does not allow sending its text to an external AI
+provider", and no request is made.
+
+**Per-project settings.** Under *AI data handling* in the project overview's Assistants panel, or
+via the `EditProjectDataHandlingSetting` command (`Project[Edit]`). Every setting is on until
+switched off:
+
+| Key | On means |
+| --- | --- |
+| `egress.external` | project text may be sent to a remote provider |
+| `redaction.credentials` … `redaction.card` | that category is masked |
+
+Read them with `GET /api/projects/{name}/data-handling`. They are not carried in project XML export
+or import.
+
+> **Detecting PII with AI is no substitute.** Sending text to an external provider to ask whether it
+> contains PII has already disclosed it. Detection belongs on a local provider or a deterministic
+> policy; this policy is the deterministic half.
+
+---
+
 ## Related documentation
 
 - `doc/work/2.0/43-phase-5-plan.md` — implementation plan and exit criteria for the AI assistant.

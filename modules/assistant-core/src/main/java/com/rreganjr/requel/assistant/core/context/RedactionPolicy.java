@@ -24,9 +24,8 @@ import java.util.List;
 
 /**
  * Strategy interface for stripping or masking sensitive content before it
- * lands in a context pack. The default Spring bean is
- * {@link NoOpRedactionPolicy}; project- or org-aware implementations can
- * override it.
+ * lands in a context pack. The Spring bean is {@link DefaultRedactionPolicy}
+ * (#262); {@link NoOpRedactionPolicy} is what tests opt into explicitly.
  *
  * <p>Implementations are called per text field by the context-pack builders.
  * Field paths look like {@code project.description},
@@ -48,4 +47,14 @@ public interface RedactionPolicy {
 	 *         field is fully dropped
 	 */
 	String redact(String fieldPath, String value, List<String> notes);
+
+	/**
+	 * Issue #262: the policy to use for one project's pack, so per-project settings (which
+	 * categories are masked) apply. The default ignores the project.
+	 *
+	 * @param projectId the pack's project; may be {@code null}
+	 */
+	default RedactionPolicy forProject(Long projectId) {
+		return this;
+	}
 }

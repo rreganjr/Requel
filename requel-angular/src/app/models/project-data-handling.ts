@@ -18,20 +18,14 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.assistant.core.context;
-
-import java.util.List;
 
 /**
- * A {@link RedactionPolicy} that passes every value through unchanged. Not a bean since #262:
- * {@link DefaultRedactionPolicy} is, and tests that want unredacted packs construct this
- * explicitly. (It was a {@code @ConditionalOnMissingBean} component, which a component scan does
- * not order reliably against another component.)
+ * A project's AI data-handling settings (issue #262), from
+ * `GET /api/projects/{name}/data-handling`. Every setting is on until switched off.
  */
-public class NoOpRedactionPolicy implements RedactionPolicy {
-
-	@Override
-	public String redact(String fieldPath, String value, List<String> notes) {
-		return value;
-	}
+export interface ProjectDataHandlingDto {
+  /** Whether project text may be sent to a remote AI provider (`egress.external`). */
+  externalProviderAllowed: boolean;
+  /** Redaction category id (credentials, email, phone, ssn, card) to whether it is masked. */
+  redaction: Record<string, boolean>;
 }

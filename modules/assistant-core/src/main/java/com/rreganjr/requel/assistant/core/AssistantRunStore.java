@@ -60,5 +60,14 @@ public interface AssistantRunStore {
 
 	void markFailed(UUID runId, Throwable failure);
 
+	/**
+	 * Issue #262: record what the redaction policy masked in the run's context. Best effort; a
+	 * store that cannot record it ignores the call.
+	 *
+	 * @param categories the categories masked, in first-seen order
+	 */
+	default void recordRedactions(UUID runId, int count, java.util.List<String> categories) {
+	}
+
 	Optional<AssistantRunRecord> findRun(UUID runId);
 }

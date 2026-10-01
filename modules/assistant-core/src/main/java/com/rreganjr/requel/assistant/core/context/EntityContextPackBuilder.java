@@ -79,13 +79,18 @@ public class EntityContextPackBuilder {
 
 	public EntityContextPack build(Object target) {
 		Objects.requireNonNull(target, "target");
+		// #262: the project's switches decide which categories are masked; authors become roles
+		RedactionPolicy policy = redactionPolicy
+				.forProject(ContextPackTextUtils.projectIdOf(target));
+		AuthorPseudonyms authors = new AuthorPseudonyms();
 		List<String> redacted = new ArrayList<>();
 		List<String> truncated = new ArrayList<>();
 		ContextPackBudget budget = new ContextPackBudget(limits.getMaxTotalCharacters());
 		int maxField = limits.getMaxTextCharsPerField();
 
 		EntityRef targetRef = entityRefFor(target);
-		EntitySnapshot snapshot = snapshotFor(target, maxField, redacted, truncated, budget);
+		EntitySnapshot snapshot = snapshotFor(target, maxField, redacted, truncated, budget,
+				policy, authors);
 
 		List<AnnotationSnapshot> annotations = new ArrayList<>();
 		if (target instanceof com.rreganjr.requel.annotation.Annotatable annotatable) {
@@ -108,11 +113,11 @@ public class EntityContextPackBuilder {
 				}
 				String annText = ContextPackTextUtils.prepareText(
 						"annotation[" + count + "].text", annotation.getText(), maxField,
-						redactionPolicy, redacted, truncated);
+						policy, redacted, truncated);
 				annotations.add(new AnnotationSnapshot(annotation.getId(), annotation.getVersion(),
 						annotationKind(annotation), annText, annotation.isMustBeResolved(),
 						annotation.isResolved(),
-						ContextPackTextUtils.username(annotation.getCreatedBy()),
+						authors.of(annotation.getCreatedBy()),
 						toInstant(annotation.getDateCreated())));
 				budget.add(annText);
 				count++;
@@ -128,10 +133,12 @@ public class EntityContextPackBuilder {
 				}
 				String text = ContextPackTextUtils.prepareText(
 						"relatedTerm[" + term.getId() + "].text", term.getText(), maxField,
-						redactionPolicy, redacted, truncated);
+						policy, redacted, truncated);
+				String termName = ContextPackTextUtils.prepareName(
+						"relatedTerm[" + term.getId() + "].name", term.getName(), policy, redacted);
 				relatedTerms.add(new GlossaryTermSnapshot(term.getId(), term.getVersion(),
-						term.getName(), text));
-				budget.add(term.getName(), text);
+						termName, text));
+				budget.add(termName, text);
 			}
 		}
 
@@ -171,77 +178,96 @@ public class EntityContextPackBuilder {
 	}
 
 	private EntitySnapshot snapshotFor(Object target, int maxField, List<String> redacted,
-			List<String> truncated, ContextPackBudget budget) {
+			List<String> truncated, ContextPackBudget budget, RedactionPolicy policy,
+			AuthorPseudonyms authors) {
 		if (target instanceof Project project) {
+			String name = ContextPackTextUtils.prepareName("project.name", project.getName(), policy,
+					redacted);
 			String text = ContextPackTextUtils.prepareText("project.text", project.getText(),
-					maxField, redactionPolicy, redacted, truncated);
-			budget.add(project.getName(), text);
-			return new ProjectSnapshot(project.getId(), project.getVersion(), project.getName(),
-					text, ContextPackTextUtils.username(project.getCreatedBy()));
+					maxField, policy, redacted, truncated);
+			budget.add(name, text);
+			return new ProjectSnapshot(project.getId(), project.getVersion(), name,
+					text, authors.of(project.getCreatedBy()));
 		}
 		if (target instanceof Scenario scenario) {
+			String name = ContextPackTextUtils.prepareName("scenario.name", scenario.getName(), policy,
+					redacted);
 			String text = ContextPackTextUtils.prepareText("scenario.text", scenario.getText(),
-					maxField, redactionPolicy, redacted, truncated);
+					maxField, policy, redacted, truncated);
 			String typeName = scenario.getType() != null ? scenario.getType().name() : null;
 			List<StepSnapshot> steps = new ArrayList<>();
 			for (Step step : scenario.getSteps()) {
 				String stepText = ContextPackTextUtils.prepareText("scenario.step[" + step.getId()
-						+ "].text", step.getText(), maxField, redactionPolicy, redacted, truncated);
-				steps.add(new StepSnapshot(step.getId(), step.getVersion(), step.getName(), stepText,
+						+ "].text", step.getText(), maxField, policy, redacted, truncated);
+				String stepName = ContextPackTextUtils.prepareName("scenario.step[" + step.getId()
+						+ "].name", step.getName(), policy, redacted);
+				steps.add(new StepSnapshot(step.getId(), step.getVersion(), stepName, stepText,
 						step instanceof Scenario));
-				budget.add(step.getName(), stepText);
+				budget.add(stepName, stepText);
 			}
-			budget.add(scenario.getName(), text);
-			return new ScenarioSnapshot(scenario.getId(), scenario.getVersion(), scenario.getName(),
+			budget.add(name, text);
+			return new ScenarioSnapshot(scenario.getId(), scenario.getVersion(), name,
 					text, typeName, steps);
 		}
 		if (target instanceof Step step) {
+			String name = ContextPackTextUtils.prepareName("step.name", step.getName(), policy,
+					redacted);
 			String text = ContextPackTextUtils.prepareText("step.text", step.getText(), maxField,
-					redactionPolicy, redacted, truncated);
-			budget.add(step.getName(), text);
-			return new StepSnapshot(step.getId(), step.getVersion(), step.getName(), text, false);
+					policy, redacted, truncated);
+			budget.add(name, text);
+			return new StepSnapshot(step.getId(), step.getVersion(), name, text, false);
 		}
 		if (target instanceof Goal goal) {
+			String name = ContextPackTextUtils.prepareName("goal.name", goal.getName(), policy,
+					redacted);
 			String text = ContextPackTextUtils.prepareText("goal.text", goal.getText(), maxField,
-					redactionPolicy, redacted, truncated);
-			budget.add(goal.getName(), text);
-			return new GoalSnapshot(goal.getId(), goal.getVersion(), goal.getName(), text);
+					policy, redacted, truncated);
+			budget.add(name, text);
+			return new GoalSnapshot(goal.getId(), goal.getVersion(), name, text);
 		}
 		if (target instanceof Story story) {
+			String name = ContextPackTextUtils.prepareName("story.name", story.getName(), policy,
+					redacted);
 			String text = ContextPackTextUtils.prepareText("story.text", story.getText(), maxField,
-					redactionPolicy, redacted, truncated);
+					policy, redacted, truncated);
 			EntityRef primaryActor = story.getPrimaryActor() != null
 					? EntityRef.of("Actor", story.getPrimaryActor().getId())
 					: null;
 			String storyTypeName = story.getStoryType() != null ? story.getStoryType().name() : null;
-			budget.add(story.getName(), text);
-			return new StorySnapshot(story.getId(), story.getVersion(), story.getName(), text,
+			budget.add(name, text);
+			return new StorySnapshot(story.getId(), story.getVersion(), name, text,
 					storyTypeName, primaryActor);
 		}
 		if (target instanceof Actor actor) {
+			String name = ContextPackTextUtils.prepareName("actor.name", actor.getName(), policy,
+					redacted);
 			String text = ContextPackTextUtils.prepareText("actor.text", actor.getText(), maxField,
-					redactionPolicy, redacted, truncated);
-			budget.add(actor.getName(), text);
-			return new ActorSnapshot(actor.getId(), actor.getVersion(), actor.getName(), text);
+					policy, redacted, truncated);
+			budget.add(name, text);
+			return new ActorSnapshot(actor.getId(), actor.getVersion(), name, text);
 		}
 		if (target instanceof UseCase useCase) {
+			String name = ContextPackTextUtils.prepareName("useCase.name", useCase.getName(), policy,
+					redacted);
 			String text = ContextPackTextUtils.prepareText("useCase.text", useCase.getText(),
-					maxField, redactionPolicy, redacted, truncated);
+					maxField, policy, redacted, truncated);
 			EntityRef primaryActor = useCase.getPrimaryActor() != null
 					? EntityRef.of("Actor", useCase.getPrimaryActor().getId())
 					: null;
 			EntityRef primaryScenario = useCase.getScenario() != null
 					? EntityRef.of("Scenario", useCase.getScenario().getId())
 					: null;
-			budget.add(useCase.getName(), text);
-			return new UseCaseSnapshot(useCase.getId(), useCase.getVersion(), useCase.getName(),
+			budget.add(name, text);
+			return new UseCaseSnapshot(useCase.getId(), useCase.getVersion(), name,
 					text, primaryActor, primaryScenario);
 		}
 		if (target instanceof GlossaryTerm term) {
+			String name = ContextPackTextUtils.prepareName("glossaryTerm.name", term.getName(), policy,
+					redacted);
 			String text = ContextPackTextUtils.prepareText("glossaryTerm.text", term.getText(),
-					maxField, redactionPolicy, redacted, truncated);
-			budget.add(term.getName(), text);
-			return new GlossaryTermSnapshot(term.getId(), term.getVersion(), term.getName(), text);
+					maxField, policy, redacted, truncated);
+			budget.add(name, text);
+			return new GlossaryTermSnapshot(term.getId(), term.getVersion(), name, text);
 		}
 		throw new IllegalArgumentException(
 				"Unsupported target type for EntityContextPack: " + target.getClass().getName());

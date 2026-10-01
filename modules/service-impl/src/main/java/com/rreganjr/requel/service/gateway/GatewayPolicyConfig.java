@@ -84,8 +84,9 @@ public class GatewayPolicyConfig {
             // Ignored assistant findings (#320; Project[Edit] at the command layer)
             "DeleteIgnoredFinding",
             // Re-run the assistants on a whole project (#268; Annotation[Edit]) and switch
-            // them on or off per project (#268; Project[Edit])
-            "AnalyzeProject", "EditProjectAssistantSetting",
+            // them on or off per project (#268; Project[Edit]); AI data handling (#262;
+            // Project[Edit])
+            "AnalyzeProject", "EditProjectAssistantSetting", "EditProjectDataHandlingSetting",
             // Entity provenance (#272): record a source, link or unlink an entity (the entity's
             // Edit), and create or update an entity from a source fragment (the entity's Edit
             // plus the wrapped edit command's own check)

@@ -111,6 +111,14 @@ public class AssistantRunEntity {
 	@Column(name = "findings_count", nullable = false)
 	private int findingsCount;
 
+	/** #262: values the redaction policy masked in the run's context. */
+	@Column(name = "redaction_count", nullable = false)
+	private int redactionCount;
+
+	/** #262: comma-separated redaction categories masked, e.g. {@code CREDENTIALS,EMAIL}. */
+	@Column(name = "redaction_categories", length = 200)
+	private String redactionCategories;
+
 	@Column(name = "body_capture_reason", length = 40)
 	private String bodyCaptureReason;
 
@@ -327,6 +335,22 @@ public class AssistantRunEntity {
 
 	public void setFindingsCount(int findingsCount) {
 		this.findingsCount = findingsCount;
+	}
+
+	public int getRedactionCount() {
+		return redactionCount;
+	}
+
+	public void setRedactionCount(int redactionCount) {
+		this.redactionCount = redactionCount;
+	}
+
+	public String getRedactionCategories() {
+		return redactionCategories;
+	}
+
+	public void setRedactionCategories(String redactionCategories) {
+		this.redactionCategories = redactionCategories;
 	}
 
 	public String getBodyCaptureReason() {

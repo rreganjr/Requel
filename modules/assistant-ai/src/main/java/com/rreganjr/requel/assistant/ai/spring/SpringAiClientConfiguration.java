@@ -28,6 +28,7 @@ import org.springframework.context.annotation.Configuration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.assistant.ai.AiProperties;
+import com.rreganjr.requel.assistant.ai.AiProviderLocality;
 
 /**
  * Wires the single Spring AI-backed {@link com.rreganjr.requel.assistant.ai.AiAnalysisClient},
@@ -53,10 +54,13 @@ public class SpringAiClientConfiguration {
 			+ "or '${requel.ai.provider:noop}' == 'anthropic'")
 	public SpringAiAnalysisClient springAiAnalysisClient(
 			ObjectProvider<ChatClient.Builder> chatClientBuilderProvider, AiProperties properties,
-			ObjectMapper objectMapper) {
+			ObjectMapper objectMapper, ObjectProvider<AiProviderLocality> locality) {
 		// ObjectProvider (not the builder directly) so this bean does not eagerly depend on the
 		// ChatClient.Builder — that dependency closes a cycle through Spring AI tool-calling and the
 		// MCP ToolCallbackProvider. SpringAiAnalysisClient resolves it lazily on first use.
-		return new SpringAiAnalysisClient(chatClientBuilderProvider, properties, objectMapper);
+		SpringAiAnalysisClient client = new SpringAiAnalysisClient(chatClientBuilderProvider,
+				properties, objectMapper);
+		locality.ifAvailable(client::setLocality);
+		return client;
 	}
 }

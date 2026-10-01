@@ -24,11 +24,29 @@ import { ButtonModule } from 'primeng/button';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { ProjectAssistantsService } from '../../core/project-assistants.service';
 import { ProjectAssistantDto } from '../../models/project-assistant';
+import { ProjectDataHandlingDto } from '../../models/project-data-handling';
+
+/** One data-handling switch (issue #262). */
+export interface DataHandlingRow {
+  key: string;
+  label: string;
+  enabled: boolean;
+}
+
+const REDACTION_LABELS: Record<string, string> = {
+  credentials: 'Mask credentials (API keys, tokens, passwords)',
+  email: 'Mask email addresses',
+  phone: 'Mask phone numbers',
+  ssn: 'Mask US social security numbers',
+  card: 'Mask payment card numbers',
+};
 
 /**
  * The project overview's Assistants panel (issue #268): one switch per lexical check, applied
  * as soon as it is flipped, and a Re-run analysis button. The switches are read-only without
- * Project[Edit]; the button needs Annotation[Edit], since the runs write issues.
+ * Project[Edit]; the button needs Annotation[Edit], since the runs write issues. Issue #262 adds
+ * an AI data-handling section: whether project text may go to a remote AI provider, and which
+ * kinds of sensitive text are masked before any provider sees it.
  */
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -58,6 +76,24 @@ import { ProjectAssistantDto } from '../../models/project-assistant';
           Switching a check off stops it running in this project. The issues it already raised stay.
         </p>
       }
+      @if (dataHandlingRows().length > 0) {
+        <h3 class="ws-subtitle" id="data-handling-title">AI data handling</h3>
+        <ul class="dh-list" aria-labelledby="data-handling-title" data-testid="data-handling">
+          @for (row of dataHandlingRows(); track row.key) {
+            <li class="dh-row">
+              <p-toggleswitch [inputId]="'dh-' + row.key" [ngModel]="row.enabled"
+                              [disabled]="!canEdit() || busy() === row.key"
+                              (ngModelChange)="toggleDataHandling(row, $event)"
+                              [attr.data-testid]="'data-handling-toggle-' + row.key" />
+              <label [for]="'dh-' + row.key">{{ row.label }}</label>
+            </li>
+          }
+        </ul>
+        <p class="ws-hint">
+          With external providers off, AI reviews of this project fail rather than send its text off
+          this server. Masking applies to every AI provider.
+        </p>
+      }
       @if (canAnalyze()) {
         <p-button label="Re-run analysis" icon="pi pi-refresh" [outlined]="true" size="small"
                   [loading]="analyzing()" [disabled]="!anyEnabled()" (onClick)="rerun()"
@@ -85,9 +121,12 @@ import { ProjectAssistantDto } from '../../models/project-assistant';
       box-shadow: var(--rq-card-shadow);
     }
     .ws-panel-title { margin: 0 0 var(--rq-space-2); font-size: var(--rq-font-size-lg); }
+    .ws-subtitle { margin: var(--rq-space-3) 0 var(--rq-space-2); font-size: var(--rq-font-size-md, 1rem); }
     .assistant-list { list-style: none; margin: 0 0 var(--rq-space-2); padding: 0;
       display: flex; flex-direction: column; gap: var(--rq-space-2); }
-    .assistant-row { display: flex; align-items: center; gap: var(--rq-space-2); }
+    .assistant-row, .dh-row { display: flex; align-items: center; gap: var(--rq-space-2); }
+    .dh-list { list-style: none; margin: 0 0 var(--rq-space-2); padding: 0;
+      display: flex; flex-direction: column; gap: var(--rq-space-2); }
     .ws-empty, .ws-hint { color: var(--p-text-secondary-color); margin: 0 0 var(--rq-space-2); }
     .ws-hint { font-size: var(--rq-font-size-sm); }
     .ws-status { color: var(--p-text-secondary-color); font-size: var(--rq-font-size-sm);
@@ -110,6 +149,19 @@ export class ProjectAssistantsPanelComponent implements OnChanges {
   readonly error = signal<string | null>(null);
   /** Re-running with every check off would do nothing the panel shows, so it is disabled. */
   readonly anyEnabled = computed(() => this.assistants().some(a => a.enabled));
+  /** Issue #262: null until loaded (or when the read fails, which hides the section). */
+  readonly dataHandling = signal<ProjectDataHandlingDto | null>(null);
+  readonly dataHandlingRows = computed<DataHandlingRow[]>(() => {
+    const dh = this.dataHandling();
+    if (!dh) return [];
+    const rows: DataHandlingRow[] = [
+      { key: 'egress.external', label: 'Allow external AI providers', enabled: dh.externalProviderAllowed },
+    ];
+    for (const [id, on] of Object.entries(dh.redaction ?? {})) {
+      rows.push({ key: `redaction.${id}`, label: REDACTION_LABELS[id] ?? `Mask ${id}`, enabled: on });
+    }
+    return rows;
+  });
 
   constructor(private readonly service: ProjectAssistantsService) {}
 
@@ -125,6 +177,42 @@ export class ProjectAssistantsPanelComponent implements OnChanges {
     } catch {
       this.loadFailed.set(true);
     }
+    try {
+      this.dataHandling.set(await this.service.dataHandling(this.projectName()));
+    } catch {
+      this.dataHandling.set(null);
+    }
+  }
+
+  /** Issue #262: apply a data-handling switch at once; put it back if the server refuses. */
+  async toggleDataHandling(row: DataHandlingRow, enabled: boolean): Promise<void> {
+    if (!this.canEdit() || enabled === row.enabled) return;
+    this.error.set(null);
+    this.busy.set(row.key);
+    this.setDataHandlingLocal(row.key, enabled);
+    try {
+      const result = await this.service.setDataHandling(this.projectName(), row.key, enabled);
+      if (!result.success) {
+        this.setDataHandlingLocal(row.key, !enabled);
+        this.error.set(result.error ?? `Couldn't change "${row.label}".`);
+      } else {
+        this.status.set(`${row.label}: ${enabled ? 'on' : 'off'}.`);
+      }
+    } catch {
+      this.setDataHandlingLocal(row.key, !enabled);
+      this.error.set(`Couldn't change "${row.label}".`);
+    } finally {
+      this.busy.set(null);
+    }
+  }
+
+  private setDataHandlingLocal(key: string, enabled: boolean): void {
+    this.dataHandling.update(dh => {
+      if (!dh) return dh;
+      if (key === 'egress.external') return { ...dh, externalProviderAllowed: enabled };
+      const id = key.replace(/^redaction\./, '');
+      return { ...dh, redaction: { ...dh.redaction, [id]: enabled } };
+    });
   }
 
   /** Apply a switch at once; put it back if the server refuses. */

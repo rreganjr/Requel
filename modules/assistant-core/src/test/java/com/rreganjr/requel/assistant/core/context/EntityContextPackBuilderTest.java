@@ -34,11 +34,14 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.Note;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
+import com.rreganjr.requel.project.ProjectAssistantSettingsStore;
 
 class EntityContextPackBuilderTest {
 
@@ -162,6 +165,98 @@ class EntityContextPackBuilderTest {
 		assertThatThrownBy(() -> builder.build("not a domain entity"))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("Unsupported target type");
+	}
+
+	// ---- #262: redaction, names, authors ---------------------------------------------
+
+	private EntityContextPackBuilder redacting(ContextPackSizeLimits limits) {
+		return new EntityContextPackBuilder(new DefaultRedactionPolicy(), limits, fixedClock);
+	}
+
+	private static Goal goal(String name, String text) {
+		Goal goal = mock(Goal.class);
+		when(goal.getId()).thenReturn(42L);
+		when(goal.getVersion()).thenReturn(1);
+		when(goal.getName()).thenReturn(name);
+		when(goal.getText()).thenReturn(text);
+		when(goal.getAnnotations()).thenReturn(new LinkedHashSet<>());
+		when(goal.getGlossaryTerms()).thenReturn(Set.of());
+		return goal;
+	}
+
+	@Test
+	void theDefaultPolicyMasksTextAndNameAndNotesEveryPath() {
+		Goal goal = goal("Notify ron@example.com",
+				"Use key sk-proj-AbCdEfGhIjKlMnOpQrStUvWx and mail ops@example.com");
+
+		EntityContextPack pack = redacting(new ContextPackSizeLimits()).build(goal);
+
+		GoalSnapshot snapshot = (GoalSnapshot) pack.snapshot();
+		assertThat(snapshot.name()).isEqualTo("Notify [REDACTED:EMAIL]");
+		assertThat(snapshot.text()).isEqualTo(
+				"Use key [REDACTED:CREDENTIALS] and mail [REDACTED:EMAIL]");
+		assertThat(pack.metadata().redactedFields()).containsExactlyInAnyOrder(
+				"goal.text: CREDENTIALS x1, EMAIL x1", "goal.name: EMAIL x1");
+		assertThat(pack.metadata().redactionCount()).isEqualTo(3);
+		assertThat(pack.metadata().redactionCategories())
+				.containsExactlyInAnyOrder("CREDENTIALS", "EMAIL");
+	}
+
+	@Test
+	void authorsBecomeRolesStableWithinThePack() {
+		Goal goal = goal("G", "text");
+		User alice = mock(User.class);
+		when(alice.getUsername()).thenReturn("alice@example.com");
+		User bob = mock(User.class);
+		when(bob.getUsername()).thenReturn("bob");
+		Issue first = stubIssue(1L, 1, "one", false, false);
+		when(first.getCreatedBy()).thenReturn(alice);
+		Note second = stubNote(2L, 1, "two");
+		when(second.getCreatedBy()).thenReturn(bob);
+		Note third = stubNote(3L, 1, "three");
+		when(third.getCreatedBy()).thenReturn(alice);
+		LinkedHashSet<Annotation> annotations = new LinkedHashSet<>();
+		annotations.add(first);
+		annotations.add(second);
+		annotations.add(third);
+		when(goal.getAnnotations()).thenReturn(annotations);
+
+		EntityContextPack pack = builder.build(goal); // even with the no-op policy
+
+		assertThat(pack.annotations()).extracting(AnnotationSnapshot::createdByUsername)
+				.containsExactly("user-1", "user-2", "user-1");
+	}
+
+	@Test
+	void redactionRunsBeforeTheFieldIsCappedSoAMaskIsNeverCut() {
+		ContextPackSizeLimits limits = new ContextPackSizeLimits();
+		limits.setMaxTextCharsPerField(30);
+		// the email straddles character 30; truncating first would leave half an address
+		Goal goal = goal("G", "Contact the owner at ron.regan@example.com today");
+
+		EntityContextPack pack = redacting(limits).build(goal);
+
+		String text = ((GoalSnapshot) pack.snapshot()).text();
+		assertThat(text).hasSize(30).doesNotContain("ron.regan").doesNotContain("@");
+		assertThat(pack.metadata().redactedFields()).containsExactly("goal.text: EMAIL x1");
+	}
+
+	@Test
+	void theProjectsSwitchesApply() {
+		Goal goal = goal("G", "call 555-123-4567 or ron@example.com");
+		Project project = mock(Project.class);
+		when(project.getId()).thenReturn(9L);
+		when(goal.getProjectOrDomain()).thenReturn(project);
+		ProjectAssistantSettingsStore store = mock(ProjectAssistantSettingsStore.class);
+		when(store.disabledAssistants(9L)).thenReturn(Set.of("redaction.phone"));
+		DefaultRedactionPolicy policy = new DefaultRedactionPolicy();
+		policy.setSettingsStore(store);
+
+		EntityContextPack pack = new EntityContextPackBuilder(policy, new ContextPackSizeLimits(),
+				fixedClock).build(goal);
+
+		assertThat(((GoalSnapshot) pack.snapshot()).text())
+				.isEqualTo("call 555-123-4567 or [REDACTED:EMAIL]");
 	}
 
 	private static Issue stubIssue(long id, int version, String text, boolean mustBeResolved,

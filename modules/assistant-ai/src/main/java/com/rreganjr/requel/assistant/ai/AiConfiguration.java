@@ -21,7 +21,9 @@
 package com.rreganjr.requel.assistant.ai;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 
 /**
  * Binds {@link AiProperties}. The provider-client wiring lives in
@@ -31,4 +33,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableConfigurationProperties(AiProperties.class)
 public class AiConfiguration {
+
+	/**
+	 * Issue #262: whether the configured provider is local or remote. Read from the Environment
+	 * (not {@code @Value}, see #293) so test property sources apply.
+	 */
+	@Bean
+	public AiProviderLocality aiProviderLocality(AiProperties properties, Environment environment) {
+		return AiProviderLocality.classify(properties.getProvider(),
+				environment.getProperty("spring.ai.openai.base-url"));
+	}
 }

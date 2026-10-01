@@ -146,6 +146,60 @@ class RequirementsReviewAssistantTest {
 		verify(usageRepository, never()).save(any()); // no usage row for a failed call
 	}
 
+	/** #262: every request carries the project's data-handling flags. */
+	@Test
+	void theRequestCarriesTheProjectsDataHandlingFlags() throws Exception {
+		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		com.rreganjr.requel.project.ProjectAssistantSettingsStore store =
+				mock(com.rreganjr.requel.project.ProjectAssistantSettingsStore.class);
+		when(store.disabledAssistants(2L)).thenReturn(java.util.Set.of("egress.external",
+				"redaction.phone"));
+		RequirementsReviewAssistant assistant = newAssistant(enabledProperties());
+		assistant.setSettingsStore(store);
+		assistant.setProviderLocality(AiProviderLocality.REMOTE);
+
+		assistant.analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
+
+		assertThat(aiClient.lastRequest.dataHandlingFlags())
+				.containsEntry("externalProviderAllowed", false)
+				.containsEntry("providerLocality", "remote")
+				.containsEntry("provider", enabledProperties().getProvider())
+				.containsEntry("redactionCategories", List.of("credentials", "email", "ssn", "card"));
+	}
+
+	@Test
+	void withoutSettingsEverythingIsOnAndTheFlagsAreNeverEmpty() throws Exception {
+		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+
+		newAssistant(enabledProperties()).analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
+
+		assertThat(aiClient.lastRequest.dataHandlingFlags())
+				.containsEntry("externalProviderAllowed", true)
+				.containsKeys("providerLocality", "provider", "redactionCategories");
+	}
+
+	/** #262: the pack's redactions are recorded on the run before the provider is called. */
+	@Test
+	void redactionsAreRecordedOnTheRun() throws Exception {
+		EntityContextPack pack = mock(EntityContextPack.class);
+		when(pack.metadata()).thenReturn(new com.rreganjr.requel.assistant.core.context
+				.ContextPackMetadata(java.time.Instant.EPOCH, 0, false,
+						List.of("goal.text: CREDENTIALS x1, EMAIL x1"), List.of()));
+		when(packBuilder.build(any())).thenReturn(pack);
+		com.rreganjr.requel.assistant.core.InMemoryAssistantRunStore runStore =
+				new com.rreganjr.requel.assistant.core.InMemoryAssistantRunStore();
+		RequirementsReviewAssistant assistant = newAssistant(enabledProperties());
+		assistant.setRunStore(runStore);
+		AssistantContext context = context("REQUIREMENTS_REVIEW");
+
+		assistant.analyze(context, goalTarget());
+
+		assertThat(runStore.redactions(context.runId())).hasValueSatisfying(r -> {
+			assertThat(r.getKey()).isEqualTo(2);
+			assertThat(r.getValue()).containsExactly("CREDENTIALS", "EMAIL");
+		});
+	}
+
 	@Test
 	void mapsFindingsToAnnotationActions() throws Exception {
 		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));

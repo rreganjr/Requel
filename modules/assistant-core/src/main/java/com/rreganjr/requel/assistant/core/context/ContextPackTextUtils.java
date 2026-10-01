@@ -53,6 +53,31 @@ final class ContextPackTextUtils {
 		return redacted;
 	}
 
+	/**
+	 * Issue #262: run a name through the {@link RedactionPolicy}. Names are not truncated (they
+	 * are short), but an email or key in a name must not reach a model either.
+	 */
+	static String prepareName(String fieldPath, String value, RedactionPolicy policy,
+			List<String> redactionNotes) {
+		return value == null ? null : policy.redact(fieldPath, value, redactionNotes);
+	}
+
+	/** Issue #262: the pack's project id, for {@link RedactionPolicy#forProject}. */
+	static Long projectIdOf(Object target) {
+		if (target instanceof com.rreganjr.requel.project.Project project) {
+			return project.getId();
+		}
+		if (target instanceof com.rreganjr.requel.project.ProjectOrDomainEntity entity
+				&& entity.getProjectOrDomain() != null) {
+			return entity.getProjectOrDomain().getId();
+		}
+		return null;
+	}
+
+	/**
+	 * The raw username. Since #262 the builders send {@link AuthorPseudonyms} labels instead;
+	 * this stays for callers that are not building a pack.
+	 */
 	static String username(User user) {
 		return user == null ? null : user.getUsername();
 	}
