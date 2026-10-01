@@ -119,6 +119,10 @@ public class AssistantRunEntity {
 	@Column(name = "redaction_categories", length = 200)
 	private String redactionCategories;
 
+	/** #355: the assistants' own summary of the run (for AI review, the model's summary). */
+	@Column(name = "result_summary", length = 2000)
+	private String resultSummary;
+
 	@Column(name = "body_capture_reason", length = 40)
 	private String bodyCaptureReason;
 
@@ -351,6 +355,14 @@ public class AssistantRunEntity {
 
 	public void setRedactionCategories(String redactionCategories) {
 		this.redactionCategories = redactionCategories;
+	}
+
+	public String getResultSummary() {
+		return resultSummary;
+	}
+
+	public void setResultSummary(String resultSummary) {
+		this.resultSummary = resultSummary;
 	}
 
 	public String getBodyCaptureReason() {

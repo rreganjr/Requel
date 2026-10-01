@@ -194,6 +194,8 @@ public class AssistantRunWorker {
 			}
 			// #259: every matching assistant threw, so there is nothing to apply and the run did
 			// not do its job. (Some failing is PARTIAL, below.) Each failure was already logged.
+			// #355: keep the assistants' own summary of the run (best effort).
+			recordResultSummary(runId, analysis.results);
 			if (analysis.allFailed()) {
 				runStore.markFailed(runId,
 						new AssistantWorkerException(String.join("; ", analysis.problems)));
@@ -227,6 +229,27 @@ public class AssistantRunWorker {
 		} catch (RuntimeException e) {
 			runStore.markFailed(runId, e);
 			throw new AssistantWorkerException("Assistant run failed: " + runId, e);
+		}
+	}
+
+	/**
+	 * Issue #355: join the non-blank summaries of the run's results and store them on the run. A
+	 * failure to record never fails the run.
+	 */
+	private void recordResultSummary(UUID runId, List<AssistantResult> results) {
+		List<String> summaries = new ArrayList<>();
+		for (AssistantResult result : results) {
+			if (result != null && result.summary() != null && !result.summary().isBlank()) {
+				summaries.add(result.summary().strip());
+			}
+		}
+		if (summaries.isEmpty()) {
+			return;
+		}
+		try {
+			runStore.recordResultSummary(runId, String.join("\n\n", summaries));
+		} catch (RuntimeException e) {
+			log.warn("Failed to record the result summary for run {}: {}", runId, e.getMessage(), e);
 		}
 	}
 

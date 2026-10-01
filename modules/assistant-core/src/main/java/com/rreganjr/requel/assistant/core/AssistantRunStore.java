@@ -69,5 +69,12 @@ public interface AssistantRunStore {
 	default void recordRedactions(UUID runId, int count, java.util.List<String> categories) {
 	}
 
+	/**
+	 * Issue #355: record the assistants' own summary of the run (for AI review, the model's
+	 * summary). Best effort; a store that cannot record it ignores the call.
+	 */
+	default void recordResultSummary(UUID runId, String summary) {
+	}
+
 	Optional<AssistantRunRecord> findRun(UUID runId);
 }

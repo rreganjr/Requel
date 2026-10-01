@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Issue #355: the AI review evaluation fixture. Every entity is invented (a community tool
+     library); scripts/ai-eval/expectations.json says what a reviewer should raise on each. -->
+<project xmlns="http://www.rreganjr.com/requel" id="POD_1">
+    <name>AI Review Evaluation Fixture</name>
+    <description>A community tool library: members borrow tools, reserve them, return them, and volunteers repair them.</description>
+    <actors>
+        <actor id="ACT_1">
+            <text>Dana Whitfield is the library's treasurer.</text>
+            <name>Dana Whitfield</name>
+        </actor>
+        <actor id="ACT_2">
+            <text>Anyone who is not library staff.</text>
+            <name>Non-staff</name>
+        </actor>
+        <actor id="ACT_3">
+            <text>A person with a current library membership, who may borrow tools.</text>
+            <name>Member</name>
+        </actor>
+    </actors>
+    <scenarios>
+        <step scenarioType="Primary" id="STP_1">
+            <name>The member brings the tool to the desk</name>
+        </step>
+        <step scenarioType="Primary" id="STP_2">
+            <name>Staff scan the member card</name>
+        </step>
+        <step scenarioType="Primary" id="STP_3">
+            <name>Staff scan the tool</name>
+        </step>
+        <step scenarioType="Primary" id="STP_4">
+            <name>The system records the loan</name>
+        </step>
+        <step scenarioType="Primary" id="STP_5">
+            <name>The supplier ships the tool</name>
+        </step>
+        <step scenarioType="Primary" id="STP_6">
+            <name>The treasurer approves the request</name>
+        </step>
+        <step scenarioType="Primary" id="STP_7">
+            <name>A member submits a purchase request</name>
+        </step>
+        <step scenarioType="Primary" id="STP_8">
+            <name>The member opens the loan on the account page</name>
+        </step>
+        <step scenarioType="Primary" id="STP_9">
+            <name>The member chooses Renew</name>
+        </step>
+        <step scenarioType="Primary" id="STP_10">
+            <name>The system checks that the tool has no reservation</name>
+        </step>
+        <step scenarioType="Primary" id="STP_11">
+            <name>The system extends the due date by 7 days and shows the new date</name>
+        </step>
+        <step scenarioType="Primary" id="STP_12">
+            <name>The system or staff mark the tool as broken</name>
+        </step>
+        <step scenarioType="Primary" id="STP_13">
+            <name>Staff photograph the damage and email the member</name>
+        </step>
+        <step scenarioType="Primary" id="STP_14">
+            <name>Staff put the tool on the repair shelf</name>
+        </step>
+        <scenario scenarioType="Primary" id="SCN_1">
+            <text>The main flow for checking out a tool.</text>
+            <name>Check out at the desk</name>
+            <steps>
+                <stepRef>STP_1</stepRef>
+                <stepRef>STP_2</stepRef>
+                <stepRef>STP_3</stepRef>
+                <stepRef>STP_4</stepRef>
+            </steps>
+        </scenario>
+        <scenario scenarioType="Primary" id="SCN_2">
+            <text>How a tool purchase request is approved.</text>
+            <name>Approve a purchase request</name>
+            <steps>
+                <stepRef>STP_5</stepRef>
+                <stepRef>STP_6</stepRef>
+                <stepRef>STP_7</stepRef>
+            </steps>
+        </scenario>
+        <scenario scenarioType="Primary" id="SCN_3">
+            <text>The main flow for renewing a loan.</text>
+            <name>Renew from the account page</name>
+            <steps>
+                <stepRef>STP_8</stepRef>
+                <stepRef>STP_9</stepRef>
+                <stepRef>STP_10</stepRef>
+                <stepRef>STP_11</stepRef>
+            </steps>
+        </scenario>
+        <scenario scenarioType="Primary" id="SCN_4">
+            <text>What happens when a broken tool comes back.</text>
+            <name>Log a broken tool</name>
+            <steps>
+                <stepRef>STP_12</stepRef>
+                <stepRef>STP_13</stepRef>
+                <stepRef>STP_14</stepRef>
+            </steps>
+        </scenario>
+    </scenarios>
+    <glossary>
+        <term id="TRM_1">
+            <text>A loan is when a tool is loaned.</text>
+            <name>Loan</name>
+        </term>
+        <term id="TRM_2">
+            <text>An overdue tool is a tool that is overdue.</text>
+            <name>Overdue tool</name>
+        </term>
+        <term id="TRM_3">
+            <text>The day a member collects a reserved tool from the desk.</text>
+            <name>Pickup date</name>
+        </term>
+    </glossary>
+    <goals>
+        <goal id="GOL_1">
+            <text>Members should really enjoy using the tool library.</text>
+            <name>Members love the library</name>
+        </goal>
+        <goal id="GOL_2">
+            <text>The system sends a text message to every member who has an overdue tool.</text>
+            <name>Send overdue reminders by text message</name>
+        </goal>
+        <goal id="GOL_3">
+            <text>Fewer than five members a month complain about overdue reminders.</text>
+            <name>Fewer complaints about reminders</name>
+        </goal>
+        <goal id="GOL_4">
+            <text>Dana Whitfield approves every new tool purchase over 200 dollars.</text>
+            <name>Dana approves tool purchases</name>
+        </goal>
+        <goal id="GOL_5">
+            <text>A member can find any tool in the catalogue within one minute.</text>
+            <name>Members find tools quickly</name>
+        </goal>
+        <goal id="GOL_6">
+            <text>A member can search the tool catalogue by tool name and see the shelf where the tool is kept.</text>
+            <name>Members search the catalogue by name</name>
+        </goal>
+        <goal id="GOL_7">
+            <text>Members with a suspended account, or with more than two overdue tools, may not borrow tools.</text>
+            <name>Suspended members cannot borrow</name>
+        </goal>
+        <goal id="GOL_8">
+            <text>Members can reserve tools online, and the library launches a mobile app for members.</text>
+            <name>Online reservations and a mobile app</name>
+        </goal>
+        <goal id="GOL_9">
+            <text>Member contact details are never shared with anyone outside the library staff, at any time.</text>
+            <name>Member data stays private</name>
+        </goal>
+        <goal id="GOL_10">
+            <text>The volunteer team holds a stand-up every Monday to plan the week's repairs.</text>
+            <name>Volunteers plan repairs weekly</name>
+        </goal>
+        <goal id="GOL_11">
+            <text>The checkout desk scans the barcode on the tool. Every tool already carries exactly one barcode label.</text>
+            <name>Barcode scanning at checkout</name>
+        </goal>
+        <goal id="GOL_12">
+            <text>The library will track the on-time return rate of borrowed tools each month.</text>
+            <name>Tools come back on time</name>
+        </goal>
+        <goal id="GOL_13">
+            <text>All alerts raised by the tool-condition monitor, which this project builds, are acknowledged by staff within one working day.</text>
+            <name>Condition alerts are acknowledged</name>
+        </goal>
+        <goal id="GOL_14">
+            <text>A member can reserve an available tool for a pickup date 1 to 7 days ahead. The reservation holds the tool until 18:00 on the pickup date.</text>
+            <name>Members reserve tools up to 7 days ahead</name>
+        </goal>
+    </goals>
+    <stories>
+        <story storyType="Success" id="STRY_1">
+            <text>As a member, I want to borrow a cordless drill.</text>
+            <name>Borrow a drill</name>
+        </story>
+        <story storyType="Success" id="STRY_2">
+            <text>As a member, I want to reserve a tool and pay my annual fee online so that I save a trip to the library.</text>
+            <name>Reserve and pay online</name>
+        </story>
+        <story storyType="Success" id="STRY_3">
+            <text>When a member returns a tool late: 1. staff scan the tool; 2. the system works out the fine; 3. staff take the payment; 4. the receipt prints.</text>
+            <name>Late returns</name>
+        </story>
+        <story storyType="Success" id="STRY_4">
+            <text>Last quarter the repair desk logged 32 broken tools (24 power tools and 8 hand tools). As a repair volunteer, I want broken tools triaged at the counter so that the backlog halves to 16 by the end of next quarter.</text>
+            <name>Halve the repair backlog</name>
+        </story>
+        <story storyType="Success" id="STRY_5">
+            <text>As a member, I want to drop a borrowed tool in the after-hours return box so that I can return it when the library is closed.</text>
+            <name>Return a tool after hours</name>
+        </story>
+    </stories>
+    <usecases>
+        <usecase id="UC_1">
+            <text>A member checks out a tool.</text>
+            <name>Check out a tool</name>
+            <primaryActorRef>ACT_3</primaryActorRef>
+            <scenarioRef>SCN_1</scenarioRef>
+        </usecase>
+        <usecase id="UC_2">
+            <text>Dana reviews the purchase request and approves it.</text>
+            <name>Approve a purchase</name>
+            <primaryActorRef>ACT_1</primaryActorRef>
+            <scenarioRef>SCN_2</scenarioRef>
+        </usecase>
+        <usecase id="UC_3">
+            <text>A member with no overdue tools renews a current loan before its due date. Precondition: the member is signed in and the tool has no reservation. If the tool is reserved, the renewal is refused and the member is told that the due date stands.</text>
+            <name>Renew a loan</name>
+            <primaryActorRef>ACT_3</primaryActorRef>
+            <scenarioRef>SCN_3</scenarioRef>
+        </usecase>
+    </usecases>
+    <organization name="Tool Library Evaluation"/>
+</project>

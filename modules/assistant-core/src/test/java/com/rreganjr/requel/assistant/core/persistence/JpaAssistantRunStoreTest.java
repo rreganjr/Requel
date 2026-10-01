@@ -110,6 +110,34 @@ class JpaAssistantRunStoreTest {
 		assertThat(entity.getCompletedAt()).isEqualTo(fixedNow);
 	}
 
+	/** #355: the result summary is stored, capped to its column, and blank stores nothing. */
+	@Test
+	void recordResultSummaryStoresAndCapsTheSummary() {
+		AssistantRunRepository repository = mock(AssistantRunRepository.class);
+		JpaAssistantRunStore store = new JpaAssistantRunStore(repository, fixedClock);
+		AssistantRunEntity entity = new AssistantRunEntity(UUID.randomUUID(), "test", "RUNNING",
+				fixedNow.minusSeconds(2), fixedNow.minusSeconds(1));
+		when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+		store.recordResultSummary(entity.getRunId(), "x".repeat(5000));
+		assertThat(entity.getResultSummary()).hasSize(JpaAssistantRunStore.RESULT_SUMMARY_LENGTH)
+				.endsWith("…");
+
+		store.recordResultSummary(entity.getRunId(), "  ");
+		assertThat(entity.getResultSummary()).isNull();
+	}
+
+	@Test
+	void kindOfReadsTheAnnotationKindFromAnAiActionKey() {
+		assertThat(AssistantRunReadService.kindOf("ai-requirements-review:Goal:7:issue:AMBIGUOUS:1f"))
+				.isEqualTo("ISSUE");
+		assertThat(AssistantRunReadService.kindOf("ai-requirements-review:Goal:7:note:CONTEXT:2a"))
+				.isEqualTo("NOTE");
+		assertThat(AssistantRunReadService.kindOf("legacy-lexical:Goal:7:unknown-word:Text:teh"))
+				.isNull();
+		assertThat(AssistantRunReadService.kindOf(null)).isNull();
+	}
+
 	/** #259: a long failure message (a CLI's stderr excerpt) is capped to the column too. */
 	@Test
 	void markFailedTruncatesALongSummary() {

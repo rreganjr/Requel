@@ -131,6 +131,21 @@ class AssistantRunWorkerTest {
 		assertThat(applicator.appliedResults).hasSize(1);
 	}
 
+	/** #355: the run keeps the assistants' own summary; a failed assistant contributes none. */
+	@Test
+	void theRunRecordsTheResultSummaryOfTheAssistantsThatRan() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new ThrowingAssistant(), new StringAssistant())),
+				new RecordingApplicator(), List.of(new StringTargetLoader()));
+
+		worker.run(record.runId());
+
+		assertThat(runStore.resultSummary(record.runId())).hasValueSatisfying(
+				summary -> assertThat(summary).isNotBlank().doesNotContain("analyze boom"));
+	}
+
 	@Test
 	void oneAssistantFailingToAnalyzeDoesNotAbortTheOthers() {
 		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();

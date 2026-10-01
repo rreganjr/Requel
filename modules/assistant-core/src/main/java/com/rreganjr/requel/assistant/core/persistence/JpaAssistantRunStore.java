@@ -174,6 +174,21 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 		});
 	}
 
+	/** The {@code result_summary} column's length. */
+	static final int RESULT_SUMMARY_LENGTH = 2000;
+
+	@Override
+	@Transactional(propagation = Propagation.REQUIRED)
+	public void recordResultSummary(UUID runId, String summary) {
+		Objects.requireNonNull(runId, "runId");
+		runRepository.findById(runId.toString()).ifPresent(entity -> {
+			entity.setResultSummary(summary == null || summary.isBlank() ? null
+					: truncate(summary, RESULT_SUMMARY_LENGTH));
+			entity.setUpdatedAt(clock.instant());
+			runRepository.save(entity);
+		});
+	}
+
 	@Override
 	@Transactional(propagation = Propagation.REQUIRED, readOnly = true)
 	public Optional<AssistantRunRecord> findRun(UUID runId) {
