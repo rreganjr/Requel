@@ -73,6 +73,22 @@ public class InMemoryAssistantRunStore implements AssistantRunStore {
 		update(runId, AssistantRunStatus.SUCCEEDED, summary);
 	}
 
+	/** #262: redactions recorded per run, for tests. */
+	private final java.util.Map<UUID, java.util.Map.Entry<Integer, java.util.List<String>>> redactions =
+			new java.util.concurrent.ConcurrentHashMap<>();
+
+	@Override
+	public void recordRedactions(UUID runId, int count, java.util.List<String> categories) {
+		redactions.put(runId, java.util.Map.entry(count,
+				categories == null ? java.util.List.of() : java.util.List.copyOf(categories)));
+	}
+
+	/** #262: the redactions recorded for a run, if any. */
+	public java.util.Optional<java.util.Map.Entry<Integer, java.util.List<String>>> redactions(
+			UUID runId) {
+		return java.util.Optional.ofNullable(redactions.get(runId));
+	}
+
 	@Override
 	public void markSkipped(UUID runId, String reason) {
 		update(runId, AssistantRunStatus.SKIPPED, reason);

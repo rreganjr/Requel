@@ -66,6 +66,8 @@ public class IssueContextPackBuilder {
 	public IssueContextPack build(Project project, Object target) {
 		Objects.requireNonNull(project, "project");
 		Objects.requireNonNull(target, "target");
+		// #262: the project's switches decide which categories are masked
+		RedactionPolicy policy = redactionPolicy.forProject(project.getId());
 		List<String> redacted = new ArrayList<>();
 		List<String> truncated = new ArrayList<>();
 		ContextPackBudget budget = new ContextPackBudget(limits.getMaxTotalCharacters());
@@ -75,7 +77,7 @@ public class IssueContextPackBuilder {
 		List<IssueSnapshot> targetIssues = new ArrayList<>();
 		if (target instanceof Annotatable annotatable) {
 			collectIssues(annotatable, targetRef, targetIssues, maxField, redacted, truncated, budget,
-					Integer.MAX_VALUE);
+					Integer.MAX_VALUE, policy);
 		}
 
 		int maxOpen = limits.getMaxProjectOpenIssues();
@@ -85,7 +87,7 @@ public class IssueContextPackBuilder {
 		// Project-level issues first (the project is itself Annotatable).
 		if (target != project) {
 			collectIssues(project, projectRef, projectOpenIssues, maxField, redacted, truncated,
-					budget, maxOpen);
+					budget, maxOpen, policy);
 		}
 
 		for (ProjectOrDomainEntity entity : project.getProjectEntities()) {
@@ -99,7 +101,7 @@ public class IssueContextPackBuilder {
 			}
 			EntityRef entityRef = EntityRef.of(simpleType(entity), entity.getId());
 			boolean capped = collectIssues(entity, entityRef, projectOpenIssues, maxField,
-					redacted, truncated, budget, remaining);
+					redacted, truncated, budget, remaining, policy);
 			if (capped) {
 				break;
 			}
@@ -116,7 +118,7 @@ public class IssueContextPackBuilder {
 	 */
 	private boolean collectIssues(Annotatable source, EntityRef sourceRef,
 			List<IssueSnapshot> sink, int maxField, List<String> redacted, List<String> truncated,
-			ContextPackBudget budget, int remaining) {
+			ContextPackBudget budget, int remaining, RedactionPolicy policy) {
 		for (Annotation annotation : source.getAnnotations()) {
 			if (sink.size() >= remaining) {
 				return true;
@@ -132,11 +134,11 @@ public class IssueContextPackBuilder {
 				continue;
 			}
 			String text = ContextPackTextUtils.prepareText("issue.text", issue.getText(), maxField,
-					redactionPolicy, redacted, truncated);
+					policy, redacted, truncated);
 			List<PositionSnapshot> positions = new ArrayList<>();
 			for (Position position : issue.getPositions()) {
 				String positionText = ContextPackTextUtils.prepareText("issue.position.text",
-						position.getText(), maxField, redactionPolicy, redacted, truncated);
+						position.getText(), maxField, policy, redacted, truncated);
 				positions.add(new PositionSnapshot(position.getId(), position.getVersion(),
 						positionText));
 				budget.add(positionText);

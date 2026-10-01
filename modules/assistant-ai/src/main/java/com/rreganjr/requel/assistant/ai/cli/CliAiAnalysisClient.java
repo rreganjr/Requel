@@ -49,6 +49,8 @@ import com.rreganjr.requel.assistant.ai.AiAnalysisRequest;
 import com.rreganjr.requel.assistant.ai.AiAnalysisResponse;
 import com.rreganjr.requel.assistant.ai.AiPromptBuilder;
 import com.rreganjr.requel.assistant.ai.AiProperties;
+import com.rreganjr.requel.assistant.ai.AiProviderLocality;
+import com.rreganjr.requel.assistant.ai.DataHandlingGuard;
 import com.rreganjr.requel.assistant.ai.AiUsage;
 import com.rreganjr.requel.assistant.ai.ReviewResultMapper;
 import com.rreganjr.requel.assistant.ai.ReviewResultMapper.ReviewResult;
@@ -109,6 +111,8 @@ public class CliAiAnalysisClient implements AiAnalysisClient {
 	@Override
 	public AiAnalysisResponse analyze(AiAnalysisRequest request) throws AiAnalysisException {
 		Objects.requireNonNull(request, "request");
+		// #262: the CLIs call their vendor's API, so this is always a remote provider
+		DataHandlingGuard.requireAllowed(request, AiProviderLocality.REMOTE);
 		Instant startedAt = clock.instant();
 		byte[] stdin = prompt(request).getBytes(StandardCharsets.UTF_8);
 

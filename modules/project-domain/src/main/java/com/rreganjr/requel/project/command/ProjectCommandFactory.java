@@ -171,6 +171,13 @@ public interface ProjectCommandFactory extends CommandFactory {
 	public EditProjectAssistantSettingCommand newEditProjectAssistantSettingCommand();
 
 	/**
+	 * @return a new command switching one of a project's data-handling settings (remote AI
+	 *         providers, redaction categories) on or off; requires {@code Project[Edit]}
+	 *         (issue #262).
+	 */
+	public EditProjectDataHandlingSettingCommand newEditProjectDataHandlingSettingCommand();
+
+	/**
 	 * @return a new command creating or updating a project's external source; requires
 	 *         {@code Project[Edit]} (issue #272).
 	 */

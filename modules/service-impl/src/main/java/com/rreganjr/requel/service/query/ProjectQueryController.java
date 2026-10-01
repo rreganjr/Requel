@@ -1069,6 +1069,28 @@ public class ProjectQueryController {
         }
     }
 
+    /**
+     * GET /api/projects/{name}/data-handling — the project's AI data-handling settings (issue
+     * #262): whether remote providers are allowed and which redaction categories are masked.
+     * Every setting is on until switched off.
+     */
+    @GetMapping("/{name}/data-handling")
+    public ResponseEntity<?> getProjectDataHandling(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            requireProjectAccess(project);
+            com.rreganjr.requel.project.DataHandlingSettings settings =
+                    com.rreganjr.requel.project.DataHandlingSettings.forProject(project.getId(),
+                            assistantSettingsStore);
+            return ResponseEntity.ok(new com.rreganjr.requel.service.api.dto.ProjectDataHandlingDto(
+                    settings.externalProviderAllowed(), settings.redactionSwitches()));
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
     private String entityName(String entityType, Long entityId) {
         Class<?> type = com.rreganjr.requel.project.impl.IgnorableEntityTypes.BY_NAME.get(entityType);
         if (type == null || entityId == null) {

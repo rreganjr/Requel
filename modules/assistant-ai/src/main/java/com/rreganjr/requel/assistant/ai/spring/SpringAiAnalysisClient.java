@@ -40,6 +40,8 @@ import com.rreganjr.requel.assistant.ai.AiAnalysisRequest;
 import com.rreganjr.requel.assistant.ai.AiAnalysisResponse;
 import com.rreganjr.requel.assistant.ai.AiPromptBuilder;
 import com.rreganjr.requel.assistant.ai.AiProperties;
+import com.rreganjr.requel.assistant.ai.AiProviderLocality;
+import com.rreganjr.requel.assistant.ai.DataHandlingGuard;
 import com.rreganjr.requel.assistant.ai.AiUsage;
 import com.rreganjr.requel.assistant.ai.ReviewResultMapper;
 import com.rreganjr.requel.assistant.ai.ReviewResultMapper.ReviewResult;
@@ -79,6 +81,8 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 	private final ReviewResultMapper mapper;
 	private final AiPromptBuilder promptBuilder;
 	private final Clock clock;
+	/** #262: remote providers check the request's data-handling flags before sending. */
+	private volatile AiProviderLocality locality;
 
 	public SpringAiAnalysisClient(ObjectProvider<ChatClient.Builder> chatClientBuilderProvider,
 			AiProperties properties, ObjectMapper objectMapper) {
@@ -88,6 +92,7 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 		this.mapper = new ReviewResultMapper(Objects.requireNonNull(objectMapper, "objectMapper"));
 		this.promptBuilder = new AiPromptBuilder(objectMapper, properties);
 		this.clock = Clock.systemUTC();
+		this.locality = AiProviderLocality.classify(properties.getProvider(), null);
 	}
 
 	SpringAiAnalysisClient(ChatClient chat, AiProperties properties, ObjectMapper objectMapper,
@@ -98,6 +103,16 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 		this.mapper = new ReviewResultMapper(Objects.requireNonNull(objectMapper, "objectMapper"));
 		this.promptBuilder = new AiPromptBuilder(objectMapper, properties);
 		this.clock = Objects.requireNonNull(clock, "clock");
+		this.locality = AiProviderLocality.classify(properties.getProvider(), null);
+	}
+
+	/**
+	 * Issue #262: the configured provider's locality (an {@code openai-compat} base-url on this
+	 * machine is local). Without it the provider name alone decides, which treats
+	 * {@code openai-compat} as remote.
+	 */
+	public void setLocality(AiProviderLocality locality) {
+		this.locality = Objects.requireNonNull(locality, "locality");
 	}
 
 	/** Builds the {@link ChatClient} on first use and memoizes it (see field doc for why lazy). */
@@ -118,6 +133,7 @@ public class SpringAiAnalysisClient implements AiAnalysisClient {
 	@Override
 	public AiAnalysisResponse analyze(AiAnalysisRequest request) throws AiAnalysisException {
 		Objects.requireNonNull(request, "request");
+		DataHandlingGuard.requireAllowed(request, locality);
 		Instant startedAt = clock.instant();
 
 		ReviewResult result;

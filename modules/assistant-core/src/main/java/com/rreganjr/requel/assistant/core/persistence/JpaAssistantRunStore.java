@@ -162,6 +162,19 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 	}
 
 	@Override
+	@Transactional(propagation = Propagation.REQUIRED)
+	public void recordRedactions(UUID runId, int count, java.util.List<String> categories) {
+		Objects.requireNonNull(runId, "runId");
+		runRepository.findById(runId.toString()).ifPresent(entity -> {
+			entity.setRedactionCount(Math.max(0, count));
+			entity.setRedactionCategories(categories == null || categories.isEmpty() ? null
+					: truncate(String.join(",", categories), 200));
+			entity.setUpdatedAt(clock.instant());
+			runRepository.save(entity);
+		});
+	}
+
+	@Override
 	@Transactional(propagation = Propagation.REQUIRED, readOnly = true)
 	public Optional<AssistantRunRecord> findRun(UUID runId) {
 		Objects.requireNonNull(runId, "runId");

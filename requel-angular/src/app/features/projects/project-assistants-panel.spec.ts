@@ -15,6 +15,8 @@ describe('ProjectAssistantsPanelComponent (#268)', () => {
   let list: ReturnType<typeof vi.fn>;
   let setEnabled: ReturnType<typeof vi.fn>;
   let analyzeProject: ReturnType<typeof vi.fn>;
+  let dataHandling: ReturnType<typeof vi.fn>;
+  let setDataHandling: ReturnType<typeof vi.fn>;
 
   const flush = () => new Promise(r => setTimeout(r, 0));
 
@@ -23,7 +25,8 @@ describe('ProjectAssistantsPanelComponent (#268)', () => {
       imports: [ProjectAssistantsPanelComponent],
       providers: [
         provideNoopAnimations(),
-        { provide: ProjectAssistantsService, useValue: { list, setEnabled, analyzeProject } },
+        { provide: ProjectAssistantsService,
+          useValue: { list, setEnabled, analyzeProject, dataHandling, setDataHandling } },
       ],
     });
     const fixture = TestBed.createComponent(ProjectAssistantsPanelComponent);
@@ -40,13 +43,18 @@ describe('ProjectAssistantsPanelComponent (#268)', () => {
     list = vi.fn().mockResolvedValue(FOUR.map(a => ({ ...a })));
     setEnabled = vi.fn().mockResolvedValue({ success: true, error: null });
     analyzeProject = vi.fn().mockResolvedValue({ success: true, error: null });
+    dataHandling = vi.fn().mockResolvedValue({
+      externalProviderAllowed: true,
+      redaction: { credentials: true, email: true, phone: false, ssn: true, card: true },
+    });
+    setDataHandling = vi.fn().mockResolvedValue({ success: true, error: null });
   });
 
   it('renders a switch per assistant from the query, labelled with its name', async () => {
     const fixture = await render(true, true);
     const el: HTMLElement = fixture.nativeElement;
     expect(list).toHaveBeenCalledWith('Acme');
-    expect(el.querySelectorAll('p-toggleswitch').length).toBe(4);
+    expect(el.querySelectorAll('.assistant-list p-toggleswitch').length).toBe(4);
     const labels = Array.from(el.querySelectorAll('.assistant-row label')).map(l => l.textContent?.trim());
     expect(labels).toEqual(['Spelling', 'Vague words', 'Glossary candidates', 'Complex sentences']);
     expect(el.textContent).toContain('The issues it already raised stay.');
@@ -82,7 +90,7 @@ describe('ProjectAssistantsPanelComponent (#268)', () => {
     const fixture = await render(false, false);
     const panel = fixture.componentInstance;
 
-    const inputs = fixture.nativeElement.querySelectorAll('p-toggleswitch input');
+    const inputs = fixture.nativeElement.querySelectorAll('.assistant-list p-toggleswitch input');
     expect(inputs.length).toBe(4);
     inputs.forEach((i: HTMLInputElement) => expect(i.disabled).toBe(true));
     await panel.toggle(panel.assistants()[0], false);
@@ -129,5 +137,69 @@ describe('ProjectAssistantsPanelComponent (#268)', () => {
     list = vi.fn().mockRejectedValue(new Error('boom'));
     const fixture = await render(true, true);
     expect(fixture.nativeElement.querySelector('[data-testid="assistants-load-error"]')).not.toBeNull();
+  });
+
+  // ---- #262: AI data handling --------------------------------------------------------
+
+  it('renders the egress switch and one switch per redaction category', async () => {
+    const fixture = await render(true, false);
+    const el: HTMLElement = fixture.nativeElement;
+    expect(dataHandling).toHaveBeenCalledWith('Acme');
+    const labels = Array.from(el.querySelectorAll('.dh-row label')).map(l => l.textContent?.trim());
+    expect(labels).toEqual([
+      'Allow external AI providers',
+      'Mask credentials (API keys, tokens, passwords)',
+      'Mask email addresses',
+      'Mask phone numbers',
+      'Mask US social security numbers',
+      'Mask payment card numbers',
+    ]);
+    const rows = fixture.componentInstance.dataHandlingRows();
+    expect(rows.find(r => r.key === 'redaction.phone')?.enabled).toBe(false);
+    expect(rows.find(r => r.key === 'egress.external')?.enabled).toBe(true);
+  });
+
+  it('sends EditProjectDataHandlingSetting when a data-handling switch is flipped', async () => {
+    const fixture = await render(true, false);
+    const panel = fixture.componentInstance;
+
+    await panel.toggleDataHandling(panel.dataHandlingRows()[0], false);
+    fixture.detectChanges();
+
+    expect(setDataHandling).toHaveBeenCalledWith('Acme', 'egress.external', false);
+    expect(panel.dataHandling()?.externalProviderAllowed).toBe(false);
+    expect(fixture.nativeElement.querySelector('[data-testid="assistants-status"]').textContent)
+      .toContain('Allow external AI providers: off.');
+  });
+
+  it('puts a data-handling switch back when the server refuses', async () => {
+    setDataHandling = vi.fn().mockResolvedValue({ success: false, error: 'Not allowed' });
+    const fixture = await render(true, false);
+    const panel = fixture.componentInstance;
+    const email = panel.dataHandlingRows().find(r => r.key === 'redaction.email')!;
+
+    await panel.toggleDataHandling(email, false);
+    fixture.detectChanges();
+
+    expect(panel.dataHandling()?.redaction['email']).toBe(true);
+    expect(fixture.nativeElement.querySelector('[data-testid="assistants-error"]').textContent)
+      .toContain('Not allowed');
+  });
+
+  it('data-handling switches are read-only without Project[Edit]', async () => {
+    const fixture = await render(false, false);
+    const inputs = fixture.nativeElement.querySelectorAll('.dh-list p-toggleswitch input');
+    expect(inputs.length).toBe(6);
+    inputs.forEach((i: HTMLInputElement) => expect(i.disabled).toBe(true));
+    await fixture.componentInstance.toggleDataHandling(
+      fixture.componentInstance.dataHandlingRows()[0], false);
+    expect(setDataHandling).not.toHaveBeenCalled();
+  });
+
+  it('hides the section when the settings cannot be read', async () => {
+    dataHandling = vi.fn().mockRejectedValue(new Error('boom'));
+    const fixture = await render(true, false);
+    expect(fixture.nativeElement.querySelector('[data-testid="data-handling"]')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('.assistant-list p-toggleswitch').length).toBe(4);
   });
 });

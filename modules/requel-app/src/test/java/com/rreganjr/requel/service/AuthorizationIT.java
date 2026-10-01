@@ -925,6 +925,47 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 .andExpect(status().isOk());
     }
 
+    // Issue #262: a project's AI data-handling settings are a project edit (Project[Edit]); the
+    // read is open to anyone with project access, and every setting starts on.
+    @Test
+    void editProjectDataHandlingSettingNeedsProjectEdit() throws Exception {
+        String off = objectMapper.writeValueAsString(Map.of("projectName", testProjectName,
+                "key", "redaction.phone", "enabled", false));
+        mockMvc.perform(post("/api/commands/EditProjectDataHandlingSetting")
+                        .header("Authorization", "Bearer " + deleterToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(off))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/commands/EditProjectDataHandlingSetting")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(off))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/data-handling")
+                        .header("Authorization", "Bearer " + deleterToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.externalProviderAllowed").value(true))
+                .andExpect(jsonPath("$.redaction.phone").value(false))
+                .andExpect(jsonPath("$.redaction.email").value(true));
+        mockMvc.perform(get("/api/projects/" + testProjectName + "/data-handling")
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/commands/EditProjectDataHandlingSetting")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("projectName",
+                                testProjectName, "key", "redaction.passport", "enabled", false))))
+                .andExpect(status().is4xxClientError());
+
+        String on = objectMapper.writeValueAsString(Map.of("projectName", testProjectName,
+                "key", "redaction.phone", "enabled", true));
+        mockMvc.perform(post("/api/commands/EditProjectDataHandlingSetting")
+                        .header("Authorization", "Bearer " + editorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(on))
+                .andExpect(status().isOk());
+    }
+
     @Test
     void deleterCannotAddAProjectDictionaryWord() throws Exception {
         mockMvc.perform(post("/api/commands/AddProjectDictionaryWord")

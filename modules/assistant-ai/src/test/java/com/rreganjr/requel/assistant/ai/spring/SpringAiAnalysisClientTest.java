@@ -21,17 +21,26 @@
 package com.rreganjr.requel.assistant.ai.spring;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rreganjr.requel.assistant.ai.AiAnalysisException;
+import com.rreganjr.requel.assistant.ai.AiAnalysisRequest;
 import com.rreganjr.requel.assistant.ai.AiAnalysisResponse;
+import com.rreganjr.requel.assistant.ai.AiProviderLocality;
+import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.ai.AiFindingDraft;
 import com.rreganjr.requel.assistant.ai.AiProperties;
 import com.rreganjr.requel.assistant.api.AssistantMessage;
@@ -50,8 +59,9 @@ class SpringAiAnalysisClientTest {
 
 	private final AiProperties properties = properties();
 	private final ObjectMapper objectMapper = new ObjectMapper();
+	private final ChatClient chat = mock(ChatClient.class);
 	private final SpringAiAnalysisClient client = new SpringAiAnalysisClient(
-			mock(ChatClient.class), properties, objectMapper, Clock.systemUTC());
+			chat, properties, objectMapper, Clock.systemUTC());
 
 	private static AiProperties properties() {
 		AiProperties p = new AiProperties();
@@ -111,5 +121,31 @@ class SpringAiAnalysisClientTest {
 		assertThat(response.providerMetadata())
 				.containsEntry("provider", "openai")
 				.containsEntry("model", "gpt-4o-mini");
+	}
+
+	/** #262: a remote provider refuses before the ChatClient is touched. */
+	@Test
+	void aRemoteProviderRefusesARequestThatDoesNotAllowIt() {
+		AiAnalysisRequest refused = new AiAnalysisRequest("a", UUID.randomUUID(), "T",
+				EntityRef.of("Goal", 1L), EntityRef.of("Project", 3L), Locale.US, List.of(), "n",
+				"1", objectMapper.createObjectNode(), Map.of("externalProviderAllowed", false),
+				Map.of());
+
+		assertThatThrownBy(() -> client.analyze(refused)).isInstanceOf(AiAnalysisException.class)
+				.hasMessageContaining("Project 3 does not allow");
+		verifyNoInteractions(chat);
+	}
+
+	/** #262: openai-compat on this machine is local, so the flag is not required. */
+	@Test
+	void aLocalProviderDoesNotNeedTheFlag() {
+		client.setLocality(AiProviderLocality.LOCAL);
+		AiAnalysisRequest local = new AiAnalysisRequest("a", UUID.randomUUID(), "T",
+				EntityRef.of("Goal", 1L), EntityRef.of("Project", 3L), Locale.US, List.of(), "n",
+				"1", objectMapper.createObjectNode(), Map.of(), Map.of());
+
+		// the guard passes; the mocked ChatClient then fails, which proves the call was attempted
+		assertThatThrownBy(() -> client.analyze(local)).isInstanceOf(AiAnalysisException.class)
+				.hasMessageContaining("Spring AI chat request failed");
 	}
 }

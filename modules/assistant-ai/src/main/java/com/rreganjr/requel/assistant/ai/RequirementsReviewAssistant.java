@@ -42,6 +42,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 
 import com.rreganjr.requel.assistant.api.AnnotationAction;
+import com.rreganjr.requel.assistant.core.AssistantRunStore;
+import com.rreganjr.requel.project.DataHandlingSettings;
+import com.rreganjr.requel.project.ProjectAssistantSettingsStore;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantException;
 import com.rreganjr.requel.assistant.api.AssistantMessage;
@@ -139,6 +142,12 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	private final ObjectMapper objectMapper;
 	private final Clock clock;
 	private final JsonNode outputSchema;
+	/** #262: per-project data-handling settings; defaults (all on) when absent. */
+	private ProjectAssistantSettingsStore settingsStore;
+	/** #262: where the run's redaction counts are recorded; skipped when absent. */
+	private AssistantRunStore runStore;
+	/** #262: the provider's locality, reported in the data-handling flags. */
+	private AiProviderLocality providerLocality;
 
 	@Autowired
 	public RequirementsReviewAssistant(AiAnalysisClient aiAnalysisClient,
@@ -158,6 +167,21 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 		this.objectMapper = objectMapper;
 		this.clock = clock;
 		this.outputSchema = loadOutputSchema(objectMapper);
+	}
+
+	@Autowired(required = false)
+	public void setSettingsStore(ProjectAssistantSettingsStore settingsStore) {
+		this.settingsStore = settingsStore;
+	}
+
+	@Autowired(required = false)
+	public void setRunStore(AssistantRunStore runStore) {
+		this.runStore = runStore;
+	}
+
+	@Autowired(required = false)
+	public void setProviderLocality(AiProviderLocality providerLocality) {
+		this.providerLocality = providerLocality;
 	}
 
 	private static JsonNode loadOutputSchema(ObjectMapper objectMapper) {
@@ -221,6 +245,7 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 		}
 
 		EntityContextPack pack = entityContextPackBuilder.build(target);
+		recordRedactions(context.runId(), pack);
 		EntityRef targetRef = EntityRef.of(target.getProjectOrDomainEntityInterface().getSimpleName(),
 				target.getId());
 		List<Object> contextPacks = List.of(pack);
@@ -242,8 +267,8 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 
 		AiAnalysisRequest request = new AiAnalysisRequest(ASSISTANT_ID, context.runId(), TASK_TYPE,
 				targetRef, context.projectRef(), context.locale(), contextPacks,
-				OUTPUT_SCHEMA_NAME, OUTPUT_SCHEMA_VERSION, outputSchema, Map.of(),
-				context.attributes(), TASK_INSTRUCTIONS);
+				OUTPUT_SCHEMA_NAME, OUTPUT_SCHEMA_VERSION, outputSchema,
+				dataHandlingFlags(context.projectRef()), context.attributes(), TASK_INSTRUCTIONS);
 
 		try {
 			AiAnalysisResponse response = aiAnalysisClient.analyze(request);
@@ -265,6 +290,41 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 			throw new AssistantException("AI requirements review failed: " + e.getMessage(), e);
 		}
 		return result.build();
+	}
+
+	/**
+	 * Issue #262: what this request may do with the project's text, from the project's settings
+	 * and the configured provider. Every remote client refuses a request without
+	 * {@code externalProviderAllowed=true} ({@link DataHandlingGuard}).
+	 */
+	Map<String, Object> dataHandlingFlags(EntityRef projectRef) {
+		Long projectId = projectRef == null ? null : projectRef.entityId();
+		DataHandlingSettings settings = DataHandlingSettings.forProject(projectId, settingsStore);
+		AiProviderLocality locality = providerLocality != null ? providerLocality
+				: AiProviderLocality.classify(aiProperties.getProvider(), null);
+		List<String> categories = new ArrayList<String>();
+		for (DataHandlingSettings.RedactionCategory category : settings.redactionCategories()) {
+			categories.add(category.id());
+		}
+		Map<String, Object> flags = new java.util.LinkedHashMap<String, Object>();
+		flags.put(DataHandlingGuard.EXTERNAL_PROVIDER_ALLOWED, settings.externalProviderAllowed());
+		flags.put(DataHandlingGuard.PROVIDER_LOCALITY, locality.id());
+		flags.put(DataHandlingGuard.PROVIDER, aiProperties.getProvider());
+		flags.put(DataHandlingGuard.REDACTION_CATEGORIES, List.copyOf(categories));
+		return flags;
+	}
+
+	/** Best effort, like usage: a failure to record never fails the run. */
+	private void recordRedactions(UUID runId, EntityContextPack pack) {
+		if (runStore == null || pack == null || pack.metadata() == null) {
+			return;
+		}
+		try {
+			runStore.recordRedactions(runId, pack.metadata().redactionCount(),
+					pack.metadata().redactionCategories());
+		} catch (RuntimeException e) {
+			log.warn("Failed to record redactions for run {}: {}", runId, e.getMessage(), e);
+		}
 	}
 
 	/**

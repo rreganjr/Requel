@@ -24,6 +24,7 @@ import { firstValueFrom } from 'rxjs';
 import { CommandService } from './command.service';
 import { projectApiUrl } from './api-url';
 import { ProjectAssistantDto } from '../models/project-assistant';
+import { ProjectDataHandlingDto } from '../models/project-data-handling';
 
 /**
  * A project's assistants (issue #268): which of the lexical checks run, switching them on and
@@ -42,6 +43,18 @@ export class ProjectAssistantsService {
   setEnabled(projectName: string, assistantId: string, enabled: boolean) {
     return this.commandService.execute('EditProjectAssistantSetting',
       { projectName, assistantId, enabled });
+  }
+
+  /** Issue #262: whether remote AI providers are allowed and which categories are masked. */
+  dataHandling(projectName: string): Promise<ProjectDataHandlingDto> {
+    return firstValueFrom(this.http.get<ProjectDataHandlingDto>(
+      projectApiUrl(projectName, 'data-handling')));
+  }
+
+  /** Issue #262: `egress.external` or `redaction.<category>`; Project[Edit]. */
+  setDataHandling(projectName: string, key: string, enabled: boolean) {
+    return this.commandService.execute('EditProjectDataHandlingSetting',
+      { projectName, key, enabled });
   }
 
   /** Queue analysis of every text entity in the project; the runs finish in the background. */

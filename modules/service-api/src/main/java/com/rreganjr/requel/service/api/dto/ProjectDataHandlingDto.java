@@ -2,7 +2,7 @@
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
  *
- * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,20 +18,19 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.assistant.core.context;
+package com.rreganjr.requel.service.api.dto;
 
-import java.util.List;
+import java.util.Map;
 
 /**
- * A {@link RedactionPolicy} that passes every value through unchanged. Not a bean since #262:
- * {@link DefaultRedactionPolicy} is, and tests that want unredacted packs construct this
- * explicitly. (It was a {@code @ConditionalOnMissingBean} component, which a component scan does
- * not order reliably against another component.)
+ * A project's AI data-handling settings (issue #262).
+ *
+ * @param externalProviderAllowed whether project text may be sent to a remote AI provider
+ * @param redaction redaction category id (credentials, email, phone, ssn, card) to whether it is
+ *            masked
  */
-public class NoOpRedactionPolicy implements RedactionPolicy {
-
-	@Override
-	public String redact(String fieldPath, String value, List<String> notes) {
-		return value;
-	}
+public record ProjectDataHandlingDto(
+        boolean externalProviderAllowed,
+        Map<String, Boolean> redaction
+) {
 }

@@ -824,6 +824,17 @@ public class ProjectCommandRegistrar {
                     c.setEnabled(i.enabled());
                 });
 
+        registry.register("EditProjectDataHandlingSetting",
+                com.rreganjr.requel.service.api.dto.EditProjectDataHandlingSettingInput.class,
+                factory::newEditProjectDataHandlingSettingCommand,
+                (cmd, input) -> {
+                    var c = (com.rreganjr.requel.project.command.EditProjectDataHandlingSettingCommand) cmd;
+                    var i = (com.rreganjr.requel.service.api.dto.EditProjectDataHandlingSettingInput) input;
+                    c.setProject(projectRepository.findProjectByName(i.projectName()));
+                    c.setKey(i.key());
+                    c.setEnabled(i.enabled());
+                });
+
         registry.register("AnalyzeProject",
                 com.rreganjr.requel.service.api.dto.AnalyzeProjectInput.class,
                 factory::newAnalyzeProjectCommand,

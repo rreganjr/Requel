@@ -48,6 +48,34 @@ public record ContextPackMetadata(Instant builtAt, int totalCharacters, boolean 
 		truncationNotes = truncationNotes == null ? List.of() : List.copyOf(truncationNotes);
 	}
 
+	/** Issue #262: how many values were masked, read from the policy's notes. */
+	public int redactionCount() {
+		int total = 0;
+		for (String note : redactedFields) {
+			java.util.regex.Matcher m = REDACTION_NOTE.matcher(note);
+			while (m.find()) {
+				total += Integer.parseInt(m.group(2));
+			}
+		}
+		return total;
+	}
+
+	/** Issue #262: the categories masked, in first-seen order, read from the policy's notes. */
+	public List<String> redactionCategories() {
+		java.util.LinkedHashSet<String> categories = new java.util.LinkedHashSet<>();
+		for (String note : redactedFields) {
+			java.util.regex.Matcher m = REDACTION_NOTE.matcher(note);
+			while (m.find()) {
+				categories.add(m.group(1));
+			}
+		}
+		return List.copyOf(categories);
+	}
+
+	/** {@code EMAIL x2} as written by {@link DefaultRedactionPolicy}. */
+	private static final java.util.regex.Pattern REDACTION_NOTE = java.util.regex.Pattern
+			.compile("\\b([A-Z][A-Z_]*) x(\\d+)\\b");
+
 	public static ContextPackMetadata empty(Instant now) {
 		return new ContextPackMetadata(now, 0, false, List.of(), List.of());
 	}

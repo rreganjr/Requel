@@ -58,6 +58,8 @@ class CliAiAnalysisClientTest {
 			+ "\"evidenceReferences\":[\"fast\"],\"suggestedIssueText\":\"'fast' is vague\","
 			+ "\"suggestedNoteText\":null,\"suggestedPositions\":[\"Set a latency budget\"]}]}";
 
+	private static final Map<String, Object> ALLOWED = Map.of("externalProviderAllowed", true);
+
 	private final ObjectMapper objectMapper = new ObjectMapper();
 	private final FakeRunner runner = new FakeRunner();
 	private final CliAiProperties cli = cliProperties();
@@ -91,7 +93,7 @@ class CliAiAnalysisClientTest {
 				"REQUIREMENTS_REVIEW", EntityRef.of("Goal", 10L), EntityRef.of("Project", 2L),
 				Locale.US, List.of(Map.of("name", "Speed", "text", HOSTILE)),
 				"RequirementsReviewOutput", "1",
-				objectMapper.createObjectNode().put("type", "object"), Map.of(), Map.of(),
+				objectMapper.createObjectNode().put("type", "object"), ALLOWED, Map.of(),
 				"Review the goal.");
 	}
 
@@ -139,7 +141,7 @@ class CliAiAnalysisClientTest {
 		runner.stdout = envelope(REPLY);
 		AiAnalysisRequest noSchema = new AiAnalysisRequest("a", UUID.randomUUID(), "T",
 				EntityRef.of("Goal", 1L), EntityRef.of("Project", 2L), Locale.US, List.of(), "n",
-				"1", NullNode.getInstance(), Map.of(), Map.of());
+				"1", NullNode.getInstance(), ALLOWED, Map.of());
 
 		client().analyze(noSchema);
 
@@ -346,6 +348,33 @@ class CliAiAnalysisClientTest {
 				.isInstanceOf(AiAnalysisException.class)
 				.hasMessageContaining("/usr/local/bin/claude")
 				.hasMessageContaining("No such file");
+	}
+
+	// ---- #262: egress -----------------------------------------------------------------
+
+	private AiAnalysisRequest requestWithFlags(Map<String, Object> flags) {
+		return new AiAnalysisRequest("ai-requirements-review", UUID.randomUUID(),
+				"REQUIREMENTS_REVIEW", EntityRef.of("Goal", 10L), EntityRef.of("Project", 2L),
+				Locale.US, List.of(), "RequirementsReviewOutput", "1",
+				objectMapper.createObjectNode(), flags, Map.of());
+	}
+
+	@Test
+	void aProjectThatDisallowsExternalProvidersIsRefusedBeforeAnythingRuns() {
+		assertThatThrownBy(() -> client().analyze(requestWithFlags(
+				Map.of("externalProviderAllowed", false))))
+				.isInstanceOf(AiAnalysisException.class)
+				.hasMessageContaining("Project 2 does not allow")
+				.hasMessageContaining("egress.external");
+		assertThat(runner.last).as("the CLI was never started").isNull();
+	}
+
+	@Test
+	void aRequestWithoutTheFlagIsRefusedToo() {
+		assertThatThrownBy(() -> client().analyze(requestWithFlags(Map.of())))
+				.isInstanceOf(AiAnalysisException.class)
+				.hasMessageContaining("no externalProviderAllowed flag");
+		assertThat(runner.last).isNull();
 	}
 
 	// ---- fake ------------------------------------------------------------------------
