@@ -30,16 +30,28 @@ import java.util.Comparator;
 public interface User extends Comparable<User> {
 
     /**
-     * The username of the built-in assistant account that assistant runs write their findings
-     * as (issues #302, #270). Created by {@code AssistantUserInitializer}.
+     * The username of the original built-in assistant account (issues #302, #270). Since #260
+     * each assistant writes as its own identity ({@link #ASSISTANT_USERNAME_PREFIX} + its id);
+     * this account keeps the annotations written before that. Created by
+     * {@code AssistantUserInitializer}.
      */
     String ASSISTANT_USERNAME = "assistant";
 
+    /** Issue #260: an assistant's own identity is this prefix followed by its assistant id. */
+    String ASSISTANT_USERNAME_PREFIX = "assistant-";
+
     /**
-     * @return true if {@code user} is the built-in assistant account; false for null.
+     * @return true if {@code user} is an assistant identity - it holds an {@link AssistantRole}
+     *         (issue #260) or is the original {@code assistant} account; false for null.
      */
     static boolean isAssistant(User user) {
-        return user != null && ASSISTANT_USERNAME.equals(user.getUsername());
+        return user != null && (user.hasRole(AssistantRole.class)
+                || ASSISTANT_USERNAME.equals(user.getUsername()));
+    }
+
+    /** Issue #260: the username of the identity the assistant {@code assistantId} writes as. */
+    static String assistantUsername(String assistantId) {
+        return ASSISTANT_USERNAME_PREFIX + assistantId;
     }
 
     /**

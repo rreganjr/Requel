@@ -214,6 +214,12 @@ public class UserImpl implements User, Serializable {
 
 	@Transient
 	public boolean isPassword(String password) {
+		// Issue #260: an assistant identity writes annotations; it never logs in. Every login path
+		// (REST, the OAuth2 form, LoginCommand) checks the password here, so refusing here closes
+		// them all - including the original account, created with the password "assistant".
+		if (com.rreganjr.platform.identity.User.isAssistant(this)) {
+			return false;
+		}
 		boolean matches;
 		// because validation rules could change between when a user set their password and when they login don't check
 		// the validity, but do check for length to insulate from DOS attacks that try to pass invalid huge passwords.
@@ -407,6 +413,11 @@ public class UserImpl implements User, Serializable {
 	@Transient
 	public <T extends Role> T getRoleForType(Class<T> userRoleType)
 			throws NoSuchRoleForUserException {
+		// null on a no-args (Hibernate) instance before its roles load; #260 asks hasRole from
+		// isPassword, which can run on one.
+		if (getUserRoles() == null) {
+			throw NoSuchRoleForUserException.forUserRoleTypeName(this, userRoleType);
+		}
 		for (UserRole role : getUserRoles()) {
 			if (userRoleType.isAssignableFrom(role.getClass())) {
 				return userRoleType.cast(role);

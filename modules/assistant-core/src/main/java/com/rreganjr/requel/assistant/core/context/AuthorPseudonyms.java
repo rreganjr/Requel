@@ -27,7 +27,8 @@ import com.rreganjr.platform.identity.User;
 
 /**
  * Issue #262: replaces usernames in one context pack with roles, so no username reaches a model.
- * The assistant user is {@code assistant}; everyone else is {@code user-1}, {@code user-2}, …
+ * Any assistant identity (#260) is {@code assistant}; everyone else is {@code user-1},
+ * {@code user-2}, …
  * numbered by first appearance, so the same author keeps the same label within the pack.
  */
 final class AuthorPseudonyms {
@@ -39,7 +40,8 @@ final class AuthorPseudonyms {
 			return null;
 		}
 		String username = user.getUsername();
-		if (User.ASSISTANT_USERNAME.equals(username)) {
+		// #260: every assistant identity reads as the one role, as before there were several.
+		if (User.isAssistant(user)) {
 			return User.ASSISTANT_USERNAME;
 		}
 		return labels.computeIfAbsent(username, u -> "user-" + (labels.size() + 1));

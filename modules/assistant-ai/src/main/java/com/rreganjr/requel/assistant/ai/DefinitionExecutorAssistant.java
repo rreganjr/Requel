@@ -20,31 +20,17 @@
  */
 package com.rreganjr.requel.assistant.ai;
 
-import jakarta.annotation.PostConstruct;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.NullNode;
 
 import com.rreganjr.requel.assistant.api.AnnotationAction;
-import com.rreganjr.requel.assistant.core.AssistantRunStore;
-import com.rreganjr.requel.project.DataHandlingSettings;
-import com.rreganjr.requel.project.ProjectAssistantSettingsStore;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantException;
 import com.rreganjr.requel.assistant.api.AssistantMessage;
@@ -52,47 +38,31 @@ import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.EvidenceRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
+import com.rreganjr.requel.assistant.core.AssistantRunWorker;
 import com.rreganjr.requel.assistant.core.context.EntityContextPack;
-import com.rreganjr.requel.assistant.core.context.EntityContextPackBuilder;
+import com.rreganjr.requel.assistant.core.definition.AssistantDefinition;
+import com.rreganjr.requel.assistant.core.definition.DefinitionBacked;
 import com.rreganjr.requel.assistant.core.persistence.AssistantUsageEntity;
-import com.rreganjr.requel.assistant.core.persistence.AssistantUsageRepository;
+import com.rreganjr.requel.project.DataHandlingSettings;
 import com.rreganjr.requel.project.TextEntity;
 
 /**
- * First AI-backed assistant (issue #43, Phase 5): reviews a requirement {@link TextEntity}
- * for quality issues through the provider-neutral {@link AiAnalysisClient}, returning
- * annotation drafts.
+ * Issue #260: runs one {@link AssistantDefinition} - what {@code RequirementsReviewAssistant} did
+ * with a hard-coded prompt, now parameterised by the definition: task gating, the project
+ * allowlist, the input-token estimate, the provider call, usage persistence, mapping
+ * {@link AiFindingDraft}s to annotation actions, and text caps. {@link #assistantId()} is the
+ * definition key, so finding idempotency keys and run records stay attributable (the default
+ * keeps {@code ai-requirements-review}).
  *
- * <p>
- * <strong>Trigger model (first cut): manual only.</strong> The bean is only registered when
- * {@code requel.ai.enabled=true} (see {@code @ConditionalOnProperty}); when AI is off it does
- * not exist, so it never affects the legacy/NLP path or the "no assistants registered" skip.
- * When it is registered, {@code SimpleAssistantRegistry} matches it for every
- * {@link TextEntity} run, so it additionally <em>self-gates</em> and runs the provider only
- * when the run's {@code taskType} is {@code REQUIREMENTS_REVIEW} (a manual dispatch — the
- * ordinary post-edit path leaves it {@code null}) and the project is allowed by
- * {@code requel.ai.projectAllowlist}. Otherwise it returns an empty result without calling the
- * provider, so AI cost/latency stays off the edit hot path.
+ * <p>Each finding's evidence is checked against the entity's own name and text
+ * ({@link EvidenceCheck}). A finding citing evidence that isn't there is kept; the result
+ * metadata counts it ({@link AssistantRunWorker#EVIDENCE_UNVERIFIED}) and the run records it.
  *
- * <p>
- * This slice (Phase 5 step 2) wires the gate and the provider call end-to-end; with the
- * default {@code NoopAiAnalysisClient} it produces no findings. Mapping
- * {@code AiFindingDraft}s to {@code AnnotationAction}s lands in the next slice.
+ * <p>Built per run by {@link AiDefinitionExecutorFactory}; not a bean.
  */
-@Component
-@ConditionalOnProperty(name = "requel.ai.enabled", havingValue = "true")
-public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> {
+public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>, DefinitionBacked {
 
-	private static final Logger log = LoggerFactory.getLogger(RequirementsReviewAssistant.class);
-
-	public static final String ASSISTANT_ID = "ai-requirements-review";
-	public static final String TASK_TYPE = "REQUIREMENTS_REVIEW";
-
-	static final String OUTPUT_SCHEMA_NAME = "RequirementsReviewOutput";
-	static final String OUTPUT_SCHEMA_VERSION = "1";
-
-	private static final String OUTPUT_SCHEMA_RESOURCE =
-			"/ai/schemas/requirements-review-output.v1.json";
+	private static final Logger log = LoggerFactory.getLogger(DefinitionExecutorAssistant.class);
 
 	/** Upper bound on each AI-suggested annotation text, so oversize output is bounded before
 	 * it reaches the applicator (which also caps). */
@@ -101,122 +71,32 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	/** Rough chars-per-token used to estimate input size against {@code maxInputTokens}. */
 	private static final int CHARS_PER_TOKEN_ESTIMATE = 4;
 
-	/**
-	 * Centralized task guidance for the REQUIREMENTS_REVIEW prompt, shared by every provider
-	 * client (each wraps it in its own envelope). Defined once here so the rules don't drift
-	 * across the OpenAI / Anthropic / openai-compat clients.
-	 */
-	static final String TASK_INSTRUCTIONS = """
-			You are a Requel requirements-analysis assistant performing a REQUIREMENTS_REVIEW.
-			Analyze ONLY the target requirement entity described in the context and return JSON
-			matching the supplied schema.
+	/** Request attribute and finding metadata keys naming the definition (#260). */
+	static final String DEFINITION_KEY = "definitionKey";
+	static final String DEFINITION_VERSION = "definitionVersion";
+	static final String DEFINITION_SOURCE = "definitionSource";
 
-			Finding types (choose the closest): AMBIGUOUS, INCOMPLETE, UNTESTABLE, INCONSISTENT,
-			REDUNDANT, UNCLEAR_ACTOR, MISSING_PRECONDITION, MISSING_ERROR_CASE, OTHER.
+	private final AssistantDefinition definition;
+	private final AiDefinitionExecutorFactory runtime;
 
-			Rules:
-			- Do your own original analysis of the target entity's wording. The context may include
-			  an "annotations" list of EXISTING issues/notes already on the entity; these are for
-			  awareness only. Do NOT restate, echo, paraphrase, or duplicate them. Report only
-			  genuinely new problems you find in the requirement text itself.
-			- For EVERY finding you raise you MUST set "suggestedIssueText" to a clear, specific
-			  problem statement about THIS entity. Optionally add "suggestedPositions" with concrete
-			  ways to resolve it. Use "suggestedNoteText" only for a non-blocking observation.
-			- If the requirement has no real problems, return an empty "findings" array. Never
-			  invent issues to fill space.
-			- Keep every finding specific to this entity and grounded in its actual text; cite the
-			  relevant snippet in "evidenceReferences".
-
-			Example of a single well-formed finding:
-			{"findingType":"AMBIGUOUS","severity":"MEDIUM","confidence":0.7,
-			 "evidenceReferences":["the system should be fast"],
-			 "suggestedIssueText":"'fast' is not measurable; specify a target response time.",
-			 "suggestedNoteText":null,
-			 "suggestedPositions":["Define a concrete latency budget, e.g. 200ms p95."]}
-			""";
-
-	private final AiAnalysisClient aiAnalysisClient;
-	private final EntityContextPackBuilder entityContextPackBuilder;
-	private final AiProperties aiProperties;
-	private final AssistantUsageRepository usageRepository;
-	private final ObjectMapper objectMapper;
-	private final Clock clock;
-	private final JsonNode outputSchema;
-	/** #262: per-project data-handling settings; defaults (all on) when absent. */
-	private ProjectAssistantSettingsStore settingsStore;
-	/** #262: where the run's redaction counts are recorded; skipped when absent. */
-	private AssistantRunStore runStore;
-	/** #262: the provider's locality, reported in the data-handling flags. */
-	private AiProviderLocality providerLocality;
-
-	@Autowired
-	public RequirementsReviewAssistant(AiAnalysisClient aiAnalysisClient,
-			EntityContextPackBuilder entityContextPackBuilder, AiProperties aiProperties,
-			AssistantUsageRepository usageRepository, ObjectMapper objectMapper) {
-		this(aiAnalysisClient, entityContextPackBuilder, aiProperties, usageRepository, objectMapper,
-				Clock.systemUTC());
+	DefinitionExecutorAssistant(AssistantDefinition definition, AiDefinitionExecutorFactory runtime) {
+		this.definition = definition;
+		this.runtime = runtime;
 	}
 
-	RequirementsReviewAssistant(AiAnalysisClient aiAnalysisClient,
-			EntityContextPackBuilder entityContextPackBuilder, AiProperties aiProperties,
-			AssistantUsageRepository usageRepository, ObjectMapper objectMapper, Clock clock) {
-		this.aiAnalysisClient = aiAnalysisClient;
-		this.entityContextPackBuilder = entityContextPackBuilder;
-		this.aiProperties = aiProperties;
-		this.usageRepository = usageRepository;
-		this.objectMapper = objectMapper;
-		this.clock = clock;
-		this.outputSchema = loadOutputSchema(objectMapper);
-	}
-
-	@Autowired(required = false)
-	public void setSettingsStore(ProjectAssistantSettingsStore settingsStore) {
-		this.settingsStore = settingsStore;
-	}
-
-	@Autowired(required = false)
-	public void setRunStore(AssistantRunStore runStore) {
-		this.runStore = runStore;
-	}
-
-	@Autowired(required = false)
-	public void setProviderLocality(AiProviderLocality providerLocality) {
-		this.providerLocality = providerLocality;
-	}
-
-	private static JsonNode loadOutputSchema(ObjectMapper objectMapper) {
-		try (InputStream in = RequirementsReviewAssistant.class
-				.getResourceAsStream(OUTPUT_SCHEMA_RESOURCE)) {
-			if (in == null) {
-				log.warn("REQUIREMENTS_REVIEW output schema resource not found: {}",
-						OUTPUT_SCHEMA_RESOURCE);
-				return NullNode.getInstance();
-			}
-			return objectMapper.readTree(in);
-		} catch (IOException e) {
-			log.warn("Could not load REQUIREMENTS_REVIEW output schema {}: {}",
-					OUTPUT_SCHEMA_RESOURCE, e.getMessage(), e);
-			return NullNode.getInstance();
-		}
-	}
-
-	/**
-	 * Confirms at startup that the AI requirements-review assistant is active. This bean only
-	 * exists when {@code requel.ai.enabled=true}, so its presence is the signal; it logs the
-	 * provider and model (never the API key) so operators can verify the wiring from the boot log.
-	 */
-	@PostConstruct
-	void logStartupState() {
-		List<String> allowlist = aiProperties.getProjectAllowlist();
-		log.info(
-				"AI requirements-review assistant enabled (provider={}, model={}, projectAllowlist={})",
-				aiProperties.getProvider(), aiProperties.getModel(),
-				allowlist == null || allowlist.isEmpty() ? "all projects" : allowlist);
+	@Override
+	public AssistantDefinition definition() {
+		return definition;
 	}
 
 	@Override
 	public String assistantId() {
-		return ASSISTANT_ID;
+		return definition.key();
+	}
+
+	@Override
+	public String displayName() {
+		return definition.displayName();
 	}
 
 	@Override
@@ -224,14 +104,16 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 		return TextEntity.class;
 	}
 
-	/**
-	 * Serves only the {@code REQUIREMENTS_REVIEW} task, so it runs for a manual review dispatch
-	 * and never on the ordinary post-edit path (and the lexical assistants, which serve the
-	 * default task, do not run on a review).
-	 */
+	/** Serves only the definition's task, so it never runs on the ordinary post-edit path. */
 	@Override
 	public boolean handlesTask(String taskType) {
-		return TASK_TYPE.equals(taskType);
+		return definition.taskType().equals(taskType);
+	}
+
+	/** #268: a project can switch a definition off; the registry applies it. */
+	@Override
+	public boolean projectSwitchable() {
+		return true;
 	}
 
 	@Override
@@ -239,57 +121,80 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 			throws AssistantException {
 		String skipReason = skipReason(context);
 		if (skipReason != null) {
-			log.debug("RequirementsReviewAssistant skipping run {}: {}", context.runId(), skipReason);
-			return AssistantResult.builder().assistantId(ASSISTANT_ID).runId(context.runId())
+			log.debug("definition {} skipping run {}: {}", definition.key(), context.runId(),
+					skipReason);
+			return AssistantResult.builder().assistantId(assistantId()).runId(context.runId())
 					.summary(skipReason).build();
 		}
 
-		EntityContextPack pack = entityContextPackBuilder.build(target);
+		EntityContextPack pack = runtime.entityContextPackBuilder.build(target);
 		recordRedactions(context.runId(), pack);
 		EntityRef targetRef = EntityRef.of(target.getProjectOrDomainEntityInterface().getSimpleName(),
 				target.getId());
 		List<Object> contextPacks = List.of(pack);
 
-		AssistantResult.Builder result = AssistantResult.builder().assistantId(ASSISTANT_ID)
+		AssistantResult.Builder result = AssistantResult.builder().assistantId(assistantId())
 				.runId(context.runId());
 
 		// Refuse oversize input rather than send it to the provider (review concern #5).
 		int estimatedInputTokens = estimateInputTokens(contextPacks);
-		if (estimatedInputTokens > aiProperties.getMaxInputTokens()) {
+		int cap = runtime.aiProperties.getMaxInputTokens();
+		if (estimatedInputTokens > cap) {
 			log.info("Skipping AI review for run {}: estimated {} input tokens exceeds cap {}",
-					context.runId(), estimatedInputTokens, aiProperties.getMaxInputTokens());
+					context.runId(), estimatedInputTokens, cap);
 			return result.summary("Context exceeds the configured AI input cap; review skipped.")
 					.message(AssistantMessage.warning("Estimated " + estimatedInputTokens
-							+ " input tokens exceeds requel.ai.maxInputTokens="
-							+ aiProperties.getMaxInputTokens()))
+							+ " input tokens exceeds requel.ai.maxInputTokens=" + cap))
 					.build();
 		}
 
-		AiAnalysisRequest request = new AiAnalysisRequest(ASSISTANT_ID, context.runId(), TASK_TYPE,
-				targetRef, context.projectRef(), context.locale(), contextPacks,
-				OUTPUT_SCHEMA_NAME, OUTPUT_SCHEMA_VERSION, outputSchema,
-				dataHandlingFlags(context.projectRef()), context.attributes(), TASK_INSTRUCTIONS);
+		AiAnalysisRequest request = new AiAnalysisRequest(assistantId(), context.runId(),
+				definition.taskType(), targetRef, context.projectRef(), context.locale(),
+				contextPacks, definition.outputSchemaName(), definition.outputSchemaVersion(),
+				runtime.outputSchemas.schema(definition.outputSchemaName(),
+						definition.outputSchemaVersion()),
+				dataHandlingFlags(context.projectRef()), attributes(context),
+				definition.instructions());
 
 		try {
-			AiAnalysisResponse response = aiAnalysisClient.analyze(request);
+			AiAnalysisResponse response = runtime.aiAnalysisClient.analyze(request);
 			persistUsage(context.runId(), response.usage());
 			result.summary(response.summary());
 			if (response.messages() != null) {
 				response.messages().forEach(result::message);
 			}
+			int unverified = 0;
 			if (response.findings() != null) {
+				String entityText = target.getName() + "\n" + target.getText();
 				for (AiFindingDraft finding : response.findings()) {
+					if (EvidenceCheck.unverified(finding.evidenceReferences(), entityText)) {
+						unverified++;
+					}
 					mapFinding(result, targetRef, finding);
 				}
+			}
+			result.metadata(Map.of(AssistantRunWorker.EVIDENCE_UNVERIFIED, unverified));
+			if (unverified > 0) {
+				result.message(AssistantMessage.warning(unverified
+						+ " finding(s) cite evidence that is not in the entity's text"));
 			}
 		} catch (AiAnalysisException e) {
 			// #259: propagate, so the run records the failure (FAILED when this was the run's only
 			// assistant) instead of reading as a successful review that found nothing.
-			log.warn("AI requirements review failed for run {}: {}", context.runId(), e.getMessage(),
-					e);
+			log.warn("AI review {} failed for run {}: {}", definition.key(), context.runId(),
+					e.getMessage(), e);
 			throw new AssistantException("AI requirements review failed: " + e.getMessage(), e);
 		}
 		return result.build();
+	}
+
+	/** The run's attributes plus the definition that produced the request (#260). */
+	private Map<String, Object> attributes(AssistantContext context) {
+		Map<String, Object> attributes = new LinkedHashMap<String, Object>(context.attributes());
+		attributes.put(DEFINITION_KEY, definition.key());
+		attributes.put(DEFINITION_VERSION, definition.version());
+		attributes.put(DEFINITION_SOURCE, definition.source().name());
+		return attributes;
 	}
 
 	/**
@@ -299,9 +204,9 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	 */
 	Map<String, Object> dataHandlingFlags(EntityRef projectRef) {
 		Long projectId = projectRef == null ? null : projectRef.entityId();
-		DataHandlingSettings settings = DataHandlingSettings.forProject(projectId, settingsStore);
-		AiProviderLocality locality = providerLocality != null ? providerLocality
-				: AiProviderLocality.classify(aiProperties.getProvider(), null);
+		DataHandlingSettings settings = DataHandlingSettings.forProject(projectId, runtime.settingsStore);
+		AiProviderLocality locality = runtime.providerLocality != null ? runtime.providerLocality
+				: AiProviderLocality.classify(runtime.aiProperties.getProvider(), null);
 		List<String> categories = new ArrayList<String>();
 		for (DataHandlingSettings.RedactionCategory category : settings.redactionCategories()) {
 			categories.add(category.id());
@@ -309,18 +214,18 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 		Map<String, Object> flags = new java.util.LinkedHashMap<String, Object>();
 		flags.put(DataHandlingGuard.EXTERNAL_PROVIDER_ALLOWED, settings.externalProviderAllowed());
 		flags.put(DataHandlingGuard.PROVIDER_LOCALITY, locality.id());
-		flags.put(DataHandlingGuard.PROVIDER, aiProperties.getProvider());
+		flags.put(DataHandlingGuard.PROVIDER, runtime.aiProperties.getProvider());
 		flags.put(DataHandlingGuard.REDACTION_CATEGORIES, List.copyOf(categories));
 		return flags;
 	}
 
 	/** Best effort, like usage: a failure to record never fails the run. */
 	private void recordRedactions(UUID runId, EntityContextPack pack) {
-		if (runStore == null || pack == null || pack.metadata() == null) {
+		if (runtime.runStore == null || pack == null || pack.metadata() == null) {
 			return;
 		}
 		try {
-			runStore.recordRedactions(runId, pack.metadata().redactionCount(),
+			runtime.runStore.recordRedactions(runId, pack.metadata().redactionCount(),
 					pack.metadata().redactionCategories());
 		} catch (RuntimeException e) {
 			log.warn("Failed to record redactions for run {}: {}", runId, e.getMessage(), e);
@@ -334,7 +239,7 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	 */
 	private int estimateInputTokens(List<Object> contextPacks) {
 		try {
-			int chars = objectMapper.writeValueAsString(contextPacks).length();
+			int chars = runtime.objectMapper.writeValueAsString(contextPacks).length();
 			return chars / CHARS_PER_TOKEN_ESTIMATE;
 		} catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
 			log.warn("Could not estimate AI input size: {}", e.getMessage());
@@ -353,7 +258,7 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 		}
 		try {
 			AssistantUsageEntity entity = new AssistantUsageEntity(UUID.randomUUID(), runId,
-					clock.instant());
+					runtime.clock.instant());
 			entity.setProvider(usage.provider());
 			entity.setModel(usage.model());
 			entity.setInputTokens(usage.inputTokens());
@@ -361,7 +266,7 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 			entity.setCachedInputTokens(usage.cachedInputTokens());
 			entity.setCostEstimate(usage.costEstimate());
 			entity.setLatencyMs(usage.latency() == null ? null : usage.latency().toMillis());
-			usageRepository.save(entity);
+			runtime.usageRepository.save(entity);
 		} catch (RuntimeException e) {
 			log.warn("Failed to persist AI usage for run {}: {}", runId, e.getMessage(), e);
 		}
@@ -386,6 +291,8 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 			String issueKey = actionKey(targetRef, "issue", finding.findingType(), issueText);
 			Map<String, Object> issueMeta = new HashMap<String, Object>();
 			issueMeta.put("findingType", finding.findingType());
+			issueMeta.put(DEFINITION_KEY, definition.key());
+			issueMeta.put(DEFINITION_VERSION, definition.version());
 			issueMeta.put("mustResolve", Boolean.TRUE);
 			if (finding.metadata() != null) {
 				issueMeta.putAll(finding.metadata());
@@ -407,6 +314,8 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 		if (noteText != null) {
 			Map<String, Object> noteMeta = new HashMap<String, Object>();
 			noteMeta.put("findingType", finding.findingType());
+			noteMeta.put(DEFINITION_KEY, definition.key());
+			noteMeta.put(DEFINITION_VERSION, definition.version());
 			if (finding.metadata() != null) {
 				noteMeta.putAll(finding.metadata());
 			}
@@ -435,9 +344,9 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 		return refs;
 	}
 
-	private static String actionKey(EntityRef targetRef, String kind, String findingType,
+	private String actionKey(EntityRef targetRef, String kind, String findingType,
 			String text) {
-		return ASSISTANT_ID + ":" + targetRef.entityType() + ":" + targetRef.entityId() + ":" + kind
+		return assistantId() + ":" + targetRef.entityType() + ":" + targetRef.entityId() + ":" + kind
 				+ ":" + (findingType == null ? "" : findingType) + ":" + hash(text);
 	}
 
@@ -459,10 +368,11 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	 * @return a human-readable reason to skip (no provider call), or {@code null} to proceed.
 	 */
 	private String skipReason(AssistantContext context) {
-		if (!TASK_TYPE.equals(context.taskType())) {
-			return "Not a " + TASK_TYPE + " run; skipping AI requirements review.";
+		if (!definition.taskType().equals(context.taskType())) {
+			return "Not a " + definition.taskType() + " run; skipping AI review "
+					+ definition.key() + ".";
 		}
-		if (!aiProperties.isEnabled()) {
+		if (!runtime.aiProperties.isEnabled()) {
 			return "AI analysis is disabled (requel.ai.enabled=false); skipping.";
 		}
 		if (!projectAllowed(context.projectRef())) {
@@ -476,7 +386,7 @@ public class RequirementsReviewAssistant implements RequelAssistant<TextEntity> 
 	 * listed. (Name-based allowlisting / per-project settings are refined in a later slice.)
 	 */
 	private boolean projectAllowed(EntityRef projectRef) {
-		List<String> allowlist = aiProperties.getProjectAllowlist();
+		List<String> allowlist = runtime.aiProperties.getProjectAllowlist();
 		if (allowlist == null || allowlist.isEmpty()) {
 			return true;
 		}

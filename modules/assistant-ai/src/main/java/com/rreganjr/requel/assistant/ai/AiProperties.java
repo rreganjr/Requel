@@ -32,7 +32,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * {@code spring.ai.*} (see {@code application.properties}); this class keeps only the knobs Requel
  * enforces itself:
  * <ul>
- * <li>{@code enabled} — whether the {@code RequirementsReviewAssistant} is registered;</li>
+ * <li>{@code enabled} — whether AI review definitions run ({@code AiDefinitionExecutorFactory} is registered);</li>
  * <li>{@code provider} — selects the active {@link AiAnalysisClient}: {@code noop} (default) vs
  * {@code openai}/{@code openai-compat} (Spring AI-backed);</li>
  * <li>{@code model} — the model id, reported in usage and bridged to

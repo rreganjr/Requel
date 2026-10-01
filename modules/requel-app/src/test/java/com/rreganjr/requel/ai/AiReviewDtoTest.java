@@ -42,7 +42,7 @@ class AiReviewDtoTest {
 						new FindingView("f-1", "AMBIGUOUS", "ISSUE", "HIGH", 0.8, "Define it.",
 								"ACTIVE", 42L),
 						new FindingView("f-2", "CONTEXT", "NOTE", null, null, "A note.", "ACTIVE",
-								null)));
+								null)), 2, "ai-requirements-review", "1");
 
 		AiReviewDto dto = AiReviewDto.of(run);
 
@@ -60,5 +60,8 @@ class AiReviewDtoTest {
 						42L),
 				new AiReviewDto.Finding("CONTEXT", "NOTE", null, null, "A note.", "ACTIVE", null)),
 				dto.findings());
+		assertEquals(2, dto.evidenceUnverified());
+		assertEquals("ai-requirements-review", dto.definitionKeys());
+		assertEquals("1", dto.definitionVersions());
 	}
 }

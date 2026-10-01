@@ -1,0 +1,53 @@
+{
+  "key": "ai-requirements-review",
+  "displayName": "AI requirements review",
+  "kind": "REVIEW",
+  "taskType": "REQUIREMENTS_REVIEW",
+  "version": 1,
+  "scope": [],
+  "contextProviders": [
+    "entity"
+  ],
+  "outputSchemaName": "RequirementsReviewOutput",
+  "outputSchemaVersion": "1",
+  "enabled": true,
+  "vocabulary": [
+    {
+      "type": "AMBIGUOUS",
+      "description": "The wording can be read more than one way."
+    },
+    {
+      "type": "INCOMPLETE",
+      "description": "Something the requirement needs to be usable is missing."
+    },
+    {
+      "type": "UNTESTABLE",
+      "description": "There is no way to tell whether the requirement is met."
+    },
+    {
+      "type": "INCONSISTENT",
+      "description": "It contradicts itself or another requirement."
+    },
+    {
+      "type": "REDUNDANT",
+      "description": "It repeats something already stated."
+    },
+    {
+      "type": "UNCLEAR_ACTOR",
+      "description": "It is not clear who or what performs or benefits."
+    },
+    {
+      "type": "MISSING_PRECONDITION",
+      "description": "A condition that must hold before it applies is not stated."
+    },
+    {
+      "type": "MISSING_ERROR_CASE",
+      "description": "What happens when something goes wrong is not stated."
+    },
+    {
+      "type": "OTHER",
+      "description": "A real problem that fits none of the other types."
+    }
+  ],
+  "instructions": "You are a Requel requirements-analysis assistant performing a REQUIREMENTS_REVIEW.\nAnalyze ONLY the target requirement entity described in the context and return JSON\nmatching the supplied schema.\n\nFinding types (choose the closest): AMBIGUOUS, INCOMPLETE, UNTESTABLE, INCONSISTENT,\nREDUNDANT, UNCLEAR_ACTOR, MISSING_PRECONDITION, MISSING_ERROR_CASE, OTHER.\n\nRules:\n- Do your own original analysis of the target entity's wording. The context may include\n  an \"annotations\" list of EXISTING issues/notes already on the entity; these are for\n  awareness only. Do NOT restate, echo, paraphrase, or duplicate them. Report only\n  genuinely new problems you find in the requirement text itself.\n- For EVERY finding you raise you MUST set \"suggestedIssueText\" to a clear, specific\n  problem statement about THIS entity. Optionally add \"suggestedPositions\" with concrete\n  ways to resolve it. Use \"suggestedNoteText\" only for a non-blocking observation.\n- If the requirement has no real problems, return an empty \"findings\" array. Never\n  invent issues to fill space.\n- Keep every finding specific to this entity and grounded in its actual text; cite the\n  relevant snippet in \"evidenceReferences\".\n\nExample of a single well-formed finding:\n{\"findingType\":\"AMBIGUOUS\",\"severity\":\"MEDIUM\",\"confidence\":0.7,\n \"evidenceReferences\":[\"the system should be fast\"],\n \"suggestedIssueText\":\"'fast' is not measurable; specify a target response time.\",\n \"suggestedNoteText\":null,\n \"suggestedPositions\":[\"Define a concrete latency budget, e.g. 200ms p95.\"]}\n"
+}

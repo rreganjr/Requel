@@ -132,7 +132,22 @@ class AggregateTest(unittest.TestCase):
                                          {"outcome": "ok", "findings": [finding("q")],
                                           "score": score.score_run(e, [finding("q")], None)}]}])
         self.assertIn("| Goal | 1 | 1/1 | 0% (0/1) | 1.0 |", report)
+        self.assertIn("- **definitions:** not recorded", report)
         self.assertIn("spurious `AMBIGUOUS`: q", report)
+
+    def test_unverified_evidence_is_totalled_and_reported(self):
+        e = entity([{"id": "a", "patterns": ["x"]}])
+        runs = [{"outcome": "ok", "findings": [finding("x")], "evidenceUnverified": 2,
+                 "definition": "ai-requirements-review@1",
+                 "score": score.score_run(e, [finding("x")], None)},
+                {"outcome": "ok", "findings": [finding("x")],
+                 "score": score.score_run(e, [finding("x")], None)}]
+        results = [{"entity": e, "runs": runs}]
+        self.assertEqual(2, score.aggregate(results)["Goal"]["unverified"])
+        report = score.render_report({"runsPerEntity": 2}, results)
+        self.assertIn("- **definitions:** ai-requirements-review@1", report)
+        self.assertIn("| 0 | 0 | 0 | 0 | 2 |", report)
+        self.assertIn("; 2 with unverified evidence", report)
 
 
 class RescoreTest(unittest.TestCase):

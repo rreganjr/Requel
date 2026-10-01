@@ -76,5 +76,23 @@ public interface AssistantRunStore {
 	default void recordResultSummary(UUID runId, String summary) {
 	}
 
+	/**
+	 * Issue #260: record the assistant definitions the run used ({@code template_id} /
+	 * {@code template_version} / {@code template_source}). Best effort.
+	 *
+	 * @param keys the definition keys, comma-joined when several ran
+	 * @param versions their versions, in the same order
+	 * @param sources their sources, in the same order
+	 */
+	default void recordDefinitions(UUID runId, String keys, String versions, String sources) {
+	}
+
+	/**
+	 * Issue #260: record how many findings cited evidence that is not in the entity's text (a
+	 * provider-quality signal; the findings are kept). Best effort.
+	 */
+	default void recordEvidenceUnverified(UUID runId, int count) {
+	}
+
 	Optional<AssistantRunRecord> findRun(UUID runId);
 }

@@ -230,6 +230,26 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
     // Unauthenticated (401) — these pass immediately; no AuthorizableCommand needed
     // -------------------------------------------------------------------------
 
+    /**
+     * Issue #260: the assistant identities cannot log in. The legacy {@code assistant} user used
+     * to ship with the password {@code assistant}; now it holds the assistant role, which
+     * {@code UserImpl.isPassword} refuses whatever the password is.
+     */
+    @Test
+    void theAssistantUserCannotLogIn() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", "assistant", "password", "assistant"))))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("username", "assistant-legacy-lexical",
+                                        "password", "assistant"))))
+                .andExpect(status().isUnauthorized());
+    }
+
     @Test
     void unauthenticatedEditGoalReturnsUnauthorized() throws Exception {
         mockMvc.perform(post("/api/commands/EditGoal")

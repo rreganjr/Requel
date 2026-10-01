@@ -84,6 +84,8 @@ public class ExportProjectCommandImpl extends AbstractProjectCommand implements
 		classes.add(SystemAdminUserRole.class);
 		classes.add(ProjectUserRole.class);
 		classes.add(DomainAdminUserRole.class);
+		// Issue #260: assistant identities are stakeholders, so their role is exported too.
+		classes.add(com.rreganjr.requel.user.impl.AssistantUserRole.class);
 		classes.add(PositionImpl.class);
 		classes.add(ChangeSpellingPosition.class);
 		classes.add(AddWordToDictionaryPosition.class);

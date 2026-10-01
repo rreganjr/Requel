@@ -148,6 +148,8 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	private final ProjectCommandFactory projectCommandFactory;
 	private final AnnotationRepository annotationRepository;
 	private final UserRepository userRepository;
+	/** Issue #260: per-assistant identities; null keeps the single run assistant user. */
+	private com.rreganjr.requel.project.AssistantIdentities assistantIdentities;
 	private final AssistantFindingRepository findingRepository;
 	private final AssistantRunRepository runRepository;
 	private final List<AssistantTargetLoader> targetLoaders;
@@ -184,6 +186,15 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		this.runRepository = Objects.requireNonNull(runRepository, "runRepository");
 		this.targetLoaders = List.copyOf(targetLoaders);
 		this.clock = Objects.requireNonNull(clock, "clock");
+	}
+
+	/**
+	 * Issue #260: setter-injected like the ignore store. Without it every result is written as the
+	 * run's single assistant user, as before.
+	 */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setAssistantIdentities(com.rreganjr.requel.project.AssistantIdentities identities) {
+		this.assistantIdentities = identities;
 	}
 
 	/**
@@ -255,7 +266,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		Objects.requireNonNull(context, "context");
 		Objects.requireNonNull(result, "result");
 
-		User editedBy = resolveAssistantUser(context);
+		User editedBy = resolveAssistantUser(context, result.assistantId());
 		String source = "ASSISTANT:" + result.assistantId();
 		List<Long> annotationIds = new ArrayList<Long>();
 		// Annotations created earlier in this same result, keyed by action key,
@@ -1213,6 +1224,26 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 * Falls back to the triggering user when the run carries no resolvable assistant identity,
 	 * so an unexpected context cannot take down a whole analysis pass.
 	 */
+	/**
+	 * Issue #260: the assistant's own identity when {@link #setAssistantIdentities} is wired,
+	 * otherwise (or if it cannot be resolved) the run's assistant user.
+	 */
+	private User resolveAssistantUser(AssistantContext context, String assistantId) {
+		if (assistantIdentities != null && assistantId != null) {
+			try {
+				Long projectId = context.projectRef() != null
+						&& "Project".equals(context.projectRef().entityType())
+								? context.projectRef().entityId()
+								: null;
+				return assistantIdentities.identityFor(assistantId, projectId);
+			} catch (RuntimeException e) {
+				log.warn("No identity for assistant {} in run {}; writing as the run's assistant"
+						+ " user", assistantId, context.runId(), e);
+			}
+		}
+		return resolveAssistantUser(context);
+	}
+
 	private User resolveAssistantUser(AssistantContext context) {
 		// AssistantContext requires a non-null assistantUser, so only the username can be absent.
 		UserRef ref = context.assistantUser();

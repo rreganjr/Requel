@@ -45,6 +45,8 @@ import com.rreganjr.requel.assistant.api.AssistantRegistry;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
+import com.rreganjr.requel.assistant.core.definition.AssistantDefinition;
+import com.rreganjr.requel.assistant.core.definition.DefinitionBacked;
 import com.rreganjr.requel.project.TargetFingerprint;
 
 /**
@@ -81,6 +83,12 @@ import com.rreganjr.requel.project.TargetFingerprint;
 public class AssistantRunWorker {
 
 	private static final Logger log = LoggerFactory.getLogger(AssistantRunWorker.class);
+
+	/**
+	 * Issue #260: result metadata key - how many of the result's findings cited evidence that is
+	 * not in the entity's text.
+	 */
+	public static final String EVIDENCE_UNVERIFIED = "evidenceUnverified";
 
 	private final AssistantRunStore runStore;
 	private final AssistantRegistry assistantRegistry;
@@ -196,6 +204,9 @@ public class AssistantRunWorker {
 			// not do its job. (Some failing is PARTIAL, below.) Each failure was already logged.
 			// #355: keep the assistants' own summary of the run (best effort).
 			recordResultSummary(runId, analysis.results);
+			// #260: which definitions ran, and how many findings cited missing evidence.
+			recordDefinitions(runId, analysis.definitions);
+			recordEvidenceUnverified(runId, analysis.results);
 			if (analysis.allFailed()) {
 				runStore.markFailed(runId,
 						new AssistantWorkerException(String.join("; ", analysis.problems)));
@@ -253,6 +264,52 @@ public class AssistantRunWorker {
 		}
 	}
 
+	/** Issue #260: record the definitions the run used. A failure never fails the run. */
+	private void recordDefinitions(UUID runId, List<AssistantDefinition> definitions) {
+		if (definitions == null || definitions.isEmpty()) {
+			return;
+		}
+		List<String> keys = new ArrayList<>();
+		List<String> versions = new ArrayList<>();
+		List<String> sources = new ArrayList<>();
+		for (AssistantDefinition definition : definitions) {
+			keys.add(definition.key());
+			versions.add(String.valueOf(definition.version()));
+			sources.add(definition.source().name());
+		}
+		try {
+			runStore.recordDefinitions(runId, String.join(",", keys), String.join(",", versions),
+					String.join(",", sources));
+		} catch (RuntimeException e) {
+			log.warn("Failed to record the definitions for run {}: {}", runId, e.getMessage(), e);
+		}
+	}
+
+	/**
+	 * Issue #260: total the results' {@code evidenceUnverified} counts and record them. A failure
+	 * never fails the run.
+	 */
+	private void recordEvidenceUnverified(UUID runId, List<AssistantResult> results) {
+		int total = 0;
+		boolean any = false;
+		for (AssistantResult result : results) {
+			Object count = result == null ? null : result.metadata().get(EVIDENCE_UNVERIFIED);
+			if (count instanceof Number number) {
+				total += number.intValue();
+				any = true;
+			}
+		}
+		if (!any) {
+			return;
+		}
+		try {
+			runStore.recordEvidenceUnverified(runId, total);
+		} catch (RuntimeException e) {
+			log.warn("Failed to record unverified evidence for run {}: {}", runId, e.getMessage(),
+					e);
+		}
+	}
+
 	/**
 	 * @deprecated since #247 a run is two transactions; use {@link #run(UUID)}.
 	 */
@@ -273,6 +330,8 @@ public class AssistantRunWorker {
 		final int thrownCount;
 		/** How many assistants matched the run's task and were run. */
 		final int attemptedCount;
+		/** #260: the definitions behind the assistants that were run. */
+		List<AssistantDefinition> definitions = List.of();
 
 		Analysis(String skipReason) {
 			this.skipReason = skipReason;
@@ -364,7 +423,16 @@ public class AssistantRunWorker {
 				thrown++;
 			}
 		}
-		return new Analysis(context, producers, results, problems, thrown, assistants.size());
+		Analysis analysis = new Analysis(context, producers, results, problems, thrown,
+				assistants.size());
+		List<AssistantDefinition> definitions = new ArrayList<>();
+		for (RequelAssistant<?> assistant : assistants) {
+			if (assistant instanceof DefinitionBacked backed && backed.definition() != null) {
+				definitions.add(backed.definition());
+			}
+		}
+		analysis.definitions = List.copyOf(definitions);
+		return analysis;
 	}
 
 	/** What the apply phase decided. */

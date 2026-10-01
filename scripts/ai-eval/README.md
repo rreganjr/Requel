@@ -71,6 +71,7 @@ For each review of an entity the script posts `POST /api/ai/reviews`, then polls
 | Schema failures | runs that failed because the reply was not the output schema's shape |
 | Other failures | runs that failed for any other reason (provider error, refusal) |
 | Confirmed (trap) | runs on the trap that said its figures are right |
+| Unverified evidence | findings citing text that is not in the entity (#260); the header also lists the `definition@version` the runs used |
 
 A type the server can't review (GlossaryTerm, today) is reported as skipped.
 

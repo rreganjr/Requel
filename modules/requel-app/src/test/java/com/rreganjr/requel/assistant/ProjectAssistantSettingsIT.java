@@ -22,6 +22,7 @@ package com.rreganjr.requel.assistant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -30,8 +31,10 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.rreganjr.platform.identity.User;
+import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectAssistantSettingsStore;
@@ -50,6 +53,9 @@ public class ProjectAssistantSettingsIT extends AbstractLexicalAssistantTest {
 
 	@Autowired
 	private SwitchableAssistantCatalog catalog;
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
 
 	@Test
 	public void theFourLexicalAssistantsAreSwitchable() {
@@ -98,6 +104,26 @@ public class ProjectAssistantSettingsIT extends AbstractLexicalAssistantTest {
 
 		assertEquals(1, spellingIssues(goal.getId(), "groal").size(),
 				"a switched-off assistant doesn't clear what it raised");
+	}
+
+	/**
+	 * Issue #260: each lexical assistant writes as its own {@code assistant-<id>} user, not the
+	 * legacy {@code assistant}, and that user is still machine-authored. The AI side is in
+	 * {@code AssistantDefinitionsIT}.
+	 */
+	@Test
+	public void aLexicalFindingIsWrittenByItsAssistantsOwnIdentity() throws Exception {
+		ensureDictionaryLoaded();
+		Goal goal = newGoal(newProject("SettingsAuthor"), projectUser(),
+				"groal intake " + stamp(), "The clerk records it.");
+		Issue issue = spellingIssue(goal.getId(), "groal");
+		assertNotNull(issue, "spelling raises 'groal'");
+
+		String author = jdbcTemplate.queryForObject("SELECT u.username FROM annotations a"
+				+ " JOIN users u ON a.created_by_id = u.id WHERE a.id = ?", String.class,
+				issue.getId());
+		assertEquals("assistant-" + SPELLING, author);
+		assertTrue(User.isAssistant(getUserRepository().findUserByUsername(author)));
 	}
 
 	@Test
