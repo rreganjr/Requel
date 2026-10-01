@@ -47,9 +47,9 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 /**
  * Manual trigger for the AI requirements review (issue #43, Phase 5). Dispatches a
  * {@code REQUIREMENTS_REVIEW} analysis run for one project entity on behalf of the current
- * (triggering) user — the "run manually first" path. The run executes the
- * {@code RequirementsReviewAssistant} (when {@code requel.ai.enabled}); ordinary post-edit
- * saves are unaffected.
+ * (triggering) user — the "run manually first" path. The run executes the matching assistant
+ * definitions (#260; by default the bundled {@code ai-requirements-review}) when
+ * {@code requel.ai.enabled}; ordinary post-edit saves are unaffected.
  *
  * <p>
  * Authorization mirrors the read API: the triggering user must be a system admin or a

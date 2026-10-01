@@ -146,6 +146,38 @@ class AssistantRunWorkerTest {
 				summary -> assertThat(summary).isNotBlank().doesNotContain("analyze boom"));
 	}
 
+	/** #260: the run records its definitions and the unverified evidence count. */
+	@Test
+	void theRunRecordsItsDefinitionsAndUnverifiedEvidence() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new DefinitionAssistant("goals", 3, 2),
+						new DefinitionAssistant("fallback", 1, 1))),
+				new RecordingApplicator(), List.of(new StringTargetLoader()));
+
+		worker.run(record.runId());
+
+		assertThat(runStore.definitions(record.runId()))
+				.contains(List.of("goals,fallback", "3,1", "BUNDLED,BUNDLED"));
+		assertThat(runStore.evidenceUnverified(record.runId())).contains(3);
+	}
+
+	/** #260: no definition, no record (the lexical path). */
+	@Test
+	void aRunWithoutDefinitionsRecordsNone() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new StringAssistant())), new RecordingApplicator(),
+				List.of(new StringTargetLoader()));
+
+		worker.run(record.runId());
+
+		assertThat(runStore.definitions(record.runId())).isEmpty();
+		assertThat(runStore.evidenceUnverified(record.runId())).isEmpty();
+	}
+
 	/** #355: a store that cannot record the summary never fails the run. */
 	@Test
 	void aFailureToRecordTheResultSummaryDoesNotFailTheRun() {
@@ -682,6 +714,49 @@ class AssistantRunWorkerTest {
 			this.seenTaskType = context.taskType();
 			return AssistantResult.builder().assistantId(assistantId()).runId(context.runId())
 					.summary(target).build();
+		}
+	}
+
+	/** #260: a definition-backed assistant reporting some unverified evidence. */
+	private static final class DefinitionAssistant implements RequelAssistant<String>,
+			com.rreganjr.requel.assistant.core.definition.DefinitionBacked {
+		private final com.rreganjr.requel.assistant.core.definition.AssistantDefinition definition;
+		private final int unverified;
+
+		DefinitionAssistant(String key, int version, int unverified) {
+			this.definition = new com.rreganjr.requel.assistant.core.definition.AssistantDefinition(
+					key, key, com.rreganjr.requel.assistant.core.definition.DefinitionKind.REVIEW,
+					"REQUIREMENTS_REVIEW", java.util.Set.of(), List.of("entity"), "x", List.of(),
+					"RequirementsReviewOutput", "1", true, version,
+					com.rreganjr.requel.assistant.core.definition.DefinitionSource.BUNDLED, null,
+					null, null);
+			this.unverified = unverified;
+		}
+
+		@Override
+		public com.rreganjr.requel.assistant.core.definition.AssistantDefinition definition() {
+			return definition;
+		}
+
+		@Override
+		public String assistantId() {
+			return definition.key();
+		}
+
+		@Override
+		public Class<String> targetType() {
+			return String.class;
+		}
+
+		@Override
+		public boolean handlesTask(String taskType) {
+			return true;
+		}
+
+		@Override
+		public AssistantResult analyze(AssistantContext context, String target) {
+			return AssistantResult.builder().assistantId(assistantId()).runId(context.runId())
+					.metadata(Map.of(AssistantRunWorker.EVIDENCE_UNVERIFIED, unverified)).build();
 		}
 	}
 

@@ -106,6 +106,15 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 		this.assistantSettingsStore = assistantSettingsStore;
 	}
 
+	private com.rreganjr.requel.project.ProjectAssistantDefinitions assistantDefinitions;
+
+	/** Issue #260: the project's own assistant definitions; null without assistant-core. */
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	public void setAssistantDefinitions(
+			com.rreganjr.requel.project.ProjectAssistantDefinitions assistantDefinitions) {
+		this.assistantDefinitions = assistantDefinitions;
+	}
+
 	private Project project;
 
 	private Integer expectedVersion;
@@ -298,6 +307,10 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 		// Issue #268: which assistants run in the project. Keyed by project id, like the above.
 		if (assistantSettingsStore != null) {
 			assistantSettingsStore.deleteForProject(project.getId());
+		}
+		// Issue #260: the project's own assistant definitions. Keyed by project id, no foreign key.
+		if (assistantDefinitions != null) {
+			assistantDefinitions.deleteForProject(project.getId());
 		}
 
 		// 11) The project's own annotations.

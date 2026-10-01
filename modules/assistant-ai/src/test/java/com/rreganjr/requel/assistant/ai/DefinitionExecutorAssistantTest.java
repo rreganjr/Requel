@@ -48,19 +48,55 @@ import com.rreganjr.requel.assistant.api.UserRef;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.assistant.core.context.EntityContextPack;
 import com.rreganjr.requel.assistant.core.context.EntityContextPackBuilder;
+import com.rreganjr.requel.assistant.core.definition.AssistantDefinition;
+import com.rreganjr.requel.assistant.core.definition.AssistantDefinitionValidator;
+import com.rreganjr.requel.assistant.core.definition.BundledDefinitions;
+import com.rreganjr.requel.assistant.core.definition.DefinitionSource;
 import com.rreganjr.requel.assistant.core.persistence.AssistantUsageRepository;
 import com.rreganjr.requel.project.TextEntity;
 
-class RequirementsReviewAssistantTest {
+class DefinitionExecutorAssistantTest {
+
+	/** The pre-#260 hard-coded prompt, kept to pin the seeded default (the golden test). */
+	static final String FORMER_TASK_INSTRUCTIONS = """
+			You are a Requel requirements-analysis assistant performing a REQUIREMENTS_REVIEW.
+			Analyze ONLY the target requirement entity described in the context and return JSON
+			matching the supplied schema.
+
+			Finding types (choose the closest): AMBIGUOUS, INCOMPLETE, UNTESTABLE, INCONSISTENT,
+			REDUNDANT, UNCLEAR_ACTOR, MISSING_PRECONDITION, MISSING_ERROR_CASE, OTHER.
+
+			Rules:
+			- Do your own original analysis of the target entity's wording. The context may include
+			  an "annotations" list of EXISTING issues/notes already on the entity; these are for
+			  awareness only. Do NOT restate, echo, paraphrase, or duplicate them. Report only
+			  genuinely new problems you find in the requirement text itself.
+			- For EVERY finding you raise you MUST set "suggestedIssueText" to a clear, specific
+			  problem statement about THIS entity. Optionally add "suggestedPositions" with concrete
+			  ways to resolve it. Use "suggestedNoteText" only for a non-blocking observation.
+			- If the requirement has no real problems, return an empty "findings" array. Never
+			  invent issues to fill space.
+			- Keep every finding specific to this entity and grounded in its actual text; cite the
+			  relevant snippet in "evidenceReferences".
+
+			Example of a single well-formed finding:
+			{"findingType":"AMBIGUOUS","severity":"MEDIUM","confidence":0.7,
+			 "evidenceReferences":["the system should be fast"],
+			 "suggestedIssueText":"'fast' is not measurable; specify a target response time.",
+			 "suggestedNoteText":null,
+			 "suggestedPositions":["Define a concrete latency budget, e.g. 200ms p95."]}
+			""";
+
 
 	private final EntityContextPackBuilder packBuilder = mock(EntityContextPackBuilder.class);
 	private final RecordingAiClient aiClient = new RecordingAiClient();
 	private final AssistantUsageRepository usageRepository = mock(AssistantUsageRepository.class);
 	private final ObjectMapper objectMapper = new ObjectMapper();
+	private AiDefinitionExecutorFactory factory;
 
 	@Test
 	void handlesOnlyRequirementsReviewTask() {
-		RequirementsReviewAssistant assistant = newAssistant(enabledProperties());
+		DefinitionExecutorAssistant assistant = newAssistant(enabledProperties());
 		assertThat(assistant.handlesTask("REQUIREMENTS_REVIEW")).isTrue();
 		assertThat(assistant.handlesTask(null)).isFalse();
 		assertThat(assistant.handlesTask("SOMETHING_ELSE")).isFalse();
@@ -154,9 +190,9 @@ class RequirementsReviewAssistantTest {
 				mock(com.rreganjr.requel.project.ProjectAssistantSettingsStore.class);
 		when(store.disabledAssistants(2L)).thenReturn(java.util.Set.of("egress.external",
 				"redaction.phone"));
-		RequirementsReviewAssistant assistant = newAssistant(enabledProperties());
-		assistant.setSettingsStore(store);
-		assistant.setProviderLocality(AiProviderLocality.REMOTE);
+		DefinitionExecutorAssistant assistant = newAssistant(enabledProperties());
+		factory.setSettingsStore(store);
+		factory.setProviderLocality(AiProviderLocality.REMOTE);
 
 		assistant.analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
 
@@ -188,8 +224,8 @@ class RequirementsReviewAssistantTest {
 		when(packBuilder.build(any())).thenReturn(pack);
 		com.rreganjr.requel.assistant.core.InMemoryAssistantRunStore runStore =
 				new com.rreganjr.requel.assistant.core.InMemoryAssistantRunStore();
-		RequirementsReviewAssistant assistant = newAssistant(enabledProperties());
-		assistant.setRunStore(runStore);
+		DefinitionExecutorAssistant assistant = newAssistant(enabledProperties());
+		factory.setRunStore(runStore);
 		AssistantContext context = context("REQUIREMENTS_REVIEW");
 
 		assistant.analyze(context, goalTarget());
@@ -238,9 +274,91 @@ class RequirementsReviewAssistantTest {
 		assertThat(note.text()).isEqualTo("Consider error cases");
 	}
 
-	private RequirementsReviewAssistant newAssistant(AiProperties properties) {
-		return new RequirementsReviewAssistant(aiClient, packBuilder, properties, usageRepository,
-				objectMapper);
+	/** #260 golden test: the seeded default carries the former hard-coded prompt exactly. */
+	@Test
+	void theSeededDefaultCarriesTheFormerPromptExactly() throws Exception {
+		AssistantDefinition definition = defaultDefinition();
+		assertThat(definition.instructions()).isEqualTo(FORMER_TASK_INSTRUCTIONS);
+		assertThat(definition.key()).isEqualTo("ai-requirements-review");
+		assertThat(definition.taskType()).isEqualTo("REQUIREMENTS_REVIEW");
+		assertThat(definition.isFallback()).isTrue();
+		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+
+		newAssistant(enabledProperties()).analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
+
+		assertThat(aiClient.lastRequest.instructions()).isEqualTo(FORMER_TASK_INSTRUCTIONS);
+		assertThat(aiClient.lastRequest.assistantId()).isEqualTo("ai-requirements-review");
+	}
+
+	/** #260: the definition's own instructions, key and identity reach the request. */
+	@Test
+	void aDefinitionsInstructionsAndKeyReachTheRequest() throws Exception {
+		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		AssistantDefinition forked = defaultDefinition().forkFor(2L, "Project-specific guidance.");
+
+		DefinitionExecutorAssistant assistant = newAssistant(enabledProperties(), forked);
+		assistant.analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
+
+		assertThat(assistant.definition()).isSameAs(forked);
+		assertThat(aiClient.lastRequest.instructions()).isEqualTo("Project-specific guidance.");
+		assertThat(aiClient.lastRequest.attributes())
+				.containsEntry("definitionKey", "ai-requirements-review")
+				.containsEntry("definitionVersion", 1)
+				.containsEntry("definitionSource", DefinitionSource.PROJECT.name());
+	}
+
+	/** #260: a finding citing text the entity doesn't contain is kept, and counted. */
+	@Test
+	void unverifiedEvidenceIsKeptAndCounted() throws Exception {
+		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		aiClient.response = new AiAnalysisResponse("two findings", NullNode.getInstance(),
+				List.of(
+						new AiFindingDraft("AMBIGUOUS", "HIGH", 0.9, List.of("\"Members love\""),
+								"Real evidence", null, List.of(), Map.of()),
+						new AiFindingDraft("INCOMPLETE", "LOW", 0.5,
+								List.of("text the entity never says"), "Made-up evidence", null,
+								List.of(), Map.of())),
+				List.of(), AiUsage.noop("noop", Duration.ZERO), Map.of());
+
+		AssistantResult result = newAssistant(enabledProperties())
+				.analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
+
+		assertThat(result.annotationActions()).hasSize(2);
+		assertThat(result.metadata()).containsEntry("evidenceUnverified", 1);
+		assertThat(result.messages()).anyMatch(m -> m.text().contains("1 finding(s)"));
+		AnnotationAction issue = result.annotationActions().get(0);
+		assertThat(issue.metadata()).containsEntry("definitionKey", "ai-requirements-review");
+	}
+
+	@Test
+	void evidenceChecking() {
+		String entity = "Fast checkout\nThe system   should be\nfast.";
+		assertThat(EvidenceCheck.unverified(List.of("the system should be fast"), entity)).isTrue();
+		assertThat(EvidenceCheck.unverified(List.of("system should be fast"), entity)).isFalse();
+		assertThat(EvidenceCheck.unverified(List.of("'Fast checkout'"), entity)).isFalse();
+		assertThat(EvidenceCheck.unverified(List.of("“should be fast”"), entity)).isFalse();
+		assertThat(EvidenceCheck.unverified(List.of(), entity)).isFalse();
+		assertThat(EvidenceCheck.unverified(List.of(" "), entity)).isFalse();
+		assertThat(EvidenceCheck.unverified(null, entity)).isFalse();
+	}
+
+	private DefinitionExecutorAssistant newAssistant(AiProperties properties) {
+		return newAssistant(properties, defaultDefinition());
+	}
+
+	private DefinitionExecutorAssistant newAssistant(AiProperties properties,
+			AssistantDefinition definition) {
+		factory = new AiDefinitionExecutorFactory(aiClient, packBuilder, properties,
+				usageRepository, objectMapper);
+		return (DefinitionExecutorAssistant) factory.executorFor(definition);
+	}
+
+	/** The bundled default, read the way the seeder reads it. */
+	private AssistantDefinition defaultDefinition() {
+		List<AssistantDefinition> bundled = BundledDefinitions.load(objectMapper,
+				new AssistantDefinitionValidator(16000));
+		return bundled.stream().filter(d -> d.key().equals(RequirementsReview.ASSISTANT_ID))
+				.findFirst().orElseThrow();
 	}
 
 	private static AiProperties enabledProperties() {
@@ -258,6 +376,8 @@ class RequirementsReviewAssistantTest {
 	private static TextEntity goalTarget() {
 		TextEntity target = mock(TextEntity.class);
 		when(target.getId()).thenReturn(10L);
+		when(target.getName()).thenReturn("Members love the library");
+		when(target.getText()).thenReturn("Members should really enjoy using it.");
 		doReturn(TextEntity.class).when(target).getProjectOrDomainEntityInterface();
 		return target;
 	}

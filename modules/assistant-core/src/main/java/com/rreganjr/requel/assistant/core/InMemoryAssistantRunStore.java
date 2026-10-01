@@ -22,6 +22,7 @@ package com.rreganjr.requel.assistant.core;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -81,6 +82,33 @@ public class InMemoryAssistantRunStore implements AssistantRunStore {
 	public void recordRedactions(UUID runId, int count, java.util.List<String> categories) {
 		redactions.put(runId, java.util.Map.entry(count,
 				categories == null ? java.util.List.of() : java.util.List.copyOf(categories)));
+	}
+
+	/** #260: definitions and unverified-evidence counts recorded per run, for tests. */
+	private final java.util.Map<UUID, List<String>> definitions =
+			new java.util.concurrent.ConcurrentHashMap<>();
+	private final java.util.Map<UUID, Integer> evidenceUnverified =
+			new java.util.concurrent.ConcurrentHashMap<>();
+
+	@Override
+	public void recordDefinitions(UUID runId, String keys, String versions, String sources) {
+		definitions.put(runId, List.of(String.valueOf(keys), String.valueOf(versions),
+				String.valueOf(sources)));
+	}
+
+	/** #260: [keys, versions, sources] recorded for a run, if any. */
+	public java.util.Optional<List<String>> definitions(UUID runId) {
+		return java.util.Optional.ofNullable(definitions.get(runId));
+	}
+
+	@Override
+	public void recordEvidenceUnverified(UUID runId, int count) {
+		evidenceUnverified.put(runId, count);
+	}
+
+	/** #260: the unverified-evidence count recorded for a run, if any. */
+	public java.util.Optional<Integer> evidenceUnverified(UUID runId) {
+		return java.util.Optional.ofNullable(evidenceUnverified.get(runId));
 	}
 
 	/** #355: result summaries recorded per run, for tests. */

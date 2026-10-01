@@ -59,6 +59,9 @@ class AssistantRunReadServiceTest {
 		run.setErrorSummary("model reply is not valid JSON");
 		run.setResultSummary("The goal is vague.");
 		run.setRedactionCount(2);
+		run.setEvidenceUnverified(1);
+		run.setTemplateId("ai-requirements-review");
+		run.setTemplateVersion("1");
 		when(runs.findFirstByTargetTypeAndTargetIdAndTaskTypeOrderByCreatedAtDescIdDesc("Goal", 7L,
 				"REQUIREMENTS_REVIEW")).thenReturn(Optional.of(run));
 
@@ -87,6 +90,9 @@ class AssistantRunReadServiceTest {
 		assertThat(view.errorSummary()).isEqualTo("model reply is not valid JSON");
 		assertThat(view.resultSummary()).isEqualTo("The goal is vague.");
 		assertThat(view.redactionCount()).isEqualTo(2);
+		assertThat(view.evidenceUnverified()).isEqualTo(1);
+		assertThat(view.definitionKeys()).isEqualTo("ai-requirements-review");
+		assertThat(view.definitionVersions()).isEqualTo("1");
 		assertThat(view.findings()).hasSize(2);
 
 		AssistantRunReadService.FindingView first = view.findings().get(0);

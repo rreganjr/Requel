@@ -105,7 +105,7 @@ def aggregate(results):
         row = rows.setdefault(entity["type"], {
             "entities": 0, "skipped": 0, "runs": 0, "ok": 0, "expected": 0, "hits": 0,
             "spurious": 0, "silentRuns": 0, "silentKept": 0, "schema": 0, "failed": 0,
-            "timeout": 0, "confirmed": 0})
+            "timeout": 0, "confirmed": 0, "unverified": 0})
         row["entities"] += 1
         if result.get("skipped"):
             row["skipped"] += 1
@@ -122,6 +122,8 @@ def aggregate(results):
             row["expected"] += len(entity["expect"])
             row["hits"] += len(score["hits"])
             row["spurious"] += len(score["spurious"])
+            # #260: findings whose cited evidence is not in the entity (absent before #260).
+            row["unverified"] += run.get("evidenceUnverified") or 0
             if entity["silent"]:
                 row["silentRuns"] += 1
                 if not run["findings"]:
@@ -141,9 +143,13 @@ def render_report(meta, results):
     out = ["# AI review evaluation", ""]
     for key in ("date", "label", "baseUrl", "project", "runsPerEntity"):
         out.append("- **%s:** %s" % (key, meta.get(key)))
+    definitions = sorted({run["definition"] for result in results
+                          for run in result.get("runs", []) if run.get("definition")})
+    out.append("- **definitions:** %s" % (", ".join(definitions) or "not recorded"))
     out += ["", "| Type | Entities | Runs ok/total | Hit rate | Spurious per run | Silent kept "
-            "silent | Schema failures | Other failures | Timeouts | Confirmed (trap) |",
-            "|---|---|---|---|---|---|---|---|---|---|"]
+            "silent | Schema failures | Other failures | Timeouts | Confirmed (trap) | "
+            "Unverified evidence |",
+            "|---|---|---|---|---|---|---|---|---|---|---|"]
     total = None
     for type_name in TYPES + sorted(set(rows) - set(TYPES)):
         row = rows.get(type_name)
@@ -158,7 +164,9 @@ def render_report(meta, results):
         out.append(_row("**All**", total))
     out += ["", "Hit rate = expected findings matched / (expected findings x successful runs). "
             "Spurious = findings that matched no expected finding. Silent kept silent = "
-            "successful runs on silent entities that raised nothing.", ""]
+            "successful runs on silent entities that raised nothing. Unverified evidence = "
+            "findings citing text that is not in the entity (#260; they are still written).",
+            ""]
 
     out += ["## Details", ""]
     for result in results:
@@ -182,6 +190,8 @@ def render_report(meta, results):
                 n, ", ".join(score["hits"]) or "none", ", ".join(score["misses"]) or "none")
             if score["confirmed"]:
                 line += "; **CONFIRMED the figures**"
+            if run.get("evidenceUnverified"):
+                line += "; %d with unverified evidence" % run["evidenceUnverified"]
             out.append(line)
             for finding in score["spurious"]:
                 out.append("  - spurious `%s`: %s" % (finding.get("findingType"),
@@ -194,12 +204,20 @@ def _row(name, row):
     entities = "%d" % (row["entities"] - row["skipped"])
     if row["skipped"]:
         entities += " (%d skipped)" % row["skipped"]
-    return "| %s | %s | %d/%d | %s | %s | %s | %d | %d | %d | %d |" % (
+    return "| %s | %s | %d/%d | %s | %s | %s | %d | %d | %d | %d | %d |" % (
         name, entities, row["ok"], row["runs"],
         _ratio(row["hits"], row["expected"]),
         "-" if row["ok"] == 0 else "%.1f" % (row["spurious"] / float(row["ok"])),
         _ratio(row["silentKept"], row["silentRuns"]),
-        row["schema"], row["failed"], row["timeout"], row["confirmed"])
+        row["schema"], row["failed"], row["timeout"], row["confirmed"], row["unverified"])
+
+
+def _definition(view):
+    """#260: "key@version" the run used, or None before #260."""
+    keys = (view or {}).get("definitionKeys")
+    if not keys:
+        return None
+    return "%s@%s" % (keys, (view or {}).get("definitionVersions") or "?")
 
 
 def _error_message(body):
@@ -426,7 +444,9 @@ def main(argv=None):
             findings = (view or {}).get("findings") or []
             run = {"outcome": outcome, "runId": (view or {}).get("runId"), "error": error,
                    "summary": (view or {}).get("summary"), "findings": findings,
-                   "latencyMs": (view or {}).get("latencyMs")}
+                   "latencyMs": (view or {}).get("latencyMs"),
+                   "evidenceUnverified": (view or {}).get("evidenceUnverified") or 0,
+                   "definition": _definition(view)}
             if outcome == "ok":
                 run["score"] = score_run(entity, findings, run["summary"])
                 print("%d findings, %d hits" % (len(findings), len(run["score"]["hits"])))

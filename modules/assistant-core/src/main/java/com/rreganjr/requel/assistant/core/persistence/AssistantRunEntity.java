@@ -119,6 +119,10 @@ public class AssistantRunEntity {
 	@Column(name = "redaction_categories", length = 200)
 	private String redactionCategories;
 
+	/** #260: findings whose cited evidence is not in the entity's text. */
+	@Column(name = "evidence_unverified", nullable = false)
+	private int evidenceUnverified;
+
 	/** #355: the assistants' own summary of the run (for AI review, the model's summary). */
 	@Column(name = "result_summary", length = 2000)
 	private String resultSummary;
@@ -355,6 +359,14 @@ public class AssistantRunEntity {
 
 	public void setRedactionCategories(String redactionCategories) {
 		this.redactionCategories = redactionCategories;
+	}
+
+	public int getEvidenceUnverified() {
+		return evidenceUnverified;
+	}
+
+	public void setEvidenceUnverified(int evidenceUnverified) {
+		this.evidenceUnverified = evidenceUnverified;
 	}
 
 	public String getResultSummary() {

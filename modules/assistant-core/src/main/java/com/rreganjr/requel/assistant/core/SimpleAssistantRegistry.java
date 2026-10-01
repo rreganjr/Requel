@@ -27,12 +27,19 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantRegistry;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
+import com.rreganjr.requel.assistant.core.definition.AssistantDefinition;
+import com.rreganjr.requel.assistant.core.definition.AssistantDefinitionStore;
+import com.rreganjr.requel.assistant.core.definition.DefinitionExecutorFactory;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectAssistantSettingsStore;
 import com.rreganjr.requel.project.SwitchableAssistantCatalog;
 
@@ -41,14 +48,25 @@ import com.rreganjr.requel.project.SwitchableAssistantCatalog;
  * assistant a project has switched off ({@link ProjectAssistantSettingsStore}) is left out of
  * that project's runs; it is also the {@link SwitchableAssistantCatalog} of the assistants a
  * project can switch.
+ *
+ * <p>Issue #260: alongside the bean assistants it returns an executor for each matching
+ * {@link AssistantDefinition}, resolved per run from the run's project and task type. Per task
+ * type a definition specific to the target's entity type wins; the empty-scope definition is the
+ * fallback when none is. A definition switched off install-wide ({@code enabled}) or for the
+ * project (#268's store, keyed by definition key) is left out first. A definition naming an
+ * {@code executorBean} runs that bean.
  */
 @Component
-public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAssistantCatalog {
+public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAssistantCatalog,
+		BeanFactoryAware {
 
 	private static final Logger log = LoggerFactory.getLogger(SimpleAssistantRegistry.class);
 
 	private final List<RequelAssistant<?>> assistants;
 	private ProjectAssistantSettingsStore settingsStore;
+	private AssistantDefinitionStore definitionStore;
+	private DefinitionExecutorFactory executorFactory;
+	private BeanFactory beanFactory;
 
 	@Autowired
 	public SimpleAssistantRegistry(List<RequelAssistant<?>> assistants) {
@@ -59,6 +77,23 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 	@Autowired(required = false)
 	public void setSettingsStore(ProjectAssistantSettingsStore settingsStore) {
 		this.settingsStore = settingsStore;
+	}
+
+	/** Issue #260: optional; with no store only the bean assistants run. */
+	@Autowired(required = false)
+	public void setDefinitionStore(AssistantDefinitionStore definitionStore) {
+		this.definitionStore = definitionStore;
+	}
+
+	/** Issue #260: optional; present only when AI is enabled. */
+	@Autowired(required = false)
+	public void setExecutorFactory(DefinitionExecutorFactory executorFactory) {
+		this.executorFactory = executorFactory;
+	}
+
+	@Override
+	public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
+		this.beanFactory = beanFactory;
 	}
 
 	@Override
@@ -77,7 +112,56 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 			}
 			matches.add(assistant);
 		}
+		for (AssistantDefinition definition : definitionsFor(target, context, disabled)) {
+			matches.add(executorFor(definition));
+		}
 		return List.copyOf(matches);
+	}
+
+	/**
+	 * Issue #260: the definitions that run on {@code target} for this run - specific to its entity
+	 * type if any, else the fallback - after the install-wide and project switches.
+	 */
+	List<AssistantDefinition> definitionsFor(Object target, AssistantContext context,
+			Set<String> disabled) {
+		if (definitionStore == null || executorFactory == null || context == null
+				|| context.taskType() == null || !(target instanceof ProjectOrDomainEntity entity)) {
+			return List.of();
+		}
+		String entityType = entity.getProjectOrDomainEntityInterface().getSimpleName();
+		List<AssistantDefinition> specific = new ArrayList<AssistantDefinition>();
+		List<AssistantDefinition> fallback = new ArrayList<AssistantDefinition>();
+		for (AssistantDefinition definition : definitionStore.definitionsFor(projectId(context),
+				context.taskType())) {
+			if (!definition.enabled() || disabled.contains(definition.key())) {
+				continue;
+			}
+			if (definition.isSpecificTo(entityType)) {
+				specific.add(definition);
+			} else if (definition.isFallback()) {
+				fallback.add(definition);
+			}
+		}
+		return List.copyOf(specific.isEmpty() ? fallback : specific);
+	}
+
+	private RequelAssistant<?> executorFor(AssistantDefinition definition) {
+		if (definition.executorBean() != null && !definition.executorBean().isBlank()) {
+			if (beanFactory == null) {
+				throw new IllegalStateException("definition " + definition.key()
+						+ " names executorBean " + definition.executorBean()
+						+ " but no bean factory is available");
+			}
+			return beanFactory.getBean(definition.executorBean(), RequelAssistant.class);
+		}
+		return executorFactory.executorFor(definition);
+	}
+
+	private static Long projectId(AssistantContext context) {
+		if (context.projectRef() == null || !"Project".equals(context.projectRef().entityType())) {
+			return null;
+		}
+		return context.projectRef().entityId();
 	}
 
 	@Override
@@ -87,6 +171,15 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 			if (assistant.projectSwitchable()) {
 				switchable.add(new SwitchableAssistant(assistant.assistantId(),
 						assistant.displayName()));
+			}
+		}
+		// Issue #260: the enabled bundled definitions, when they can run.
+		if (definitionStore != null && executorFactory != null) {
+			for (AssistantDefinition definition : definitionStore.bundled()) {
+				if (definition.enabled()) {
+					switchable.add(new SwitchableAssistant(definition.key(),
+							definition.displayName()));
+				}
 			}
 		}
 		return List.copyOf(switchable);

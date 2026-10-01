@@ -76,7 +76,8 @@ public class AssistantRunReadService {
 		return new RunView(run.getId(), run.getAssistantId(), run.getStatus(), run.getCreatedAt(),
 				run.getCompletedAt(), run.getLatencyMs(),
 				run.getErrorKind(), run.getErrorSummary(), run.getResultSummary(),
-				run.getRedactionCount(), List.copyOf(findings));
+				run.getRedactionCount(), List.copyOf(findings), run.getEvidenceUnverified(),
+				run.getTemplateId(), run.getTemplateVersion());
 	}
 
 	/**
@@ -104,12 +105,14 @@ public class AssistantRunReadService {
 
 	/**
 	 * A run and what it reported. (No provider or model: the run row's columns are never filled;
-	 * the provider and model are on the run's usage rows.)
+	 * the provider and model are on the run's usage rows.) #260 adds how many findings cited
+	 * evidence not in the entity text, and the definitions the run used.
 	 */
 	public record RunView(String runId, String assistantId, String status, Instant createdAt,
 			Instant completedAt, Long latencyMs, String errorKind,
 			String errorSummary, String resultSummary, int redactionCount,
-			List<FindingView> findings) {
+			List<FindingView> findings, int evidenceUnverified, String definitionKeys,
+			String definitionVersions) {
 	}
 
 	/** One finding a run reported. {@code text} is the issue or note text, up to 500 characters. */

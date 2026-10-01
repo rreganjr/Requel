@@ -33,6 +33,8 @@
 
   <xs:element name="argument" type="tns:argument"/>
 
+  <xs:element name="assistantUserRole" type="tns:assistantUserRole"/>
+
   <xs:element name="changeSpellingPosition" type="tns:changeSpellingPosition"/>
 
   <xs:element name="dictionaryWord" type="tns:dictionaryWord"/>
@@ -110,6 +112,7 @@
         <xs:complexType>
           <xs:sequence>
             <xs:choice minOccurs="0" maxOccurs="unbounded">
+              <xs:element ref="tns:assistantUserRole"/>
               <xs:element ref="tns:domainAdminUserRole"/>
               <xs:element ref="tns:projectUserRole"/>
               <xs:element ref="tns:systemAdminUserRole"/>
@@ -233,6 +236,15 @@
   <xs:complexType name="note">
     <xs:complexContent>
       <xs:extension base="tns:abstractAnnotation">
+        <xs:sequence/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <!-- Issue #260: the user an assistant writes as. It cannot log in. -->
+  <xs:complexType name="assistantUserRole">
+    <xs:complexContent>
+      <xs:extension base="tns:abstractUserRole">
         <xs:sequence/>
       </xs:extension>
     </xs:complexContent>
