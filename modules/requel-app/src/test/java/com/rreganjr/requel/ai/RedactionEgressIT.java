@@ -128,7 +128,10 @@ public class RedactionEgressIT extends AbstractIntegrationTestCase {
 	@Test
 	public void aProjectThatDisallowsExternalProvidersFailsClosedAndSendsNothing() throws Exception {
 		long ts = System.currentTimeMillis();
-		Goal goal = createGoal(ts, "Egress off " + ts, "Uses " + KEY + " somewhere.");
+		// #355: base 36, so the name holds no digit run - a 13-digit millisecond time is
+		// Luhn-valid one time in ten and was masked as a card, making the count flaky.
+		Goal goal = createGoal(ts, "Egress off " + Long.toString(ts, 36),
+				"Uses " + KEY + " somewhere.");
 		settingsStore.setEnabled(goal.getProjectOrDomain().getId(), "egress.external", false,
 				null);
 

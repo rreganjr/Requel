@@ -966,6 +966,40 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 .andExpect(status().isOk());
     }
 
+    // Issue #355: the review read has the POST's checks - project access, a reviewable type, an
+    // existing entity - and is 204 for an entity that has never been reviewed.
+    @Test
+    void reviewReadNeedsProjectAccess() throws Exception {
+        mockMvc.perform(get("/api/ai/reviews").param("entityType", "Goal")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + deleterToken))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/ai/reviews").param("entityType", "Goal")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/ai/reviews").param("entityType", "GlossaryTerm")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/ai/reviews").param("entityType", "Goal")
+                        .param("entityId", "987654321")
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/ai/reviews").param("entityType", "Goal")
+                        .param("entityId", goalId.toString()))
+                .andExpect(status().isUnauthorized());
+        // The POST had the same gap: both were 500s, the global handler being scoped elsewhere.
+        mockMvc.perform(post("/api/ai/reviews").param("entityType", "Goal")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + noAccessToken))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/ai/reviews").param("entityType", "GlossaryTerm")
+                        .param("entityId", goalId.toString())
+                        .header("Authorization", "Bearer " + editorToken))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     void deleterCannotAddAProjectDictionaryWord() throws Exception {
         mockMvc.perform(post("/api/commands/AddProjectDictionaryWord")

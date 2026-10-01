@@ -1,0 +1,532 @@
+{
+  "_comment": "Issue #355: what a competent reviewer should raise on each fixture entity. Matching rules are in scripts/ai-eval/README.md.",
+  "fixture": "fixture-project.xml",
+  "entities": [
+    {
+      "type": "Goal",
+      "name": "Members love the library",
+      "expect": [
+        {
+          "id": "goal-unmeasurable",
+          "patterns": [
+            "measur",
+            "verif",
+            "testab",
+            "criteri",
+            "subjective",
+            "vague",
+            "quantif"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Send overdue reminders by text message",
+      "expect": [
+        {
+          "id": "goal-solution-not-outcome",
+          "patterns": [
+            "solution",
+            "mechanism",
+            "implementation detail",
+            "rather than (the|an) (outcome|goal|need)",
+            "underlying (need|goal|outcome)",
+            "why (the|a) (text|message)",
+            "intended outcome"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Fewer complaints about reminders",
+      "expect": [
+        {
+          "id": "goal-proxy-for-outcome",
+          "patterns": [
+            "proxy",
+            "indirect",
+            "symptom",
+            "real (goal|problem|outcome)",
+            "actual (goal|outcome|problem)",
+            "underlying (goal|outcome|problem)",
+            "returned on time"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Dana approves tool purchases",
+      "expect": [
+        {
+          "id": "goal-person-not-role",
+          "patterns": [
+            "person",
+            "individual",
+            "named",
+            "\\bdana\\b"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Members find tools quickly",
+      "expect": [
+        {
+          "id": "goal-duplicate",
+          "patterns": [
+            "duplicat",
+            "overlap",
+            "same as",
+            "redundan",
+            "subsum",
+            "restat",
+            "similar"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Members search the catalogue by name",
+      "expect": [
+        {
+          "id": "goal-duplicate",
+          "patterns": [
+            "duplicat",
+            "overlap",
+            "same as",
+            "redundan",
+            "subsum",
+            "restat",
+            "similar"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Suspended members cannot borrow",
+      "expect": [
+        {
+          "id": "goal-negative-only",
+          "patterns": [
+            "only (says|states|describes|lists|defines) who",
+            "who (can|may|is allowed to|is eligible to) borrow",
+            "positive (rule|condition|criteri|eligibility)",
+            "negative(ly)? (stated|only|framed)",
+            "by exclusion",
+            "never says who"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Online reservations and a mobile app",
+      "expect": [
+        {
+          "id": "goal-conjunctive",
+          "patterns": [
+            "two",
+            "split",
+            "separate",
+            "conjunct",
+            "combin",
+            "multiple",
+            "independent"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Member data stays private",
+      "expect": [
+        {
+          "id": "goal-constraint-not-goal",
+          "patterns": [
+            "constraint",
+            "policy",
+            "rule",
+            "no (clear )?success",
+            "ongoing",
+            "standing",
+            "invariant",
+            "non-functional"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Volunteers plan repairs weekly",
+      "expect": [
+        {
+          "id": "goal-not-a-system-goal",
+          "patterns": [
+            "meeting",
+            "process",
+            "not (a|about the) system",
+            "no (software|system)",
+            "without (any )?software",
+            "system (capability|role)",
+            "operational",
+            "out of scope"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Barcode scanning at checkout",
+      "expect": [
+        {
+          "id": "goal-implicit-invariant",
+          "patterns": [
+            "assum",
+            "invariant",
+            "stated as (a )?fact",
+            "protect",
+            "guarantee",
+            "enforce",
+            "who ensures",
+            "kept unique",
+            "stays true",
+            "remain(s)? true"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Tools come back on time",
+      "expect": [
+        {
+          "id": "goal-measure-without-baseline",
+          "patterns": [
+            "baseline",
+            "threshold",
+            "target",
+            "how (much|many)",
+            "what (rate|level|percentage)"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Condition alerts are acknowledged",
+      "expect": [
+        {
+          "id": "goal-vacuous-quantifier",
+          "patterns": [
+            "empty",
+            "zero",
+            "no alerts",
+            "vacuous",
+            "trivial",
+            "none",
+            "at least",
+            "coverage",
+            "never raise",
+            "does not raise"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Members reserve tools up to 7 days ahead",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "Story",
+      "name": "Borrow a drill",
+      "expect": [
+        {
+          "id": "story-missing-benefit",
+          "patterns": [
+            "benefit",
+            "so that",
+            "why",
+            "value",
+            "reason",
+            "purpose"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Story",
+      "name": "Reserve and pay online",
+      "expect": [
+        {
+          "id": "story-conjunctive",
+          "patterns": [
+            "two",
+            "split",
+            "separate",
+            "combin",
+            "multiple",
+            "independent"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Story",
+      "name": "Late returns",
+      "expect": [
+        {
+          "id": "story-is-a-scenario",
+          "patterns": [
+            "scenario",
+            "use case",
+            "steps",
+            "procedure",
+            "flow",
+            "sequence",
+            "numbered"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Story",
+      "name": "Halve the repair backlog",
+      "expect": [
+        {
+          "id": "trap-unsourced",
+          "patterns": [
+            "source",
+            "\\bcite",
+            "citation",
+            "where (the|these|this|that) .{0,40}(come|came) from",
+            "unverif",
+            "unsourced",
+            "provenance",
+            "no evidence",
+            "evidence (for|of)",
+            "origin of"
+          ]
+        }
+      ],
+      "trap": true,
+      "confirmPatterns": [
+        "\\b(are|is) (internally )?(consistent|correct|accurate)\\b",
+        "\\badds? up\\b",
+        "\\bchecks? out\\b",
+        "\\bsums? correctly\\b"
+      ]
+    },
+    {
+      "type": "Story",
+      "name": "Return a tool after hours",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "UseCase",
+      "name": "Check out a tool",
+      "expect": [
+        {
+          "id": "usecase-no-precondition-or-error",
+          "patterns": [
+            "precondition",
+            "pre-condition",
+            "error",
+            "fail",
+            "exception",
+            "altern",
+            "unavailable",
+            "what if"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "UseCase",
+      "name": "Approve a purchase",
+      "expect": [
+        {
+          "id": "usecase-person-not-role",
+          "patterns": [
+            "person",
+            "individual",
+            "named",
+            "role",
+            "\\bdana\\b"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "UseCase",
+      "name": "Renew a loan",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "Scenario",
+      "name": "Check out at the desk",
+      "expect": [
+        {
+          "id": "scenario-no-failure-branch",
+          "patterns": [
+            "fail",
+            "error",
+            "altern",
+            "exception",
+            "what if",
+            "expired",
+            "reserved",
+            "branch",
+            "unhappy"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Scenario",
+      "name": "Approve a purchase request",
+      "expect": [
+        {
+          "id": "scenario-step-order",
+          "patterns": [
+            "order",
+            "sequence",
+            "before",
+            "after",
+            "contradict",
+            "inconsisten",
+            "revers"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Scenario",
+      "name": "Renew from the account page",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "Step",
+      "name": "The system or staff mark the tool as broken",
+      "expect": [
+        {
+          "id": "step-ambiguous-actor",
+          "patterns": [
+            "ambig",
+            "actor",
+            "either",
+            "unclear who",
+            "responsib",
+            "two (possible|alternative) (actors|performers)"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Step",
+      "name": "Staff photograph the damage and email the member",
+      "expect": [
+        {
+          "id": "step-two-actions",
+          "patterns": [
+            "two",
+            "split",
+            "separate",
+            "multiple",
+            "compound",
+            "single action",
+            "combin"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Step",
+      "name": "Staff put the tool on the repair shelf",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "Actor",
+      "name": "Dana Whitfield",
+      "expect": [
+        {
+          "id": "actor-person-not-role",
+          "patterns": [
+            "person",
+            "individual",
+            "named after"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Actor",
+      "name": "Non-staff",
+      "expect": [
+        {
+          "id": "actor-defined-by-exclusion",
+          "patterns": [
+            "negation",
+            "exclu",
+            "(defined|described) (only|purely|solely|entirely) by",
+            "by what (it|they) (is|are) not",
+            "not staff"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Actor",
+      "name": "Member",
+      "silent": true,
+      "expect": []
+    },
+    {
+      "type": "GlossaryTerm",
+      "name": "Loan",
+      "expect": [
+        {
+          "id": "term-circular",
+          "patterns": [
+            "circular",
+            "itself",
+            "tautolog",
+            "defin"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "GlossaryTerm",
+      "name": "Overdue tool",
+      "expect": [
+        {
+          "id": "term-circular",
+          "patterns": [
+            "circular",
+            "itself",
+            "tautolog",
+            "defin"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "GlossaryTerm",
+      "name": "Pickup date",
+      "silent": true,
+      "expect": []
+    }
+  ]
+}

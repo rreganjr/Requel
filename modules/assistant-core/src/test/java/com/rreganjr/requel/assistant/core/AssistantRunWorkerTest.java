@@ -131,6 +131,79 @@ class AssistantRunWorkerTest {
 		assertThat(applicator.appliedResults).hasSize(1);
 	}
 
+	/** #355: the run keeps the assistants' own summary; a failed assistant contributes none. */
+	@Test
+	void theRunRecordsTheResultSummaryOfTheAssistantsThatRan() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new ThrowingAssistant(), new StringAssistant())),
+				new RecordingApplicator(), List.of(new StringTargetLoader()));
+
+		worker.run(record.runId());
+
+		assertThat(runStore.resultSummary(record.runId())).hasValueSatisfying(
+				summary -> assertThat(summary).isNotBlank().doesNotContain("analyze boom"));
+	}
+
+	/** #355: a store that cannot record the summary never fails the run. */
+	@Test
+	void aFailureToRecordTheResultSummaryDoesNotFailTheRun() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore() {
+			@Override
+			public void recordResultSummary(java.util.UUID runId, String summary) {
+				throw new IllegalStateException("summary column missing");
+			}
+		};
+		AssistantRunRecord record = runStore.queueRun(request());
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new StringAssistant())), new RecordingApplicator(),
+				List.of(new StringTargetLoader()));
+
+		worker.run(record.runId());
+
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
+				updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED));
+	}
+
+	/** #355: blank summaries are not recorded. */
+	@Test
+	void blankResultSummariesAreNotRecorded() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new BlankSummaryAssistant())),
+				new RecordingApplicator(), List.of(new StringTargetLoader()));
+
+		worker.run(record.runId());
+
+		assertThat(runStore.resultSummary(record.runId())).isEmpty();
+	}
+
+	/** #355: the in-memory store forgets a summary that is set blank. */
+	@Test
+	void theInMemoryStoreClearsABlankSummary() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		java.util.UUID runId = runStore.queueRun(request()).runId();
+		runStore.recordResultSummary(runId, "kept");
+		assertThat(runStore.resultSummary(runId)).contains("kept");
+		runStore.recordResultSummary(runId, " ");
+		assertThat(runStore.resultSummary(runId)).isEmpty();
+		runStore.recordResultSummary(runId, null);
+		assertThat(runStore.resultSummary(runId)).isEmpty();
+	}
+
+	/** #355: the SPI's default ignores the summary, so existing stores need not implement it. */
+	@Test
+	void theStoreSpiDefaultIgnoresTheSummary() {
+		AssistantRunStore store = org.mockito.Mockito.mock(AssistantRunStore.class,
+				org.mockito.Mockito.CALLS_REAL_METHODS);
+		store.recordResultSummary(java.util.UUID.randomUUID(), "ignored");
+		org.mockito.Mockito.verify(store).recordResultSummary(org.mockito.ArgumentMatchers.any(),
+				org.mockito.ArgumentMatchers.eq("ignored"));
+		org.mockito.Mockito.verifyNoMoreInteractions(store);
+	}
+
 	@Test
 	void oneAssistantFailingToAnalyzeDoesNotAbortTheOthers() {
 		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
@@ -609,6 +682,30 @@ class AssistantRunWorkerTest {
 			this.seenTaskType = context.taskType();
 			return AssistantResult.builder().assistantId(assistantId()).runId(context.runId())
 					.summary(target).build();
+		}
+	}
+
+	/** #355: a result with a blank summary. */
+	private static final class BlankSummaryAssistant implements RequelAssistant<String> {
+		@Override
+		public String assistantId() {
+			return "blank-summary-assistant";
+		}
+
+		@Override
+		public Class<String> targetType() {
+			return String.class;
+		}
+
+		@Override
+		public boolean handlesTask(String taskType) {
+			return true;
+		}
+
+		@Override
+		public AssistantResult analyze(AssistantContext context, String target) {
+			return AssistantResult.builder().assistantId(assistantId()).runId(context.runId())
+					.summary("   ").build();
 		}
 	}
 

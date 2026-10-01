@@ -83,6 +83,24 @@ public class InMemoryAssistantRunStore implements AssistantRunStore {
 				categories == null ? java.util.List.of() : java.util.List.copyOf(categories)));
 	}
 
+	/** #355: result summaries recorded per run, for tests. */
+	private final java.util.Map<UUID, String> resultSummaries =
+			new java.util.concurrent.ConcurrentHashMap<>();
+
+	@Override
+	public void recordResultSummary(UUID runId, String summary) {
+		if (summary == null || summary.isBlank()) {
+			resultSummaries.remove(runId);
+		} else {
+			resultSummaries.put(runId, summary);
+		}
+	}
+
+	/** #355: the result summary recorded for a run, if any. */
+	public java.util.Optional<String> resultSummary(UUID runId) {
+		return java.util.Optional.ofNullable(resultSummaries.get(runId));
+	}
+
 	/** #262: the redactions recorded for a run, if any. */
 	public java.util.Optional<java.util.Map.Entry<Integer, java.util.List<String>>> redactions(
 			UUID runId) {

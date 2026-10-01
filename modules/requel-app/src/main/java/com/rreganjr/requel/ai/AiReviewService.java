@@ -21,11 +21,13 @@
 package com.rreganjr.requel.ai;
 
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.rreganjr.platform.command.AuthorizationException;
+import com.rreganjr.requel.assistant.core.persistence.AssistantRunReadService;
 import com.rreganjr.requel.command.AnalysisRequestDispatcher;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Goal;
@@ -70,14 +72,17 @@ public class AiReviewService {
 	private final ProjectRepository projectRepository;
 	private final CurrentUserResolver currentUserResolver;
 	private final AnalysisRequestDispatcher analysisRequestDispatcher;
+	private final AssistantRunReadService runReadService;
 
 	@Autowired
 	public AiReviewService(ProjectRepository projectRepository,
 			CurrentUserResolver currentUserResolver,
-			AnalysisRequestDispatcher analysisRequestDispatcher) {
+			AnalysisRequestDispatcher analysisRequestDispatcher,
+			AssistantRunReadService runReadService) {
 		this.projectRepository = projectRepository;
 		this.currentUserResolver = currentUserResolver;
 		this.analysisRequestDispatcher = analysisRequestDispatcher;
+		this.runReadService = runReadService;
 	}
 
 	/**
@@ -97,6 +102,28 @@ public class AiReviewService {
 		ProjectOrDomainEntity target = projectRepository.findById(type, entityId);
 		requireProjectAccess(target, user);
 		analysisRequestDispatcher.dispatch(target, user, TASK_TYPE);
+	}
+
+	/**
+	 * Issue #355: the entity's latest {@code REQUIREMENTS_REVIEW} run with the findings it reported,
+	 * or empty when it has never been reviewed. Same type and access checks as
+	 * {@link #requestReview}.
+	 *
+	 * @throws IllegalArgumentException if {@code entityType} is not reviewable
+	 * @throws com.rreganjr.platform.exception.NoSuchEntityException if the entity does not exist
+	 * @throws AuthorizationException if the current user cannot access the entity's project
+	 */
+	public Optional<AssistantRunReadService.RunView> latestReview(String entityType, Long entityId) {
+		Class<? extends ProjectOrDomainEntity> type = REVIEWABLE_TYPES.get(entityType);
+		if (type == null) {
+			throw new IllegalArgumentException("Entity type is not reviewable: " + entityType);
+		}
+		User user = currentUserResolver.resolve();
+		ProjectOrDomainEntity target = projectRepository.findById(type, entityId);
+		requireProjectAccess(target, user);
+		// Runs are keyed by the entity's interface name, as the dispatcher writes them.
+		return runReadService.latestRun(target.getProjectOrDomainEntityInterface().getSimpleName(),
+				target.getId(), TASK_TYPE);
 	}
 
 	private void requireProjectAccess(ProjectOrDomainEntity target, User user) {

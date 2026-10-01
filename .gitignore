@@ -43,3 +43,7 @@ node_modules/
 /tmp/
 # Cowork SendUserFile deliverables land here; plans/docs belong in doc/ instead.
 /Claude outputs/
+
+# Python bytecode (scripts/ai-eval, #355)
+__pycache__/
+*.pyc

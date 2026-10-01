@@ -360,6 +360,18 @@ Because this endpoint lives under `/api/**`, it requires you to be logged in. Lo
 3. **See the results** in Requel: open the entity in the UI and look at its discussion /
    annotations. The AI‑generated issues and notes appear there once the review finishes.
 
+   Or read the latest review run back with the same parameters (issue #355):
+
+   ```bash
+   curl "http://localhost:8080/api/ai/reviews?entityType=UseCase&entityId=2" \
+     -H "Authorization: Bearer PASTE_YOUR_TOKEN_HERE"
+   ```
+
+   It returns the run's `status` (`QUEUED`, `RUNNING`, `SUCCEEDED`, `FAILED`), `errorSummary` when
+   it failed, the model's `summary`, and the `findings` that run reported (type, kind, severity,
+   text). `204 No Content` means the entity has never been reviewed. The POST's 400/403/404 rules
+   apply.
+
 **Who is allowed to run a review.** You can review an entity only if you're a system administrator
 or a stakeholder on that entity's project. This is enforced on top of the optional
 `REQUEL_AI_PROJECT_ALLOWLIST`.
@@ -617,6 +629,16 @@ or import.
 > **Detecting PII with AI is no substitute.** Sending text to an external provider to ask whether it
 > contains PII has already disclosed it. Detection belongs on a local provider or a deterministic
 > policy; this policy is the deterministic half.
+
+---
+
+## 12. Measuring review quality
+
+`scripts/ai-eval/` holds a fixture project of deliberately flawed (and deliberately clean)
+entities, the findings a competent reviewer should raise on each, and `score.py`, which reviews
+every fixture entity a few times through the API and reports per-type hit rate, spurious findings
+and failures. Use it to check a prompt or provider change against the recorded baseline
+(`doc/work/2.0/355-ai-eval-baseline.md`). See `scripts/ai-eval/README.md`.
 
 ---
 

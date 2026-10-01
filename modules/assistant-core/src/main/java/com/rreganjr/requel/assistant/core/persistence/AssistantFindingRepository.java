@@ -68,4 +68,10 @@ public interface AssistantFindingRepository
 	 */
 	List<AssistantFindingEntity> findByAppliedAnnotationIdInAndStateIn(
 			Collection<Long> appliedAnnotationIds, Collection<String> states);
+
+	/**
+	 * Issue #355: everything one run reported on a target, new or re-seen, oldest first.
+	 */
+	List<AssistantFindingEntity> findByLastSeenRunIdAndTargetTypeAndTargetIdOrderByCreatedAtAscIdAsc(
+			String lastSeenRunId, String targetType, Long targetId);
 }

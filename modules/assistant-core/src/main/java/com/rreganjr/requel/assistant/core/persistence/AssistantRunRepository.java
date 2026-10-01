@@ -20,10 +20,19 @@
  */
 package com.rreganjr.requel.assistant.core.persistence;
 
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
  * Spring Data repository for {@link AssistantRunEntity}.
  */
 public interface AssistantRunRepository extends JpaRepository<AssistantRunEntity, String> {
+
+	/**
+	 * Issue #355: the newest run of one task type on a target (ties broken by id, so the answer is
+	 * stable).
+	 */
+	Optional<AssistantRunEntity> findFirstByTargetTypeAndTargetIdAndTaskTypeOrderByCreatedAtDescIdDesc(
+			String targetType, Long targetId, String taskType);
 }
