@@ -161,20 +161,52 @@ public class AssistantDefinitionStore implements ProjectAssistantDefinitions {
 					+ definition.key());
 		}
 		AssistantDefinitionEntity entity = find(definition.key(), null);
-		if (entity != null && entity.getDefinitionVersion() >= definition.version()) {
+		// #263: a dev override (see overrideBundled) never outlives its directory; the shipped
+		// file replaces it on the next start without the override.
+		boolean devOverride = entity != null && DEV_OVERRIDE.equals(entity.getUpdatedBy());
+		if (entity != null && !devOverride && entity.getDefinitionVersion() >= definition.version()) {
 			return false;
 		}
 		if (entity == null) {
 			entity = new AssistantDefinitionEntity(definition.key(), null, clock.instant());
+		} else if (devOverride) {
+			log.info("Replacing the dev override of bundled assistant definition {} with the"
+					+ " shipped version {}", definition.key(), definition.version());
 		} else {
 			log.info("Upgrading bundled assistant definition {} from version {} to {}",
 					definition.key(), entity.getDefinitionVersion(), definition.version());
 		}
 		copy(definition, entity);
+		entity.setUpdatedBy(null);
 		entity.setUpdatedAt(clock.instant());
 		repository.save(entity);
 		evict(null);
 		return true;
+	}
+
+	/** {@code updated_by} of a bundled row written by {@link #overrideBundled}. */
+	static final String DEV_OVERRIDE = "dev-override";
+
+	/**
+	 * Issue #263, dev only: replace the bundled row for {@code definition}'s key whatever the
+	 * versions, so a definition can be tuned without a rebuild. The row is marked, and the next
+	 * start without the override directory reseeds the shipped file over it.
+	 */
+	@Transactional
+	public void overrideBundled(AssistantDefinition definition) {
+		if (definition.source() != DefinitionSource.BUNDLED || definition.projectId() != null) {
+			throw new IllegalArgumentException("only bundled definitions are overridden: "
+					+ definition.key());
+		}
+		AssistantDefinitionEntity entity = find(definition.key(), null);
+		if (entity == null) {
+			entity = new AssistantDefinitionEntity(definition.key(), null, clock.instant());
+		}
+		copy(definition, entity);
+		entity.setUpdatedBy(DEV_OVERRIDE);
+		entity.setUpdatedAt(clock.instant());
+		repository.save(entity);
+		evict(null);
 	}
 
 	/** Delete the project's own definitions (bundled ones are untouched) and evict its reads. */

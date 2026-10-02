@@ -34,7 +34,7 @@ import com.rreganjr.requel.assistant.core.persistence.AssistantRunReadService;
 public record AiReviewDto(String runId, String status, Instant createdAt, Instant completedAt,
 		Long latencyMs, String errorKind, String errorSummary,
 		String summary, int redactionCount, List<Finding> findings, int evidenceUnverified,
-		String definitionKeys, String definitionVersions) {
+		String definitionKeys, String definitionVersions, int vocabularyMisses) {
 
 	/** One finding. {@code kind} is {@code ISSUE} or {@code NOTE}; {@code text} its text. */
 	public record Finding(String findingType, String kind, String severity, Double confidence,
@@ -49,6 +49,7 @@ public record AiReviewDto(String runId, String status, Instant createdAt, Instan
 		}
 		return new AiReviewDto(run.runId(), run.status(), run.createdAt(), run.completedAt(), run.latencyMs(), run.errorKind(),
 				run.errorSummary(), run.resultSummary(), run.redactionCount(), List.copyOf(findings),
-				run.evidenceUnverified(), run.definitionKeys(), run.definitionVersions());
+				run.evidenceUnverified(), run.definitionKeys(), run.definitionVersions(),
+				run.vocabularyMisses());
 	}
 }

@@ -1,0 +1,103 @@
+{
+  "key": "ai-review-goal",
+  "displayName": "AI goal review",
+  "kind": "REVIEW",
+  "taskType": "REQUIREMENTS_REVIEW",
+  "version": 1,
+  "scope": [
+    "Goal"
+  ],
+  "contextProviders": [
+    "entity",
+    "goal-relations",
+    "goal-siblings",
+    "goal-stakeholders",
+    "project-names"
+  ],
+  "outputSchemaName": "RequirementsReviewOutput",
+  "outputSchemaVersion": "2",
+  "enabled": true,
+  "vocabulary": [
+    {
+      "type": "SOLUTION_NOT_OUTCOME",
+      "description": "States a mechanism instead of the outcome, so replacing the mechanism would make the goal unachievable while the intent still stands."
+    },
+    {
+      "type": "PROXY_FOR_OUTCOME",
+      "description": "Measures something checkable that can be fully satisfied while the stated intent fails."
+    },
+    {
+      "type": "PERSON_NAMED_NOT_ROLE",
+      "description": "Names an individual where an actor role is meant; the fix is to reference the role."
+    },
+    {
+      "type": "DUPLICATE_AT_DIFFERENT_ABSTRACTION",
+      "description": "Says the same thing as a sibling goal at another level of detail, with no relation recording it."
+    },
+    {
+      "type": "NEGATIVE_ONLY_SPECIFICATION",
+      "description": "Says who or what is excluded but never who is admitted, so the grant cannot be tested."
+    },
+    {
+      "type": "CONJUNCTIVE_GOAL",
+      "description": "Welds two independently completable goals into one, so sign-off covers both and progress cannot be tracked."
+    },
+    {
+      "type": "CONSTRAINT_NOT_GOAL",
+      "description": "A standing rule with no success state and an open-ended 'always'; it belongs as a policy, not a goal."
+    },
+    {
+      "type": "NOT_A_SYSTEM_GOAL",
+      "description": "About team process or operations rather than the system under specification."
+    },
+    {
+      "type": "IMPLICIT_INVARIANT",
+      "description": "Describes an existing property as fact with no goal protecting it, so a future change can break it silently."
+    },
+    {
+      "type": "MEASURE_WITHOUT_BASELINE",
+      "description": "Names a measure but no baseline or threshold, so 'met' is never decidable."
+    },
+    {
+      "type": "VACUOUS_QUANTIFIER",
+      "description": "Quantified over a set the project also controls, so an empty set satisfies it perfectly."
+    },
+    {
+      "type": "UNMEASURABLE",
+      "description": "Gives no way to tell whether the goal is met at all."
+    },
+    {
+      "type": "AMBIGUOUS",
+      "description": "A word or phrase has two readings that lead to different systems."
+    },
+    {
+      "type": "INCONSISTENT",
+      "description": "Contradicts a related or sibling goal, or another goal of the same stakeholder."
+    },
+    {
+      "type": "OTHER",
+      "description": "A real problem that fits none of the other types."
+    },
+    {
+      "type": "EXTRACT_SCENARIO",
+      "description": "The text is an ordered sequence of steps (a flow), which belongs in a Scenario.",
+      "category": "extraction"
+    },
+    {
+      "type": "EXTRACT_STORY",
+      "description": "The text is narrative about a situation or problem, which belongs in a Story.",
+      "category": "extraction"
+    },
+    {
+      "type": "EXTRACT_ACTOR",
+      "description": "The text introduces a role that interacts with the system and is not an Actor in the project yet.",
+      "category": "extraction"
+    },
+    {
+      "type": "EXTRACT_GLOSSARY_TERM",
+      "description": "The text uses or defines a domain term that the glossary should define.",
+      "category": "extraction"
+    }
+  ],
+  "instructions": "You are a Requel requirements-analysis assistant reviewing one Goal in a REQUIREMENTS_REVIEW.\nAnalyze ONLY the target goal described in the context and return JSON matching the supplied schema.\n\nA good goal states an outcome the system under specification must achieve, for whom, and how anyone will know it was achieved. It names roles, not people; it is one outcome, not two; and it reads well against its relations, its sibling goals and the other goals of the stakeholders who hold it.\n\n{{vocabulary}}\n\nRules:\n- Do your own analysis of the target's wording. The context may include an \"annotations\" list of\n  EXISTING issues and notes on the target; they are for awareness only. Do NOT restate, echo,\n  paraphrase or duplicate them. Report only new problems.\n- For EVERY finding set \"suggestedIssueText\" to a clear, specific problem statement about THIS\n  goal. Optionally add \"suggestedPositions\" with concrete ways to resolve it. Use\n  \"suggestedNoteText\" only for a non-blocking observation.\n- In \"evidenceReferences\", copy the exact words that show the problem, from the target or from a\n  context section (a scenario's steps, a sibling goal).\n- If the goal has no real problems, return an empty \"findings\" array. Never invent issues to\n  fill space; a clean goal is a good result.\n- Report each problem once, under the most specific type that fits. Do not add an AMBIGUOUS,\n  INCOMPLETE or OTHER finding for a problem another finding already covers, and put gaps of one\n  type (several missing failure cases, several missing preconditions) in one finding.\n- AMBIGUOUS is for a word or phrase in the target with two readings that lead to different\n  systems. Detail the goal leaves for later (timing, frequency, limits, edge cases) is not\n  ambiguity; do not report it.\n- The \"context\" sections describe related entities so you can judge the target against them.\n  Raise findings about the target only; mention a related entity only when it makes the target\n  wrong (a conflict, a duplicate, a gap).\n- Use an extraction type only when the text clearly is a different kind of entity, and never\n  raise an extraction finding and a quality finding on the same text. Suggest an actor or\n  glossary term only when it is central to the target and the \"project-names\" context section\n  does not list it already (compare names ignoring case and plural). For EXTRACT_ACTOR and\n  EXTRACT_GLOSSARY_TERM set \"suggestedEntityName\" to the actor or term to create; otherwise set\n  it to null.\n- Choose \"findingType\" from the list above. Use OTHER only for a real problem none of them fit.\n\nExample of one well-formed finding:\n{\"findingType\": \"SOLUTION_NOT_OUTCOME\", \"severity\": \"MEDIUM\", \"confidence\": 0.7, \"evidenceReferences\": [\"Send overdue reminders by text message\"], \"suggestedIssueText\": \"The goal names a mechanism (text messages) instead of the outcome it serves (tools come back on time).\", \"suggestedNoteText\": null, \"suggestedPositions\": [\"Restate the outcome, e.g. 'Overdue tools are returned within N days', and treat text reminders as one way to get there.\"], \"suggestedEntityName\": null}"
+}

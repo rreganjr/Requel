@@ -42,8 +42,10 @@ def load_expectations(path):
         entity.setdefault("silent", False)
         entity.setdefault("trap", False)
         entity.setdefault("confirmPatterns", [])
-        for item in entity["expect"]:
+        entity.setdefault("alsoValid", [])
+        for item in entity["expect"] + entity["alsoValid"]:
             item.setdefault("types", [])
+            item.setdefault("acceptTypes", [])
     return doc
 
 
@@ -51,37 +53,79 @@ def _matches_any(patterns, text):
     return any(re.search(p, text or "", re.I) for p in patterns)
 
 
+def is_extraction(finding):
+    """#263: an extraction suggestion (EXTRACT_*) is advisory, not a quality finding."""
+    return (finding.get("findingType") or "").startswith("EXTRACT_")
+
+
 def score_run(entity, findings, summary):
     """Score one run's findings on one entity.
 
     Returns {"hits": [item ids], "misses": [item ids], "spurious": [findings],
-    "confirmed": bool}. A finding matches an expected item when its text matches one of the
-    item's patterns and, if the item lists types, its findingType is one of them. Each finding
-    matches at most one item (first in file order) and each item counts once. On a silent
-    entity every finding is spurious.
+    "suggestions": [findings], "confirmed": bool}. A finding matches an expected item when its
+    text matches one of the item's patterns, or its findingType is one of the item's acceptTypes
+    (#263), and, if the item lists types, its findingType is one of them. Findings of an accepted
+    type claim their items first, so a finding that only matches on wording cannot take an item
+    from the finding that names the flaw (#263). Each finding matches at most one item (first in
+    file order) and each item counts once. A finding left over that matches an "alsoValid" item
+    the same way is a valid extra: a real flaw the expectations don't target, neither a hit nor
+    spurious (#263). An extraction finding that matches nothing is a suggestion, not spurious
+    (#263). On a silent entity every other finding is spurious.
     """
     remaining = list(entity["expect"])
-    hits, spurious = [], []
-    for finding in findings:
-        text = finding.get("text") or ""
-        matched = None
+    claimed = {}
+
+    def eligible(item, finding):
+        return not item.get("types") or finding.get("findingType") in item["types"]
+
+    for index, finding in enumerate(findings):
         for item in remaining:
-            if item["types"] and finding.get("findingType") not in item["types"]:
-                continue
-            if _matches_any(item["patterns"], text):
-                matched = item
+            if eligible(item, finding) and finding.get("findingType") in item.get("acceptTypes", []):
+                claimed[index] = item
+                remaining.remove(item)
                 break
-        if matched is None:
-            spurious.append(finding)
+    for index, finding in enumerate(findings):
+        if index in claimed:
+            continue
+        for item in remaining:
+            if eligible(item, finding) and _matches_any(item["patterns"], finding.get("text")):
+                claimed[index] = item
+                remaining.remove(item)
+                break
+    valid = {}
+    extras = list(entity.get("alsoValid", []))
+    for index, finding in enumerate(findings):
+        if index in claimed:
+            continue
+        for item in extras:
+            if eligible(item, finding) and (
+                    finding.get("findingType") in item.get("acceptTypes", [])
+                    or _matches_any(item.get("patterns", []), finding.get("text"))):
+                valid[index] = item
+                extras.remove(item)
+                break
+    hits, spurious, suggestions, also_valid = [], [], [], []
+    for index, finding in enumerate(findings):
+        if index in claimed:
+            hits.append(claimed[index]["id"])
+        elif index in valid:
+            also_valid.append(dict(finding, alsoValid=valid[index]["id"]))
+        elif is_extraction(finding):
+            suggestions.append(finding)
         else:
-            hits.append(matched["id"])
-            remaining.remove(matched)
+            spurious.append(finding)
     confirmed = False
     if entity["trap"]:
         texts = [f.get("text") or "" for f in findings] + [summary or ""]
-        confirmed = any(_matches_any(entity["confirmPatterns"], t) for t in texts)
+        # #263: "the figures add up, but nothing says where they come from" questions the
+        # premise; only a text that vouches for the figures without questioning them confirms.
+        questioning = [p for item in entity["expect"] for p in item["patterns"]]
+        confirmed = any(_matches_any(entity["confirmPatterns"], t)
+                        and not _matches_any(questioning, t) for t in texts)
+    order = [i["id"] for i in entity["expect"]]
+    hits.sort(key=order.index)
     return {"hits": hits, "misses": [i["id"] for i in remaining], "spurious": spurious,
-            "confirmed": confirmed}
+            "suggestions": suggestions, "alsoValid": also_valid, "confirmed": confirmed}
 
 
 def classify(view):
@@ -105,7 +149,8 @@ def aggregate(results):
         row = rows.setdefault(entity["type"], {
             "entities": 0, "skipped": 0, "runs": 0, "ok": 0, "expected": 0, "hits": 0,
             "spurious": 0, "silentRuns": 0, "silentKept": 0, "schema": 0, "failed": 0,
-            "timeout": 0, "confirmed": 0, "unverified": 0})
+            "timeout": 0, "confirmed": 0, "unverified": 0, "vocabularyMisses": 0,
+            "suggestions": 0, "alsoValid": 0})
         row["entities"] += 1
         if result.get("skipped"):
             row["skipped"] += 1
@@ -122,11 +167,17 @@ def aggregate(results):
             row["expected"] += len(entity["expect"])
             row["hits"] += len(score["hits"])
             row["spurious"] += len(score["spurious"])
+            # #263: unmatched extraction findings, advisory.
+            suggestions = score.get("suggestions", [])
+            row["suggestions"] += len(suggestions)
+            row["alsoValid"] += len(score.get("alsoValid", []))
             # #260: findings whose cited evidence is not in the entity (absent before #260).
             row["unverified"] += run.get("evidenceUnverified") or 0
+            # #263: findings whose type is not in the definition's vocabulary.
+            row["vocabularyMisses"] += run.get("vocabularyMisses") or 0
             if entity["silent"]:
                 row["silentRuns"] += 1
-                if not run["findings"]:
+                if not score["spurious"] and not score["hits"]:
                     row["silentKept"] += 1
             if score["confirmed"]:
                 row["confirmed"] += 1
@@ -148,8 +199,8 @@ def render_report(meta, results):
     out.append("- **definitions:** %s" % (", ".join(definitions) or "not recorded"))
     out += ["", "| Type | Entities | Runs ok/total | Hit rate | Spurious per run | Silent kept "
             "silent | Schema failures | Other failures | Timeouts | Confirmed (trap) | "
-            "Unverified evidence |",
-            "|---|---|---|---|---|---|---|---|---|---|---|"]
+            "Unverified evidence | Off-vocabulary types | Suggestions per run | Also valid per run |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     total = None
     for type_name in TYPES + sorted(set(rows) - set(TYPES)):
         row = rows.get(type_name)
@@ -165,7 +216,12 @@ def render_report(meta, results):
     out += ["", "Hit rate = expected findings matched / (expected findings x successful runs). "
             "Spurious = findings that matched no expected finding. Silent kept silent = "
             "successful runs on silent entities that raised nothing. Unverified evidence = "
-            "findings citing text that is not in the entity (#260; they are still written).",
+            "findings citing text that is not in the entity (#260; they are still written). "
+            "Off-vocabulary types = findings whose type is not in the definition's vocabulary "
+            "(#263). Suggestions = extraction findings (EXTRACT_*) that matched no expected "
+            "finding: advisory, so neither spurious nor breaking a silent case (#263). Also valid = "
+            "findings matching an entity's alsoValid list: real flaws the fixture doesn't target "
+            "(#263).",
             ""]
 
     out += ["## Details", ""]
@@ -177,7 +233,7 @@ def render_report(meta, results):
             continue
         out += [title, ""]
         if entity["silent"]:
-            out.append("Silent case (any finding is spurious).")
+            out.append("Silent case (any quality finding is spurious).")
         else:
             out.append("Expects: " + ", ".join(i["id"] for i in entity["expect"]))
         for n, run in enumerate(result["runs"], 1):
@@ -192,10 +248,19 @@ def render_report(meta, results):
                 line += "; **CONFIRMED the figures**"
             if run.get("evidenceUnverified"):
                 line += "; %d with unverified evidence" % run["evidenceUnverified"]
+            if run.get("vocabularyMisses"):
+                line += "; %d off-vocabulary" % run["vocabularyMisses"]
             out.append(line)
             for finding in score["spurious"]:
                 out.append("  - spurious `%s`: %s" % (finding.get("findingType"),
                                                       _one_line(finding.get("text"))))
+            for finding in score.get("alsoValid", []):
+                out.append("  - also valid (%s) `%s`: %s" % (
+                    finding.get("alsoValid"), finding.get("findingType"),
+                    _one_line(finding.get("text"))))
+            for finding in score.get("suggestions", []):
+                out.append("  - suggestion `%s`: %s" % (finding.get("findingType"),
+                                                        _one_line(finding.get("text"))))
         out.append("")
     return "\n".join(out) + "\n"
 
@@ -204,12 +269,15 @@ def _row(name, row):
     entities = "%d" % (row["entities"] - row["skipped"])
     if row["skipped"]:
         entities += " (%d skipped)" % row["skipped"]
-    return "| %s | %s | %d/%d | %s | %s | %s | %d | %d | %d | %d | %d |" % (
+    return "| %s | %s | %d/%d | %s | %s | %s | %d | %d | %d | %d | %d | %d | %s | %s |" % (
         name, entities, row["ok"], row["runs"],
         _ratio(row["hits"], row["expected"]),
         "-" if row["ok"] == 0 else "%.1f" % (row["spurious"] / float(row["ok"])),
         _ratio(row["silentKept"], row["silentRuns"]),
-        row["schema"], row["failed"], row["timeout"], row["confirmed"], row["unverified"])
+        row["schema"], row["failed"], row["timeout"], row["confirmed"], row["unverified"],
+        row["vocabularyMisses"],
+        "-" if row["ok"] == 0 else "%.1f" % (row["suggestions"] / float(row["ok"])),
+        "-" if row["ok"] == 0 else "%.1f" % (row["alsoValid"] / float(row["ok"])))
 
 
 def _definition(view):
@@ -398,6 +466,9 @@ def main(argv=None):
     parser.add_argument("--expectations", default=os.path.join(HERE, "expectations.json"))
     parser.add_argument("--delete-after", action="store_true",
                         help="delete the imported project when done")
+    parser.add_argument("--reload-definitions", action="store_true",
+                        help="first POST /api/dev/ai/definitions/reload, so edited files in "
+                             "requel.ai.definitions.dir take effect (#263, dev only)")
     parser.add_argument("--rescore", metavar="RAW_JSON",
                         help="no server: re-score a previous run's raw.json against the current "
                              "expectations (to tune patterns) and write a new report")
@@ -411,6 +482,13 @@ def main(argv=None):
 
     client = RequelClient(args.base_url, args.user, args.password)
     client.login()
+    if args.reload_definitions:
+        status, data = client.call("POST", "/api/dev/ai/definitions/reload", b"",
+                                   {"Content-Type": "application/json"})
+        if status != 200:
+            raise SystemExit("reload failed: HTTP %d %s (is requel.ai.definitions.dir set?)"
+                             % (status, data[:500]))
+        print("reloaded definitions: %s" % json.loads(data).get("reloaded"))
     project = args.project or "AI Eval " + stamp
     if not args.project:
         fixture = os.path.join(os.path.dirname(os.path.abspath(args.expectations)),
@@ -446,6 +524,7 @@ def main(argv=None):
                    "summary": (view or {}).get("summary"), "findings": findings,
                    "latencyMs": (view or {}).get("latencyMs"),
                    "evidenceUnverified": (view or {}).get("evidenceUnverified") or 0,
+                   "vocabularyMisses": (view or {}).get("vocabularyMisses") or 0,
                    "definition": _definition(view)}
             if outcome == "ok":
                 run["score"] = score_run(entity, findings, run["summary"])

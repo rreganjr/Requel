@@ -26,10 +26,12 @@ package com.rreganjr.requel.service.api.dto;
  * @param assistantId the id EditProjectAssistantSetting takes
  * @param displayName the name to show
  * @param enabled whether it runs in the project
+ * @param group the heading its switch shows under, e.g. "Lexical checks" or "AI review" (#263)
  */
 public record ProjectAssistantDto(
         String assistantId,
         String displayName,
-        boolean enabled
+        boolean enabled,
+        String group
 ) {
 }

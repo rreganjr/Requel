@@ -1059,7 +1059,8 @@ public class ProjectQueryController {
             List<com.rreganjr.requel.service.api.dto.ProjectAssistantDto> dtos = assistantCatalog
                     .switchableAssistants().stream()
                     .map(a -> new com.rreganjr.requel.service.api.dto.ProjectAssistantDto(
-                            a.assistantId(), a.displayName(), !disabled.contains(a.assistantId())))
+                            a.assistantId(), a.displayName(), !disabled.contains(a.assistantId()),
+                            a.group()))
                     .toList();
             return ResponseEntity.ok(dtos);
         } catch (NoSuchProjectException e) {

@@ -129,20 +129,26 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 			return List.of();
 		}
 		String entityType = entity.getProjectOrDomainEntityInterface().getSimpleName();
+		// #263: coverage is decided before the switches. A type with its own definition is never
+		// reviewed by the fallback, so switching that definition off stops its reviews rather
+		// than handing them to the generic one.
 		List<AssistantDefinition> specific = new ArrayList<AssistantDefinition>();
 		List<AssistantDefinition> fallback = new ArrayList<AssistantDefinition>();
 		for (AssistantDefinition definition : definitionStore.definitionsFor(projectId(context),
 				context.taskType())) {
-			if (!definition.enabled() || disabled.contains(definition.key())) {
-				continue;
-			}
 			if (definition.isSpecificTo(entityType)) {
 				specific.add(definition);
 			} else if (definition.isFallback()) {
 				fallback.add(definition);
 			}
 		}
-		return List.copyOf(specific.isEmpty() ? fallback : specific);
+		List<AssistantDefinition> chosen = new ArrayList<AssistantDefinition>();
+		for (AssistantDefinition definition : specific.isEmpty() ? fallback : specific) {
+			if (definition.enabled() && !disabled.contains(definition.key())) {
+				chosen.add(definition);
+			}
+		}
+		return List.copyOf(chosen);
 	}
 
 	private RequelAssistant<?> executorFor(AssistantDefinition definition) {
@@ -178,7 +184,7 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 			for (AssistantDefinition definition : definitionStore.bundled()) {
 				if (definition.enabled()) {
 					switchable.add(new SwitchableAssistant(definition.key(),
-							definition.displayName()));
+							definition.displayName(), SwitchableAssistantCatalog.AI_REVIEW));
 				}
 			}
 		}

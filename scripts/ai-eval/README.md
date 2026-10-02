@@ -3,7 +3,8 @@
 A fixture project, the findings a competent reviewer should raise on it, and a script that scores
 Requel's AI review against them (issue #355). The score is the yardstick for the AI-assistant work
 in epic #258: #260 must reproduce the baseline, and #261 and #263 report their change against it.
-The baseline is in `doc/work/2.0/355-ai-eval-baseline.md`.
+The baseline is in `doc/work/2.0/355-ai-eval-baseline.md`; the per-type definitions' result
+(#263) is in `doc/work/2.0/263-ai-eval-final.md`.
 
 This is a dev tool. It needs a running Requel with an AI provider, it is not part of the build,
 and CI never runs it. `FixtureExpectationsIT` is the only part CI runs: it imports the fixture and
@@ -32,6 +33,22 @@ Every entity is synthetic. Do not add text from a real specification: this repos
 
 3. Read `target/ai-eval/<timestamp>/report.md`. `raw.json` beside it has every run's findings.
 
+### Tuning the review definitions without a rebuild (#263)
+
+Each reviewable type has a bundled definition in
+`modules/assistant-ai/src/main/resources/ai/definitions/`. To tune them:
+
+1. Copy the files to a working directory, e.g. `tmp/263-defs/`.
+2. Start Requel with `--requel.ai.definitions.dir=<that directory>` (dev only). At startup, after
+   seeding, the files there replace the bundled definitions with the same keys, whatever their
+   version.
+3. Edit a file, then run the script with `--reload-definitions`: it calls
+   `POST /api/dev/ai/definitions/reload` (present only when the property is set) before
+   scoring. An invalid file is refused with its problems listed, and nothing changes.
+4. Copy the tuned files back to the resource directory.
+
+A start without the property puts the shipped files back over any dev override.
+
 Useful options:
 
 | Option | Default | What |
@@ -45,6 +62,7 @@ Useful options:
 | `--delete-after` | off | delete the imported project at the end |
 | `--label` | none | free text in the report, e.g. the provider and model |
 | `--rescore RAW_JSON` | off | no server: re-score a saved `raw.json` against the current expectations |
+| `--reload-definitions` | off | first reload `requel.ai.definitions.dir` (#263, dev only) |
 
 Each run imports the fixture under a new name (`AI Eval YYYYMMDD-HHMMSS`), so runs never collide.
 Entities are reviewed one at a time. With `--runs 3` and the `cli` provider a full run takes
@@ -56,24 +74,36 @@ For each review of an entity the script posts `POST /api/ai/reviews`, then polls
 `GET /api/ai/reviews` until a new run finishes, and scores the findings that run reported.
 
 1. A finding **matches** an expected item when its text matches one of the item's `patterns`
-   (case-insensitive regular expressions) and, if the item lists `types`, its `findingType` is
-   one of them.
-2. Each finding matches at most one item (first in file order), and each item counts once per run.
-3. A finding that matches nothing is **spurious**. On a `silent` entity every finding is spurious.
-4. On the `trap` entity, a finding or the run's summary matching a `confirmPatterns` entry counts
-   as **confirmed**: the reviewer vouched for figures nobody checked.
+   (case-insensitive regular expressions) or its `findingType` is one of the item's
+   `acceptTypes` (#263), and, if the item lists `types`, its `findingType` is one of them.
+2. Findings of an accepted type claim their items first, then the rest match on wording, so a
+   finding that only shares words with an item can't take it from the finding that names the
+   flaw (#263).
+3. Each finding matches at most one item (first in file order), and each item counts once per run.
+4. A finding left over that matches one of the entity's `alsoValid` items (same rules) is **also
+   valid**: a real flaw the fixture doesn't target. It is neither a hit nor spurious (#263).
+5. A leftover extraction finding (`EXTRACT_*`) is a **suggestion**: advisory, not spurious (#263).
+6. Anything else is **spurious**. On a `silent` entity everything except suggestions and also
+   valid findings is spurious.
+7. On the `trap` entity, a finding or the run's summary matching a `confirmPatterns` entry counts
+   as **confirmed**: the reviewer vouched for figures nobody checked. A text that also matches the
+   trap item's patterns ("the figures add up, but no source is given") questions the figures and
+   does not confirm (#263).
 
 | Column | Meaning |
 |---|---|
 | Hit rate | expected items matched / (expected items x successful runs) |
 | Spurious per run | findings matching nothing, per successful run |
-| Silent kept silent | successful runs on silent entities that raised nothing |
+| Silent kept silent | successful runs on silent entities with no hit and nothing spurious |
 | Schema failures | runs that failed because the reply was not the output schema's shape |
 | Other failures | runs that failed for any other reason (provider error, refusal) |
 | Confirmed (trap) | runs on the trap that said its figures are right |
-| Unverified evidence | findings citing text that is not in the entity (#260); the header also lists the `definition@version` the runs used |
+| Unverified evidence | findings citing text that is not in what the model was sent: the entity and its context sections (#260, widened in #263); the header also lists the `definition@version` the runs used |
+| Off-vocabulary types | findings whose type is not in the definition's vocabulary (#263) |
+| Suggestions per run | extraction findings that matched no expected item (#263) |
+| Also valid per run | findings matching an `alsoValid` item (#263) |
 
-A type the server can't review (GlossaryTerm, today) is reported as skipped.
+A type the server can't review is reported as skipped.
 
 Read the matches in the report's details before trusting a number: a pattern that matches the
 wrong finding inflates the hit rate. Fix it in `expectations.json`, then re-score the saved

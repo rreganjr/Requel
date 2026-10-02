@@ -1,5 +1,5 @@
 {
-  "_comment": "Issue #355: what a competent reviewer should raise on each fixture entity. Matching rules are in scripts/ai-eval/README.md.",
+  "_comment": "Issue #355: what a competent reviewer should raise on each fixture entity. Matching rules are in scripts/ai-eval/README.md. #263: alsoValid lists real flaws a fixture entity has beyond the one it targets; a matching finding is neither a hit nor spurious.",
   "fixture": "fixture-project.xml",
   "entities": [
     {
@@ -16,6 +16,10 @@
             "subjective",
             "vague",
             "quantif"
+          ],
+          "acceptTypes": [
+            "UNMEASURABLE",
+            "MEASURE_WITHOUT_BASELINE"
           ]
         }
       ]
@@ -34,6 +38,22 @@
             "underlying (need|goal|outcome)",
             "why (the|a) (text|message)",
             "intended outcome"
+          ],
+          "acceptTypes": [
+            "SOLUTION_NOT_OUTCOME"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "conflicts-with-privacy",
+          "patterns": [
+            "privat",
+            "outside the library"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "INCONSISTENT"
           ]
         }
       ]
@@ -52,6 +72,9 @@
             "actual (goal|outcome|problem)",
             "underlying (goal|outcome|problem)",
             "returned on time"
+          ],
+          "acceptTypes": [
+            "PROXY_FOR_OUTCOME"
           ]
         }
       ]
@@ -67,6 +90,9 @@
             "individual",
             "named",
             "\\bdana\\b"
+          ],
+          "acceptTypes": [
+            "PERSON_NAMED_NOT_ROLE"
           ]
         }
       ]
@@ -85,6 +111,9 @@
             "subsum",
             "restat",
             "similar"
+          ],
+          "acceptTypes": [
+            "DUPLICATE_AT_DIFFERENT_ABSTRACTION"
           ]
         }
       ]
@@ -103,6 +132,9 @@
             "subsum",
             "restat",
             "similar"
+          ],
+          "acceptTypes": [
+            "DUPLICATE_AT_DIFFERENT_ABSTRACTION"
           ]
         }
       ]
@@ -120,6 +152,18 @@
             "negative(ly)? (stated|only|framed)",
             "by exclusion",
             "never says who"
+          ],
+          "acceptTypes": [
+            "NEGATIVE_ONLY_SPECIFICATION"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "two-exclusion-rules",
+          "patterns": [],
+          "acceptTypes": [
+            "CONJUNCTIVE_GOAL"
           ]
         }
       ]
@@ -138,6 +182,21 @@
             "combin",
             "multiple",
             "independent"
+          ],
+          "acceptTypes": [
+            "CONJUNCTIVE_GOAL"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "app-is-a-mechanism",
+          "patterns": [
+            "app"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "SOLUTION_NOT_OUTCOME"
           ]
         }
       ]
@@ -157,6 +216,25 @@
             "standing",
             "invariant",
             "non-functional"
+          ],
+          "acceptTypes": [
+            "CONSTRAINT_NOT_GOAL"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "conflicts-with-text-reminders",
+          "patterns": [
+            "text message",
+            "sms",
+            "carrier",
+            "gateway",
+            "reminder"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "INCONSISTENT"
           ]
         }
       ]
@@ -176,6 +254,9 @@
             "system (capability|role)",
             "operational",
             "out of scope"
+          ],
+          "acceptTypes": [
+            "NOT_A_SYSTEM_GOAL"
           ]
         }
       ]
@@ -197,6 +278,18 @@
             "kept unique",
             "stays true",
             "remain(s)? true"
+          ],
+          "acceptTypes": [
+            "IMPLICIT_INVARIANT"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "barcode-is-a-mechanism",
+          "patterns": [],
+          "acceptTypes": [
+            "SOLUTION_NOT_OUTCOME"
           ]
         }
       ]
@@ -213,6 +306,9 @@
             "target",
             "how (much|many)",
             "what (rate|level|percentage)"
+          ],
+          "acceptTypes": [
+            "MEASURE_WITHOUT_BASELINE"
           ]
         }
       ]
@@ -234,13 +330,16 @@
             "coverage",
             "never raise",
             "does not raise"
+          ],
+          "acceptTypes": [
+            "VACUOUS_QUANTIFIER"
           ]
         }
       ]
     },
     {
       "type": "Goal",
-      "name": "Members reserve tools up to 7 days ahead",
+      "name": "Members see what they have on loan",
       "silent": true,
       "expect": []
     },
@@ -257,6 +356,9 @@
             "value",
             "reason",
             "purpose"
+          ],
+          "acceptTypes": [
+            "MISSING_BENEFIT"
           ]
         }
       ]
@@ -274,6 +376,9 @@
             "combin",
             "multiple",
             "independent"
+          ],
+          "acceptTypes": [
+            "CONJUNCTIVE_STORY"
           ]
         }
       ]
@@ -292,6 +397,9 @@
             "flow",
             "sequence",
             "numbered"
+          ],
+          "acceptTypes": [
+            "EXTRACT_SCENARIO"
           ]
         }
       ]
@@ -313,6 +421,9 @@
             "no evidence",
             "evidence (for|of)",
             "origin of"
+          ],
+          "acceptTypes": [
+            "UNSOURCED_CLAIM"
           ]
         }
       ],
@@ -322,6 +433,23 @@
         "\\badds? up\\b",
         "\\bchecks? out\\b",
         "\\bsums? correctly\\b"
+      ],
+      "alsoValid": [
+        {
+          "id": "backlog-vs-logged",
+          "patterns": [
+            "logged",
+            "inflow",
+            "point in time",
+            "stock"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "AMBIGUOUS",
+            "INCONSISTENT",
+            "OTHER"
+          ]
+        }
       ]
     },
     {
@@ -345,6 +473,34 @@
             "altern",
             "unavailable",
             "what if"
+          ],
+          "acceptTypes": [
+            "MISSING_PRECONDITION",
+            "MISSING_ERROR_CASE"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "other-half-precondition-or-error",
+          "patterns": [],
+          "acceptTypes": [
+            "MISSING_PRECONDITION",
+            "MISSING_ERROR_CASE"
+          ]
+        },
+        {
+          "id": "member-or-staff",
+          "patterns": [],
+          "acceptTypes": [
+            "UNCLEAR_ACTOR"
+          ]
+        },
+        {
+          "id": "no-outcome",
+          "patterns": [],
+          "acceptTypes": [
+            "MISSING_OUTCOME"
           ]
         }
       ]
@@ -361,6 +517,46 @@
             "named",
             "role",
             "\\bdana\\b"
+          ],
+          "acceptTypes": [
+            "PERSON_NAMED_NOT_ROLE"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "scenario-step-order",
+          "patterns": [
+            "order"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "INCONSISTENT",
+            "OTHER"
+          ]
+        },
+        {
+          "id": "no-rejection",
+          "patterns": [
+            "reject"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "MISSING_ERROR_CASE"
+          ]
+        },
+        {
+          "id": "no-precondition",
+          "patterns": [],
+          "acceptTypes": [
+            "MISSING_PRECONDITION"
+          ]
+        },
+        {
+          "id": "no-outcome",
+          "patterns": [],
+          "acceptTypes": [
+            "MISSING_OUTCOME"
           ]
         }
       ]
@@ -387,6 +583,9 @@
             "reserved",
             "branch",
             "unhappy"
+          ],
+          "acceptTypes": [
+            "MISSING_ERROR_CASE"
           ]
         }
       ]
@@ -405,6 +604,42 @@
             "contradict",
             "inconsisten",
             "revers"
+          ],
+          "acceptTypes": [
+            "STEP_ORDER"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "no-rejection-branch",
+          "patterns": [
+            "reject"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "MISSING_ERROR_CASE"
+          ]
+        },
+        {
+          "id": "shipping-beyond-outcome",
+          "patterns": [
+            "ship",
+            "supplier"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "INCONSISTENT"
+          ]
+        },
+        {
+          "id": "no-review-step",
+          "patterns": [
+            "review"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "MISSING_STEP"
           ]
         }
       ]
@@ -428,6 +663,9 @@
             "unclear who",
             "responsib",
             "two (possible|alternative) (actors|performers)"
+          ],
+          "acceptTypes": [
+            "AMBIGUOUS_ACTOR"
           ]
         }
       ]
@@ -446,6 +684,9 @@
             "compound",
             "single action",
             "combin"
+          ],
+          "acceptTypes": [
+            "COMPOUND_STEP"
           ]
         }
       ]
@@ -466,6 +707,18 @@
             "person",
             "individual",
             "named after"
+          ],
+          "acceptTypes": [
+            "PERSON_NAMED_NOT_ROLE"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "only-a-title",
+          "patterns": [],
+          "acceptTypes": [
+            "INCOMPLETE"
           ]
         }
       ]
@@ -482,6 +735,25 @@
             "(defined|described) (only|purely|solely|entirely) by",
             "by what (it|they) (is|are) not",
             "not staff"
+          ],
+          "acceptTypes": [
+            "DEFINED_BY_EXCLUSION"
+          ]
+        }
+      ],
+      "alsoValid": [
+        {
+          "id": "overlaps-member",
+          "patterns": [],
+          "acceptTypes": [
+            "OVERLAPPING_ROLE"
+          ]
+        },
+        {
+          "id": "unused",
+          "patterns": [],
+          "acceptTypes": [
+            "UNUSED_ACTOR"
           ]
         }
       ]
@@ -503,6 +775,9 @@
             "itself",
             "tautolog",
             "defin"
+          ],
+          "acceptTypes": [
+            "CIRCULAR_DEFINITION"
           ]
         }
       ]
@@ -518,6 +793,9 @@
             "itself",
             "tautolog",
             "defin"
+          ],
+          "acceptTypes": [
+            "CIRCULAR_DEFINITION"
           ]
         }
       ]

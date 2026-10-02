@@ -102,6 +102,19 @@ class AssistantDefinitionValidatorTest {
 	}
 
 	@Test
+	void aVocabularyCategoryMustBeQualityOrExtraction() {
+		AssistantDefinition f = fallback("x");
+		AssistantDefinition bad = new AssistantDefinition(f.key(), f.displayName(), f.kind(),
+				f.taskType(), f.scope(), f.contextProviders(), f.instructions(),
+				List.of(new VocabularyEntry("A", "a"), new VocabularyEntry("B", "b", "nonsense")),
+				f.outputSchemaName(), f.outputSchemaVersion(), f.enabled(), f.version(), f.source(),
+				f.projectId(), f.forkedFromVersion(), f.executorBean());
+		assertThatThrownBy(() -> validator.validate(bad, List.of()))
+				.hasMessageContaining("vocabulary type B has unknown category nonsense");
+		assertThat(new VocabularyEntry("A", "a", null).category()).isEqualTo("quality");
+	}
+
+	@Test
 	void policyIsRejectedUntilItsRuntimeExists() {
 		AssistantDefinition f = fallback("x");
 		AssistantDefinition policy = new AssistantDefinition(f.key(), f.displayName(),

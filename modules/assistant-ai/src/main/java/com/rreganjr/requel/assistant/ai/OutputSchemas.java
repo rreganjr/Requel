@@ -36,7 +36,10 @@ final class OutputSchemas {
 
 	private static final Map<String, String> RESOURCES = Map.of(
 			RequirementsReview.OUTPUT_SCHEMA_NAME + ":" + RequirementsReview.OUTPUT_SCHEMA_VERSION,
-			"/ai/schemas/requirements-review-output.v1.json");
+			"/ai/schemas/requirements-review-output.v1.json",
+			// #263: v1 plus suggestedEntityName, for extraction findings' one-click positions
+			RequirementsReview.OUTPUT_SCHEMA_NAME + ":2",
+			"/ai/schemas/requirements-review-output.v2.json");
 
 	private final ObjectMapper objectMapper;
 	private final Map<String, JsonNode> loaded = new ConcurrentHashMap<>();

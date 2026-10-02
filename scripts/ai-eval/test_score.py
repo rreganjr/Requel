@@ -146,8 +146,77 @@ class AggregateTest(unittest.TestCase):
         self.assertEqual(2, score.aggregate(results)["Goal"]["unverified"])
         report = score.render_report({"runsPerEntity": 2}, results)
         self.assertIn("- **definitions:** ai-requirements-review@1", report)
-        self.assertIn("| 0 | 0 | 0 | 0 | 2 |", report)
+        self.assertIn("| 0 | 0 | 0 | 0 | 2 | 0 |", report)
         self.assertIn("; 2 with unverified evidence", report)
+
+
+class Issue263Test(unittest.TestCase):
+
+    def test_an_accepted_type_matches_whatever_its_wording(self):
+        e = entity([{"id": "a", "patterns": ["circular"], "acceptTypes": ["CIRCULAR_DEFINITION"]}])
+        hit = score.score_run(e, [finding("uses the word it defines", "CIRCULAR_DEFINITION")], None)
+        miss = score.score_run(e, [finding("uses the word it defines", "VAGUE_DEFINITION")], None)
+        self.assertEqual(["a"], hit["hits"])
+        self.assertEqual(["a"], miss["misses"])
+
+    def test_vocabulary_misses_are_totalled_and_reported(self):
+        e = entity([{"id": "a", "patterns": ["x"]}])
+        results = [{"entity": e, "runs": [
+            {"outcome": "ok", "findings": [finding("x")], "vocabularyMisses": 2,
+             "score": score.score_run(e, [finding("x")], None)}]}]
+        self.assertEqual(2, score.aggregate(results)["Goal"]["vocabularyMisses"])
+        report = score.render_report({"runsPerEntity": 1}, results)
+        self.assertIn("| 0 | 2 |", report)
+        self.assertIn("; 2 off-vocabulary", report)
+
+    def test_an_accepted_type_claims_its_item_before_a_wording_match(self):
+        e = entity([{"id": "a", "patterns": ["two"], "acceptTypes": ["CONJUNCTIVE_GOAL"]}])
+        first = finding("says the same as two sibling goals", "DUPLICATE_AT_DIFFERENT_ABSTRACTION")
+        second = finding("welds two goals", "CONJUNCTIVE_GOAL")
+        result = score.score_run(e, [first, second], None)
+        self.assertEqual(["a"], result["hits"])
+        self.assertEqual([first], result["spurious"])
+
+    def test_an_unmatched_extraction_is_a_suggestion_and_keeps_a_silent_case_silent(self):
+        e = entity(silent=True)
+        suggestion = finding("define 'loan'", "EXTRACT_GLOSSARY_TERM")
+        result = score.score_run(e, [suggestion], None)
+        self.assertEqual([], result["spurious"])
+        self.assertEqual([suggestion], result["suggestions"])
+        results = [{"entity": e, "runs": [{"outcome": "ok", "findings": [suggestion],
+                                           "score": result}]}]
+        row = score.aggregate(results)["Goal"]
+        self.assertEqual((1, 1, 1), (row["silentKept"], row["silentRuns"], row["suggestions"]))
+        report = score.render_report({"runsPerEntity": 1}, results)
+        self.assertIn("| 1.0 |", report)
+        self.assertIn("suggestion `EXTRACT_GLOSSARY_TERM`", report)
+
+    def test_an_expected_extraction_is_a_hit(self):
+        e = entity([{"id": "a", "patterns": [], "acceptTypes": ["EXTRACT_SCENARIO"]}])
+        result = score.score_run(e, [finding("a flow", "EXTRACT_SCENARIO")], None)
+        self.assertEqual((["a"], []), (result["hits"], result["suggestions"]))
+
+    def test_an_also_valid_finding_is_neither_a_hit_nor_spurious(self):
+        e = entity([{"id": "a", "patterns": ["two"]}])
+        e["alsoValid"] = [{"id": "privacy", "patterns": ["privacy"], "acceptTypes": []}]
+        extra = finding("conflicts with the privacy goal", "INCONSISTENT")
+        result = score.score_run(e, [finding("two goals"), extra], None)
+        self.assertEqual(["a"], result["hits"])
+        self.assertEqual([], result["spurious"])
+        self.assertEqual(["privacy"], [f["alsoValid"] for f in result["alsoValid"]])
+        results = [{"entity": e, "runs": [{"outcome": "ok", "findings": [extra],
+                                           "score": result}]}]
+        self.assertEqual(1, score.aggregate(results)["Goal"]["alsoValid"])
+        self.assertIn("also valid (privacy) `INCONSISTENT`",
+                      score.render_report({"runsPerEntity": 1}, results))
+
+    def test_a_trap_text_that_also_questions_the_source_does_not_confirm(self):
+        e = entity([{"id": "t", "patterns": ["source"]}], trap=True, confirm=[r"\badds? up\b"])
+        questioned = score.score_run(
+            e, [finding("The figures add up, but no source is given.", "UNSOURCED_CLAIM")], None)
+        vouched = score.score_run(e, [], "The figures add up.")
+        self.assertFalse(questioned["confirmed"])
+        self.assertTrue(vouched["confirmed"])
 
 
 class RescoreTest(unittest.TestCase):

@@ -97,7 +97,6 @@ import com.rreganjr.requel.user.command.EditUserCommand;
 		"requel.ai.cli.timeout=30s" })
 public class ContextProvidersIT extends AbstractIntegrationTestCase {
 
-	private static final String REVIEW = "ai-requirements-review";
 	private static final Path FAKE_CLI_DIR = createFakeCli();
 
 	@DynamicPropertySource
@@ -260,15 +259,19 @@ public class ContextProvidersIT extends AbstractIntegrationTestCase {
 	}
 
 	private void useProviders(Project project, Map<String, Integer> budgets, String... providers) {
-		AssistantDefinition bundled = definitionStore.bundled().stream()
-				.filter(d -> REVIEW.equals(d.key())).findFirst().orElseThrow();
+		// #263: every type has its own bundled definition, so the project copies all of them.
 		List<String> ids = new ArrayList<>(List.of("entity"));
 		ids.addAll(List.of(providers));
-		definitionStore.save(new AssistantDefinition(bundled.key(), bundled.displayName(),
-				bundled.kind(), bundled.taskType(), bundled.scope(), ids, bundled.instructions(),
-				bundled.vocabulary(), bundled.outputSchemaName(), bundled.outputSchemaVersion(),
-				true, 1, DefinitionSource.PROJECT, project.getId(), bundled.version(), null,
-				budgets), "admin");
+		for (AssistantDefinition bundled : definitionStore.bundled()) {
+			if (!"REQUIREMENTS_REVIEW".equals(bundled.taskType())) {
+				continue;
+			}
+			definitionStore.save(new AssistantDefinition(bundled.key(), bundled.displayName(),
+					bundled.kind(), bundled.taskType(), bundled.scope(), ids,
+					bundled.instructions(), bundled.vocabulary(), bundled.outputSchemaName(),
+					bundled.outputSchemaVersion(), true, 1, DefinitionSource.PROJECT,
+					project.getId(), bundled.version(), null, budgets), "admin");
+		}
 	}
 
 	private String review(String type, ProjectOrDomainEntity entity) throws IOException {

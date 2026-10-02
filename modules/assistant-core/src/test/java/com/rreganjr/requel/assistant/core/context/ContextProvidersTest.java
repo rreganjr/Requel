@@ -38,11 +38,13 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import com.rreganjr.requel.assistant.core.context.provider.ActorReferencesProvider;
+import com.rreganjr.requel.assistant.core.context.provider.GlossaryRelatedProvider;
 import com.rreganjr.requel.assistant.core.context.provider.GoalRelationsProvider;
 import com.rreganjr.requel.assistant.core.context.provider.GoalSiblingsProvider;
 import com.rreganjr.requel.assistant.core.context.provider.GoalStakeholdersProvider;
 import com.rreganjr.requel.assistant.core.context.provider.ScenarioUseCasesProvider;
 import com.rreganjr.requel.assistant.core.context.provider.StepSequenceProvider;
+import com.rreganjr.requel.assistant.core.context.provider.ProjectNamesProvider;
 import com.rreganjr.requel.assistant.core.context.provider.StoryActorsProvider;
 import com.rreganjr.requel.assistant.core.context.provider.UseCaseScenariosProvider;
 import com.rreganjr.requel.project.Actor;
@@ -75,7 +77,8 @@ class ContextProvidersTest {
 				new GoalSiblingsProvider(), new GoalStakeholdersProvider(),
 				new UseCaseScenariosProvider(), new ScenarioUseCasesProvider(),
 				new StepSequenceProvider(), new StoryActorsProvider(),
-				new ActorReferencesProvider())));
+				new ActorReferencesProvider(), new GlossaryRelatedProvider(),
+				new ProjectNamesProvider())));
 		return b;
 	}
 
@@ -322,6 +325,24 @@ class ContextProvidersTest {
 				.containsExactly("primary actor Shopper", "actor Clerk");
 	}
 
+	/** #263: a primary actor is not one of the container's actors, so it has no referer. */
+	@Test
+	void actorReferencesIncludeUseCasesWhereItIsOnlyThePrimaryActor() {
+		Actor actor = entity(Actor.class, 5L, "Treasurer", "approves purchases");
+		when(actor.getProjectOrDomain()).thenReturn(project);
+		when(actor.getReferers()).thenReturn(new LinkedHashSet<>());
+		when(actor.getGoals()).thenReturn(Set.of());
+		UseCase useCase = entity(UseCase.class, 1L, "Approve a purchase", "approve");
+		when(useCase.getPrimaryActor()).thenReturn(actor);
+		UseCase other = entity(UseCase.class, 2L, "Check out", "buy");
+		when(project.getProjectEntities()).thenReturn(new LinkedHashSet<>(List.of(actor, useCase,
+				other)));
+
+		assertThat(section(actor, "actor-references").entities())
+				.extracting(e -> e.relation() + " " + e.name())
+				.containsExactly("primary actor of use case Approve a purchase");
+	}
+
 	@Test
 	void actorReferencesListUseCasesStoriesAndGoals() {
 		Actor actor = entity(Actor.class, 5L, "Shopper", "buys");
@@ -337,6 +358,55 @@ class ContextProvidersTest {
 				.extracting(e -> e.relation() + " " + e.name())
 				.containsExactly("primary actor of use case Check out",
 						"actor in story Browsing", "actor's goal Find things");
+	}
+
+	@Test
+	void glossaryRelatedListsCanonicalAlternatesThenSimilarTerms() {
+		com.rreganjr.requel.project.GlossaryTerm loan = entity(
+				com.rreganjr.requel.project.GlossaryTerm.class, 1L, "Loan", "A tool a member has borrowed");
+		com.rreganjr.requel.project.GlossaryTerm canonical = entity(
+				com.rreganjr.requel.project.GlossaryTerm.class, 2L, "Borrowing", "Taking a tool home");
+		com.rreganjr.requel.project.GlossaryTerm alternate = entity(
+				com.rreganjr.requel.project.GlossaryTerm.class, 3L, "Lending", "Same as loan");
+		com.rreganjr.requel.project.GlossaryTerm similar = entity(
+				com.rreganjr.requel.project.GlossaryTerm.class, 4L, "Overdue tool",
+				"A borrowed tool a member has kept too long");
+		com.rreganjr.requel.project.GlossaryTerm unrelated = entity(
+				com.rreganjr.requel.project.GlossaryTerm.class, 5L, "Opening hours", "When we are open");
+		when(loan.getCanonicalTerm()).thenReturn(canonical);
+		when(loan.getAlternateTerms()).thenReturn(Set.of(alternate));
+		when(loan.getProjectOrDomain()).thenReturn(project);
+		java.util.SortedSet<com.rreganjr.requel.project.GlossaryTerm> terms = new java.util.TreeSet<>(
+				java.util.Comparator.comparing(com.rreganjr.requel.project.GlossaryTerm::getId));
+		terms.addAll(List.of(loan, canonical, alternate, similar, unrelated));
+		when(project.getGlossaryTerms()).thenReturn(terms);
+
+		assertThat(section(loan, "glossary-related").entities())
+				.extracting(e -> e.relation() + " " + e.name())
+				.containsExactly("canonical term Borrowing", "alternate name Lending",
+						"other term Overdue tool", "other term Opening hours");
+	}
+
+	/** #263: actor and glossary names (no text) so extraction knows what the project has. */
+	@Test
+	void projectNamesListsActorsThenGlossaryTermsByNameWithoutText() {
+		Goal target = goal(1L, "Members love the library", "enjoy it");
+		Actor member = entity(Actor.class, 2L, "Member", "Someone with a current membership");
+		Actor treasurer = entity(Actor.class, 3L, "Dana Whitfield", "Treasurer");
+		com.rreganjr.requel.project.GlossaryTerm loan = entity(
+				com.rreganjr.requel.project.GlossaryTerm.class, 4L, "Loan", "A tool a member has");
+		when(project.getProjectEntities()).thenReturn(new LinkedHashSet<>(List.of(target, member,
+				treasurer, loan)));
+		java.util.SortedSet<com.rreganjr.requel.project.GlossaryTerm> terms = new java.util.TreeSet<>(
+				java.util.Comparator.comparing(com.rreganjr.requel.project.GlossaryTerm::getId));
+		terms.add(loan);
+		when(project.getGlossaryTerms()).thenReturn(terms);
+
+		ContextSection section = section(target, "project-names");
+		assertThat(section.entities()).extracting(e -> e.relation() + " " + e.name())
+				.containsExactly("project actor Dana Whitfield", "project actor Member",
+						"glossary term Loan");
+		assertThat(section.entities()).extracting(RelatedEntity::text).containsOnlyNulls();
 	}
 
 	// ---- fixtures ------------------------------------------------------------------------

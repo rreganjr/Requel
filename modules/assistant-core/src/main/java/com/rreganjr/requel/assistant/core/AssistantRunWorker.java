@@ -89,6 +89,10 @@ public class AssistantRunWorker {
 	 * not in the entity's text.
 	 */
 	public static final String EVIDENCE_UNVERIFIED = "evidenceUnverified";
+	/** #263: result metadata, the findings whose type is not in the definition's vocabulary. */
+	public static final String VOCABULARY_MISSES = "vocabularyMisses";
+	/** #263: result metadata, other assistant ids whose findings on the target this run retires. */
+	public static final String RETIRES_ASSISTANTS = "retiresAssistants";
 
 	private final AssistantRunStore runStore;
 	private final AssistantRegistry assistantRegistry;
@@ -207,6 +211,7 @@ public class AssistantRunWorker {
 			// #260: which definitions ran, and how many findings cited missing evidence.
 			recordDefinitions(runId, analysis.definitions);
 			recordEvidenceUnverified(runId, analysis.results);
+			recordVocabularyMisses(runId, analysis.results);
 			if (analysis.allFailed()) {
 				runStore.markFailed(runId,
 						new AssistantWorkerException(String.join("; ", analysis.problems)));
@@ -282,6 +287,27 @@ public class AssistantRunWorker {
 					String.join(",", sources));
 		} catch (RuntimeException e) {
 			log.warn("Failed to record the definitions for run {}: {}", runId, e.getMessage(), e);
+		}
+	}
+
+	/** Issue #263: total the results' {@code vocabularyMisses} and record them, best effort. */
+	private void recordVocabularyMisses(UUID runId, List<AssistantResult> results) {
+		int total = 0;
+		boolean any = false;
+		for (AssistantResult result : results) {
+			Object count = result == null ? null : result.metadata().get(VOCABULARY_MISSES);
+			if (count instanceof Number number) {
+				total += number.intValue();
+				any = true;
+			}
+		}
+		if (!any) {
+			return;
+		}
+		try {
+			runStore.recordVocabularyMisses(runId, total);
+		} catch (RuntimeException e) {
+			log.warn("Failed to record vocabulary misses for run {}: {}", runId, e.getMessage(), e);
 		}
 	}
 

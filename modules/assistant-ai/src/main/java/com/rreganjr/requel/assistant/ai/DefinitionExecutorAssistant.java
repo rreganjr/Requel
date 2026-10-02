@@ -30,11 +30,14 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import com.rreganjr.requel.assistant.api.AnnotationAction;
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantException;
 import com.rreganjr.requel.assistant.api.AssistantMessage;
 import com.rreganjr.requel.assistant.api.AssistantResult;
+import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.EvidenceRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
@@ -43,6 +46,7 @@ import com.rreganjr.requel.assistant.core.context.ContextProviderRegistry;
 import com.rreganjr.requel.assistant.core.context.EntityContextPack;
 import com.rreganjr.requel.assistant.core.context.PackSpec;
 import com.rreganjr.requel.assistant.core.definition.AssistantDefinition;
+import com.rreganjr.requel.assistant.core.definition.VocabularyEntry;
 import com.rreganjr.requel.assistant.core.definition.DefinitionBacked;
 import com.rreganjr.requel.assistant.core.persistence.AssistantUsageEntity;
 import com.rreganjr.requel.project.DataHandlingSettings;
@@ -56,8 +60,8 @@ import com.rreganjr.requel.project.TextEntity;
  * definition key, so finding idempotency keys and run records stay attributable (the default
  * keeps {@code ai-requirements-review}).
  *
- * <p>Each finding's evidence is checked against the entity's own name and text
- * ({@link EvidenceCheck}). A finding citing evidence that isn't there is kept; the result
+ * <p>Each finding's evidence is checked against the entity's own name and text and every string
+ * in its context pack ({@link EvidenceCheck}; #263 widened it from the entity alone). A finding citing evidence that isn't there is kept; the result
  * metadata counts it ({@link AssistantRunWorker#EVIDENCE_UNVERIFIED}) and the run records it.
  *
  * <p>Built per run by {@link AiDefinitionExecutorFactory}; not a bean.
@@ -118,6 +122,44 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 		return true;
 	}
 
+	/**
+	 * #263 (#360): a re-run removes the untouched issues it no longer reports; one a person
+	 * discussed or resolved is kept and reads superseded.
+	 */
+	@Override
+	public CleanupPolicy cleanupPolicy() {
+		return CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED;
+	}
+
+	/** Placeholder in a definition's instructions that the vocabulary is rendered into (#263). */
+	static final String VOCABULARY_PLACEHOLDER = "{{vocabulary}}";
+
+	/**
+	 * The instructions sent to the model: the definition's text, with {@value
+	 * #VOCABULARY_PLACEHOLDER} replaced by its vocabulary. Without the placeholder the text is
+	 * sent as written (the fallback definition, whose prompt is pinned).
+	 */
+	String instructions() {
+		String text = definition.instructions();
+		if (text == null || !text.contains(VOCABULARY_PLACEHOLDER)) {
+			return text;
+		}
+		StringBuilder quality = new StringBuilder();
+		StringBuilder extraction = new StringBuilder();
+		for (VocabularyEntry entry : definition.vocabulary()) {
+			StringBuilder into = entry.isExtraction() ? extraction : quality;
+			into.append("- ").append(entry.type()).append(": ").append(entry.description())
+					.append('\n');
+		}
+		StringBuilder rendered = new StringBuilder("Finding types (use exactly one of these):\n")
+				.append(quality);
+		if (extraction.length() > 0) {
+			rendered.append("\nExtraction types (the text is sound but belongs in another kind of")
+					.append(" entity; advisory):\n").append(extraction);
+		}
+		return text.replace(VOCABULARY_PLACEHOLDER, rendered.toString().stripTrailing());
+	}
+
 	@Override
 	public AssistantResult analyze(AssistantContext context, TextEntity target)
 			throws AssistantException {
@@ -162,7 +204,7 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 				runtime.outputSchemas.schema(definition.outputSchemaName(),
 						definition.outputSchemaVersion()),
 				dataHandlingFlags(context.projectRef()), attributes(context),
-				definition.instructions());
+				instructions());
 
 		try {
 			AiAnalysisResponse response = runtime.aiAnalysisClient.analyze(request);
@@ -172,19 +214,34 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 				response.messages().forEach(result::message);
 			}
 			int unverified = 0;
+			int vocabularyMisses = 0;
 			if (response.findings() != null) {
-				String entityText = target.getName() + "\n" + target.getText();
+				// #263: a scenario's flow is in its steps and a use case's in its scenario, so
+				// evidence is checked against everything the model was sent, not the entity alone.
+				String sentText = target.getName() + "\n" + target.getText() + "\n"
+						+ packText(pack);
 				for (AiFindingDraft finding : response.findings()) {
-					if (EvidenceCheck.unverified(finding.evidenceReferences(), entityText)) {
+					if (EvidenceCheck.unverified(finding.evidenceReferences(), sentText)) {
 						unverified++;
+					}
+					if (vocabularyEntry(finding.findingType()) == null) {
+						vocabularyMisses++;
 					}
 					mapFinding(result, targetRef, finding);
 				}
 			}
-			result.metadata(Map.of(AssistantRunWorker.EVIDENCE_UNVERIFIED, unverified));
+			Map<String, Object> metadata = new LinkedHashMap<String, Object>();
+			metadata.put(AssistantRunWorker.EVIDENCE_UNVERIFIED, unverified);
+			metadata.put(AssistantRunWorker.VOCABULARY_MISSES, vocabularyMisses);
+			metadata.put(AssistantRunWorker.RETIRES_ASSISTANTS, otherDefinitions(context));
+			result.metadata(metadata);
+			if (vocabularyMisses > 0) {
+				result.message(AssistantMessage.warning(vocabularyMisses
+						+ " finding(s) use a type outside the definition's vocabulary"));
+			}
 			if (unverified > 0) {
 				result.message(AssistantMessage.warning(unverified
-						+ " finding(s) cite evidence that is not in the entity's text"));
+						+ " finding(s) cite evidence that is not in the text sent for review"));
 			}
 		} catch (AiAnalysisException e) {
 			// #259: propagate, so the run records the failure (FAILED when this was the run's only
@@ -307,19 +364,44 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 		String issueText = boundedText(finding.suggestedIssueText());
 		String noteText = boundedText(finding.suggestedNoteText());
 
+		VocabularyEntry entry = vocabularyEntry(finding.findingType());
+		boolean extraction = entry != null && entry.isExtraction();
+		String category = extraction ? VocabularyEntry.EXTRACTION : VocabularyEntry.QUALITY;
+		// #263: an extraction is advisory - the text is sound, it belongs in another entity type.
+		String severity = extraction ? "LOW" : finding.severity();
+		String entityName = finding.metadata() == null ? null
+				: (String) finding.metadata().get(ReviewResultMapper.SUGGESTED_ENTITY_NAME);
+		String oneClickKind = extraction && entityName != null ? ONE_CLICK.get(finding.findingType())
+				: null;
+
 		if (issueText != null) {
 			String issueKey = actionKey(targetRef, "issue", finding.findingType(), issueText);
 			Map<String, Object> issueMeta = new HashMap<String, Object>();
 			issueMeta.put("findingType", finding.findingType());
 			issueMeta.put(DEFINITION_KEY, definition.key());
 			issueMeta.put(DEFINITION_VERSION, definition.version());
-			issueMeta.put("mustResolve", Boolean.TRUE);
+			issueMeta.put("mustResolve", !extraction);
+			issueMeta.put(CATEGORY, category);
 			if (finding.metadata() != null) {
 				issueMeta.putAll(finding.metadata());
 			}
+			if (oneClickKind != null) {
+				// The add-actor and add-to-glossary positions resolve a lexical issue's word.
+				issueMeta.put("kind", "LEXICAL");
+				issueMeta.put("word", boundedName(entityName));
+			}
 			result.annotationAction(new AnnotationAction(issueKey,
 					AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE, targetRef, null, issueText,
-					finding.severity(), finding.confidence(), evidence, issueMeta));
+					severity, finding.confidence(), evidence, issueMeta));
+			if (oneClickKind != null) {
+				String name = boundedName(entityName);
+				String text = "ADD_ACTOR_TO_PROJECT".equals(oneClickKind)
+						? "Add \"" + name + "\" to the project as an actor."
+						: "Add \"" + name + "\" to the project glossary.";
+				result.annotationAction(new AnnotationAction(issueKey + ":pos:" + hash(text),
+						AnnotationAction.ActionType.CREATE_OR_UPDATE_POSITION, null, issueKey, text,
+						null, null, evidence, Map.of("kind", oneClickKind)));
+			}
 			for (String position : finding.suggestedPositions()) {
 				String positionText = boundedText(position);
 				if (positionText == null) {
@@ -334,6 +416,7 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 		if (noteText != null) {
 			Map<String, Object> noteMeta = new HashMap<String, Object>();
 			noteMeta.put("findingType", finding.findingType());
+			noteMeta.put(CATEGORY, category);
 			noteMeta.put(DEFINITION_KEY, definition.key());
 			noteMeta.put(DEFINITION_VERSION, definition.version());
 			if (finding.metadata() != null) {
@@ -348,6 +431,78 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 		if (issueText == null && noteText == null) {
 			log.debug("Skipping AI finding of type {} with no issue or note text",
 					finding.findingType());
+		}
+	}
+
+	/** Finding metadata key: {@code quality} or {@code extraction} (#263). */
+	static final String CATEGORY = "category";
+
+	/** Extraction types with a one-click position, by the position kind the applicator knows. */
+	private static final Map<String, String> ONE_CLICK = Map.of("EXTRACT_ACTOR",
+			"ADD_ACTOR_TO_PROJECT", "EXTRACT_GLOSSARY_TERM", "ADD_WORD_TO_GLOSSARY");
+
+	/** The definition's entry for {@code type}, or null when it is outside the vocabulary. */
+	private VocabularyEntry vocabularyEntry(String type) {
+		for (VocabularyEntry entry : definition.vocabulary()) {
+			if (entry.type().equals(type)) {
+				return entry;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * #263: the other definitions of this task the project can see; their findings on the target
+	 * are retired once this one has reviewed it. Empty without a store.
+	 */
+	private List<String> otherDefinitions(AssistantContext context) {
+		if (runtime.definitionStore == null) {
+			return List.of();
+		}
+		Long projectId = context.projectRef() == null ? null : context.projectRef().entityId();
+		List<String> keys = new ArrayList<String>();
+		for (AssistantDefinition other : runtime.definitionStore.definitionsFor(projectId,
+				definition.taskType())) {
+			if (!other.key().equals(definition.key())) {
+				keys.add(other.key());
+			}
+		}
+		return keys;
+	}
+
+	/** A suggested entity name, single-line and short enough for an actor or term name. */
+	private static String boundedName(String name) {
+		String oneLine = name.replaceAll("\\s+", " ").strip();
+		return oneLine.length() <= 255 ? oneLine : oneLine.substring(0, 255);
+	}
+
+	/**
+	 * Every string in the pack's snapshot and context sections, one per line: the text the model
+	 * could quote (#263).
+	 */
+	private String packText(EntityContextPack pack) {
+		StringBuilder text = new StringBuilder();
+		try {
+			if (pack.snapshot() != null) {
+				appendStrings(runtime.objectMapper.valueToTree(pack.snapshot()), text);
+			}
+			if (pack.context() != null) {
+				appendStrings(runtime.objectMapper.valueToTree(pack.context()), text);
+			}
+		} catch (IllegalArgumentException e) {
+			log.debug("could not read the context pack's text for the evidence check", e);
+		}
+		return text.toString();
+	}
+
+	private static void appendStrings(JsonNode node, StringBuilder text) {
+		if (node == null) {
+			return;
+		}
+		if (node.isTextual()) {
+			text.append(node.asText()).append('\n');
+		} else if (node.isContainerNode()) {
+			node.forEach(child -> appendStrings(child, text));
 		}
 	}
 

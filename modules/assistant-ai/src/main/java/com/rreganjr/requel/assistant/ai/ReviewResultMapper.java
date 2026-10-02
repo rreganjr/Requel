@@ -75,6 +75,9 @@ public final class ReviewResultMapper {
 		}
 	}
 
+	/** #263: draft metadata key for schema v2's {@code suggestedEntityName}. */
+	public static final String SUGGESTED_ENTITY_NAME = "suggestedEntityName";
+
 	/** Requel-side validation of the structured output, whichever client produced it. */
 	public static void validate(ReviewResult result) throws AiAnalysisException {
 		if (result == null) {
@@ -142,7 +145,9 @@ public final class ReviewResultMapper {
 					finding.suggestedIssueText(),
 					finding.suggestedNoteText(),
 					orEmpty(finding.suggestedPositions()),
-					Map.of()));
+					finding.suggestedEntityName() == null || finding.suggestedEntityName().isBlank()
+							? Map.of()
+							: Map.of(SUGGESTED_ENTITY_NAME, finding.suggestedEntityName().strip())));
 		}
 		return findings;
 	}
@@ -171,7 +176,15 @@ public final class ReviewResultMapper {
 	public record ReviewResult(String summary, List<Finding> findings, List<String> warnings) {
 		public record Finding(String findingType, String severity, Double confidence,
 				List<String> evidenceReferences, String suggestedIssueText, String suggestedNoteText,
-				List<String> suggestedPositions) {
+				List<String> suggestedPositions, String suggestedEntityName) {
+
+			/** Schema v1 has no {@code suggestedEntityName}. */
+			public Finding(String findingType, String severity, Double confidence,
+					List<String> evidenceReferences, String suggestedIssueText,
+					String suggestedNoteText, List<String> suggestedPositions) {
+				this(findingType, severity, confidence, evidenceReferences, suggestedIssueText,
+						suggestedNoteText, suggestedPositions, null);
+			}
 		}
 	}
 }

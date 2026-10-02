@@ -21,7 +21,9 @@
 package com.rreganjr.requel.assistant.core.context.provider;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import org.springframework.stereotype.Component;
@@ -33,6 +35,8 @@ import com.rreganjr.requel.assistant.core.context.RelatedEntity;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ActorContainer;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.ProjectOrDomain;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
 
@@ -62,11 +66,26 @@ public class ActorReferencesProvider extends AbstractContextProvider {
 		Actor actor = (Actor) target;
 		List<UseCase> useCases = new ArrayList<>();
 		List<Story> stories = new ArrayList<>();
+		Set<Long> seen = new HashSet<>();
 		for (ActorContainer referer : actor.getReferers()) {
-			if (referer instanceof UseCase useCase) {
+			if (referer instanceof UseCase useCase && seen.add(useCase.getId())) {
 				useCases.add(useCase);
-			} else if (referer instanceof Story story) {
+			} else if (referer instanceof Story story && seen.add(story.getId())) {
 				stories.add(story);
+			}
+		}
+		// #263: a primary actor is its own link, not one of the container's actors, so an actor
+		// that is only ever a primary actor has no referers and read as unused.
+		ProjectOrDomain project = actor.getProjectOrDomain();
+		if (project != null) {
+			for (ProjectOrDomainEntity entity : project.getProjectEntities()) {
+				if (entity instanceof UseCase useCase && isPrimary(actor, useCase.getPrimaryActor())
+						&& seen.add(useCase.getId())) {
+					useCases.add(useCase);
+				} else if (entity instanceof Story story
+						&& isPrimary(actor, story.getPrimaryActor()) && seen.add(story.getId())) {
+					stories.add(story);
+				}
 			}
 		}
 		useCases.sort(BY_NAME);
@@ -90,5 +109,9 @@ public class ActorReferencesProvider extends AbstractContextProvider {
 			candidates.add(() -> related(context, goal, "actor's goal", SUMMARY_CHARS));
 		}
 		return fill(budget, candidates);
+	}
+
+	private static boolean isPrimary(Actor actor, Actor primary) {
+		return primary != null && primary.getId() != null && primary.getId().equals(actor.getId());
 	}
 }

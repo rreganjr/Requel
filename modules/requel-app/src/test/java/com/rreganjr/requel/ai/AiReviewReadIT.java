@@ -165,7 +165,7 @@ public class AiReviewReadIT extends AbstractIntegrationTestCase {
 		Goal goal = createGoal("Checks");
 		asProjectUser();
 		assertThrows(IllegalArgumentException.class,
-				() -> aiReviewService.latestReview("GlossaryTerm", goal.getId()));
+				() -> aiReviewService.latestReview("Project", goal.getId()));
 		assertThrows(NoSuchEntityException.class,
 				() -> aiReviewService.latestReview("Goal", 987654321L));
 	}
