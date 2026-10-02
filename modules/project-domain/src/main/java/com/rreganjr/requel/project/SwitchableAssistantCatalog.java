@@ -30,8 +30,20 @@ import java.util.Optional;
  */
 public interface SwitchableAssistantCatalog {
 
-	/** An assistant a project can switch off. */
-	record SwitchableAssistant(String assistantId, String displayName) {
+	/** The group a bean assistant's switch shows under (#263). */
+	String LEXICAL_CHECKS = "Lexical checks";
+	/** The group an AI review definition's switch shows under (#263). */
+	String AI_REVIEW = "AI review";
+
+	/**
+	 * An assistant a project can switch off. {@code group} is the heading its switch shows
+	 * under (#263).
+	 */
+	record SwitchableAssistant(String assistantId, String displayName, String group) {
+
+		public SwitchableAssistant(String assistantId, String displayName) {
+			this(assistantId, displayName, LEXICAL_CHECKS);
+		}
 	}
 
 	/** @return the switchable assistants, in registration order. */

@@ -48,7 +48,7 @@ public class AssistantDefinitionValidator {
 
 	/** Entity types a review can target ({@code AiReviewService.REVIEWABLE_TYPES}). */
 	public static final Set<String> REVIEWABLE_TYPES = Set.of("Goal", "Story", "Actor", "UseCase",
-			"Scenario", "Step");
+			"Scenario", "Step", "GlossaryTerm");
 
 	/**
 	 * Issue #261: the built-in context provider ids, used when no {@code ContextProviderRegistry}
@@ -56,10 +56,12 @@ public class AssistantDefinitionValidator {
 	 */
 	public static final Set<String> CONTEXT_PROVIDERS = Set.of(ContextProviderRegistry.ENTITY,
 			"goal-relations", "goal-siblings", "goal-stakeholders", "usecase-scenarios",
-			"scenario-usecases", "step-sequence", "story-actors", "actor-references");
+			"scenario-usecases", "step-sequence", "story-actors", "actor-references",
+			"glossary-related", "project-names");
 
 	/** {@code name:version} of the output schemas the executor can load. */
-	public static final Set<String> OUTPUT_SCHEMAS = Set.of("RequirementsReviewOutput:1");
+	public static final Set<String> OUTPUT_SCHEMAS = Set.of("RequirementsReviewOutput:1",
+			"RequirementsReviewOutput:2");
 
 	/** Characters per token used to turn the token budget into a character cap. */
 	static final int CHARS_PER_TOKEN = 4;
@@ -174,6 +176,11 @@ public class AssistantDefinitionValidator {
 				problems.add("a vocabulary entry has no type");
 			} else if (!seen.add(entry.type())) {
 				problems.add("vocabulary type " + entry.type() + " is listed twice");
+			}
+			if (entry != null && !VocabularyEntry.QUALITY.equals(entry.category())
+					&& !VocabularyEntry.EXTRACTION.equals(entry.category())) {
+				problems.add("vocabulary type " + entry.type() + " has unknown category "
+						+ entry.category() + " (known: quality, extraction)");
 			}
 		}
 	}

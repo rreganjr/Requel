@@ -118,6 +118,49 @@ class AssistantDefinitionStoreTest {
 	}
 
 	@Test
+	void aDevOverrideReplacesWhateverTheVersionAndTheNextSeedPutsTheShippedFileBack() {
+		store.seedBundled(new AssistantDefinition("default", "D", DefinitionKind.REVIEW, TASK,
+				Set.of(), java.util.List.of("entity"), "Shipped.", fallback("default").vocabulary(),
+				"RequirementsReviewOutput", "1", true, 5, DefinitionSource.BUNDLED, null, null, null));
+		store.overrideBundled(fallback("default")); // version 1 < 5, replaced anyway
+		assertThat(store.bundled().get(0).instructions()).isEqualTo("Review the entity.");
+
+		AssistantDefinition shipped = new AssistantDefinition("default", "D", DefinitionKind.REVIEW,
+				TASK, Set.of(), java.util.List.of("entity"), "Shipped.", fallback("default").vocabulary(),
+				"RequirementsReviewOutput", "1", true, 5, DefinitionSource.BUNDLED, null, null, null);
+		assertThat(store.seedBundled(shipped)).isTrue(); // same version, but the row was a dev override
+		assertThat(store.bundled().get(0).instructions()).isEqualTo("Shipped.");
+		assertThat(store.seedBundled(shipped)).isFalse(); // a normal row again
+	}
+
+	@Test
+	void devOverridesAreReadFromADirectory(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
+			throws Exception {
+		store.seedBundled(fallback("default"));
+		java.nio.file.Files.writeString(dir.resolve("default.json"), """
+				{"key":"default","displayName":"D","taskType":"REVIEW","version":1,
+				 "contextProviders":["entity"],"outputSchemaName":"RequirementsReviewOutput",
+				 "outputSchemaVersion":"1","vocabulary":[{"type":"AMBIGUOUS","description":"u"}],
+				 "instructions":"Tuned."}
+				""".replace("\"REVIEW\"", "\"" + TASK + "\""));
+		DevDefinitionOverrides overrides = new DevDefinitionOverrides(store, new ObjectMapper(),
+				dir.toString());
+
+		assertThat(overrides.reload()).containsExactly("default");
+		assertThat(store.bundled().get(0).instructions()).isEqualTo("Tuned.");
+
+		java.nio.file.Files.writeString(dir.resolve("broken.json"), "{\"key\":\"x\"}");
+		org.assertj.core.api.Assertions.assertThatThrownBy(overrides::reload)
+				.isInstanceOf(IllegalStateException.class);
+		assertThat(store.bundled()).extracting(AssistantDefinition::key).containsExactly("default");
+
+		DevDefinitionOverrides missing = new DevDefinitionOverrides(store, new ObjectMapper(),
+				dir.resolve("nope").toString());
+		org.assertj.core.api.Assertions.assertThatThrownBy(missing::reload)
+				.hasMessageContaining("is not a directory");
+	}
+
+	@Test
 	void aBulkReviewReadsTheDefinitionsOncePerProject() {
 		store.seedBundled(fallback("default"));
 		for (int i = 0; i < 20; i++) {

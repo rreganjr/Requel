@@ -198,6 +198,17 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 		});
 	}
 
+	@Override
+	@Transactional(propagation = Propagation.REQUIRED)
+	public void recordVocabularyMisses(UUID runId, int count) {
+		Objects.requireNonNull(runId, "runId");
+		runRepository.findById(runId.toString()).ifPresent(entity -> {
+			entity.setVocabularyMisses(Math.max(0, count));
+			entity.setUpdatedAt(clock.instant());
+			runRepository.save(entity);
+		});
+	}
+
 	/** The {@code result_summary} column's length. */
 	static final int RESULT_SUMMARY_LENGTH = 2000;
 

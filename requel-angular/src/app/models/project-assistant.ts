@@ -27,4 +27,6 @@ export interface ProjectAssistantDto {
   assistantId: string;
   displayName: string;
   enabled: boolean;
+  /** #263: the heading the switch shows under ("Lexical checks", "AI review"). */
+  group?: string;
 }

@@ -92,12 +92,20 @@ class DefinitionRegistryTest {
 	}
 
 	@Test
-	void switchedOffDefinitionsAreLeftOutFirst() {
+	void aSwitchedOffDefinitionStopsItsTypesReviewsRatherThanHandingThemToTheFallback() {
+		// #263: coverage comes first; the switch only decides whether the covering one runs.
 		AssistantDefinition goals = definition("goals", Set.of("Goal"));
 		when(store.definitionsFor(1L, TASK)).thenReturn(List.of(definition("default", Set.of()),
 				goals.withEnabled(false)));
-		assertThat(keys(registry.findAssistantsFor(goal(), context(TASK)))).containsExactly(
+		assertThat(registry.findAssistantsFor(goal(), context(TASK))).isEmpty();
+		assertThat(keys(registry.findAssistantsFor(story(), context(TASK)))).containsExactly(
 				"default");
+
+		when(store.definitionsFor(1L, TASK)).thenReturn(List.of(definition("default", Set.of()),
+				goals));
+		registry.setSettingsStore(disabling("goals"));
+		assertThat(registry.findAssistantsFor(goal(), context(TASK))).isEmpty();
+		registry.setSettingsStore(disabling());
 
 		when(store.definitionsFor(1L, TASK)).thenReturn(List.of(definition("default", Set.of())));
 		registry.setSettingsStore(disabling("default"));
@@ -166,11 +174,11 @@ class DefinitionRegistryTest {
 				java.util.Locale.US, Clock.systemUTC(), Map.of());
 	}
 
-	private static ProjectAssistantSettingsStore disabling(String key) {
+	private static ProjectAssistantSettingsStore disabling(String... keys) {
 		return new ProjectAssistantSettingsStore() {
 			@Override
 			public Set<String> disabledAssistants(Long id) {
-				return Set.of(key);
+				return Set.of(keys);
 			}
 
 			@Override

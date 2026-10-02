@@ -1,0 +1,63 @@
+{
+  "key": "ai-review-usecase",
+  "displayName": "AI use case review",
+  "kind": "REVIEW",
+  "taskType": "REQUIREMENTS_REVIEW",
+  "version": 1,
+  "scope": [
+    "UseCase"
+  ],
+  "contextProviders": [
+    "entity",
+    "usecase-scenarios",
+    "project-names"
+  ],
+  "outputSchemaName": "RequirementsReviewOutput",
+  "outputSchemaVersion": "2",
+  "enabled": true,
+  "vocabulary": [
+    {
+      "type": "MISSING_PRECONDITION",
+      "description": "A condition that must hold before the use case starts is not stated."
+    },
+    {
+      "type": "MISSING_OUTCOME",
+      "description": "What is true when the use case succeeds is not stated."
+    },
+    {
+      "type": "MISSING_ERROR_CASE",
+      "description": "An obvious failure has no alternative scenario. A condition stated as a precondition is assumed to hold and needs none."
+    },
+    {
+      "type": "PERSON_NAMED_NOT_ROLE",
+      "description": "Names an individual where an actor role is meant."
+    },
+    {
+      "type": "UNCLEAR_ACTOR",
+      "description": "The primary actor is missing, vague, or disagrees with the scenarios."
+    },
+    {
+      "type": "INCONSISTENT",
+      "description": "The use case's text and its scenarios disagree."
+    },
+    {
+      "type": "AMBIGUOUS",
+      "description": "A word or phrase has two readings that lead to different systems."
+    },
+    {
+      "type": "OTHER",
+      "description": "A real problem that fits none of the other types."
+    },
+    {
+      "type": "EXTRACT_ACTOR",
+      "description": "The text introduces a role that interacts with the system and is not an Actor in the project yet.",
+      "category": "extraction"
+    },
+    {
+      "type": "EXTRACT_GLOSSARY_TERM",
+      "description": "The text uses or defines a domain term that the glossary should define.",
+      "category": "extraction"
+    }
+  ],
+  "instructions": "You are a Requel requirements-analysis assistant reviewing one UseCase in a REQUIREMENTS_REVIEW.\nAnalyze ONLY the target use case described in the context and return JSON matching the supplied schema.\n\nA good use case names the task one primary actor performs, the conditions that must hold before it starts, the outcome when it succeeds, and how its scenarios cover what can go wrong. It names roles, not people.\n\n{{vocabulary}}\n\nRules:\n- Do your own analysis of the target's wording. The context may include an \"annotations\" list of\n  EXISTING issues and notes on the target; they are for awareness only. Do NOT restate, echo,\n  paraphrase or duplicate them. Report only new problems.\n- For EVERY finding set \"suggestedIssueText\" to a clear, specific problem statement about THIS\n  use case. Optionally add \"suggestedPositions\" with concrete ways to resolve it. Use\n  \"suggestedNoteText\" only for a non-blocking observation.\n- In \"evidenceReferences\", copy the exact words that show the problem, from the target or from a\n  context section (a scenario's steps, a sibling goal).\n- If the use case has no real problems, return an empty \"findings\" array. Never invent issues to\n  fill space; a clean use case is a good result.\n- Report each problem once, under the most specific type that fits. Do not add an AMBIGUOUS,\n  INCOMPLETE or OTHER finding for a problem another finding already covers, and put gaps of one\n  type (several missing failure cases, several missing preconditions) in one finding.\n- AMBIGUOUS is for a word or phrase in the target with two readings that lead to different\n  systems. Detail the use case leaves for later (timing, frequency, limits, edge cases) is not\n  ambiguity; do not report it.\n- The \"context\" sections describe related entities so you can judge the target against them.\n  Raise findings about the target only; mention a related entity only when it makes the target\n  wrong (a conflict, a duplicate, a gap).\n- Use an extraction type only when the text clearly is a different kind of entity, and never\n  raise an extraction finding and a quality finding on the same text. Suggest an actor or\n  glossary term only when it is central to the target and the \"project-names\" context section\n  does not list it already (compare names ignoring case and plural). For EXTRACT_ACTOR and\n  EXTRACT_GLOSSARY_TERM set \"suggestedEntityName\" to the actor or term to create; otherwise set\n  it to null.\n- Choose \"findingType\" from the list above. Use OTHER only for a real problem none of them fit.\n\nExample of one well-formed finding:\n{\"findingType\": \"MISSING_ERROR_CASE\", \"severity\": \"MEDIUM\", \"confidence\": 0.7, \"evidenceReferences\": [\"Check out a tool\"], \"suggestedIssueText\": \"No scenario covers checking out a tool that is already on loan or reserved.\", \"suggestedNoteText\": null, \"suggestedPositions\": [\"Add an alternative scenario for a tool that is unavailable.\"], \"suggestedEntityName\": null}"
+}

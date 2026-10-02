@@ -113,7 +113,7 @@ public final class BundledDefinitions {
 		node.path("contextProviders").forEach(n -> providers.add(n.asText()));
 		List<VocabularyEntry> vocabulary = new ArrayList<VocabularyEntry>();
 		node.path("vocabulary").forEach(n -> vocabulary.add(new VocabularyEntry(
-				text(n, "type"), text(n, "description"))));
+				text(n, "type"), text(n, "description"), text(n, "category"))));
 		java.util.Map<String, Integer> budgets = new java.util.LinkedHashMap<String, Integer>();
 		node.path("contextBudgets").fields()
 				.forEachRemaining(e -> budgets.put(e.getKey(), e.getValue().asInt()));

@@ -33,6 +33,10 @@ export interface DataHandlingRow {
   enabled: boolean;
 }
 
+/** #263: switch groups the server sends (SwitchableAssistantCatalog). */
+const LEXICAL_CHECKS = 'Lexical checks';
+const AI_REVIEW = 'AI review';
+
 const REDACTION_LABELS: Record<string, string> = {
   credentials: 'Mask credentials (API keys, tokens, passwords)',
   email: 'Mask email addresses',
@@ -61,17 +65,24 @@ const REDACTION_LABELS: Record<string, string> = {
       } @else if (assistants().length === 0) {
         <p class="ws-empty">No assistants to configure.</p>
       } @else {
-        <ul class="assistant-list">
-          @for (a of assistants(); track a.assistantId) {
-            <li class="assistant-row">
-              <p-toggleswitch [inputId]="'assistant-' + a.assistantId" [ngModel]="a.enabled"
-                              [disabled]="!canEdit() || busy() === a.assistantId"
-                              (ngModelChange)="toggle(a, $event)"
-                              [attr.data-testid]="'assistant-toggle-' + a.assistantId" />
-              <label [for]="'assistant-' + a.assistantId">{{ a.displayName }}</label>
-            </li>
+        @for (g of groups(); track g.name) {
+          @if (groups().length > 1) {
+            <h3 class="ws-subtitle" [id]="'assistant-group-' + $index"
+                [attr.data-testid]="'assistant-group-' + g.name">{{ g.name }}</h3>
           }
-        </ul>
+          <ul class="assistant-list"
+              [attr.aria-labelledby]="groups().length > 1 ? 'assistant-group-' + $index : null">
+            @for (a of g.assistants; track a.assistantId) {
+              <li class="assistant-row">
+                <p-toggleswitch [inputId]="'assistant-' + a.assistantId" [ngModel]="a.enabled"
+                                [disabled]="!canEdit() || busy() === a.assistantId"
+                                (ngModelChange)="toggle(a, $event)"
+                                [attr.data-testid]="'assistant-toggle-' + a.assistantId" />
+                <label [for]="'assistant-' + a.assistantId">{{ a.displayName }}</label>
+              </li>
+            }
+          </ul>
+        }
         <p class="ws-hint">
           Switching a check off stops it running in this project. The issues it already raised stay.
         </p>
@@ -147,8 +158,25 @@ export class ProjectAssistantsPanelComponent implements OnChanges {
   readonly analyzing = signal(false);
   readonly status = signal('');
   readonly error = signal<string | null>(null);
-  /** Re-running with every check off would do nothing the panel shows, so it is disabled. */
-  readonly anyEnabled = computed(() => this.assistants().some(a => a.enabled));
+  /**
+   * #263: the switches by heading, in the order the server lists them. A switch with no group
+   * (an older server) shows under "Lexical checks".
+   */
+  readonly groups = computed<{ name: string; assistants: ProjectAssistantDto[] }[]>(() => {
+    const byName = new Map<string, ProjectAssistantDto[]>();
+    for (const a of this.assistants()) {
+      const name = a.group ?? LEXICAL_CHECKS;
+      if (!byName.has(name)) byName.set(name, []);
+      byName.get(name)!.push(a);
+    }
+    return [...byName.entries()].map(([name, assistants]) => ({ name, assistants }));
+  });
+  /**
+   * Re-running with every check off would do nothing the panel shows, so it is disabled. Re-run
+   * analysis runs the lexical checks; the AI review switches don't count (#263).
+   */
+  readonly anyEnabled = computed(() =>
+    this.assistants().some(a => a.enabled && (a.group ?? LEXICAL_CHECKS) !== AI_REVIEW));
   /** Issue #262: null until loaded (or when the read fails, which hides the section). */
   readonly dataHandling = signal<ProjectDataHandlingDto | null>(null);
   readonly dataHandlingRows = computed<DataHandlingRow[]>(() => {

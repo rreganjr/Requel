@@ -204,6 +204,31 @@ class DefinitionExecutorAssistantTest {
 		assertThat(spec.getValue().maxCharacters()).isEqualTo(16000 * 4);
 	}
 
+	/** #263: a scenario's review quotes its use case; text from a context section is verified. */
+	@Test
+	void evidenceFromAContextSectionIsVerified() throws Exception {
+		ContextSection related = ContextSection.complete("goal-siblings", List.of(new RelatedEntity(
+				EntityRef.of("Goal", 11L), "sibling goal", "Members search by name",
+				"Members search the catalogue by name")));
+		EntityContextPack pack = new EntityContextPack(EntityRef.of("Goal", 10L),
+				new GoalSnapshot(10L, 1, "Members love the library", "enjoy it"), null, null,
+				null, null, List.of(related), ContextPackMetadata.empty(java.time.Instant.EPOCH));
+		when(packBuilder.build(any(), any())).thenReturn(pack);
+		aiClient.response = new AiAnalysisResponse("two findings", NullNode.getInstance(),
+				List.of(
+						new AiFindingDraft("DUPLICATE_AT_DIFFERENT_ABSTRACTION", "MEDIUM", 0.8,
+								List.of("search the catalogue by name"), "Quotes the sibling", null,
+								List.of(), Map.of()),
+						new AiFindingDraft("AMBIGUOUS", "LOW", 0.5,
+								List.of("text nobody sent"), "Made up", null, List.of(), Map.of())),
+				List.of(), AiUsage.noop("noop", Duration.ZERO), Map.of());
+
+		AssistantResult result = newAssistant(enabledProperties())
+				.analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
+
+		assertThat(result.metadata()).containsEntry("evidenceUnverified", 1);
+	}
+
 	@Test
 	void anOversizeProviderSectionIsDroppedRatherThanTheReviewSkipped() throws Exception {
 		ContextSection big = ContextSection.complete("goal-siblings", List.of(new RelatedEntity(

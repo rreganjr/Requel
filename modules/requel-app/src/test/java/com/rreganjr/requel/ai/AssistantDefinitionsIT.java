@@ -72,7 +72,8 @@ import com.rreganjr.requel.project.command.EditProjectAssistantSettingCommand;
 		"requel.ai.cli.timeout=30s" })
 public class AssistantDefinitionsIT extends AbstractLexicalAssistantTest {
 
-	private static final String REVIEW = "ai-requirements-review";
+	/** The definition that reviews goals (#263; before that, the generic fallback did). */
+	private static final String REVIEW = "ai-review-goal";
 	private static final Path FAKE_CLI_DIR = createFakeCli();
 
 	@DynamicPropertySource

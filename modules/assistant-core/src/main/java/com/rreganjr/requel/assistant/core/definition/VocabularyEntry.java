@@ -20,11 +20,31 @@
  */
 package com.rreganjr.requel.assistant.core.definition;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 /**
  * Issue #260: one finding type a definition may report, with what it means.
  *
  * @param type the {@code findingType} value, e.g. {@code AMBIGUOUS}
  * @param description one line saying when the type applies
+ * @param category #263: {@link #QUALITY} (the default) or {@link #EXTRACTION} - the content is
+ *        fine but belongs in another entity type, so the finding is advisory
  */
-public record VocabularyEntry(String type, String description) {
+public record VocabularyEntry(String type, String description, String category) {
+
+	public static final String QUALITY = "quality";
+	public static final String EXTRACTION = "extraction";
+
+	public VocabularyEntry {
+		category = category == null || category.isBlank() ? QUALITY : category;
+	}
+
+	public VocabularyEntry(String type, String description) {
+		this(type, description, QUALITY);
+	}
+
+	@JsonIgnore
+	public boolean isExtraction() {
+		return EXTRACTION.equals(category);
+	}
 }

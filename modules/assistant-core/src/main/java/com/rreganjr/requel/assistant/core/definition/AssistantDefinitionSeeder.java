@@ -42,10 +42,18 @@ public class AssistantDefinitionSeeder implements SmartInitializingSingleton {
 	private final AssistantDefinitionStore store;
 	private final ObjectMapper objectMapper;
 
+	/** #263: the dev override directory, applied after seeding; absent outside dev. */
+	private DevDefinitionOverrides overrides;
+
 	@Autowired
 	public AssistantDefinitionSeeder(AssistantDefinitionStore store, ObjectMapper objectMapper) {
 		this.store = store;
 		this.objectMapper = objectMapper;
+	}
+
+	@Autowired(required = false)
+	public void setOverrides(DevDefinitionOverrides overrides) {
+		this.overrides = overrides;
 	}
 
 	@Override
@@ -59,5 +67,8 @@ public class AssistantDefinitionSeeder implements SmartInitializingSingleton {
 		}
 		log.info("Assistant definitions: {} bundled, {} seeded or upgraded", bundled.size(),
 				changed);
+		if (overrides != null) {
+			overrides.reload();
+		}
 	}
 }

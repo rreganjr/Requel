@@ -128,6 +128,35 @@ describe('ProjectAssistantsPanelComponent (#268)', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="assistants-all-off"]')).toBeNull();
   });
 
+  it('groups the switches under headings once AI review definitions are listed (#263)', async () => {
+    list = vi.fn().mockResolvedValue([
+      ...FOUR.map(a => ({ ...a, group: 'Lexical checks' })),
+      { assistantId: 'ai-review-goal', displayName: 'AI goal review', enabled: true, group: 'AI review' },
+    ]);
+    const fixture = await render(true, true);
+    const el: HTMLElement = fixture.nativeElement;
+    const headings = Array.from(el.querySelectorAll('h3[data-testid^="assistant-group-"]'))
+      .map(h => h.textContent?.trim());
+    expect(headings).toEqual(['Lexical checks', 'AI review']);
+    expect(el.querySelectorAll('.assistant-list').length).toBe(2);
+    expect(el.querySelector('[data-testid="assistant-toggle-ai-review-goal"]')).not.toBeNull();
+  });
+
+  it('shows no group heading when every switch is in one group', async () => {
+    const fixture = await render(true, true);
+    expect(fixture.nativeElement.querySelector('h3[data-testid^="assistant-group-"]')).toBeNull();
+  });
+
+  it('does not count AI review switches for Re-run analysis, which runs the lexical checks (#263)', async () => {
+    list = vi.fn().mockResolvedValue([
+      ...FOUR.map(a => ({ ...a, enabled: false, group: 'Lexical checks' })),
+      { assistantId: 'ai-review-goal', displayName: 'AI goal review', enabled: true, group: 'AI review' },
+    ]);
+    const fixture = await render(true, true);
+    const button = fixture.nativeElement.querySelector('[data-testid="assistants-rerun"] button') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+  });
+
   it('hides Re-run analysis without Annotation[Edit]', async () => {
     const fixture = await render(true, false);
     expect(fixture.nativeElement.querySelector('[data-testid="assistants-rerun"]')).toBeNull();

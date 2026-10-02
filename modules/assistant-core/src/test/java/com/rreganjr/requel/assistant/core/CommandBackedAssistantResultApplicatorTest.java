@@ -471,6 +471,47 @@ class CommandBackedAssistantResultApplicatorTest {
 		verify(commandHandler, never()).execute(any());
 	}
 
+	@Test
+	void aDefinitionRetiresTheFindingsAnotherDefinitionLeftOnTheTarget() throws Exception {
+		// #263: the generic review's untouched finding goes once the per-type one has reviewed.
+		AssistantFindingEntity stale = new AssistantFindingEntity(UUID.randomUUID(),
+				"ai-requirements-review:Goal:1:issue:AMBIGUOUS:abc", "ai-requirements-review",
+				"Goal", 1L, "AMBIGUOUS", AssistantFindingState.ACTIVE.name(), UUID.randomUUID(),
+				Instant.parse("2026-05-20T00:00:00Z"));
+		stale.setAppliedAnnotationId(99L);
+		when(findingRepository.findByAssistantIdAndTargetTypeAndTargetIdAndState(
+				"ai-requirements-review", "Goal", 1L, AssistantFindingState.ACTIVE.name()))
+				.thenReturn(List.of(stale));
+		Issue issue = mock(Issue.class);
+		when(issue.getSource()).thenReturn("ASSISTANT:ai-requirements-review");
+		when(issue.getPositions()).thenReturn(Set.of());
+		EntityRef goalRef = EntityRef.of("Goal", 1L);
+		ProjectOrDomainEntity goal = mock(ProjectOrDomainEntity.class);
+		AssistantTargetLoader loader = mock(AssistantTargetLoader.class);
+		when(loader.supports(goalRef)).thenReturn(true);
+		when(loader.loadTarget(goalRef)).thenReturn(Optional.of(goal));
+		when(annotationRepository.findAnnotationById(99L)).thenReturn(issue);
+		RemoveAnnotationFromAnnotatableCommand remove = mock(
+				RemoveAnnotationFromAnnotatableCommand.class);
+		when(annotationCommandFactory.newRemoveAnnotationFromAnnotatableCommand())
+				.thenReturn(remove);
+		when(commandHandler.execute(remove)).thenReturn(remove);
+		CommandBackedAssistantResultApplicator applicator = new CommandBackedAssistantResultApplicator(
+				commandHandler, annotationCommandFactory, projectCommandFactory, annotationRepository,
+				userRepository, findingRepository, runRepository, List.of(loader), fixedClock);
+
+		applicator.apply(context(), AssistantResult.builder().assistantId("ai-review-goal")
+				.metadata(Map.of(AssistantRunWorker.RETIRES_ASSISTANTS,
+						List.of("ai-requirements-review", "ai-review-goal")))
+				.build(), CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED, goalRef);
+
+		verify(commandHandler).execute(remove);
+		assertThat(stale.getState()).isEqualTo(AssistantFindingState.AUTO_RESOLVED.name());
+		assertThat(CommandBackedAssistantResultApplicator.retiredAssistants(AssistantResult.builder()
+				.assistantId("ai-review-goal").metadata(Map.of(AssistantRunWorker.RETIRES_ASSISTANTS,
+						List.of("ai-review-goal", " ", "x"))).build())).containsExactly("x");
+	}
+
 	private AssistantFindingEntity staleFinding() {
 		AssistantFindingEntity stale = new AssistantFindingEntity(UUID.randomUUID(),
 				"legacy-lexical:Goal:1:spelling:Text:zorblat", "legacy-lexical", "Goal", 1L,

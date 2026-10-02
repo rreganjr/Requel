@@ -30,6 +30,7 @@ import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunReadService;
 import com.rreganjr.requel.command.AnalysisRequestDispatcher;
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
@@ -67,7 +68,9 @@ public class AiReviewService {
 			"Actor", Actor.class,
 			"UseCase", UseCase.class,
 			"Scenario", Scenario.class,
-			"Step", Step.class);
+			"Step", Step.class,
+			// #263: reviewable, with its own definition and the glossary-related provider
+			"GlossaryTerm", GlossaryTerm.class);
 
 	private final ProjectRepository projectRepository;
 	private final CurrentUserResolver currentUserResolver;

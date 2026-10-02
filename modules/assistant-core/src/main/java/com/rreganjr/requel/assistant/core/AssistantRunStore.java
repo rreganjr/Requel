@@ -94,5 +94,12 @@ public interface AssistantRunStore {
 	default void recordEvidenceUnverified(UUID runId, int count) {
 	}
 
+	/**
+	 * Issue #263: record how many findings had a type outside the definition's vocabulary (kept;
+	 * a provider-quality signal). Best effort.
+	 */
+	default void recordVocabularyMisses(UUID runId, int count) {
+	}
+
 	Optional<AssistantRunRecord> findRun(UUID runId);
 }

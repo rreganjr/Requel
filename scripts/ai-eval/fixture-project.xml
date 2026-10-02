@@ -13,6 +13,10 @@
             <text>Anyone who is not library staff.</text>
             <name>Non-staff</name>
         </actor>
+        <actor id="ACT_4">
+            <text>A library employee who runs the desk and looks after the tool stock.</text>
+            <name>Staff</name>
+        </actor>
         <actor id="ACT_3">
             <text>A person with a current library membership, who may borrow tools.</text>
             <name>Member</name>
@@ -46,11 +50,8 @@
         <step scenarioType="Primary" id="STP_9">
             <name>The member chooses Renew</name>
         </step>
-        <step scenarioType="Primary" id="STP_10">
-            <name>The system checks that the tool has no reservation</name>
-        </step>
         <step scenarioType="Primary" id="STP_11">
-            <name>The system extends the due date by 7 days and shows the new date</name>
+            <name>The system adds 7 days to the loan's due date and shows the new date</name>
         </step>
         <step scenarioType="Primary" id="STP_12">
             <name>The system or staff mark the tool as broken</name>
@@ -86,7 +87,6 @@
             <steps>
                 <stepRef>STP_8</stepRef>
                 <stepRef>STP_9</stepRef>
-                <stepRef>STP_10</stepRef>
                 <stepRef>STP_11</stepRef>
             </steps>
         </scenario>
@@ -110,7 +110,7 @@
             <name>Overdue tool</name>
         </term>
         <term id="TRM_3">
-            <text>The day a member collects a reserved tool from the desk.</text>
+            <text>The day, chosen when a member reserves a tool, on which the member may collect it from the desk.</text>
             <name>Pickup date</name>
         </term>
     </glossary>
@@ -168,8 +168,8 @@
             <name>Condition alerts are acknowledged</name>
         </goal>
         <goal id="GOL_14">
-            <text>A member can reserve an available tool for a pickup date 1 to 7 days ahead. The reservation holds the tool until 18:00 on the pickup date.</text>
-            <name>Members reserve tools up to 7 days ahead</name>
+            <text>A signed-in member can see every tool they currently have on loan and the date each one is due back.</text>
+            <name>Members see what they have on loan</name>
         </goal>
     </goals>
     <stories>
@@ -208,7 +208,7 @@
             <scenarioRef>SCN_2</scenarioRef>
         </usecase>
         <usecase id="UC_3">
-            <text>A member with no overdue tools renews a current loan before its due date. Precondition: the member is signed in and the tool has no reservation. If the tool is reserved, the renewal is refused and the member is told that the due date stands.</text>
+            <text>A member renews one of their current loans so that it is due back 7 days after its current due date. Preconditions: the member is signed in and has no overdue tools, the loan is not past its due date, and no other member has reserved the tool.</text>
             <name>Renew a loan</name>
             <primaryActorRef>ACT_3</primaryActorRef>
             <scenarioRef>SCN_3</scenarioRef>

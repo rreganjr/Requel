@@ -349,8 +349,31 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		} else {
 			reconcileStaleFindings(result.assistantId(), cleanupPolicy, dispatchTarget,
 					producedKeysByTarget, editedBy, context.runId());
+			// #263: a definition reviewing this target also retires what other definitions of
+			// the same task left on it (the generic review's findings once a per-type one runs).
+			if (dispatchTarget != null) {
+				for (String other : retiredAssistants(result)) {
+					reconcileStaleFindings(other, cleanupPolicy, dispatchTarget,
+							java.util.Map.of(), editedBy, context.runId());
+				}
+			}
 		}
 		return new AppliedAssistantResult(annotationIds.size(), annotationIds);
+	}
+
+	/** Issue #263: the other assistant ids whose findings on the target this result retires. */
+	static List<String> retiredAssistants(AssistantResult result) {
+		Object value = result.metadata().get(AssistantRunWorker.RETIRES_ASSISTANTS);
+		List<String> ids = new ArrayList<>();
+		if (value instanceof java.util.Collection<?> collection) {
+			for (Object id : collection) {
+				if (id != null && !id.toString().isBlank()
+						&& !id.toString().equals(result.assistantId())) {
+					ids.add(id.toString());
+				}
+			}
+		}
+		return ids;
 	}
 
 	/** Issue #268: the result's {@code metadata.incomplete} flag. */

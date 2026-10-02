@@ -998,7 +998,7 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                         .param("entityId", goalId.toString())
                         .header("Authorization", "Bearer " + noAccessToken))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/ai/reviews").param("entityType", "GlossaryTerm")
+        mockMvc.perform(get("/api/ai/reviews").param("entityType", "Project")
                         .param("entityId", goalId.toString())
                         .header("Authorization", "Bearer " + editorToken))
                 .andExpect(status().isBadRequest());
@@ -1014,7 +1014,7 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                         .param("entityId", goalId.toString())
                         .header("Authorization", "Bearer " + noAccessToken))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(post("/api/ai/reviews").param("entityType", "GlossaryTerm")
+        mockMvc.perform(post("/api/ai/reviews").param("entityType", "Project")
                         .param("entityId", goalId.toString())
                         .header("Authorization", "Bearer " + editorToken))
                 .andExpect(status().isBadRequest());

@@ -106,6 +106,19 @@ public class InMemoryAssistantRunStore implements AssistantRunStore {
 		evidenceUnverified.put(runId, count);
 	}
 
+	private final java.util.Map<UUID, Integer> vocabularyMisses =
+			new java.util.concurrent.ConcurrentHashMap<>();
+
+	@Override
+	public void recordVocabularyMisses(UUID runId, int count) {
+		vocabularyMisses.put(runId, count);
+	}
+
+	/** #263: the vocabulary-miss count recorded for a run, if any. */
+	public java.util.Optional<Integer> vocabularyMisses(UUID runId) {
+		return java.util.Optional.ofNullable(vocabularyMisses.get(runId));
+	}
+
 	/** #260: the unverified-evidence count recorded for a run, if any. */
 	public java.util.Optional<Integer> evidenceUnverified(UUID runId) {
 		return java.util.Optional.ofNullable(evidenceUnverified.get(runId));

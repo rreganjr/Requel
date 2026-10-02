@@ -44,6 +44,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
+import com.rreganjr.requel.project.Scenario;
+import com.rreganjr.requel.project.Step;
 import com.rreganjr.requel.project.command.ImportProjectCommand;
 
 /**
@@ -103,6 +105,38 @@ public class FixtureExpectationsIT extends AbstractIntegrationTestCase {
 			}
 		}
 		assertEquals(1, traps, "exactly one shared-wrong-premise trap");
+	}
+
+	/**
+	 * #263: the import kept a scenario's step references in a set, so every imported scenario's
+	 * steps came out in hash order. The fixture's correct and deliberately wrong orders both have
+	 * to survive the import, or the review scores a flaw the fixture does not have.
+	 */
+	@Test
+	public void importKeepsEachScenariosStepOrder() throws Exception {
+		Path dir = evalDir();
+		Project project = importFixture(dir.resolve("fixture-project.xml"));
+		assertEquals(List.of("The member opens the loan on the account page", "The member chooses Renew",
+				"The system adds 7 days to the loan's due date and shows the new date"),
+				stepNames(project, "Renew from the account page"));
+		assertEquals(List.of("The supplier ships the tool", "The treasurer approves the request",
+				"A member submits a purchase request"), stepNames(project, "Approve a purchase request"));
+	}
+
+	private List<String> stepNames(Project project, String scenarioName) {
+		return transactionTemplate.execute(status -> {
+			Project loaded = getProjectRepository().get(project);
+			for (ProjectOrDomainEntity entity : loaded.getProjectEntities()) {
+				if (entity instanceof Scenario scenario && scenarioName.equals(scenario.getName())) {
+					List<String> names = new ArrayList<String>();
+					for (Step step : scenario.getSteps()) {
+						names.add(step.getName());
+					}
+					return names;
+				}
+			}
+			throw new AssertionError("no scenario named " + scenarioName);
+		});
 	}
 
 	private Project importFixture(Path xml) throws Exception {

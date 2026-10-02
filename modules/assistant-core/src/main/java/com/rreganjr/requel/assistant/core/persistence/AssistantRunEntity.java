@@ -123,6 +123,10 @@ public class AssistantRunEntity {
 	@Column(name = "evidence_unverified", nullable = false)
 	private int evidenceUnverified;
 
+	/** #263: findings whose type is not in the definition's vocabulary. */
+	@Column(name = "vocabulary_misses", nullable = false)
+	private int vocabularyMisses;
+
 	/** #355: the assistants' own summary of the run (for AI review, the model's summary). */
 	@Column(name = "result_summary", length = 2000)
 	private String resultSummary;
@@ -367,6 +371,14 @@ public class AssistantRunEntity {
 
 	public void setEvidenceUnverified(int evidenceUnverified) {
 		this.evidenceUnverified = evidenceUnverified;
+	}
+
+	public int getVocabularyMisses() {
+		return vocabularyMisses;
+	}
+
+	public void setVocabularyMisses(int vocabularyMisses) {
+		this.vocabularyMisses = vocabularyMisses;
 	}
 
 	public String getResultSummary() {

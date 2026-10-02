@@ -36,6 +36,7 @@ import com.rreganjr.requel.assistant.api.RequelAssistant;
 import com.rreganjr.requel.assistant.core.AssistantRunStore;
 import com.rreganjr.requel.assistant.core.context.EntityContextPackBuilder;
 import com.rreganjr.requel.assistant.core.definition.AssistantDefinition;
+import com.rreganjr.requel.assistant.core.definition.AssistantDefinitionStore;
 import com.rreganjr.requel.assistant.core.definition.DefinitionExecutorFactory;
 import com.rreganjr.requel.assistant.core.persistence.AssistantUsageRepository;
 import com.rreganjr.requel.project.ProjectAssistantSettingsStore;
@@ -65,6 +66,8 @@ public class AiDefinitionExecutorFactory implements DefinitionExecutorFactory {
 	AssistantRunStore runStore;
 	/** #262: the provider's locality, reported in the data-handling flags. */
 	AiProviderLocality providerLocality;
+	/** #263: the other definitions of a task, whose findings a review retires; none when absent. */
+	AssistantDefinitionStore definitionStore;
 
 	@Autowired
 	public AiDefinitionExecutorFactory(AiAnalysisClient aiAnalysisClient,
@@ -99,6 +102,11 @@ public class AiDefinitionExecutorFactory implements DefinitionExecutorFactory {
 	@Autowired(required = false)
 	public void setProviderLocality(AiProviderLocality providerLocality) {
 		this.providerLocality = providerLocality;
+	}
+
+	@Autowired(required = false)
+	public void setDefinitionStore(AssistantDefinitionStore definitionStore) {
+		this.definitionStore = definitionStore;
 	}
 
 	/**

@@ -77,7 +77,7 @@ public class AssistantRunReadService {
 				run.getCompletedAt(), run.getLatencyMs(),
 				run.getErrorKind(), run.getErrorSummary(), run.getResultSummary(),
 				run.getRedactionCount(), List.copyOf(findings), run.getEvidenceUnverified(),
-				run.getTemplateId(), run.getTemplateVersion());
+				run.getTemplateId(), run.getTemplateVersion(), run.getVocabularyMisses());
 	}
 
 	/**
@@ -112,7 +112,7 @@ public class AssistantRunReadService {
 			Instant completedAt, Long latencyMs, String errorKind,
 			String errorSummary, String resultSummary, int redactionCount,
 			List<FindingView> findings, int evidenceUnverified, String definitionKeys,
-			String definitionVersions) {
+			String definitionVersions, int vocabularyMisses) {
 	}
 
 	/** One finding a run reported. {@code text} is the issue or note text, up to 500 characters. */
