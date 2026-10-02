@@ -114,13 +114,16 @@ public final class BundledDefinitions {
 		List<VocabularyEntry> vocabulary = new ArrayList<VocabularyEntry>();
 		node.path("vocabulary").forEach(n -> vocabulary.add(new VocabularyEntry(
 				text(n, "type"), text(n, "description"))));
+		java.util.Map<String, Integer> budgets = new java.util.LinkedHashMap<String, Integer>();
+		node.path("contextBudgets").fields()
+				.forEachRemaining(e -> budgets.put(e.getKey(), e.getValue().asInt()));
 		String kind = text(node, "kind");
 		return new AssistantDefinition(text(node, "key"), text(node, "displayName"),
 				kind == null ? DefinitionKind.REVIEW : DefinitionKind.valueOf(kind),
 				text(node, "taskType"), scope, providers, text(node, "instructions"), vocabulary,
 				text(node, "outputSchemaName"), text(node, "outputSchemaVersion"),
 				node.path("enabled").asBoolean(true), node.path("version").asInt(0),
-				DefinitionSource.BUNDLED, null, null, text(node, "executorBean"));
+				DefinitionSource.BUNDLED, null, null, text(node, "executorBean"), budgets);
 	}
 
 	private static String text(JsonNode node, String field) {

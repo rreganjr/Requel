@@ -102,6 +102,22 @@ class AssistantDefinitionStoreTest {
 	}
 
 	@Test
+	void contextBudgetsReadBack() {
+		AssistantDefinition f = review("goals", Set.of("Goal"));
+		AssistantDefinition saved = new AssistantDefinition(f.key(), f.displayName(), f.kind(),
+				f.taskType(), f.scope(), java.util.List.of("entity", "goal-siblings"),
+				f.instructions(), f.vocabulary(), f.outputSchemaName(), f.outputSchemaVersion(),
+				f.enabled(), f.version(), f.source(), f.projectId(), f.forkedFromVersion(),
+				f.executorBean(), java.util.Map.of("goal-siblings", 2000));
+		store.save(saved, "ron");
+
+		assertThat(rows.get(0).getContextBudgetsJson()).isEqualTo("{\"goal-siblings\":2000}");
+		assertThat(store.definitionsFor(5L, TASK).get(0).contextBudgets())
+				.containsExactly(java.util.Map.entry("goal-siblings", 2000));
+		assertThat(review("plain", Set.of("Story")).contextBudgets()).isEmpty();
+	}
+
+	@Test
 	void aBulkReviewReadsTheDefinitionsOncePerProject() {
 		store.seedBundled(fallback("default"));
 		for (int i = 0; i < 20; i++) {

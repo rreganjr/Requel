@@ -21,6 +21,7 @@
 package com.rreganjr.requel.assistant.core.definition;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -51,9 +52,21 @@ public record AssistantDefinition(String key, String displayName, DefinitionKind
 		String taskType, Set<String> scope, List<String> contextProviders, String instructions,
 		List<VocabularyEntry> vocabulary, String outputSchemaName, String outputSchemaVersion,
 		boolean enabled, int version, DefinitionSource source, Long projectId,
-		Integer forkedFromVersion, String executorBean) {
+		Integer forkedFromVersion, String executorBean, Map<String, Integer> contextBudgets) {
+
+	/** Without context budget overrides (every provider gets the default share). */
+	public AssistantDefinition(String key, String displayName, DefinitionKind kind,
+			String taskType, Set<String> scope, List<String> contextProviders, String instructions,
+			List<VocabularyEntry> vocabulary, String outputSchemaName, String outputSchemaVersion,
+			boolean enabled, int version, DefinitionSource source, Long projectId,
+			Integer forkedFromVersion, String executorBean) {
+		this(key, displayName, kind, taskType, scope, contextProviders, instructions, vocabulary,
+				outputSchemaName, outputSchemaVersion, enabled, version, source, projectId,
+				forkedFromVersion, executorBean, Map.of());
+	}
 
 	public AssistantDefinition {
+		contextBudgets = contextBudgets == null ? Map.of() : Map.copyOf(contextBudgets);
 		scope = scope == null ? Set.of() : Set.copyOf(scope);
 		contextProviders = contextProviders == null ? List.of() : List.copyOf(contextProviders);
 		vocabulary = vocabulary == null ? List.of() : List.copyOf(vocabulary);
@@ -75,7 +88,7 @@ public record AssistantDefinition(String key, String displayName, DefinitionKind
 	public AssistantDefinition withEnabled(boolean value) {
 		return new AssistantDefinition(key, displayName, kind, taskType, scope, contextProviders,
 				instructions, vocabulary, outputSchemaName, outputSchemaVersion, value, version,
-				source, projectId, forkedFromVersion, executorBean);
+				source, projectId, forkedFromVersion, executorBean, contextBudgets);
 	}
 
 	/** A project copy of this definition, for {@code projectId}, at version 1. */
@@ -83,7 +96,7 @@ public record AssistantDefinition(String key, String displayName, DefinitionKind
 		Objects.requireNonNull(owner, "owner");
 		return new AssistantDefinition(key, displayName, kind, taskType, scope, contextProviders,
 				newInstructions, vocabulary, outputSchemaName, outputSchemaVersion, enabled, 1,
-				DefinitionSource.PROJECT, owner, version, executorBean);
+				DefinitionSource.PROJECT, owner, version, executorBean, contextBudgets);
 	}
 
 	/** {@code key@version}, for the run record. */

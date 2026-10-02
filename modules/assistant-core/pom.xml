@@ -17,6 +17,12 @@
     <description>Assistant dispatcher, registry, applicator contracts, and run orchestration.</description>
 
     <dependencies>
+        <!-- #261: Porter stemmer for TextSimilarity (already in the app through nlp-jpa) -->
+        <dependency>
+            <groupId>org.apache.opennlp</groupId>
+            <artifactId>opennlp-tools</artifactId>
+            <version>2.5.9</version>
+        </dependency>
         <dependency>
             <groupId>com.rreganjr.requel</groupId>
             <artifactId>assistant-api</artifactId>

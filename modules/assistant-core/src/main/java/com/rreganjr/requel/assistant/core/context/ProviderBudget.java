@@ -21,39 +21,33 @@
 package com.rreganjr.requel.assistant.core.context;
 
 /**
- * Running total-character budget used by the context-pack builders. When the
- * cap is exceeded the builders stop adding optional collections (extra goals,
- * extra annotations, etc.) and record a truncation note. The first project,
- * target entity, and primary annotations are always added even if oversize —
- * the per-field clamps already bound them.
+ * Issue #261: the characters one provider may add. Providers offer entities in priority order and
+ * stop at the first that does not fit, so what is cut is always the tail.
  */
-final class ContextPackBudget {
+public final class ProviderBudget {
 
 	private final int cap;
-	private int charactersUsed;
+	private int used;
 
-	ContextPackBudget(int cap) {
+	public ProviderBudget(int cap) {
 		this.cap = Math.max(0, cap);
 	}
 
-	int totalCharacters() {
-		return charactersUsed;
-	}
-
-	boolean exceeded() {
-		return cap > 0 && charactersUsed >= cap;
-	}
-
-	/** Issue #261: a provider section's size, already measured by its {@link ProviderBudget}. */
-	void addCharacters(int count) {
-		charactersUsed += Math.max(0, count);
-	}
-
-	void add(String... values) {
-		for (String value : values) {
-			if (value != null) {
-				charactersUsed += value.length();
-			}
+	/** Count {@code entity} and return true if it fits; false (and nothing counted) if not. */
+	public boolean tryAdd(RelatedEntity entity) {
+		int size = entity.size();
+		if (used + size > cap) {
+			return false;
 		}
+		used += size;
+		return true;
+	}
+
+	public int used() {
+		return used;
+	}
+
+	public int cap() {
+		return cap;
 	}
 }

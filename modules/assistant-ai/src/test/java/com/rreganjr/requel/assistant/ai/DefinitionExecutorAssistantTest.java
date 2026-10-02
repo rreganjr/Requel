@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import com.fasterxml.jackson.databind.node.NullNode;
 
@@ -46,7 +47,12 @@ import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rreganjr.requel.assistant.core.context.ContextPackMetadata;
+import com.rreganjr.requel.assistant.core.context.ContextSection;
 import com.rreganjr.requel.assistant.core.context.EntityContextPack;
+import com.rreganjr.requel.assistant.core.context.GoalSnapshot;
+import com.rreganjr.requel.assistant.core.context.PackSpec;
+import com.rreganjr.requel.assistant.core.context.RelatedEntity;
 import com.rreganjr.requel.assistant.core.context.EntityContextPackBuilder;
 import com.rreganjr.requel.assistant.core.definition.AssistantDefinition;
 import com.rreganjr.requel.assistant.core.definition.AssistantDefinitionValidator;
@@ -134,7 +140,7 @@ class DefinitionExecutorAssistantTest {
 
 	@Test
 	void callsProviderWhenRequirementsReviewEnabledAndAllowed() throws Exception {
-		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		when(packBuilder.build(any(), any())).thenReturn(mock(EntityContextPack.class));
 
 		AssistantResult result = newAssistant(enabledProperties())
 				.analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
@@ -155,7 +161,7 @@ class DefinitionExecutorAssistantTest {
 
 	@Test
 	void skipsProviderWhenContextExceedsInputCap() throws Exception {
-		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		when(packBuilder.build(any(), any())).thenReturn(mock(EntityContextPack.class));
 		AiProperties props = enabledProperties();
 		props.setMaxInputTokens(-1); // force any estimate to exceed the cap
 
@@ -168,10 +174,67 @@ class DefinitionExecutorAssistantTest {
 	}
 
 	@Test
+	void theBundledReviewAsksForTheBasePackOnly() throws Exception {
+		when(packBuilder.build(any(), any())).thenReturn(mock(EntityContextPack.class));
+
+		newAssistant(enabledProperties()).analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
+
+		ArgumentCaptor<PackSpec> spec = ArgumentCaptor.forClass(PackSpec.class);
+		verify(packBuilder).build(any(), spec.capture());
+		assertThat(spec.getValue().providerIds()).containsExactly("entity");
+		assertThat(spec.getValue().maxCharacters()).isZero(); // the pack's own cap, as before
+	}
+
+	@Test
+	void aDefinitionWithProvidersCapsThePackAtTheInputBudget() throws Exception {
+		when(packBuilder.build(any(), any())).thenReturn(mock(EntityContextPack.class));
+		AssistantDefinition d = defaultDefinition();
+		AssistantDefinition withProviders = new AssistantDefinition(d.key(), d.displayName(),
+				d.kind(), d.taskType(), d.scope(), List.of("entity", "goal-relations"),
+				d.instructions(), d.vocabulary(), d.outputSchemaName(), d.outputSchemaVersion(),
+				true, 1, d.source(), null, null, null, Map.of("goal-relations", 500));
+
+		newAssistant(enabledProperties(), withProviders).analyze(context("REQUIREMENTS_REVIEW"),
+				goalTarget());
+
+		ArgumentCaptor<PackSpec> spec = ArgumentCaptor.forClass(PackSpec.class);
+		verify(packBuilder).build(any(), spec.capture());
+		assertThat(spec.getValue().providerIds()).containsExactly("entity", "goal-relations");
+		assertThat(spec.getValue().budgets()).containsEntry("goal-relations", 500);
+		assertThat(spec.getValue().maxCharacters()).isEqualTo(16000 * 4);
+	}
+
+	@Test
+	void anOversizeProviderSectionIsDroppedRatherThanTheReviewSkipped() throws Exception {
+		ContextSection big = ContextSection.complete("goal-siblings", List.of(new RelatedEntity(
+				EntityRef.of("Goal", 11L), "sibling goal", "Other", "x".repeat(20_000))));
+		EntityContextPack pack = new EntityContextPack(EntityRef.of("Goal", 10L),
+				new GoalSnapshot(10L, 1, "Members love the library", "enjoy it"), null, null,
+				null, null, List.of(big), ContextPackMetadata.empty(java.time.Instant.EPOCH));
+		when(packBuilder.build(any(), any())).thenReturn(pack);
+		AiProperties props = enabledProperties();
+		props.setMaxInputTokens(1000); // the base pack fits; with the section it does not
+		AiDefinitionExecutorFactory sized = new AiDefinitionExecutorFactory(aiClient, packBuilder,
+				props, usageRepository, com.fasterxml.jackson.databind.json.JsonMapper.builder()
+						.disable(com.fasterxml.jackson.databind.MapperFeature
+								.REQUIRE_HANDLERS_FOR_JAVA8_TIMES)
+						.build());
+
+		((DefinitionExecutorAssistant) sized.executorFor(defaultDefinition())).analyze(context("REQUIREMENTS_REVIEW"),
+				goalTarget());
+
+		assertThat(aiClient.calls).isEqualTo(1);
+		EntityContextPack sent = (EntityContextPack) aiClient.lastRequest.contextPacks().get(0);
+		assertThat(sent.context()).isEmpty();
+		assertThat(sent.metadata().truncationNotes())
+				.contains("goal-siblings: dropped to fit the input cap");
+	}
+
+	@Test
 	void providerFailurePropagatesSoTheRunRecordsIt() {
 		// #259: an AiAnalysisException used to be swallowed into a result, so the run read as a
 		// successful review that found nothing.
-		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		when(packBuilder.build(any(), any())).thenReturn(mock(EntityContextPack.class));
 		aiClient.failure = new AiAnalysisException("AI CLI exited with status 2");
 
 		assertThatThrownBy(() -> newAssistant(enabledProperties())
@@ -185,7 +248,7 @@ class DefinitionExecutorAssistantTest {
 	/** #262: every request carries the project's data-handling flags. */
 	@Test
 	void theRequestCarriesTheProjectsDataHandlingFlags() throws Exception {
-		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		when(packBuilder.build(any(), any())).thenReturn(mock(EntityContextPack.class));
 		com.rreganjr.requel.project.ProjectAssistantSettingsStore store =
 				mock(com.rreganjr.requel.project.ProjectAssistantSettingsStore.class);
 		when(store.disabledAssistants(2L)).thenReturn(java.util.Set.of("egress.external",
@@ -205,7 +268,7 @@ class DefinitionExecutorAssistantTest {
 
 	@Test
 	void withoutSettingsEverythingIsOnAndTheFlagsAreNeverEmpty() throws Exception {
-		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		when(packBuilder.build(any(), any())).thenReturn(mock(EntityContextPack.class));
 
 		newAssistant(enabledProperties()).analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
 
@@ -221,7 +284,7 @@ class DefinitionExecutorAssistantTest {
 		when(pack.metadata()).thenReturn(new com.rreganjr.requel.assistant.core.context
 				.ContextPackMetadata(java.time.Instant.EPOCH, 0, false,
 						List.of("goal.text: CREDENTIALS x1, EMAIL x1"), List.of()));
-		when(packBuilder.build(any())).thenReturn(pack);
+		when(packBuilder.build(any(), any())).thenReturn(pack);
 		com.rreganjr.requel.assistant.core.InMemoryAssistantRunStore runStore =
 				new com.rreganjr.requel.assistant.core.InMemoryAssistantRunStore();
 		DefinitionExecutorAssistant assistant = newAssistant(enabledProperties());
@@ -238,7 +301,7 @@ class DefinitionExecutorAssistantTest {
 
 	@Test
 	void mapsFindingsToAnnotationActions() throws Exception {
-		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		when(packBuilder.build(any(), any())).thenReturn(mock(EntityContextPack.class));
 		aiClient.response = new AiAnalysisResponse("found two issues", NullNode.getInstance(),
 				List.of(
 						new AiFindingDraft("AMBIGUOUS", "HIGH", 0.9, List.of("Goal:10"),
@@ -282,7 +345,7 @@ class DefinitionExecutorAssistantTest {
 		assertThat(definition.key()).isEqualTo("ai-requirements-review");
 		assertThat(definition.taskType()).isEqualTo("REQUIREMENTS_REVIEW");
 		assertThat(definition.isFallback()).isTrue();
-		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		when(packBuilder.build(any(), any())).thenReturn(mock(EntityContextPack.class));
 
 		newAssistant(enabledProperties()).analyze(context("REQUIREMENTS_REVIEW"), goalTarget());
 
@@ -293,7 +356,7 @@ class DefinitionExecutorAssistantTest {
 	/** #260: the definition's own instructions, key and identity reach the request. */
 	@Test
 	void aDefinitionsInstructionsAndKeyReachTheRequest() throws Exception {
-		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		when(packBuilder.build(any(), any())).thenReturn(mock(EntityContextPack.class));
 		AssistantDefinition forked = defaultDefinition().forkFor(2L, "Project-specific guidance.");
 
 		DefinitionExecutorAssistant assistant = newAssistant(enabledProperties(), forked);
@@ -310,7 +373,7 @@ class DefinitionExecutorAssistantTest {
 	/** #260: a finding citing text the entity doesn't contain is kept, and counted. */
 	@Test
 	void unverifiedEvidenceIsKeptAndCounted() throws Exception {
-		when(packBuilder.build(any())).thenReturn(mock(EntityContextPack.class));
+		when(packBuilder.build(any(), any())).thenReturn(mock(EntityContextPack.class));
 		aiClient.response = new AiAnalysisResponse("two findings", NullNode.getInstance(),
 				List.of(
 						new AiFindingDraft("AMBIGUOUS", "HIGH", 0.9, List.of("\"Members love\""),

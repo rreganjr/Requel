@@ -54,6 +54,20 @@ class BundledDefinitionsTest {
 	}
 
 	@Test
+	void aFileCanOverrideContextBudgets() throws Exception {
+		AssistantDefinition definition = BundledDefinitions.fromJson(objectMapper.readTree("""
+				{"key":"k","displayName":"K","taskType":"REQUIREMENTS_REVIEW","version":1,
+				 "contextProviders":["entity","goal-siblings"],
+				 "contextBudgets":{"goal-siblings":12000},
+				 "outputSchemaName":"RequirementsReviewOutput","outputSchemaVersion":"1",
+				 "vocabulary":[{"type":"AMBIGUOUS","description":"unclear"}],
+				 "instructions":"Do it."}
+				"""));
+		assertThat(definition.contextBudgets()).containsExactly(java.util.Map.entry("goal-siblings",
+				12000));
+	}
+
+	@Test
 	void anUnreadableFileNamesItself() {
 		assertThatThrownBy(() -> BundledDefinitions.parse(objectMapper,
 				new ByteArrayResource("{not json".getBytes()), "broken.json"))
