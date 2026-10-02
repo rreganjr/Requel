@@ -63,6 +63,8 @@ public class EntityContextPackBuilder {
 	private final RedactionPolicy redactionPolicy;
 	private final ContextPackSizeLimits limits;
 	private final Clock clock;
+	/** Issue #261: null in unit tests that build the base pack only. */
+	private ContextProviderRegistry providers;
 
 	@Autowired
 	public EntityContextPackBuilder(RedactionPolicy redactionPolicy,
@@ -77,15 +79,37 @@ public class EntityContextPackBuilder {
 		this.clock = Objects.requireNonNull(clock, "clock");
 	}
 
+	/** Issue #261: the context providers; optional, so the base pack builds without them. */
+	@Autowired(required = false)
+	public void setProviders(ContextProviderRegistry providers) {
+		this.providers = providers;
+	}
+
+	/** The base pack only: {@code build(target, PackSpec.entityOnly())}. */
 	public EntityContextPack build(Object target) {
+		return build(target, PackSpec.entityOnly());
+	}
+
+	/**
+	 * The base pack plus a section from each provider {@code spec} names, in its order (#261).
+	 * Each provider gets its share of what the base pack left of the cap; one that would get
+	 * nothing is skipped and noted. The base pack itself is built exactly as before.
+	 *
+	 * @throws IllegalArgumentException if {@code spec} names a provider that is not registered
+	 */
+	public EntityContextPack build(Object target, PackSpec spec) {
 		Objects.requireNonNull(target, "target");
+		Objects.requireNonNull(spec, "spec");
 		// #262: the project's switches decide which categories are masked; authors become roles
 		RedactionPolicy policy = redactionPolicy
 				.forProject(ContextPackTextUtils.projectIdOf(target));
 		AuthorPseudonyms authors = new AuthorPseudonyms();
 		List<String> redacted = new ArrayList<>();
 		List<String> truncated = new ArrayList<>();
-		ContextPackBudget budget = new ContextPackBudget(limits.getMaxTotalCharacters());
+		int cap = spec.maxCharacters() > 0
+				? Math.min(limits.getMaxTotalCharacters(), spec.maxCharacters())
+				: limits.getMaxTotalCharacters();
+		ContextPackBudget budget = new ContextPackBudget(cap);
 		int maxField = limits.getMaxTextCharsPerField();
 
 		EntityRef targetRef = entityRefFor(target);
@@ -142,10 +166,50 @@ public class EntityContextPackBuilder {
 			}
 		}
 
+		List<ContextSection> sections = contribute(target, spec, cap, budget, policy, authors,
+				redacted, truncated, maxField);
+
 		ContextPackMetadata metadata = new ContextPackMetadata(Instant.now(clock),
 				budget.totalCharacters(), !truncated.isEmpty(), redacted, truncated);
 		return new EntityContextPack(targetRef, snapshot, List.of(), List.of(), annotations,
-				relatedTerms, metadata);
+				relatedTerms, sections, metadata);
+	}
+
+	private List<ContextSection> contribute(Object target, PackSpec spec, int cap,
+			ContextPackBudget budget, RedactionPolicy policy, AuthorPseudonyms authors,
+			List<String> redacted, List<String> truncated, int maxField) {
+		List<ContextSection> sections = new ArrayList<>();
+		for (String id : spec.providerIds()) {
+			if (ContextProviderRegistry.ENTITY.equals(id)) {
+				continue;
+			}
+			ContextProvider provider = providers == null ? null : providers.find(id);
+			if (provider == null) {
+				throw new IllegalArgumentException("unknown context provider " + id);
+			}
+			if (!provider.appliesTo(target)) {
+				continue;
+			}
+			int share = Math.min(spec.budgets().getOrDefault(id, limits.getProviderBudget()),
+					cap - budget.totalCharacters());
+			if (share <= 0) {
+				truncated.add(id + ": skipped, the pack's character budget is used up");
+				continue;
+			}
+			ProviderBudget providerBudget = new ProviderBudget(share);
+			ContextSection section = provider.contribute(target, providerBudget,
+					new ProviderContext(id, policy, authors, redacted, truncated, maxField));
+			if (section == null || section.entities().isEmpty() && section.available() == 0) {
+				continue;
+			}
+			if (section.truncated()) {
+				truncated.add(id + ": " + section.shown() + " of " + section.available()
+						+ " shown");
+			}
+			budget.addCharacters(providerBudget.used());
+			sections.add(section);
+		}
+		return sections;
 	}
 
 	private EntityRef entityRefFor(Object target) {

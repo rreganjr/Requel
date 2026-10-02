@@ -49,6 +49,9 @@ public class ContextPackSizeLimits {
 	/** Hard total-character ceiling for a single built pack. */
 	private int maxTotalCharacters = 100_000;
 
+	/** Issue #261: characters each context provider may add unless a definition overrides it. */
+	private int providerBudget = 8_000;
+
 	public int getMaxTextCharsPerField() {
 		return maxTextCharsPerField;
 	}
@@ -79,5 +82,13 @@ public class ContextPackSizeLimits {
 
 	public void setMaxTotalCharacters(int maxTotalCharacters) {
 		this.maxTotalCharacters = maxTotalCharacters;
+	}
+
+	public int getProviderBudget() {
+		return providerBudget;
+	}
+
+	public void setProviderBudget(int providerBudget) {
+		this.providerBudget = providerBudget;
 	}
 }

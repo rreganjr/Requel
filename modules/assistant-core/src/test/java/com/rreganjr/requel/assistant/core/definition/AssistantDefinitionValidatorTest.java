@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -58,6 +59,46 @@ class AssistantDefinitionValidatorTest {
 		AssistantDefinition d = withProviders(fallback("x"), List.of("entity", "siblings"));
 		assertThatThrownBy(() -> validator.validate(d, List.of()))
 				.hasMessageContaining("unknown context provider(s): [siblings]");
+	}
+
+	@Test
+	void theRegisteredProvidersAreTheOnesAccepted() {
+		AssistantDefinitionValidator registered = new AssistantDefinitionValidator(1000,
+				Set.of("entity", "goal-relations"));
+		AssistantDefinition d = withProviders(fallback("x"), List.of("entity", "goal-siblings"));
+		assertThatThrownBy(() -> registered.validate(d, List.of()))
+				.hasMessageContaining("unknown context provider(s): [goal-siblings]")
+				.hasMessageContaining("(known: [entity, goal-relations])");
+	}
+
+	@Test
+	void theBuiltInProvidersAreAcceptedWithoutARegistry() {
+		AssistantDefinition d = withProviders(fallback("x"), List.of("entity", "goal-relations",
+				"goal-siblings", "goal-stakeholders", "usecase-scenarios", "scenario-usecases",
+				"step-sequence", "story-actors", "actor-references"));
+		assertThatCode(() -> validator.validate(d, List.of())).doesNotThrowAnyException();
+	}
+
+	@Test
+	void contextBudgetsMustNameAUsedProviderBePositiveAndFitTheCap() {
+		AssistantDefinition ok = withBudgets(
+				withProviders(fallback("x"), List.of("entity", "goal-siblings")),
+				Map.of("goal-siblings", 2000));
+		assertThatCode(() -> validator.validate(ok, List.of())).doesNotThrowAnyException();
+
+		AssistantDefinition bad = withBudgets(
+				withProviders(fallback("y"), List.of("entity", "goal-siblings")),
+				Map.of("goal-relations", 10, "goal-siblings", 0, "entity", 5));
+		assertThatThrownBy(() -> validator.validate(bad, List.of()))
+				.hasMessageContaining("contextBudgets names goal-relations")
+				.hasMessageContaining("contextBudgets names entity")
+				.hasMessageContaining("contextBudgets.goal-siblings must be positive");
+
+		AssistantDefinition tooBig = withBudgets(
+				withProviders(fallback("z"), List.of("entity", "goal-siblings")),
+				Map.of("goal-siblings", 4001));
+		assertThatThrownBy(() -> validator.validate(tooBig, List.of()))
+				.hasMessageContaining("contextBudgets total 4001 characters is over the input cap of 4000");
 	}
 
 	@Test
@@ -139,6 +180,14 @@ class AssistantDefinitionValidatorTest {
 				null, null, null);
 		assertThatThrownBy(() -> validator.validate(orphan, List.of()))
 				.hasMessageContaining("a PROJECT definition needs an owning project");
+	}
+
+	private static AssistantDefinition withBudgets(AssistantDefinition f,
+			Map<String, Integer> budgets) {
+		return new AssistantDefinition(f.key(), f.displayName(), f.kind(), f.taskType(), f.scope(),
+				f.contextProviders(), f.instructions(), f.vocabulary(), f.outputSchemaName(),
+				f.outputSchemaVersion(), f.enabled(), f.version(), f.source(), f.projectId(),
+				f.forkedFromVersion(), f.executorBean(), budgets);
 	}
 
 	private static AssistantDefinition withProviders(AssistantDefinition f, List<String> providers) {

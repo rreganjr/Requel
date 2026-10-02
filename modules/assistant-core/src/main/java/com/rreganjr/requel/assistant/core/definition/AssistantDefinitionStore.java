@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.core.env.Environment;
@@ -41,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rreganjr.requel.assistant.core.context.ContextProviderRegistry;
 import com.rreganjr.requel.assistant.core.persistence.AssistantDefinitionEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantDefinitionRepository;
 import com.rreganjr.requel.project.ProjectAssistantDefinitions;
@@ -68,9 +70,15 @@ public class AssistantDefinitionStore implements ProjectAssistantDefinitions {
 
 	@Autowired
 	public AssistantDefinitionStore(AssistantDefinitionRepository repository,
-			ObjectMapper objectMapper, Environment environment) {
-		this(repository, objectMapper, new AssistantDefinitionValidator(maxInputTokens(environment)),
-				Clock.systemUTC());
+			ObjectMapper objectMapper, Environment environment,
+			ObjectProvider<ContextProviderRegistry> providers) {
+		this(repository, objectMapper, new AssistantDefinitionValidator(maxInputTokens(environment),
+				providerIds(providers.getIfAvailable())), Clock.systemUTC());
+	}
+
+	/** #261: the registered provider ids, or the built-in set without a registry. */
+	private static Set<String> providerIds(ContextProviderRegistry registry) {
+		return registry == null ? AssistantDefinitionValidator.CONTEXT_PROVIDERS : registry.ids();
 	}
 
 	AssistantDefinitionStore(AssistantDefinitionRepository repository, ObjectMapper objectMapper,
@@ -229,6 +237,8 @@ public class AssistantDefinitionStore implements ProjectAssistantDefinitions {
 		entity.setTaskType(definition.taskType());
 		entity.setScopeJson(json(new java.util.TreeSet<String>(definition.scope())));
 		entity.setContextProvidersJson(json(definition.contextProviders()));
+		entity.setContextBudgetsJson(definition.contextBudgets().isEmpty() ? null
+				: json(new java.util.TreeMap<String, Integer>(definition.contextBudgets())));
 		entity.setInstructions(definition.instructions());
 		entity.setVocabularyJson(json(definition.vocabulary()));
 		entity.setOutputSchemaName(definition.outputSchemaName());
@@ -249,7 +259,10 @@ public class AssistantDefinitionStore implements ProjectAssistantDefinitions {
 				read(row.getVocabularyJson(), new TypeReference<List<VocabularyEntry>>() {
 				}), row.getOutputSchemaName(), row.getOutputSchemaVersion(), row.isEnabled(),
 				row.getDefinitionVersion(), DefinitionSource.valueOf(row.getSource()),
-				row.getProjectId(), row.getForkedFromVersion(), row.getExecutorBean());
+				row.getProjectId(), row.getForkedFromVersion(), row.getExecutorBean(),
+				row.getContextBudgetsJson() == null ? Map.of()
+						: read(row.getContextBudgetsJson(), new TypeReference<Map<String, Integer>>() {
+						}));
 	}
 
 	private String json(Object value) {

@@ -61,6 +61,10 @@ public class AssistantDefinitionEntity {
 	@Column(name = "context_providers_json", nullable = false, columnDefinition = "TEXT")
 	private String contextProvidersJson;
 
+	/** #261: per-provider character shares, a JSON object; null = defaults. */
+	@Column(name = "context_budgets_json", columnDefinition = "TEXT")
+	private String contextBudgetsJson;
+
 	@Column(name = "instructions", nullable = false, columnDefinition = "TEXT")
 	private String instructions;
 
@@ -159,6 +163,14 @@ public class AssistantDefinitionEntity {
 
 	public void setContextProvidersJson(String contextProvidersJson) {
 		this.contextProvidersJson = contextProvidersJson;
+	}
+
+	public String getContextBudgetsJson() {
+		return contextBudgetsJson;
+	}
+
+	public void setContextBudgetsJson(String contextBudgetsJson) {
+		this.contextBudgetsJson = contextBudgetsJson;
 	}
 
 	public String getInstructions() {

@@ -39,7 +39,9 @@ import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.EvidenceRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
 import com.rreganjr.requel.assistant.core.AssistantRunWorker;
+import com.rreganjr.requel.assistant.core.context.ContextProviderRegistry;
 import com.rreganjr.requel.assistant.core.context.EntityContextPack;
+import com.rreganjr.requel.assistant.core.context.PackSpec;
 import com.rreganjr.requel.assistant.core.definition.AssistantDefinition;
 import com.rreganjr.requel.assistant.core.definition.DefinitionBacked;
 import com.rreganjr.requel.assistant.core.persistence.AssistantUsageEntity;
@@ -127,7 +129,14 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 					.summary(skipReason).build();
 		}
 
-		EntityContextPack pack = runtime.entityContextPackBuilder.build(target);
+		int cap = runtime.aiProperties.getMaxInputTokens();
+		EntityContextPack pack = runtime.entityContextPackBuilder.build(target, packSpec(cap));
+		// #261: providers never cause a skip - drop their sections, last first, until it fits.
+		int estimatedInputTokens = estimateInputTokens(List.of(pack));
+		while (estimatedInputTokens > cap && !pack.context().isEmpty()) {
+			pack = pack.withoutLastSection();
+			estimatedInputTokens = estimateInputTokens(List.of(pack));
+		}
 		recordRedactions(context.runId(), pack);
 		EntityRef targetRef = EntityRef.of(target.getProjectOrDomainEntityInterface().getSimpleName(),
 				target.getId());
@@ -136,9 +145,8 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 		AssistantResult.Builder result = AssistantResult.builder().assistantId(assistantId())
 				.runId(context.runId());
 
-		// Refuse oversize input rather than send it to the provider (review concern #5).
-		int estimatedInputTokens = estimateInputTokens(contextPacks);
-		int cap = runtime.aiProperties.getMaxInputTokens();
+		// Refuse oversize input rather than send it to the provider (review concern #5). After
+		// #261 only an oversize base pack gets here.
 		if (estimatedInputTokens > cap) {
 			log.info("Skipping AI review for run {}: estimated {} input tokens exceeds cap {}",
 					context.runId(), estimatedInputTokens, cap);
@@ -230,6 +238,18 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 		} catch (RuntimeException e) {
 			log.warn("Failed to record redactions for run {}: {}", runId, e.getMessage(), e);
 		}
+	}
+
+	/**
+	 * Issue #261: the definition's providers and budgets, capped at the input budget in
+	 * characters. A definition naming only {@code entity} keeps the pack's own cap, so its pack
+	 * is exactly what it was before providers existed.
+	 */
+	private PackSpec packSpec(int maxInputTokens) {
+		boolean entityOnly = definition.contextProviders().stream()
+				.allMatch(ContextProviderRegistry.ENTITY::equals);
+		return new PackSpec(definition.contextProviders(), definition.contextBudgets(),
+				entityOnly ? 0 : maxInputTokens * CHARS_PER_TOKEN_ESTIMATE);
 	}
 
 	/**

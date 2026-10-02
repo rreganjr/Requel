@@ -28,6 +28,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.rreganjr.requel.assistant.core.context.ContextProviderRegistry;
 /**
  * Issue #260: the rules an assistant definition must meet to be saved or seeded.
  *
@@ -49,8 +50,13 @@ public class AssistantDefinitionValidator {
 	public static final Set<String> REVIEWABLE_TYPES = Set.of("Goal", "Story", "Actor", "UseCase",
 			"Scenario", "Step");
 
-	/** Context packs a definition may name until #261 adds a provider registry. */
-	public static final Set<String> CONTEXT_PROVIDERS = Set.of("entity");
+	/**
+	 * Issue #261: the built-in context provider ids, used when no {@code ContextProviderRegistry}
+	 * is at hand (unit tests). The store validates against the registry's ids.
+	 */
+	public static final Set<String> CONTEXT_PROVIDERS = Set.of(ContextProviderRegistry.ENTITY,
+			"goal-relations", "goal-siblings", "goal-stakeholders", "usecase-scenarios",
+			"scenario-usecases", "step-sequence", "story-actors", "actor-references");
 
 	/** {@code name:version} of the output schemas the executor can load. */
 	public static final Set<String> OUTPUT_SCHEMAS = Set.of("RequirementsReviewOutput:1");
@@ -59,9 +65,16 @@ public class AssistantDefinitionValidator {
 	static final int CHARS_PER_TOKEN = 4;
 
 	private final int maxInstructionChars;
+	private final Set<String> contextProviders;
 
 	public AssistantDefinitionValidator(int maxInputTokens) {
+		this(maxInputTokens, CONTEXT_PROVIDERS);
+	}
+
+	/** @param contextProviders the provider ids a definition may name (#261) */
+	public AssistantDefinitionValidator(int maxInputTokens, Set<String> contextProviders) {
 		this.maxInstructionChars = Math.max(1, maxInputTokens) * CHARS_PER_TOKEN;
+		this.contextProviders = Set.copyOf(contextProviders);
 	}
 
 	/**
@@ -70,6 +83,30 @@ public class AssistantDefinitionValidator {
 	 *        replaces (same key and owner) is ignored
 	 * @throws InvalidAssistantDefinitionException listing every problem found
 	 */
+	/**
+	 * Issue #261: a budget override names a provider the definition uses, is positive, and the
+	 * overrides together fit the input cap.
+	 */
+	private void checkContextBudgets(AssistantDefinition definition, List<String> problems) {
+		long total = 0;
+		for (java.util.Map.Entry<String, Integer> budget : definition.contextBudgets().entrySet()) {
+			if (!definition.contextProviders().contains(budget.getKey())
+					|| ContextProviderRegistry.ENTITY.equals(budget.getKey())) {
+				problems.add("contextBudgets names " + budget.getKey()
+						+ ", which is not one of the definition's context providers");
+			}
+			if (budget.getValue() == null || budget.getValue() <= 0) {
+				problems.add("contextBudgets." + budget.getKey() + " must be positive");
+			} else {
+				total += budget.getValue();
+			}
+		}
+		if (total > maxInstructionChars) {
+			problems.add("contextBudgets total " + total + " characters is over the input cap of "
+					+ maxInstructionChars);
+		}
+	}
+
 	public void validate(AssistantDefinition definition, Collection<AssistantDefinition> neighbours) {
 		Objects.requireNonNull(definition, "definition");
 		List<String> problems = new ArrayList<String>();
@@ -95,11 +132,12 @@ public class AssistantDefinitionValidator {
 			problems.add("at least one context provider is required");
 		}
 		Set<String> unknownProviders = new TreeSet<String>(definition.contextProviders());
-		unknownProviders.removeAll(CONTEXT_PROVIDERS);
+		unknownProviders.removeAll(contextProviders);
 		if (!unknownProviders.isEmpty()) {
 			problems.add("unknown context provider(s): " + unknownProviders + " (known: "
-					+ new TreeSet<String>(CONTEXT_PROVIDERS) + ")");
+					+ new TreeSet<String>(contextProviders) + ")");
 		}
+		checkContextBudgets(definition, problems);
 		checkVocabulary(definition, problems);
 		if (!OUTPUT_SCHEMAS.contains(definition.outputSchemaName() + ":"
 				+ definition.outputSchemaVersion())) {
