@@ -34,14 +34,16 @@ import com.rreganjr.requel.assistant.core.context.ContextProviderRegistry;
  *
  * <ul>
  * <li>a key, display name, task type and instructions;</li>
- * <li>kind {@code REVIEW} ({@code POLICY} waits for #265);</li>
+ * <li>kind {@code REVIEW}, or {@code POLICY} with task {@code POLICY_REVIEW} and the
+ * {@code PolicyReviewOutput} schema (#265); a review can't serve {@code POLICY_REVIEW};</li>
  * <li>scope names only reviewable entity types;</li>
  * <li>context providers are known (until #261, only {@code entity});</li>
  * <li>a non-empty vocabulary with no repeated type;</li>
  * <li>an output schema from the allowed set;</li>
  * <li>instructions within the input budget ({@code requel.ai.max-input-tokens} x 4 characters);</li>
  * <li>no collision: per task type, at most one fallback (empty scope) and at most one specific
- * definition per entity type, among the definitions it would sit beside.</li>
+ * definition per entity type, among the definitions it would sit beside. Policies are exempt:
+ * many may apply to one entity, which is what composing them is for (#265).</li>
  * </ul>
  */
 public class AssistantDefinitionValidator {
@@ -57,11 +59,11 @@ public class AssistantDefinitionValidator {
 	public static final Set<String> CONTEXT_PROVIDERS = Set.of(ContextProviderRegistry.ENTITY,
 			"goal-relations", "goal-siblings", "goal-stakeholders", "usecase-scenarios",
 			"scenario-usecases", "step-sequence", "story-actors", "actor-references",
-			"glossary-related", "project-names");
+			"glossary-related", "project-names", "project-glossary");
 
 	/** {@code name:version} of the output schemas the executor can load. */
 	public static final Set<String> OUTPUT_SCHEMAS = Set.of("RequirementsReviewOutput:1",
-			"RequirementsReviewOutput:2");
+			"RequirementsReviewOutput:2", AssistantDefinition.POLICY_OUTPUT_SCHEMA + ":1");
 
 	/** Characters per token used to turn the token budget into a character cap. */
 	static final int CHARS_PER_TOKEN = 4;
@@ -121,9 +123,7 @@ public class AssistantDefinitionValidator {
 		if (blank(definition.taskType())) {
 			problems.add("taskType is required");
 		}
-		if (definition.kind() != DefinitionKind.REVIEW) {
-			problems.add("kind " + definition.kind() + " is not supported yet; only REVIEW");
-		}
+		checkKind(definition, problems);
 		Set<String> unknownTypes = new TreeSet<String>(definition.scope());
 		unknownTypes.removeAll(REVIEWABLE_TYPES);
 		if (!unknownTypes.isEmpty()) {
@@ -165,6 +165,31 @@ public class AssistantDefinitionValidator {
 		}
 	}
 
+	private static void checkKind(AssistantDefinition definition, List<String> problems) {
+		boolean policyTask = AssistantDefinition.POLICY_REVIEW.equals(definition.taskType());
+		boolean policySchema = AssistantDefinition.POLICY_OUTPUT_SCHEMA
+				.equals(definition.outputSchemaName());
+		if (definition.isPolicy()) {
+			if (!blank(definition.taskType()) && !policyTask) {
+				problems.add("a POLICY definition serves task " + AssistantDefinition.POLICY_REVIEW
+						+ ", not " + definition.taskType());
+			}
+			if (!policySchema) {
+				problems.add("a POLICY definition uses the " + AssistantDefinition.POLICY_OUTPUT_SCHEMA
+						+ " output schema");
+			}
+		} else {
+			if (policyTask) {
+				problems.add("task " + AssistantDefinition.POLICY_REVIEW
+						+ " is for POLICY definitions; this one is " + definition.kind());
+			}
+			if (policySchema) {
+				problems.add("the " + AssistantDefinition.POLICY_OUTPUT_SCHEMA
+						+ " output schema is for POLICY definitions");
+			}
+		}
+	}
+
 	private static void checkVocabulary(AssistantDefinition definition, List<String> problems) {
 		if (definition.vocabulary().isEmpty()) {
 			problems.add("the finding vocabulary is empty");
@@ -187,7 +212,7 @@ public class AssistantDefinitionValidator {
 
 	private static void checkCollisions(AssistantDefinition definition,
 			Collection<AssistantDefinition> neighbours, List<String> problems) {
-		if (neighbours == null) {
+		if (neighbours == null || definition.isPolicy()) {
 			return;
 		}
 		for (AssistantDefinition other : neighbours) {

@@ -44,6 +44,7 @@ import com.rreganjr.requel.assistant.core.context.provider.GoalSiblingsProvider;
 import com.rreganjr.requel.assistant.core.context.provider.GoalStakeholdersProvider;
 import com.rreganjr.requel.assistant.core.context.provider.ScenarioUseCasesProvider;
 import com.rreganjr.requel.assistant.core.context.provider.StepSequenceProvider;
+import com.rreganjr.requel.assistant.core.context.provider.ProjectGlossaryProvider;
 import com.rreganjr.requel.assistant.core.context.provider.ProjectNamesProvider;
 import com.rreganjr.requel.assistant.core.context.provider.StoryActorsProvider;
 import com.rreganjr.requel.assistant.core.context.provider.UseCaseScenariosProvider;
@@ -78,7 +79,7 @@ class ContextProvidersTest {
 				new UseCaseScenariosProvider(), new ScenarioUseCasesProvider(),
 				new StepSequenceProvider(), new StoryActorsProvider(),
 				new ActorReferencesProvider(), new GlossaryRelatedProvider(),
-				new ProjectNamesProvider())));
+				new ProjectNamesProvider(), new ProjectGlossaryProvider())));
 		return b;
 	}
 
@@ -407,6 +408,39 @@ class ContextProvidersTest {
 				.containsExactly("project actor Dana Whitfield", "project actor Member",
 						"glossary term Loan");
 		assertThat(section.entities()).extracting(RelatedEntity::text).containsOnlyNulls();
+	}
+
+	/**
+	 * #265: the glossary for terminology checks - canonical terms with their definitions and
+	 * alternate names as children, the terms the target is likely to use first.
+	 */
+	@Test
+	void projectGlossaryListsCanonicalTermsWithAlternatesRankedToTheTarget() {
+		Goal target = goal(1L, "Patrons renew online", "A patron renews a loan online.");
+		com.rreganjr.requel.project.GlossaryTerm member = entity(
+				com.rreganjr.requel.project.GlossaryTerm.class, 2L, "Member",
+				"A person with a current library membership.");
+		com.rreganjr.requel.project.GlossaryTerm patron = entity(
+				com.rreganjr.requel.project.GlossaryTerm.class, 3L, "Patron", "See Member.");
+		com.rreganjr.requel.project.GlossaryTerm hours = entity(
+				com.rreganjr.requel.project.GlossaryTerm.class, 4L, "Opening hours",
+				"When the desk is open.");
+		when(patron.getCanonicalTerm()).thenReturn(member);
+		when(member.getAlternateTerms()).thenReturn(Set.of(patron));
+		when(hours.getAlternateTerms()).thenReturn(Set.of());
+		java.util.SortedSet<com.rreganjr.requel.project.GlossaryTerm> terms = new java.util.TreeSet<>(
+				java.util.Comparator.comparing(com.rreganjr.requel.project.GlossaryTerm::getId));
+		terms.addAll(List.of(member, patron, hours));
+		when(project.getGlossaryTerms()).thenReturn(terms);
+
+		ContextSection section = section(target, "project-glossary");
+		assertThat(section.entities()).extracting(e -> e.relation() + " " + e.name())
+				.containsExactly("glossary term Member", "glossary term Opening hours");
+		assertThat(section.entities().get(0).text())
+				.isEqualTo("A person with a current library membership.");
+		assertThat(section.entities().get(0).children())
+				.extracting(e -> e.relation() + " " + e.name())
+				.containsExactly("alternate name Patron");
 	}
 
 	// ---- fixtures ------------------------------------------------------------------------

@@ -85,7 +85,12 @@ For each review of an entity the script posts `POST /api/ai/reviews`, then polls
 5. A leftover extraction finding (`EXTRACT_*`) is a **suggestion**: advisory, not spurious (#263).
 6. Anything else is **spurious**. On a `silent` entity everything except suggestions and also
    valid findings is spurious.
-7. On the `trap` entity, a finding or the run's summary matching a `confirmPatterns` entry counts
+7. **Policies (#265).** A review request also dispatches the policy pass when a policy applies;
+   the script waits for it and scores its findings against the entity's `policyExpect` items
+   (same matching). An entity without `policyExpect` is policy-silent; its `policyAlsoValid`
+   items are real flaws the policy may raise without breaking that. The report adds a
+   "Policies" table.
+8. On the `trap` entity, a finding or the run's summary matching a `confirmPatterns` entry counts
    as **confirmed**: the reviewer vouched for figures nobody checked. A text that also matches the
    trap item's patterns ("the figures add up, but no source is given") questions the figures and
    does not confirm (#263).

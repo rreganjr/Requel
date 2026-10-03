@@ -219,6 +219,71 @@ class Issue263Test(unittest.TestCase):
         self.assertTrue(vouched["confirmed"])
 
 
+class Issue265Test(unittest.TestCase):
+
+    def test_a_policy_run_is_scored_against_policy_expect_and_reported(self):
+        e = entity([{"id": "a", "patterns": ["x"]}])
+        e["policyExpect"] = [{"id": "patron", "patterns": ["patron"],
+                              "acceptTypes": ["NON_CANONICAL_TERM"], "types": []}]
+        silent = entity([{"id": "b", "patterns": ["y"]}], type_name="Story")
+        hit = score.score_policy(e, [finding("uses patron", "NON_CANONICAL_TERM")])
+        noisy = score.score_policy(silent, [finding("uses patron", "NON_CANONICAL_TERM")])
+        self.assertEqual(["patron"], hit["hits"])
+        self.assertEqual(1, len(noisy["spurious"]))
+        results = [
+            {"entity": e, "runs": [{"outcome": "ok", "findings": [], "score":
+                                    score.score_run(e, [], None),
+                                    "policy": {"outcome": "ok", "findings": [], "score": hit}}]},
+            {"entity": silent, "runs": [{"outcome": "ok", "findings": [], "score":
+                                         score.score_run(silent, [], None),
+                                         "policy": {"outcome": "ok", "findings": [],
+                                                    "score": noisy}}]}]
+        rows = score.aggregate_policies(results)
+        self.assertEqual((1, 1, 0), (rows["Goal"]["hits"], rows["Goal"]["expected"],
+                                     rows["Goal"]["spurious"]))
+        self.assertEqual((1, 0), (rows["Story"]["silentRuns"], rows["Story"]["silentKept"]))
+        report = score.render_report({"runsPerEntity": 1}, results)
+        self.assertIn("## Policies (#265)", report)
+        self.assertIn("| Goal | 1/1 | 100% (1/1) | 0.0 |", report)
+        self.assertIn("policy run: hits patron", report)
+        self.assertIn("policy spurious `NON_CANONICAL_TERM`", report)
+
+    def test_a_policy_also_valid_finding_keeps_a_policy_silent_entity_silent(self):
+        e = entity([{"id": "a", "patterns": ["x"]}])
+        e["policyAlsoValid"] = [{"id": "member-def", "patterns": [],
+                                 "acceptTypes": ["CONFLICTING_USAGE"], "types": []}]
+        result = score.score_policy(e, [finding("contradicts Member", "CONFLICTING_USAGE")])
+        self.assertEqual([], result["spurious"])
+        self.assertEqual(["member-def"], [f["alsoValid"] for f in result["alsoValid"]])
+
+    def test_no_policy_table_without_policy_runs(self):
+        e = entity([{"id": "a", "patterns": ["x"]}])
+        results = [{"entity": e, "runs": [{"outcome": "ok", "findings": [],
+                                           "score": score.score_run(e, [], None)}]}]
+        self.assertNotIn("Policies (#265)", score.render_report({"runsPerEntity": 1}, results))
+
+    def test_review_once_waits_for_the_policy_run_only_when_one_was_dispatched(self):
+        class Client:
+            def __init__(self, dispatch):
+                self.dispatch = dispatch
+                self.runs = {None: None, "POLICY_REVIEW": None}
+
+            def latest_review(self, entity_type, entity_id, task_type=None):
+                view = self.runs[task_type]
+                return (200, view) if view else (204, None)
+
+            def request_review(self, entity_type, entity_id):
+                self.runs[None] = {"runId": "r1", "status": "SUCCEEDED", "findings": []}
+                if self.dispatch:
+                    self.runs["POLICY_REVIEW"] = {"runId": "p1", "status": "SUCCEEDED",
+                                                  "findings": []}
+                return 202, ""
+
+        outcome, view, _, policy = score.review_once(Client(True), "Goal", 1, 5, 0)
+        self.assertEqual(("ok", "r1"), (outcome, view["runId"]))
+        self.assertEqual(("ok", "p1"), (policy[0], policy[1]["runId"]))
+        self.assertIsNone(score.review_once(Client(False), "Goal", 1, 5, 0)[3])
+
 class RescoreTest(unittest.TestCase):
 
     def test_rescore_applies_the_current_patterns_to_saved_findings(self):

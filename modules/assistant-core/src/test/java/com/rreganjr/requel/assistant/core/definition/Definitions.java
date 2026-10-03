@@ -38,6 +38,19 @@ final class Definitions {
 				"1", true, 1, DefinitionSource.BUNDLED, null, null, null);
 	}
 
+	/** #265: a policy over {@code scope} (empty: every reviewable type). */
+	static AssistantDefinition policy(String key, Set<String> scope) {
+		return policy(key, scope, false);
+	}
+
+	static AssistantDefinition policy(String key, Set<String> scope, boolean localOnly) {
+		return new AssistantDefinition(key, "Policy " + key, DefinitionKind.POLICY,
+				AssistantDefinition.POLICY_REVIEW, scope, List.of("entity"), "Check the rule.",
+				List.of(new VocabularyEntry("RULE_BROKEN", "the rule is broken")),
+				AssistantDefinition.POLICY_OUTPUT_SCHEMA, "1", true, 1, DefinitionSource.BUNDLED,
+				null, null, null, java.util.Map.of(), localOnly);
+	}
+
 	static AssistantDefinition fallback(String key) {
 		return review(key, Set.of());
 	}

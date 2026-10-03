@@ -31,6 +31,10 @@ public record NoteDto(
         /** The provenance label: {@code ASSISTANT:<id>} for an assistant's, null for a person's (#270). */
         String source,
         /** True when an assistant raised it against text that has since changed, or no longer reports it: it may no longer apply (#270). */
-        boolean stale
+        boolean stale,
+        /** The assistant's display name when an assistant raised it, else null (#265). */
+        String sourceName,
+        /** REVIEW, POLICY or LEXICAL when an assistant raised it, else null (#265). */
+        String sourceKind
 ) {
 }

@@ -163,12 +163,92 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 	@Override
 	public AssistantResult analyze(AssistantContext context, TextEntity target)
 			throws AssistantException {
+		Call call = call(context, target);
+		if (call.skipped != null) {
+			return call.skipped;
+		}
+		AssistantResult.Builder result = AssistantResult.builder().assistantId(assistantId())
+				.runId(context.runId()).summary(call.response.summary());
+		if (call.response.messages() != null) {
+			call.response.messages().forEach(result::message);
+		}
+		int unverified = 0;
+		int vocabularyMisses = 0;
+		for (AiFindingDraft finding : call.findings()) {
+			if (call.evidenceUnverified(finding)) {
+				unverified++;
+			}
+			if (vocabularyEntry(finding.findingType()) == null) {
+				vocabularyMisses++;
+			}
+			mapFinding(result, call.targetRef, finding);
+		}
+		finish(result, context, unverified, vocabularyMisses);
+		return result.build();
+	}
+
+	/**
+	 * Result metadata and warnings for a run's evidence and vocabulary counts, and the other
+	 * definitions whose findings it retires.
+	 */
+	void finish(AssistantResult.Builder result, AssistantContext context, int unverified,
+			int vocabularyMisses) {
+		Map<String, Object> metadata = new LinkedHashMap<String, Object>();
+		metadata.put(AssistantRunWorker.EVIDENCE_UNVERIFIED, unverified);
+		metadata.put(AssistantRunWorker.VOCABULARY_MISSES, vocabularyMisses);
+		metadata.put(AssistantRunWorker.RETIRES_ASSISTANTS, otherDefinitions(context));
+		result.metadata(metadata);
+		if (vocabularyMisses > 0) {
+			result.message(AssistantMessage.warning(vocabularyMisses
+					+ " finding(s) use a type outside the definition's vocabulary"));
+		}
+		if (unverified > 0) {
+			result.message(AssistantMessage.warning(unverified
+					+ " finding(s) cite evidence that is not in the text sent for review"));
+		}
+	}
+
+	/**
+	 * What one provider call was sent and returned (#265 splits it from mapping, so a composed
+	 * policy pass can attribute the findings itself). {@link #skipped} is set instead when no call
+	 * was made.
+	 */
+	static final class Call {
+		final AssistantResult skipped;
+		final AiAnalysisResponse response;
+		final EntityRef targetRef;
+		private final String sentText;
+
+		private Call(AssistantResult skipped, AiAnalysisResponse response, EntityRef targetRef,
+				String sentText) {
+			this.skipped = skipped;
+			this.response = response;
+			this.targetRef = targetRef;
+			this.sentText = sentText;
+		}
+
+		List<AiFindingDraft> findings() {
+			return response == null || response.findings() == null ? List.of()
+					: response.findings();
+		}
+
+		/**
+		 * #263: a scenario's flow is in its steps and a use case's in its scenario, so evidence
+		 * is checked against everything the model was sent, not the entity alone.
+		 */
+		boolean evidenceUnverified(AiFindingDraft finding) {
+			return EvidenceCheck.unverified(finding.evidenceReferences(), sentText);
+		}
+	}
+
+	/** Build the context, make the provider call, and persist usage and redactions. */
+	Call call(AssistantContext context, TextEntity target) throws AssistantException {
 		String skipReason = skipReason(context);
 		if (skipReason != null) {
 			log.debug("definition {} skipping run {}: {}", definition.key(), context.runId(),
 					skipReason);
-			return AssistantResult.builder().assistantId(assistantId()).runId(context.runId())
-					.summary(skipReason).build();
+			return new Call(AssistantResult.builder().assistantId(assistantId())
+					.runId(context.runId()).summary(skipReason).build(), null, null, null);
 		}
 
 		int cap = runtime.aiProperties.getMaxInputTokens();
@@ -184,65 +264,30 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 				target.getId());
 		List<Object> contextPacks = List.of(pack);
 
-		AssistantResult.Builder result = AssistantResult.builder().assistantId(assistantId())
-				.runId(context.runId());
-
 		// Refuse oversize input rather than send it to the provider (review concern #5). After
 		// #261 only an oversize base pack gets here.
 		if (estimatedInputTokens > cap) {
 			log.info("Skipping AI review for run {}: estimated {} input tokens exceeds cap {}",
 					context.runId(), estimatedInputTokens, cap);
-			return result.summary("Context exceeds the configured AI input cap; review skipped.")
+			return new Call(AssistantResult.builder().assistantId(assistantId())
+					.runId(context.runId())
+					.summary("Context exceeds the configured AI input cap; review skipped.")
 					.message(AssistantMessage.warning("Estimated " + estimatedInputTokens
 							+ " input tokens exceeds requel.ai.maxInputTokens=" + cap))
-					.build();
+					.build(), null, null, null);
 		}
 
 		AiAnalysisRequest request = new AiAnalysisRequest(assistantId(), context.runId(),
 				definition.taskType(), targetRef, context.projectRef(), context.locale(),
 				contextPacks, definition.outputSchemaName(), definition.outputSchemaVersion(),
-				runtime.outputSchemas.schema(definition.outputSchemaName(),
-						definition.outputSchemaVersion()),
-				dataHandlingFlags(context.projectRef()), attributes(context),
+				outputSchema(), dataHandlingFlags(context.projectRef()), attributes(context),
 				instructions());
 
 		try {
 			AiAnalysisResponse response = runtime.aiAnalysisClient.analyze(request);
 			persistUsage(context.runId(), response.usage());
-			result.summary(response.summary());
-			if (response.messages() != null) {
-				response.messages().forEach(result::message);
-			}
-			int unverified = 0;
-			int vocabularyMisses = 0;
-			if (response.findings() != null) {
-				// #263: a scenario's flow is in its steps and a use case's in its scenario, so
-				// evidence is checked against everything the model was sent, not the entity alone.
-				String sentText = target.getName() + "\n" + target.getText() + "\n"
-						+ packText(pack);
-				for (AiFindingDraft finding : response.findings()) {
-					if (EvidenceCheck.unverified(finding.evidenceReferences(), sentText)) {
-						unverified++;
-					}
-					if (vocabularyEntry(finding.findingType()) == null) {
-						vocabularyMisses++;
-					}
-					mapFinding(result, targetRef, finding);
-				}
-			}
-			Map<String, Object> metadata = new LinkedHashMap<String, Object>();
-			metadata.put(AssistantRunWorker.EVIDENCE_UNVERIFIED, unverified);
-			metadata.put(AssistantRunWorker.VOCABULARY_MISSES, vocabularyMisses);
-			metadata.put(AssistantRunWorker.RETIRES_ASSISTANTS, otherDefinitions(context));
-			result.metadata(metadata);
-			if (vocabularyMisses > 0) {
-				result.message(AssistantMessage.warning(vocabularyMisses
-						+ " finding(s) use a type outside the definition's vocabulary"));
-			}
-			if (unverified > 0) {
-				result.message(AssistantMessage.warning(unverified
-						+ " finding(s) cite evidence that is not in the text sent for review"));
-			}
+			String sentText = target.getName() + "\n" + target.getText() + "\n" + packText(pack);
+			return new Call(null, response, targetRef, sentText);
 		} catch (AiAnalysisException e) {
 			// #259: propagate, so the run records the failure (FAILED when this was the run's only
 			// assistant) instead of reading as a successful review that found nothing.
@@ -250,11 +295,16 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 					e.getMessage(), e);
 			throw new AssistantException("AI requirements review failed: " + e.getMessage(), e);
 		}
-		return result.build();
+	}
+
+	/** The output schema sent with the request; a composed policy pass narrows it (#265). */
+	JsonNode outputSchema() {
+		return runtime.outputSchemas.schema(definition.outputSchemaName(),
+				definition.outputSchemaVersion());
 	}
 
 	/** The run's attributes plus the definition that produced the request (#260). */
-	private Map<String, Object> attributes(AssistantContext context) {
+	Map<String, Object> attributes(AssistantContext context) {
 		Map<String, Object> attributes = new LinkedHashMap<String, Object>(context.attributes());
 		attributes.put(DEFINITION_KEY, definition.key());
 		attributes.put(DEFINITION_VERSION, definition.version());
@@ -358,7 +408,7 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 	 * finding with neither issue nor note text is skipped. The applicator caps text length and
 	 * rejects anything it cannot map, so AI output stays untrusted input.
 	 */
-	private void mapFinding(AssistantResult.Builder result, EntityRef targetRef,
+	void mapFinding(AssistantResult.Builder result, EntityRef targetRef,
 			AiFindingDraft finding) {
 		List<EvidenceRef> evidence = evidenceRefs(finding.evidenceReferences());
 		String issueText = boundedText(finding.suggestedIssueText());
@@ -442,7 +492,7 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 			"ADD_ACTOR_TO_PROJECT", "EXTRACT_GLOSSARY_TERM", "ADD_WORD_TO_GLOSSARY");
 
 	/** The definition's entry for {@code type}, or null when it is outside the vocabulary. */
-	private VocabularyEntry vocabularyEntry(String type) {
+	VocabularyEntry vocabularyEntry(String type) {
 		for (VocabularyEntry entry : definition.vocabulary()) {
 			if (entry.type().equals(type)) {
 				return entry;
@@ -456,7 +506,8 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 	 * are retired once this one has reviewed it. Empty without a store.
 	 */
 	private List<String> otherDefinitions(AssistantContext context) {
-		if (runtime.definitionStore == null) {
+		// #265: policies sit side by side; one never retires another's findings.
+		if (runtime.definitionStore == null || definition.isPolicy()) {
 			return List.of();
 		}
 		Long projectId = context.projectRef() == null ? null : context.projectRef().entityId();

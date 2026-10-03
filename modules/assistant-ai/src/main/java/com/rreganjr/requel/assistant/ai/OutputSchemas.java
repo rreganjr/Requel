@@ -39,7 +39,9 @@ final class OutputSchemas {
 			"/ai/schemas/requirements-review-output.v1.json",
 			// #263: v1 plus suggestedEntityName, for extraction findings' one-click positions
 			RequirementsReview.OUTPUT_SCHEMA_NAME + ":2",
-			"/ai/schemas/requirements-review-output.v2.json");
+			"/ai/schemas/requirements-review-output.v2.json",
+			// #265: v2's finding plus the key of the policy that raised it
+			"PolicyReviewOutput:1", "/ai/schemas/policy-review-output.v1.json");
 
 	private final ObjectMapper objectMapper;
 	private final Map<String, JsonNode> loaded = new ConcurrentHashMap<>();

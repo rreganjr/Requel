@@ -114,15 +114,31 @@ class AssistantDefinitionValidatorTest {
 		assertThat(new VocabularyEntry("A", "a", null).category()).isEqualTo("quality");
 	}
 
+	/** #265: a policy pairs with POLICY_REVIEW and its schema; many may share a scope. */
 	@Test
-	void policyIsRejectedUntilItsRuntimeExists() {
+	void aPolicyServesThePolicyTaskAndNeverCollides() {
+		AssistantDefinition everywhere = Definitions.policy("p1", Set.of());
+		AssistantDefinition goals = Definitions.policy("p2", Set.of("Goal"));
+		validator.validate(everywhere, List.of(Definitions.policy("p0", Set.of()), goals));
+		validator.validate(goals, List.of(everywhere, Definitions.policy("p3", Set.of("Goal"))));
+
 		AssistantDefinition f = fallback("x");
-		AssistantDefinition policy = new AssistantDefinition(f.key(), f.displayName(),
-				DefinitionKind.POLICY, f.taskType(), f.scope(), f.contextProviders(),
-				f.instructions(), f.vocabulary(), f.outputSchemaName(), f.outputSchemaVersion(),
-				true, 1, DefinitionSource.BUNDLED, null, null, null);
-		assertThatThrownBy(() -> validator.validate(policy, List.of()))
-				.hasMessageContaining("kind POLICY is not supported yet");
+		AssistantDefinition onReviewTask = new AssistantDefinition("p4", "P", DefinitionKind.POLICY,
+				f.taskType(), Set.of(), f.contextProviders(), f.instructions(), f.vocabulary(),
+				f.outputSchemaName(), f.outputSchemaVersion(), true, 1, DefinitionSource.BUNDLED,
+				null, null, null);
+		assertThatThrownBy(() -> validator.validate(onReviewTask, List.of()))
+				.hasMessageContaining("a POLICY definition serves task POLICY_REVIEW")
+				.hasMessageContaining("uses the PolicyReviewOutput output schema");
+
+		AssistantDefinition reviewOnPolicyTask = new AssistantDefinition("r", "R",
+				DefinitionKind.REVIEW, AssistantDefinition.POLICY_REVIEW, Set.of(),
+				f.contextProviders(), f.instructions(), f.vocabulary(),
+				AssistantDefinition.POLICY_OUTPUT_SCHEMA, "1", true, 1, DefinitionSource.BUNDLED,
+				null, null, null);
+		assertThatThrownBy(() -> validator.validate(reviewOnPolicyTask, List.of()))
+				.hasMessageContaining("task POLICY_REVIEW is for POLICY definitions")
+				.hasMessageContaining("output schema is for POLICY definitions");
 	}
 
 	@Test

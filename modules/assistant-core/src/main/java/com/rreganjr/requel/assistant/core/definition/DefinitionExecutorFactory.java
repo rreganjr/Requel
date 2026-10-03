@@ -20,6 +20,8 @@
  */
 package com.rreganjr.requel.assistant.core.definition;
 
+import java.util.List;
+
 import com.rreganjr.requel.assistant.api.RequelAssistant;
 
 /**
@@ -30,4 +32,13 @@ public interface DefinitionExecutorFactory {
 
 	/** The executor for {@code definition}. It also implements {@link DefinitionBacked}. */
 	RequelAssistant<?> executorFor(AssistantDefinition definition);
+
+	/**
+	 * Issue #265: one executor for all of {@code policies}, which runs them in a single provider
+	 * call. It also implements {@code ComposedAssistant}. Without support, none.
+	 */
+	default RequelAssistant<?> composedExecutorFor(List<AssistantDefinition> policies) {
+		throw new UnsupportedOperationException("policies are not supported by "
+				+ getClass().getSimpleName());
+	}
 }

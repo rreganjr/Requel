@@ -105,14 +105,20 @@ public class AiReviewDispatchIT extends AbstractIntegrationTestCase {
 		authenticateAs("project");
 		aiReviewService.requestReview("Goal", goal.getId());
 
-		AssistantRunEntity queued = assistantRunRepository.findAll().stream()
+		java.util.List<AssistantRunEntity> queuedRuns = assistantRunRepository.findAll().stream()
 				.filter(run -> "Goal".equals(run.getTargetType())
 						&& goal.getId().equals(run.getTargetId())
 						&& "QUEUED".equals(run.getStatus()))
-				.reduce((first, second) -> second)
+				.toList();
+		// #265: the bundled terminology policy applies to goals, so the policy pass is queued too.
+		// (The goal's creation queued a lexical run, with no task type.)
+		assertEquals(java.util.Set.of("REQUIREMENTS_REVIEW", "POLICY_REVIEW"), queuedRuns.stream()
+				.map(AssistantRunEntity::getTaskType).filter(java.util.Objects::nonNull)
+				.collect(java.util.stream.Collectors.toSet()),
+				"the manual trigger should queue the review and the policy pass");
+		AssistantRunEntity queued = queuedRuns.stream()
+				.filter(run -> "REQUIREMENTS_REVIEW".equals(run.getTaskType())).findFirst()
 				.orElseThrow(() -> new AssertionError("no QUEUED review run for the goal"));
-		assertEquals("REQUIREMENTS_REVIEW", queued.getTaskType(),
-				"the manual trigger should set the run's task type");
 
 		assistantRunWorker.run(queued.getRunId());
 

@@ -630,7 +630,38 @@ or import.
 > contains PII has already disclosed it. Detection belongs on a local provider or a deterministic
 > policy; this policy is the deterministic half.
 
+**Policies and PII (#265).** A *policy* is a definition whose rule runs across entity types. Every
+applicable policy runs in one composed call beside the review (section 11a). A PII-detection policy
+is expressible, but on a remote provider it would disclose the PII it looks for. Mark it
+`"localOnly": true`; it is then left out of the pass whenever the active provider is remote. The run
+summary says so, and the other policies still run.
+
+How that differs from `egress.external`:
+
+| | Off / true means |
+| --- | --- |
+| `egress.external` (project) | nothing from this project goes to a remote provider, review or policy |
+| `localOnly` (policy definition) | this one policy never goes to a remote provider, even when the project allows remote calls |
+
+A local provider is `openai-compat` pointed at this machine, e.g. Ollama (section 4).
+
 ---
+
+## 11a. Policies: cross-cutting checks
+
+A review definition checks one entity type. A *policy* (`kind: POLICY`, task `POLICY_REVIEW`)
+applies one rule across types; an empty `scope` means every reviewable type.
+
+- **One request, two calls at most.** `POST /api/ai/reviews` runs the review and, when a policy
+  applies to the entity, the policy pass. Every applicable policy goes into **one** provider call.
+  Each finding names the policy that raised it, and the UI tags it "Policy: <name>".
+- **Read it** with `GET /api/ai/reviews?entityType=&entityId=&taskType=POLICY_REVIEW`.
+- **Switch a policy off** per project under *Policies* in the overview's Assistants panel.
+- **A ceiling.** `requel.ai.policies.max-composed` (default 8) caps how many policies one pass may
+  carry. Over it, the run fails with a message naming the limit; no rule is silently dropped.
+- **Bundled:** `ai-policy-terminology` flags an alternate glossary name used where the glossary has
+  a canonical term (`NON_CANONICAL_TERM`), and a term used against its definition
+  (`CONFLICTING_USAGE`). It reads the `project-glossary` context: every term with its alternates.
 
 ## 12. Measuring review quality
 

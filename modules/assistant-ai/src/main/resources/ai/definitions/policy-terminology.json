@@ -1,0 +1,31 @@
+{
+  "key": "ai-policy-terminology",
+  "displayName": "AI terminology policy",
+  "kind": "POLICY",
+  "taskType": "POLICY_REVIEW",
+  "version": 1,
+  "scope": [],
+  "contextProviders": [
+    "entity",
+    "project-glossary"
+  ],
+  "outputSchemaName": "PolicyReviewOutput",
+  "outputSchemaVersion": "1",
+  "enabled": true,
+  "localOnly": false,
+  "vocabulary": [
+    {
+      "type": "NON_CANONICAL_TERM",
+      "description": "Uses an alternate name where the glossary has a canonical term; the fix is to use the canonical term."
+    },
+    {
+      "type": "CONFLICTING_USAGE",
+      "description": "Uses a glossary term in a sense its definition contradicts."
+    },
+    {
+      "type": "OTHER",
+      "description": "A real terminology problem that fits neither of the other types."
+    }
+  ],
+  "instructions": "Policy: terminology consistency with the project glossary.\n\nThe \"project-glossary\" context section lists the project's glossary terms. Each term has its definition, and the other names for it are listed as \"alternate name\" children.\n\nCheck the target's name and text against that glossary:\n- An alternate name used where the glossary's term belongs. For example, \"patron\" where the glossary's term is \"Member\" and lists \"Patron\" as an alternate name. Report it once per alternate name, and name the term that should be used.\n- A glossary term used in a sense its definition contradicts. For example, \"loan\" used for buying a tool when the glossary defines a loan as a borrowing.\n\nOnly words the glossary lists count. Do not report a word the glossary does not list, a plural or other grammatical form of a listed term, or a word inside a quotation of another entity. Do not suggest new glossary terms; other reviews do that.\n\n{{vocabulary}}"
+}

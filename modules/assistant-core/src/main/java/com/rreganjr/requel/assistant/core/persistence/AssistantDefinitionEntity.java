@@ -68,6 +68,10 @@ public class AssistantDefinitionEntity {
 	@Column(name = "instructions", nullable = false, columnDefinition = "TEXT")
 	private String instructions;
 
+	/** #265: never send this definition's work to a remote provider. */
+	@Column(name = "local_only", nullable = false)
+	private boolean localOnly;
+
 	@Column(name = "vocabulary_json", nullable = false, columnDefinition = "TEXT")
 	private String vocabularyJson;
 
@@ -171,6 +175,14 @@ public class AssistantDefinitionEntity {
 
 	public void setContextBudgetsJson(String contextBudgetsJson) {
 		this.contextBudgetsJson = contextBudgetsJson;
+	}
+
+	public boolean isLocalOnly() {
+		return localOnly;
+	}
+
+	public void setLocalOnly(boolean localOnly) {
+		this.localOnly = localOnly;
 	}
 
 	public String getInstructions() {

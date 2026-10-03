@@ -78,6 +78,9 @@ public final class ReviewResultMapper {
 	/** #263: draft metadata key for schema v2's {@code suggestedEntityName}. */
 	public static final String SUGGESTED_ENTITY_NAME = "suggestedEntityName";
 
+	/** #265: draft metadata key for the policy output's {@code policyKey}. */
+	public static final String POLICY_KEY = "policyKey";
+
 	/** Requel-side validation of the structured output, whichever client produced it. */
 	public static void validate(ReviewResult result) throws AiAnalysisException {
 		if (result == null) {
@@ -145,11 +148,20 @@ public final class ReviewResultMapper {
 					finding.suggestedIssueText(),
 					finding.suggestedNoteText(),
 					orEmpty(finding.suggestedPositions()),
-					finding.suggestedEntityName() == null || finding.suggestedEntityName().isBlank()
-							? Map.of()
-							: Map.of(SUGGESTED_ENTITY_NAME, finding.suggestedEntityName().strip())));
+					draftMetadata(finding)));
 		}
 		return findings;
+	}
+
+	private static Map<String, Object> draftMetadata(ReviewResult.Finding finding) {
+		Map<String, Object> metadata = new java.util.LinkedHashMap<String, Object>();
+		if (finding.suggestedEntityName() != null && !finding.suggestedEntityName().isBlank()) {
+			metadata.put(SUGGESTED_ENTITY_NAME, finding.suggestedEntityName().strip());
+		}
+		if (finding.policyKey() != null && !finding.policyKey().isBlank()) {
+			metadata.put(POLICY_KEY, finding.policyKey().strip());
+		}
+		return Map.copyOf(metadata);
 	}
 
 	private static List<AssistantMessage> messages(ReviewResult result) {
@@ -176,14 +188,25 @@ public final class ReviewResultMapper {
 	public record ReviewResult(String summary, List<Finding> findings, List<String> warnings) {
 		public record Finding(String findingType, String severity, Double confidence,
 				List<String> evidenceReferences, String suggestedIssueText, String suggestedNoteText,
-				List<String> suggestedPositions, String suggestedEntityName) {
+				List<String> suggestedPositions, String suggestedEntityName,
+				@com.fasterxml.jackson.annotation.JsonInclude(
+						com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String policyKey) {
+
+			/** Review schema v2: no {@code policyKey} (#265). */
+			public Finding(String findingType, String severity, Double confidence,
+					List<String> evidenceReferences, String suggestedIssueText,
+					String suggestedNoteText, List<String> suggestedPositions,
+					String suggestedEntityName) {
+				this(findingType, severity, confidence, evidenceReferences, suggestedIssueText,
+						suggestedNoteText, suggestedPositions, suggestedEntityName, null);
+			}
 
 			/** Schema v1 has no {@code suggestedEntityName}. */
 			public Finding(String findingType, String severity, Double confidence,
 					List<String> evidenceReferences, String suggestedIssueText,
 					String suggestedNoteText, List<String> suggestedPositions) {
 				this(findingType, severity, confidence, evidenceReferences, suggestedIssueText,
-						suggestedNoteText, suggestedPositions, null);
+						suggestedNoteText, suggestedPositions, null, null);
 			}
 		}
 	}
