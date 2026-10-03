@@ -37,8 +37,8 @@ import com.rreganjr.requel.service.api.dto.ErrorResponse;
 /**
  * Manual trigger endpoint for the AI requirements review (issue #43, Phase 5):
  * {@code POST /api/ai/reviews?entityType=&entityId=}, mounted under {@code /api/**} so the JWT
- * chain authenticates the caller. Dispatches a {@code REQUIREMENTS_REVIEW} run for the entity
- * and returns
+ * chain authenticates the caller. Dispatches a {@code REQUIREMENTS_REVIEW} run for the entity,
+ * and a {@code POLICY_REVIEW} run when a policy applies (#265), and returns
  * {@code 202 Accepted}; the run executes asynchronously. Authorization (project access) and
  * bad-request / forbidden mapping are handled here: the global {@code ApiExceptionHandler} is
  * scoped to {@code com.rreganjr.requel.service}, so it never saw this controller's exceptions and
@@ -70,13 +70,15 @@ public class AiReviewController {
 	 * Issue #355: {@code GET /api/ai/reviews?entityType=&entityId=} - the entity's latest review
 	 * run: status, failure reason, the model's summary and the findings that run reported. 204
 	 * when the entity has never been reviewed, 404 for an unknown entity, 400 for a type that
-	 * is not reviewable, 403 without access to its project.
+	 * is not reviewable, 403 without access to its project. {@code taskType=POLICY_REVIEW} reads
+	 * the policy pass instead (#265).
 	 */
 	@GetMapping
 	public ResponseEntity<AiReviewDto> latestReview(@RequestParam String entityType,
-			@RequestParam Long entityId) {
+			@RequestParam Long entityId,
+			@RequestParam(defaultValue = AiReviewService.TASK_TYPE) String taskType) {
 		try {
-			return aiReviewService.latestReview(entityType, entityId)
+			return aiReviewService.latestReview(entityType, entityId, taskType)
 					.map(AiReviewDto::of)
 					.map(ResponseEntity::ok)
 					.orElseGet(() -> ResponseEntity.noContent().build());

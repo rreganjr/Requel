@@ -125,4 +125,16 @@ public class AiDefinitionExecutorFactory implements DefinitionExecutorFactory {
 	public RequelAssistant<?> executorFor(AssistantDefinition definition) {
 		return new DefinitionExecutorAssistant(definition, this);
 	}
+
+	/** #265: one executor for all of {@code policies}, in a single provider call. */
+	@Override
+	public RequelAssistant<?> composedExecutorFor(List<AssistantDefinition> policies) {
+		return new ComposedPolicyAssistant(policies, this);
+	}
+
+	/** #262: the active provider's locality. */
+	AiProviderLocality locality() {
+		return providerLocality != null ? providerLocality
+				: AiProviderLocality.classify(aiProperties.getProvider(), null);
+	}
 }

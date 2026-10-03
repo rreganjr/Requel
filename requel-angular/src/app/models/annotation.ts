@@ -44,6 +44,10 @@ export interface NoteDto {
   source?: string | null;
   /** An assistant raised it against text that has since changed: it may no longer apply (#270). */
   stale?: boolean;
+  /** The assistant's display name when an assistant raised it (#265). */
+  sourceName?: string | null;
+  /** REVIEW, POLICY or LEXICAL when an assistant raised it (#265). */
+  sourceKind?: 'REVIEW' | 'POLICY' | 'LEXICAL' | null;
 }
 
 /** Issue severity (#271). The server orders every issue list by it, HIGH first. */
@@ -64,6 +68,10 @@ export interface IssueDto {
   source?: string | null;
   /** An assistant raised it against text that has since changed: it may no longer apply (#270). */
   stale?: boolean;
+  /** The assistant's display name when an assistant raised it (#265). */
+  sourceName?: string | null;
+  /** REVIEW, POLICY or LEXICAL when an assistant raised it (#265). */
+  sourceKind?: 'REVIEW' | 'POLICY' | 'LEXICAL' | null;
 }
 
 export interface AnnotationsDto {

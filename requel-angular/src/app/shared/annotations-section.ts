@@ -155,6 +155,10 @@ import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, support
                   <app-tag data-testid="annotation-stale-badge" [tone]="'neutral'" icon="pi pi-history" [label]="staleLabel" />
                 </span>
               }
+              @if (note.sourceKind === 'POLICY') {
+                <app-tag data-testid="annotation-policy-badge" [tone]="'neutral'" icon="pi pi-shield"
+                         [label]="'Policy: ' + (note.sourceName ?? 'policy')" />
+              }
               <span class="annotation-text">{{ note.text }}</span>
               <span class="annotation-creator">{{ note.createdBy }}</span>
               @if (canEditAnnotations()) {
@@ -193,6 +197,10 @@ import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, support
                 <span [attr.title]="staleTooltip">
                   <app-tag data-testid="annotation-stale-badge" [tone]="'neutral'" icon="pi pi-history" [label]="staleLabel" />
                 </span>
+              }
+              @if (issue.sourceKind === 'POLICY') {
+                <app-tag data-testid="annotation-policy-badge" [tone]="'neutral'" icon="pi pi-shield"
+                         [label]="'Policy: ' + (issue.sourceName ?? 'policy')" />
               }
               <span class="annotation-text">{{ issue.text }}</span>
               <span class="annotation-creator">{{ issue.createdBy }}</span>

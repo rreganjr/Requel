@@ -58,6 +58,50 @@ class AssistantRunWorkerTest {
 		assertThat(assistant.seenTaskType).isEqualTo("REQUIREMENTS_REVIEW");
 	}
 
+	/**
+	 * #265: a composed assistant's results are applied one per member, each with that member's
+	 * cleanup policy, as if the members had run alone.
+	 */
+	@Test
+	void aComposedAssistantsResultsAreAppliedPerMember() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		List<String> applied = new java.util.ArrayList<>();
+		AssistantResultApplicator applicator = (context, result, cleanupPolicy, target) -> {
+			applied.add(result.assistantId() + ":" + cleanupPolicy);
+			return new AppliedAssistantResult(0, List.of());
+		};
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new Composed())), applicator,
+				List.of(new StringTargetLoader()));
+
+		worker.run(record.runId());
+
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
+				updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED));
+		assertThat(applied).containsExactly("member-a:AUTO_RESOLVE_IF_UNTOUCHED",
+				"member-b:MANUAL");
+	}
+
+	/** #265: a composed assistant that throws fails a run it was alone in, with its message. */
+	@Test
+	void aComposedAssistantThatThrowsFailsTheRun() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		Composed composed = new Composed();
+		composed.failure = "9 policies apply; the limit is 8";
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(composed)), new RecordingApplicator(),
+				List.of(new StringTargetLoader()));
+
+		worker.run(record.runId());
+
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> {
+			assertThat(updated.status()).isEqualTo(AssistantRunStatus.FAILED);
+			assertThat(updated.errorSummary()).contains("the limit is 8");
+		});
+	}
+
 	@Test
 	void runIsSkippedWhenNoAssistantHandlesTheTask() {
 		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
@@ -688,6 +732,61 @@ class AssistantRunWorkerTest {
 		@Override
 		public Optional<Object> loadTarget(EntityRef targetRef) {
 			return Optional.of("target");
+		}
+	}
+
+	/** #265: two members; member-a cleans up its untouched findings, member-b leaves it to people. */
+	private static final class Composed implements RequelAssistant<String>, ComposedAssistant {
+		private String failure;
+
+		@Override
+		public String assistantId() {
+			return "composed";
+		}
+
+		@Override
+		public Class<String> targetType() {
+			return String.class;
+		}
+
+		@Override
+		public boolean handlesTask(String taskType) {
+			return true;
+		}
+
+		@Override
+		public AssistantResult analyze(AssistantContext context, String target) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public List<RequelAssistant<?>> members() {
+			return List.of(new Member("member-a", CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED),
+					new Member("member-b", CleanupPolicy.MANUAL));
+		}
+
+		@Override
+		public List<AssistantResult> analyzeAll(AssistantContext context, Object target)
+				throws com.rreganjr.requel.assistant.api.AssistantException {
+			if (failure != null) {
+				throw new com.rreganjr.requel.assistant.api.AssistantException(failure);
+			}
+			return List.of(AssistantResult.builder().assistantId("member-a").runId(context.runId())
+					.build(), AssistantResult.builder().assistantId("member-b")
+							.runId(context.runId()).build());
+		}
+	}
+
+	private record Member(String assistantId, CleanupPolicy cleanupPolicy)
+			implements RequelAssistant<String> {
+		@Override
+		public Class<String> targetType() {
+			return String.class;
+		}
+
+		@Override
+		public AssistantResult analyze(AssistantContext context, String target) {
+			throw new UnsupportedOperationException();
 		}
 	}
 

@@ -38,7 +38,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <li>{@code model} — the model id, reported in usage and bridged to
  * {@code spring.ai.openai.chat.options.model};</li>
  * <li>{@code maxInputTokens} — app-side input budget hint included in the prompt;</li>
- * <li>{@code projectAllowlist} — optional CSV of project ids permitted to use AI.</li>
+ * <li>{@code projectAllowlist} — optional CSV of project ids permitted to use AI;</li>
+ * <li>{@code policies.maxComposed} — how many policies one composed pass may carry (#265).</li>
  * </ul>
  */
 @ConfigurationProperties(prefix = "requel.ai")
@@ -49,6 +50,30 @@ public class AiProperties {
 	private String model = "noop";
 	private int maxInputTokens = 16000;
 	private List<String> projectAllowlist = new ArrayList<String>();
+	private final Policies policies = new Policies();
+
+	/** {@code requel.ai.policies.*} (#265). */
+	public Policies getPolicies() {
+		return policies;
+	}
+
+	/** Issue #265: limits on the composed policy pass. */
+	public static class Policies {
+
+		/**
+		 * The most policies one entity's pass may carry. Over it the run fails with a message
+		 * rather than dropping rules, so the composed prompt can't silently outgrow the budget.
+		 */
+		private int maxComposed = 8;
+
+		public int getMaxComposed() {
+			return maxComposed;
+		}
+
+		public void setMaxComposed(int maxComposed) {
+			this.maxComposed = maxComposed;
+		}
+	}
 
 	public boolean isEnabled() {
 		return enabled;

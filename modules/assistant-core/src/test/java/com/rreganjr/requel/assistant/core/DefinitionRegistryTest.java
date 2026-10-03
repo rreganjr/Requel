@@ -145,6 +145,61 @@ class DefinitionRegistryTest {
 				.containsExactly("default");
 	}
 
+	/**
+	 * #265: every applicable, enabled, switched-on policy goes into one composed assistant,
+	 * ordered by key; a policy scoped elsewhere doesn't; no policy, no assistant.
+	 */
+	@Test
+	void applicablePoliciesAreComposedIntoOneAssistant() {
+		List<List<String>> composed = new java.util.ArrayList<>();
+		registry.setExecutorFactory(new DefinitionExecutorFactory() {
+			@Override
+			public RequelAssistant<?> executorFor(AssistantDefinition definition) {
+				return new Executor(definition);
+			}
+
+			@Override
+			public RequelAssistant<?> composedExecutorFor(List<AssistantDefinition> policies) {
+				composed.add(policies.stream().map(AssistantDefinition::key).toList());
+				return new Executor(policies.get(0));
+			}
+		});
+		when(store.definitionsFor(1L, AssistantDefinition.POLICY_REVIEW)).thenReturn(List.of(
+				policy("p-zeta", Set.of()), policy("p-alpha", Set.of("Goal")),
+				policy("p-stories", Set.of("Story")), policy("p-off", Set.of()).withEnabled(false),
+				policy("p-switched", Set.of())));
+		registry.setSettingsStore(disabling("p-switched"));
+
+		assertThat(registry.findAssistantsFor(goal(), context(AssistantDefinition.POLICY_REVIEW)))
+				.hasSize(1);
+		assertThat(composed).containsExactly(List.of("p-alpha", "p-zeta"));
+		assertThat(registry.policiesFor(story(), 1L)).extracting(AssistantDefinition::key)
+				.containsExactly("p-stories", "p-zeta");
+		// The review task never sees policies, and the policy task never sees reviews.
+		when(store.definitionsFor(1L, TASK)).thenReturn(List.of(definition("default", Set.of())));
+		assertThat(keys(registry.findAssistantsFor(goal(), context(TASK)))).containsExactly(
+				"default");
+		when(store.definitionsFor(1L, AssistantDefinition.POLICY_REVIEW)).thenReturn(List.of());
+		assertThat(registry.findAssistantsFor(goal(), context(AssistantDefinition.POLICY_REVIEW)))
+				.isEmpty();
+	}
+
+	@Test
+	void enabledPoliciesAreSwitchableUnderTheirOwnGroup() {
+		when(store.bundled()).thenReturn(List.of(definition("default", Set.of()),
+				policy("p", Set.of())));
+
+		assertThat(registry.switchableAssistants()).extracting(s -> s.assistantId() + ":"
+				+ s.group()).containsExactly("default:AI review", "p:Policies");
+	}
+
+	private static AssistantDefinition policy(String key, Set<String> scope) {
+		return new AssistantDefinition(key, key, DefinitionKind.POLICY,
+				AssistantDefinition.POLICY_REVIEW, scope, List.of("entity"), "x",
+				List.of(new VocabularyEntry("A", "a")), AssistantDefinition.POLICY_OUTPUT_SCHEMA,
+				"1", true, 1, DefinitionSource.BUNDLED, null, null, null);
+	}
+
 	private static List<String> keys(List<RequelAssistant<?>> assistants) {
 		return assistants.stream().map(RequelAssistant::assistantId).toList();
 	}

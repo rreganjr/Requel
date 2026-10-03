@@ -435,12 +435,25 @@ public class AssistantRunWorker {
 		int thrown = 0;
 		for (RequelAssistant<?> assistant : assistants) {
 			try {
-				AssistantResult result = analyze(assistant, context, target);
-				results.add(result);
-				producers.add(assistant);
-				if (CommandBackedAssistantResultApplicator.isIncomplete(result)) {
-					problems.add(assistant.assistantId() + " incomplete (failed: "
-							+ result.metadata().get("failedProperties") + ")");
+				// #265: a composed assistant reports one result per member it ran for.
+				List<AssistantResult> produced;
+				if (assistant instanceof ComposedAssistant composed) {
+					produced = composed.analyzeAll(context, target);
+				} else {
+					produced = List.of(analyze(assistant, context, target));
+				}
+				for (AssistantResult result : produced) {
+					RequelAssistant<?> producer = assistant;
+					if (assistant instanceof ComposedAssistant composed) {
+						RequelAssistant<?> member = composed.memberFor(result.assistantId());
+						producer = member == null ? assistant : member;
+					}
+					results.add(result);
+					producers.add(producer);
+					if (CommandBackedAssistantResultApplicator.isIncomplete(result)) {
+						problems.add(producer.assistantId() + " incomplete (failed: "
+								+ result.metadata().get("failedProperties") + ")");
+					}
 				}
 			} catch (RuntimeException | AssistantException e) {
 				log.warn("assistant {} failed for run {}: {}", assistant.assistantId(),
@@ -453,8 +466,12 @@ public class AssistantRunWorker {
 				assistants.size());
 		List<AssistantDefinition> definitions = new ArrayList<>();
 		for (RequelAssistant<?> assistant : assistants) {
-			if (assistant instanceof DefinitionBacked backed && backed.definition() != null) {
-				definitions.add(backed.definition());
+			List<RequelAssistant<?>> units = assistant instanceof ComposedAssistant composed
+					? composed.members() : List.of(assistant);
+			for (RequelAssistant<?> unit : units) {
+				if (unit instanceof DefinitionBacked backed && backed.definition() != null) {
+					definitions.add(backed.definition());
+				}
 			}
 		}
 		analysis.definitions = List.copyOf(definitions);

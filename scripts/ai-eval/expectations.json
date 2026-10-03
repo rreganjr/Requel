@@ -1,5 +1,5 @@
 {
-  "_comment": "Issue #355: what a competent reviewer should raise on each fixture entity. Matching rules are in scripts/ai-eval/README.md. #263: alsoValid lists real flaws a fixture entity has beyond the one it targets; a matching finding is neither a hit nor spurious.",
+  "_comment": "Issue #355: what a competent reviewer should raise on each fixture entity. Matching rules are in scripts/ai-eval/README.md. #263: alsoValid lists real flaws a fixture entity has beyond the one it targets; a matching finding is neither a hit nor spurious. #265: policyExpect lists what the policy pass should raise on an entity; an entity without it is policy-silent.",
   "fixture": "fixture-project.xml",
   "entities": [
     {
@@ -164,6 +164,18 @@
           "patterns": [],
           "acceptTypes": [
             "CONJUNCTIVE_GOAL"
+          ]
+        }
+      ],
+      "policyAlsoValid": [
+        {
+          "id": "contradicts-member-definition",
+          "patterns": [
+            "member"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "CONFLICTING_USAGE"
           ]
         }
       ]
@@ -457,6 +469,39 @@
       "name": "Return a tool after hours",
       "silent": true,
       "expect": []
+    },
+    {
+      "type": "Story",
+      "name": "Renew as a patron",
+      "silent": true,
+      "expect": [],
+      "alsoValid": [
+        {
+          "id": "patron-not-member",
+          "patterns": [
+            "patron"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "UNCLEAR_ACTOR",
+            "INCONSISTENT",
+            "AMBIGUOUS",
+            "OTHER"
+          ]
+        }
+      ],
+      "policyExpect": [
+        {
+          "id": "policy-non-canonical-patron",
+          "patterns": [
+            "patron"
+          ],
+          "acceptTypes": [
+            "NON_CANONICAL_TERM"
+          ],
+          "types": []
+        }
+      ]
     },
     {
       "type": "UseCase",

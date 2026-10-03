@@ -47,12 +47,32 @@ import java.util.Set;
  * @param projectId the owning project of a PROJECT definition; null for BUNDLED
  * @param forkedFromVersion the bundled version a project copy was made from, or null
  * @param executorBean a bean name to run instead of the generic executor, or null
+ * @param contextBudgets per-provider character shares overriding the default (#261)
+ * @param localOnly never send this definition's work to a remote provider (#265)
  */
 public record AssistantDefinition(String key, String displayName, DefinitionKind kind,
 		String taskType, Set<String> scope, List<String> contextProviders, String instructions,
 		List<VocabularyEntry> vocabulary, String outputSchemaName, String outputSchemaVersion,
 		boolean enabled, int version, DefinitionSource source, Long projectId,
-		Integer forkedFromVersion, String executorBean, Map<String, Integer> contextBudgets) {
+		Integer forkedFromVersion, String executorBean, Map<String, Integer> contextBudgets,
+		boolean localOnly) {
+
+	/** #265: the task type policy definitions serve, beside {@code REQUIREMENTS_REVIEW}. */
+	public static final String POLICY_REVIEW = "POLICY_REVIEW";
+
+	/** #265: the output schema a policy definition uses (the review finding plus a policy key). */
+	public static final String POLICY_OUTPUT_SCHEMA = "PolicyReviewOutput";
+
+	/** Not local-only (#265). */
+	public AssistantDefinition(String key, String displayName, DefinitionKind kind,
+			String taskType, Set<String> scope, List<String> contextProviders, String instructions,
+			List<VocabularyEntry> vocabulary, String outputSchemaName, String outputSchemaVersion,
+			boolean enabled, int version, DefinitionSource source, Long projectId,
+			Integer forkedFromVersion, String executorBean, Map<String, Integer> contextBudgets) {
+		this(key, displayName, kind, taskType, scope, contextProviders, instructions, vocabulary,
+				outputSchemaName, outputSchemaVersion, enabled, version, source, projectId,
+				forkedFromVersion, executorBean, contextBudgets, false);
+	}
 
 	/** Without context budget overrides (every provider gets the default share). */
 	public AssistantDefinition(String key, String displayName, DefinitionKind kind,
@@ -74,6 +94,19 @@ public record AssistantDefinition(String key, String displayName, DefinitionKind
 		kind = kind == null ? DefinitionKind.REVIEW : kind;
 	}
 
+	/** A cross-cutting policy (#265): composed with the other policies into one call. */
+	public boolean isPolicy() {
+		return kind == DefinitionKind.POLICY;
+	}
+
+	/**
+	 * True when this definition runs for {@code entityType}: a policy with an empty scope runs
+	 * for every type (#265); a review's empty scope makes it the fallback instead.
+	 */
+	public boolean appliesTo(String entityType) {
+		return scope.contains(entityType) || (isPolicy() && scope.isEmpty());
+	}
+
 	/** An empty scope: runs for any entity type no specific definition covers. */
 	public boolean isFallback() {
 		return scope.isEmpty();
@@ -88,7 +121,7 @@ public record AssistantDefinition(String key, String displayName, DefinitionKind
 	public AssistantDefinition withEnabled(boolean value) {
 		return new AssistantDefinition(key, displayName, kind, taskType, scope, contextProviders,
 				instructions, vocabulary, outputSchemaName, outputSchemaVersion, value, version,
-				source, projectId, forkedFromVersion, executorBean, contextBudgets);
+				source, projectId, forkedFromVersion, executorBean, contextBudgets, localOnly);
 	}
 
 	/** A project copy of this definition, for {@code projectId}, at version 1. */
@@ -96,7 +129,7 @@ public record AssistantDefinition(String key, String displayName, DefinitionKind
 		Objects.requireNonNull(owner, "owner");
 		return new AssistantDefinition(key, displayName, kind, taskType, scope, contextProviders,
 				newInstructions, vocabulary, outputSchemaName, outputSchemaVersion, enabled, 1,
-				DefinitionSource.PROJECT, owner, version, executorBean, contextBudgets);
+				DefinitionSource.PROJECT, owner, version, executorBean, contextBudgets, localOnly);
 	}
 
 	/** {@code key@version}, for the run record. */

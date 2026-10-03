@@ -35,6 +35,9 @@ public interface SwitchableAssistantCatalog {
 	/** The group an AI review definition's switch shows under (#263). */
 	String AI_REVIEW = "AI review";
 
+	/** #265: cross-cutting policy definitions. */
+	String POLICIES = "Policies";
+
 	/**
 	 * An assistant a project can switch off. {@code group} is the heading its switch shows
 	 * under (#263).

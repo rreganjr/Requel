@@ -123,7 +123,8 @@ public final class BundledDefinitions {
 				text(node, "taskType"), scope, providers, text(node, "instructions"), vocabulary,
 				text(node, "outputSchemaName"), text(node, "outputSchemaVersion"),
 				node.path("enabled").asBoolean(true), node.path("version").asInt(0),
-				DefinitionSource.BUNDLED, null, null, text(node, "executorBean"), budgets);
+				DefinitionSource.BUNDLED, null, null, text(node, "executorBean"), budgets,
+				node.path("localOnly").asBoolean(false));
 	}
 
 	private static String text(JsonNode node, String field) {

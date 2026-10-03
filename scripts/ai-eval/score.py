@@ -43,7 +43,10 @@ def load_expectations(path):
         entity.setdefault("trap", False)
         entity.setdefault("confirmPatterns", [])
         entity.setdefault("alsoValid", [])
-        for item in entity["expect"] + entity["alsoValid"]:
+        entity.setdefault("policyExpect", [])
+        entity.setdefault("policyAlsoValid", [])
+        for item in (entity["expect"] + entity["alsoValid"] + entity["policyExpect"]
+                     + entity["policyAlsoValid"]):
             item.setdefault("types", [])
             item.setdefault("acceptTypes", [])
     return doc
@@ -128,6 +131,21 @@ def score_run(entity, findings, summary):
             "suggestions": suggestions, "alsoValid": also_valid, "confirmed": confirmed}
 
 
+def policy_entity(entity):
+    """#265: the entity as the policy pass is scored: its policyExpect items (silent when it has
+    none) and its policyAlsoValid items (real flaws the policy may raise; neither hit nor
+    spurious)."""
+    return {"type": entity["type"], "name": entity["name"],
+            "expect": entity.get("policyExpect", []),
+            "silent": not entity.get("policyExpect"), "trap": False, "confirmPatterns": [],
+            "alsoValid": entity.get("policyAlsoValid", [])}
+
+
+def score_policy(entity, findings):
+    """#265: score one policy run against the entity's policyExpect."""
+    return score_run(policy_entity(entity), findings, None)
+
+
 def classify(view):
     """'ok', 'schema' (the reply was not the schema's shape), 'failed', 'timeout' or the
     run's other terminal status in lower case."""
@@ -184,6 +202,37 @@ def aggregate(results):
     return rows
 
 
+def aggregate_policies(results):
+    """#265: per-type rows for the policy runs saved beside the reviews."""
+    rows = {}
+    for result in results:
+        if result.get("skipped"):
+            continue
+        entity = result["entity"]
+        for run in result["runs"]:
+            policy = run.get("policy")
+            if policy is None:
+                continue
+            row = rows.setdefault(entity["type"], {"runs": 0, "ok": 0, "expected": 0,
+                                                   "hits": 0, "spurious": 0, "silentRuns": 0,
+                                                   "silentKept": 0, "failed": 0, "calls": 0})
+            row["runs"] += 1
+            if policy["outcome"] != "ok":
+                row["failed"] += 1
+                continue
+            row["ok"] += 1
+            row["calls"] += policy.get("calls", 1)
+            score = policy["score"]
+            row["expected"] += len(entity.get("policyExpect", []))
+            row["hits"] += len(score["hits"])
+            row["spurious"] += len(score["spurious"])
+            if not entity.get("policyExpect"):
+                row["silentRuns"] += 1
+                if not score["spurious"]:
+                    row["silentKept"] += 1
+    return rows
+
+
 def _ratio(numerator, denominator):
     return "-" if denominator == 0 else "%.0f%% (%d/%d)" % (
         100.0 * numerator / denominator, numerator, denominator)
@@ -224,6 +273,26 @@ def render_report(meta, results):
             "(#263).",
             ""]
 
+    policy_rows = aggregate_policies(results)
+    if policy_rows:
+        out += ["## Policies (#265)", "",
+                "| Type | Runs ok/total | Hit rate | Spurious per run | Silent kept silent |"
+                " Failures |", "|---|---|---|---|---|---|"]
+        total = None
+        for type_name in TYPES + sorted(set(policy_rows) - set(TYPES)):
+            row = policy_rows.get(type_name)
+            if row is None:
+                continue
+            if total is None:
+                total = {k: 0 for k in row}
+            for k in row:
+                total[k] += row[k]
+            out.append(_policy_row(type_name, row))
+        out.append(_policy_row("**All**", total))
+        out += ["", "One policy run per review: every applicable policy in one provider call. "
+                "Hit rate = policyExpect items matched; an entity without policyExpect is "
+                "policy-silent.", ""]
+
     out += ["## Details", ""]
     for result in results:
         entity = result["entity"]
@@ -254,6 +323,19 @@ def render_report(meta, results):
             for finding in score["spurious"]:
                 out.append("  - spurious `%s`: %s" % (finding.get("findingType"),
                                                       _one_line(finding.get("text"))))
+            policy = run.get("policy")
+            if policy is not None:
+                if policy["outcome"] != "ok":
+                    out.append("  - policy run: **%s** %s" % (
+                        policy["outcome"], (policy.get("error") or "").strip()[:300]))
+                else:
+                    pscore = policy["score"]
+                    out.append("  - policy run: hits %s; misses %s" % (
+                        ", ".join(pscore["hits"]) or "none",
+                        ", ".join(pscore["misses"]) or "none"))
+                    for finding in pscore["spurious"]:
+                        out.append("    - policy spurious `%s`: %s" % (
+                            finding.get("findingType"), _one_line(finding.get("text"))))
             for finding in score.get("alsoValid", []):
                 out.append("  - also valid (%s) `%s`: %s" % (
                     finding.get("alsoValid"), finding.get("findingType"),
@@ -278,6 +360,13 @@ def _row(name, row):
         row["vocabularyMisses"],
         "-" if row["ok"] == 0 else "%.1f" % (row["suggestions"] / float(row["ok"])),
         "-" if row["ok"] == 0 else "%.1f" % (row["alsoValid"] / float(row["ok"])))
+
+
+def _policy_row(name, row):
+    return "| %s | %d/%d | %s | %s | %s | %d |" % (
+        name, row["ok"], row["runs"], _ratio(row["hits"], row["expected"]),
+        "-" if row["ok"] == 0 else "%.1f" % (row["spurious"] / float(row["ok"])),
+        _ratio(row["silentKept"], row["silentRuns"]), row["failed"])
 
 
 def _definition(view):
@@ -382,10 +471,13 @@ class RequelClient:
                 ids.setdefault(key, step["id"])
         return ids
 
-    def latest_review(self, entity_type, entity_id):
-        """(status, view or None). 204 = never reviewed."""
-        status, data = self.call("GET", "/api/ai/reviews?" + urllib.parse.urlencode(
-            {"entityType": entity_type, "entityId": entity_id}))
+    def latest_review(self, entity_type, entity_id, task_type=None):
+        """(status, view or None). 204 = never reviewed. task_type POLICY_REVIEW reads the
+        policy pass (#265)."""
+        params = {"entityType": entity_type, "entityId": entity_id}
+        if task_type:
+            params["taskType"] = task_type
+        status, data = self.call("GET", "/api/ai/reviews?" + urllib.parse.urlencode(params))
         if status == 204:
             return status, None
         if status != 200:
@@ -402,23 +494,45 @@ def _q(name):
     return urllib.parse.quote(name, safe="")
 
 
-def review_once(client, entity_type, entity_id, timeout, poll):
-    """Run one review and wait for it. Returns (outcome, view, error)."""
-    _, before = client.latest_review(entity_type, entity_id)
-    previous = before.get("runId") if before else None
-    status, data = client.request_review(entity_type, entity_id)
-    if status == 400:
-        return "skipped", None, data
-    if status != 202:
-        return "failed", None, "POST HTTP %d %s" % (status, data[:300])
+POLICY_TASK = "POLICY_REVIEW"
+
+
+def _run_id(client, entity_type, entity_id, task_type=None):
+    status, view = client.latest_review(entity_type, entity_id, task_type)
+    return view.get("runId") if status == 200 and view else None
+
+
+def _wait(client, entity_type, entity_id, previous, timeout, poll, task_type=None):
     deadline = time.time() + timeout
     while time.time() < deadline:
         time.sleep(poll)
-        _, view = client.latest_review(entity_type, entity_id)
+        _, view = client.latest_review(entity_type, entity_id, task_type)
         if view and view.get("runId") and view.get("runId") != previous \
                 and view.get("status") in TERMINAL:
             return classify(view), view, view.get("errorSummary")
     return "timeout", None, "no finished run after %ds" % timeout
+
+
+def review_once(client, entity_type, entity_id, timeout, poll):
+    """Run one review and wait for it, and for the policy pass when the request dispatched one
+    (#265). Returns (outcome, view, error, policy) where policy is (outcome, view, error) or
+    None."""
+    previous = _run_id(client, entity_type, entity_id)
+    previous_policy = _run_id(client, entity_type, entity_id, POLICY_TASK)
+    status, data = client.request_review(entity_type, entity_id)
+    if status == 400:
+        return "skipped", None, data, None
+    if status != 202:
+        return "failed", None, "POST HTTP %d %s" % (status, data[:300]), None
+    # Both runs are queued before the POST returns, so a policy run that isn't there now
+    # was never dispatched: no policy applies.
+    dispatched = _run_id(client, entity_type, entity_id, POLICY_TASK) != previous_policy
+    outcome, view, error = _wait(client, entity_type, entity_id, previous, timeout, poll)
+    policy = None
+    if dispatched:
+        policy = _wait(client, entity_type, entity_id, previous_policy, timeout, poll,
+                       POLICY_TASK)
+    return outcome, view, error, policy
 
 
 def rescore(raw_path, expectations, out):
@@ -434,6 +548,9 @@ def rescore(raw_path, expectations, out):
             if run.get("outcome") == "ok":
                 run["score"] = score_run(result["entity"], run.get("findings") or [],
                                          run.get("summary"))
+            policy = run.get("policy")
+            if policy and policy.get("outcome") == "ok":
+                policy["score"] = score_policy(result["entity"], policy.get("findings") or [])
     meta = dict(raw["meta"])
     meta["label"] = "%s (re-scored %s from %s)" % (
         meta.get("label") or "", _dt.datetime.now().isoformat(timespec="seconds"), raw_path)
@@ -511,8 +628,8 @@ def main(argv=None):
         for n in range(1, args.runs + 1):
             print("[%d/%d] %s \"%s\" run %d ..." % (index, len(entities), entity["type"],
                                                    entity["name"], n), end=" ", flush=True)
-            outcome, view, error = review_once(client, entity["type"], ids[key], args.timeout,
-                                               args.poll)
+            outcome, view, error, policy = review_once(client, entity["type"], ids[key],
+                                                       args.timeout, args.poll)
             if outcome == "skipped":
                 reason = "%s is not reviewable: %s" % (entity["type"], _error_message(error))
                 skipped_types[entity["type"]] = reason
@@ -526,11 +643,26 @@ def main(argv=None):
                    "evidenceUnverified": (view or {}).get("evidenceUnverified") or 0,
                    "vocabularyMisses": (view or {}).get("vocabularyMisses") or 0,
                    "definition": _definition(view)}
+            if policy is not None:
+                p_outcome, p_view, p_error = policy
+                run["policy"] = {"outcome": p_outcome, "runId": (p_view or {}).get("runId"),
+                                 "error": p_error, "summary": (p_view or {}).get("summary"),
+                                 "findings": (p_view or {}).get("findings") or [],
+                                 "vocabularyMisses": (p_view or {}).get("vocabularyMisses") or 0,
+                                 "definition": _definition(p_view)}
+                if p_outcome == "ok":
+                    run["policy"]["score"] = score_policy(entity, run["policy"]["findings"])
             if outcome == "ok":
                 run["score"] = score_run(entity, findings, run["summary"])
-                print("%d findings, %d hits" % (len(findings), len(run["score"]["hits"])))
+                line = "%d findings, %d hits" % (len(findings), len(run["score"]["hits"]))
             else:
-                print(outcome)
+                line = outcome
+            if run.get("policy"):
+                p = run["policy"]
+                line += "; policy " + ("%d findings, %d hits" % (
+                    len(p["findings"]), len(p["score"]["hits"])) if p["outcome"] == "ok"
+                    else p["outcome"])
+            print(line)
             result["runs"].append(run)
 
     meta = {"date": _dt.datetime.now().isoformat(timespec="seconds"), "label": args.label,

@@ -113,6 +113,14 @@
             <text>The day, chosen when a member reserves a tool, on which the member may collect it from the desk.</text>
             <name>Pickup date</name>
         </term>
+        <term id="TRM_4">
+            <text>A person with a current library membership, who may borrow tools.</text>
+            <name>Member</name>
+        </term>
+        <term id="TRM_5" canonicalTerm="TRM_4">
+            <text>Another name for a member.</text>
+            <name>Patron</name>
+        </term>
     </glossary>
     <goals>
         <goal id="GOL_1">
@@ -192,6 +200,10 @@
         <story storyType="Success" id="STRY_5">
             <text>As a member, I want to drop a borrowed tool in the after-hours return box so that I can return it when the library is closed.</text>
             <name>Return a tool after hours</name>
+        </story>
+        <story storyType="Success" id="STRY_6">
+            <text>As a patron, I want to renew a loan from my account page so that I can keep the tool for another week.</text>
+            <name>Renew as a patron</name>
         </story>
     </stories>
     <usecases>

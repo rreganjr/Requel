@@ -156,6 +156,19 @@ describe('ProjectAssistantsPanelComponent (#268)', () => {
     const button = fixture.nativeElement.querySelector('[data-testid="assistants-rerun"] button') as HTMLButtonElement;
     expect(button.disabled).toBe(true);
   });
+  it('lists policies under their own heading and does not count them for Re-run analysis (#265)', async () => {
+    list = vi.fn().mockResolvedValue([
+      ...FOUR.map(a => ({ ...a, enabled: false, group: 'Lexical checks' })),
+      { assistantId: 'ai-review-goal', displayName: 'AI goal review', enabled: true, group: 'AI review' },
+      { assistantId: 'ai-policy-terminology', displayName: 'AI terminology policy', enabled: true, group: 'Policies' },
+    ]);
+    const fixture = await render(true, true);
+    const headings = Array.from(fixture.nativeElement.querySelectorAll('h3[data-testid^="assistant-group-"]')).map((h: any) => h.textContent?.trim());
+    expect(headings).toEqual(['Lexical checks', 'AI review', 'Policies']);
+    const button = fixture.nativeElement.querySelector('[data-testid="assistants-rerun"] button') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+  });
+
 
   it('hides Re-run analysis without Annotation[Edit]', async () => {
     const fixture = await render(true, false);

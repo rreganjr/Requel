@@ -113,6 +113,33 @@ describe('AnnotationsSectionComponent', () => {
     expect(screen.getByText('An open issue')).toBeInTheDocument();
   });
 
+  // #265: a policy's findings say which policy raised them; a review's don't get the tag.
+  it('tags an issue or note a policy raised with the policy name', async () => {
+    annotationServiceMock.getAnnotations.mockResolvedValue({
+      notes: [
+        { id: 1, version: 0, text: 'Policy note', createdBy: 'assistant',
+          source: 'ASSISTANT:ai-policy-terminology', sourceKind: 'POLICY', sourceName: 'AI terminology policy' }
+      ],
+      issues: [
+        { id: 2, version: 0, text: 'Policy issue', mustBeResolved: true, severity: 'MEDIUM', resolved: false,
+          resolvedBy: null, resolvedByPosition: null, createdBy: 'assistant', positions: [],
+          source: 'ASSISTANT:ai-policy-terminology', sourceKind: 'POLICY', sourceName: 'AI terminology policy' },
+        { id: 3, version: 0, text: 'Review issue', mustBeResolved: true, severity: 'MEDIUM', resolved: false,
+          resolvedBy: null, resolvedByPosition: null, createdBy: 'assistant', positions: [],
+          source: 'ASSISTANT:ai-review-goal', sourceKind: 'REVIEW', sourceName: 'AI goal review' }
+      ]
+    });
+    const { fixture } = await render(AnnotationsSectionComponent, {
+      providers: providers(),
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 }
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const tags = [...fixture.nativeElement.querySelectorAll('[data-testid="annotation-policy-badge"]')]
+      .map((t: Element) => t.textContent!.trim());
+    expect(tags).toEqual(['Policy: AI terminology policy', 'Policy: AI terminology policy']);
+  });
+
   // #271: every issue shows its severity as a text label, not color alone.
   it('renders a severity badge on each issue', async () => {
     annotationServiceMock.getAnnotations.mockResolvedValue(MOCK_ANNOTATIONS);

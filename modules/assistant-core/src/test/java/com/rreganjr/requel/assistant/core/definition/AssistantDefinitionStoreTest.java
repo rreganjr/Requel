@@ -117,6 +117,17 @@ class AssistantDefinitionStoreTest {
 		assertThat(review("plain", Set.of("Story")).contextBudgets()).isEmpty();
 	}
 
+	/** #265: a local-only policy reads back as one, through the row and the bundled JSON. */
+	@Test
+	void aLocalOnlyPolicyReadsBack() throws Exception {
+		AssistantDefinition saved = Definitions.policy("pii", Set.of(), true);
+		store.save(saved, "ron");
+
+		assertThat(rows.get(0).isLocalOnly()).isTrue();
+		assertThat(store.definitionsFor(5L, AssistantDefinition.POLICY_REVIEW))
+				.containsExactly(saved);
+	}
+
 	@Test
 	void aDevOverrideReplacesWhateverTheVersionAndTheNextSeedPutsTheShippedFileBack() {
 		store.seedBundled(new AssistantDefinition("default", "D", DefinitionKind.REVIEW, TASK,

@@ -112,10 +112,47 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 			}
 			matches.add(assistant);
 		}
+		if (context != null && AssistantDefinition.POLICY_REVIEW.equals(context.taskType())) {
+			// #265: every applicable policy, composed into one assistant (one provider call).
+			List<AssistantDefinition> policies = policiesFor(target, projectId(context), disabled);
+			if (!policies.isEmpty()) {
+				matches.add(executorFactory.composedExecutorFor(policies));
+			}
+			return List.copyOf(matches);
+		}
 		for (AssistantDefinition definition : definitionsFor(target, context, disabled)) {
 			matches.add(executorFor(definition));
 		}
 		return List.copyOf(matches);
+	}
+
+	/**
+	 * Issue #265: the enabled policies that apply to {@code target} in {@code projectId}, after
+	 * the project's switches, ordered by key. Empty when policies can't run (no AI).
+	 */
+	public List<AssistantDefinition> policiesFor(Object target, Long projectId) {
+		Set<String> disabled = settingsStore == null || projectId == null ? Set.of()
+				: settingsStore.disabledAssistants(projectId);
+		return policiesFor(target, projectId, disabled);
+	}
+
+	private List<AssistantDefinition> policiesFor(Object target, Long projectId,
+			Set<String> disabled) {
+		if (definitionStore == null || executorFactory == null
+				|| !(target instanceof ProjectOrDomainEntity entity)) {
+			return List.of();
+		}
+		String entityType = entity.getProjectOrDomainEntityInterface().getSimpleName();
+		List<AssistantDefinition> policies = new ArrayList<AssistantDefinition>();
+		for (AssistantDefinition definition : definitionStore.definitionsFor(projectId,
+				AssistantDefinition.POLICY_REVIEW)) {
+			if (definition.isPolicy() && definition.appliesTo(entityType) && definition.enabled()
+					&& !disabled.contains(definition.key())) {
+				policies.add(definition);
+			}
+		}
+		policies.sort(java.util.Comparator.comparing(AssistantDefinition::key));
+		return List.copyOf(policies);
 	}
 
 	/**
@@ -184,7 +221,9 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 			for (AssistantDefinition definition : definitionStore.bundled()) {
 				if (definition.enabled()) {
 					switchable.add(new SwitchableAssistant(definition.key(),
-							definition.displayName(), SwitchableAssistantCatalog.AI_REVIEW));
+							definition.displayName(), definition.isPolicy()
+									? SwitchableAssistantCatalog.POLICIES
+									: SwitchableAssistantCatalog.AI_REVIEW));
 				}
 			}
 		}

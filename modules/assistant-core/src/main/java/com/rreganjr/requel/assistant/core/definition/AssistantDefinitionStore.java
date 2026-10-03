@@ -280,6 +280,7 @@ public class AssistantDefinitionStore implements ProjectAssistantDefinitions {
 		entity.setSource(definition.source().name());
 		entity.setForkedFromVersion(definition.forkedFromVersion());
 		entity.setExecutorBean(definition.executorBean());
+		entity.setLocalOnly(definition.localOnly());
 	}
 
 	AssistantDefinition toDefinition(AssistantDefinitionEntity row) {
@@ -294,7 +295,7 @@ public class AssistantDefinitionStore implements ProjectAssistantDefinitions {
 				row.getProjectId(), row.getForkedFromVersion(), row.getExecutorBean(),
 				row.getContextBudgetsJson() == null ? Map.of()
 						: read(row.getContextBudgetsJson(), new TypeReference<Map<String, Integer>>() {
-						}));
+						}), row.isLocalOnly());
 	}
 
 	private String json(Object value) {

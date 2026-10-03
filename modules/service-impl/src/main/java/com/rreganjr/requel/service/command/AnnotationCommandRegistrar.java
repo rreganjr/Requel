@@ -265,7 +265,9 @@ public class AnnotationCommandRegistrar {
                 note.getText(),
                 note.getCreatedBy() != null ? note.getCreatedBy().getDisplayName() : null,
                 note.getSource(),
-                stale
+                stale,
+                AnnotationSources.name(note.getSource()),
+                AnnotationSources.kind(note.getSource())
         );
     }
 
@@ -304,7 +306,9 @@ public class AnnotationCommandRegistrar {
                 issue.getCreatedBy() != null ? issue.getCreatedBy().getDisplayName() : null,
                 positions,
                 issue.getSource(),
-                stale
+                stale,
+                AnnotationSources.name(issue.getSource()),
+                AnnotationSources.kind(issue.getSource())
         );
     }
 

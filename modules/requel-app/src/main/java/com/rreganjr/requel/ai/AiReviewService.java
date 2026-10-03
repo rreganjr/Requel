@@ -27,6 +27,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.rreganjr.platform.command.AuthorizationException;
+import com.rreganjr.requel.assistant.core.SimpleAssistantRegistry;
+import com.rreganjr.requel.assistant.core.definition.AssistantDefinition;
 import com.rreganjr.requel.assistant.core.persistence.AssistantRunReadService;
 import com.rreganjr.requel.command.AnalysisRequestDispatcher;
 import com.rreganjr.requel.project.Actor;
@@ -60,6 +62,8 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 public class AiReviewService {
 
 	public static final String TASK_TYPE = "REQUIREMENTS_REVIEW";
+	/** #265: the composed policy pass. */
+	public static final String POLICY_TASK_TYPE = AssistantDefinition.POLICY_REVIEW;
 
 	/** Reviewable target types (the {@link com.rreganjr.requel.project.TextEntity}s). */
 	private static final Map<String, Class<? extends ProjectOrDomainEntity>> REVIEWABLE_TYPES = Map.of(
@@ -76,6 +80,13 @@ public class AiReviewService {
 	private final CurrentUserResolver currentUserResolver;
 	private final AnalysisRequestDispatcher analysisRequestDispatcher;
 	private final AssistantRunReadService runReadService;
+	private SimpleAssistantRegistry registry;
+
+	/** #265: decides whether a policy applies; without it, no policy pass is dispatched. */
+	@Autowired(required = false)
+	public void setRegistry(SimpleAssistantRegistry registry) {
+		this.registry = registry;
+	}
 
 	@Autowired
 	public AiReviewService(ProjectRepository projectRepository,
@@ -105,6 +116,14 @@ public class AiReviewService {
 		ProjectOrDomainEntity target = projectRepository.findById(type, entityId);
 		requireProjectAccess(target, user);
 		analysisRequestDispatcher.dispatch(target, user, TASK_TYPE);
+		// #265: the policy pass, only when a policy applies (no empty runs).
+		if (registry != null && !registry.policiesFor(target, projectId(target)).isEmpty()) {
+			analysisRequestDispatcher.dispatch(target, user, POLICY_TASK_TYPE);
+		}
+	}
+
+	private static Long projectId(ProjectOrDomainEntity target) {
+		return target.getProjectOrDomain() == null ? null : target.getProjectOrDomain().getId();
 	}
 
 	/**
@@ -117,6 +136,19 @@ public class AiReviewService {
 	 * @throws AuthorizationException if the current user cannot access the entity's project
 	 */
 	public Optional<AssistantRunReadService.RunView> latestReview(String entityType, Long entityId) {
+		return latestReview(entityType, entityId, TASK_TYPE);
+	}
+
+	/**
+	 * The entity's latest run of {@code taskType}: {@code REQUIREMENTS_REVIEW} or
+	 * {@code POLICY_REVIEW} (#265).
+	 */
+	public Optional<AssistantRunReadService.RunView> latestReview(String entityType, Long entityId,
+			String taskType) {
+		if (!TASK_TYPE.equals(taskType) && !POLICY_TASK_TYPE.equals(taskType)) {
+			throw new IllegalArgumentException("Unknown review task type: " + taskType + " (known: "
+					+ TASK_TYPE + ", " + POLICY_TASK_TYPE + ")");
+		}
 		Class<? extends ProjectOrDomainEntity> type = REVIEWABLE_TYPES.get(entityType);
 		if (type == null) {
 			throw new IllegalArgumentException("Entity type is not reviewable: " + entityType);
@@ -126,7 +158,7 @@ public class AiReviewService {
 		requireProjectAccess(target, user);
 		// Runs are keyed by the entity's interface name, as the dispatcher writes them.
 		return runReadService.latestRun(target.getProjectOrDomainEntityInterface().getSimpleName(),
-				target.getId(), TASK_TYPE);
+				target.getId(), taskType);
 	}
 
 	private void requireProjectAccess(ProjectOrDomainEntity target, User user) {
