@@ -170,6 +170,7 @@ export const projectRoutes: Routes = [
     data: routeData({ section: 'project', breadcrumb: 'AI definition' }),
     loadComponent: () => import('./project-definition-editor')
       .then(m => m.ProjectDefinitionEditorComponent),
+    canDeactivate: [dirtyCheckGuard],
   },
 
   {

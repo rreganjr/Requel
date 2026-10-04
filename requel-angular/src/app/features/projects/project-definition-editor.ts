@@ -39,6 +39,7 @@ import {
   ProjectDefinitionDto, REVIEWABLE_TYPES, kindLabel,
 } from '../../models/assistant-definition';
 import { FieldViolation } from '../../models/command';
+import { DirtyCheckable } from '../../core/dirty-check.guard';
 
 /** Rough characters the server allows for instructions: requel.ai.max-input-tokens × 4. */
 const INSTRUCTION_CHARS = 64000;
@@ -221,7 +222,7 @@ const INSTRUCTION_CHARS = 64000;
       border-radius: 6px; max-height: 24rem; overflow: auto; }
   `]
 })
-export class ProjectDefinitionEditorComponent implements OnInit {
+export class ProjectDefinitionEditorComponent implements OnInit, DirtyCheckable {
   readonly current = signal<ProjectDefinitionDto | null>(null);
   readonly baseline = signal<ProjectDefinitionDto | null>(null);
   readonly loaded = signal(false);
@@ -251,6 +252,8 @@ export class ProjectDefinitionEditorComponent implements OnInit {
   readonly kindLabel = kindLabel;
 
   draft: DefinitionDraft = ProjectDefinitionEditorComponent.empty('POLICY');
+  /** The draft as last loaded or saved, for the unsaved-changes guard. */
+  private saved = JSON.stringify(this.draft);
   protected projectName = '';
   private key = '';
   private readonly route = inject(ActivatedRoute);
@@ -281,6 +284,11 @@ export class ProjectDefinitionEditorComponent implements OnInit {
     });
   }
 
+  /** True when the form differs from what was last loaded or saved (dirtyCheckGuard). */
+  hasUnsavedChanges(): boolean {
+    return !this.readOnly() && JSON.stringify(this.draft) !== this.saved;
+  }
+
   scopeOptions(): string[] {
     return this.draft.kind === 'CORPUS' ? CORPUS_SET_KINDS : REVIEWABLE_TYPES;
   }
@@ -295,6 +303,7 @@ export class ProjectDefinitionEditorComponent implements OnInit {
     if (this.key === 'new') {
       this.isNew.set(true);
       this.draft = ProjectDefinitionEditorComponent.empty('POLICY');
+      this.saved = JSON.stringify(this.draft);
       this.loaded.set(true);
       return;
     }
@@ -342,6 +351,7 @@ export class ProjectDefinitionEditorComponent implements OnInit {
         this.messageService.add({ severity: 'success', life: 3000,
           summary: this.isNew() ? `Created "${result.entity.displayName}"` : 'Saved' });
         if (this.isNew()) {
+          this.saved = JSON.stringify(this.draft);
           this.router.navigate(['/projects', this.projectName, 'definitions', result.entity.key]);
         } else {
           this.show(result.entity);
@@ -389,6 +399,7 @@ export class ProjectDefinitionEditorComponent implements OnInit {
       const result = await write();
       if (result.success) {
         this.messageService.add({ severity: 'success', summary: done, life: 3000 });
+        this.saved = JSON.stringify(this.draft);
         this.router.navigate(['/projects', this.projectName, 'definitions']);
       } else {
         this.showFailure(result.violations, result.error, result.status);
@@ -406,6 +417,7 @@ export class ProjectDefinitionEditorComponent implements OnInit {
       contextBudgets: { ...definition.contextBudgets }, instructions: definition.instructions,
       vocabulary: definition.vocabulary.map(v => ({ ...v })), localOnly: definition.localOnly,
     };
+    this.saved = JSON.stringify(this.draft);
   }
 
   private clearErrors(): void {

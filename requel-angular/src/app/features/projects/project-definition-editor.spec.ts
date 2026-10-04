@@ -158,6 +158,21 @@ describe('ProjectDefinitionEditorComponent (#264)', () => {
     expect(comp.draft.contextProviders).toEqual(['corpus-candidates']);
   });
 
+  it('has unsaved changes only after an edit, and not once saved (dirtyCheckGuard)', async () => {
+    const { comp } = await render('ai-review-goal');
+    expect(comp.hasUnsavedChanges()).toBe(false);
+    comp.draft.instructions = 'Changed.';
+    expect(comp.hasUnsavedChanges()).toBe(true);
+    await comp.save();
+    expect(comp.hasUnsavedChanges()).toBe(false);
+  });
+
+  it('never has unsaved changes on a read-only bundled definition', async () => {
+    const { comp } = await render('ai-review-goal', true, { definition: BUNDLED, bundled: BUNDLED });
+    comp.draft.instructions = 'x';
+    expect(comp.hasUnsavedChanges()).toBe(false);
+  });
+
   it('is denied without AssistantDefinition[Edit]', async () => {
     const { el } = await render('ai-review-goal', false);
     expect(el.querySelector('[data-testid="definition-forbidden"]')).not.toBeNull();
