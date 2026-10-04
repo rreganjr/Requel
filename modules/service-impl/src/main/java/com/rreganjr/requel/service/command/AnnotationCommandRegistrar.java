@@ -43,6 +43,7 @@ import com.rreganjr.requel.annotation.impl.PositionTypes;
 import com.rreganjr.requel.annotation.spi.AnnotatableTypeRegistry;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.service.api.CommandRegistry;
+import com.rreganjr.requel.service.api.dto.AnnotationSubjectDto;
 import com.rreganjr.requel.service.api.dto.ArgumentDto;
 import com.rreganjr.requel.service.api.dto.DeleteArgumentInput;
 import com.rreganjr.requel.service.api.dto.DeleteIssueInput;
@@ -308,8 +309,27 @@ public class AnnotationCommandRegistrar {
                 issue.getSource(),
                 stale,
                 AnnotationSources.name(issue.getSource()),
-                AnnotationSources.kind(issue.getSource())
+                AnnotationSources.kind(issue.getSource()),
+                subjects(issue)
         );
+    }
+
+    /** #266: the entities an annotation is on, when there is more than one. */
+    static List<AnnotationSubjectDto> subjects(com.rreganjr.requel.annotation.Annotation annotation) {
+        if (annotation.getAnnotatables() == null || annotation.getAnnotatables().size() < 2) {
+            return List.of();
+        }
+        List<AnnotationSubjectDto> subjects = new java.util.ArrayList<>();
+        for (Annotatable annotatable : annotation.getAnnotatables()) {
+            if (annotatable instanceof ProjectOrDomainEntity entity && entity.getId() != null) {
+                subjects.add(new AnnotationSubjectDto(
+                        entity.getProjectOrDomainEntityInterface().getSimpleName(), entity.getId(),
+                        entity.getName()));
+            }
+        }
+        subjects.sort(Comparator.comparing(AnnotationSubjectDto::type)
+                .thenComparing(AnnotationSubjectDto::id));
+        return subjects.size() < 2 ? List.of() : List.copyOf(subjects);
     }
 
     public static PositionDto toPositionDto(Position position) {

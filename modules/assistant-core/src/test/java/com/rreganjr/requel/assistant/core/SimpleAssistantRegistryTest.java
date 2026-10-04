@@ -101,6 +101,18 @@ class SimpleAssistantRegistryTest {
 		assertThat(registry.find("string-assistant")).isEmpty();
 	}
 
+	/** #266: by default a catalog describes only what it can switch. */
+	@Test
+	void aCatalogDescribesItsSwitchableAssistantsByDefault() {
+		SwitchableAssistantCatalog catalog = () -> List.of(
+				new SwitchableAssistantCatalog.SwitchableAssistant("a", "A"));
+
+		assertThat(catalog.describe("a")).contains(
+				new SwitchableAssistantCatalog.SwitchableAssistant("a", "A",
+						SwitchableAssistantCatalog.LEXICAL_CHECKS));
+		assertThat(catalog.describe("b")).isEmpty();
+	}
+
 	private static ProjectAssistantSettingsStore storeDisabling(Long projectId,
 			String assistantId) {
 		return new ProjectAssistantSettingsStore() {

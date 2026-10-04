@@ -74,4 +74,7 @@ public interface AssistantFindingRepository
 	 */
 	List<AssistantFindingEntity> findByLastSeenRunIdAndTargetTypeAndTargetIdOrderByCreatedAtAscIdAsc(
 			String lastSeenRunId, String targetType, Long targetId);
+
+	/** Issue #266: every finding a run reported, on any target (a corpus run's participants). */
+	List<AssistantFindingEntity> findByLastSeenRunIdOrderByCreatedAtAscIdAsc(String lastSeenRunId);
 }

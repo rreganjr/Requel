@@ -112,6 +112,30 @@ class AssistantRunReadServiceTest {
 		assertThat(second.annotationId()).isNull();
 	}
 
+	/** #266: a corpus run's findings are on its participants, so all of them are listed. */
+	@Test
+	void aCorpusRunListsItsFindingsOnEveryParticipant() {
+		UUID runId = UUID.randomUUID();
+		AssistantRunEntity run = new AssistantRunEntity(runId, "corpus-finder", "COMPLETED", now,
+				now);
+		when(runs.findFirstByTargetTypeAndTargetIdAndTaskTypeOrderByCreatedAtDescIdDesc("Project",
+				3L, "CORPUS_CANDIDATES")).thenReturn(Optional.of(run));
+		AssistantFindingEntity onGoal = new AssistantFindingEntity(UUID.randomUUID(),
+				"corpus-finder:Goal:7:POSSIBLE_OVERLAP-ab", "corpus-finder", "Goal", 7L,
+				"POSSIBLE_OVERLAP", "ACTIVE", runId, now);
+		AssistantFindingEntity onStory = new AssistantFindingEntity(UUID.randomUUID(),
+				"corpus-finder:Story:2:POSSIBLE_OVERLAP-ab", "corpus-finder", "Story", 2L,
+				"POSSIBLE_OVERLAP", "ACTIVE", runId, now);
+		when(findings.findByLastSeenRunIdOrderByCreatedAtAscIdAsc(runId.toString()))
+				.thenReturn(List.of(onGoal, onStory));
+
+		AssistantRunReadService.RunView view = service
+				.latestRun("Project", 3L, "CORPUS_CANDIDATES").orElseThrow();
+
+		assertThat(view.findings()).extracting(f -> f.targetType() + ":" + f.targetId())
+				.containsExactly("Goal:7", "Story:2");
+	}
+
 	@Test
 	void kindOfAShortOrForeignKeyIsNull() {
 		assertThat(AssistantRunReadService.kindOf("a:b:c")).isNull();

@@ -179,6 +179,14 @@
             <text>A signed-in member can see every tool they currently have on loan and the date each one is due back.</text>
             <name>Members see what they have on loan</name>
         </goal>
+        <goal id="GOL_15">
+            <text>Every borrowed tool is due back 14 days after it is checked out.</text>
+            <name>Two-week loans</name>
+        </goal>
+        <goal id="GOL_16">
+            <text>When a member's fines have been unpaid for 30 days, their account is put on hold until the fines are paid.</text>
+            <name>Unpaid fines put accounts on hold</name>
+        </goal>
     </goals>
     <stories>
         <story storyType="Success" id="STRY_1">
@@ -204,6 +212,14 @@
         <story storyType="Success" id="STRY_6">
             <text>As a patron, I want to renew a loan from my account page so that I can keep the tool for another week.</text>
             <name>Renew as a patron</name>
+        </story>
+        <story storyType="Success" id="STRY_7">
+            <text>As a member, I want to keep a borrowed tool for 21 days after checkout so that I can finish a long project without renewing.</text>
+            <name>Keep a tool for three weeks</name>
+        </story>
+        <story storyType="Success" id="STRY_8">
+            <text>As a member, I want to place a hold on a tool that is out on loan so that it is kept for me when it comes back.</text>
+            <name>Place a hold on a tool</name>
         </story>
     </stories>
     <usecases>

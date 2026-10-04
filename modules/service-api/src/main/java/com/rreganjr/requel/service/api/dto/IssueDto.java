@@ -43,7 +43,12 @@ public record IssueDto(
         boolean stale,
         /** The assistant's display name when an assistant raised it, else null (#265). */
         String sourceName,
-        /** REVIEW, POLICY or LEXICAL when an assistant raised it, else null (#265). */
-        String sourceKind
+        /** REVIEW, POLICY, CORPUS or LEXICAL when an assistant raised it, else null (#265, #266). */
+        String sourceKind,
+        /**
+         * Every entity the issue is on, by type then id, when it is on more than one (a corpus
+         * finding about a relationship, #266); otherwise empty.
+         */
+        java.util.List<AnnotationSubjectDto> subjects
 ) {
 }

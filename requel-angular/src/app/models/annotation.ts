@@ -46,8 +46,15 @@ export interface NoteDto {
   stale?: boolean;
   /** The assistant's display name when an assistant raised it (#265). */
   sourceName?: string | null;
-  /** REVIEW, POLICY or LEXICAL when an assistant raised it (#265). */
-  sourceKind?: 'REVIEW' | 'POLICY' | 'LEXICAL' | null;
+  /** REVIEW, POLICY, CORPUS or LEXICAL when an assistant raised it (#265, #266). */
+  sourceKind?: 'REVIEW' | 'POLICY' | 'CORPUS' | 'LEXICAL' | null;
+}
+
+/** One of the entities an annotation is on, when it is on more than one (#266). */
+export interface AnnotationSubjectDto {
+  type: string;
+  id: number;
+  name: string | null;
 }
 
 /** Issue severity (#271). The server orders every issue list by it, HIGH first. */
@@ -70,8 +77,13 @@ export interface IssueDto {
   stale?: boolean;
   /** The assistant's display name when an assistant raised it (#265). */
   sourceName?: string | null;
-  /** REVIEW, POLICY or LEXICAL when an assistant raised it (#265). */
-  sourceKind?: 'REVIEW' | 'POLICY' | 'LEXICAL' | null;
+  /** REVIEW, POLICY, CORPUS or LEXICAL when an assistant raised it (#265, #266). */
+  sourceKind?: 'REVIEW' | 'POLICY' | 'CORPUS' | 'LEXICAL' | null;
+  /**
+   * Every entity the issue is on, when it is on more than one: a corpus finding about a
+   * relationship (#266). Empty or absent otherwise.
+   */
+  subjects?: AnnotationSubjectDto[];
 }
 
 export interface AnnotationsDto {

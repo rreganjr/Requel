@@ -26,7 +26,8 @@ import { TextareaModule } from 'primeng/textarea';
 import { CheckboxModule } from 'primeng/checkbox';
 import { SelectModule } from 'primeng/select';
 import { MessageService } from 'primeng/api';
-import { AnnotationsDto, ISSUE_SEVERITY_OPTIONS, IssueDto, IssueSeverity, NoteDto, PositionDto, STALE_LABEL, STALE_TOOLTIP, SUPPORT_LEVEL_OPTIONS, severityLabel, severityRank } from '../models/annotation';
+import { RouterLink } from '@angular/router';
+import { AnnotationSubjectDto, AnnotationsDto, ISSUE_SEVERITY_OPTIONS, IssueDto, IssueSeverity, NoteDto, PositionDto, STALE_LABEL, STALE_TOOLTIP, SUPPORT_LEVEL_OPTIONS, severityLabel, severityRank } from '../models/annotation';
 import { AnnotationService } from '../core/annotation.service';
 import { PermissionService } from '../core/permission.service';
 import { AppCardComponent } from './app-card';
@@ -37,11 +38,19 @@ import { InlineErrorComponent } from './app-inline-error';
 import { notBlank } from './form-errors';
 import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, supportLevelTone } from './severity';
 
+/** The project route segment of each entity type a relationship issue can name (#266). */
+const SUBJECT_ROUTES: Record<string, string> = {
+  Goal: 'goals', Story: 'stories', Actor: 'actors', Scenario: 'scenarios',
+  UseCase: 'use-cases', GlossaryTerm: 'terms',
+};
+
+const SUBJECT_LABELS: Record<string, string> = { UseCase: 'Use case', GlossaryTerm: 'Glossary term' };
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-annotations-section',
   standalone: true,
-  imports: [ReactiveFormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule, AppCardComponent, AppTagComponent, ErrorStateComponent, SubmitErrorComponent, InlineErrorComponent],
+  imports: [RouterLink, ReactiveFormsModule, ButtonModule, InputText, TextareaModule, CheckboxModule, SelectModule, AppCardComponent, AppTagComponent, ErrorStateComponent, SubmitErrorComponent, InlineErrorComponent],
   template: `
     @if (entityId != null) {
       <div class="annotations-section" data-testid="annotations-section">
@@ -202,6 +211,10 @@ import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, support
                 <app-tag data-testid="annotation-policy-badge" [tone]="'neutral'" icon="pi pi-shield"
                          [label]="'Policy: ' + (issue.sourceName ?? 'policy')" />
               }
+              @if (issue.sourceKind === 'CORPUS') {
+                <app-tag data-testid="annotation-corpus-badge" [tone]="'neutral'" icon="pi pi-sitemap"
+                         [label]="issue.sourceName ?? 'Corpus analysis'" />
+              }
               <span class="annotation-text">{{ issue.text }}</span>
               <span class="annotation-creator">{{ issue.createdBy }}</span>
               @if (canEditAnnotations()) {
@@ -210,6 +223,21 @@ import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, support
                           (onClick)="deleteIssue(issue)" />
               }
             </div>
+            @if (otherSubjects(issue); as others) {
+              @if (others.length > 0) {
+                <div class="subjects-row" data-testid="annotation-also-on">
+                  <span class="resolution-label">Also on:</span>
+                  @for (subject of others; track subject.type + subject.id; let last = $last) {
+                    @if (subjectLink(subject); as link) {
+                      <a [routerLink]="link" data-testid="annotation-also-on-link">{{ subjectLabel(subject) }}</a>
+                    } @else {
+                      <span>{{ subjectLabel(subject) }}</span>
+                    }
+                    @if (!last) { <span>, </span> }
+                  }
+                </div>
+              }
+            }
             @if (!isCollapsed(issue.id)) {
             @if (issue.resolved && issue.resolvedByPosition) {
               <div class="resolution-row">
@@ -349,7 +377,7 @@ import { RqTone, issueSeverityIcon, issueSeverityTone, supportLevelIcon, support
     .argument-item { margin-left: 1.5rem; padding: 0.25rem 0.5rem; margin-top: 0.25rem; }
 
     .annotation-row { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
-    .resolution-row { display: flex; align-items: baseline; gap: 0.4rem; margin-top: 0.25rem; font-size: 0.8rem; flex-wrap: wrap; }
+    .resolution-row, .subjects-row { display: flex; align-items: baseline; gap: 0.4rem; margin-top: 0.25rem; font-size: 0.8rem; flex-wrap: wrap; }
     .resolution-label { font-weight: 600; color: var(--rq-tag-success-fg); white-space: nowrap; }
     .resolution-text { color: var(--p-text-color); font-style: italic; }
 
@@ -365,6 +393,22 @@ export class AnnotationsSectionComponent implements OnChanges {
   @Input() projectName = '';
   @Input() entityType = '';
   @Input() entityId: number | null = null;
+
+  /** #266: the other entities a relationship issue is on (not the one this section shows). */
+  otherSubjects(issue: IssueDto): AnnotationSubjectDto[] {
+    return (issue.subjects ?? []).filter(s => !(s.type === this.entityType && s.id === this.entityId));
+  }
+
+  /** #266: the editor route of a subject; null for a step, which has no page. */
+  subjectLink(subject: AnnotationSubjectDto): unknown[] | null {
+    const segment = SUBJECT_ROUTES[subject.type];
+    return segment ? ['/projects', this.projectName, segment, subject.id] : null;
+  }
+
+  subjectLabel(subject: AnnotationSubjectDto): string {
+    const type = SUBJECT_LABELS[subject.type] ?? subject.type;
+    return type + ' "' + (subject.name ?? '#' + subject.id) + '"';
+  }
   /**
    * Whether the current user may write annotations here.
    *

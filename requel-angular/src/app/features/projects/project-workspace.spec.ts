@@ -8,6 +8,7 @@ import { ProjectWorkspaceComponent } from './project-workspace';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { ProjectAssistantsService } from '../../core/project-assistants.service';
+import { CorpusService } from '../../core/corpus.service';
 import { ProjectDto } from '../../models/project';
 
 function makeProject(over: Partial<ProjectDto> = {}): ProjectDto {
@@ -46,6 +47,10 @@ describe('ProjectWorkspaceComponent (#154)', () => {
           list: vi.fn().mockResolvedValue([]),
           setEnabled: vi.fn(),
           analyzeProject: vi.fn(),
+        } },
+        { provide: CorpusService, useValue: {
+          latest: vi.fn().mockResolvedValue(null),
+          request: vi.fn(),
         } },
       ],
     });

@@ -379,7 +379,7 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 	 * (provider / model / tokens / cost / latency). Bodies are not captured by default. Best
 	 * effort: a persistence failure is logged, never failing the run.
 	 */
-	private void persistUsage(UUID runId, AiUsage usage) {
+	void persistUsage(UUID runId, AiUsage usage) {
 		if (usage == null) {
 			return;
 		}
@@ -557,7 +557,7 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 		}
 	}
 
-	private static List<EvidenceRef> evidenceRefs(List<String> references) {
+	static List<EvidenceRef> evidenceRefs(List<String> references) {
 		if (references == null || references.isEmpty()) {
 			return List.of();
 		}
@@ -576,12 +576,12 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 				+ ":" + (findingType == null ? "" : findingType) + ":" + hash(text);
 	}
 
-	private static String hash(String text) {
+	static String hash(String text) {
 		return Integer.toHexString(text.hashCode());
 	}
 
 	/** Trim to {@code null} when blank, otherwise cap to {@link #MAX_ANNOTATION_TEXT}. */
-	private static String boundedText(String text) {
+	static String boundedText(String text) {
 		if (text == null || text.isBlank()) {
 			return null;
 		}
@@ -593,7 +593,7 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 	/**
 	 * @return a human-readable reason to skip (no provider call), or {@code null} to proceed.
 	 */
-	private String skipReason(AssistantContext context) {
+	String skipReason(AssistantContext context) {
 		if (!definition.taskType().equals(context.taskType())) {
 			return "Not a " + definition.taskType() + " run; skipping AI review "
 					+ definition.key() + ".";

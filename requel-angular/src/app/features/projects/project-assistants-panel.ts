@@ -37,6 +37,7 @@ export interface DataHandlingRow {
 const LEXICAL_CHECKS = 'Lexical checks';
 const AI_REVIEW = 'AI review';
 const POLICIES = 'Policies';
+const CORPUS = 'Corpus analysis';
 
 const REDACTION_LABELS: Record<string, string> = {
   credentials: 'Mask credentials (API keys, tokens, passwords)',
@@ -177,7 +178,7 @@ export class ProjectAssistantsPanelComponent implements OnChanges {
    * analysis runs the lexical checks; the AI review (#263) and policy (#265) switches don't count.
    */
   readonly anyEnabled = computed(() =>
-    this.assistants().some(a => a.enabled && ![AI_REVIEW, POLICIES].includes(a.group ?? LEXICAL_CHECKS)));
+    this.assistants().some(a => a.enabled && ![AI_REVIEW, POLICIES, CORPUS].includes(a.group ?? LEXICAL_CHECKS)));
   /** Issue #262: null until loaded (or when the read fails, which hides the section). */
   readonly dataHandling = signal<ProjectDataHandlingDto | null>(null);
   readonly dataHandlingRows = computed<DataHandlingRow[]>(() => {

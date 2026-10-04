@@ -1037,6 +1037,44 @@ public class JpaDictionaryRepository extends AbstractJpaRepository implements Di
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
+	public java.util.Set<String> findSynonymLemmas(String lemma, int maxRank) {
+		Query query = getEntityManager().createQuery(
+				"select distinct other.word.lemma from Sense sense, Sense other "
+						+ "where sense.word.lemma = :lemma and sense.rank <= :maxRank "
+						+ "and other.synset = sense.synset and other.word <> sense.word");
+		query.setParameter("lemma", lemma);
+		query.setParameter("maxRank", maxRank);
+		return lowerCase(query.getResultList());
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public java.util.Set<String> findAntonymLemmas(String lemma, int maxRank,
+			java.util.Collection<String> synsetPos) {
+		Query query = getEntityManager().createQuery(
+				"select distinct lexlink.toWord.lemma from Lexlinkref as lexlink, Sense as sense "
+						+ "where lexlink.fromWord.lemma = :lemma and lexlink.linkType.id = :linkId "
+						+ "and sense.word = lexlink.fromWord and sense.synset = lexlink.fromSynset "
+						+ "and sense.rank <= :maxRank and lexlink.fromSynset.pos in :pos");
+		query.setParameter("lemma", lemma);
+		query.setParameter("linkId", (long) Linkdef.ANTONYM);
+		query.setParameter("maxRank", maxRank);
+		query.setParameter("pos", synsetPos);
+		return lowerCase(query.getResultList());
+	}
+
+	private static java.util.Set<String> lowerCase(List<String> lemmas) {
+		java.util.Set<String> result = new java.util.TreeSet<String>();
+		for (String lemma : lemmas) {
+			if (lemma != null) {
+				result.add(lemma.toLowerCase(java.util.Locale.ROOT));
+			}
+		}
+		return result;
+	}
+
+	@Override
 	public Synset findSynset(Long id) {
 		return getEntityManager().find(Synset.class, id);
 	}

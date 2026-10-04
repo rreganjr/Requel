@@ -140,6 +140,28 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 */
 	public static final String TARGET_FINGERPRINT = "targetFingerprint";
 
+	/**
+	 * Issue #266: {@link AnnotationAction#metadata()} flag marking one participant's action of a
+	 * relationship finding: its finding row is {@code stale_together}. The action may also carry
+	 * {@link #TARGET_FINGERPRINT}, the participant as the run analyzed it.
+	 */
+	public static final String STALE_TOGETHER = "staleTogether";
+
+	/**
+	 * Issue #266: {@link AssistantResult#metadata()} entry listing the members of the set a corpus
+	 * run analyzed, as {@code Type:id} strings. Cleanup then covers every member, and only the
+	 * findings whose participants are all in the set.
+	 */
+	public static final String CORPUS_SCOPE = "corpusScope";
+
+	/**
+	 * Issue #266: {@link AssistantResult#metadata()} entry listing other assistants' finding keys
+	 * this result replaces: the corpus finder's advisory issues on the pairs an analysis judged.
+	 * Each still-active one is auto-resolved when untouched, or superseded when a person
+	 * discussed it.
+	 */
+	public static final String RETIRES_FINDINGS = "retiresFindings";
+
 	private static final int MAX_TEXT_LENGTH = 4000;
 	private static final int MAX_SUMMARY_LENGTH = 500;
 
@@ -347,8 +369,15 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 					+ " findings", result.assistantId(), context.runId(),
 					result.metadata().get("failedProperties"));
 		} else {
-			reconcileStaleFindings(result.assistantId(), cleanupPolicy, dispatchTarget,
-					producedKeysByTarget, editedBy, context.runId());
+			Set<EntityRef> corpusScope = corpusScope(result);
+			if (corpusScope != null) {
+				reconcileCorpusFindings(result.assistantId(), cleanupPolicy, corpusScope,
+						producedKeysByTarget, editedBy, context);
+				retireFindings(result, editedBy, context);
+			} else {
+				reconcileStaleFindings(result.assistantId(), cleanupPolicy, dispatchTarget,
+						producedKeysByTarget, editedBy, context.runId());
+			}
 			// #263: a definition reviewing this target also retires what other definitions of
 			// the same task left on it (the generic review's findings once a per-type one runs).
 			if (dispatchTarget != null) {
@@ -374,6 +403,38 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			}
 		}
 		return ids;
+	}
+
+	/** Issue #266: the corpus run's set, or null for an ordinary run. */
+	static Set<EntityRef> corpusScope(AssistantResult result) {
+		Object value = result.metadata().get(CORPUS_SCOPE);
+		if (!(value instanceof java.util.Collection<?> collection)) {
+			return null;
+		}
+		Set<EntityRef> scope = new HashSet<>();
+		for (Object item : collection) {
+			EntityRef ref = parseRef(item == null ? null : item.toString());
+			if (ref != null) {
+				scope.add(ref);
+			}
+		}
+		return scope;
+	}
+
+	/** {@code Type:id} to a reference, or null. */
+	static EntityRef parseRef(String value) {
+		if (value == null) {
+			return null;
+		}
+		int colon = value.lastIndexOf(':');
+		if (colon <= 0) {
+			return null;
+		}
+		try {
+			return EntityRef.of(value.substring(0, colon), Long.valueOf(value.substring(colon + 1)));
+		} catch (NumberFormatException e) {
+			return null;
+		}
 	}
 
 	/** Issue #268: the result's {@code metadata.incomplete} flag. */
@@ -959,7 +1020,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 			AnnotationAction action, Long annotationId, Object annotation,
 			EntityRef dispatchTarget) {
 		Instant now = clock.instant();
-		String fingerprint = targetFingerprint(context, action.targetRef(), dispatchTarget);
+		String fingerprint = targetFingerprint(context, action, dispatchTarget);
 		Optional<AssistantFindingEntity> existing = findingRepository
 				.findByIdempotencyKey(action.actionKey());
 		if (existing.isPresent()) {
@@ -999,6 +1060,7 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		finding.setEvidenceJson(evidenceJson(action));
 		finding.setAppliedAnnotationId(annotationId);
 		finding.setTargetFingerprint(fingerprint);
+		finding.setStaleTogether(Boolean.TRUE.equals(action.metadata().get(STALE_TOGETHER)));
 		findingRepository.save(finding);
 		return true;
 	}
@@ -1010,8 +1072,13 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	 * applied without the worker (tests, callers with their own context), falls back to the entity
 	 * as it is now.
 	 */
-	private String targetFingerprint(AssistantContext context, EntityRef targetRef,
+	private String targetFingerprint(AssistantContext context, AnnotationAction action,
 			EntityRef dispatchTarget) {
+		EntityRef targetRef = action.targetRef();
+		// #266: a corpus run fingerprints each participant as it analyzed it
+		if (action.metadata().get(TARGET_FINGERPRINT) instanceof String participant) {
+			return participant;
+		}
 		Object analyzed = context.attributes().get(TARGET_FINGERPRINT);
 		if (analyzed instanceof String value && targetRef != null
 				&& targetRef.equals(dispatchTarget)) {
@@ -1040,6 +1107,73 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 	}
 
 	// ---- stale-finding reconciliation -----------------------------------------
+
+	/** Issue #266: retire the findings a result says it replaces ({@link #RETIRES_FINDINGS}). */
+	private void retireFindings(AssistantResult result, User editedBy, AssistantContext context) {
+		if (!(result.metadata().get(RETIRES_FINDINGS) instanceof java.util.Collection<?> keys)) {
+			return;
+		}
+		for (Object key : keys) {
+			if (key == null) {
+				continue;
+			}
+			findingRepository.findByIdempotencyKey(key.toString())
+					.filter(row -> AssistantFindingState.ACTIVE.name().equals(row.getState()))
+					.ifPresent(row -> autoResolveIfUntouched(row,
+							EntityRef.of(row.getTargetType(), row.getTargetId()), editedBy,
+							context.runId()));
+		}
+	}
+
+	/**
+	 * Issue #266: cleanup after a corpus run. A relationship finding is the rows sharing one
+	 * annotation, one per participant. One the run no longer reports is retired, all its rows
+	 * together, when every participant is in the analyzed set; a finding about entities outside
+	 * the set is left alone, so a goal-level run never retires what a project run raised elsewhere.
+	 */
+	private void reconcileCorpusFindings(String assistantId, CleanupPolicy cleanupPolicy,
+			Set<EntityRef> scope, Map<EntityRef, Set<String>> producedKeysByTarget, User editedBy,
+			AssistantContext context) {
+		if (cleanupPolicy != CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED
+				&& cleanupPolicy != CleanupPolicy.MARK_SUPERSEDED || context.projectRef() == null) {
+			return;
+		}
+		Set<String> produced = new HashSet<>();
+		for (Set<String> keys : producedKeysByTarget.values()) {
+			produced.addAll(keys);
+		}
+		// every open finding of this assistant in the project, grouped by its shared annotation:
+		// the rows of one relationship finding
+		List<AssistantFindingEntity> active = findingRepository
+				.findByAssistantIdAndProjectIdAndState(assistantId,
+						context.projectRef().entityId(), AssistantFindingState.ACTIVE.name());
+		Map<Object, List<AssistantFindingEntity>> byFinding = new HashMap<>();
+		for (AssistantFindingEntity finding : active) {
+			Object group = finding.getAppliedAnnotationId() != null
+					? finding.getAppliedAnnotationId() : finding.getIdempotencyKey();
+			byFinding.computeIfAbsent(group, k -> new ArrayList<>()).add(finding);
+		}
+		for (List<AssistantFindingEntity> rows : byFinding.values()) {
+			boolean inScope = true;
+			boolean reported = false;
+			for (AssistantFindingEntity row : rows) {
+				inScope &= scope.contains(EntityRef.of(row.getTargetType(), row.getTargetId()));
+				reported |= produced.contains(row.getIdempotencyKey());
+			}
+			if (!inScope || reported) {
+				// about entities outside this set, or still reported
+				continue;
+			}
+			for (AssistantFindingEntity row : rows) {
+				EntityRef target = EntityRef.of(row.getTargetType(), row.getTargetId());
+				if (cleanupPolicy == CleanupPolicy.AUTO_RESOLVE_IF_UNTOUCHED) {
+					autoResolveIfUntouched(row, target, editedBy, context.runId());
+				} else {
+					markSuperseded(row, context.runId());
+				}
+			}
+		}
+	}
 
 	/**
 	 * Reconcile previously-recorded {@code ACTIVE} findings for this assistant

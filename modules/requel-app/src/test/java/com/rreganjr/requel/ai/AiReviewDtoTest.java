@@ -40,9 +40,9 @@ class AiReviewDtoTest {
 		RunView run = new RunView("run-1", "ai-requirements-review", "SUCCEEDED", created,
 				created.plusSeconds(20), 20000L, null, null, "Two problems.", 1, List.of(
 						new FindingView("f-1", "AMBIGUOUS", "ISSUE", "HIGH", 0.8, "Define it.",
-								"ACTIVE", 42L),
+								"ACTIVE", 42L, "Goal", 7L),
 						new FindingView("f-2", "CONTEXT", "NOTE", null, null, "A note.", "ACTIVE",
-								null)), 2, "ai-requirements-review", "1", 3);
+								null, "Goal", 7L)), 2, "ai-requirements-review", "1", 3);
 
 		AiReviewDto dto = AiReviewDto.of(run);
 
@@ -57,8 +57,9 @@ class AiReviewDtoTest {
 		assertEquals(1, dto.redactionCount());
 		assertEquals(List.of(
 				new AiReviewDto.Finding("AMBIGUOUS", "ISSUE", "HIGH", 0.8, "Define it.", "ACTIVE",
-						42L),
-				new AiReviewDto.Finding("CONTEXT", "NOTE", null, null, "A note.", "ACTIVE", null)),
+						42L, "Goal", 7L),
+				new AiReviewDto.Finding("CONTEXT", "NOTE", null, null, "A note.", "ACTIVE", null,
+						"Goal", 7L)),
 				dto.findings());
 		assertEquals(2, dto.evidenceUnverified());
 		assertEquals("ai-requirements-review", dto.definitionKeys());

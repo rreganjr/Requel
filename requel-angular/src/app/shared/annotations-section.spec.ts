@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { render, screen } from '@testing-library/angular';
+import { provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { MessageService } from 'primeng/api';
 import { AnnotationsSectionComponent } from './annotations-section';
@@ -138,6 +139,37 @@ describe('AnnotationsSectionComponent', () => {
     const tags = [...fixture.nativeElement.querySelectorAll('[data-testid="annotation-policy-badge"]')]
       .map((t: Element) => t.textContent!.trim());
     expect(tags).toEqual(['Policy: AI terminology policy', 'Policy: AI terminology policy']);
+  });
+
+  // #266: a corpus finding is one issue on several entities; each entity's section names the others.
+  it('tags a corpus issue and links the other entities it is on', async () => {
+    annotationServiceMock.getAnnotations.mockResolvedValue({
+      notes: [],
+      issues: [
+        { id: 4, version: 0, text: 'Possible conflict', mustBeResolved: false, severity: 'LOW', resolved: false,
+          resolvedBy: null, resolvedByPosition: null, createdBy: 'assistant', positions: [],
+          source: 'ASSISTANT:corpus-finder', sourceKind: 'CORPUS', sourceName: 'Find overlaps',
+          subjects: [
+            { type: 'Goal', id: 1, name: 'Two-week loans' },
+            { type: 'Step', id: 5, name: 'The system adds 7 days' },
+            { type: 'UseCase', id: 9, name: 'Renew a loan' },
+          ] },
+      ]
+    });
+    const { fixture } = await render(AnnotationsSectionComponent, {
+      providers: [...providers(), provideRouter([])],
+      inputs: { projectName: 'proj1', entityType: 'Goal', entityId: 1 }
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('[data-testid="annotation-corpus-badge"]')!.textContent!.trim()).toBe('Find overlaps');
+    const alsoOn = el.querySelector('[data-testid="annotation-also-on"]')!.textContent!;
+    expect(alsoOn).toContain('Step "The system adds 7 days"');
+    expect(alsoOn).not.toContain('Two-week loans');
+    const links = [...el.querySelectorAll('[data-testid="annotation-also-on-link"]')] as HTMLAnchorElement[];
+    expect(links.map(a => a.textContent!.trim())).toEqual(['Use case "Renew a loan"']);
+    expect(links[0].getAttribute('href')).toBe('/projects/proj1/use-cases/9');
   });
 
   // #271: every issue shows its severity as a text label, not color alone.

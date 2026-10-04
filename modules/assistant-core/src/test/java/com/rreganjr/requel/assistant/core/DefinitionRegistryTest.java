@@ -34,12 +34,15 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.ObjectProvider;
 
 import com.rreganjr.requel.assistant.api.AssistantContext;
 import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
 import com.rreganjr.requel.assistant.api.UserRef;
+import com.rreganjr.requel.assistant.core.corpus.CorpusFinderAssistant;
+import com.rreganjr.requel.assistant.core.corpus.WordRelations;
 import com.rreganjr.requel.assistant.core.definition.AssistantDefinition;
 import com.rreganjr.requel.assistant.core.definition.AssistantDefinitionStore;
 import com.rreganjr.requel.assistant.core.definition.DefinitionBacked;
@@ -48,8 +51,10 @@ import com.rreganjr.requel.assistant.core.definition.DefinitionKind;
 import com.rreganjr.requel.assistant.core.definition.DefinitionSource;
 import com.rreganjr.requel.assistant.core.definition.VocabularyEntry;
 import com.rreganjr.requel.project.Goal;
+import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectAssistantSettingsStore;
 import com.rreganjr.requel.project.Story;
+import com.rreganjr.requel.project.SwitchableAssistantCatalog;
 
 /**
  * #260: the registry resolves definitions per run - specific beats the fallback, the
@@ -191,6 +196,70 @@ class DefinitionRegistryTest {
 
 		assertThat(registry.switchableAssistants()).extracting(s -> s.assistantId() + ":"
 				+ s.group()).containsExactly("default:AI review", "p:Policies");
+	}
+
+	/**
+	 * #266: a corpus definition's scope names set kinds. A project root makes a PROJECT set, a goal
+	 * a GOAL set; anything else roots no set, so no corpus definition runs on it.
+	 */
+	@Test
+	void aCorpusDefinitionIsChosenByTheSetKindOfItsRoot() {
+		when(store.definitionsFor(1L, AssistantDefinition.CORPUS_REVIEW)).thenReturn(List.of(
+				corpus("c-any", Set.of()), corpus("c-project", Set.of("PROJECT"))));
+		AssistantContext context = context(AssistantDefinition.CORPUS_REVIEW);
+
+		assertThat(keys(registry.findAssistantsFor(mock(Project.class), context)))
+				.containsExactly("c-project");
+		assertThat(keys(registry.findAssistantsFor(goal(), context))).containsExactly("c-any");
+		assertThat(registry.findAssistantsFor(story(), context)).isEmpty();
+	}
+
+	/**
+	 * #266: a corpus-group bean takes any target, so it runs only for a task it handles, never in
+	 * an ordinary run.
+	 */
+	@Test
+	void aCorpusBeanRunsOnlyForItsTask() {
+		CorpusFinderAssistant finder = finder();
+		SimpleAssistantRegistry beans = new SimpleAssistantRegistry(List.of(finder));
+
+		assertThat(beans.findAssistantsFor(goal(), context(CorpusFinderAssistant.TASK_TYPE)))
+				.containsExactly(finder);
+		assertThat(beans.findAssistantsFor(goal(), context(TASK))).isEmpty();
+		assertThat(beans.findAssistantsFor(goal(), context(null))).isEmpty();
+		assertThat(beans.findAssistantsFor(goal(), null)).isEmpty();
+	}
+
+	/** #266: any assistant is described by id, switchable or not, with its group. */
+	@Test
+	void assistantsAreDescribedById() {
+		Executor plain = new Executor(definition("plain", Set.of()));
+		SimpleAssistantRegistry beans = new SimpleAssistantRegistry(List.of(finder(), plain));
+		beans.setDefinitionStore(store);
+		beans.setExecutorFactory(factory);
+		when(store.bundled()).thenReturn(List.of(corpus("c-any", Set.of())));
+
+		assertThat(beans.describe(CorpusFinderAssistant.ASSISTANT_ID)).contains(
+				new SwitchableAssistantCatalog.SwitchableAssistant("corpus-finder",
+						"Find overlaps", SwitchableAssistantCatalog.CORPUS));
+		assertThat(beans.describe("plain")).map(SwitchableAssistantCatalog.SwitchableAssistant::group)
+				.contains(SwitchableAssistantCatalog.LEXICAL_CHECKS);
+		assertThat(beans.describe("c-any")).map(SwitchableAssistantCatalog.SwitchableAssistant::group)
+				.contains(SwitchableAssistantCatalog.CORPUS);
+		assertThat(beans.describe("nobody")).isEmpty();
+	}
+
+	private static CorpusFinderAssistant finder() {
+		@SuppressWarnings("unchecked")
+		ObjectProvider<WordRelations> none = mock(ObjectProvider.class);
+		return new CorpusFinderAssistant(none, 0.35, 0.20, 0.5);
+	}
+
+	private static AssistantDefinition corpus(String key, Set<String> scope) {
+		return new AssistantDefinition(key, key, DefinitionKind.CORPUS,
+				AssistantDefinition.CORPUS_REVIEW, scope, List.of(), "x",
+				List.of(new VocabularyEntry("A", "a")), AssistantDefinition.CORPUS_OUTPUT_SCHEMA,
+				"1", true, 1, DefinitionSource.BUNDLED, null, null, null);
 	}
 
 	private static AssistantDefinition policy(String key, Set<String> scope) {

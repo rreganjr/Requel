@@ -105,6 +105,12 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 			if (!assistant.targetType().isInstance(target)) {
 				continue;
 			}
+			if (SwitchableAssistantCatalog.CORPUS.equals(assistant.group())
+					&& (context == null || !assistant.handlesTask(context.taskType()))) {
+				// #266: a corpus assistant takes any root (a project, a goal, a use case), so it
+				// is matched by its task alone and never counts towards an ordinary run
+				continue;
+			}
 			if (assistant.projectSwitchable() && disabled.contains(assistant.assistantId())) {
 				log.debug("assistant {} is switched off in {}", assistant.assistantId(),
 						context.projectRef());
@@ -162,10 +168,14 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 	List<AssistantDefinition> definitionsFor(Object target, AssistantContext context,
 			Set<String> disabled) {
 		if (definitionStore == null || executorFactory == null || context == null
-				|| context.taskType() == null || !(target instanceof ProjectOrDomainEntity entity)) {
+				|| context.taskType() == null) {
 			return List.of();
 		}
-		String entityType = entity.getProjectOrDomainEntityInterface().getSimpleName();
+		// #266: a corpus definition's scope names the set kind its root makes
+		String entityType = scopeKey(target, context.taskType());
+		if (entityType == null) {
+			return List.of();
+		}
 		// #263: coverage is decided before the switches. A type with its own definition is never
 		// reviewed by the fallback, so switching that definition off stops its reviews rather
 		// than handing them to the generic one.
@@ -188,6 +198,17 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 		return List.copyOf(chosen);
 	}
 
+	/** What a definition's scope names for {@code target}: its entity type, or its set kind. */
+	private static String scopeKey(Object target, String taskType) {
+		if (AssistantDefinition.CORPUS_REVIEW.equals(taskType)) {
+			com.rreganjr.requel.assistant.core.corpus.CorpusMembers.SetKind kind =
+					com.rreganjr.requel.assistant.core.corpus.CorpusMembers.SetKind.of(target);
+			return kind == null ? null : kind.name();
+		}
+		return target instanceof ProjectOrDomainEntity entity
+				? entity.getProjectOrDomainEntityInterface().getSimpleName() : null;
+	}
+
 	private RequelAssistant<?> executorFor(AssistantDefinition definition) {
 		if (definition.executorBean() != null && !definition.executorBean().isBlank()) {
 			if (beanFactory == null) {
@@ -208,12 +229,27 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 	}
 
 	@Override
+	public java.util.Optional<SwitchableAssistant> describe(String assistantId) {
+		for (RequelAssistant<?> assistant : assistants) {
+			if (assistant.assistantId().equals(assistantId)) {
+				return java.util.Optional.of(describe(assistant));
+			}
+		}
+		return find(assistantId);
+	}
+
+	private static SwitchableAssistant describe(RequelAssistant<?> assistant) {
+		return new SwitchableAssistant(assistant.assistantId(), assistant.displayName(),
+				assistant.group() == null ? SwitchableAssistantCatalog.LEXICAL_CHECKS
+						: assistant.group());
+	}
+
+	@Override
 	public List<SwitchableAssistant> switchableAssistants() {
 		List<SwitchableAssistant> switchable = new ArrayList<>();
 		for (RequelAssistant<?> assistant : assistants) {
 			if (assistant.projectSwitchable()) {
-				switchable.add(new SwitchableAssistant(assistant.assistantId(),
-						assistant.displayName()));
+				switchable.add(describe(assistant));
 			}
 		}
 		// Issue #260: the enabled bundled definitions, when they can run.
@@ -223,7 +259,8 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 					switchable.add(new SwitchableAssistant(definition.key(),
 							definition.displayName(), definition.isPolicy()
 									? SwitchableAssistantCatalog.POLICIES
-									: SwitchableAssistantCatalog.AI_REVIEW));
+									: definition.isCorpus() ? SwitchableAssistantCatalog.CORPUS
+											: SwitchableAssistantCatalog.AI_REVIEW));
 				}
 			}
 		}

@@ -133,3 +133,23 @@ Edit `fixture-project.xml` and `expectations.json` together, keeping names ident
 `FixtureExpectationsIT` fails the build if an expected entity is missing, a type has no flawed or
 no silent case, or there isn't exactly one trap. Re-run the baseline when a change alters what is
 measured.
+
+## Corpus analyses (#266)
+
+`python3 scripts/ai-eval/score.py --corpus --runs 3 --label "cli/claude"` runs Find overlaps and
+then the AI corpus analysis over the whole fixture project, `--runs` times, and writes
+`target/ai-eval/corpus-<timestamp>/report.md` and `raw.json`.
+
+`expectations.json` has a `corpus` section:
+
+| Key | What |
+|---|---|
+| `expect` | relationships the analysis should raise: `participants` (type and name of each), `acceptTypes`, and `finder: true` when Find overlaps should flag the pair too |
+| `alsoValid` | real relationships the fixture doesn't target; a match is neither a hit nor spurious |
+| `silent` | pairs that must not appear together in a finding |
+
+A relationship is all the findings of a run that share one issue. It hits an expectation when it
+names every expected participant with an accepted type; it is *exact* when it names no others.
+The report also counts *duplicate issues*: a relationship two consecutive runs reported under
+different issues, which idempotency should prevent. `--rescore` works on a corpus `raw.json` too.
+

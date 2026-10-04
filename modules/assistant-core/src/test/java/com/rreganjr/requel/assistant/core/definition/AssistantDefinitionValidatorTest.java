@@ -141,6 +141,48 @@ class AssistantDefinitionValidatorTest {
 				.hasMessageContaining("output schema is for POLICY definitions");
 	}
 
+	/** #266: a corpus definition pairs with CORPUS_REVIEW, scopes set kinds, reads the corpus. */
+	@Test
+	void aCorpusDefinitionServesTheCorpusTaskOverSetKinds() {
+		AssistantDefinition f = fallback("x");
+		AssistantDefinition corpus = corpus("c1", Set.of("PROJECT", "GOAL"),
+				List.of("corpus-index", "corpus-candidates"));
+		assertThatCode(() -> validator.validate(corpus, List.of())).doesNotThrowAnyException();
+
+		assertThatThrownBy(() -> validator.validate(corpus("c2", Set.of("Goal"),
+				List.of("corpus-index", "entity")), List.of()))
+				.hasMessageContaining("unknown set kind(s) in scope: [Goal]")
+				.hasMessageContaining("unknown context provider(s): [entity]");
+
+		AssistantDefinition reviewWithCorpusContext = withProviders(f,
+				List.of("entity", "corpus-index"));
+		assertThatThrownBy(() -> validator.validate(reviewWithCorpusContext, List.of()))
+				.hasMessageContaining("unknown context provider(s): [corpus-index]");
+
+		AssistantDefinition reviewOnCorpusTask = new AssistantDefinition("r", "R",
+				DefinitionKind.REVIEW, AssistantDefinition.CORPUS_REVIEW, Set.of(),
+				f.contextProviders(), f.instructions(), f.vocabulary(),
+				AssistantDefinition.CORPUS_OUTPUT_SCHEMA, "1", true, 1, DefinitionSource.BUNDLED,
+				null, null, null);
+		assertThatThrownBy(() -> validator.validate(reviewOnCorpusTask, List.of()))
+				.hasMessageContaining("task CORPUS_REVIEW is for CORPUS definitions")
+				.hasMessageContaining("output schema is for CORPUS definitions");
+
+		assertThatThrownBy(() -> validator.validate(corpus("c3", Set.of("PROJECT"),
+				List.of("corpus-index")), List.of(corpus("c4", Set.of("PROJECT"),
+						List.of("corpus-index")))))
+				.hasMessageContaining("scope [PROJECT] collides with definition c4");
+	}
+
+	private static AssistantDefinition corpus(String key, Set<String> scope,
+			List<String> providers) {
+		AssistantDefinition f = fallback("x");
+		return new AssistantDefinition(key, "C", DefinitionKind.CORPUS,
+				AssistantDefinition.CORPUS_REVIEW, scope, providers, f.instructions(),
+				f.vocabulary(), AssistantDefinition.CORPUS_OUTPUT_SCHEMA, "1", true, 1,
+				DefinitionSource.BUNDLED, null, null, null);
+	}
+
 	@Test
 	void vocabularySchemaAndInstructionsAreChecked() {
 		AssistantDefinition f = fallback("x");

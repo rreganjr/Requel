@@ -306,6 +306,82 @@ class RescoreTest(unittest.TestCase):
         self.assertEqual(["a"], rescored["results"][0]["runs"][0]["score"]["hits"])
 
 
+def corpus(expect=None, also=None, silent=None):
+    doc = {"corpus": {"expect": expect or [], "alsoValid": also or [], "silent": silent or []},
+           "entities": []}
+    for key in ("expect", "alsoValid", "silent"):
+        for item in doc["corpus"][key]:
+            item.setdefault("acceptTypes", [])
+            item.setdefault("finder", False)
+            item["participants"] = [tuple(p) for p in item["participants"]]
+    return doc["corpus"]
+
+
+def row(annotation, target_type, target_id, finding_type="CONTRADICTORY_REQUIREMENTS"):
+    return {"findingType": finding_type, "text": "t%d" % annotation, "annotationId": annotation,
+            "targetType": target_type, "targetId": target_id}
+
+
+NAMES = {("Goal", 1): "A", ("Goal", 2): "B", ("Story", 3): "C", ("Actor", 4): "D"}
+
+
+class CorpusTest(unittest.TestCase):
+
+    def test_rows_of_one_annotation_are_one_relationship(self):
+        rels = score.relationships([row(7, "Goal", 1), row(7, "Story", 3), row(8, "Goal", 2),
+                                    row(8, "Goal", 1)], NAMES)
+        self.assertEqual(2, len(rels))
+        self.assertEqual({("Goal", "A"), ("Story", "C")}, rels[0]["participants"])
+
+    def test_a_relationship_hits_when_it_names_every_participant_with_an_accepted_type(self):
+        c = corpus([{"id": "x", "participants": [["Goal", "A"], ["Story", "C"]],
+                     "acceptTypes": ["CONTRADICTORY_REQUIREMENTS"]},
+                    {"id": "y", "participants": [["Goal", "A"], ["Goal", "B"]],
+                     "acceptTypes": ["DUPLICATE_AT_DIFFERENT_ABSTRACTION"]}])
+        rels = score.relationships([row(7, "Goal", 1), row(7, "Story", 3), row(7, "Actor", 4),
+                                    row(8, "Goal", 1), row(8, "Goal", 2)], NAMES)
+        result = score.score_corpus(c, rels)
+        self.assertEqual(["x"], result["hits"])
+        self.assertEqual([], result["exact"], "a third participant makes it inexact")
+        self.assertEqual(1, len(result["spurious"]), "the wrong type is no hit")
+
+    def test_also_valid_and_silent_pairs(self):
+        c = corpus(also=[{"id": "a", "participants": [["Goal", "A"], ["Goal", "B"]]}],
+                   silent=[{"id": "s", "participants": [["Goal", "B"], ["Actor", "D"]]}])
+        rels = score.relationships([row(8, "Goal", 1), row(8, "Goal", 2), row(9, "Goal", 2),
+                                    row(9, "Actor", 4)], NAMES)
+        result = score.score_corpus(c, rels)
+        self.assertEqual(["a"], result["alsoValid"])
+        self.assertEqual(["s"], result["silentRaised"])
+        self.assertEqual(1, len(result["spurious"]))
+
+    def test_the_finder_is_scored_on_the_pairs_marked_for_it(self):
+        c = corpus([{"id": "x", "participants": [["Goal", "A"], ["Story", "C"]], "finder": True},
+                    {"id": "y", "participants": [["Goal", "A"], ["Goal", "B"]]}])
+        rels = score.relationships([row(7, "Goal", 1, "POSSIBLE_CONFLICT"),
+                                    row(7, "Story", 3, "POSSIBLE_CONFLICT")], NAMES)
+        result = score.score_finder(c, rels)
+        self.assertEqual(["x"], result["found"])
+        self.assertEqual(["x"], result["wanted"])
+
+    def test_a_new_issue_for_a_relationship_the_last_run_reported_is_a_duplicate(self):
+        same = {"type": "T", "participants": [("Goal", "A"), ("Goal", "B")], "annotationId": 1}
+        moved = dict(same, annotationId=2)
+        self.assertEqual(0, score.duplicates([{"relationships": [same]},
+                                              {"relationships": [same]}]))
+        self.assertEqual(1, score.duplicates([{"relationships": [same]},
+                                              {"relationships": [moved]}]))
+
+    def test_the_report_renders(self):
+        c = corpus([{"id": "x", "participants": [["Goal", "A"], ["Story", "C"]], "finder": True}])
+        rels = score.relationships([row(7, "Goal", 1), row(7, "Story", 3)], NAMES)
+        runs = [{"finder": {"outcome": "ok", "score": score.score_finder(c, rels)},
+                 "analysis": {"outcome": "ok", "summary": "s", "relationships": [],
+                              "score": score.score_corpus(c, rels)}}]
+        report = score.render_corpus_report({"runs": 1}, c, runs)
+        self.assertIn("| 1/1 | 100% (1/1) | 100% (1/1) |", report)
+
+
 class ExpectationsFileTest(unittest.TestCase):
 
     def test_the_checked_in_patterns_compile(self):
@@ -317,6 +393,23 @@ class ExpectationsFileTest(unittest.TestCase):
                     re.compile(p)
             for p in e["confirmPatterns"]:
                 re.compile(p)
+
+    def test_every_corpus_participant_is_in_the_fixture(self):
+        import xml.etree.ElementTree as ET
+        doc = score.load_expectations(os.path.join(score.HERE, "expectations.json"))
+        tags = {"actor": "Actor", "goal": "Goal", "story": "Story", "usecase": "UseCase",
+                "scenario": "Scenario", "step": "Step", "term": "GlossaryTerm"}
+        names = set()
+        for element in ET.parse(os.path.join(score.HERE, doc["fixture"])).iter():
+            tag = element.tag.split("}")[-1]
+            name = element.find("{*}name")
+            if tag in tags and name is not None:
+                names.add((tags[tag], name.text))
+        for key in ("expect", "alsoValid", "silent"):
+            for item in doc["corpus"][key]:
+                for participant in item["participants"]:
+                    self.assertIn(tuple(participant), names,
+                                  "%s names an entity the fixture lacks" % item["id"])
 
 
 if __name__ == "__main__":

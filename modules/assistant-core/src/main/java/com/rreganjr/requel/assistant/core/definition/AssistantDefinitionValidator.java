@@ -63,7 +63,14 @@ public class AssistantDefinitionValidator {
 
 	/** {@code name:version} of the output schemas the executor can load. */
 	public static final Set<String> OUTPUT_SCHEMAS = Set.of("RequirementsReviewOutput:1",
-			"RequirementsReviewOutput:2", AssistantDefinition.POLICY_OUTPUT_SCHEMA + ":1");
+			"RequirementsReviewOutput:2", AssistantDefinition.POLICY_OUTPUT_SCHEMA + ":1",
+			AssistantDefinition.CORPUS_OUTPUT_SCHEMA + ":1");
+
+	/**
+	 * Issue #266: the context a corpus definition reads. The corpus executor builds both; they are
+	 * not per-entity providers, so only a corpus definition may name them.
+	 */
+	public static final Set<String> CORPUS_PROVIDERS = Set.of("corpus-index", "corpus-candidates");
 
 	/** Characters per token used to turn the token budget into a character cap. */
 	static final int CHARS_PER_TOKEN = 4;
@@ -124,20 +131,25 @@ public class AssistantDefinitionValidator {
 			problems.add("taskType is required");
 		}
 		checkKind(definition, problems);
+		// #266: a corpus definition's scope is set kinds, and it reads the corpus context only
+		Set<String> knownScope = definition.isCorpus() ? AssistantDefinition.CORPUS_SET_KINDS
+				: REVIEWABLE_TYPES;
 		Set<String> unknownTypes = new TreeSet<String>(definition.scope());
-		unknownTypes.removeAll(REVIEWABLE_TYPES);
+		unknownTypes.removeAll(knownScope);
 		if (!unknownTypes.isEmpty()) {
-			problems.add("unknown entity type(s) in scope: " + unknownTypes + " (known: "
-					+ new TreeSet<String>(REVIEWABLE_TYPES) + ")");
+			problems.add("unknown " + (definition.isCorpus() ? "set kind" : "entity type")
+					+ "(s) in scope: " + unknownTypes + " (known: " + new TreeSet<String>(knownScope)
+					+ ")");
 		}
 		if (definition.contextProviders().isEmpty()) {
 			problems.add("at least one context provider is required");
 		}
+		Set<String> knownProviders = definition.isCorpus() ? CORPUS_PROVIDERS : contextProviders;
 		Set<String> unknownProviders = new TreeSet<String>(definition.contextProviders());
-		unknownProviders.removeAll(contextProviders);
+		unknownProviders.removeAll(knownProviders);
 		if (!unknownProviders.isEmpty()) {
 			problems.add("unknown context provider(s): " + unknownProviders + " (known: "
-					+ new TreeSet<String>(contextProviders) + ")");
+					+ new TreeSet<String>(knownProviders) + ")");
 		}
 		checkContextBudgets(definition, problems);
 		checkVocabulary(definition, problems);
@@ -166,26 +178,35 @@ public class AssistantDefinitionValidator {
 	}
 
 	private static void checkKind(AssistantDefinition definition, List<String> problems) {
-		boolean policyTask = AssistantDefinition.POLICY_REVIEW.equals(definition.taskType());
-		boolean policySchema = AssistantDefinition.POLICY_OUTPUT_SCHEMA
-				.equals(definition.outputSchemaName());
-		if (definition.isPolicy()) {
-			if (!blank(definition.taskType()) && !policyTask) {
-				problems.add("a POLICY definition serves task " + AssistantDefinition.POLICY_REVIEW
-						+ ", not " + definition.taskType());
+		checkPairing(definition, problems, DefinitionKind.POLICY, AssistantDefinition.POLICY_REVIEW,
+				AssistantDefinition.POLICY_OUTPUT_SCHEMA);
+		checkPairing(definition, problems, DefinitionKind.CORPUS, AssistantDefinition.CORPUS_REVIEW,
+				AssistantDefinition.CORPUS_OUTPUT_SCHEMA);
+	}
+
+	/**
+	 * A {@code kind} definition serves {@code task} with {@code schema}, and no other kind uses
+	 * either (#265, #266).
+	 */
+	private static void checkPairing(AssistantDefinition definition, List<String> problems,
+			DefinitionKind kind, String task, String schema) {
+		boolean kindTask = task.equals(definition.taskType());
+		boolean kindSchema = schema.equals(definition.outputSchemaName());
+		if (definition.kind() == kind) {
+			if (!blank(definition.taskType()) && !kindTask) {
+				problems.add("a " + kind + " definition serves task " + task + ", not "
+						+ definition.taskType());
 			}
-			if (!policySchema) {
-				problems.add("a POLICY definition uses the " + AssistantDefinition.POLICY_OUTPUT_SCHEMA
-						+ " output schema");
+			if (!kindSchema) {
+				problems.add("a " + kind + " definition uses the " + schema + " output schema");
 			}
 		} else {
-			if (policyTask) {
-				problems.add("task " + AssistantDefinition.POLICY_REVIEW
-						+ " is for POLICY definitions; this one is " + definition.kind());
+			if (kindTask) {
+				problems.add("task " + task + " is for " + kind + " definitions; this one is "
+						+ definition.kind());
 			}
-			if (policySchema) {
-				problems.add("the " + AssistantDefinition.POLICY_OUTPUT_SCHEMA
-						+ " output schema is for POLICY definitions");
+			if (kindSchema) {
+				problems.add("the " + schema + " output schema is for " + kind + " definitions");
 			}
 		}
 	}

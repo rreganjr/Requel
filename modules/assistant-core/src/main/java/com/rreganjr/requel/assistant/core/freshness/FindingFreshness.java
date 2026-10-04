@@ -35,6 +35,8 @@ import org.springframework.stereotype.Component;
 import com.rreganjr.requel.annotation.Annotatable;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.spi.AnnotationFreshness;
+import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.assistant.core.AssistantTargetLoader;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingRepository;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingState;
@@ -49,6 +51,11 @@ import com.rreganjr.requel.project.TargetFingerprint;
  * the entity's current {@link TargetFingerprint}. A fresh finding from any assistant means the
  * annotation still applies. A finding recorded before #270 (no fingerprint) is not stale, and an
  * annotation with no finding (a person's, or the old lexical path's) never is.
+ *
+ * <p>Issue #266: a relationship (corpus) finding has one {@code stale_together} row per
+ * participant and one shared annotation. When any participant's row is stale, the annotation is
+ * stale on every participant: the relationship may no longer hold once either side changed. The
+ * other participants are loaded through the target loaders to check their current text.
  */
 @Component
 public class FindingFreshness implements AnnotationFreshness {
@@ -57,10 +64,17 @@ public class FindingFreshness implements AnnotationFreshness {
 			AssistantFindingState.SUPERSEDED.name());
 
 	private final AssistantFindingRepository findingRepository;
+	private List<AssistantTargetLoader> targetLoaders = List.of();
 
 	@Autowired
 	public FindingFreshness(AssistantFindingRepository findingRepository) {
 		this.findingRepository = Objects.requireNonNull(findingRepository, "findingRepository");
+	}
+
+	/** Issue #266: loads the participants of a relationship finding that weren't asked about. */
+	@Autowired(required = false)
+	public void setTargetLoaders(List<AssistantTargetLoader> targetLoaders) {
+		this.targetLoaders = targetLoaders == null ? List.of() : List.copyOf(targetLoaders);
 	}
 
 	@Override
@@ -84,8 +98,14 @@ public class FindingFreshness implements AnnotationFreshness {
 		}
 		// target key + annotation id -> the open findings linking them
 		Map<String, List<AssistantFindingEntity>> findings = new HashMap<>();
+		// #266: annotation id -> the stale-together rows of a relationship finding, any target
+		Map<Long, List<AssistantFindingEntity>> groups = new HashMap<>();
 		for (AssistantFindingEntity finding : findingRepository
 				.findByAppliedAnnotationIdInAndStateIn(annotationIds, OPEN_STATES)) {
+			if (finding.isStaleTogether()) {
+				groups.computeIfAbsent(finding.getAppliedAnnotationId(), k -> new ArrayList<>())
+						.add(finding);
+			}
 			findings.computeIfAbsent(
 					key(finding.getTargetType(), finding.getTargetId(),
 							finding.getAppliedAnnotationId()),
@@ -95,6 +115,7 @@ public class FindingFreshness implements AnnotationFreshness {
 			return StaleAnnotations.NONE;
 		}
 		Set<String> stale = new HashSet<>();
+		Set<Long> staleGroups = staleGroups(groups, annotatables);
 		for (Annotatable annotatable : annotatables) {
 			String target = targetKey(annotatable);
 			if (target == null || annotatable.getAnnotations() == null) {
@@ -105,6 +126,10 @@ public class FindingFreshness implements AnnotationFreshness {
 			for (Annotation annotation : annotatable.getAnnotations()) {
 				List<AssistantFindingEntity> linked = findings.get(target + "#" + annotation.getId());
 				if (linked == null) {
+					continue;
+				}
+				if (staleGroups.contains(annotation.getId())) {
+					stale.add(target + "#" + annotation.getId());
 					continue;
 				}
 				if (!fingerprinted) {
@@ -124,6 +149,53 @@ public class FindingFreshness implements AnnotationFreshness {
 			return target != null && annotation != null
 					&& stale.contains(target + "#" + annotation.getId());
 		};
+	}
+
+	/**
+	 * #266: the annotations of relationship findings with at least one stale participant row.
+	 * A participant among {@code annotatables} is fingerprinted as loaded; any other is loaded.
+	 */
+	private Set<Long> staleGroups(Map<Long, List<AssistantFindingEntity>> groups,
+			Collection<? extends Annotatable> annotatables) {
+		if (groups.isEmpty()) {
+			return Set.of();
+		}
+		Map<String, Object> loaded = new HashMap<>();
+		for (Annotatable annotatable : annotatables) {
+			String target = targetKey(annotatable);
+			if (target != null) {
+				loaded.put(target, annotatable);
+			}
+		}
+		Map<String, String> fingerprints = new HashMap<>();
+		Set<Long> stale = new HashSet<>();
+		for (Map.Entry<Long, List<AssistantFindingEntity>> group : groups.entrySet()) {
+			for (AssistantFindingEntity row : group.getValue()) {
+				String target = row.getTargetType() + ":" + row.getTargetId();
+				String current = fingerprints.computeIfAbsent(target, t -> {
+					Object entity = loaded.containsKey(t) ? loaded.get(t)
+							: load(EntityRef.of(row.getTargetType(), row.getTargetId()));
+					return entity == null ? MISSING : TargetFingerprint.of(entity);
+				});
+				if (MISSING.equals(current) || isStale(row, current)) {
+					// a deleted participant ends the relationship too
+					stale.add(group.getKey());
+					break;
+				}
+			}
+		}
+		return stale;
+	}
+
+	private static final String MISSING = "<missing>";
+
+	private Object load(EntityRef ref) {
+		for (AssistantTargetLoader loader : targetLoaders) {
+			if (loader.supports(ref)) {
+				return loader.loadTarget(ref).orElse(null);
+			}
+		}
+		return null;
 	}
 
 	private static boolean allStale(List<AssistantFindingEntity> linked, String current) {

@@ -115,6 +115,20 @@ class AnalysisRequestDispatcherTest {
 		});
 	}
 
+	/** #266: a corpus run is dispatched for its root with the explicit request's task type. */
+	@Test
+	void aCorpusRunIsDispatchedForItsRootAndTask() {
+		dispatcher.dispatchCorpus(EntityRef.of("Goal", 4L), 7L, ron, "CORPUS_CANDIDATES");
+
+		ArgumentCaptor<AnalysisRequest> request = ArgumentCaptor.forClass(AnalysisRequest.class);
+		verify(assistantDispatcher).dispatch(request.capture());
+		assertThat(request.getValue().targetRef()).isEqualTo(EntityRef.of("Goal", 4L));
+		assertThat(request.getValue().projectRef()).isEqualTo(EntityRef.of("Project", 7L));
+		assertThat(request.getValue().taskType()).isEqualTo("CORPUS_CANDIDATES");
+		assertThat(request.getValue().triggeringUser().userId()).isEqualTo(3L);
+		assertThat(request.getValue().assistantUser().userId()).isEqualTo(11L);
+	}
+
 	private Project project(Long id, Set<ProjectOrDomainEntity> entities) {
 		Project project = mock(Project.class);
 		when(project.getId()).thenReturn(id);

@@ -49,6 +49,13 @@ def load_expectations(path):
                      + entity["policyAlsoValid"]):
             item.setdefault("types", [])
             item.setdefault("acceptTypes", [])
+    corpus = doc.setdefault("corpus", {})
+    for key in ("expect", "alsoValid", "silent"):
+        corpus.setdefault(key, [])
+        for item in corpus[key]:
+            item.setdefault("acceptTypes", [])
+            item.setdefault("finder", False)
+            item["participants"] = [tuple(p) for p in item["participants"]]
     return doc
 
 
@@ -388,6 +395,124 @@ def _one_line(text):
     return re.sub(r"\s+", " ", text or "").strip()[:300]
 
 
+# ---- corpus analyses (#266; pure, covered by test_score.py) ---------------------------------
+
+def relationships(findings, names):
+    """The run's findings grouped into relationships: one per shared annotation, with the
+    (type, name) of every participant. `names` maps (type, id) to a name."""
+    groups = {}
+    for f in findings or []:
+        key = f.get("annotationId") or f.get("findingId")
+        group = groups.setdefault(key, {"type": f.get("findingType"), "text": f.get("text"),
+                                        "annotationId": f.get("annotationId"),
+                                        "participants": set()})
+        participant = (f.get("targetType"), names.get((f.get("targetType"), f.get("targetId")),
+                                                      "#%s" % f.get("targetId")))
+        group["participants"].add(participant)
+    return list(groups.values())
+
+
+def _covers(rel, item):
+    return set(item["participants"]) <= rel["participants"]
+
+
+def score_corpus(corpus, rels):
+    """Expectations hit, also-valid, silent pairs raised and spurious relationships in one run.
+    A relationship hits an expectation when it names every expected participant with an accepted
+    type (any type when none are listed); it is exact when it names no others."""
+    hits, exact, used = [], [], set()
+    for item in corpus["expect"]:
+        for i, rel in enumerate(rels):
+            if _covers(rel, item) and (not item["acceptTypes"]
+                                       or rel["type"] in item["acceptTypes"]):
+                hits.append(item["id"])
+                used.add(i)
+                if rel["participants"] == set(item["participants"]):
+                    exact.append(item["id"])
+                break
+    also = []
+    for item in corpus["alsoValid"]:
+        for i, rel in enumerate(rels):
+            if i not in used and _covers(rel, item):
+                also.append(item["id"])
+                used.add(i)
+                break
+    silent = [item["id"] for item in corpus["silent"] if any(_covers(r, item) for r in rels)]
+    spurious = [r for i, r in enumerate(rels) if i not in used]
+    return {"hits": hits, "exact": exact, "alsoValid": also, "silentRaised": silent,
+            "spurious": [{"type": r["type"], "participants": sorted(r["participants"]),
+                          "text": r["text"]} for r in spurious]}
+
+
+def score_finder(corpus, rels):
+    """The finder's pairs against the expectations marked `finder`, and silent pairs."""
+    wanted = [item for item in corpus["expect"] if item["finder"]]
+    found = [item["id"] for item in wanted if any(_covers(r, item) for r in rels)]
+    silent = [item["id"] for item in corpus["silent"] if any(_covers(r, item) for r in rels)]
+    return {"found": found, "wanted": [item["id"] for item in wanted], "silentRaised": silent,
+            "pairs": len(rels)}
+
+
+def duplicates(runs):
+    """Relationships reported by two consecutive runs under different issues: a re-run that
+    should have reused the issue made a new one."""
+    count, previous = 0, {}
+    for run in runs:
+        current = {}
+        for rel in run.get("relationships") or []:
+            key = (rel["type"], tuple(sorted(tuple(p) for p in rel["participants"])))
+            current[key] = rel.get("annotationId")
+            if key in previous and previous[key] != current[key]:
+                count += 1
+        previous = current
+    return count
+
+
+def render_corpus_report(meta, corpus, runs):
+    out = ["# Corpus analysis evaluation", ""]
+    for key in ("date", "label", "baseUrl", "project", "runs"):
+        out.append("- **%s:** %s" % (key, meta.get(key)))
+    ok = [r for r in runs if (r.get("analysis") or {}).get("outcome") == "ok"]
+    finder_ok = [r for r in runs if (r.get("finder") or {}).get("outcome") == "ok"]
+    out += ["", "## Find overlaps (no AI)", "",
+            "| Expected pairs found | Silent pairs raised | Pairs per run |", "|---|---|---|"]
+    if finder_ok:
+        wanted = sum(len(r["finder"]["score"]["wanted"]) for r in finder_ok)
+        found = sum(len(r["finder"]["score"]["found"]) for r in finder_ok)
+        silent = sum(len(r["finder"]["score"]["silentRaised"]) for r in finder_ok)
+        pairs = sum(r["finder"]["score"]["pairs"] for r in finder_ok)
+        out.append("| %s | %d | %.1f |" % (_ratio(found, wanted), silent, pairs / len(finder_ok)))
+    out += ["", "## Analysis (AI)", "",
+            "| Runs ok/total | Hit rate | Exact participants | Spurious per run | Also valid per run "
+            "| Silent pairs raised | Duplicate issues | Unverified evidence | Partial runs |",
+            "|---|---|---|---|---|---|---|---|---|"]
+    expected = len(corpus["expect"])
+    hits = sum(len(r["analysis"]["score"]["hits"]) for r in ok)
+    exact = sum(len(r["analysis"]["score"]["exact"]) for r in ok)
+    spurious = sum(len(r["analysis"]["score"]["spurious"]) for r in ok)
+    also = sum(len(r["analysis"]["score"]["alsoValid"]) for r in ok)
+    silent = sum(len(r["analysis"]["score"]["silentRaised"]) for r in ok)
+    unverified = sum(r["analysis"].get("evidenceUnverified") or 0 for r in ok)
+    partial = sum(1 for r in ok if (r["analysis"].get("summary") or "").startswith("Partial"))
+    out.append("| %d/%d | %s | %s | %s | %s | %d | %d | %d | %d |" % (
+        len(ok), len(runs), _ratio(hits, expected * len(ok)), _ratio(exact, hits),
+        "-" if not ok else "%.1f" % (spurious / len(ok)),
+        "-" if not ok else "%.1f" % (also / len(ok)), silent,
+        duplicates([r["analysis"] for r in ok]), unverified, partial))
+    out += ["", "### Per expectation", "", "| Expectation | Hits |", "|---|---|"]
+    for item in corpus["expect"]:
+        n = sum(1 for r in ok if item["id"] in r["analysis"]["score"]["hits"])
+        out.append("| %s | %s |" % (item["id"], _ratio(n, len(ok))))
+    spurious_rows = [s for r in ok for s in r["analysis"]["score"]["spurious"]]
+    if spurious_rows:
+        out += ["", "### Spurious", ""]
+        for s in spurious_rows:
+            out.append("- %s %s: %s" % (s["type"], ", ".join("%s \"%s\"" % tuple(p)
+                                                             for p in s["participants"]),
+                                        _one_line(s["text"])))
+    return "\n".join(out) + "\n"
+
+
 # ---- HTTP ------------------------------------------------------------------------------------
 
 class RequelClient:
@@ -484,6 +609,22 @@ class RequelClient:
             return status, {"error": data}
         return status, json.loads(data)
 
+    def project_id(self, name):
+        return self.get_json("/api/projects/" + _q(name))["id"]
+
+    def latest_corpus(self, project_id, mode):
+        status, data = self.call("GET", "/api/ai/corpus?" + urllib.parse.urlencode(
+            {"projectId": project_id, "mode": mode}))
+        if status == 204:
+            return status, None
+        if status != 200:
+            return status, {"error": data}
+        return status, json.loads(data)
+
+    def request_corpus(self, project_id, mode):
+        return self.call("POST", "/api/ai/corpus?" + urllib.parse.urlencode(
+            {"projectId": project_id, "mode": mode}))
+
     def request_review(self, entity_type, entity_id):
         status, data = self.call("POST", "/api/ai/reviews?" + urllib.parse.urlencode(
             {"entityType": entity_type, "entityId": entity_id}))
@@ -535,10 +676,81 @@ def review_once(client, entity_type, entity_id, timeout, poll):
     return outcome, view, error, policy
 
 
+def corpus_once(client, project_id, mode, timeout, poll):
+    """Run one corpus run over the whole project and wait for it (#266)."""
+    _, before = client.latest_corpus(project_id, mode)
+    previous = (before or {}).get("runId")
+    status, data = client.request_corpus(project_id, mode)
+    if status != 202:
+        return "failed", None, "POST HTTP %d %s" % (status, data[:300])
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        time.sleep(poll)
+        _, view = client.latest_corpus(project_id, mode)
+        if view and view.get("runId") and view.get("runId") != previous \
+                and view.get("status") in TERMINAL:
+            return classify(view), view, view.get("errorSummary")
+    return "timeout", None, "no finished run after %ds" % timeout
+
+
+def run_corpus(client, args, expectations, project, ids, stamp):
+    """#266: Find overlaps then the AI analysis, --runs times, over the fixture project."""
+    corpus = expectations["corpus"]
+    names = {(t, i): n for (t, n), i in ids.items()}
+    project_id = client.project_id(project)
+    runs = []
+    for n in range(1, args.runs + 1):
+        run = {}
+        for mode, key in (("CANDIDATES", "finder"), ("ANALYSIS", "analysis")):
+            print("corpus %s run %d ..." % (mode, n), end=" ", flush=True)
+            outcome, view, error = corpus_once(client, project_id, mode, args.timeout, args.poll)
+            rels = relationships((view or {}).get("findings"), names)
+            part = {"outcome": outcome, "runId": (view or {}).get("runId"), "error": error,
+                    "summary": (view or {}).get("summary"),
+                    "evidenceUnverified": (view or {}).get("evidenceUnverified") or 0,
+                    "relationships": [dict(r, participants=sorted(r["participants"]))
+                                      for r in rels]}
+            if outcome == "ok":
+                part["score"] = (score_finder if key == "finder" else score_corpus)(corpus, rels)
+                print("%d relationships" % len(rels))
+            else:
+                print("%s %s" % (outcome, _one_line(error or "")))
+            run[key] = part
+        runs.append(run)
+    meta = {"date": _dt.datetime.now().isoformat(timespec="seconds"), "label": args.label,
+            "baseUrl": args.base_url, "project": project, "runs": args.runs}
+    out_dir = os.path.join(args.out, "corpus-" + stamp)
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "report.md"), "w", encoding="utf-8") as f:
+        f.write(render_corpus_report(meta, corpus, runs))
+    with open(os.path.join(out_dir, "raw.json"), "w", encoding="utf-8") as f:
+        json.dump({"meta": meta, "corpus": runs}, f, indent=2)
+    print("report: %s" % os.path.join(out_dir, "report.md"))
+
+
+def rescore_corpus(raw, expectations, out):
+    corpus = expectations["corpus"]
+    for run in raw["corpus"]:
+        for key, scorer in (("finder", score_finder), ("analysis", score_corpus)):
+            part = run.get(key) or {}
+            if part.get("outcome") == "ok":
+                rels = [dict(r, participants={tuple(p) for p in r["participants"]})
+                        for r in part.get("relationships") or []]
+                part["score"] = scorer(corpus, rels)
+    out_dir = os.path.join(out, "rescore-corpus-" + _dt.datetime.now().strftime("%Y%m%d-%H%M%S"))
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "report.md"), "w", encoding="utf-8") as f:
+        f.write(render_corpus_report(raw["meta"], corpus, raw["corpus"]))
+    print("report: %s" % os.path.join(out_dir, "report.md"))
+    return 0
+
+
 def rescore(raw_path, expectations, out):
     """Re-score the findings saved in a raw.json with the current expectations."""
     with open(raw_path, encoding="utf-8") as f:
         raw = json.load(f)
+    if "corpus" in raw:
+        return rescore_corpus(raw, expectations, out)
     current = {(e["type"], e["name"]): e for e in expectations["entities"]}
     for result in raw["results"]:
         key = (result["entity"]["type"], result["entity"]["name"])
@@ -586,6 +798,9 @@ def main(argv=None):
     parser.add_argument("--reload-definitions", action="store_true",
                         help="first POST /api/dev/ai/definitions/reload, so edited files in "
                              "requel.ai.definitions.dir take effect (#263, dev only)")
+    parser.add_argument("--corpus", action="store_true",
+                        help="score the corpus analyses instead of the reviews: Find overlaps and "
+                             "the AI analysis over the whole fixture, --runs times (#266)")
     parser.add_argument("--rescore", metavar="RAW_JSON",
                         help="no server: re-score a previous run's raw.json against the current "
                              "expectations (to tune patterns) and write a new report")
@@ -613,6 +828,11 @@ def main(argv=None):
         client.import_project(fixture, project)
         print("imported the fixture as \"%s\"" % project)
     ids = client.entity_ids(project)
+    if args.corpus:
+        run_corpus(client, args, expectations, project, ids, stamp)
+        if args.delete_after and not args.project:
+            client.delete_project(project)
+        return 0
 
     results, skipped_types = [], {}
     for index, entity in enumerate(entities, 1):
