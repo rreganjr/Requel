@@ -1057,7 +1057,7 @@ public class ProjectQueryController {
             java.util.Set<String> disabled = assistantSettingsStore == null ? java.util.Set.of()
                     : assistantSettingsStore.disabledAssistants(project.getId());
             List<com.rreganjr.requel.service.api.dto.ProjectAssistantDto> dtos = assistantCatalog
-                    .switchableAssistants().stream()
+                    .switchableAssistants(project.getId()).stream()
                     .map(a -> new com.rreganjr.requel.service.api.dto.ProjectAssistantDto(
                             a.assistantId(), a.displayName(), !disabled.contains(a.assistantId()),
                             a.group()))

@@ -481,6 +481,7 @@ bridges them to the matching `spring.ai.*` setting.
 | `REQUEL_AI_MODEL` | `requel.ai.model` | `noop` | Model id; also bridged to `spring.ai.openai.chat.options.model` so the call and the usage report stay in sync. |
 | `REQUEL_AI_MAX_INPUT_TOKENS` | `requel.ai.max-input-tokens` | `16000` | App-side safety cap on input size; oversize reviews are skipped with a warning. |
 | `REQUEL_AI_PROJECT_ALLOWLIST` | `requel.ai.project-allowlist` | *(empty = all)* | CSV of project ids permitted to use AI. |
+| `REQUEL_AI_DEFINITIONS_MAX_PER_PROJECT` | `requel.ai.definitions.max-per-project` | `50` | How many definitions one project may own ([Section 11c](#11c-project-authored-definitions)). |
 
 **Transport, bridged to Spring AI (`application.properties`):**
 
@@ -706,6 +707,64 @@ one role, a parent no child can satisfy, a duplicate at a different level, an un
 The bundled definition is `ai-corpus-relationships` (`kind: CORPUS`, task `CORPUS_REVIEW`); a
 project can switch it off under *Corpus analysis* in the Assistants panel. The thresholds come from
 tuning on the eval fixture and a real project (`doc/work/2.0/266-tuning-log.md`).
+
+## 11c. Project-authored definitions
+
+Every review, policy and corpus analysis is a *definition*: instructions, a scope, the context it
+reads and the finding types it may report. Bundled definitions ship with Requel. A project can
+customize them and add its own.
+
+- **The permission.** Authoring needs the `AssistantDefinition[Edit]` stakeholder permission
+  ("AI definitions" in the stakeholder editor). It gates both reading and writing a project's
+  definitions.
+  - A project's creator gets it.
+  - On upgrade, everyone who holds `Project[Edit]` is given it.
+  - An administrator is not exempt: grant it on the project.
+- **Where.** The project overview's Assistants panel links to *Manage AI definitions*
+  (`/projects/<name>/definitions`). It lists every definition in effect, grouped as on the panel,
+  with:
+  - where it came from (bundled, customized or the project's own);
+  - its version;
+  - what it covers.
+- **Customize** copies a bundled definition into the project. The copy runs there instead of the
+  bundled one and records the bundled version it came from. When a newer bundled version ships,
+  the copy says so. Revert, then customize again, to start from the newer one; there is no merge.
+- **Revert** drops the copy, so the bundled definition runs again exactly as shipped.
+- **New definition** creates the project's own review, policy or corpus analysis.
+  - The kind fixes its task and output format.
+  - Its key is 3 to 80 lowercase letters, digits or hyphens. It can't be a bundled key or a
+    built-in assistant's id.
+  - A project may own at most `requel.ai.definitions.max-per-project` (default 50).
+- **Switching on and off** stays on the Assistants panel. A project's own definitions appear there
+  too.
+- **Every write is checked on the server, not just in the page.** The editor shows each refused
+  rule against its field:
+  - instructions within the input cap;
+  - known entity types and context;
+  - a finding vocabulary;
+  - no two definitions covering the same type for one task.
+- **Concurrent edits.** A change made over someone else's newer one is refused ("someone else
+  changed this definition").
+- **Each run records** the definitions it used, with their versions and sources. The review read
+  returns them as `definitionKeys`, `definitionVersions` and `definitionSources`.
+- **The API.**
+  - `GET /api/projects/{name}/definitions` lists the definitions.
+  - `GET /api/projects/{name}/definitions/{key}` returns one, with its bundled baseline.
+  - The writes are the commands `CreateAssistantDefinition`, `EditAssistantDefinition`,
+    `ForkAssistantDefinition`, `RevertAssistantDefinition` and `DeleteAssistantDefinition`.
+  - The command gateway (API tokens, MCP) does not offer them.
+
+**The risk, plainly.** A definition is prompt text a project member controls. Requel still checks
+what comes back:
+
+- The output format is fixed and validated. A definition that leads the model astray fails the run
+  with no annotations.
+- Findings land only on the entities a run analyzed.
+- A definition can't name code to run.
+- The input cap and the project's data-handling settings (section 11) still apply.
+
+What a badly written definition *can* do is raise misleading issues in its own project. Grant the
+permission accordingly.
 
 ## 12. Measuring review quality
 

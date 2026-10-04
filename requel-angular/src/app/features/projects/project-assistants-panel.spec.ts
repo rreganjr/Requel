@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { provideRouter } from '@angular/router';
 import { ProjectAssistantsPanelComponent } from './project-assistants-panel';
 import { ProjectAssistantsService } from '../../core/project-assistants.service';
 import { ProjectAssistantDto } from '../../models/project-assistant';
@@ -20,11 +21,12 @@ describe('ProjectAssistantsPanelComponent (#268)', () => {
 
   const flush = () => new Promise(r => setTimeout(r, 0));
 
-  async function render(canEdit: boolean, canAnalyze: boolean) {
+  async function render(canEdit: boolean, canAnalyze: boolean, canManageDefinitions = false) {
     TestBed.configureTestingModule({
       imports: [ProjectAssistantsPanelComponent],
       providers: [
         provideNoopAnimations(),
+        provideRouter([]),
         { provide: ProjectAssistantsService,
           useValue: { list, setEnabled, analyzeProject, dataHandling, setDataHandling } },
       ],
@@ -33,6 +35,7 @@ describe('ProjectAssistantsPanelComponent (#268)', () => {
     fixture.componentRef.setInput('projectName', 'Acme');
     fixture.componentRef.setInput('canEdit', canEdit);
     fixture.componentRef.setInput('canAnalyze', canAnalyze);
+    fixture.componentRef.setInput('canManageDefinitions', canManageDefinitions);
     fixture.detectChanges();
     await flush();
     fixture.detectChanges();
@@ -48,6 +51,16 @@ describe('ProjectAssistantsPanelComponent (#268)', () => {
       redaction: { credentials: true, email: true, phone: false, ssn: true, card: true },
     });
     setDataHandling = vi.fn().mockResolvedValue({ success: true, error: null });
+  });
+
+  it('links to the AI definitions only with AssistantDefinition[Edit] (#264)', async () => {
+    const without = await render(true, true);
+    expect(without.nativeElement.querySelector('[data-testid="assistants-manage-definitions"]'))
+      .toBeNull();
+    TestBed.resetTestingModule();
+    const withIt = await render(true, true, true);
+    const link = withIt.nativeElement.querySelector('[data-testid="assistants-manage-definitions"]');
+    expect(link?.getAttribute('href')).toBe('/projects/Acme/definitions');
   });
 
   it('renders a switch per assistant from the query, labelled with its name', async () => {

@@ -170,6 +170,21 @@ public interface ProjectCommandFactory extends CommandFactory {
 	 */
 	public EditProjectAssistantSettingCommand newEditProjectAssistantSettingCommand();
 
+	/** Issue #264: create one of the project's own assistant definitions. */
+	public AssistantDefinitionCommand.Create newCreateAssistantDefinitionCommand();
+
+	/** Issue #264: edit one of the project's assistant definitions. */
+	public AssistantDefinitionCommand.Edit newEditAssistantDefinitionCommand();
+
+	/** Issue #264: copy a bundled assistant definition into the project. */
+	public AssistantDefinitionCommand.Fork newForkAssistantDefinitionCommand();
+
+	/** Issue #264: drop the project's copy of a bundled assistant definition. */
+	public AssistantDefinitionCommand.Revert newRevertAssistantDefinitionCommand();
+
+	/** Issue #264: delete one of the project's own assistant definitions. */
+	public AssistantDefinitionCommand.Delete newDeleteAssistantDefinitionCommand();
+
 	/**
 	 * @return a new command switching one of a project's data-handling settings (remote AI
 	 *         providers, redaction categories) on or off; requires {@code Project[Edit]}

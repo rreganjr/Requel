@@ -55,9 +55,11 @@ class CorpusIssueDtoTest {
 	}
 
 	private static void catalog(SwitchableAssistant... assistants) {
-		SwitchableAssistantCatalog catalog = mock(SwitchableAssistantCatalog.class);
+		// the catalog's own defaults decide the project-aware lookups (#264)
+		SwitchableAssistantCatalog catalog = mock(SwitchableAssistantCatalog.class,
+				org.mockito.Mockito.CALLS_REAL_METHODS);
 		for (SwitchableAssistant assistant : assistants) {
-			when(catalog.describe(assistant.assistantId())).thenReturn(Optional.of(assistant));
+			doReturn(Optional.of(assistant)).when(catalog).describe(assistant.assistantId());
 		}
 		@SuppressWarnings("unchecked")
 		ObjectProvider<SwitchableAssistantCatalog> provider = mock(ObjectProvider.class);
@@ -126,6 +128,34 @@ class CorpusIssueDtoTest {
 		assertThat(dto.subjects()).containsExactly(new AnnotationSubjectDto("Goal", 2L, "Lend books"),
 				new AnnotationSubjectDto("Goal", 9L, "Track loans"),
 				new AnnotationSubjectDto("Story", 3L, "Borrowing"));
+	}
+
+	/** #264: an issue a project's own definition raised is labelled from that project. */
+	@Test
+	void aProjectDefinitionsIssueIsLabelledFromItsProject() {
+		SwitchableAssistantCatalog catalog = mock(SwitchableAssistantCatalog.class);
+		when(catalog.describe("house-style", 7L)).thenReturn(Optional.of(new SwitchableAssistant(
+				"house-style", "House style", SwitchableAssistantCatalog.POLICIES)));
+		when(catalog.describe("house-style", null)).thenReturn(Optional.empty());
+		@SuppressWarnings("unchecked")
+		ObjectProvider<SwitchableAssistantCatalog> provider = mock(ObjectProvider.class);
+		when(provider.getIfAvailable()).thenReturn(catalog);
+		new AnnotationSources(provider);
+		com.rreganjr.requel.project.Project project = mock(com.rreganjr.requel.project.Project.class);
+		when(project.getId()).thenReturn(7L);
+		Goal goal = entity(Goal.class, 2L, "Lend books");
+		when(goal.getProjectOrDomain()).thenReturn(project);
+
+		IssueDto dto = AnnotationCommandRegistrar.toIssueDto(issue("ASSISTANT:house-style", goal),
+				false);
+
+		assertThat(dto.sourceName()).isEqualTo("House style");
+		assertThat(dto.sourceKind()).isEqualTo("POLICY");
+		assertThat(AnnotationSources.kind("ASSISTANT:house-style")).isNull();
+		Issue loose = issue(null, mock(Annotatable.class));
+		assertThat(AnnotationCommandRegistrar.projectId(loose)).isNull();
+		Issue none = mock(Issue.class);
+		assertThat(AnnotationCommandRegistrar.projectId(none)).isNull();
 	}
 
 	@Test

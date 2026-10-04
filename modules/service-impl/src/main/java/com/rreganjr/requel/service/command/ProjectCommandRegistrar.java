@@ -824,6 +824,71 @@ public class ProjectCommandRegistrar {
                     c.setEnabled(i.enabled());
                 });
 
+        // Issue #264: authoring the project's assistant definitions (AssistantDefinition[Edit]).
+        registry.register("CreateAssistantDefinition",
+                com.rreganjr.requel.service.api.dto.CreateAssistantDefinitionInput.class,
+                factory::newCreateAssistantDefinitionCommand,
+                (cmd, input) -> {
+                    var c = (com.rreganjr.requel.project.command.AssistantDefinitionCommand) cmd;
+                    var i = (com.rreganjr.requel.service.api.dto.CreateAssistantDefinitionInput) input;
+                    c.setProject(projectRepository.findProjectByName(i.projectName()));
+                    c.setKey(i.key());
+                    c.setDraft(com.rreganjr.requel.service.query.AssistantDefinitionDtos.toDraft(
+                            i.kind(), i.key(), i.displayName(), i.scope(), i.contextProviders(),
+                            i.contextBudgets(), i.instructions(), i.vocabulary(), i.localOnly(),
+                            i.executorBean()));
+                },
+                null, AssistantDefinitionResults::definition);
+
+        registry.register("EditAssistantDefinition",
+                com.rreganjr.requel.service.api.dto.EditAssistantDefinitionInput.class,
+                factory::newEditAssistantDefinitionCommand,
+                (cmd, input) -> {
+                    var c = (com.rreganjr.requel.project.command.AssistantDefinitionCommand) cmd;
+                    var i = (com.rreganjr.requel.service.api.dto.EditAssistantDefinitionInput) input;
+                    c.setProject(projectRepository.findProjectByName(i.projectName()));
+                    c.setKey(i.key());
+                    c.setLockVersion(i.version());
+                    c.setDraft(com.rreganjr.requel.service.query.AssistantDefinitionDtos.toDraft(
+                            i.kind(), i.key(), i.displayName(), i.scope(), i.contextProviders(),
+                            i.contextBudgets(), i.instructions(), i.vocabulary(), i.localOnly(),
+                            i.executorBean()));
+                },
+                null, AssistantDefinitionResults::definition);
+
+        registry.register("ForkAssistantDefinition",
+                com.rreganjr.requel.service.api.dto.ForkAssistantDefinitionInput.class,
+                factory::newForkAssistantDefinitionCommand,
+                (cmd, input) -> {
+                    var c = (com.rreganjr.requel.project.command.AssistantDefinitionCommand) cmd;
+                    var i = (com.rreganjr.requel.service.api.dto.ForkAssistantDefinitionInput) input;
+                    c.setProject(projectRepository.findProjectByName(i.projectName()));
+                    c.setKey(i.key());
+                },
+                null, AssistantDefinitionResults::definition);
+
+        registry.register("RevertAssistantDefinition",
+                com.rreganjr.requel.service.api.dto.RevertAssistantDefinitionInput.class,
+                factory::newRevertAssistantDefinitionCommand,
+                (cmd, input) -> {
+                    var c = (com.rreganjr.requel.project.command.AssistantDefinitionCommand) cmd;
+                    var i = (com.rreganjr.requel.service.api.dto.RevertAssistantDefinitionInput) input;
+                    c.setProject(projectRepository.findProjectByName(i.projectName()));
+                    c.setKey(i.key());
+                    c.setLockVersion(i.version());
+                });
+
+        registry.register("DeleteAssistantDefinition",
+                com.rreganjr.requel.service.api.dto.DeleteAssistantDefinitionInput.class,
+                factory::newDeleteAssistantDefinitionCommand,
+                (cmd, input) -> {
+                    var c = (com.rreganjr.requel.project.command.AssistantDefinitionCommand) cmd;
+                    var i = (com.rreganjr.requel.service.api.dto.DeleteAssistantDefinitionInput) input;
+                    c.setProject(projectRepository.findProjectByName(i.projectName()));
+                    c.setKey(i.key());
+                    c.setLockVersion(i.version());
+                });
+
         registry.register("EditProjectDataHandlingSetting",
                 com.rreganjr.requel.service.api.dto.EditProjectDataHandlingSettingInput.class,
                 factory::newEditProjectDataHandlingSettingCommand,
@@ -1122,5 +1187,17 @@ public class ProjectCommandRegistrar {
                 // which resolves the caller; command-result DTOs report false.
                 false
         );
+    }
+
+    /** Issue #264: a definition command's result for the API. */
+    static final class AssistantDefinitionResults {
+        private AssistantDefinitionResults() {
+        }
+
+        static Object definition(com.rreganjr.command.Command cmd) {
+            return com.rreganjr.requel.service.query.AssistantDefinitionDtos.toDto(
+                    ((com.rreganjr.requel.project.command.AssistantDefinitionCommand) cmd)
+                            .getDefinition(), null);
+        }
     }
 }

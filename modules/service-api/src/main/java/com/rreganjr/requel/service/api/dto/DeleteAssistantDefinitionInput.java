@@ -2,7 +2,7 @@
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
  *
- * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,20 +18,21 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.assistant.core.definition;
+package com.rreganjr.requel.service.api.dto;
 
-import java.util.List;
+import com.rreganjr.requel.service.api.CommandDescription;
 
-import com.rreganjr.requel.project.InvalidDefinitionException;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 /**
- * Issue #260: an assistant definition that cannot be saved or seeded, with every reason. #264: each
- * reason names its field ({@link #fieldProblems()}).
+ * Input for deleting one of a project's own assistant definitions (issue #264). Needs
+ * AssistantDefinition[Edit].
  */
-public class InvalidAssistantDefinitionException extends InvalidDefinitionException {
-	private static final long serialVersionUID = 1L;
-
-	public InvalidAssistantDefinitionException(String key, List<Problem> problems) {
-		super(key, problems);
-	}
+@CommandDescription("Deletes one of the project's own AI assistant definitions.")
+public record DeleteAssistantDefinitionInput(
+        @NotBlank String projectName,
+        @NotBlank String key,
+        @NotNull Integer version
+) {
 }

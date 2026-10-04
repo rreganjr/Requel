@@ -132,7 +132,8 @@ interface NextAction {
           </section>
 
           <app-project-assistants-panel [projectName]="projectName" [canEdit]="canEditProject()"
-                                        [canAnalyze]="canAnalyze()" />
+                                        [canAnalyze]="canAnalyze()"
+                                        [canManageDefinitions]="canManageDefinitions()" />
 
           @if (project()?.id; as id) {
             <app-project-corpus-panel [projectName]="projectName" [projectId]="id"
@@ -204,6 +205,9 @@ export class ProjectWorkspaceComponent implements OnInit {
   // writes issues, so it needs Annotation[Edit]. Both read false until permissions load.
   readonly canEditProject = computed(() => this.permissionService.canEdit('Project'));
   readonly canAnalyze = computed(() => this.permissionService.canEdit('Annotation'));
+  // #264: authoring the project's AI definitions
+  readonly canManageDefinitions = computed(() =>
+    this.permissionService.canEdit('AssistantDefinition'));
   readonly deleteTarget = signal<DeleteProjectTarget | null>(null);
   readonly deleteVisible = signal(false);
   projectName = '';

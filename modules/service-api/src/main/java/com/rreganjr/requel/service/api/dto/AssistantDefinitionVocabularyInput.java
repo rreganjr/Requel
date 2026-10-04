@@ -2,7 +2,7 @@
  * This file is part of Requel - the Collaborative Requirements
  * Elicitation System.
  *
- * Copyright 2026 Ron Regan Jr. All Rights Reserved.
+ * Copyright 2008, 2009, 2025 Ron Regan Jr. All Rights Reserved.
  *
  * Requel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,20 +18,14 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.assistant.core.definition;
-
-import java.util.List;
-
-import com.rreganjr.requel.project.InvalidDefinitionException;
+package com.rreganjr.requel.service.api.dto;
 
 /**
- * Issue #260: an assistant definition that cannot be saved or seeded, with every reason. #264: each
- * reason names its field ({@link #fieldProblems()}).
+ * A finding type an assistant definition may report (issue #264).
+ *
+ * @param type the finding type, e.g. {@code RULE_BROKEN}
+ * @param description what it means, shown to the model
+ * @param category {@code quality} (the default) or {@code extraction}
  */
-public class InvalidAssistantDefinitionException extends InvalidDefinitionException {
-	private static final long serialVersionUID = 1L;
-
-	public InvalidAssistantDefinitionException(String key, List<Problem> problems) {
-		super(key, problems);
-	}
+public record AssistantDefinitionVocabularyInput(String type, String description, String category) {
 }

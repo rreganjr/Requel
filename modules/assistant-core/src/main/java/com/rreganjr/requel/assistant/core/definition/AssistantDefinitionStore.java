@@ -45,6 +45,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rreganjr.requel.assistant.core.context.ContextProviderRegistry;
 import com.rreganjr.requel.assistant.core.persistence.AssistantDefinitionEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantDefinitionRepository;
+import com.rreganjr.requel.project.InvalidDefinitionException.Problem;
 import com.rreganjr.requel.project.ProjectAssistantDefinitions;
 
 /**
@@ -68,12 +69,35 @@ public class AssistantDefinitionStore implements ProjectAssistantDefinitions {
 	private final Clock clock;
 	private final Map<Long, List<AssistantDefinition>> cache = new ConcurrentHashMap<>();
 
+	/** Issue #264: the most definitions one project may own. */
+	static final int DEFAULT_MAX_PER_PROJECT = 50;
+
+	private int maxPerProject = DEFAULT_MAX_PER_PROJECT;
+	private ObjectProvider<com.rreganjr.requel.assistant.api.RequelAssistant<?>> beanAssistants;
+
 	@Autowired
 	public AssistantDefinitionStore(AssistantDefinitionRepository repository,
 			ObjectMapper objectMapper, Environment environment,
 			ObjectProvider<ContextProviderRegistry> providers) {
 		this(repository, objectMapper, new AssistantDefinitionValidator(maxInputTokens(environment),
 				providerIds(providers.getIfAvailable())), Clock.systemUTC());
+		this.maxPerProject = environment == null ? DEFAULT_MAX_PER_PROJECT
+				: Binder.get(environment).bind("requel.ai.definitions.max-per-project",
+						Integer.class).orElse(DEFAULT_MAX_PER_PROJECT);
+	}
+
+	/**
+	 * Issue #264: the bean assistants, whose ids a project definition can't take. Read lazily: some
+	 * of them are built from this store.
+	 */
+	@Autowired(required = false)
+	public void setBeanAssistants(
+			ObjectProvider<com.rreganjr.requel.assistant.api.RequelAssistant<?>> beanAssistants) {
+		this.beanAssistants = beanAssistants;
+	}
+
+	void setMaxPerProject(int maxPerProject) {
+		this.maxPerProject = maxPerProject;
 	}
 
 	/** #261: the registered provider ids, or the built-in set without a registry. */
@@ -115,6 +139,15 @@ public class AssistantDefinitionStore implements ProjectAssistantDefinitions {
 			}
 		}
 		return List.copyOf(matching);
+	}
+
+	/**
+	 * Issue #264: every definition {@code projectId} can see, any task type - bundled, overridden by
+	 * its own, then its own new ones. Cached.
+	 */
+	@Transactional(readOnly = true)
+	public List<AssistantDefinition> visible(Long projectId) {
+		return visibleTo(projectId);
 	}
 
 	/** The bundled definitions (cached), for the assistant toggles. */
@@ -219,6 +252,299 @@ public class AssistantDefinitionStore implements ProjectAssistantDefinitions {
 		int deleted = repository.deleteByProjectId(projectId);
 		evict(projectId);
 		return deleted;
+	}
+
+	// ---- #264: project authoring (ProjectAssistantDefinitions) --------------------------------
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<ProjectAssistantDefinitions.View> effective(Long projectId) {
+		Objects.requireNonNull(projectId, "projectId");
+		Map<String, AssistantDefinitionEntity> rows = new LinkedHashMap<>();
+		Map<String, AssistantDefinition> bundledByKey = new LinkedHashMap<>();
+		for (AssistantDefinitionEntity row : repository.findVisibleTo(projectId)) {
+			if (row.getProjectId() == null) {
+				bundledByKey.put(row.getDefinitionKey(), toDefinition(row));
+				rows.putIfAbsent(row.getDefinitionKey(), row);
+			} else {
+				rows.put(row.getDefinitionKey(), row);
+			}
+		}
+		List<AssistantDefinition> effective = new ArrayList<>();
+		for (AssistantDefinitionEntity row : rows.values()) {
+			effective.add(toDefinition(row));
+		}
+		List<ProjectAssistantDefinitions.View> views = new ArrayList<>();
+		for (AssistantDefinitionEntity row : rows.values()) {
+			AssistantDefinition definition = toDefinition(row);
+			views.add(view(definition, bundledByKey.get(definition.key()), row.getLockVersion(),
+					inEffectFor(definition, effective)));
+		}
+		views.sort(java.util.Comparator.comparing(ProjectAssistantDefinitions.View::taskType)
+				.thenComparing(ProjectAssistantDefinitions.View::key));
+		return List.copyOf(views);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public java.util.Optional<ProjectAssistantDefinitions.View> find(Long projectId, String key) {
+		return effective(projectId).stream().filter(v -> v.key().equals(key)).findFirst();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public java.util.Optional<ProjectAssistantDefinitions.View> bundled(String key) {
+		AssistantDefinitionEntity row = find(key, null);
+		if (row == null) {
+			return java.util.Optional.empty();
+		}
+		AssistantDefinition definition = toDefinition(row);
+		return java.util.Optional.of(view(definition, definition, 0, List.of()));
+	}
+
+	@Override
+	@Transactional
+	public ProjectAssistantDefinitions.View create(Long projectId,
+			ProjectAssistantDefinitions.Draft draft, String by) {
+		Objects.requireNonNull(projectId, "projectId");
+		List<Problem> problems = new ArrayList<>();
+		DefinitionKind kind = kind(draft.kind(), problems);
+		String key = draft.key() == null ? null : draft.key().strip();
+		AssistantDefinitionEntity bundledRow = key == null ? null : find(key, null);
+		if (bundledRow != null) {
+			problems.add(new Problem("key", "key " + key + " is a bundled definition's; customize"
+					+ " (fork) it instead"));
+		} else if (key != null && find(key, projectId) != null) {
+			problems.add(new Problem("key", "the project already has a definition " + key));
+		}
+		AssistantDefinition definition = fromDraft(key, kind, taskType(kind),
+				outputSchema(kind), outputSchemaVersion(kind), draft, 1, projectId, null, true);
+		problems.addAll(AssistantDefinitionValidator.projectProblems(definition, null, null,
+				reservedKeys(), projectCount(projectId), maxPerProject, draft.executorBean()));
+		return write(definition, null, problems, by);
+	}
+
+	@Override
+	@Transactional
+	public ProjectAssistantDefinitions.View edit(Long projectId, String key, int lockVersion,
+			ProjectAssistantDefinitions.Draft draft, String by) {
+		AssistantDefinitionEntity row = projectRow(projectId, key);
+		checkLock(row, lockVersion);
+		AssistantDefinition stored = toDefinition(row);
+		DefinitionKind kind = stored.kind();
+		List<Problem> problems = new ArrayList<>();
+		if (draft.kind() != null && !draft.kind().isBlank()) {
+			kind = kind(draft.kind(), problems);
+		}
+		AssistantDefinition definition = fromDraft(key, kind == null ? stored.kind() : kind,
+				stored.taskType(), stored.outputSchemaName(), stored.outputSchemaVersion(), draft,
+				stored.version() + 1, projectId, stored.forkedFromVersion(), stored.enabled());
+		problems.addAll(AssistantDefinitionValidator.projectProblems(definition, stored,
+				null, reservedKeys(), 0, maxPerProject, draft.executorBean()));
+		return write(definition, row, problems, by);
+	}
+
+	@Override
+	@Transactional
+	public ProjectAssistantDefinitions.View fork(Long projectId, String key, String by) {
+		Objects.requireNonNull(projectId, "projectId");
+		AssistantDefinitionEntity bundledRow = key == null ? null : find(key, null);
+		if (bundledRow == null) {
+			throw invalid(key, "key", "there is no bundled definition " + key);
+		}
+		if (find(key, projectId) != null) {
+			throw invalid(key, "key", "the project has already customized " + key);
+		}
+		AssistantDefinition bundled = toDefinition(bundledRow);
+		AssistantDefinition definition = new AssistantDefinition(bundled.key(),
+				bundled.displayName(), bundled.kind(), bundled.taskType(), bundled.scope(),
+				bundled.contextProviders(), bundled.instructions(), bundled.vocabulary(),
+				bundled.outputSchemaName(), bundled.outputSchemaVersion(), bundled.enabled(), 1,
+				DefinitionSource.PROJECT, projectId, bundled.version(), bundled.executorBean(),
+				bundled.contextBudgets(), bundled.localOnly());
+		List<Problem> problems = new ArrayList<>(AssistantDefinitionValidator.projectProblems(
+				definition, null, bundled, reservedKeys(), projectCount(projectId), maxPerProject,
+				null));
+		return write(definition, null, problems, by);
+	}
+
+	@Override
+	@Transactional
+	public void revert(Long projectId, String key, int lockVersion) {
+		AssistantDefinitionEntity row = projectRow(projectId, key);
+		if (find(key, null) == null) {
+			throw invalid(key, "key", key + " is the project's own definition; delete it instead");
+		}
+		checkLock(row, lockVersion);
+		repository.delete(row);
+		evict(projectId);
+	}
+
+	@Override
+	@Transactional
+	public void delete(Long projectId, String key, int lockVersion) {
+		AssistantDefinitionEntity row = projectRow(projectId, key);
+		if (find(key, null) != null) {
+			throw invalid(key, "key", key + " customizes a bundled definition; revert it instead");
+		}
+		checkLock(row, lockVersion);
+		repository.delete(row);
+		evict(projectId);
+	}
+
+	private ProjectAssistantDefinitions.View write(AssistantDefinition definition,
+			AssistantDefinitionEntity row, List<Problem> problems, String by) {
+		validator.validate(definition, neighbours(definition), problems);
+		AssistantDefinitionEntity entity = row;
+		if (entity == null) {
+			entity = new AssistantDefinitionEntity(definition.key(), definition.projectId(),
+					clock.instant());
+			entity.setCreatedBy(by);
+		}
+		copy(definition, entity);
+		entity.setUpdatedBy(by);
+		entity.setUpdatedAt(clock.instant());
+		AssistantDefinitionEntity saved = repository.saveAndFlush(entity);
+		evict(definition.projectId());
+		AssistantDefinitionEntity bundledRow = find(definition.key(), null);
+		return view(definition, bundledRow == null ? null : toDefinition(bundledRow),
+				saved.getLockVersion(), inEffectFor(definition, visibleTo(definition.projectId())));
+	}
+
+	private AssistantDefinitionEntity projectRow(Long projectId, String key) {
+		Objects.requireNonNull(projectId, "projectId");
+		AssistantDefinitionEntity row = key == null ? null : find(key, projectId);
+		if (row == null) {
+			throw invalid(key, "key", "the project has no definition " + key
+					+ (key != null && find(key, null) != null ? "; customize the bundled one first"
+							: ""));
+		}
+		return row;
+	}
+
+	private static void checkLock(AssistantDefinitionEntity row, int lockVersion) {
+		if (row.getLockVersion() != lockVersion) {
+			throw com.rreganjr.platform.exception.EntityLockException.staleEntity(
+					com.rreganjr.requel.project.AssistantDefinition.class, null,
+					com.rreganjr.platform.exception.EntityExceptionActionType.Updating);
+		}
+	}
+
+	private static InvalidAssistantDefinitionException invalid(String key, String field,
+			String message) {
+		return new InvalidAssistantDefinitionException(key, List.of(new Problem(field, message)));
+	}
+
+	private int projectCount(Long projectId) {
+		return (int) repository.countByProjectId(projectId);
+	}
+
+	private Set<String> reservedKeys() {
+		Set<String> keys = new java.util.HashSet<>();
+		if (beanAssistants != null) {
+			beanAssistants.forEach(assistant -> keys.add(assistant.assistantId()));
+		}
+		return keys;
+	}
+
+	private static DefinitionKind kind(String value, List<Problem> problems) {
+		try {
+			return DefinitionKind.valueOf(value == null ? "" : value.strip().toUpperCase(
+					java.util.Locale.ROOT));
+		} catch (IllegalArgumentException e) {
+			problems.add(new Problem("kind", "kind must be one of REVIEW, POLICY, CORPUS"));
+			return null;
+		}
+	}
+
+	/** The task type a new definition of {@code kind} serves. */
+	static String taskType(DefinitionKind kind) {
+		if (kind == DefinitionKind.POLICY) {
+			return AssistantDefinition.POLICY_REVIEW;
+		}
+		return kind == DefinitionKind.CORPUS ? AssistantDefinition.CORPUS_REVIEW
+				: REQUIREMENTS_REVIEW;
+	}
+
+	/** The review task (#255); a REVIEW definition serves it. */
+	static final String REQUIREMENTS_REVIEW = "REQUIREMENTS_REVIEW";
+
+	private static String outputSchema(DefinitionKind kind) {
+		if (kind == DefinitionKind.POLICY) {
+			return AssistantDefinition.POLICY_OUTPUT_SCHEMA;
+		}
+		return kind == DefinitionKind.CORPUS ? AssistantDefinition.CORPUS_OUTPUT_SCHEMA
+				: "RequirementsReviewOutput";
+	}
+
+	private static String outputSchemaVersion(DefinitionKind kind) {
+		return kind == DefinitionKind.REVIEW || kind == null ? "2" : "1";
+	}
+
+	private static AssistantDefinition fromDraft(String key, DefinitionKind kind, String taskType,
+			String schema, String schemaVersion, ProjectAssistantDefinitions.Draft draft,
+			int version, Long projectId, Integer forkedFromVersion, boolean enabled) {
+		List<VocabularyEntry> vocabulary = new ArrayList<>();
+		for (ProjectAssistantDefinitions.Vocabulary entry : draft.vocabulary()) {
+			// a missing entry becomes a typeless one, which validation reports
+			vocabulary.add(entry == null ? new VocabularyEntry(null, null, null)
+					: new VocabularyEntry(strip(entry.type()), strip(entry.description()),
+							strip(entry.category())));
+		}
+		return new AssistantDefinition(key, strip(draft.displayName()),
+				kind == null ? DefinitionKind.REVIEW : kind, taskType, draft.scope(),
+				draft.contextProviders(), draft.instructions(), vocabulary, schema, schemaVersion,
+				enabled, version, DefinitionSource.PROJECT, projectId, forkedFromVersion, null,
+				draft.contextBudgets(), draft.localOnly());
+	}
+
+	private static String strip(String value) {
+		return value == null ? null : value.strip();
+	}
+
+	/**
+	 * The entity types (or set kinds) {@code definition} covers among {@code effective}, the
+	 * definitions in effect in its project: a specific definition beats the fallback for its
+	 * types (as {@code SimpleAssistantRegistry} decides it), and a policy with an empty scope
+	 * covers every type.
+	 */
+	static List<String> inEffectFor(AssistantDefinition definition,
+			Collection<AssistantDefinition> effective) {
+		Set<String> types = definition.isCorpus() ? AssistantDefinition.CORPUS_SET_KINDS
+				: AssistantDefinitionValidator.REVIEWABLE_TYPES;
+		Set<String> covered = new java.util.TreeSet<>();
+		if (definition.isPolicy() || !definition.isFallback()) {
+			for (String type : types) {
+				if (definition.appliesTo(type)) {
+					covered.add(type);
+				}
+			}
+			return List.copyOf(covered);
+		}
+		covered.addAll(types);
+		for (AssistantDefinition other : effective) {
+			if (Objects.equals(other.taskType(), definition.taskType())) {
+				covered.removeAll(other.scope());
+			}
+		}
+		return List.copyOf(covered);
+	}
+
+	private static ProjectAssistantDefinitions.View view(AssistantDefinition definition,
+			AssistantDefinition bundled, int lockVersion, List<String> inEffectFor) {
+		List<ProjectAssistantDefinitions.Vocabulary> vocabulary = new ArrayList<>();
+		for (VocabularyEntry entry : definition.vocabulary()) {
+			vocabulary.add(new ProjectAssistantDefinitions.Vocabulary(entry.type(),
+					entry.description(), entry.category()));
+		}
+		boolean project = definition.source() == DefinitionSource.PROJECT;
+		return new ProjectAssistantDefinitions.View(definition.key(), definition.displayName(),
+				definition.kind().name(), definition.taskType(),
+				new java.util.TreeSet<>(definition.scope()), definition.contextProviders(),
+				definition.contextBudgets(), definition.instructions(), List.copyOf(vocabulary),
+				definition.localOnly(), definition.source().name(), definition.version(),
+				definition.forkedFromVersion(), bundled == null ? null : bundled.version(),
+				project ? lockVersion : 0, inEffectFor);
 	}
 
 	/** Drop every cached read. */

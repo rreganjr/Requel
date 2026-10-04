@@ -44,6 +44,9 @@ public interface AssistantDefinitionRepository
 
 	Optional<AssistantDefinitionEntity> findByDefinitionKeyAndProjectId(String key, Long projectId);
 
+	/** Issue #264: how many definitions the project owns. */
+	long countByProjectId(Long projectId);
+
 	/** The project's own definitions (never the bundled ones). */
 	@Modifying
 	@Query("delete from AssistantDefinitionEntity d where d.projectId = :projectId")

@@ -85,7 +85,8 @@ public class AssistantRunReadService {
 				run.getCompletedAt(), run.getLatencyMs(),
 				run.getErrorKind(), run.getErrorSummary(), run.getResultSummary(),
 				run.getRedactionCount(), List.copyOf(findings), run.getEvidenceUnverified(),
-				run.getTemplateId(), run.getTemplateVersion(), run.getVocabularyMisses());
+				run.getTemplateId(), run.getTemplateVersion(), run.getVocabularyMisses(),
+				run.getTemplateSource());
 	}
 
 	/**
@@ -120,7 +121,18 @@ public class AssistantRunReadService {
 			Instant completedAt, Long latencyMs, String errorKind,
 			String errorSummary, String resultSummary, int redactionCount,
 			List<FindingView> findings, int evidenceUnverified, String definitionKeys,
-			String definitionVersions, int vocabularyMisses) {
+			String definitionVersions, int vocabularyMisses, String definitionSources) {
+
+		/** Without the definition sources (callers before #264). */
+		public RunView(String runId, String assistantId, String status, Instant createdAt,
+				Instant completedAt, Long latencyMs, String errorKind, String errorSummary,
+				String resultSummary, int redactionCount, List<FindingView> findings,
+				int evidenceUnverified, String definitionKeys, String definitionVersions,
+				int vocabularyMisses) {
+			this(runId, assistantId, status, createdAt, completedAt, latencyMs, errorKind,
+					errorSummary, resultSummary, redactionCount, findings, evidenceUnverified,
+					definitionKeys, definitionVersions, vocabularyMisses, null);
+		}
 	}
 
 	/** One finding a run reported. {@code text} is the issue or note text, up to 500 characters. */

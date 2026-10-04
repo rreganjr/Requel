@@ -308,10 +308,27 @@ public class AnnotationCommandRegistrar {
                 positions,
                 issue.getSource(),
                 stale,
-                AnnotationSources.name(issue.getSource()),
-                AnnotationSources.kind(issue.getSource()),
+                AnnotationSources.name(issue.getSource(), projectId(issue)),
+                AnnotationSources.kind(issue.getSource(), projectId(issue)),
                 subjects(issue)
         );
+    }
+
+    /**
+     * #264: the project an annotation belongs to, from the first entity it is on, so a project's
+     * own definitions label its issues. Null when it is on no project entity.
+     */
+    static Long projectId(com.rreganjr.requel.annotation.Annotation annotation) {
+        if (annotation.getAnnotatables() == null) {
+            return null;
+        }
+        for (Annotatable annotatable : annotation.getAnnotatables()) {
+            if (annotatable instanceof ProjectOrDomainEntity entity
+                    && entity.getProjectOrDomain() instanceof com.rreganjr.requel.project.Project project) {
+                return project.getId();
+            }
+        }
+        return null;
     }
 
     /** #266: the entities an annotation is on, when there is more than one. */

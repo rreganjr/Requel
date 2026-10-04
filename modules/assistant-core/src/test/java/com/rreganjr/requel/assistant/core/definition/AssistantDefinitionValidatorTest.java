@@ -174,6 +174,46 @@ class AssistantDefinitionValidatorTest {
 				.hasMessageContaining("scope [PROJECT] collides with definition c4");
 	}
 
+	/** #264: every problem names its field, so the API can report it against the control. */
+	@Test
+	void eachProblemNamesItsField() {
+		AssistantDefinition bad = new AssistantDefinition("", " ", DefinitionKind.REVIEW, TASK_X,
+				Set.of("Planet"), List.of(), "", List.of(), "Free", "9", true, 1,
+				DefinitionSource.PROJECT, null, null, null);
+
+		InvalidAssistantDefinitionException e = (InvalidAssistantDefinitionException)
+				org.assertj.core.api.Assertions.catchThrowable(() -> validator.validate(bad,
+						List.of()));
+
+		assertThat(e.fieldProblems()).extracting(
+				com.rreganjr.requel.project.InvalidDefinitionException.Problem::field)
+				.contains("key", "displayName", "scope", "contextProviders", "vocabulary",
+						"outputSchema", "instructions", "projectId");
+		assertThat(e.problems()).hasSameSizeAs(e.fieldProblems());
+	}
+
+	/** #264: a project author can't change what a definition is, nor name a bean. */
+	@Test
+	void aProjectEditKeepsItsKindTaskAndSchema() {
+		AssistantDefinition stored = project(review("goals", Set.of("Goal")), 5L);
+		AssistantDefinition changed = new AssistantDefinition("goals", "Goals",
+				DefinitionKind.POLICY, AssistantDefinition.POLICY_REVIEW, Set.of("Goal"),
+				List.of("entity"), "x", stored.vocabulary(), AssistantDefinition.POLICY_OUTPUT_SCHEMA,
+				"1", true, 2, DefinitionSource.PROJECT, 5L, null, "someBean");
+
+		assertThat(AssistantDefinitionValidator.projectProblems(changed, stored, null, Set.of(),
+				0, 50, null)).extracting(
+						com.rreganjr.requel.project.InvalidDefinitionException.Problem::field)
+				.containsExactly("executorBean", "kind", "taskType", "outputSchema");
+		assertThat(AssistantDefinitionValidator.projectProblems(stored, stored, null, Set.of(), 0,
+				50, null)).isEmpty();
+		assertThat(AssistantDefinitionValidator.PROJECT_KEY.matcher("house-style").matches())
+				.isTrue();
+		assertThat(AssistantDefinitionValidator.PROJECT_KEY.matcher("-x").matches()).isFalse();
+	}
+
+	private static final String TASK_X = "REQUIREMENTS_REVIEW";
+
 	private static AssistantDefinition corpus(String key, Set<String> scope,
 			List<String> providers) {
 		AssistantDefinition f = fallback("x");

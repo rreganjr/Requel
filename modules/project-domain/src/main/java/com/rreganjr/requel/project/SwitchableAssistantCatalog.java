@@ -67,4 +67,29 @@ public interface SwitchableAssistantCatalog {
 	default Optional<SwitchableAssistant> describe(String assistantId) {
 		return find(assistantId);
 	}
+
+	/**
+	 * Issue #264: the switchable assistants of {@code projectId}, its own definitions included (a
+	 * fork shows under its own name). Without a project, the install-wide list.
+	 */
+	default List<SwitchableAssistant> switchableAssistants(Long projectId) {
+		return switchableAssistants();
+	}
+
+	/** Issue #264: {@link #find(String)} among {@code projectId}'s switchable assistants. */
+	default Optional<SwitchableAssistant> find(String assistantId, Long projectId) {
+		return switchableAssistants(projectId).stream()
+				.filter(assistant -> assistant.assistantId().equals(assistantId)).findFirst();
+	}
+
+	/** Issue #264: {@link #describe(String)}, the project's own definitions included. */
+	default Optional<SwitchableAssistant> describe(String assistantId, Long projectId) {
+		if (projectId != null) {
+			Optional<SwitchableAssistant> own = find(assistantId, projectId);
+			if (own.isPresent()) {
+				return own;
+			}
+		}
+		return describe(assistantId);
+	}
 }

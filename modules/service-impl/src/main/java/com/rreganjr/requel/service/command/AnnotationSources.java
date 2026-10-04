@@ -53,13 +53,26 @@ public class AnnotationSources {
 
 	/** The display name of the assistant behind {@code source}, or null. */
 	public static String name(String source) {
-		SwitchableAssistant assistant = lookup(source);
+		return name(source, null);
+	}
+
+	/**
+	 * Issue #264: as {@link #name(String)}, reading {@code projectId}'s own definitions too, so an
+	 * issue a project's definition raised shows its name.
+	 */
+	public static String name(String source, Long projectId) {
+		SwitchableAssistant assistant = lookup(source, projectId);
 		return assistant == null ? null : assistant.displayName();
 	}
 
 	/** POLICY, REVIEW, CORPUS or LEXICAL for an assistant's {@code source}, or null. */
 	public static String kind(String source) {
-		SwitchableAssistant assistant = lookup(source);
+		return kind(source, null);
+	}
+
+	/** Issue #264: as {@link #kind(String)}, reading {@code projectId}'s own definitions too. */
+	public static String kind(String source, Long projectId) {
+		SwitchableAssistant assistant = lookup(source, projectId);
 		if (assistant == null) {
 			return null;
 		}
@@ -72,7 +85,7 @@ public class AnnotationSources {
 		return SwitchableAssistantCatalog.AI_REVIEW.equals(assistant.group()) ? REVIEW : LEXICAL;
 	}
 
-	private static SwitchableAssistant lookup(String source) {
+	private static SwitchableAssistant lookup(String source, Long projectId) {
 		ObjectProvider<SwitchableAssistantCatalog> provider = catalog;
 		if (source == null || !source.startsWith(ASSISTANT_PREFIX) || provider == null) {
 			return null;
@@ -83,7 +96,7 @@ public class AnnotationSources {
 			if (found == null) {
 				return null;
 			}
-			return found.describe(id).orElse(null);
+			return found.describe(id, projectId).orElse(null);
 		} catch (RuntimeException e) {
 			return null;
 		}

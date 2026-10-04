@@ -246,15 +246,26 @@ public class SimpleAssistantRegistry implements AssistantRegistry, SwitchableAss
 
 	@Override
 	public List<SwitchableAssistant> switchableAssistants() {
+		return switchableAssistants(null);
+	}
+
+	/**
+	 * The switchable bean assistants, then the enabled definitions when they can run (#260): the
+	 * bundled ones, or with a project, the ones it sees - its forks under their own names and its
+	 * own new ones (#264).
+	 */
+	@Override
+	public List<SwitchableAssistant> switchableAssistants(Long projectId) {
 		List<SwitchableAssistant> switchable = new ArrayList<>();
 		for (RequelAssistant<?> assistant : assistants) {
 			if (assistant.projectSwitchable()) {
 				switchable.add(describe(assistant));
 			}
 		}
-		// Issue #260: the enabled bundled definitions, when they can run.
 		if (definitionStore != null && executorFactory != null) {
-			for (AssistantDefinition definition : definitionStore.bundled()) {
+			List<AssistantDefinition> definitions = projectId == null ? definitionStore.bundled()
+					: definitionStore.visible(projectId);
+			for (AssistantDefinition definition : definitions) {
 				if (definition.enabled()) {
 					switchable.add(new SwitchableAssistant(definition.key(),
 							definition.displayName(), definition.isPolicy()

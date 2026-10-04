@@ -28,6 +28,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 /**
  * Issue #260: JPA mapping for the {@code assistant_definitions} table (V31). Scope, context
@@ -98,6 +99,11 @@ public class AssistantDefinitionEntity {
 
 	@Column(name = "executor_bean", length = 200)
 	private String executorBean;
+
+	/** Issue #264: optimistic lock for project authoring; not the content version. */
+	@Version
+	@Column(name = "lock_version", nullable = false)
+	private int lockVersion;
 
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
@@ -183,6 +189,10 @@ public class AssistantDefinitionEntity {
 
 	public void setLocalOnly(boolean localOnly) {
 		this.localOnly = localOnly;
+	}
+
+	public int getLockVersion() {
+		return lockVersion;
 	}
 
 	public String getInstructions() {

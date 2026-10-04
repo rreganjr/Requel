@@ -249,6 +249,34 @@ class DefinitionRegistryTest {
 		assertThat(beans.describe("nobody")).isEmpty();
 	}
 
+	/** #264: a project's switch list has its forks under their own names and its own definitions. */
+	@Test
+	void aProjectSeesItsOwnDefinitionsInTheSwitchList() {
+		AssistantDefinition bundledGoals = definition("goals", Set.of("Goal"));
+		AssistantDefinition fork = new AssistantDefinition("goals", "Our goals",
+				DefinitionKind.REVIEW, TASK, Set.of("Goal"), List.of("entity"), "x",
+				List.of(new VocabularyEntry("A", "a")), "RequirementsReviewOutput", "1", true, 2,
+				DefinitionSource.PROJECT, 1L, 1, null);
+		AssistantDefinition own = new AssistantDefinition("house-style", "House style",
+				DefinitionKind.POLICY, AssistantDefinition.POLICY_REVIEW, Set.of(),
+				List.of("entity"), "x", List.of(new VocabularyEntry("A", "a")),
+				AssistantDefinition.POLICY_OUTPUT_SCHEMA, "1", true, 1, DefinitionSource.PROJECT,
+				1L, null, null);
+		when(store.bundled()).thenReturn(List.of(bundledGoals));
+		when(store.visible(1L)).thenReturn(List.of(fork, own));
+
+		assertThat(registry.switchableAssistants(1L)).extracting(s -> s.assistantId() + ":"
+				+ s.displayName() + ":" + s.group()).containsExactly("goals:Our goals:AI review",
+						"house-style:House style:Policies");
+		assertThat(registry.switchableAssistants()).extracting(s -> s.displayName())
+				.containsExactly("goals");
+		assertThat(registry.find("house-style", 1L)).isPresent();
+		assertThat(registry.find("house-style", 2L)).isEmpty();
+		assertThat(registry.describe("house-style", 1L)).map(s -> s.group())
+				.contains(SwitchableAssistantCatalog.POLICIES);
+		assertThat(registry.describe("goals", null)).map(s -> s.displayName()).contains("goals");
+	}
+
 	private static CorpusFinderAssistant finder() {
 		@SuppressWarnings("unchecked")
 		ObjectProvider<WordRelations> none = mock(ObjectProvider.class);
