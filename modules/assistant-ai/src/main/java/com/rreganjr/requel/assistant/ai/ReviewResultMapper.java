@@ -81,6 +81,9 @@ public final class ReviewResultMapper {
 	/** #265: draft metadata key for the policy output's {@code policyKey}. */
 	public static final String POLICY_KEY = "policyKey";
 
+	/** #266: a corpus finding's participants, {@code Type:id}, in the draft's metadata. */
+	public static final String PARTICIPANTS = "participants";
+
 	/** Requel-side validation of the structured output, whichever client produced it. */
 	public static void validate(ReviewResult result) throws AiAnalysisException {
 		if (result == null) {
@@ -161,6 +164,15 @@ public final class ReviewResultMapper {
 		if (finding.policyKey() != null && !finding.policyKey().isBlank()) {
 			metadata.put(POLICY_KEY, finding.policyKey().strip());
 		}
+		if (finding.participants() != null && !finding.participants().isEmpty()) {
+			List<String> participants = new ArrayList<String>();
+			for (String participant : finding.participants()) {
+				if (participant != null && !participant.isBlank()) {
+					participants.add(participant.strip());
+				}
+			}
+			metadata.put(PARTICIPANTS, List.copyOf(participants));
+		}
 		return Map.copyOf(metadata);
 	}
 
@@ -190,7 +202,19 @@ public final class ReviewResultMapper {
 				List<String> evidenceReferences, String suggestedIssueText, String suggestedNoteText,
 				List<String> suggestedPositions, String suggestedEntityName,
 				@com.fasterxml.jackson.annotation.JsonInclude(
-						com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String policyKey) {
+						com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String policyKey,
+				@com.fasterxml.jackson.annotation.JsonInclude(
+						com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+				List<String> participants) {
+
+			/** Policy schema v1: no {@code participants} (#266). */
+			public Finding(String findingType, String severity, Double confidence,
+					List<String> evidenceReferences, String suggestedIssueText,
+					String suggestedNoteText, List<String> suggestedPositions,
+					String suggestedEntityName, String policyKey) {
+				this(findingType, severity, confidence, evidenceReferences, suggestedIssueText,
+						suggestedNoteText, suggestedPositions, suggestedEntityName, policyKey, null);
+			}
 
 			/** Review schema v2: no {@code policyKey} (#265). */
 			public Finding(String findingType, String severity, Double confidence,
@@ -198,7 +222,7 @@ public final class ReviewResultMapper {
 					String suggestedNoteText, List<String> suggestedPositions,
 					String suggestedEntityName) {
 				this(findingType, severity, confidence, evidenceReferences, suggestedIssueText,
-						suggestedNoteText, suggestedPositions, suggestedEntityName, null);
+						suggestedNoteText, suggestedPositions, suggestedEntityName, null, null);
 			}
 
 			/** Schema v1 has no {@code suggestedEntityName}. */
@@ -206,7 +230,7 @@ public final class ReviewResultMapper {
 					List<String> evidenceReferences, String suggestedIssueText,
 					String suggestedNoteText, List<String> suggestedPositions) {
 				this(findingType, severity, confidence, evidenceReferences, suggestedIssueText,
-						suggestedNoteText, suggestedPositions, null, null);
+						suggestedNoteText, suggestedPositions, null, null, null);
 			}
 		}
 	}

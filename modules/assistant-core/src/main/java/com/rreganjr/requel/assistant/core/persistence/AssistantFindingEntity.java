@@ -104,6 +104,13 @@ public class AssistantFindingEntity {
 	@Column(name = "target_fingerprint", length = 64)
 	private String targetFingerprint;
 
+	/**
+	 * Issue #266: one of several rows for a finding about a relationship (a corpus finding). The
+	 * annotation is stale on every participant when any one of them changed.
+	 */
+	@Column(name = "stale_together", nullable = false)
+	private boolean staleTogether;
+
 	protected AssistantFindingEntity() {
 		// for JPA
 	}
@@ -254,5 +261,13 @@ public class AssistantFindingEntity {
 
 	public void setTargetFingerprint(String targetFingerprint) {
 		this.targetFingerprint = targetFingerprint;
+	}
+
+	public boolean isStaleTogether() {
+		return staleTogether;
+	}
+
+	public void setStaleTogether(boolean staleTogether) {
+		this.staleTogether = staleTogether;
 	}
 }

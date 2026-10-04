@@ -30,6 +30,7 @@ import { SubmitErrorComponent } from '../../shared/app-submit-error';
 import { ProjectService } from '../../core/project.service';
 import { PermissionService } from '../../core/permission.service';
 import { ProjectDto } from '../../models/project';
+import { ProjectCorpusPanelComponent } from './project-corpus-panel';
 import { projectApiUrl } from '../../core/api-url';
 import { DeleteProjectDialogComponent, DeleteProjectTarget } from './delete-project-dialog';
 import { ProjectAssistantsPanelComponent } from './project-assistants-panel';
@@ -61,7 +62,7 @@ interface NextAction {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-project-workspace',
   standalone: true,
-  imports: [RouterLink, ButtonModule, BadgeModule, PageHeaderComponent, SubmitErrorComponent, DeleteProjectDialogComponent,
+  imports: [RouterLink, ProjectCorpusPanelComponent, ButtonModule, BadgeModule, PageHeaderComponent, SubmitErrorComponent, DeleteProjectDialogComponent,
     ProjectAssistantsPanelComponent, ProjectReferencesComponent],
   template: `
     <div class="project-workspace" data-testid="project-workspace">
@@ -132,6 +133,11 @@ interface NextAction {
 
           <app-project-assistants-panel [projectName]="projectName" [canEdit]="canEditProject()"
                                         [canAnalyze]="canAnalyze()" />
+
+          @if (project()?.id; as id) {
+            <app-project-corpus-panel [projectName]="projectName" [projectId]="id"
+                                      [canAnalyze]="canAnalyze()" />
+          }
         </div>
 
         <app-project-references [projectName]="projectName" />

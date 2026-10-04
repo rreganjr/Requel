@@ -38,6 +38,9 @@ public interface SwitchableAssistantCatalog {
 	/** #265: cross-cutting policy definitions. */
 	String POLICIES = "Policies";
 
+	/** #266: corpus runs, findings about relationships between entities. */
+	String CORPUS = "Corpus analysis";
+
 	/**
 	 * An assistant a project can switch off. {@code group} is the heading its switch shows
 	 * under (#263).
@@ -55,5 +58,13 @@ public interface SwitchableAssistantCatalog {
 	default Optional<SwitchableAssistant> find(String assistantId) {
 		return switchableAssistants().stream()
 				.filter(assistant -> assistant.assistantId().equals(assistantId)).findFirst();
+	}
+
+	/**
+	 * Issue #266: the name and group of any known assistant, switchable or not (an annotation's
+	 * source label needs the corpus finder, which a project can't switch off).
+	 */
+	default Optional<SwitchableAssistant> describe(String assistantId) {
+		return find(assistantId);
 	}
 }

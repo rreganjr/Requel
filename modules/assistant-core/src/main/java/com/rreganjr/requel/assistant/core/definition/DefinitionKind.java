@@ -28,5 +28,7 @@ public enum DefinitionKind {
 	/** Reviews one entity and raises findings on it. */
 	REVIEW,
 	/** A cross-cutting check composed into other definitions (#265). */
-	POLICY
+	POLICY,
+	/** Findings about relationships between the entities of a set (#266). */
+	CORPUS
 }

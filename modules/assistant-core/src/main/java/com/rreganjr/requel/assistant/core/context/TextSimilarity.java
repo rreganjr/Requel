@@ -99,11 +99,26 @@ public final class TextSimilarity {
 		return result;
 	}
 
-	/** The stemmed, glossary-folded tokens of {@code text}, with counts. */
-	Map<String, Integer> terms(String text, PorterStemmer stemmer) {
-		Map<String, Integer> counts = new HashMap<>();
+	/**
+	 * One token of a text: the surface word as written (lower case) and the term it counts as,
+	 * either its Porter stem or {@code gt:<token>} for a glossary phrase (#266).
+	 */
+	public record Token(String surface, String term) {
+
+		/** True for a glossary phrase token. */
+		public boolean isGlossary() {
+			return term.startsWith("gt:");
+		}
+	}
+
+	/**
+	 * The glossary-folded, stemmed tokens of {@code text} in order, stop words and one-letter
+	 * words removed (#266). Glossary phrases come first, then the remaining words.
+	 */
+	public List<Token> tokens(String text, PorterStemmer stemmer) {
+		List<Token> tokens = new ArrayList<>();
 		if (text == null || text.isBlank()) {
-			return counts;
+			return tokens;
 		}
 		String folded = " " + text.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{Nd}]+", " ")
 				+ " ";
@@ -114,17 +129,31 @@ public final class TextSimilarity {
 			}
 			int at = folded.indexOf(needle);
 			while (at >= 0) {
-				counts.merge("gt:" + phrase.getValue(), 1, Integer::sum);
+				tokens.add(new Token(needle.strip(), "gt:" + phrase.getValue()));
 				folded = folded.substring(0, at) + " " + folded.substring(at + needle.length() - 1);
 				at = folded.indexOf(needle);
 			}
 		}
 		for (String word : folded.trim().split("\\s+")) {
-			if (word.isEmpty() || STOP_WORDS.contains(word)
-					|| word.length() < 2 && !Character.isDigit(word.charAt(0))) {
+			if (isStopWord(word)) {
 				continue;
 			}
-			counts.merge(stemmer.stem(word), 1, Integer::sum);
+			tokens.add(new Token(word, stemmer.stem(word)));
+		}
+		return tokens;
+	}
+
+	/** True for a word the similarity ignores: empty, a stop word, or one letter (#266). */
+	public static boolean isStopWord(String word) {
+		return word.isEmpty() || STOP_WORDS.contains(word)
+				|| word.length() < 2 && !Character.isDigit(word.charAt(0));
+	}
+
+	/** The stemmed, glossary-folded tokens of {@code text}, with counts. */
+	Map<String, Integer> terms(String text, PorterStemmer stemmer) {
+		Map<String, Integer> counts = new HashMap<>();
+		for (Token token : tokens(text, stemmer)) {
+			counts.merge(token.term(), 1, Integer::sum);
 		}
 		return counts;
 	}

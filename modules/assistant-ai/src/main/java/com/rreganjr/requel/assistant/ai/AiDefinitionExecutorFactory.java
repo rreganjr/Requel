@@ -68,6 +68,12 @@ public class AiDefinitionExecutorFactory implements DefinitionExecutorFactory {
 	AiProviderLocality providerLocality;
 	/** #263: the other definitions of a task, whose findings a review retires; none when absent. */
 	AssistantDefinitionStore definitionStore;
+	/** #266: builds a corpus analysis's pack; corpus definitions can't run without it. */
+	com.rreganjr.requel.assistant.core.corpus.CorpusPackBuilder corpusPackBuilder;
+	/** #266: dictionary relations for the finder; none when the NLP module is off. */
+	org.springframework.beans.factory.ObjectProvider<com.rreganjr.requel.assistant.core.corpus.WordRelations> wordRelations;
+	/** #266: the finder's agreed settings (conflict threshold, synonym weight). */
+	com.rreganjr.requel.assistant.core.corpus.CorpusFinderAssistant corpusFinder;
 
 	@Autowired
 	public AiDefinitionExecutorFactory(AiAnalysisClient aiAnalysisClient,
@@ -109,6 +115,29 @@ public class AiDefinitionExecutorFactory implements DefinitionExecutorFactory {
 		this.definitionStore = definitionStore;
 	}
 
+	@Autowired(required = false)
+	public void setCorpus(com.rreganjr.requel.assistant.core.corpus.CorpusPackBuilder corpusPackBuilder,
+			org.springframework.beans.factory.ObjectProvider<com.rreganjr.requel.assistant.core.corpus.WordRelations> wordRelations,
+			com.rreganjr.requel.assistant.core.corpus.CorpusFinderAssistant corpusFinder) {
+		this.corpusPackBuilder = corpusPackBuilder;
+		this.wordRelations = wordRelations;
+		this.corpusFinder = corpusFinder;
+	}
+
+	/** #266: the dictionary's word relations, or none. */
+	com.rreganjr.requel.assistant.core.corpus.WordRelations wordRelations() {
+		return wordRelations == null ? com.rreganjr.requel.assistant.core.corpus.WordRelations.NONE
+				: wordRelations.getIfAvailable(
+						() -> com.rreganjr.requel.assistant.core.corpus.WordRelations.NONE);
+	}
+
+	/** #266: the finder's settings, or the checkpoint defaults. */
+	com.rreganjr.requel.assistant.core.corpus.CorpusCandidateFinder.Settings corpusFinderSettings() {
+		return corpusFinder == null
+				? com.rreganjr.requel.assistant.core.corpus.CorpusCandidateFinder.Settings.DEFAULTS
+				: corpusFinder.settings();
+	}
+
 	/**
 	 * Confirms at startup that AI review is active, with the provider and model (never the key),
 	 * so the wiring can be checked from the boot log.
@@ -123,6 +152,9 @@ public class AiDefinitionExecutorFactory implements DefinitionExecutorFactory {
 
 	@Override
 	public RequelAssistant<?> executorFor(AssistantDefinition definition) {
+		if (definition.isCorpus()) {
+			return new CorpusAnalysisAssistant(definition, this);
+		}
 		return new DefinitionExecutorAssistant(definition, this);
 	}
 

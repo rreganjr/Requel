@@ -41,6 +41,8 @@ public class AnnotationSources {
 	public static final String POLICY = "POLICY";
 	public static final String REVIEW = "REVIEW";
 	public static final String LEXICAL = "LEXICAL";
+	/** #266: a relationship finding from a corpus run. */
+	public static final String CORPUS = "CORPUS";
 
 	private static volatile ObjectProvider<SwitchableAssistantCatalog> catalog;
 
@@ -55,7 +57,7 @@ public class AnnotationSources {
 		return assistant == null ? null : assistant.displayName();
 	}
 
-	/** POLICY, REVIEW or LEXICAL for an assistant's {@code source}, or null. */
+	/** POLICY, REVIEW, CORPUS or LEXICAL for an assistant's {@code source}, or null. */
 	public static String kind(String source) {
 		SwitchableAssistant assistant = lookup(source);
 		if (assistant == null) {
@@ -63,6 +65,9 @@ public class AnnotationSources {
 		}
 		if (SwitchableAssistantCatalog.POLICIES.equals(assistant.group())) {
 			return POLICY;
+		}
+		if (SwitchableAssistantCatalog.CORPUS.equals(assistant.group())) {
+			return CORPUS;
 		}
 		return SwitchableAssistantCatalog.AI_REVIEW.equals(assistant.group()) ? REVIEW : LEXICAL;
 	}
@@ -78,14 +83,9 @@ public class AnnotationSources {
 			if (found == null) {
 				return null;
 			}
-			for (SwitchableAssistant assistant : found.switchableAssistants()) {
-				if (assistant.assistantId().equals(id)) {
-					return assistant;
-				}
-			}
+			return found.describe(id).orElse(null);
 		} catch (RuntimeException e) {
 			return null;
 		}
-		return null;
 	}
 }

@@ -136,7 +136,7 @@ public class GoalSiblingsProvider extends AbstractContextProvider {
 	}
 
 	/** Each glossary term and its alternate names to the canonical term's name. */
-	static Map<String, String> glossaryTokens(ProjectOrDomain project) {
+	public static Map<String, String> glossaryTokens(ProjectOrDomain project) {
 		Map<String, String> tokens = new HashMap<>();
 		for (GlossaryTerm term : project.getGlossaryTerms()) {
 			GlossaryTerm canonical = term.getCanonicalTerm() != null ? term.getCanonicalTerm()

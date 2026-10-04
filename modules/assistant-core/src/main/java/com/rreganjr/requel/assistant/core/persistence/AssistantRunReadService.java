@@ -60,18 +60,26 @@ public class AssistantRunReadService {
 		return runRepository
 				.findFirstByTargetTypeAndTargetIdAndTaskTypeOrderByCreatedAtDescIdDesc(targetType,
 						targetId, taskType)
-				.map(run -> toView(run, targetType, targetId));
+				.map(run -> toView(run, targetType, targetId, taskType.startsWith("CORPUS")));
 	}
 
-	private RunView toView(AssistantRunEntity run, String targetType, Long targetId) {
+	/**
+	 * @param anyTarget #266: a corpus run's findings are on its participants, not its root, so
+	 *        every finding the run reported is listed
+	 */
+	private RunView toView(AssistantRunEntity run, String targetType, Long targetId,
+			boolean anyTarget) {
 		List<FindingView> findings = new ArrayList<FindingView>();
-		for (AssistantFindingEntity finding : findingRepository
-				.findByLastSeenRunIdAndTargetTypeAndTargetIdOrderByCreatedAtAscIdAsc(run.getId(),
-						targetType, targetId)) {
+		List<AssistantFindingEntity> rows = anyTarget
+				? findingRepository.findByLastSeenRunIdOrderByCreatedAtAscIdAsc(run.getId())
+				: findingRepository.findByLastSeenRunIdAndTargetTypeAndTargetIdOrderByCreatedAtAscIdAsc(
+						run.getId(), targetType, targetId);
+		for (AssistantFindingEntity finding : rows) {
 			findings.add(new FindingView(finding.getId(), finding.getFindingType(),
 					kindOf(finding.getIdempotencyKey()), finding.getSeverity(),
 					confidence(finding.getConfidence()), finding.getSummary(), finding.getState(),
-					finding.getAppliedAnnotationId()));
+					finding.getAppliedAnnotationId(), finding.getTargetType(),
+					finding.getTargetId()));
 		}
 		return new RunView(run.getId(), run.getAssistantId(), run.getStatus(), run.getCreatedAt(),
 				run.getCompletedAt(), run.getLatencyMs(),
@@ -117,6 +125,7 @@ public class AssistantRunReadService {
 
 	/** One finding a run reported. {@code text} is the issue or note text, up to 500 characters. */
 	public record FindingView(String findingId, String findingType, String kind, String severity,
-			Double confidence, String text, String state, Long annotationId) {
+			Double confidence, String text, String state, Long annotationId, String targetType,
+			Long targetId) {
 	}
 }

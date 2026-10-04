@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -40,6 +41,8 @@ import org.junit.jupiter.api.Test;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.Issue;
 import com.rreganjr.requel.annotation.spi.AnnotationFreshness.StaleAnnotations;
+import com.rreganjr.requel.assistant.api.EntityRef;
+import com.rreganjr.requel.assistant.core.AssistantTargetLoader;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingEntity;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingRepository;
 import com.rreganjr.requel.assistant.core.persistence.AssistantFindingState;
@@ -155,7 +158,63 @@ class FindingFreshnessTest {
 		assertThat(freshness.staleAnnotations(List.of(goal)).isStale(other, issue)).isFalse();
 	}
 
-	private void finding(String type, Long targetId, Long annotationId,
+	@Test
+	void aRelationshipIsStaleOnEveryParticipantWhenOneChanged() {
+		// #266: one corpus issue on two goals; only the first changed, both read stale
+		Issue shared = issue(99L);
+		Goal changed = goal(1L, "Login", "Users sign in.", shared);
+		Goal unchanged = goal(2L, "Logout", "Users log out.", shared);
+		together(finding("Goal", 1L, 99L, AssistantFindingState.ACTIVE,
+				TargetFingerprint.of("Login", "Users log in.")));
+		together(finding("Goal", 2L, 99L, AssistantFindingState.ACTIVE,
+				TargetFingerprint.of("Logout", "Users log out.")));
+
+		StaleAnnotations stale = freshness.staleAnnotations(List.of(changed, unchanged));
+
+		assertThat(stale.isStale(changed, shared)).isTrue();
+		assertThat(stale.isStale(unchanged, shared)).isTrue();
+	}
+
+	@Test
+	void aRelationshipLoadsAParticipantTheReadDidNotAskAbout() {
+		// #266: reading only the unchanged goal still finds the other side changed
+		Issue shared = issue(99L);
+		Goal unchanged = goal(2L, "Logout", "Users log out.", shared);
+		Goal changed = goal(1L, "Login", "Users sign in.", shared);
+		AssistantTargetLoader loader = mock(AssistantTargetLoader.class);
+		when(loader.supports(EntityRef.of("Goal", 1L))).thenReturn(true);
+		when(loader.loadTarget(EntityRef.of("Goal", 1L))).thenReturn(Optional.of(changed));
+		freshness.setTargetLoaders(List.of(loader));
+		together(finding("Goal", 1L, 99L, AssistantFindingState.ACTIVE,
+				TargetFingerprint.of("Login", "Users log in.")));
+		together(finding("Goal", 2L, 99L, AssistantFindingState.ACTIVE,
+				TargetFingerprint.of("Logout", "Users log out.")));
+
+		assertThat(freshness.staleAnnotations(List.of(unchanged)).isStale(unchanged, shared))
+				.isTrue();
+	}
+
+	@Test
+	void aRelationshipWithEveryParticipantUnchangedIsFresh() {
+		Issue shared = issue(99L);
+		Goal a = goal(1L, "Login", "Users log in.", shared);
+		Goal b = goal(2L, "Logout", "Users log out.", shared);
+		together(finding("Goal", 1L, 99L, AssistantFindingState.ACTIVE,
+				TargetFingerprint.of("Login", "Users log in.")));
+		together(finding("Goal", 2L, 99L, AssistantFindingState.ACTIVE,
+				TargetFingerprint.of("Logout", "Users log out.")));
+
+		StaleAnnotations stale = freshness.staleAnnotations(List.of(a, b));
+
+		assertThat(stale.isStale(a, shared)).isFalse();
+		assertThat(stale.isStale(b, shared)).isFalse();
+	}
+
+	private static void together(AssistantFindingEntity finding) {
+		finding.setStaleTogether(true);
+	}
+
+	private AssistantFindingEntity finding(String type, Long targetId, Long annotationId,
 			AssistantFindingState state, String fingerprint) {
 		AssistantFindingEntity finding = new AssistantFindingEntity(UUID.randomUUID(),
 				"k:" + UUID.randomUUID(), "ai-review", type, targetId, "AMBIGUOUS", state.name(),
@@ -163,6 +222,7 @@ class FindingFreshnessTest {
 		finding.setAppliedAnnotationId(annotationId);
 		finding.setTargetFingerprint(fingerprint);
 		findings.add(finding);
+		return finding;
 	}
 
 	private static Issue issue(Long id) {

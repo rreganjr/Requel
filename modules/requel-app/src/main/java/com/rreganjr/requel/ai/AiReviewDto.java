@@ -36,16 +36,21 @@ public record AiReviewDto(String runId, String status, Instant createdAt, Instan
 		String summary, int redactionCount, List<Finding> findings, int evidenceUnverified,
 		String definitionKeys, String definitionVersions, int vocabularyMisses) {
 
-	/** One finding. {@code kind} is {@code ISSUE} or {@code NOTE}; {@code text} its text. */
+	/**
+	 * One finding. {@code kind} is {@code ISSUE} or {@code NOTE}; {@code text} its text. The target
+	 * is the entity it is on: a corpus run (#266) has one finding per participant, sharing the
+	 * annotation.
+	 */
 	public record Finding(String findingType, String kind, String severity, Double confidence,
-			String text, String state, Long annotationId) {
+			String text, String state, Long annotationId, String targetType, Long targetId) {
 	}
 
 	static AiReviewDto of(AssistantRunReadService.RunView run) {
 		List<Finding> findings = new ArrayList<Finding>();
 		for (AssistantRunReadService.FindingView finding : run.findings()) {
 			findings.add(new Finding(finding.findingType(), finding.kind(), finding.severity(),
-					finding.confidence(), finding.text(), finding.state(), finding.annotationId()));
+					finding.confidence(), finding.text(), finding.state(), finding.annotationId(),
+					finding.targetType(), finding.targetId()));
 		}
 		return new AiReviewDto(run.runId(), run.status(), run.createdAt(), run.completedAt(), run.latencyMs(), run.errorKind(),
 				run.errorSummary(), run.resultSummary(), run.redactionCount(), List.copyOf(findings),

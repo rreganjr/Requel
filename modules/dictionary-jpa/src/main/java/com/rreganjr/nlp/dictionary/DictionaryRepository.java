@@ -389,6 +389,24 @@ public interface DictionaryRepository extends Repository {
 	public Linkdef findLinkDef(Long id);
 
 	/**
+	 * Issue #266: the other words sharing a synset with one of {@code lemma}'s senses ranked
+	 * {@code maxRank} or better, any part of speech.
+	 *
+	 * @return lower-case lemmas, excluding {@code lemma}; empty for an unknown word
+	 */
+	public java.util.Set<String> findSynonymLemmas(String lemma, int maxRank);
+
+	/**
+	 * Issue #266: the words WordNet links to {@code lemma} as antonyms, from its senses ranked
+	 * {@code maxRank} or better whose synset's part of speech is one of {@code synsetPos}
+	 * ({@code a}, {@code s}, {@code r}, {@code n}, {@code v}).
+	 *
+	 * @return lower-case lemmas; empty for an unknown word or one without antonyms
+	 */
+	public java.util.Set<String> findAntonymLemmas(String lemma, int maxRank,
+			java.util.Collection<String> synsetPos);
+
+	/**
 	 * @param id
 	 * @return Get a semantic link by id.
 	 */

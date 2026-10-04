@@ -111,6 +111,18 @@ public class AnalysisRequestDispatcher {
 	}
 
 	/**
+	 * Issue #266: dispatch a corpus run rooted at {@code targetRef} (a project, a goal or a use
+	 * case) of {@code projectId}, for {@code taskType}. Only ever called from an explicit request;
+	 * the post-edit path dispatches with no task type.
+	 */
+	public void dispatchCorpus(EntityRef targetRef, Long projectId, User triggeringUser,
+			String taskType) {
+		UserRef triggeringUserRef = new UserRef(triggeringUser.getId(), triggeringUser.getUsername());
+		assistantDispatcher.dispatch(new AnalysisRequest(targetRef, EntityRef.of("Project", projectId),
+				triggeringUserRef, assistantUserRef(), taskType, Locale.getDefault(), Map.of()));
+	}
+
+	/**
 	 * Dispatch analysis of every text entity in {@code project} on behalf of
 	 * {@code triggeringUser} (#268): import and the explicit re-run. The entities are listed in
 	 * one read-only transaction, then handed to {@link AssistantDispatcher#dispatchAll} outside

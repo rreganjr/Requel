@@ -62,9 +62,10 @@ class PerTypeDefinitionsTest {
 	private final EntityContextPackBuilder packBuilder = mock(EntityContextPackBuilder.class);
 	private AiAnalysisResponse reply = response(List.of());
 	private final AiAnalysisClient client = request -> reply;
-	/** The bundled review definitions; policies (#265) are another task, tested on their own. */
+	/** The bundled review definitions; policies (#265) and corpus analyses (#266) are other tasks. */
 	private final List<AssistantDefinition> bundled = BundledDefinitions.load(objectMapper,
-			new AssistantDefinitionValidator(16000)).stream().filter(d -> !d.isPolicy()).toList();
+			new AssistantDefinitionValidator(16000)).stream().filter(d -> !d.isPolicy() && !d.isCorpus())
+			.toList();
 
 	@Test
 	void everyReviewableTypeHasItsOwnDefinitionBesideTheFallback() {

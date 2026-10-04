@@ -1,5 +1,5 @@
 {
-  "_comment": "Issue #355: what a competent reviewer should raise on each fixture entity. Matching rules are in scripts/ai-eval/README.md. #263: alsoValid lists real flaws a fixture entity has beyond the one it targets; a matching finding is neither a hit nor spurious. #265: policyExpect lists what the policy pass should raise on an entity; an entity without it is policy-silent.",
+  "_comment": "Issue #355: what a competent reviewer should raise on each fixture entity. Matching rules are in scripts/ai-eval/README.md. #263: alsoValid lists real flaws a fixture entity has beyond the one it targets; a matching finding is neither a hit nor spurious. #265: policyExpect lists what the policy pass should raise on an entity; an entity without it is policy-silent. #266: corpus lists the relationships between entities a corpus analysis should raise (expect, with finder: true when Find overlaps should flag the pair too), real ones it may raise (alsoValid), and pairs that must not be raised together (silent).",
   "fixture": "fixture-project.xml",
   "entities": [
     {
@@ -850,6 +850,374 @@
       "name": "Pickup date",
       "silent": true,
       "expect": []
+    },
+    {
+      "type": "Goal",
+      "name": "Two-week loans",
+      "silent": true,
+      "expect": [],
+      "alsoValid": [
+        {
+          "id": "conflicts-with-renewal-or-three-weeks",
+          "patterns": [
+            "renew",
+            "21",
+            "three weeks",
+            "conflict",
+            "contradict"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "INCONSISTENT",
+            "OTHER"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Goal",
+      "name": "Unpaid fines put accounts on hold",
+      "silent": true,
+      "expect": [],
+      "alsoValid": [
+        {
+          "id": "overlaps-suspended",
+          "patterns": [
+            "suspend",
+            "overlap",
+            "duplicat",
+            "hold"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "DUPLICATE",
+            "INCONSISTENT",
+            "AMBIGUOUS",
+            "OTHER"
+          ]
+        },
+        {
+          "id": "unmeasured-or-negative",
+          "patterns": [
+            "measur",
+            "negative",
+            "prohibit"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "UNMEASURABLE",
+            "NEGATIVE_ONLY"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Story",
+      "name": "Keep a tool for three weeks",
+      "silent": true,
+      "expect": [],
+      "alsoValid": [
+        {
+          "id": "conflicts-with-loan-length",
+          "patterns": [
+            "14",
+            "two weeks",
+            "loan (length|period)",
+            "conflict",
+            "renew"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "INCONSISTENT",
+            "OTHER"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Story",
+      "name": "Place a hold on a tool",
+      "silent": true,
+      "expect": [],
+      "alsoValid": [
+        {
+          "id": "hold-two-meanings",
+          "patterns": [
+            "hold"
+          ],
+          "acceptTypes": [],
+          "types": [
+            "AMBIGUOUS",
+            "INCONSISTENT",
+            "OTHER"
+          ]
+        }
+      ]
     }
-  ]
+  ],
+  "corpus": {
+    "expect": [
+      {
+        "id": "contradiction-loan-length",
+        "participants": [
+          [
+            "Goal",
+            "Two-week loans"
+          ],
+          [
+            "Story",
+            "Keep a tool for three weeks"
+          ]
+        ],
+        "acceptTypes": [
+          "CONTRADICTORY_REQUIREMENTS"
+        ],
+        "finder": true
+      },
+      {
+        "id": "renewal-breaks-loan-length",
+        "participants": [
+          [
+            "Goal",
+            "Two-week loans"
+          ],
+          [
+            "UseCase",
+            "Renew a loan"
+          ]
+        ],
+        "acceptTypes": [
+          "UNSATISFIABLE_BY_CHILDREN",
+          "CONTRADICTORY_REQUIREMENTS"
+        ],
+        "finder": true
+      },
+      {
+        "id": "sms-vs-privacy",
+        "participants": [
+          [
+            "Goal",
+            "Send overdue reminders by text message"
+          ],
+          [
+            "Goal",
+            "Member data stays private"
+          ]
+        ],
+        "acceptTypes": [
+          "CONTRADICTORY_REQUIREMENTS"
+        ]
+      },
+      {
+        "id": "duplicate-search",
+        "participants": [
+          [
+            "Goal",
+            "Members find tools quickly"
+          ],
+          [
+            "Goal",
+            "Members search the catalogue by name"
+          ]
+        ],
+        "acceptTypes": [
+          "DUPLICATE_AT_DIFFERENT_ABSTRACTION"
+        ]
+      },
+      {
+        "id": "hold-two-meanings",
+        "participants": [
+          [
+            "Goal",
+            "Unpaid fines put accounts on hold"
+          ],
+          [
+            "Story",
+            "Place a hold on a tool"
+          ]
+        ],
+        "acceptTypes": [
+          "SAME_TERM_DIFFERENT_MEANING"
+        ]
+      },
+      {
+        "id": "non-staff-member",
+        "participants": [
+          [
+            "Actor",
+            "Non-staff"
+          ],
+          [
+            "Actor",
+            "Member"
+          ]
+        ],
+        "acceptTypes": [
+          "SAME_CONCEPT_DIFFERENT_TERMS",
+          "DUPLICATE_AT_DIFFERENT_ABSTRACTION",
+          "OTHER"
+        ]
+      }
+    ],
+    "alsoValid": [
+      {
+        "id": "three-weeks-vs-renewal",
+        "participants": [
+          [
+            "Story",
+            "Keep a tool for three weeks"
+          ],
+          [
+            "UseCase",
+            "Renew a loan"
+          ]
+        ]
+      },
+      {
+        "id": "suspended-vs-on-hold",
+        "participants": [
+          [
+            "Goal",
+            "Suspended members cannot borrow"
+          ],
+          [
+            "Goal",
+            "Unpaid fines put accounts on hold"
+          ]
+        ]
+      },
+      {
+        "id": "loan-length-vs-on-time",
+        "participants": [
+          [
+            "Goal",
+            "Two-week loans"
+          ],
+          [
+            "Goal",
+            "Tools come back on time"
+          ]
+        ]
+      },
+      {
+        "id": "patron-renewal-vs-renew",
+        "participants": [
+          [
+            "Story",
+            "Renew as a patron"
+          ],
+          [
+            "UseCase",
+            "Renew a loan"
+          ]
+        ]
+      },
+      {
+        "id": "purchase-approver",
+        "participants": [
+          [
+            "Goal",
+            "Dana approves tool purchases"
+          ],
+          [
+            "UseCase",
+            "Approve a purchase"
+          ]
+        ]
+      },
+      {
+        "id": "three-weeks-vs-renew-story",
+        "participants": [
+          [
+            "Story",
+            "Keep a tool for three weeks"
+          ],
+          [
+            "Story",
+            "Renew as a patron"
+          ]
+        ]
+      },
+      {
+        "id": "hold-vs-reservation",
+        "participants": [
+          [
+            "Story",
+            "Place a hold on a tool"
+          ],
+          [
+            "UseCase",
+            "Renew a loan"
+          ]
+        ]
+      },
+      {
+        "id": "checkout-skips-eligibility",
+        "participants": [
+          [
+            "Goal",
+            "Suspended members cannot borrow"
+          ],
+          [
+            "UseCase",
+            "Check out a tool"
+          ]
+        ]
+      },
+      {
+        "id": "purchase-steps-reversed",
+        "participants": [
+          [
+            "Step",
+            "The supplier ships the tool"
+          ],
+          [
+            "Step",
+            "The treasurer approves the request"
+          ]
+        ]
+      },
+      {
+        "id": "after-hours-vs-late-returns",
+        "participants": [
+          [
+            "Story",
+            "Late returns"
+          ],
+          [
+            "Story",
+            "Return a tool after hours"
+          ]
+        ]
+      }
+    ],
+    "silent": [
+      {
+        "id": "member-vs-staff",
+        "participants": [
+          [
+            "Actor",
+            "Member"
+          ],
+          [
+            "Actor",
+            "Staff"
+          ]
+        ]
+      },
+      {
+        "id": "member-term-vs-patron",
+        "participants": [
+          [
+            "GlossaryTerm",
+            "Member"
+          ],
+          [
+            "GlossaryTerm",
+            "Patron"
+          ]
+        ]
+      }
+    ]
+  }
 }

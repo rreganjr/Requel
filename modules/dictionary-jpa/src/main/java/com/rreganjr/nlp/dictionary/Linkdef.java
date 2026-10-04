@@ -58,6 +58,11 @@ public class Linkdef implements Serializable {
 	 */
 	public static final int HYPONYM_INSTANCE = 4;
 
+	/**
+	 * The id of the antonym link definition type, a lexical link between word senses (#266).
+	 */
+	public static final int ANTONYM = 30;
+
 	private Long linkid;
 	private String name;
 	private boolean recurses;

@@ -663,12 +663,56 @@ applies one rule across types; an empty `scope` means every reviewable type.
   a canonical term (`NON_CANONICAL_TERM`), and a term used against its definition
   (`CONFLICTING_USAGE`). It reads the `project-glossary` context: every term with its alternates.
 
+## 11b. Corpus analyses: findings about relationships
+
+Reviews and policies look at one entity. A *corpus analysis* looks across a set of entities for
+problems between them: two requirements that can't both hold, a word used two ways, two names for
+one role, a parent no child can satisfy, a duplicate at a different level, an unstated ordering.
+
+- **Run it by hand.** The project overview's *Corpus analysis* panel, or
+  `POST /api/ai/corpus?projectId=&set=&rootId=&mode=`. It never runs after an edit.
+  - `set`: `PROJECT` (default), `GOAL` (a goal, the goals its relations reach, and the stories
+    and use cases linked to them, with `rootId`) or `USE_CASE` (a use case, its scenarios and
+    steps, and its primary actor).
+  - `mode`: `CANDIDATES` is *Find overlaps*, which uses no AI. `ANALYSIS` is the AI analysis:
+    one provider call per run, under the same data-handling rules as reviews (section 11).
+  - `GET` with the same parameters reads the latest run.
+- **Find overlaps** compares wording across the set: TF-IDF with dictionary synonyms. It flags a
+  *possible conflict* when two similar entities differ in a number for the same unit, take
+  opposite sides of a verb (must / must not), or use opposite adjectives about the same thing. It
+  flags a *possible overlap* when two entities that could repeat each other read alike. Both are
+  advisory.
+- **The AI analysis** sends an index of the set (each entity's name, the start of its text, and
+  its links) and the finder's candidate pairs in full. The model judges each pair and may raise
+  others the index shows. Its findings replace Find overlaps' issues on the pairs it judged.
+- **One issue on every participant.** A relationship is one issue, shown on each entity it names,
+  with "Also on: …" links to the others. Editing any of them marks it stale on all of them. A
+  re-run reuses the issue, and a run over a goal or use case never retires what a project run
+  found elsewhere.
+- **A hard budget.** `requel.ai.corpus.max-input-chars` (default 60000). A set whose index alone
+  is over it is refused, with the size named; analyse a goal or use case instead, or raise the
+  limit. Candidate pairs that don't fit are left out in rank order, and the run says
+  "Partial: sent N of M candidate pairs".
+
+| Property | Default | What |
+|---|---|---|
+| `requel.ai.corpus.max-input-chars` | 60000 | the input budget of one analysis |
+| `requel.ai.corpus.index-text-chars` | 240 | how much of each entity's text the index carries |
+| `requel.ai.corpus.candidate-overlap-threshold` | 0.25 | similarity at which a pair is sent to the model |
+| `requel.corpus.finder.overlap-threshold` | 0.35 | similarity at which Find overlaps raises an overlap |
+| `requel.corpus.finder.conflict-threshold` | 0.20 | similarity at which a hint makes a possible conflict |
+| `requel.corpus.finder.synonym-weight` | 0.5 | how much a dictionary synonym counts |
+
+The bundled definition is `ai-corpus-relationships` (`kind: CORPUS`, task `CORPUS_REVIEW`); a
+project can switch it off under *Corpus analysis* in the Assistants panel. The thresholds come from
+tuning on the eval fixture and a real project (`doc/work/2.0/266-tuning-log.md`).
+
 ## 12. Measuring review quality
 
 `scripts/ai-eval/` holds a fixture project of deliberately flawed (and deliberately clean)
 entities, the findings a competent reviewer should raise on each, and `score.py`, which reviews
 every fixture entity a few times through the API and reports per-type hit rate, spurious findings
-and failures. Use it to check a prompt or provider change against the recorded baseline
+and failures. `score.py --corpus` scores the corpus analyses instead (section 11b). Use it to check a prompt or provider change against the recorded baseline
 (`doc/work/2.0/355-ai-eval-baseline.md`). See `scripts/ai-eval/README.md`.
 
 ---

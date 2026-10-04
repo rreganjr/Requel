@@ -52,12 +52,62 @@ public class AiProperties {
 	private List<String> projectAllowlist = new ArrayList<String>();
 	private final Policies policies = new Policies();
 
+	/** #266: the corpus analysis ({@code requel.ai.corpus.*}). */
+	private final Corpus corpus = new Corpus();
+
+	public Corpus getCorpus() {
+		return corpus;
+	}
+
 	/** {@code requel.ai.policies.*} (#265). */
 	public Policies getPolicies() {
 		return policies;
 	}
 
 	/** Issue #265: limits on the composed policy pass. */
+	/** Issue #266: corpus analysis limits (the #266 checkpoint's values). */
+	public static class Corpus {
+
+		/**
+		 * The input budget for one corpus analysis, in characters. A set whose index alone is over
+		 * it is refused; candidates that don't fit are left out and the run is marked partial.
+		 */
+		private int maxInputChars = 60_000;
+
+		/** How much of each member's text the index carries. */
+		private int indexTextChars = 240;
+
+		/**
+		 * The overlap threshold for the pairs sent to the model. Lower than Find overlaps' own
+		 * (0.35): the model judges each pair, so recall matters more than precision here.
+		 */
+		private double candidateOverlapThreshold = 0.25;
+
+		public int getMaxInputChars() {
+			return maxInputChars;
+		}
+
+		public void setMaxInputChars(int maxInputChars) {
+			this.maxInputChars = maxInputChars;
+		}
+
+		public int getIndexTextChars() {
+			return indexTextChars;
+		}
+
+		public void setIndexTextChars(int indexTextChars) {
+			this.indexTextChars = indexTextChars;
+		}
+
+		public double getCandidateOverlapThreshold() {
+			return candidateOverlapThreshold;
+		}
+
+		public void setCandidateOverlapThreshold(double candidateOverlapThreshold) {
+			this.candidateOverlapThreshold = candidateOverlapThreshold;
+		}
+	}
+
 	public static class Policies {
 
 		/**

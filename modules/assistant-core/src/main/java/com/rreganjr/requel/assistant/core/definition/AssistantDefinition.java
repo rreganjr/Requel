@@ -33,9 +33,10 @@ import java.util.Set;
  * @param key stable identifier, also the assistant id of the executor that runs it (and so part
  *        of every finding's idempotency key)
  * @param displayName shown on the project overview's assistant toggles
- * @param kind REVIEW or POLICY
+ * @param kind REVIEW, POLICY or CORPUS
  * @param taskType the run task it serves, e.g. {@code REQUIREMENTS_REVIEW}
- * @param scope entity type names it applies to; empty makes it the fallback for its task type
+ * @param scope entity type names it applies to; empty makes it the fallback for its task type.
+ *        For a CORPUS definition, the set kinds it analyzes (PROJECT, GOAL, USE_CASE; #266)
  * @param contextProviders the context packs it reads (until #261, only {@code entity})
  * @param instructions the task guidance sent to the provider
  * @param vocabulary the finding types it may report
@@ -62,6 +63,15 @@ public record AssistantDefinition(String key, String displayName, DefinitionKind
 
 	/** #265: the output schema a policy definition uses (the review finding plus a policy key). */
 	public static final String POLICY_OUTPUT_SCHEMA = "PolicyReviewOutput";
+
+	/** #266: the task type corpus definitions serve, dispatched only by an explicit request. */
+	public static final String CORPUS_REVIEW = "CORPUS_REVIEW";
+
+	/** #266: the output schema a corpus definition uses (a finding names its participants). */
+	public static final String CORPUS_OUTPUT_SCHEMA = "CorpusReviewOutput";
+
+	/** #266: the set kinds a corpus definition's scope may name. */
+	public static final Set<String> CORPUS_SET_KINDS = Set.of("PROJECT", "GOAL", "USE_CASE");
 
 	/** Not local-only (#265). */
 	public AssistantDefinition(String key, String displayName, DefinitionKind kind,
@@ -97,6 +107,11 @@ public record AssistantDefinition(String key, String displayName, DefinitionKind
 	/** A cross-cutting policy (#265): composed with the other policies into one call. */
 	public boolean isPolicy() {
 		return kind == DefinitionKind.POLICY;
+	}
+
+	/** A corpus analysis (#266): findings about relationships between a set's entities. */
+	public boolean isCorpus() {
+		return kind == DefinitionKind.CORPUS;
 	}
 
 	/**

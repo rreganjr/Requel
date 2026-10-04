@@ -74,4 +74,12 @@ public interface RequelAssistant<T> {
 	default String displayName() {
 		return assistantId();
 	}
+
+	/**
+	 * Issue #266: the group this assistant's switch and findings show under, or null for the
+	 * lexical checks.
+	 */
+	default String group() {
+		return null;
+	}
 }
