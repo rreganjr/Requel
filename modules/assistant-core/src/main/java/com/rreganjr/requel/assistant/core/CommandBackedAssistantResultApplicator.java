@@ -1108,29 +1108,6 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 
 	// ---- stale-finding reconciliation -----------------------------------------
 
-	/**
-	 * Reconcile previously-recorded {@code ACTIVE} findings for this assistant
-	 * against what the current run produced. Behaviour depends on the assistant's
-	 * {@link CleanupPolicy}:
-	 * <ul>
-	 * <li>{@link CleanupPolicy#AUTO_RESOLVE_IF_UNTOUCHED} — remove the annotation and
-	 * mark the finding {@code AUTO_RESOLVED}, but only if it is still assistant-owned
-	 * and untouched by a human (see {@link #autoResolveIfUntouched}); otherwise mark it
-	 * {@code SUPERSEDED} and keep the annotation (issue #270).</li>
-	 * <li>{@link CleanupPolicy#MARK_SUPERSEDED} (the default) — mark the finding
-	 * {@code SUPERSEDED} (stamped with {@code superseded_by_run_id} = this run) and
-	 * leave the annotation in place; the finding is kept for history.</li>
-	 * <li>{@link CleanupPolicy#MANUAL} — never auto-transition; operator-managed.</li>
-	 * </ul>
-	 *
-	 * <p>
-	 * Reconciliation is per target entity. The set of targets to check is the
-	 * union of every entity this run raised an action against and the original
-	 * dispatch target (so a re-run that produces <em>no</em> actions still reconciles
-	 * the prior findings on the entity that was analyzed). For each prior
-	 * {@code ACTIVE} finding on a target whose idempotency key the current run did
-	 * not re-emit, the policy-specific transition is applied.
-	 */
 	/** Issue #266: retire the findings a result says it replaces ({@link #RETIRES_FINDINGS}). */
 	private void retireFindings(AssistantResult result, User editedBy, AssistantContext context) {
 		if (!(result.metadata().get(RETIRES_FINDINGS) instanceof java.util.Collection<?> keys)) {
@@ -1198,6 +1175,29 @@ public class CommandBackedAssistantResultApplicator implements AssistantResultAp
 		}
 	}
 
+	/**
+	 * Reconcile previously-recorded {@code ACTIVE} findings for this assistant
+	 * against what the current run produced. Behaviour depends on the assistant's
+	 * {@link CleanupPolicy}:
+	 * <ul>
+	 * <li>{@link CleanupPolicy#AUTO_RESOLVE_IF_UNTOUCHED} — remove the annotation and
+	 * mark the finding {@code AUTO_RESOLVED}, but only if it is still assistant-owned
+	 * and untouched by a human (see {@link #autoResolveIfUntouched}); otherwise mark it
+	 * {@code SUPERSEDED} and keep the annotation (issue #270).</li>
+	 * <li>{@link CleanupPolicy#MARK_SUPERSEDED} (the default) — mark the finding
+	 * {@code SUPERSEDED} (stamped with {@code superseded_by_run_id} = this run) and
+	 * leave the annotation in place; the finding is kept for history.</li>
+	 * <li>{@link CleanupPolicy#MANUAL} — never auto-transition; operator-managed.</li>
+	 * </ul>
+	 *
+	 * <p>
+	 * Reconciliation is per target entity. The set of targets to check is the
+	 * union of every entity this run raised an action against and the original
+	 * dispatch target (so a re-run that produces <em>no</em> actions still reconciles
+	 * the prior findings on the entity that was analyzed). For each prior
+	 * {@code ACTIVE} finding on a target whose idempotency key the current run did
+	 * not re-emit, the policy-specific transition is applied.
+	 */
 	private void reconcileStaleFindings(String assistantId, CleanupPolicy cleanupPolicy,
 			EntityRef dispatchTarget, Map<EntityRef, Set<String>> producedKeysByTarget,
 			User editedBy, UUID runId) {

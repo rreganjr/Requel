@@ -40,6 +40,9 @@ class AiPropertiesTest {
 		assertThat(properties.getModel()).isEqualTo("noop");
 		assertThat(properties.getMaxInputTokens()).isEqualTo(16000);
 		assertThat(properties.getProjectAllowlist()).isEmpty();
+		assertThat(properties.getCorpus().getMaxInputChars()).isEqualTo(60000);
+		assertThat(properties.getCorpus().getIndexTextChars()).isEqualTo(240);
+		assertThat(properties.getCorpus().getCandidateOverlapThreshold()).isEqualTo(0.25);
 	}
 
 	/**
@@ -55,7 +58,10 @@ class AiPropertiesTest {
 						"requel.ai.provider=openai",
 						"requel.ai.model=gpt-test",
 						"requel.ai.max-input-tokens=2000",
-						"requel.ai.project-allowlist=Alpha,Beta")
+						"requel.ai.project-allowlist=Alpha,Beta",
+						"requel.ai.corpus.max-input-chars=30000",
+						"requel.ai.corpus.index-text-chars=120",
+						"requel.ai.corpus.candidate-overlap-threshold=0.3")
 				.run(context -> {
 					AiProperties properties = context.getBean(AiProperties.class);
 
@@ -64,6 +70,10 @@ class AiPropertiesTest {
 					assertThat(properties.getModel()).isEqualTo("gpt-test");
 					assertThat(properties.getMaxInputTokens()).isEqualTo(2000);
 					assertThat(properties.getProjectAllowlist()).containsExactly("Alpha", "Beta");
+					// #266
+					assertThat(properties.getCorpus().getMaxInputChars()).isEqualTo(30000);
+					assertThat(properties.getCorpus().getIndexTextChars()).isEqualTo(120);
+					assertThat(properties.getCorpus().getCandidateOverlapThreshold()).isEqualTo(0.3);
 				});
 	}
 }

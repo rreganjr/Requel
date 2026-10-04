@@ -37,7 +37,7 @@ class CorpusScopeTest {
 	void theScopeIsReadFromTheResultMetadata() {
 		AssistantResult result = AssistantResult.builder().assistantId("a")
 				.metadata(Map.of(CommandBackedAssistantResultApplicator.CORPUS_SCOPE,
-						List.of("Goal:1", "UseCase:22", "junk", "Goal:x")))
+						java.util.Arrays.asList("Goal:1", "UseCase:22", "junk", "Goal:x", null)))
 				.build();
 		assertThat(CommandBackedAssistantResultApplicator.corpusScope(result))
 				.containsExactlyInAnyOrder(EntityRef.of("Goal", 1L), EntityRef.of("UseCase", 22L));

@@ -141,4 +141,25 @@ class ReviewResultMapperTest {
 		assertThat(response.usage()).isSameAs(usage);
 		assertThat(response.providerMetadata()).containsEntry("provider", "cli");
 	}
+
+	/** #266: a corpus finding's participants, trimmed, blanks dropped; the policy form has none. */
+	@Test
+	void toResponseKeepsACorpusFindingsParticipants() {
+		ReviewResult result = new ReviewResult("corpus", List.of(
+				new Finding("CONTRADICTORY_REQUIREMENTS", "HIGH", 0.9, List.of(), "5 or 10?", null,
+						List.of(), null, null, java.util.Arrays.asList(" Goal:1 ", "Goal:2", " ", null)),
+				new Finding("OTHER", null, null, null, "no one", null, null, null, null, List.of()),
+				new Finding("RULE_BROKEN", null, null, null, "policy", null, null, null, "p-a")),
+				List.of());
+
+		AiAnalysisResponse response = mapper.toResponse(result,
+				new AiUsage("cli", "claude-cli", 1, 1, 0, Duration.ZERO, null), Map.of());
+
+		assertThat(response.findings().get(0).metadata())
+				.containsEntry(ReviewResultMapper.PARTICIPANTS, List.of("Goal:1", "Goal:2"));
+		assertThat(response.findings().get(1).metadata()).isEmpty();
+		assertThat(response.findings().get(2).metadata())
+				.containsEntry(ReviewResultMapper.POLICY_KEY, "p-a")
+				.doesNotContainKey(ReviewResultMapper.PARTICIPANTS);
+	}
 }
