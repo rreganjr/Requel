@@ -20,6 +20,7 @@
  */
 import { Component, ChangeDetectionStrategy, OnChanges, computed, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { ProjectAssistantsService } from '../../core/project-assistants.service';
@@ -58,7 +59,7 @@ const REDACTION_LABELS: Record<string, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-project-assistants-panel',
   standalone: true,
-  imports: [FormsModule, ButtonModule, ToggleSwitchModule],
+  imports: [FormsModule, RouterLink, ButtonModule, ToggleSwitchModule],
   template: `
     <section aria-labelledby="assistants-title" class="ws-panel" data-testid="workspace-assistants">
       <h2 id="assistants-title" class="ws-panel-title">Assistants</h2>
@@ -87,6 +88,13 @@ const REDACTION_LABELS: Record<string, string> = {
         }
         <p class="ws-hint">
           Switching a check off stops it running in this project. The issues it already raised stay.
+        </p>
+      }
+      @if (canManageDefinitions()) {
+        <p class="ws-hint">
+          <a [routerLink]="['/projects', projectName(), 'definitions']"
+             data-testid="assistants-manage-definitions">Manage AI definitions</a>
+          — customize what the AI reviews and policies check in this project.
         </p>
       }
       @if (dataHandlingRows().length > 0) {
@@ -153,6 +161,8 @@ export class ProjectAssistantsPanelComponent implements OnChanges {
   readonly canEdit = input(false);
   /** Annotation[Edit]: may re-run analysis. */
   readonly canAnalyze = input(false);
+  /** Issue #264: AssistantDefinition[Edit]: may author the project's AI definitions. */
+  readonly canManageDefinitions = input(false);
 
   readonly assistants = signal<ProjectAssistantDto[]>([]);
   readonly loadFailed = signal(false);

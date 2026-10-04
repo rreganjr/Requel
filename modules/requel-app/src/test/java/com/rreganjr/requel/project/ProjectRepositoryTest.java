@@ -416,10 +416,11 @@ public class ProjectRepositoryTest extends AbstractIntegrationTestCase {
                 getProjectRepository().findAvailableStakeholderPermissions();
 
         // 10 types × 3 = 30 entries. Project now has Delete too (issue #240),
-        // so every type carries Edit/Grant/Delete.
+        // so every type carries Edit/Grant/Delete. Plus AssistantDefinition[Edit] (issue #264).
         assertNotNull(perms);
-        assertEquals(30, perms.size(),
-                "expected 30 stakeholder permissions (10 types × 3, Project now includes Delete per #240)");
+        assertEquals(31, perms.size(),
+                "expected 31 stakeholder permissions (10 types × 3, Project now includes Delete per"
+                        + " #240, plus AssistantDefinition[Edit] per #264)");
     }
 
     // -------------------------------------------------------------------------

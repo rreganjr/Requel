@@ -58,6 +58,7 @@ import {
 import { applyCommandErrors, clearServerErrors } from '../../shared/form-errors';
 import { ARTIFACT_NAME_MAX_LENGTH } from '../../shared/validation-limits';
 import { CommandResult } from '../../models/command';
+import { DEFINITION_RISK } from '../../models/assistant-definition';
 
 
 /** Joins page-level violations that resolved to no control. */
@@ -217,7 +218,7 @@ interface PermissionGroup {
                 <div class="permission-header">Delete</div>
                 <div class="permission-header">Grant</div>
                 @for (group of permissionGroups(); track group.entityType) {
-                  <div class="permission-entity">{{ group.entityType }}</div>
+                  <div class="permission-entity">{{ entityLabel(group.entityType) }}</div>
                   @for (type of permissionTypes; track type) {
                     <div class="permission-check">
                       @if (getPermission(group, type); as perm) {
@@ -229,13 +230,19 @@ interface PermissionGroup {
                           accessible name. Visually hidden so the grid still reads as a matrix.
                         -->
                         <label class="rq-visually-hidden" [attr.for]="'perm-' + perm.key">
-                          {{ type }} {{ group.entityType }}
+                          {{ type }} {{ entityLabel(group.entityType) }}
                         </label>
                       }
                     </div>
                   }
                 }
               </div>
+              @if (hasDefinitionPermission()) {
+                <!-- #264: say the risk where the permission is granted -->
+                <p class="permission-note" data-testid="stakeholder-definition-risk">
+                  {{ definitionRisk }}
+                </p>
+              }
             </div>
           }
         } @else {
@@ -284,6 +291,7 @@ interface PermissionGroup {
     .permission-header { font-weight: 600; font-size: 0.85rem; text-align: center; }
     .permission-entity { font-size: 0.9rem; }
     .permission-check { text-align: center; }
+    .permission-note { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--p-text-muted-color); }
     .section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
     .section-header h3 { margin: 0; }
@@ -329,6 +337,20 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
 
   /** Column order of the permission matrix; was an inline array literal in the template. */
   readonly permissionTypes = ['Edit', 'Delete', 'Grant'];
+
+  /** Issue #264: what granting AssistantDefinition[Edit] lets someone do. */
+  readonly definitionRisk = 'AI definitions: lets this person write the instructions the AI'
+    + ' reviews follow in this project. ' + DEFINITION_RISK;
+
+  /** True when the grid has the AssistantDefinition row (#264). */
+  hasDefinitionPermission(): boolean {
+    return this.permissionGroups().some(g => g.entityType === 'AssistantDefinition');
+  }
+
+  /** The grid's row label: AssistantDefinition reads as "AI definitions" (#264). */
+  entityLabel(entityType: string): string {
+    return entityType === 'AssistantDefinition' ? 'AI definitions' : entityType;
+  }
 
   /** Mirrors the backend `@Size(max = ValidationLimits.ARTIFACT_NAME_MAX)` (#171). */
   readonly nameMaxLength = ARTIFACT_NAME_MAX_LENGTH;

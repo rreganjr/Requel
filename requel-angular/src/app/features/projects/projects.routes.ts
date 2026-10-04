@@ -157,6 +157,22 @@ export const projectRoutes: Routes = [
     loadComponent: () => import('../dictionary/project-dictionary').then(m => m.ProjectDictionaryComponent),
   },
 
+  // Issue #264: the project's AI assistant definitions (AssistantDefinition[Edit])
+  {
+    path: 'projects/:name/definitions',
+    title: 'AI definitions',
+    data: routeData({ section: 'project', breadcrumb: 'AI definitions' }),
+    loadComponent: () => import('./project-definitions').then(m => m.ProjectDefinitionsComponent),
+  },
+  {
+    path: 'projects/:name/definitions/:key',
+    title: 'AI definition',
+    data: routeData({ section: 'project', breadcrumb: 'AI definition' }),
+    loadComponent: () => import('./project-definition-editor')
+      .then(m => m.ProjectDefinitionEditorComponent),
+    canDeactivate: [dirtyCheckGuard],
+  },
+
   {
     path: 'projects/:name/reports',
     title: 'Reports',

@@ -233,6 +233,36 @@ public class ProjectCommandFactoryImpl extends AbstractCommandFactory implements
 	}
 
 	@Override
+	public com.rreganjr.requel.project.command.AssistantDefinitionCommand.Create newCreateAssistantDefinitionCommand() {
+		return (com.rreganjr.requel.project.command.AssistantDefinitionCommand.Create) getCreationStrategy()
+				.newInstance(AssistantDefinitionCommandImpl.CreateImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.AssistantDefinitionCommand.Edit newEditAssistantDefinitionCommand() {
+		return (com.rreganjr.requel.project.command.AssistantDefinitionCommand.Edit) getCreationStrategy()
+				.newInstance(AssistantDefinitionCommandImpl.EditImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.AssistantDefinitionCommand.Fork newForkAssistantDefinitionCommand() {
+		return (com.rreganjr.requel.project.command.AssistantDefinitionCommand.Fork) getCreationStrategy()
+				.newInstance(AssistantDefinitionCommandImpl.ForkImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.AssistantDefinitionCommand.Revert newRevertAssistantDefinitionCommand() {
+		return (com.rreganjr.requel.project.command.AssistantDefinitionCommand.Revert) getCreationStrategy()
+				.newInstance(AssistantDefinitionCommandImpl.RevertImpl.class);
+	}
+
+	@Override
+	public com.rreganjr.requel.project.command.AssistantDefinitionCommand.Delete newDeleteAssistantDefinitionCommand() {
+		return (com.rreganjr.requel.project.command.AssistantDefinitionCommand.Delete) getCreationStrategy()
+				.newInstance(AssistantDefinitionCommandImpl.DeleteImpl.class);
+	}
+
+	@Override
 	public com.rreganjr.requel.project.command.EditProjectDataHandlingSettingCommand newEditProjectDataHandlingSettingCommand() {
 		return (com.rreganjr.requel.project.command.EditProjectDataHandlingSettingCommand) getCreationStrategy()
 				.newInstance(EditProjectDataHandlingSettingCommandImpl.class);

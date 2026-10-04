@@ -44,7 +44,8 @@ import com.rreganjr.validator.EntityValidationException;
 
 /**
  * Issue #268: see {@link EditProjectAssistantSettingCommand}. The id must name an assistant the
- * {@link SwitchableAssistantCatalog} lists; anything else is refused rather than stored.
+ * {@link SwitchableAssistantCatalog} lists for the project (#264: its own definitions included);
+ * anything else is refused rather than stored.
  */
 @Controller("editProjectAssistantSettingCommand")
 @Scope("prototype")
@@ -124,7 +125,7 @@ public class EditProjectAssistantSettingCommandImpl extends AbstractProjectComma
 					ProjectAssistantSettingImpl.class, null, "assistantId",
 					EntityExceptionActionType.Updating);
 		}
-		if (catalog == null || catalog.find(assistantId).isEmpty()) {
+		if (catalog == null || catalog.find(assistantId, project.getId()).isEmpty()) {
 			throw EntityValidationException.validationFailed(ProjectAssistantSettingImpl.class,
 					"assistantId", "\"" + assistantId + "\" is not an assistant a project can"
 							+ " switch on or off");

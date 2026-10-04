@@ -175,6 +175,34 @@ describe('StakeholderEditorComponent', () => {
     });
   });
 
+  describe('AI definitions permission (#264)', () => {
+    it('labels the AssistantDefinition row and says the risk under the grid', async () => {
+      stakeholderServiceMock.getAvailablePermissions.mockResolvedValue([
+        ...MOCK_AVAILABLE_PERMISSIONS,
+        { entityType: 'AssistantDefinition', permissionKey: 'edit_definitions',
+          permissionType: 'Edit' },
+      ]);
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+
+      expect(comp.hasDefinitionPermission()).toBe(true);
+      expect(comp.entityLabel('AssistantDefinition')).toBe('AI definitions');
+      expect(comp.entityLabel('Goal')).toBe('Goal');
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('[data-testid="stakeholder-definition-risk"]')?.textContent)
+        .toContain('AI definitions');
+    });
+
+    it('says nothing when the grid has no AssistantDefinition row', async () => {
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+      fixture.detectChanges();
+      await flush();
+      expect(comp.hasDefinitionPermission()).toBe(false);
+    });
+  });
+
   // #185. Two forms to protect here rather than one, and an unusually wide window: loadUsers()
   // and loadPermissions() are awaited inside loadStakeholder(), so on the user path the form is
   // typeable across three round trips.

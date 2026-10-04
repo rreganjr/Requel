@@ -29,6 +29,8 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import com.rreganjr.requel.assistant.core.context.ContextProviderRegistry;
+import com.rreganjr.requel.project.InvalidDefinitionException.Problem;
+
 /**
  * Issue #260: the rules an assistant definition must meet to be saved or seeded.
  *
@@ -89,46 +91,57 @@ public class AssistantDefinitionValidator {
 	}
 
 	/**
-	 * @param definition the definition to check
-	 * @param neighbours the definitions it would run beside (same project's and bundled); the one it
-	 *        replaces (same key and owner) is ignored
-	 * @throws InvalidAssistantDefinitionException listing every problem found
-	 */
-	/**
 	 * Issue #261: a budget override names a provider the definition uses, is positive, and the
 	 * overrides together fit the input cap.
 	 */
-	private void checkContextBudgets(AssistantDefinition definition, List<String> problems) {
+	private void checkContextBudgets(AssistantDefinition definition, List<Problem> problems) {
 		long total = 0;
 		for (java.util.Map.Entry<String, Integer> budget : definition.contextBudgets().entrySet()) {
 			if (!definition.contextProviders().contains(budget.getKey())
 					|| ContextProviderRegistry.ENTITY.equals(budget.getKey())) {
-				problems.add("contextBudgets names " + budget.getKey()
-						+ ", which is not one of the definition's context providers");
+				problems.add(new Problem("contextBudgets", "contextBudgets names " + budget.getKey()
+						+ ", which is not one of the definition's context providers"));
 			}
 			if (budget.getValue() == null || budget.getValue() <= 0) {
-				problems.add("contextBudgets." + budget.getKey() + " must be positive");
+				problems.add(new Problem("contextBudgets",
+						"contextBudgets." + budget.getKey() + " must be positive"));
 			} else {
 				total += budget.getValue();
 			}
 		}
 		if (total > maxInstructionChars) {
-			problems.add("contextBudgets total " + total + " characters is over the input cap of "
-					+ maxInstructionChars);
+			problems.add(new Problem("contextBudgets",
+					"contextBudgets total " + total + " characters is over the input cap of "
+					+ maxInstructionChars));
 		}
 	}
 
+	/**
+	 * @param definition the definition to check
+	 * @param neighbours the definitions it would run beside (same project's and bundled); the one it
+	 *        replaces (same key and owner) is ignored
+	 * @throws InvalidAssistantDefinitionException listing every problem found
+	 */
 	public void validate(AssistantDefinition definition, Collection<AssistantDefinition> neighbours) {
+		validate(definition, neighbours, List.of());
+	}
+
+	/**
+	 * Issue #264: as {@link #validate(AssistantDefinition, Collection)}, reporting {@code extra}
+	 * (the caller's own rules, such as a project author's) with the rest in one exception.
+	 */
+	public void validate(AssistantDefinition definition, Collection<AssistantDefinition> neighbours,
+			List<Problem> extra) {
 		Objects.requireNonNull(definition, "definition");
-		List<String> problems = new ArrayList<String>();
+		List<Problem> problems = new ArrayList<Problem>(extra);
 		if (blank(definition.key())) {
-			problems.add("key is required");
+			problems.add(new Problem("key", "key is required"));
 		}
 		if (blank(definition.displayName())) {
-			problems.add("displayName is required");
+			problems.add(new Problem("displayName", "displayName is required"));
 		}
 		if (blank(definition.taskType())) {
-			problems.add("taskType is required");
+			problems.add(new Problem("taskType", "taskType is required"));
 		}
 		checkKind(definition, problems);
 		// #266: a corpus definition's scope is set kinds, and it reads the corpus context only
@@ -137,39 +150,44 @@ public class AssistantDefinitionValidator {
 		Set<String> unknownTypes = new TreeSet<String>(definition.scope());
 		unknownTypes.removeAll(knownScope);
 		if (!unknownTypes.isEmpty()) {
-			problems.add("unknown " + (definition.isCorpus() ? "set kind" : "entity type")
+			problems.add(new Problem("scope",
+					"unknown " + (definition.isCorpus() ? "set kind" : "entity type")
 					+ "(s) in scope: " + unknownTypes + " (known: " + new TreeSet<String>(knownScope)
-					+ ")");
+					+ ")"));
 		}
 		if (definition.contextProviders().isEmpty()) {
-			problems.add("at least one context provider is required");
+			problems.add(new Problem("contextProviders",
+					"at least one context provider is required"));
 		}
 		Set<String> knownProviders = definition.isCorpus() ? CORPUS_PROVIDERS : contextProviders;
 		Set<String> unknownProviders = new TreeSet<String>(definition.contextProviders());
 		unknownProviders.removeAll(knownProviders);
 		if (!unknownProviders.isEmpty()) {
-			problems.add("unknown context provider(s): " + unknownProviders + " (known: "
-					+ new TreeSet<String>(knownProviders) + ")");
+			problems.add(new Problem("contextProviders",
+					"unknown context provider(s): " + unknownProviders + " (known: "
+					+ new TreeSet<String>(knownProviders) + ")"));
 		}
 		checkContextBudgets(definition, problems);
 		checkVocabulary(definition, problems);
 		if (!OUTPUT_SCHEMAS.contains(definition.outputSchemaName() + ":"
 				+ definition.outputSchemaVersion())) {
-			problems.add("output schema " + definition.outputSchemaName() + " v"
+			problems.add(new Problem("outputSchema",
+					"output schema " + definition.outputSchemaName() + " v"
 					+ definition.outputSchemaVersion() + " is not in the allowed set "
-					+ new TreeSet<String>(OUTPUT_SCHEMAS));
+					+ new TreeSet<String>(OUTPUT_SCHEMAS)));
 		}
 		if (blank(definition.instructions())) {
-			problems.add("instructions are required");
+			problems.add(new Problem("instructions", "instructions are required"));
 		} else if (definition.instructions().length() > maxInstructionChars) {
-			problems.add("instructions are " + definition.instructions().length()
-					+ " characters; the input budget allows " + maxInstructionChars);
+			problems.add(new Problem("instructions",
+					"instructions are " + definition.instructions().length()
+					+ " characters; the input budget allows " + maxInstructionChars));
 		}
 		if (definition.source() == DefinitionSource.PROJECT && definition.projectId() == null) {
-			problems.add("a PROJECT definition needs an owning project");
+			problems.add(new Problem("projectId", "a PROJECT definition needs an owning project"));
 		}
 		if (definition.source() == DefinitionSource.BUNDLED && definition.projectId() != null) {
-			problems.add("a BUNDLED definition has no owning project");
+			problems.add(new Problem("projectId", "a BUNDLED definition has no owning project"));
 		}
 		checkCollisions(definition, neighbours, problems);
 		if (!problems.isEmpty()) {
@@ -177,7 +195,63 @@ public class AssistantDefinitionValidator {
 		}
 	}
 
-	private static void checkKind(AssistantDefinition definition, List<String> problems) {
+	/** Issue #264: a key a project author may give a new definition. */
+	public static final java.util.regex.Pattern PROJECT_KEY = java.util.regex.Pattern
+			.compile("[a-z][a-z0-9-]{2,79}");
+
+	/**
+	 * Issue #264: the rules a project author's write meets beyond {@link #validate}.
+	 *
+	 * @param definition the definition as it would be saved
+	 * @param stored the project's current row for its key (an edit), or null (a create or fork)
+	 * @param bundled the bundled definition with its key, or null
+	 * @param reservedKeys the bean assistants' ids, which a definition can't take
+	 * @param projectCount how many definitions the project owns now
+	 * @param maxPerProject the most it may own
+	 * @param requestedExecutorBean the executor bean the write named, if any
+	 */
+	public static List<Problem> projectProblems(AssistantDefinition definition,
+			AssistantDefinition stored, AssistantDefinition bundled, Set<String> reservedKeys,
+			int projectCount, int maxPerProject, String requestedExecutorBean) {
+		List<Problem> problems = new ArrayList<Problem>();
+		if (!blank(requestedExecutorBean) || !blank(definition.executorBean())) {
+			problems.add(new Problem("executorBean",
+					"a project definition can't name an executor bean"));
+		}
+		if (stored == null) {
+			if (bundled == null) {
+				String key = definition.key();
+				if (key == null || !PROJECT_KEY.matcher(key).matches()) {
+					problems.add(new Problem("key", "key must be 3 to 80 lowercase letters, digits"
+							+ " or hyphens, starting with a letter"));
+				} else if (reservedKeys.contains(key)) {
+					problems.add(new Problem("key", "key " + key + " is a built-in assistant's id"));
+				}
+			}
+			if (projectCount >= maxPerProject) {
+				problems.add(new Problem("key", "the project already has " + projectCount
+						+ " definitions; the limit is " + maxPerProject
+						+ " (requel.ai.definitions.max-per-project)"));
+			}
+		} else {
+			if (definition.kind() != stored.kind()) {
+				problems.add(new Problem("kind", "a definition's kind can't change (it is "
+						+ stored.kind() + ")"));
+			}
+			if (!Objects.equals(definition.taskType(), stored.taskType())) {
+				problems.add(new Problem("taskType", "a definition's task type can't change"));
+			}
+			if (!Objects.equals(definition.outputSchemaName(), stored.outputSchemaName())
+					|| !Objects.equals(definition.outputSchemaVersion(),
+							stored.outputSchemaVersion())) {
+				problems.add(new Problem("outputSchema",
+						"a definition's output schema can't change"));
+			}
+		}
+		return problems;
+	}
+
+	private static void checkKind(AssistantDefinition definition, List<Problem> problems) {
 		checkPairing(definition, problems, DefinitionKind.POLICY, AssistantDefinition.POLICY_REVIEW,
 				AssistantDefinition.POLICY_OUTPUT_SCHEMA);
 		checkPairing(definition, problems, DefinitionKind.CORPUS, AssistantDefinition.CORPUS_REVIEW,
@@ -188,51 +262,57 @@ public class AssistantDefinitionValidator {
 	 * A {@code kind} definition serves {@code task} with {@code schema}, and no other kind uses
 	 * either (#265, #266).
 	 */
-	private static void checkPairing(AssistantDefinition definition, List<String> problems,
+	private static void checkPairing(AssistantDefinition definition, List<Problem> problems,
 			DefinitionKind kind, String task, String schema) {
 		boolean kindTask = task.equals(definition.taskType());
 		boolean kindSchema = schema.equals(definition.outputSchemaName());
 		if (definition.kind() == kind) {
 			if (!blank(definition.taskType()) && !kindTask) {
-				problems.add("a " + kind + " definition serves task " + task + ", not "
-						+ definition.taskType());
+				problems.add(new Problem("taskType",
+						"a " + kind + " definition serves task " + task + ", not "
+						+ definition.taskType()));
 			}
 			if (!kindSchema) {
-				problems.add("a " + kind + " definition uses the " + schema + " output schema");
+				problems.add(new Problem("outputSchema",
+						"a " + kind + " definition uses the " + schema + " output schema"));
 			}
 		} else {
 			if (kindTask) {
-				problems.add("task " + task + " is for " + kind + " definitions; this one is "
-						+ definition.kind());
+				problems.add(new Problem("taskType",
+						"task " + task + " is for " + kind + " definitions; this one is "
+						+ definition.kind()));
 			}
 			if (kindSchema) {
-				problems.add("the " + schema + " output schema is for " + kind + " definitions");
+				problems.add(new Problem("outputSchema",
+						"the " + schema + " output schema is for " + kind + " definitions"));
 			}
 		}
 	}
 
-	private static void checkVocabulary(AssistantDefinition definition, List<String> problems) {
+	private static void checkVocabulary(AssistantDefinition definition, List<Problem> problems) {
 		if (definition.vocabulary().isEmpty()) {
-			problems.add("the finding vocabulary is empty");
+			problems.add(new Problem("vocabulary", "the finding vocabulary is empty"));
 			return;
 		}
 		Set<String> seen = new HashSet<String>();
 		for (VocabularyEntry entry : definition.vocabulary()) {
 			if (entry == null || blank(entry.type())) {
-				problems.add("a vocabulary entry has no type");
+				problems.add(new Problem("vocabulary", "a vocabulary entry has no type"));
 			} else if (!seen.add(entry.type())) {
-				problems.add("vocabulary type " + entry.type() + " is listed twice");
+				problems.add(new Problem("vocabulary",
+						"vocabulary type " + entry.type() + " is listed twice"));
 			}
 			if (entry != null && !VocabularyEntry.QUALITY.equals(entry.category())
 					&& !VocabularyEntry.EXTRACTION.equals(entry.category())) {
-				problems.add("vocabulary type " + entry.type() + " has unknown category "
-						+ entry.category() + " (known: quality, extraction)");
+				problems.add(new Problem("vocabulary",
+						"vocabulary type " + entry.type() + " has unknown category "
+						+ entry.category() + " (known: quality, extraction)"));
 			}
 		}
 	}
 
 	private static void checkCollisions(AssistantDefinition definition,
-			Collection<AssistantDefinition> neighbours, List<String> problems) {
+			Collection<AssistantDefinition> neighbours, List<Problem> problems) {
 		if (neighbours == null || definition.isPolicy()) {
 			return;
 		}
@@ -242,14 +322,16 @@ public class AssistantDefinitionValidator {
 				continue;
 			}
 			if (definition.isFallback() && other.isFallback()) {
-				problems.add("task " + definition.taskType() + " already has a fallback definition ("
-						+ other.key() + "); only one definition may have an empty scope");
+				problems.add(new Problem("scope",
+						"task " + definition.taskType() + " already has a fallback definition ("
+						+ other.key() + "); only one definition may have an empty scope"));
 			} else if (!definition.isFallback() && !other.isFallback()) {
 				Set<String> shared = new TreeSet<String>(definition.scope());
 				shared.retainAll(other.scope());
 				if (!shared.isEmpty()) {
-					problems.add("scope " + shared + " collides with definition " + other.key()
-							+ " for task " + definition.taskType());
+					problems.add(new Problem("scope",
+							"scope " + shared + " collides with definition " + other.key()
+							+ " for task " + definition.taskType()));
 				}
 			}
 		}

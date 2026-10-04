@@ -33,6 +33,7 @@ import com.rreganjr.platform.bootstrap.AbstractSystemInitializer;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.project.Actor;
+import com.rreganjr.requel.project.AssistantDefinition;
 import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
@@ -81,6 +82,28 @@ public class StakeholderPermissionsInitializer extends AbstractSystemInitializer
 		}
 
 		backfillProjectDeletePermission();
+		backfillAssistantDefinitionPermission();
+	}
+
+	/**
+	 * Grant {@code AssistantDefinition[Edit]} to every existing {@link UserStakeholder} that holds
+	 * {@code Project[Edit]} (issue #264), as {@link #backfillProjectDeletePermission} does for
+	 * {@code Project[Delete]}: project owners keep managing their project's assistants after the
+	 * upgrade. New project creators get every available permission without this. Idempotent.
+	 */
+	private void backfillAssistantDefinitionPermission() {
+		StakeholderPermission projectEdit = projectRepository.findStakeholderPermission(
+				Project.class, StakeholderPermissionType.Edit);
+		StakeholderPermission definitionEdit = projectRepository.findStakeholderPermission(
+				AssistantDefinition.class, StakeholderPermissionType.Edit);
+		for (UserStakeholder stakeholder : projectRepository
+				.findUserStakeholdersWithPermission(projectEdit)) {
+			if (!stakeholder.getStakeholderPermissions().contains(definitionEdit)) {
+				log.debug("backfilling AssistantDefinition[Edit] to " + stakeholder);
+				stakeholder.grantStakeholderPermission(definitionEdit);
+				projectRepository.merge(stakeholder);
+			}
+		}
 	}
 
 	/**
@@ -113,6 +136,10 @@ public class StakeholderPermissionsInitializer extends AbstractSystemInitializer
 				StakeholderPermissionType.Grant));
 		entityTypes.add(new StakeholderPermissionImpl(Project.class,
 				StakeholderPermissionType.Delete));
+
+		// #264: authoring the project's assistant definitions; Edit only (read and write)
+		entityTypes.add(new StakeholderPermissionImpl(AssistantDefinition.class,
+				StakeholderPermissionType.Edit));
 
 		entityTypes.add(new StakeholderPermissionImpl(Annotation.class,
 				StakeholderPermissionType.Edit));

@@ -62,6 +62,7 @@ class AssistantRunReadServiceTest {
 		run.setEvidenceUnverified(1);
 		run.setTemplateId("ai-requirements-review");
 		run.setTemplateVersion("1");
+		run.setTemplateSource("BUNDLED");
 		when(runs.findFirstByTargetTypeAndTargetIdAndTaskTypeOrderByCreatedAtDescIdDesc("Goal", 7L,
 				"REQUIREMENTS_REVIEW")).thenReturn(Optional.of(run));
 
@@ -93,6 +94,7 @@ class AssistantRunReadServiceTest {
 		assertThat(view.evidenceUnverified()).isEqualTo(1);
 		assertThat(view.definitionKeys()).isEqualTo("ai-requirements-review");
 		assertThat(view.definitionVersions()).isEqualTo("1");
+		assertThat(view.definitionSources()).isEqualTo("BUNDLED");
 		assertThat(view.findings()).hasSize(2);
 
 		AssistantRunReadService.FindingView first = view.findings().get(0);
@@ -134,6 +136,14 @@ class AssistantRunReadServiceTest {
 
 		assertThat(view.findings()).extracting(f -> f.targetType() + ":" + f.targetId())
 				.containsExactly("Goal:7", "Story:2");
+	}
+
+	/** #264: a view built the old way has no definition sources. */
+	@Test
+	void aViewWithoutSourcesReadsThemAsNull() {
+		AssistantRunReadService.RunView view = new AssistantRunReadService.RunView("r", "a",
+				"QUEUED", now, null, null, null, null, null, 0, List.of(), 0, null, null, 0);
+		assertThat(view.definitionSources()).isNull();
 	}
 
 	@Test

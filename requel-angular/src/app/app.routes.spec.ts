@@ -20,6 +20,7 @@ const EXPECTED = [
   'projects/:name/use-cases', 'projects/:name/use-cases/:useCaseId',
   'projects/:name/terms', 'projects/:name/terms/:termId',
   'projects/:name/dictionary',
+  'projects/:name/definitions', 'projects/:name/definitions/:key',
   'projects/:name/reports', 'projects/:name/reports/:reportId',
   'projects/:name/open-issues',
   'projects/:name/edit',
@@ -33,6 +34,7 @@ const EDITORS = [
   'projects/:name/stories/:storyId', 'projects/:name/actors/:actorId',
   'projects/:name/scenarios/:scenarioId', 'projects/:name/use-cases/:useCaseId',
   'projects/:name/terms/:termId', 'projects/:name/reports/:reportId',
+  'projects/:name/definitions/:key',
 ];
 
 describe('app routes (#142)', () => {

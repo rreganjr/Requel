@@ -119,6 +119,10 @@ public class GatewayPolicyConfig {
             // Installation-wide dictionary (#319): administrators manage it from the admin UI;
             // it changes spell checking in every project, not one a client is working in.
             "AddInstallDictionaryWord", "DeleteInstallDictionaryWord",
+            // Assistant definitions (#264): prompt text a project member writes in the app,
+            // with the risk said where they do it; never driven by an external client.
+            "CreateAssistantDefinition", "EditAssistantDefinition", "ForkAssistantDefinition",
+            "RevertAssistantDefinition", "DeleteAssistantDefinition",
             // File transfer / generation (not plain JSON commands)
             "ImportProject", "ExportProject", "GenerateReport",
             // Not independently authorized (assistant / structural-internal)

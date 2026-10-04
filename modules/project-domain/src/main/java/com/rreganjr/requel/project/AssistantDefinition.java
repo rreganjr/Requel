@@ -18,20 +18,16 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-package com.rreganjr.requel.assistant.core.definition;
-
-import java.util.List;
-
-import com.rreganjr.requel.project.InvalidDefinitionException;
+package com.rreganjr.requel.project;
 
 /**
- * Issue #260: an assistant definition that cannot be saved or seeded, with every reason. #264: each
- * reason names its field ({@link #fieldProblems()}).
+ * Issue #264: the entity type of the {@code AssistantDefinition[Edit]} stakeholder permission,
+ * which lets a project member read and author the project's assistant definitions. A marker:
+ * the definitions themselves are {@code com.rreganjr.requel.assistant.core.definition}
+ * records, which project-domain can't see, and a permission needs a {@code Class}.
+ *
+ * <p>A definition is prompt text a project member controls. The guarantees come from the fixed
+ * output envelope, Requel-side validation and the command path, not from trusting the author.
  */
-public class InvalidAssistantDefinitionException extends InvalidDefinitionException {
-	private static final long serialVersionUID = 1L;
-
-	public InvalidAssistantDefinitionException(String key, List<Problem> problems) {
-		super(key, problems);
-	}
+public interface AssistantDefinition {
 }

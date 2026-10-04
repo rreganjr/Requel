@@ -29,12 +29,13 @@ import com.rreganjr.requel.assistant.core.persistence.AssistantRunReadService;
 /**
  * Issue #355: the body of {@code GET /api/ai/reviews} - one review run and the findings it
  * reported. #260 adds the findings citing evidence not in the entity's text and the definitions
- * (keys and versions, comma-joined) the run used.
+ * (keys and versions, comma-joined) the run used; #264 their sources (BUNDLED or PROJECT).
  */
 public record AiReviewDto(String runId, String status, Instant createdAt, Instant completedAt,
 		Long latencyMs, String errorKind, String errorSummary,
 		String summary, int redactionCount, List<Finding> findings, int evidenceUnverified,
-		String definitionKeys, String definitionVersions, int vocabularyMisses) {
+		String definitionKeys, String definitionVersions, int vocabularyMisses,
+		String definitionSources) {
 
 	/**
 	 * One finding. {@code kind} is {@code ISSUE} or {@code NOTE}; {@code text} its text. The target
@@ -55,6 +56,6 @@ public record AiReviewDto(String runId, String status, Instant createdAt, Instan
 		return new AiReviewDto(run.runId(), run.status(), run.createdAt(), run.completedAt(), run.latencyMs(), run.errorKind(),
 				run.errorSummary(), run.resultSummary(), run.redactionCount(), List.copyOf(findings),
 				run.evidenceUnverified(), run.definitionKeys(), run.definitionVersions(),
-				run.vocabularyMisses());
+				run.vocabularyMisses(), run.definitionSources());
 	}
 }
