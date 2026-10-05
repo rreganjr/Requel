@@ -45,6 +45,7 @@ import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.EvidenceRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
+import com.rreganjr.requel.assistant.core.context.RedactablePatterns;
 import com.rreganjr.requel.project.TextEntity;
 
 /**
@@ -159,6 +160,8 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 		NLPProcessor<Boolean> spellChecker = nlpProcessorFactory.getSpellingChecker(projectId);
 		NLPProcessor<Collection<NLPText>> similarWordFinder = nlpProcessorFactory
 				.getSimilarWordFinder(projectId);
+		// #359: the emails, URLs and credentials in the text; their fragments aren't words.
+		List<RedactablePatterns.Span> spans = RedactablePatterns.spans(text);
 		for (NLPText word : nlpText.getLeaves()) {
 			if (word.in(PartOfSpeech.PUNCTUATION, PartOfSpeech.NUMBER, PartOfSpeech.SYMBOL)
 					|| word.in(ParseTag.POS, ParseTag.CD)) {
@@ -168,8 +171,9 @@ public class LexicalSpellingAssistant implements RequelAssistant<TextEntity> {
 				continue;
 			}
 			// Issue #268: project vocabulary, acronyms, CamelCase names, identifiers and
-			// hyphenated compounds of known words aren't misspellings.
-			if (SpellingSkips.reason(word.getText(), vocabulary,
+			// hyphenated compounds of known words aren't misspellings; nor (#359) are the pieces of
+			// an email address, URL or credential.
+			if (SpellingSkips.reason(word.getText(), text, spans, vocabulary,
 					part -> isKnownWord(projectId, part)) != null) {
 				continue;
 			}

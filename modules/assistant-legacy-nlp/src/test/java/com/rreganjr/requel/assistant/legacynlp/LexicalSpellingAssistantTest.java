@@ -196,9 +196,43 @@ class LexicalSpellingAssistantTest {
 				.extracting(a -> a.metadata().get("word")).containsExactly("datalaek");
 	}
 
+	/**
+	 * #359: the pieces of an email address, a URL (with or without credentials) and API, bearer and
+	 * JWT keys are not misspellings, in the Name or the Text. A real misspelling still is, even one
+	 * that also appears inside a URL.
+	 */
+	@Test
+	void fragmentsOfEmailsUrlsAndKeysAreNotReported() {
+		ProjectOrDomain projectOrDomain = mock(ProjectOrDomain.class);
+		doReturn(new TreeSet<GlossaryTerm>(Comparator.comparing(GlossaryTerm::getName)))
+				.when(projectOrDomain).getGlossaryTerms();
+		doReturn(Set.of()).when(projectOrDomain).getActors();
+		String key = "sk-proj-Ab3dE5gH7jK9mN1pQ3sT5vX7";
+		String jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.c2lnbmF0dXJlLXZhbHVl";
+		String text = "Mail ops-team@example.com, read https://wiki.exmaple.org/runbok and"
+				+ " https://deploy:hunter@ci.example.net/jobs, use " + key
+				+ " or Authorization: Bearer abcdefghijklmnopqrstuvwx or " + jwt
+				+ ". Keep the runbok current; datalaek.";
+
+		AssistantResult result = analyzeUnknownTokens(projectOrDomain,
+				"Notify ops-team@example.com", text,
+				List.of("ops-team@example", "com", "https", "exmaple", "runbok", "deploy", "hunter",
+						"sk", "proj", "Bearer", "abcdefghijklmnopqrstuvwx", "datalaek"));
+
+		assertThat(result.annotationActions()).filteredOn(
+				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
+				.extracting(a -> a.metadata().get("word")).containsExactly("runbok", "datalaek");
+	}
+
 	/** Every token is unknown to the spell checker; only the #268 skips can keep it out. */
 	private AssistantResult analyzeUnknownTokens(ProjectOrDomain projectOrDomain, String text,
 			List<String> tokens) {
+		return analyzeUnknownTokens(projectOrDomain, "", text, tokens);
+	}
+
+	/** As above, with a Name too; the Name's leaves are the same tokens. */
+	private AssistantResult analyzeUnknownTokens(ProjectOrDomain projectOrDomain, String name,
+			String text, List<String> tokens) {
 		@SuppressWarnings("unchecked")
 		NLPProcessor<Boolean> spellChecker = mock(NLPProcessor.class);
 		@SuppressWarnings("unchecked")
@@ -218,7 +252,7 @@ class LexicalSpellingAssistantTest {
 		when(nlpText.getLeaves()).thenReturn(leaves);
 		when(spellChecker.process(any())).thenReturn(false);
 		when(similarWordFinder.process(any())).thenReturn(List.of());
-		TextEntity entity = textEntity("", text);
+		TextEntity entity = textEntity(name, text);
 		doReturn(projectOrDomain).when(entity).getProjectOrDomain();
 		return assistant.analyze(context(), entity);
 	}

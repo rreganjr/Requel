@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import com.rreganjr.nlp.dictionary.NLPText;
 import com.rreganjr.nlp.dictionary.impl.NLPTextImpl;
+import com.rreganjr.requel.assistant.core.context.RedactablePatterns;
 
 /** Issue #268 / #269: quoted evidence must be text the entity actually contains. */
 class LexicalEvidenceTest {
@@ -77,6 +78,32 @@ class LexicalEvidenceTest {
 		assertThat(LexicalEvidence.occurs("the roomy lobby", "the room")).isFalse();
 		assertThat(LexicalEvidence.occurs("the permissions matrix", "ermissions")).isFalse();
 		assertThat(LexicalEvidence.occurs("the recording notice", "notic")).isFalse();
+	}
+
+	/** #359: every whole-word match, so a word inside "ask" is not an occurrence of "sk". */
+	@Test
+	void occurrencesAreTheWholeWordMatchesInOrder() {
+		String source = "Ask for sk-proj keys; SK too.";
+
+		assertThat(LexicalEvidence.occurrences(source, "sk")).extracting(at -> at[0] + "-" + at[1])
+				.containsExactly("8-10", "22-24");
+		assertThat(LexicalEvidence.occurrences(source, "nope")).isEmpty();
+		assertThat(LexicalEvidence.occurrences(null, "sk")).isEmpty();
+		assertThat(LexicalEvidence.occurrences(source, " ")).isEmpty();
+	}
+
+	/** #359: a word only inside the spans, one also outside them, and one not in the text. */
+	@Test
+	void onlyInsideNeedsEveryOccurrenceInsideASpan() {
+		String source = "Mail ops-team@example.com, then tell the team.";
+		List<RedactablePatterns.Span> spans = RedactablePatterns.spans(source);
+
+		assertThat(LexicalEvidence.onlyInside(source, "ops-team@example", spans)).isTrue();
+		assertThat(LexicalEvidence.onlyInside(source, "com", spans)).isTrue();
+		assertThat(LexicalEvidence.onlyInside(source, "team", spans)).isFalse();
+		assertThat(LexicalEvidence.onlyInside(source, "absent", spans)).isFalse();
+		assertThat(LexicalEvidence.onlyInside(source, "com", List.of())).isFalse();
+		assertThat(LexicalEvidence.onlyInside(source, "com", null)).isFalse();
 	}
 
 	@Test

@@ -149,6 +149,33 @@ class LexicalVagueWordAssistantTest {
 				.extracting(a -> a.metadata().get("word")).containsExactly("Several");
 	}
 
+	/**
+	 * #359: a vague word that only appears inside a URL or email address isn't the author's prose;
+	 * the same word in the prose still is.
+	 */
+	@Test
+	void aVagueWordInsideAUrlOrEmailIsNotReported() {
+		String text = "See https://wiki.example.com/some/thing or mail stuff@example.com about the thing.";
+		Linkdef linkType = mock(Linkdef.class);
+		when(dictionaryRepository.findLinkDef(1L)).thenReturn(linkType);
+		List<NLPText> leaves = List.of(word("some", PartOfSpeech.ADJECTIVE, linkType, 0.1),
+				word("stuff", PartOfSpeech.NOUN, linkType, 0.1),
+				word("thing", PartOfSpeech.NOUN, linkType, 0.1));
+		NLPText nlpText = mock(NLPText.class);
+		when(nlpText.getLeaves()).thenReturn(leaves);
+		when(nlpProcessorFactory.processText(anyString())).thenReturn(nlpText);
+		@SuppressWarnings("unchecked")
+		NLPProcessor<java.util.Collection<NLPText>> suggester = mock(NLPProcessor.class);
+		when(suggester.process(any())).thenReturn(List.of());
+		when(nlpProcessorFactory.getMoreSpecificWordSuggester()).thenReturn(suggester);
+
+		AssistantResult result = assistant.analyze(context(), textEntity("", text));
+
+		assertThat(result.annotationActions()).filteredOn(
+				a -> a.actionType() == AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE)
+				.extracting(a -> a.metadata().get("word")).containsExactly("thing");
+	}
+
 	/** A leaf of the given part of speech whose sense scores {@code infoContent}; no sense if linkType is null. */
 	private NLPText word(String text, PartOfSpeech pos, Linkdef linkType, double infoContent) {
 		NLPText word = mock(NLPText.class);

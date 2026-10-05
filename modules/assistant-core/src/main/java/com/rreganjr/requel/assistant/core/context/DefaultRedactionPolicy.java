@@ -65,6 +65,10 @@ public class DefaultRedactionPolicy implements RedactionPolicy {
 		static Rule whole(String regex, int flags, String placeholder) {
 			return new Rule(Pattern.compile(regex, flags), m -> placeholder);
 		}
+
+		static Rule whole(Pattern pattern, String placeholder) {
+			return new Rule(pattern, m -> placeholder);
+		}
 	}
 
 	private static final Map<RedactionCategory, List<Rule>> RULES = rules();
@@ -145,30 +149,21 @@ public class DefaultRedactionPolicy implements RedactionPolicy {
 	private static Map<RedactionCategory, List<Rule>> rules() {
 		Map<RedactionCategory, List<Rule>> rules = new EnumMap<>(RedactionCategory.class);
 		String cred = placeholder(RedactionCategory.CREDENTIALS);
+		// #359: the patterns are shared with the lexical checks (RedactablePatterns).
 		rules.put(RedactionCategory.CREDENTIALS, List.of(
 				// PEM private-key blocks, whole
-				Rule.whole("-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\\s\\S]*?"
-						+ "-----END [A-Z0-9 ]*PRIVATE KEY-----", 0, cred),
+				Rule.whole(RedactablePatterns.PRIVATE_KEY, cred),
 				// scheme://user:password@host -> keep the user and host, mask the password
-				new Rule(Pattern.compile("\\b([a-zA-Z][a-zA-Z0-9+.-]*://[^\\s:/@]+:)([^\\s@/]+)@"),
-						m -> m.group(1) + cred + "@"),
+				new Rule(RedactablePatterns.URL_PASSWORD, m -> m.group(1) + cred + "@"),
 				// password=..., secret: "...", api_key=... -> keep the name
-				new Rule(Pattern.compile("(?i)\\b(password|passwd|pwd|secret|client[_-]?secret"
-						+ "|token|access[_-]?token|api[_-]?key|access[_-]?key)(\\s*[:=]\\s*)"
-						+ "(\"[^\"]*\"|'[^']*'|[^\\s,;]+)"), m -> m.group(1) + m.group(2) + cred),
+				new Rule(RedactablePatterns.SECRET_PAIR, m -> m.group(1) + m.group(2) + cred),
 				// Authorization: Bearer <token>
-				new Rule(Pattern.compile("(?i)\\b(bearer)\\s+[A-Za-z0-9._~+/=-]{16,}"),
-						m -> m.group(1) + " " + cred),
+				new Rule(RedactablePatterns.BEARER, m -> m.group(1) + " " + cred),
 				// JWTs
-				Rule.whole("\\beyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}", 0,
-						cred),
+				Rule.whole(RedactablePatterns.JWT, cred),
 				// well-known API key shapes
-				Rule.whole("\\b(?:sk-ant-[A-Za-z0-9_-]{20,}|sk-(?:proj-)?[A-Za-z0-9_-]{20,}"
-						+ "|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}"
-						+ "|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35})",
-						0, cred)));
-		rules.put(RedactionCategory.EMAIL, List.of(Rule.whole(
-				"\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b", 0,
+				Rule.whole(RedactablePatterns.API_KEY, cred)));
+		rules.put(RedactionCategory.EMAIL, List.of(Rule.whole(RedactablePatterns.EMAIL,
 				placeholder(RedactionCategory.EMAIL))));
 		rules.put(RedactionCategory.SSN, List.of(Rule.whole(
 				"\\b(?!000|666|9\\d\\d)\\d{3}-(?!00)\\d{2}-(?!0000)\\d{4}\\b", 0,

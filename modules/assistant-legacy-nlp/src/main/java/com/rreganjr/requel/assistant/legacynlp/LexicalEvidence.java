@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.assistant.legacynlp;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -28,6 +29,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.rreganjr.nlp.dictionary.NLPText;
+import com.rreganjr.requel.assistant.core.context.RedactablePatterns;
 
 /**
  * Issue #268 (and the rest of #269): what a lexical finding quotes must be text the entity actually
@@ -98,12 +100,54 @@ public final class LexicalEvidence {
 		if (CLITICS.contains(trimmed.toLowerCase(java.util.Locale.ROOT))) {
 			return true;
 		}
+		return wholeWords(trimmed).matcher(source).find();
+	}
+
+	/**
+	 * Issue #359: where {@code quoted} occurs in {@code source} as whole words, matched as
+	 * {@link #occurs} matches it: each {@code [start, end)}, in order. Empty when it doesn't occur.
+	 */
+	public static List<int[]> occurrences(String source, String quoted) {
+		if (source == null || quoted == null || quoted.isBlank()) {
+			return List.of();
+		}
+		List<int[]> found = new ArrayList<>();
+		Matcher m = wholeWords(quoted.trim()).matcher(source);
+		while (m.find()) {
+			found.add(new int[] { m.start(), m.end() });
+		}
+		return found;
+	}
+
+	/**
+	 * Issue #359: whether every whole-word occurrence of {@code quoted} in {@code source} lies inside
+	 * one of {@code spans} - it is only ever part of an email address, URL or credential. False
+	 * when it doesn't occur, or when any occurrence is outside them.
+	 */
+	public static boolean onlyInside(String source, String quoted,
+			List<RedactablePatterns.Span> spans) {
+		if (spans == null || spans.isEmpty()) {
+			return false;
+		}
+		List<int[]> found = occurrences(source, quoted);
+		if (found.isEmpty()) {
+			return false;
+		}
+		for (int[] at : found) {
+			if (!RedactablePatterns.covered(spans, at[0], at[1])) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** {@code trimmed} as whole words: case-insensitive, any whitespace run matching any other. */
+	private static Pattern wholeWords(String trimmed) {
 		String body = Arrays.stream(trimmed.split("\\s+")).map(Pattern::quote)
 				.collect(Collectors.joining("\\s+"));
 		String pattern = (startsWithWordChar(trimmed) ? NOT_WORD_BEFORE : "") + body
 				+ (endsWithWordChar(trimmed) ? NOT_WORD_AFTER : "");
-		return Pattern.compile(pattern, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE)
-				.matcher(source).find();
+		return Pattern.compile(pattern, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 	}
 
 	/** A token as the parser prints it, as a regex for what it matches in the source text. */
