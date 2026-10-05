@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -96,8 +97,8 @@ public class DeleteStakeholderCommandImpl extends AbstractDeleteProjectEntityCom
 		refuseStaleDelete(Stakeholder.class, stakeholder, stakeholder.getVersion());
 		Set<Annotation> annotations = new HashSet<Annotation>(stakeholder.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(getEditedBy());
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(stakeholder);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);

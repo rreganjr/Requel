@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -107,8 +108,8 @@ public class DeleteUseCaseCommandImpl extends AbstractDeleteProjectEntityCommand
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(usecase.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(editedBy);
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(usecase);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
@@ -128,9 +129,8 @@ public class DeleteUseCaseCommandImpl extends AbstractDeleteProjectEntityCommand
 			removeActorFromActorContainerCommand.setActor(actor);
 			removeActorFromActorContainerCommand.setActorContainer(usecase);
 			removeActorFromActorContainerCommand.setEditedBy(getEditedBy());
-			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
-			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
-			((com.rreganjr.platform.command.AuthorizationExemptable) removeActorFromActorContainerCommand).setAuthorizationExempt(true);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeActorFromActorContainerCommand);
 			getCommandHandler().execute(removeActorFromActorContainerCommand);
 		}
 		Set<Goal> goals = new HashSet<Goal>(usecase.getGoals());
@@ -140,9 +140,8 @@ public class DeleteUseCaseCommandImpl extends AbstractDeleteProjectEntityCommand
 			removeGoalFromGoalContainerCommand.setGoal(goal);
 			removeGoalFromGoalContainerCommand.setGoalContainer(usecase);
 			removeGoalFromGoalContainerCommand.setEditedBy(getEditedBy());
-			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
-			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
-			((com.rreganjr.platform.command.AuthorizationExemptable) removeGoalFromGoalContainerCommand).setAuthorizationExempt(true);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeGoalFromGoalContainerCommand);
 			getCommandHandler().execute(removeGoalFromGoalContainerCommand);
 		}
 		Set<Story> stories = new HashSet<Story>(usecase.getStories());
@@ -152,9 +151,8 @@ public class DeleteUseCaseCommandImpl extends AbstractDeleteProjectEntityCommand
 			removeStoryFromStoryContainerCommand.setStory(story);
 			removeStoryFromStoryContainerCommand.setStoryContainer(usecase);
 			removeStoryFromStoryContainerCommand.setEditedBy(getEditedBy());
-			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
-			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
-			((com.rreganjr.platform.command.AuthorizationExemptable) removeStoryFromStoryContainerCommand).setAuthorizationExempt(true);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeStoryFromStoryContainerCommand);
 			getCommandHandler().execute(removeStoryFromStoryContainerCommand);
 		}
 		// #247: capture the use-case's own scenarios (primary + additional) before deleting it.
@@ -220,7 +218,7 @@ public class DeleteUseCaseCommandImpl extends AbstractDeleteProjectEntityCommand
 						.newDeleteScenarioStepCommand();
 				deleteStepCommand.setScenarioStep(step);
 				deleteStepCommand.setEditedBy(getEditedBy());
-				((com.rreganjr.platform.command.AuthorizationExemptable) deleteStepCommand).setAuthorizationExempt(true);
+				CascadeAuthorizable.cascade(this, deleteStepCommand);
 				getCommandHandler().execute(deleteStepCommand);
 			}
 		}
@@ -230,7 +228,7 @@ public class DeleteUseCaseCommandImpl extends AbstractDeleteProjectEntityCommand
 						.newDeleteScenarioCommand();
 				deleteScenarioCommand.setScenario(scenario);
 				deleteScenarioCommand.setEditedBy(getEditedBy());
-				((com.rreganjr.platform.command.AuthorizationExemptable) deleteScenarioCommand).setAuthorizationExempt(true);
+				CascadeAuthorizable.cascade(this, deleteScenarioCommand);
 				getCommandHandler().execute(deleteScenarioCommand);
 			}
 		}

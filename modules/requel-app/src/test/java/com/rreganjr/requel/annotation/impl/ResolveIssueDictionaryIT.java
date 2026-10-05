@@ -97,9 +97,8 @@ public class ResolveIssueDictionaryIT extends AbstractIntegrationTestCase {
 	 * The first is #305's gate on the resolve. The second is the point of #312: executed on its
 	 * own rather than through the resolver, the write is still checked, because it is an
 	 * {@code AuthorizableCommand} in its own right. That second assertion is what fails if the
-	 * command is ever re-parented onto a base class implementing {@code AuthorizationExemptable} —
-	 * {@code AuthorizingCommandHandler} honours that flag before it reads the authorization
-	 * requirement, so the gate would go quiet rather than loud.
+	 * command is ever made a cascade step of the resolve ({@code CascadeAuthorizable}, #75) —
+	 * a step is authorized by its parent's permission, so the gate would go quiet rather than loud.
 	 * <p>
 	 * The third runs as {@code admin}, who does hold {@code Annotation[Edit]} here: a project id
 	 * with no project object behind it authorizes nothing, so the refusal is about the missing

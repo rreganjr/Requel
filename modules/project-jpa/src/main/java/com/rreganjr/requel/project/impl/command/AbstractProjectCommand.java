@@ -30,28 +30,26 @@ import com.rreganjr.requel.project.command.ProjectCommandFactory;
 import com.rreganjr.requel.project.impl.assistant.AssistantFacade;
 import com.rreganjr.requel.user.UserRepository;
 import com.rreganjr.requel.user.impl.command.AbstractUserCommand;
-import com.rreganjr.platform.command.AuthorizationExemptable;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.CascadeAuthorizable;
 
 /**
  * @author ron
  */
 public abstract class AbstractProjectCommand extends AbstractUserCommand
-		implements AuthorizationExemptable {
+		implements CascadeAuthorizable {
 
-	// TODO(#75): temporary. Lets a parent command mark internally-invoked cascade sub-commands
-	// (e.g. detach steps in a delete) exempt from re-authorization, so a Delete-only stakeholder
-	// isn't re-checked for Edit on each container. Remove with the permission-coherence model:
-	// https://github.com/rreganjr/Requel/issues/75
-	private boolean authorizationExempt = false;
+	private AuthorizableCommand authorizingCommand;
 
+	/** #75: the command this one is a step of, or null when it runs on its own. */
 	@Override
-	public boolean isAuthorizationExempt() {
-		return authorizationExempt;
+	public AuthorizableCommand getAuthorizingCommand() {
+		return authorizingCommand;
 	}
 
 	@Override
-	public void setAuthorizationExempt(boolean authorizationExempt) {
-		this.authorizationExempt = authorizationExempt;
+	public void setAuthorizingCommand(AuthorizableCommand authorizingCommand) {
+		this.authorizingCommand = authorizingCommand;
 	}
 
 	private final CommandHandler commandHandler;
@@ -130,8 +128,8 @@ public abstract class AbstractProjectCommand extends AbstractUserCommand
 	 * database's current state (index-backed native deletes) and deletes the
 	 * annotations left orphaned, so an annotation a background assistant linked to
 	 * the entity after this command loaded it cannot fail the delete with a
-	 * {@code <table>_annotations} foreign-key violation. Runs auth-exempt as an
-	 * intrinsic sub-step of the already-authorized delete (#75).
+	 * {@code <table>_annotations} foreign-key violation. Runs as a step of the delete,
+	 * authorized by the delete's own permission (#75).
 	 *
 	 * @param entity
 	 *            the managed entity about to be deleted.
@@ -160,7 +158,7 @@ public abstract class AbstractProjectCommand extends AbstractUserCommand
 				.newRemoveAllAnnotationsFromAnnotatableCommand();
 		command.setAnnotatable(entity);
 		command.setEditedBy(editedBy);
-		((AuthorizationExemptable) command).setAuthorizationExempt(true);
+		CascadeAuthorizable.cascade(this, command);
 		getCommandHandler().execute(command);
 	}
 }

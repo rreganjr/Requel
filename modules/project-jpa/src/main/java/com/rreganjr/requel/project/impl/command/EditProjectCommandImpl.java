@@ -31,6 +31,7 @@ import com.rreganjr.platform.command.AuthorizationRequirement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.rreganjr.platform.command.AuthorizationRequirement.RequiresRolePermission;
 import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityException;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
@@ -207,8 +208,11 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 
 	@Override
 	public AuthorizationRequirement getAuthorizationRequirement() {
-		// project == null means new project creation — defer to role-permission check in execute()
-		if (project == null) return null;
+		// #75: project == null means a new project, which needs the createProjects role permission.
+		// (This used to return null and say execute() checked it; nothing did.)
+		if (project == null) {
+			return new RequiresRolePermission(ProjectUserRole.createProjects.getName());
+		}
 		return new RequiresStakeholderPermission(Project.class, "Edit");
 	}
 

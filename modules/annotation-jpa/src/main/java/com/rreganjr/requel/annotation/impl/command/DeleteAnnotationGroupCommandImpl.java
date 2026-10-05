@@ -28,7 +28,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.platform.command.AuthorizationExemptable;
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.Issue;
@@ -102,15 +102,15 @@ public class DeleteAnnotationGroupCommandImpl extends AbstractEditCommand implem
 						.newDeleteIssueCommand();
 				deleteIssueCommand.setIssue(issue);
 				deleteIssueCommand.setEditedBy(getEditedBy());
-				// #69/#75: intrinsic sub-delete of an already-authorized parent delete.
-				((AuthorizationExemptable) deleteIssueCommand).setAuthorizationExempt(true);
+				// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+				CascadeAuthorizable.cascade(this, deleteIssueCommand);
 				getCommandHandler().execute(deleteIssueCommand);
 			} else if (annotation instanceof Note note) {
 				DeleteNoteCommand deleteNoteCommand = getAnnotationCommandFactory()
 						.newDeleteNoteCommand();
 				deleteNoteCommand.setNote(note);
 				deleteNoteCommand.setEditedBy(getEditedBy());
-				((AuthorizationExemptable) deleteNoteCommand).setAuthorizationExempt(true);
+				CascadeAuthorizable.cascade(this, deleteNoteCommand);
 				getCommandHandler().execute(deleteNoteCommand);
 			} else {
 				log.warn("annotation " + annotationId + " of type " + annotation.getClass().getName()

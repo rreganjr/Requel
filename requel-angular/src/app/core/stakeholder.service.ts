@@ -22,7 +22,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { StakeholderDto, StakeholderPermissionDto } from '../models/stakeholder';
+import { StakeholderDto, StakeholderPermissionDto, StakeholderPermissionRules } from '../models/stakeholder';
 
 /**
  * Service for stakeholder query endpoints.
@@ -44,6 +44,15 @@ export class StakeholderService {
     return firstValueFrom(
       this.http.get<StakeholderDto>(
         `${environment.apiBaseUrl}/projects/${encodeURIComponent(projectName)}/stakeholders/${stakeholderId}`
+      )
+    );
+  }
+
+  /** Issue #75: the implied permissions, owned deletes and Grant rules for the permission grid. */
+  async getPermissionRules(): Promise<StakeholderPermissionRules> {
+    return firstValueFrom(
+      this.http.get<StakeholderPermissionRules>(
+        `${environment.apiBaseUrl}/projects/stakeholder-permission-rules`
       )
     );
   }

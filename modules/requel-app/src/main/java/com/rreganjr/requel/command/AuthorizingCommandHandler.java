@@ -23,13 +23,18 @@ package com.rreganjr.requel.command;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizableCommand;
-import com.rreganjr.platform.command.AuthorizationExemptable;
+import com.rreganjr.platform.command.CascadeAuthorizable;
+import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.platform.command.AuthorizationException;
 import com.rreganjr.platform.command.AuthorizationRequirement;
 import com.rreganjr.platform.command.AuthorizationRequirement.*;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.project.ProjectScopedCommand;
 import com.rreganjr.requel.project.StakeholderAuthorizationChecker;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Objects;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,19 +57,68 @@ public class AuthorizingCommandHandler implements CommandHandler {
         this.delegate = delegate;
     }
 
+    /**
+     * Issue #75: the commands this thread is executing that passed their check, innermost first. A
+     * {@link CascadeAuthorizable} step borrows its authorizing command's check only while that
+     * command is here.
+     */
+    private static final ThreadLocal<Deque<AuthorizableCommand>> AUTHORIZED =
+            ThreadLocal.withInitial(ArrayDeque::new);
+
     @Override
     public <T extends Command> T execute(T command) throws Exception {
-        // TODO(#75): TEMPORARY. Sub-commands a parent runs as part of an already-authorized
-        // operation (e.g. the detach cascade inside a delete) are marked exempt so a
-        // Delete-only stakeholder isn't re-checked for Edit on each container. Remove once the
-        // permission-coherence model lands: https://github.com/rreganjr/Requel/issues/75
-        if (command instanceof AuthorizationExemptable ae && ae.isAuthorizationExempt()) {
+        if (command instanceof CascadeAuthorizable step && step.getAuthorizingCommand() != null) {
+            // #75: a step of an authorized operation (a delete's leftovers, what it alone owns)
+            // is covered by that operation's permission - checked, not skipped.
+            requireExecutingAuthorizer(command, step.getAuthorizingCommand());
             return delegate.execute(command);
         }
         if (command instanceof AuthorizableCommand authCmd) {
             checkAuthorization(authCmd);
+            Deque<AuthorizableCommand> authorized = AUTHORIZED.get();
+            authorized.push(authCmd);
+            try {
+                return delegate.execute(command);
+            } finally {
+                authorized.pop();
+                if (authorized.isEmpty()) {
+                    AUTHORIZED.remove();
+                }
+            }
         }
         return delegate.execute(command);
+    }
+
+    /**
+     * #75: a cascade step is accepted only while the command that authorizes it is executing on
+     * this thread, having passed its own check, for the same user.
+     */
+    private void requireExecutingAuthorizer(Command step, AuthorizableCommand authorizer) {
+        boolean executing = false;
+        for (AuthorizableCommand running : AUTHORIZED.get()) {
+            // Commands are Spring proxies; the parent hands on itself (the target) from inside
+            // execute(), while the handler was given the proxy.
+            if (running == authorizer
+                    || org.springframework.aop.framework.AopProxyUtils.getSingletonTarget(running)
+                            == authorizer) {
+                executing = true;
+                break;
+            }
+        }
+        if (!executing) {
+            throw new AuthorizationException(step.getClass().getSimpleName()
+                    + " is a step of " + authorizer.getClass().getSimpleName()
+                    + ", which is not executing");
+        }
+        User stepUser = step instanceof EditCommand edit ? edit.getEditedBy() : null;
+        User authorizerUser = authorizer.getEditedBy();
+        if (stepUser != null && authorizerUser != null
+                && !Objects.equals(stepUser.getId(), authorizerUser.getId())) {
+            throw new AuthorizationException(step.getClass().getSimpleName()
+                    + " runs as a different user from " + authorizer.getClass().getSimpleName());
+        }
+        log.trace("{} authorized as a step of {}", step.getClass().getSimpleName(),
+                authorizer.getClass().getSimpleName());
     }
 
     private void checkAuthorization(AuthorizableCommand command) {

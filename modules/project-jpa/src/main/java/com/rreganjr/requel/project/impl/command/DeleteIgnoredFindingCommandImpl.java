@@ -27,7 +27,7 @@ import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizableCommand;
-import com.rreganjr.platform.command.AuthorizationExemptable;
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import com.rreganjr.platform.command.AuthorizationRequirement;
 import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.exception.EntityExceptionActionType;
@@ -160,19 +160,18 @@ public class DeleteIgnoredFindingCommandImpl extends AbstractProjectCommand
 	/**
 	 * Unlink the issue from this entity only: an issue the pre-#320 leak attached to several
 	 * entities stays on the others. RemoveAnnotationFromAnnotatable deletes it once nothing else
-	 * has it. It runs auth-exempt as a sub-step of this already-authorized command.
+	 * has it. It runs as a step of this command, authorized by Project[Edit] (#75).
 	 */
 	private void unlinkResolvedIssue(ProjectOrDomainEntity entity, Long annotationId)
 			throws Exception {
 		for (Annotation annotation : entity.getAnnotations()) {
 			Annotation unproxied = (Annotation) Hibernate.unproxy(annotation);
 			if (annotationId.equals(unproxied.getId())) {
-				RemoveAnnotationFromAnnotatableCommand command = getAnnotationCommandFactory()
-						.newRemoveAnnotationFromAnnotatableCommand();
+				RemoveAnnotationFromAnnotatableCommand command = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 				command.setAnnotatable(entity);
 				command.setAnnotation(unproxied);
 				command.setEditedBy(editedBy);
-				((AuthorizationExemptable) command).setAuthorizationExempt(true);
 				getCommandHandler().execute(command);
 				return;
 			}

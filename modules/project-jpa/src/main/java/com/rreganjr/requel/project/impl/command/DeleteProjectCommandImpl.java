@@ -30,7 +30,7 @@ import org.springframework.stereotype.Controller;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizableCommand;
-import com.rreganjr.platform.command.AuthorizationExemptable;
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import com.rreganjr.platform.command.AuthorizationRequirement;
 import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermissionOrSystemAdminRole;
 import com.rreganjr.platform.command.EditCommand;
@@ -78,8 +78,8 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
  * persistence semantics repo-wide (or hand-roll native bulk deletes that bypass
  * reference cleanup and the annotation/tag registries), this command cascades by
  * orchestration: it invokes the existing per-entity {@code Delete*Command}s -
- * marked auth-exempt (issue #75) so a {@code Project[Delete]} holder is not
- * re-checked for each child's {@code Edit}/{@code Delete} - reusing their tested
+ * run as steps of this delete, authorized by its own permission (issue #75), so a
+ * {@code Project[Delete]} holder needs no child's {@code Edit}/{@code Delete} - reusing their tested
  * reference cleanup and per-entity audit, then clears the project's own
  * annotations and teams and deletes the project row.
  *
@@ -189,7 +189,7 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 		for (UseCase useCase : new HashSet<UseCase>(project.getUseCases())) {
 			DeleteUseCaseCommand command = getProjectCommandFactory().newDeleteUseCaseCommand();
 			command.setUseCase(useCase);
-			executeExempt(command, editedBy);
+			executeStep(command, editedBy);
 		}
 
 		// 2) Remaining scenarios and steps. Delete plain (non-scenario) steps first, then
@@ -216,7 +216,7 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 				DeleteScenarioStepCommand command = getProjectCommandFactory()
 						.newDeleteScenarioStepCommand();
 				command.setScenarioStep(step);
-				executeExempt(command, editedBy);
+				executeStep(command, editedBy);
 			}
 		}
 		Set<Scenario> scenarios = new HashSet<Scenario>(project.getScenarios());
@@ -228,28 +228,28 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 		for (Scenario scenario : scenarios) {
 			DeleteScenarioCommand command = getProjectCommandFactory().newDeleteScenarioCommand();
 			command.setScenario(scenario);
-			executeExempt(command, editedBy);
+			executeStep(command, editedBy);
 		}
 
 		// 3) Stories.
 		for (Story story : new HashSet<Story>(project.getStories())) {
 			DeleteStoryCommand command = getProjectCommandFactory().newDeleteStoryCommand();
 			command.setStory(story);
-			executeExempt(command, editedBy);
+			executeStep(command, editedBy);
 		}
 
 		// 4) Actors.
 		for (Actor actor : new HashSet<Actor>(project.getActors())) {
 			DeleteActorCommand command = getProjectCommandFactory().newDeleteActorCommand();
 			command.setActor(actor);
-			executeExempt(command, editedBy);
+			executeStep(command, editedBy);
 		}
 
 		// 5) Goals (containers above have emptied their referer sets).
 		for (Goal goal : new HashSet<Goal>(project.getGoals())) {
 			DeleteGoalCommand command = getProjectCommandFactory().newDeleteGoalCommand();
 			command.setGoal(goal);
-			executeExempt(command, editedBy);
+			executeStep(command, editedBy);
 		}
 
 		// 6) Glossary terms (after the entities that refer to them).
@@ -257,7 +257,7 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 			DeleteGlossaryTermCommand command = getProjectCommandFactory()
 					.newDeleteGlossaryTermCommand();
 			command.setGlossaryTerm(term);
-			executeExempt(command, editedBy);
+			executeStep(command, editedBy);
 		}
 
 		// 7) Report generators.
@@ -266,7 +266,7 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 			DeleteReportGeneratorCommand command = getProjectCommandFactory()
 					.newDeleteReportGeneratorCommand();
 			command.setReportGenerator(reportGenerator);
-			executeExempt(command, editedBy);
+			executeStep(command, editedBy);
 		}
 
 		// 8) Stakeholders - user and non-user alike. This severs the project
@@ -275,7 +275,7 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 			DeleteStakeholderCommand command = getProjectCommandFactory()
 					.newDeleteStakeholderCommand();
 			command.setStakeholder(stakeholder);
-			executeExempt(command, editedBy);
+			executeStep(command, editedBy);
 		}
 
 		// 9) Teams (no per-entity command). Detach members (a @ManyToMany join)
@@ -315,8 +315,8 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 
 		// 11) The project's own annotations.
 		for (Annotation annotation : new HashSet<Annotation>(project.getAnnotations())) {
-			RemoveAnnotationFromAnnotatableCommand command = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand command = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			command.setEditedBy(editedBy);
 			command.setAnnotatable(project);
 			command.setAnnotation(annotation);
@@ -332,7 +332,7 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 				.newDeleteAnnotationGroupCommand();
 		deleteAnnotationGroup.setGroupingObject(project);
 		deleteAnnotationGroup.setEditedBy(editedBy);
-		((AuthorizationExemptable) deleteAnnotationGroup).setAuthorizationExempt(true);
+		CascadeAuthorizable.cascade(this, deleteAnnotationGroup);
 		getCommandHandler().execute(deleteAnnotationGroup);
 
 		// 13) Finally, the project row itself (#247: after a database-state sweep of any
@@ -342,14 +342,13 @@ public class DeleteProjectCommandImpl extends AbstractEditProjectCommand impleme
 	}
 
 	/**
-	 * Run an internally-orchestrated cascade sub-command as part of this
-	 * authorized project delete: attribute it to the acting user and exempt it
-	 * from re-authorization (issue #75) so a {@code Project[Delete]} holder is
-	 * not re-checked for each child's own permission.
+	 * Run a step of this project delete: attribute it to the acting user and authorize it by this
+	 * command's requirement (issue #75) - Project[Delete], or the administrator role - rather than
+	 * the child's own permission. Everything in the project is the project's to delete.
 	 */
-	private void executeExempt(EditCommand command, User editedBy) throws Exception {
+	private void executeStep(EditCommand command, User editedBy) throws Exception {
 		command.setEditedBy(editedBy);
-		((AuthorizationExemptable) command).setAuthorizationExempt(true);
+		CascadeAuthorizable.cascade(this, command);
 		getCommandHandler().execute((Command) command);
 	}
 

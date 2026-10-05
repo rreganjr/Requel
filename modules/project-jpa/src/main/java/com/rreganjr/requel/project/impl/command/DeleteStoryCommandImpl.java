@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -97,8 +98,8 @@ public class DeleteStoryCommandImpl extends AbstractDeleteProjectEntityCommand i
 		User editedBy = getRepository().get(getEditedBy());
 		Set<Annotation> annotations = new HashSet<Annotation>(story.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(editedBy);
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(story);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
@@ -113,9 +114,8 @@ public class DeleteStoryCommandImpl extends AbstractDeleteProjectEntityCommand i
 		for (Actor actor : story.getActors()) {
 			RemoveActorFromActorContainerCommand removeActorFromActorContainerCommand = getProjectCommandFactory().newRemoveActorFromActorContainerCommand();
 			removeActorFromActorContainerCommand.setEditedBy(editedBy);
-			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
-			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
-			((com.rreganjr.platform.command.AuthorizationExemptable) removeActorFromActorContainerCommand).setAuthorizationExempt(true);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeActorFromActorContainerCommand);
 			removeActorFromActorContainerCommand.setActor(actor);
 			removeActorFromActorContainerCommand.setActorContainer(story);
 			getCommandHandler().execute(removeActorFromActorContainerCommand);
@@ -123,9 +123,8 @@ public class DeleteStoryCommandImpl extends AbstractDeleteProjectEntityCommand i
 		for (Goal goal : story.getGoals()) {
 			RemoveGoalFromGoalContainerCommand removeGoalFromGoalContainerCommand = getProjectCommandFactory().newRemoveGoalFromGoalContainerCommand();
 			removeGoalFromGoalContainerCommand.setEditedBy(editedBy);
-			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
-			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
-			((com.rreganjr.platform.command.AuthorizationExemptable) removeGoalFromGoalContainerCommand).setAuthorizationExempt(true);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeGoalFromGoalContainerCommand);
 			removeGoalFromGoalContainerCommand.setGoal(goal);
 			removeGoalFromGoalContainerCommand.setGoalContainer(story);
 			getCommandHandler().execute(removeGoalFromGoalContainerCommand);
@@ -134,9 +133,8 @@ public class DeleteStoryCommandImpl extends AbstractDeleteProjectEntityCommand i
 		for (StoryContainer storyContainer : storyReferers) {
 			RemoveStoryFromStoryContainerCommand removeStoryFromStoryContainerCommand = getProjectCommandFactory().newRemoveStoryFromStoryContainerCommand();
 			removeStoryFromStoryContainerCommand.setEditedBy(editedBy);
-			// TODO(#75): part of an authorized delete; exempt the detach sub-command from
-			// re-auth (see https://github.com/rreganjr/Requel/issues/75)
-			((com.rreganjr.platform.command.AuthorizationExemptable) removeStoryFromStoryContainerCommand).setAuthorizationExempt(true);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, removeStoryFromStoryContainerCommand);
 			removeStoryFromStoryContainerCommand.setStory(story);
 			removeStoryFromStoryContainerCommand.setStoryContainer(storyContainer);
 			getCommandHandler().execute(removeStoryFromStoryContainerCommand);

@@ -44,6 +44,7 @@ describe('StakeholderEditorComponent - create wizard accessibility', () => {
         { provide: StakeholderService, useValue: {
             getStakeholder: vi.fn().mockResolvedValue(CREATED),
             getAvailablePermissions: vi.fn().mockResolvedValue(PERMISSIONS),
+            getPermissionRules: vi.fn().mockResolvedValue({ implied: [], ownedDeletes: [], grantKeys: {} }),
           } },
         { provide: CommandService, useValue: {
             execute: vi.fn().mockResolvedValue({ success: true, entity: CREATED }),
@@ -60,6 +61,7 @@ describe('StakeholderEditorComponent - create wizard accessibility', () => {
             loadForProject: vi.fn().mockResolvedValue(undefined),
             canEdit: vi.fn().mockReturnValue(true),
             canDelete: vi.fn().mockReturnValue(true),
+            hasPermission: vi.fn().mockReturnValue(true),
           } },
         { provide: EventStreamService, useValue: {
             events$: EMPTY,

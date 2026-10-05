@@ -85,4 +85,36 @@ class StakeholderPermissionsInitializerTest {
 		verify(repository, never()).merge(already);
 		verify(repository, never()).persist(any());
 	}
+
+	/** #75: every UseCase[Edit] holder gets what it implies, once. */
+	@Test
+	void useCaseEditHoldersGetScenarioAndActorEditOnce() {
+		StakeholderPermission useCaseEdit = new StakeholderPermissionImpl(
+				com.rreganjr.requel.project.UseCase.class, StakeholderPermissionType.Edit);
+		StakeholderPermission scenarioEdit = new StakeholderPermissionImpl(
+				com.rreganjr.requel.project.Scenario.class, StakeholderPermissionType.Edit);
+		StakeholderPermission actorEdit = new StakeholderPermissionImpl(
+				com.rreganjr.requel.project.Actor.class, StakeholderPermissionType.Edit);
+		when(repository.findStakeholderPermission(any(), any())).thenAnswer(inv -> {
+			Class<?> type = inv.getArgument(0);
+			StakeholderPermissionType permission = inv.getArgument(1);
+			if (type == AssistantDefinition.class) {
+				return definitionEdit;
+			}
+			return permission == StakeholderPermissionType.Edit ? projectEdit : projectDelete;
+		});
+		when(repository.findAvailableStakeholderPermissions())
+				.thenReturn(new java.util.LinkedHashSet<>(List.of(useCaseEdit, scenarioEdit, actorEdit)));
+		UserStakeholder writer = owner(useCaseEdit);
+		UserStakeholder closed = owner(useCaseEdit, scenarioEdit, actorEdit);
+		when(repository.findUserStakeholdersWithPermission(useCaseEdit))
+				.thenReturn(new java.util.LinkedHashSet<>(List.of(writer, closed)));
+
+		new StakeholderPermissionsInitializer(repository).initialize();
+
+		verify(writer).grantStakeholderPermission(scenarioEdit);
+		verify(writer).grantStakeholderPermission(actorEdit);
+		verify(closed, never()).grantStakeholderPermission(any());
+		verify(repository, never()).merge(closed);
+	}
 }

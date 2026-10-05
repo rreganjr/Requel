@@ -23,7 +23,6 @@ package com.rreganjr.requel.tagging.impl.command;
 import com.rreganjr.command.AbstractCommand;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizableCommand;
-import com.rreganjr.platform.command.AuthorizationExemptable;
 import com.rreganjr.platform.command.AuthorizationRequirement;
 import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.command.AuthorizationRequirement.RequiresSystemRole;
@@ -45,14 +44,13 @@ import com.rreganjr.requel.user.impl.SystemAdminUserRole;
  * @author ron
  */
 public abstract class AbstractTagCategoryCommand extends AbstractCommand
-		implements TagCategoryCommand, AuthorizationExemptable, ProjectScopedCommand, AuthorizableCommand {
+		implements TagCategoryCommand, ProjectScopedCommand, AuthorizableCommand {
 
 	private final CommandHandler commandHandler;
 	private final TagCommandFactory tagCommandFactory;
 	private User editedBy;
 	private Object projectScope;
 	private TagCategory tagCategory;
-	private boolean authorizationExempt = false;
 
 	protected AbstractTagCategoryCommand(CommandHandler commandHandler,
 			TagCommandFactory tagCommandFactory, TagRepository repository) {
@@ -101,15 +99,7 @@ public abstract class AbstractTagCategoryCommand extends AbstractCommand
 		return tagCategory;
 	}
 
-	@Override
-	public boolean isAuthorizationExempt() {
-		return authorizationExempt;
-	}
 
-	@Override
-	public void setAuthorizationExempt(boolean authorizationExempt) {
-		this.authorizationExempt = authorizationExempt;
-	}
 
 	@Override
 	public Project getProject() {

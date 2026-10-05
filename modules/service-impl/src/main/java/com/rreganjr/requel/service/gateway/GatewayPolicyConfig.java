@@ -125,7 +125,8 @@ public class GatewayPolicyConfig {
             "RevertAssistantDefinition", "DeleteAssistantDefinition",
             // File transfer / generation (not plain JSON commands)
             "ImportProject", "ExportProject", "GenerateReport",
-            // Not independently authorized (assistant / structural-internal)
+            // Assistant and structural-internal commands: authorized (by inheritance, or as
+            // cascade steps, #75) but never driven by an external client
             "ReplaceGlossaryTerm", "EditAddWordToGlossaryPosition", "EditAddActorToProjectPosition",
             "RemoveUnneedLexicalIssues", "EditLexicalIssue", "EditChangeSpellingPosition",
             "EditAddWordToDictionaryPosition", "ResolveIssue", "RemoveAnnotationFromAnnotatable");

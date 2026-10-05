@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.annotation.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
@@ -123,18 +124,16 @@ public class RemoveAnnotationFromAnnotatableCommandImpl extends AbstractEditComm
 						.newDeleteIssueCommand();
 				deleteIssueCommand.setIssue((Issue) annotation);
 				deleteIssueCommand.setEditedBy(getEditedBy());
-				// #69/#75: intrinsic sub-delete of an already-authorized parent delete; exempt so a
-				// Delete-only stakeholder isn't re-checked for Annotation[Delete] mid-cascade.
-				((com.rreganjr.platform.command.AuthorizationExemptable) deleteIssueCommand).setAuthorizationExempt(true);
+				// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+				CascadeAuthorizable.cascade(this, deleteIssueCommand);
 				getCommandHandler().execute(deleteIssueCommand);
 			} else if (annotation instanceof Note) {
 				DeleteNoteCommand deleteNoteCommand = getAnnotationCommandFactory()
 						.newDeleteNoteCommand();
 				deleteNoteCommand.setNote((Note) annotation);
 				deleteNoteCommand.setEditedBy(getEditedBy());
-				// #69/#75: intrinsic sub-delete of an already-authorized parent delete; exempt so a
-				// Delete-only stakeholder isn't re-checked for Annotation[Delete] mid-cascade.
-				((com.rreganjr.platform.command.AuthorizationExemptable) deleteNoteCommand).setAuthorizationExempt(true);
+				// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+				CascadeAuthorizable.cascade(this, deleteNoteCommand);
 				getCommandHandler().execute(deleteNoteCommand);
 			}
 		}

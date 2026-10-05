@@ -28,7 +28,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Controller;
 
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.platform.command.AuthorizationExemptable;
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.ProjectOrDomain;
 import com.rreganjr.requel.project.ProjectRepository;
@@ -169,9 +169,8 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 	/**
 	 * Issue #325: a plain step dropped from the list used to stay in the table, attached to no
 	 * scenario, still holding its name in the shared step/scenario unique key and blocking
-	 * DeleteProject on MySQL. Delete it unless another scenario still uses it. The delete is
-	 * authorization-exempt: dropping the step is part of this edit, which the caller is already
-	 * authorized for.
+	 * DeleteProject on MySQL. Delete it unless another scenario still uses it. The delete is a
+	 * step of this edit, authorized by Scenario[Edit] (#75): the step was this scenario's alone.
 	 */
 	private void deleteUnusedSteps(List<Step> droppedSteps, Scenario scenario, User editedBy)
 			throws Exception {
@@ -181,7 +180,7 @@ public class EditScenarioCommandImpl extends EditScenarioStepCommandImpl impleme
 						.newDeleteScenarioStepCommand();
 				command.setScenarioStep(step);
 				command.setEditedBy(editedBy);
-				((AuthorizationExemptable) command).setAuthorizationExempt(true);
+				CascadeAuthorizable.cascade(this, command);
 				getCommandHandler().execute(command);
 			}
 		}

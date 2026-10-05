@@ -40,8 +40,7 @@ import com.rreganjr.validator.EntityValidationException;
  * Adds a word to a project's dictionary from its Dictionary page (issue #319).
  * <p>
  * Extends {@link AbstractDictionaryCommand}, not {@code AbstractProjectCommand}, for the reason
- * {@link EditDictionaryWordCommandImpl} gives: the project command bases are
- * {@code AuthorizationExemptable}, which would skip the gate below. It holds the {@link Project}
+ * {@link EditDictionaryWordCommandImpl} gives. It holds the {@link Project}
  * the caller resolved, again as {@code EditDictionaryWordCommandImpl} explains.
  *
  * @author ron
