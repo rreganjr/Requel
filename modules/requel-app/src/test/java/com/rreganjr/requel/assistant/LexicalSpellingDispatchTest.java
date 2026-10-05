@@ -403,6 +403,63 @@ public class LexicalSpellingDispatchTest extends AbstractIntegrationTestCase {
 				"the finding should be MANUALLY_RESOLVED but was " + after.getState());
 	}
 
+	/**
+	 * #359, with the real tokenizer: the pieces of an email address, URLs and keys in a goal's Name
+	 * and Text are not reported as misspellings; a real misspelling beside them still is.
+	 */
+	@Test
+	public void fragmentsOfEmailsUrlsAndKeysAreNotMisspellings() throws Exception {
+		ensureDictionaryLoaded();
+		long ts = System.currentTimeMillis();
+		User creator = getUserRepository().findUserByUsername("project");
+
+		EditProjectCommand projectCommand = getProjectCommandFactory().newEditProjectCommand();
+		projectCommand.setEditedBy(creator);
+		projectCommand.setName("Redactable Project " + ts);
+		projectCommand.setOrganizationName("Redactable Org " + ts);
+		projectCommand = getCommandHandler().execute(projectCommand);
+		Project project = projectCommand.getProject();
+
+		EditGoalCommand goalCommand = getProjectCommandFactory().newEditGoalCommand();
+		goalCommand.setEditedBy(creator);
+		goalCommand.setGoalContainer(project);
+		goalCommand.setName("Notify ops-team@example.com " + ts);
+		goalCommand.setText("Alerts go to ops-team@example.com with the groal from"
+				+ " https://wiki.exmaple.org/runbooks and https://deploy:hunterz@ci.example.net/jobs"
+				+ " using the key sk-proj-Ab3dE5gH7jK9mN1pQ3sT5vX7 or a Bearer"
+				+ " abcdefghijklmnopqrstuvwx token.");
+		goalCommand = getCommandHandler().execute(goalCommand);
+		Goal goal = goalCommand.getGoal();
+
+		runLatestQueuedRun(goal.getId());
+
+		List<String> words = unknownWordsFresh(goal.getId());
+		assertTrue(words.contains("groal"), "the real misspelling is reported: " + words);
+		for (String word : words) {
+			assertFalse(word.contains("@") || word.equals("sk") || word.contains("exmaple")
+					|| word.contains("hunterz") || word.contains("abcdefgh"),
+					"a fragment of an email, URL or key was reported: " + words);
+		}
+	}
+
+	/** The words of the spelling findings on the goal (fresh read). */
+	private List<String> unknownWordsFresh(Long goalId) {
+		EntityManager em = entityManagerFactory.createEntityManager();
+		try {
+			List<String> summaries = em.createQuery(
+					"select f.summary from AssistantFindingEntity f where f.assistantId = :aid "
+							+ "and f.targetType = :tt and f.targetId = :tid", String.class)
+					.setParameter("aid", "legacy-lexical").setParameter("tt", "Goal")
+					.setParameter("tid", goalId).getResultList();
+			return summaries.stream().filter(summary -> summary != null && summary.contains("\""))
+					.map(summary -> summary.substring(summary.indexOf('"') + 1,
+							summary.indexOf('"', summary.indexOf('"') + 1)))
+					.toList();
+		} finally {
+			em.close();
+		}
+	}
+
 	private Issue findUnknownWordIssue(Long goalId) {
 		Goal reloaded = getProjectRepository().findById(Goal.class, goalId);
 		return reloaded.getAnnotations().stream()

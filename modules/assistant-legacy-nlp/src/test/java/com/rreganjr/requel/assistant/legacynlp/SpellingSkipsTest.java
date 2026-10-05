@@ -28,6 +28,8 @@ import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
+import com.rreganjr.requel.assistant.core.context.RedactablePatterns;
+
 /** Issue #268: the spelling exemptions, each from a token the roundtable harness turned up. */
 class SpellingSkipsTest {
 
@@ -48,6 +50,28 @@ class SpellingSkipsTest {
 		assertThat(reason("zoom")).isEqualTo("vocabulary");
 		assertThat(reason("dry-run")).isEqualTo("vocabulary");
 		assertThat(reason("dry")).isEqualTo("vocabulary");
+	}
+
+	/**
+	 * #359: a token whose every occurrence is inside an email address, URL or credential is
+	 * {@code redactable}, before any other reason; one that also appears in the prose is not.
+	 */
+	@Test
+	void fragmentsOfEmailsUrlsAndCredentialsAreRedactable() {
+		String source = "Mail ops-team@example.com or see https://wiki.example.org/MP4/pagez,"
+				+ " key sk-proj-Ab3dE5gH7jK9mN1pQ3sT5vX7; the pagez list.";
+		List<RedactablePatterns.Span> spans = RedactablePatterns.spans(source);
+
+		for (String token : List.of("ops-team@example", "com", "https", "MP4", "sk", "proj")) {
+			assertThat(SpellingSkips.reason(token, source, spans, VOCABULARY, KNOWN)).as(token)
+					.isEqualTo(SpellingSkips.REDACTABLE);
+		}
+		// also in the prose
+		assertThat(SpellingSkips.reason("pagez", source, spans, VOCABULARY, KNOWN)).isNull();
+		// no spans, or no source: the other reasons only
+		assertThat(SpellingSkips.reason("MP4", source, List.of(), VOCABULARY, KNOWN))
+				.isEqualTo("acronym");
+		assertThat(SpellingSkips.reason("sk", null, spans, VOCABULARY, KNOWN)).isNull();
 	}
 
 	@Test

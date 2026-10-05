@@ -48,6 +48,7 @@ import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.EvidenceRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
+import com.rreganjr.requel.assistant.core.context.RedactablePatterns;
 import com.rreganjr.requel.project.TextEntity;
 
 /**
@@ -164,8 +165,13 @@ public class LexicalVagueWordAssistant implements RequelAssistant<TextEntity> {
 		Linkdef linkType = dictionaryRepository.findLinkDef(1L);
 		Sense rootNounSense = dictionaryRepository.findSense("entity", PartOfSpeech.NOUN, 1);
 
+		// #359: a word inside an email address, URL or credential isn't the author's prose.
+		List<RedactablePatterns.Span> spans = RedactablePatterns.spans(text);
 		for (NLPText word : nlpText.getLeaves()) {
 			if (!isVague(word, linkType, rootNounSense)) {
+				continue;
+			}
+			if (LexicalEvidence.onlyInside(text, word.getText(), spans)) {
 				continue;
 			}
 			// #268/#269: never report a word the author didn't write (a parser fragment).

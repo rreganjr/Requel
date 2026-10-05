@@ -20,10 +20,13 @@
  */
 package com.rreganjr.requel.assistant.legacynlp;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
+
+import com.rreganjr.requel.assistant.core.context.RedactablePatterns;
 
 /**
  * Issue #268: tokens the spelling check leaves alone even though the dictionary doesn't know them,
@@ -31,7 +34,8 @@ import java.util.regex.Pattern;
  * from the roundtable project's unknown tokens (the #268 harness): acronyms ({@code MP4},
  * {@code RTMP}), CamelCase product names ({@code CloudWatch}), identifiers with a digit or an
  * underscore ({@code v1}, {@code ENTRA_SETUP}) and hyphenated compounds of known words
- * ({@code co-hosts}, {@code non-production}).
+ * ({@code co-hosts}, {@code non-production}). Issue #359 adds the fragments of email addresses,
+ * URLs and credentials ({@code ops-team@example}, the {@code sk} of an {@code sk-proj-} key).
  */
 public final class SpellingSkips {
 
@@ -44,6 +48,9 @@ public final class SpellingSkips {
 	/** Prefixes that may start a hyphenated compound without being dictionary words themselves. */
 	static final Set<String> HYPHEN_PREFIXES = Set.of("co", "re", "pre", "non", "multi", "sub",
 			"self", "anti", "semi", "post", "inter", "cross", "mid");
+
+	/** #359: the reason for a token that is part of an email address, URL or credential. */
+	public static final String REDACTABLE = "redactable";
 
 	private SpellingSkips() {
 	}
@@ -59,8 +66,26 @@ public final class SpellingSkips {
 	 */
 	public static String reason(String token, ProjectVocabulary vocabulary,
 			Predicate<String> knownWord) {
+		return reason(token, null, List.of(), vocabulary, knownWord);
+	}
+
+	/**
+	 * Why {@code token} is not reported as a misspelling, or {@code null} if nothing exempts it.
+	 * Checked in order: {@code redactable} (#359: every occurrence of the token in {@code source}
+	 * is inside an email address, URL or credential), then the reasons of
+	 * {@link #reason(String, ProjectVocabulary, Predicate)}.
+	 *
+	 * @param source the property's text; may be null
+	 * @param spans the emails, URLs and credentials in {@code source}
+	 *            ({@link RedactablePatterns#spans})
+	 */
+	public static String reason(String token, String source, List<RedactablePatterns.Span> spans,
+			ProjectVocabulary vocabulary, Predicate<String> knownWord) {
 		if (token == null || token.isEmpty()) {
 			return null;
+		}
+		if (LexicalEvidence.onlyInside(source, token, spans)) {
+			return REDACTABLE;
 		}
 		if (vocabulary != null && vocabulary.contains(token)) {
 			return "vocabulary";
