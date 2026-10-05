@@ -31,6 +31,13 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import javax.sql.DataSource;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -39,12 +46,15 @@ import org.junit.jupiter.api.condition.OS;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.HikariPoolMXBean;
 import com.rreganjr.AbstractIntegrationTestCase;
 import com.rreganjr.platform.identity.User;
 import com.rreganjr.requel.assistant.ai.AiAnalysisClient;
@@ -93,19 +103,21 @@ public class CliProviderReviewIT extends AbstractIntegrationTestCase {
 	private AssistantUsageRepository assistantUsageRepository;
 	private AiAnalysisClient aiAnalysisClient;
 	private JdbcTemplate jdbcTemplate;
+	private DataSource dataSource;
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Autowired
 	protected void setDependencies(AiReviewService aiReviewService,
 			AssistantRunWorker assistantRunWorker, AssistantRunRepository assistantRunRepository,
 			AssistantUsageRepository assistantUsageRepository, AiAnalysisClient aiAnalysisClient,
-			JdbcTemplate jdbcTemplate) {
+			JdbcTemplate jdbcTemplate, DataSource dataSource) {
 		this.aiReviewService = aiReviewService;
 		this.assistantRunWorker = assistantRunWorker;
 		this.assistantRunRepository = assistantRunRepository;
 		this.assistantUsageRepository = assistantUsageRepository;
 		this.aiAnalysisClient = aiAnalysisClient;
 		this.jdbcTemplate = jdbcTemplate;
+		this.dataSource = dataSource;
 	}
 
 	@AfterEach
@@ -113,6 +125,9 @@ public class CliProviderReviewIT extends AbstractIntegrationTestCase {
 		SecurityContextHolder.clearContext();
 		Files.deleteIfExists(FAKE_CLI_DIR.resolve("fail"));
 		Files.deleteIfExists(FAKE_CLI_DIR.resolve("reply.json"));
+		for (String flag : List.of("hold", "started", "release")) {
+			Files.deleteIfExists(FAKE_CLI_DIR.resolve(flag));
+		}
 	}
 
 	@Test
@@ -182,7 +197,94 @@ public class CliProviderReviewIT extends AbstractIntegrationTestCase {
 				"a failed call records no usage");
 	}
 
+	/**
+	 * #363: no connection is held while the model works. The fake CLI waits until the test
+	 * releases it; meanwhile the pool must have no more active connections than before the run
+	 * started (another test class's context may keep one). Before #363 the analyze transaction
+	 * held one more for the whole call.
+	 */
+	@Test
+	public void noConnectionIsHeldWhileTheCliRuns() throws Exception {
+		long ts = System.currentTimeMillis();
+		writeReply("'fast' is not measurable (" + ts + ")");
+		Files.writeString(FAKE_CLI_DIR.resolve("hold"), "");
+		Goal goal = createGoal(ts);
+		UUID runId = queueReview(goal);
+		HikariPoolMXBean pool = dataSource.unwrap(HikariDataSource.class).getHikariPoolMXBean();
+		int before = fewestActive(pool, Integer.MIN_VALUE);
+
+		SecurityContext security = SecurityContextHolder.getContext();
+		ExecutorService worker = Executors.newSingleThreadExecutor();
+		int during = Integer.MAX_VALUE;
+		try {
+			Future<?> run = worker.submit(() -> {
+				SecurityContextHolder.setContext(security);
+				try {
+					assistantRunWorker.run(runId);
+				} finally {
+					SecurityContextHolder.clearContext();
+				}
+			});
+			Path started = FAKE_CLI_DIR.resolve("started");
+			for (int i = 0; i < 400 && !Files.exists(started); i++) {
+				Thread.sleep(50);
+			}
+			assertTrue(Files.exists(started), "the fake CLI never started");
+			// Another thread may briefly hold a connection; the run holding one would never let
+			// the count come back down to where it was.
+			during = fewestActive(pool, before);
+			Files.writeString(FAKE_CLI_DIR.resolve("release"), "");
+			run.get(60, TimeUnit.SECONDS);
+		} finally {
+			Files.writeString(FAKE_CLI_DIR.resolve("release"), "");
+			worker.shutdownNow();
+		}
+
+		assertEquals(before, during, "a connection was held while the CLI ran");
+		AssistantRunEntity completed = assistantRunRepository.findAll().stream()
+				.filter(run -> runId.equals(run.getRunId())).findFirst()
+				.orElseThrow(() -> new AssertionError("review run row vanished"));
+		assertEquals("SUCCEEDED", completed.getStatus(), "run summary: " + completed.getErrorSummary());
+		assertEquals(1, jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM annotations WHERE text LIKE ?", Integer.class,
+				"%not measurable (" + ts + ")%"),
+				"the finding is still written after the call");
+		assertEquals(1, assistantUsageRepository.findByRunId(runId.toString()).size(),
+				"usage is still recorded");
+	}
+
 	// ---- helpers ---------------------------------------------------------------------
+
+	/**
+	 * The fewest active connections seen over up to two seconds of sampling, stopping early once
+	 * the count reaches {@code enough}.
+	 */
+	private static int fewestActive(HikariPoolMXBean pool, int enough) throws InterruptedException {
+		int fewest = Integer.MAX_VALUE;
+		for (int i = 0; i < 100 && fewest > enough; i++) {
+			fewest = Math.min(fewest, pool.getActiveConnections());
+			Thread.sleep(20);
+		}
+		return fewest;
+	}
+
+	/** A {@code reply.json} with one finding carrying {@code issueText}. */
+	private void writeReply(String issueText) throws IOException {
+		String reply = objectMapper.writeValueAsString(Map.of(
+				"summary", "one finding",
+				"findings", List.of(Map.of(
+						"findingType", "UNTESTABLE",
+						"severity", "HIGH",
+						"confidence", 0.8,
+						"evidenceReferences", List.of("fast"),
+						"suggestedIssueText", issueText,
+						"suggestedPositions", List.of())),
+				"warnings", List.of()));
+		Files.writeString(FAKE_CLI_DIR.resolve("reply.json"), objectMapper.writeValueAsString(
+				Map.of("type", "result", "is_error", false, "result", reply,
+						"total_cost_usd", 0.0042,
+						"usage", Map.of("input_tokens", 900, "output_tokens", 120))));
+	}
 
 	private Goal createGoal(long ts) throws Exception {
 		User creator = getUserRepository().findUserByUsername("project");
@@ -205,26 +307,31 @@ public class CliProviderReviewIT extends AbstractIntegrationTestCase {
 
 	/** Dispatch a review as the project creator, run it, and return the finished run row. */
 	private AssistantRunEntity review(Goal goal) {
+		UUID runId = queueReview(goal);
+		try {
+			assistantRunWorker.run(runId);
+		} catch (RuntimeException e) {
+			// A run the worker marks FAILED returns normally; anything thrown is a test failure.
+			throw new AssertionError("the worker should record the failure, not throw", e);
+		}
+		return assistantRunRepository.findAll().stream()
+				.filter(run -> runId.equals(run.getRunId())).findFirst()
+				.orElseThrow(() -> new AssertionError("review run row vanished"));
+	}
+
+	/** Dispatch a review as the project creator and return its QUEUED run's id. */
+	private UUID queueReview(Goal goal) {
 		SecurityContextHolder.getContext().setAuthentication(
 				new UsernamePasswordAuthenticationToken("project", null, List.of()));
 		aiReviewService.requestReview("Goal", goal.getId());
-
-		AssistantRunEntity queued = assistantRunRepository.findAll().stream()
+		return assistantRunRepository.findAll().stream()
 				.filter(run -> "Goal".equals(run.getTargetType())
 						&& goal.getId().equals(run.getTargetId())
 						&& "REQUIREMENTS_REVIEW".equals(run.getTaskType())
 						&& "QUEUED".equals(run.getStatus()))
 				.reduce((first, second) -> second)
-				.orElseThrow(() -> new AssertionError("no QUEUED review run for the goal"));
-
-		try {
-			assistantRunWorker.run(queued.getRunId());
-		} catch (RuntimeException e) {
-			// A run the worker marks FAILED returns normally; anything thrown is a test failure.
-			throw new AssertionError("the worker should record the failure, not throw", e);
-		}
-		return assistantRunRepository.findById(queued.getId())
-				.orElseThrow(() -> new AssertionError("review run row vanished"));
+				.orElseThrow(() -> new AssertionError("no QUEUED review run for the goal"))
+				.getRunId();
 	}
 
 	private static Path createFakeCli() {
@@ -237,6 +344,12 @@ public class CliProviderReviewIT extends AbstractIntegrationTestCase {
 					"# Fake claude for CliProviderReviewIT: drain the prompt, then reply or fail.",
 					"here=$(dirname \"$0\")",
 					"cat > /dev/null",
+					"# #363: with a hold file, say so and wait for the test to release the call.",
+					"if [ -f \"$here/hold\" ]; then",
+					"  touch \"$here/started\"",
+					"  i=0",
+					"  while [ ! -f \"$here/release\" ] && [ $i -lt 600 ]; do sleep 0.1; i=$((i+1)); done",
+					"fi",
 					"if [ -f \"$here/fail\" ]; then",
 					"  echo 'Error: not logged in' >&2",
 					"  exit 2",

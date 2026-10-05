@@ -42,6 +42,7 @@ import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.EvidenceRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
 import com.rreganjr.requel.assistant.core.AssistantRunWorker;
+import com.rreganjr.requel.assistant.core.StagedAssistant;
 import com.rreganjr.requel.assistant.core.context.ContextProviderRegistry;
 import com.rreganjr.requel.assistant.core.context.EntityContextPack;
 import com.rreganjr.requel.assistant.core.context.PackSpec;
@@ -66,7 +67,8 @@ import com.rreganjr.requel.project.TextEntity;
  *
  * <p>Built per run by {@link AiDefinitionExecutorFactory}; not a bean.
  */
-public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>, DefinitionBacked {
+public class DefinitionExecutorAssistant
+		implements RequelAssistant<TextEntity>, DefinitionBacked, StagedAssistant {
 
 	private static final Logger log = LoggerFactory.getLogger(DefinitionExecutorAssistant.class);
 
@@ -163,7 +165,22 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 	@Override
 	public AssistantResult analyze(AssistantContext context, TextEntity target)
 			throws AssistantException {
-		Call call = call(context, target);
+		return prepare(context, target).complete().get(0);
+	}
+
+	/**
+	 * #363: read everything the call needs - the context pack, the project's settings, the
+	 * definitions this one retires - so the stage holds no entity and reads no store.
+	 */
+	@Override
+	public Stage prepare(AssistantContext context, Object target) throws AssistantException {
+		Prepared prepared = prepareCall(context, (TextEntity) target);
+		List<String> retires = prepared.skipped != null ? List.of() : retiredBy(context);
+		return () -> List.of(result(context, prepared.call(), retires));
+	}
+
+	/** One call's findings mapped to annotation actions, with the run's counts. */
+	private AssistantResult result(AssistantContext context, Call call, List<String> retires) {
 		if (call.skipped != null) {
 			return call.skipped;
 		}
@@ -183,20 +200,20 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 			}
 			mapFinding(result, call.targetRef, finding);
 		}
-		finish(result, context, unverified, vocabularyMisses);
+		finish(result, retires, unverified, vocabularyMisses);
 		return result.build();
 	}
 
 	/**
 	 * Result metadata and warnings for a run's evidence and vocabulary counts, and the other
-	 * definitions whose findings it retires.
+	 * definitions whose findings it retires ({@link #retiredBy}, read when the call was prepared).
 	 */
-	void finish(AssistantResult.Builder result, AssistantContext context, int unverified,
+	void finish(AssistantResult.Builder result, List<String> retires, int unverified,
 			int vocabularyMisses) {
 		Map<String, Object> metadata = new LinkedHashMap<String, Object>();
 		metadata.put(AssistantRunWorker.EVIDENCE_UNVERIFIED, unverified);
 		metadata.put(AssistantRunWorker.VOCABULARY_MISSES, vocabularyMisses);
-		metadata.put(AssistantRunWorker.RETIRES_ASSISTANTS, otherDefinitions(context));
+		metadata.put(AssistantRunWorker.RETIRES_ASSISTANTS, retires);
 		result.metadata(metadata);
 		if (vocabularyMisses > 0) {
 			result.message(AssistantMessage.warning(vocabularyMisses
@@ -241,14 +258,54 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 		}
 	}
 
-	/** Build the context, make the provider call, and persist usage and redactions. */
-	Call call(AssistantContext context, TextEntity target) throws AssistantException {
+	/**
+	 * #363: a provider call ready to make. Built inside the worker's analyze transaction and
+	 * holding only detached data, so {@link #call()} runs with no transaction open.
+	 * {@link #skipped} is set instead when no call is to be made.
+	 */
+	final class Prepared {
+		final AssistantResult skipped;
+		private final UUID runId;
+		private final AiAnalysisRequest request;
+		private final EntityRef targetRef;
+		private final String sentText;
+
+		private Prepared(AssistantResult skipped, UUID runId, AiAnalysisRequest request,
+				EntityRef targetRef, String sentText) {
+			this.skipped = skipped;
+			this.runId = runId;
+			this.request = request;
+			this.targetRef = targetRef;
+			this.sentText = sentText;
+		}
+
+		/** Make the call and record its usage. Touches no entity. */
+		Call call() throws AssistantException {
+			if (skipped != null) {
+				return new Call(skipped, null, null, null);
+			}
+			try {
+				AiAnalysisResponse response = runtime.aiAnalysisClient.analyze(request);
+				persistUsage(runId, response.usage());
+				return new Call(null, response, targetRef, sentText);
+			} catch (AiAnalysisException e) {
+				// #259: propagate, so the run records the failure (FAILED when this was the run's
+				// only assistant) instead of reading as a successful review that found nothing.
+				log.warn("AI review {} failed for run {}: {}", definition.key(), runId,
+						e.getMessage(), e);
+				throw new AssistantException("AI requirements review failed: " + e.getMessage(), e);
+			}
+		}
+	}
+
+	/** Build the context and the request, and record redactions; the call is made later (#363). */
+	Prepared prepareCall(AssistantContext context, TextEntity target) {
 		String skipReason = skipReason(context);
 		if (skipReason != null) {
 			log.debug("definition {} skipping run {}: {}", definition.key(), context.runId(),
 					skipReason);
-			return new Call(AssistantResult.builder().assistantId(assistantId())
-					.runId(context.runId()).summary(skipReason).build(), null, null, null);
+			return skipped(context, AssistantResult.builder().assistantId(assistantId())
+					.runId(context.runId()).summary(skipReason).build());
 		}
 
 		int cap = runtime.aiProperties.getMaxInputTokens();
@@ -269,12 +326,12 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 		if (estimatedInputTokens > cap) {
 			log.info("Skipping AI review for run {}: estimated {} input tokens exceeds cap {}",
 					context.runId(), estimatedInputTokens, cap);
-			return new Call(AssistantResult.builder().assistantId(assistantId())
+			return skipped(context, AssistantResult.builder().assistantId(assistantId())
 					.runId(context.runId())
 					.summary("Context exceeds the configured AI input cap; review skipped.")
 					.message(AssistantMessage.warning("Estimated " + estimatedInputTokens
 							+ " input tokens exceeds requel.ai.maxInputTokens=" + cap))
-					.build(), null, null, null);
+					.build());
 		}
 
 		AiAnalysisRequest request = new AiAnalysisRequest(assistantId(), context.runId(),
@@ -283,18 +340,12 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 				outputSchema(), dataHandlingFlags(context.projectRef()), attributes(context),
 				instructions());
 
-		try {
-			AiAnalysisResponse response = runtime.aiAnalysisClient.analyze(request);
-			persistUsage(context.runId(), response.usage());
-			String sentText = target.getName() + "\n" + target.getText() + "\n" + packText(pack);
-			return new Call(null, response, targetRef, sentText);
-		} catch (AiAnalysisException e) {
-			// #259: propagate, so the run records the failure (FAILED when this was the run's only
-			// assistant) instead of reading as a successful review that found nothing.
-			log.warn("AI review {} failed for run {}: {}", definition.key(), context.runId(),
-					e.getMessage(), e);
-			throw new AssistantException("AI requirements review failed: " + e.getMessage(), e);
-		}
+		String sentText = target.getName() + "\n" + target.getText() + "\n" + packText(pack);
+		return new Prepared(null, context.runId(), request, targetRef, sentText);
+	}
+
+	private Prepared skipped(AssistantContext context, AssistantResult result) {
+		return new Prepared(result, context.runId(), null, null, null);
 	}
 
 	/** The output schema sent with the request; a composed policy pass narrows it (#265). */
@@ -505,7 +556,7 @@ public class DefinitionExecutorAssistant implements RequelAssistant<TextEntity>,
 	 * #263: the other definitions of this task the project can see; their findings on the target
 	 * are retired once this one has reviewed it. Empty without a store.
 	 */
-	private List<String> otherDefinitions(AssistantContext context) {
+	List<String> retiredBy(AssistantContext context) {
 		// #265: policies sit side by side; one never retires another's findings.
 		if (runtime.definitionStore == null || definition.isPolicy()) {
 			return List.of();

@@ -26,10 +26,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -57,6 +59,7 @@ import com.rreganjr.requel.assistant.api.UserRef;
 import com.rreganjr.requel.assistant.core.AssistantRunStore;
 import com.rreganjr.requel.assistant.core.AssistantRunWorker;
 import com.rreganjr.requel.assistant.core.CommandBackedAssistantResultApplicator;
+import com.rreganjr.requel.assistant.core.StagedAssistant;
 import com.rreganjr.requel.assistant.core.context.ContextPackSizeLimits;
 import com.rreganjr.requel.assistant.core.context.EntityContextPackBuilder;
 import com.rreganjr.requel.assistant.core.context.RedactionPolicy;
@@ -222,6 +225,31 @@ class CorpusAnalysisAssistantTest {
 		assertThat(retired).hasSize(4)
 				.contains(RelationshipFindings.actionKey("corpus-finder", G1, conflict),
 						RelationshipFindings.actionKey("corpus-finder", G2, conflict));
+	}
+
+	/**
+	 * #363: the set, the candidates and the pack are built in prepare; the stage makes the call
+	 * and maps the findings without touching an entity or the run store.
+	 */
+	@Test
+	void theStageTouchesNoEntity() throws Exception {
+		aiClient.response = response(List.of(finding("CONTRADICTORY_REQUIREMENTS",
+				List.of("Goal:1", "Goal:2"), "5 books or 10?", List.of("borrow 5 books"),
+				List.of())), null);
+		AssistantContext context = context();
+
+		StagedAssistant.Stage stage = assistant().prepare(context, project);
+
+		assertThat(aiClient.calls).isZero();
+		verify(runStore).recordRedactions(context.runId(), 1, List.of());
+		clearInvocations(project, goal1, runStore);
+
+		List<AssistantResult> results = stage.complete();
+
+		assertThat(aiClient.calls).isEqualTo(1);
+		verifyNoInteractions(project, goal1, runStore);
+		assertThat(of(results.get(0), AnnotationAction.ActionType.CREATE_OR_UPDATE_ISSUE))
+				.extracting(AnnotationAction::targetRef).containsExactly(G1, G2);
 	}
 
 	@Test

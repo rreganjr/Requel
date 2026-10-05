@@ -78,6 +78,12 @@ import com.rreganjr.requel.project.TargetFingerprint;
  * rather than a loud failure. So the apply phase now also takes the project row's write
  * lock through {@link AssistantProjectGate} before writing anything, and a run that finds
  * the project gone records {@link AssistantRunStatus#CANCELLED} instead of inserting.
+ * <p>
+ * The analyze transaction still held a connection for as long as an AI assistant waited on its
+ * model (issue #363), so a bulk review could hold most of the pool while web requests stalled.
+ * A {@link StagedAssistant} now only <em>prepares</em> its call inside the analyze transaction;
+ * the call itself is made after that transaction commits and before apply begins, with no
+ * transaction open.
  */
 @Component
 public class AssistantRunWorker {
@@ -177,8 +183,9 @@ public class AssistantRunWorker {
 	}
 
 	/**
-	 * Execute a queued run: analyze in one transaction, apply the findings in a
-	 * second short one. Never joins a caller's transaction.
+	 * Execute a queued run: analyze in one transaction, make any staged model calls with
+	 * none open (#363), and apply the findings in a second short one. Never joins a caller's
+	 * transaction.
 	 *
 	 * @param runId
 	 *            the queued run.
@@ -204,6 +211,9 @@ public class AssistantRunWorker {
 				runStore.markSkipped(runId, analysis.skipReason);
 				return;
 			}
+			// #363: the model calls, between the phases, with no transaction or connection held.
+			completeStages(record, analysis);
+			analysis.collect();
 			// #259: every matching assistant threw, so there is nothing to apply and the run did
 			// not do its job. (Some failing is PARTIAL, below.) Each failure was already logged.
 			// #355: keep the assistants' own summary of the run (best effort).
@@ -344,46 +354,92 @@ public class AssistantRunWorker {
 		run(runId);
 	}
 
-	/** Outcome of the analyze phase: either a skip reason or the results to apply. */
+	/**
+	 * Outcome of the analyze phase: either a skip reason, or one {@link Step} per assistant run.
+	 * {@link #collect} turns the steps into the results to apply once every staged call is done.
+	 */
 	private static final class Analysis {
 		final String skipReason;
 		final AssistantContext context;
-		final List<RequelAssistant<?>> assistants;
-		final List<AssistantResult> results;
-		/** #268: assistants that threw or returned an incomplete result, for the run record. */
-		final List<String> problems;
-		/** #259: how many matching assistants threw (an incomplete result does not count). */
-		final int thrownCount;
-		/** How many assistants matched the run's task and were run. */
-		final int attemptedCount;
+		/** #363: one per matching assistant, in order. */
+		final List<Step> steps;
 		/** #260: the definitions behind the assistants that were run. */
-		List<AssistantDefinition> definitions = List.of();
+		final List<AssistantDefinition> definitions;
+		List<RequelAssistant<?>> assistants = List.of();
+		List<AssistantResult> results = List.of();
+		/** #268: assistants that threw or returned an incomplete result, for the run record. */
+		List<String> problems = List.of();
+		/** #259: how many matching assistants threw (an incomplete result does not count). */
+		int thrownCount;
 
 		Analysis(String skipReason) {
 			this.skipReason = skipReason;
 			this.context = null;
-			this.assistants = List.of();
-			this.results = List.of();
-			this.problems = List.of();
-			this.thrownCount = 0;
-			this.attemptedCount = 0;
+			this.steps = List.of();
+			this.definitions = List.of();
 		}
 
-		Analysis(AssistantContext context, List<RequelAssistant<?>> assistants,
-				List<AssistantResult> results, List<String> problems, int thrownCount,
-				int attemptedCount) {
+		Analysis(AssistantContext context, List<Step> steps, List<AssistantDefinition> definitions) {
 			this.skipReason = null;
 			this.context = context;
-			this.assistants = assistants;
-			this.results = results;
-			this.problems = problems;
-			this.thrownCount = thrownCount;
-			this.attemptedCount = attemptedCount;
+			this.steps = steps;
+			this.definitions = definitions;
 		}
 
 		/** Every assistant that ran threw: a failed run, not a partial one. */
 		boolean allFailed() {
-			return attemptedCount > 0 && thrownCount == attemptedCount;
+			return !steps.isEmpty() && thrownCount == steps.size();
+		}
+
+		/**
+		 * The results in assistant order, each attributed to the assistant that produced it (a
+		 * composed pass's results to their members), and the problems.
+		 */
+		void collect() {
+			List<RequelAssistant<?>> producers = new ArrayList<>();
+			List<AssistantResult> produced = new ArrayList<>();
+			List<String> found = new ArrayList<>();
+			int thrown = 0;
+			for (Step step : steps) {
+				if (step.failure != null) {
+					found.add(step.assistant.assistantId() + " failed: " + step.failure);
+					thrown++;
+					continue;
+				}
+				for (AssistantResult result : step.results) {
+					RequelAssistant<?> producer = step.assistant;
+					if (step.assistant instanceof ComposedAssistant composed) {
+						RequelAssistant<?> member = composed.memberFor(result.assistantId());
+						producer = member == null ? step.assistant : member;
+					}
+					produced.add(result);
+					producers.add(producer);
+					if (CommandBackedAssistantResultApplicator.isIncomplete(result)) {
+						found.add(producer.assistantId() + " incomplete (failed: "
+								+ result.metadata().get("failedProperties") + ")");
+					}
+				}
+			}
+			this.assistants = producers;
+			this.results = produced;
+			this.problems = found;
+			this.thrownCount = thrown;
+		}
+	}
+
+	/**
+	 * Issue #363: one assistant's part of a run. A plain assistant has its results once the analyze
+	 * phase is over; a {@link StagedAssistant} has its {@link #stage}, completed after it.
+	 */
+	private static final class Step {
+		final RequelAssistant<?> assistant;
+		StagedAssistant.Stage stage;
+		List<AssistantResult> results = List.of();
+		/** What the assistant threw, or null. */
+		Exception failure;
+
+		Step(RequelAssistant<?> assistant) {
+			this.assistant = assistant;
 		}
 	}
 
@@ -429,41 +485,26 @@ public class AssistantRunWorker {
 		// others or fail the whole run (mirrors the legacy per-check resilience). A
 		// failed assistant contributes no result. Infrastructure failures (target
 		// reload, registry) still fail the run via the caller's catch.
-		List<AssistantResult> results = new ArrayList<>(assistants.size());
-		List<RequelAssistant<?>> producers = new ArrayList<>(assistants.size());
-		List<String> problems = new ArrayList<>();
-		int thrown = 0;
+		//
+		// #363: a staged assistant only prepares here; its call is made once this transaction has
+		// committed (completeStages), so the run holds no connection while a model works.
+		List<Step> steps = new ArrayList<>(assistants.size());
 		for (RequelAssistant<?> assistant : assistants) {
+			Step step = new Step(assistant);
+			steps.add(step);
 			try {
-				// #265: a composed assistant reports one result per member it ran for.
-				List<AssistantResult> produced;
-				if (assistant instanceof ComposedAssistant composed) {
-					produced = composed.analyzeAll(context, target);
+				if (assistant instanceof StagedAssistant staged) {
+					step.stage = staged.prepare(context, target);
+				} else if (assistant instanceof ComposedAssistant composed) {
+					// #265: a composed assistant reports one result per member it ran for.
+					step.results = composed.analyzeAll(context, target);
 				} else {
-					produced = List.of(analyze(assistant, context, target));
-				}
-				for (AssistantResult result : produced) {
-					RequelAssistant<?> producer = assistant;
-					if (assistant instanceof ComposedAssistant composed) {
-						RequelAssistant<?> member = composed.memberFor(result.assistantId());
-						producer = member == null ? assistant : member;
-					}
-					results.add(result);
-					producers.add(producer);
-					if (CommandBackedAssistantResultApplicator.isIncomplete(result)) {
-						problems.add(producer.assistantId() + " incomplete (failed: "
-								+ result.metadata().get("failedProperties") + ")");
-					}
+					step.results = List.of(analyze(assistant, context, target));
 				}
 			} catch (RuntimeException | AssistantException e) {
-				log.warn("assistant {} failed for run {}: {}", assistant.assistantId(),
-						record.runId(), e.toString(), e);
-				problems.add(assistant.assistantId() + " failed: " + e);
-				thrown++;
+				failed(record, step, e);
 			}
 		}
-		Analysis analysis = new Analysis(context, producers, results, problems, thrown,
-				assistants.size());
 		List<AssistantDefinition> definitions = new ArrayList<>();
 		for (RequelAssistant<?> assistant : assistants) {
 			List<RequelAssistant<?>> units = assistant instanceof ComposedAssistant composed
@@ -474,8 +515,31 @@ public class AssistantRunWorker {
 				}
 			}
 		}
-		analysis.definitions = List.copyOf(definitions);
-		return analysis;
+		return new Analysis(context, steps, List.copyOf(definitions));
+	}
+
+	/**
+	 * Issue #363: make each staged assistant's call. Runs between the two phases, with no
+	 * transaction open; a stage touches no entity, so nothing here needs a connection.
+	 */
+	private void completeStages(AssistantRunRecord record, Analysis analysis) {
+		for (Step step : analysis.steps) {
+			if (step.stage == null) {
+				continue;
+			}
+			try {
+				step.results = List.copyOf(step.stage.complete());
+			} catch (RuntimeException | AssistantException e) {
+				failed(record, step, e);
+			}
+		}
+	}
+
+	private static void failed(AssistantRunRecord record, Step step, Exception e) {
+		log.warn("assistant {} failed for run {}: {}", step.assistant.assistantId(),
+				record.runId(), e.toString(), e);
+		step.failure = e;
+		step.results = List.of();
 	}
 
 	/** What the apply phase decided. */
