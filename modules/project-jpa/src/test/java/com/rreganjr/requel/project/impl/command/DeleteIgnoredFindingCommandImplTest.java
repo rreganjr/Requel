@@ -37,7 +37,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import com.rreganjr.command.CommandHandler;
-import com.rreganjr.platform.command.AuthorizationExemptable;
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
@@ -78,7 +78,7 @@ class DeleteIgnoredFindingCommandImplTest {
 		when(store.list(7L)).thenReturn(all);
 		RemoveAnnotationFromAnnotatableCommand remove = mock(
 				RemoveAnnotationFromAnnotatableCommand.class,
-				withSettings().extraInterfaces(AuthorizationExemptable.class));
+				withSettings().extraInterfaces(CascadeAuthorizable.class));
 		when(annotationCommandFactory.newRemoveAnnotationFromAnnotatableCommand()).thenReturn(remove);
 
 		DeleteIgnoredFindingCommandImpl command = new DeleteIgnoredFindingCommandImpl(null, null,

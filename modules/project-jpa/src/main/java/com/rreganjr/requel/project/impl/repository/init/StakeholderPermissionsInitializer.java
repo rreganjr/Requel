@@ -42,6 +42,7 @@ import com.rreganjr.requel.project.ReportGenerator;
 import com.rreganjr.requel.project.Scenario;
 import com.rreganjr.requel.project.Stakeholder;
 import com.rreganjr.requel.project.StakeholderPermission;
+import com.rreganjr.requel.project.StakeholderPermissionRules;
 import com.rreganjr.requel.project.StakeholderPermissionType;
 import com.rreganjr.requel.project.Story;
 import com.rreganjr.requel.project.UseCase;
@@ -83,6 +84,36 @@ public class StakeholderPermissionsInitializer extends AbstractSystemInitializer
 
 		backfillProjectDeletePermission();
 		backfillAssistantDefinitionPermission();
+		closeImpliedPermissions();
+	}
+
+	/**
+	 * Issue #75: grant every existing {@link UserStakeholder} what its permissions imply
+	 * ({@link StakeholderPermissionRules#IMPLIED}), as {@code EditUserStakeholder} now does on
+	 * every save - a UseCase[Edit] holder gets Scenario[Edit] and Actor[Edit], without which it
+	 * can't create a use case. Idempotent.
+	 */
+	private void closeImpliedPermissions() {
+		java.util.Map<String, StakeholderPermission> byKey = new java.util.HashMap<>();
+		for (StakeholderPermission permission : projectRepository
+				.findAvailableStakeholderPermissions()) {
+			byKey.put(permission.getPermissionKey(), permission);
+		}
+		for (StakeholderPermissionRules.Implied rule : StakeholderPermissionRules.IMPLIED) {
+			StakeholderPermission granted = byKey.get(rule.granted());
+			StakeholderPermission implied = byKey.get(rule.implied());
+			if (granted == null || implied == null) {
+				continue;
+			}
+			for (UserStakeholder stakeholder : projectRepository
+					.findUserStakeholdersWithPermission(granted)) {
+				if (!stakeholder.getStakeholderPermissions().contains(implied)) {
+					log.debug("granting implied " + rule.implied() + " to " + stakeholder);
+					stakeholder.grantStakeholderPermission(implied);
+					projectRepository.merge(stakeholder);
+				}
+			}
+		}
 	}
 
 	/**

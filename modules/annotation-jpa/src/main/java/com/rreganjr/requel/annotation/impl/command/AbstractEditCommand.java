@@ -24,7 +24,8 @@ import com.rreganjr.command.AbstractCommand;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.AnnotationRepository;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
-import com.rreganjr.platform.command.AuthorizationExemptable;
+import com.rreganjr.platform.command.AuthorizableCommand;
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import com.rreganjr.platform.command.EditCommand;
 import com.rreganjr.platform.identity.User;
 
@@ -32,23 +33,19 @@ import com.rreganjr.platform.identity.User;
  * @author ron
  */
 public abstract class AbstractEditCommand extends AbstractCommand
-		implements EditCommand, AuthorizationExemptable {
+		implements EditCommand, CascadeAuthorizable {
 
-	// TODO(#75): temporary. Lets a parent command mark internally-invoked cascade sub-commands
-	// (e.g. the orphan annotation/position/argument deletes a delete runs) exempt from
-	// re-authorization, so a Delete-only stakeholder isn't re-checked for Annotation[Delete] on
-	// each cascade step. Remove with the permission-coherence model:
-	// https://github.com/rreganjr/Requel/issues/75
-	private boolean authorizationExempt = false;
+	private AuthorizableCommand authorizingCommand;
 
+	/** #75: the command this one is a step of, or null when it runs on its own. */
 	@Override
-	public boolean isAuthorizationExempt() {
-		return authorizationExempt;
+	public AuthorizableCommand getAuthorizingCommand() {
+		return authorizingCommand;
 	}
 
 	@Override
-	public void setAuthorizationExempt(boolean authorizationExempt) {
-		this.authorizationExempt = authorizationExempt;
+	public void setAuthorizingCommand(AuthorizableCommand authorizingCommand) {
+		this.authorizingCommand = authorizingCommand;
 	}
 
 	private final CommandHandler commandHandler;

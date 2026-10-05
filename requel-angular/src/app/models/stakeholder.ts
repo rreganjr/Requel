@@ -48,3 +48,15 @@ export interface StakeholderPermissionDto {
   entityType: string;
   permissionType: string;
 }
+
+/**
+ * Issue #75: what each stakeholder permission brings with it. Keys are permission keys.
+ * - implied: granted with another; shown checked and disabled, with the reason.
+ * - ownedDeletes: a delete another permission covers for what it owns; flagged with an asterisk.
+ * - grantKeys: the Grant permission that lets someone give or remove each permission.
+ */
+export interface StakeholderPermissionRules {
+  implied: { granted: string; implied: string; reason: string }[];
+  ownedDeletes: { granted: string; flagged: string; note: string }[];
+  grantKeys: Record<string, string>;
+}

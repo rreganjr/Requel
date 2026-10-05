@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.annotation.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -87,9 +88,8 @@ public class DeleteIssueCommandImpl extends AbstractEditCommand implements Delet
 						.newDeletePositionCommand();
 				deletePositionCommand.setPosition(position);
 				deletePositionCommand.setEditedBy(getEditedBy());
-				// #69/#75: intrinsic sub-delete of an already-authorized parent delete; exempt so a
-				// Delete-only stakeholder isn't re-checked for Annotation[Delete] mid-cascade.
-				((com.rreganjr.platform.command.AuthorizationExemptable) deletePositionCommand).setAuthorizationExempt(true);
+				// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+				CascadeAuthorizable.cascade(this, deletePositionCommand);
 				getCommandHandler().execute(deletePositionCommand);
 			}
 		}

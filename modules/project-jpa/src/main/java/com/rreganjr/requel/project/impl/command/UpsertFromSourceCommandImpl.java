@@ -31,7 +31,6 @@ import org.springframework.stereotype.Controller;
 import com.rreganjr.command.Command;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.platform.command.AuthorizableCommand;
-import com.rreganjr.platform.command.AuthorizationExemptable;
 import com.rreganjr.platform.command.AuthorizationRequirement;
 import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholderPermission;
 import com.rreganjr.platform.command.EditCommand;
@@ -380,26 +379,38 @@ public class UpsertFromSourceCommandImpl extends AbstractProjectCommand
 
 	/**
 	 * P9: one issue per link, reused by its text, with the source's new wording added as a
-	 * position. Neither carries the locator. A sub-step of this already-authorized command.
+	 * position. Neither carries the locator. #75: raised by the assistant identity, as any other
+	 * finding Requel raises on its own, so an X[Edit] holder needs no Annotation[Edit] for it and
+	 * the issue reads as Requel's rather than the caller's. Without an assistant user the caller
+	 * raises it under their own Annotation[Edit].
 	 */
 	private Issue raiseConflict(User by, String typeName) throws Exception {
+		User author = conflictAuthor(by);
 		EditIssueCommand issueCommand = getAnnotationCommandFactory().newEditIssueCommand();
 		issueCommand.setGroupingObject(project);
 		issueCommand.setAnnotatable(entity);
 		issueCommand.setText(conflictText(typeName));
 		issueCommand.setMustBeResolved(false);
-		issueCommand.setEditedBy(by);
-		((AuthorizationExemptable) issueCommand).setAuthorizationExempt(true);
+		issueCommand.setEditedBy(author);
 		issueCommand = getCommandHandler().execute(issueCommand);
 		Issue issue = issueCommand.getIssue();
 
 		EditPositionCommand positionCommand = getAnnotationCommandFactory().newEditPositionCommand();
 		positionCommand.setIssue(issue);
 		positionCommand.setText(positionText(fragmentText));
-		positionCommand.setEditedBy(by);
-		((AuthorizationExemptable) positionCommand).setAuthorizationExempt(true);
+		positionCommand.setEditedBy(author);
 		getCommandHandler().execute(positionCommand);
 		return issue;
+	}
+
+	/** The assistant user, or {@code by} when there is none. */
+	private User conflictAuthor(User by) {
+		try {
+			User assistant = getUserRepository().findUserByUsername(User.ASSISTANT_USERNAME);
+			return assistant == null ? by : assistant;
+		} catch (com.rreganjr.requel.user.exception.NoSuchUserException e) {
+			return by;
+		}
 	}
 
 	String conflictText(String typeName) {

@@ -3,6 +3,9 @@
 > Planning doc for a future issue, surfaced during issue #69 Slice 2 (command authorization
 > hardening). Captures a problem with how stakeholder permissions are modeled and granted, and
 > proposes a path. Tracked as https://github.com/rreganjr/Requel/issues/75.
+>
+> **Status:** decided and built in #75; see [Decisions (#75)](#decisions-75). The options below
+> are kept as the reasoning that led there.
 
 ## The current model (confirmed)
 
@@ -137,3 +140,45 @@ Two-track:
 - Is a `Read`/`View` permission ever wanted, or does membership-as-read remain the model? (The
   thesis never had Read; default is to keep membership-as-read.)
 - Where does the operation→permissions map live — `project-domain`, or a new authorization module?
+
+## Decisions (#75)
+
+Settled while building #75. The command scan behind them is [75-permission-scan.md](75-permission-scan.md).
+
+1. **Cascades are checked against the parent, not exempt.** `AuthorizationExemptable` is gone. A
+   step of an operation implements `CascadeAuthorizable` and is created with
+   `CascadeAuthorizable.cascade(parent, step)`, which records the root command that authorized
+   it. `AuthorizingCommandHandler` accepts the step only while that command is executing on the
+   same thread, passed its own check, and runs as the same user. A step sent on its own, or
+   after its parent finished, is refused. DeleteProject's admin path needs no exemption: its
+   requirement is `RequiresStakeholderPermissionOrSystemAdminRole`, so its steps are authorized
+   by it.
+2. **Delete does not imply Edit.** The editor/deleter split stays: holding Goal[Delete] lets you
+   delete a goal and what the delete cascades to, nothing more.
+3. **Grant closure is small.** Only UseCase[Edit] implies Scenario[Edit] and Actor[Edit], because
+   editing a use case creates its primary scenario and, when named, its primary actor as
+   separate commands that are not steps. The server applies the closure on every
+   EditUserStakeholder and `StakeholderPermissionsInitializer` backfills existing holders. In the
+   grid the implied boxes are ticked and disabled with the reason; unticking the implier leaves
+   them ticked and editable.
+4. **Owned deletes are explained, not granted.** A delete that removes things the stakeholder
+   could not delete directly (a use case's own scenarios, the notes and issues only on a goal,
+   everything in a deleted project) is flagged with an asterisk on the affected permission and a
+   matching note under the grid, plus a short "about these permissions" paragraph.
+   `StakeholderPermissionRules` is the single list, served at
+   `GET /api/projects/stakeholder-permission-rules`.
+5. **Relationship bookkeeping is never a permission.** Updating the other side of a link
+   (container collections, referers, join rows) is part of the operation that changes the link.
+6. **Resolve-issue actions stay real checks.** Resolving a spelling, add-actor or
+   add-glossary-term issue still needs Edit on what it changes; those sub-commands are not
+   steps.
+7. **Conflict issues are the assistant's.** UpsertFromSource writes its conflict issue and
+   position as the assistant user, not as a step of the caller.
+8. **Granting needs Grant.** To add or remove permission X on a stakeholder, the editor must hold
+   X and the Grant for X's type (Project[Grant] for a type with no Grant row, such as
+   AssistantDefinition). This also stops someone raising their own stakeholder.
+9. **Security gaps closed:** `/projectxml` is removed (export goes through the project query API,
+   which checks access); EditProject (create) and ImportProject require the `createProjects`
+   role permission; the GatewayPolicyConfig comment is corrected.
+10. **Presets are dropped.** Option D is not needed once the closure and notes make the grid
+    coherent.

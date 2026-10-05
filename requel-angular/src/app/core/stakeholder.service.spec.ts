@@ -42,4 +42,13 @@ describe('StakeholderService', () => {
     const result = await promise;
     expect(result[0].entityType).toBe('Goal');
   });
+
+  it('getPermissionRules() sends GET to the stakeholder-permission-rules endpoint (#75)', async () => {
+    const promise = service.getPermissionRules();
+    const req = httpMock.expectOne('/api/projects/stakeholder-permission-rules');
+    expect(req.request.method).toBe('GET');
+    req.flush({ implied: [], ownedDeletes: [], grantKeys: { 'a.Goal[Edit]': 'a.Goal[Grant]' } });
+    const result = await promise;
+    expect(result.grantKeys['a.Goal[Edit]']).toBe('a.Goal[Grant]');
+  });
 });

@@ -34,6 +34,8 @@ Permission key format: `com.rreganjr.requel.project.Goal[Edit]`
 
 Permissions are initialized at startup by `StakeholderPermissionsInitializer` which creates all combinations. Stakeholders are granted/revoked specific permissions.
 
+`StakeholderPermissionRules` (#75) adds what the grid alone can't say: UseCase[Edit] implies Scenario[Edit] and Actor[Edit] (granted with it), and which deletes also remove owned items the stakeholder couldn't delete directly (flagged in the stakeholder editor). To grant or revoke X, the editor must hold X and the Grant for X's type. Decisions: `doc/work/2.0/permission_model_plan.md`.
+
 Key methods:
 - `stakeholder.hasPermission(entityType, StakeholderPermissionType.Edit)`
 - `stakeholder.grantStakeholderPermission(permission)`
@@ -239,9 +241,9 @@ There are two cases:
 
 **Case 2: System-initiated sub-commands** — Some commands are triggered by the NLP assistant or other system processes. These run as the "assistant" user. The assistant's authorization must be set up so it has the necessary permissions. The `AuthorizingCommandHandler` checks the assistant user the same way it checks any user.
 
-This means authorization is checked at every level in a composite command. Each sub-command declares its own requirement, and the handler verifies it. There is no "trusted internal" bypass — the handler chain is the single enforcement point.
+**Case 3: Steps of an operation (#75)** — Some sub-commands are part of what the parent's permission already covers: deleting a goal detaches it from its containers and removes the notes only on it. The parent creates these with `CascadeAuthorizable.cascade(this, step)`, which records the root command that authorized it. `AuthorizingCommandHandler` checks the step against that root rather than its own requirement, and accepts it only while the root is executing on the same thread, passed its own check, and runs as the same user. A step sent on its own, or after its parent has finished, is refused. Sub-commands that are separate operations (EditUseCase creating its primary scenario, resolve-issue actions editing the entity) are not steps, and Case 1 applies.
 
-If a future case requires a parent command to execute a sub-command with elevated privileges, we can add an `AuthorizationRequirement` variant like `Unrestricted` that the handler skips. But this should be rare and explicit, not the default.
+This means authorization is checked at every level in a composite command. Each sub-command declares its own requirement, or is a step checked against its parent, and the handler verifies it. There is no "trusted internal" bypass — the handler chain is the single enforcement point.
 
 ### 2.6 Where Each Interface Lives
 

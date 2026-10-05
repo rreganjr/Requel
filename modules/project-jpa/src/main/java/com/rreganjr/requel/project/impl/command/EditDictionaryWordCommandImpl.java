@@ -50,11 +50,9 @@ import com.rreganjr.validator.EntityValidationException;
  * {@code ResolveIssueWithAddGlossaryTermPositionCommandImpl}) live here for the same reason.
  * <p>
  * It extends {@link AbstractDictionaryCommand} deliberately, and <em>not</em>
- * {@code AbstractProjectCommand} or {@code AbstractEditCommand}: both of those implement
- * {@code AuthorizationExemptable}, and {@code AuthorizingCommandHandler} honours that flag and
- * returns <em>before</em> it reaches the {@code AuthorizableCommand} branch. Re-parenting this
- * class onto either would disable the gate below without a word in any test but
- * {@code AnnotationCommandTest}'s direct-execution case.
+ * {@code AbstractProjectCommand} or {@code AbstractEditCommand}: those bases are
+ * {@code CascadeAuthorizable} (#75), and a resolver marking this write as its step would
+ * authorize it by Annotation[Edit] alone, skipping the gate below.
  *
  * @author ron
  */

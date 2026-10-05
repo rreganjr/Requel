@@ -37,7 +37,7 @@ import { UpdateBannerComponent } from '../../shared/app-update-banner';
 import { AnnouncerService } from '../../core/announcer.service';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ConfirmationService, MessageService } from 'primeng/api';
-import { StakeholderDto, StakeholderPermissionDto, UserStakeholderDetails } from '../../models/stakeholder';
+import { StakeholderDto, StakeholderPermissionDto, StakeholderPermissionRules, UserStakeholderDetails } from '../../models/stakeholder';
 import { EntityReferenceDto } from '../../models/entity-reference';
 import { StakeholderService } from '../../core/stakeholder.service';
 import { CommandService, isNetworkError } from '../../core/command.service';
@@ -224,19 +224,43 @@ interface PermissionGroup {
                       @if (getPermission(group, type); as perm) {
                         <p-checkbox [formControl]="permissionControl(perm.key)" [binary]="true"
                                     [inputId]="'perm-' + perm.key"
+                                    [attr.title]="permissionTitle(perm.key)"
                                     [attr.data-testid]="'stakeholder-perm-' + perm.key" />
+                        @if (isOwnedFlagged(perm.key)) {
+                          <!-- #75: covered as an owned delete by another permission; see the notes -->
+                          <span class="owned-flag" aria-hidden="true"
+                                [attr.data-testid]="'stakeholder-owned-' + perm.key">*</span>
+                        }
                         <!--
                           Each checkbox needs its own name; the column header alone is not an
                           accessible name. Visually hidden so the grid still reads as a matrix.
                         -->
                         <label class="rq-visually-hidden" [attr.for]="'perm-' + perm.key">
-                          {{ type }} {{ entityLabel(group.entityType) }}
+                          {{ type }} {{ entityLabel(group.entityType) }}{{ permissionTitle(perm.key) ? ', ' + permissionTitle(perm.key) : '' }}
                         </label>
                       }
                     </div>
                   }
                 }
               </div>
+              @if (impliedNotes().length > 0) {
+                <ul class="permission-notes" data-testid="stakeholder-implied-notes">
+                  @for (note of impliedNotes(); track note) {
+                    <li>{{ note }}</li>
+                  }
+                </ul>
+              }
+              @if (ownedNotes().length > 0) {
+                <ul class="permission-notes" data-testid="stakeholder-owned-notes">
+                  @for (note of ownedNotes(); track note) {
+                    <li>* {{ note }}</li>
+                  }
+                </ul>
+              }
+              <!-- #75: what the grid can't show on its own -->
+              <p class="permission-note" data-testid="stakeholder-permissions-about">
+                {{ permissionsAbout }}
+              </p>
               @if (hasDefinitionPermission()) {
                 <!-- #264: say the risk where the permission is granted -->
                 <p class="permission-note" data-testid="stakeholder-definition-risk">
@@ -292,6 +316,8 @@ interface PermissionGroup {
     .permission-entity { font-size: 0.9rem; }
     .permission-check { text-align: center; }
     .permission-note { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--p-text-muted-color); }
+    .permission-notes { margin: 0.5rem 0 0; padding-left: 1.25rem; font-size: 0.85rem; }
+    .owned-flag { margin-left: 0.15rem; font-weight: 600; }
     .section { margin-top: 1.5rem; }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
     .section-header h3 { margin: 0; }
@@ -337,6 +363,133 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
 
   /** Column order of the permission matrix; was an inline array literal in the template. */
   readonly permissionTypes = ['Edit', 'Delete', 'Grant'];
+
+  /** Issue #75: what each permission implies and covers, and which Grant governs it. */
+  readonly permissionRules = signal<StakeholderPermissionRules>(
+    { implied: [], ownedDeletes: [], grantKeys: {} });
+  /** The checked permission keys, kept in step with the grid. */
+  private readonly checkedKeys = signal<ReadonlySet<string>>(new Set());
+
+  /** #75: the general rules the grid can't show cell by cell. */
+  readonly permissionsAbout = 'Deleting something also removes it from the goals, stories, use'
+    + ' cases and relations it belongs to, and deletes what only it owned; a delete covered that'
+    + ' way is marked * and explained above. Grant lets a person give or remove that row\'s'
+    + ' permissions, but only ones they hold themselves.';
+
+  /** "Scenario Edit is included with UseCase Edit: <reason>" for each implied permission in effect. */
+  readonly impliedNotes = computed(() => {
+    const checked = this.checkedKeys();
+    const notes = new Set<string>();
+    for (const rule of this.permissionRules().implied) {
+      if (checked.has(rule.granted)) {
+        notes.add(`${this.keyLabel(rule.implied)} is included with ${this.keyLabel(rule.granted)}: `
+          + rule.reason);
+      }
+    }
+    return [...notes];
+  });
+
+  /** One line per owned-delete note in effect, naming the deletes it covers. */
+  readonly ownedNotes = computed(() => {
+    const checked = this.checkedKeys();
+    const byNote = new Map<string, string[]>();
+    for (const rule of this.permissionRules().ownedDeletes) {
+      if (checked.has(rule.granted) && !checked.has(rule.flagged)) {
+        const labels = byNote.get(rule.note) ?? [];
+        const label = this.keyLabel(rule.flagged);
+        if (!labels.includes(label)) {
+          labels.push(label);
+        }
+        byNote.set(rule.note, labels);
+      }
+    }
+    return [...byNote.entries()].map(([note, labels]) => `${labels.join(', ')}: ${note}`);
+  });
+
+  /** #75: the permission is not granted, but another granted one deletes what it owns. */
+  isOwnedFlagged(key: string): boolean {
+    const checked = this.checkedKeys();
+    return !checked.has(key) && this.permissionRules().ownedDeletes
+      .some(rule => rule.flagged === key && checked.has(rule.granted));
+  }
+
+  /** Why a checkbox is disabled, or flagged; empty when it is neither. */
+  permissionTitle(key: string): string {
+    const impliers = this.activeImpliers(key);
+    if (impliers.length > 0) {
+      return 'included with ' + impliers.map(k => this.keyLabel(k)).join(', ');
+    }
+    if (!this.canGrant(key)) {
+      const grantKey = this.permissionRules().grantKeys[key];
+      return `you can't change this: it needs ${this.keyLabel(key)}`
+        + (grantKey ? ` and ${this.keyLabel(grantKey)}` : '');
+    }
+    if (this.isOwnedFlagged(key)) {
+      return 'deleted as owned items by another permission, see the notes';
+    }
+    return '';
+  }
+
+  /** "com.rreganjr.requel.project.UseCase[Edit]" as "UseCase Edit" (AI definitions for #264). */
+  private keyLabel(key: string): string {
+    const open = key.indexOf('[');
+    const entity = key.substring(key.lastIndexOf('.', open) + 1, open);
+    return `${this.entityLabel(entity)} ${key.substring(open + 1, key.length - 1)}`;
+  }
+
+  private activeImpliers(key: string): string[] {
+    const checked = this.checkedKeys();
+    return this.permissionRules().implied
+      .filter(rule => rule.implied === key && checked.has(rule.granted))
+      .map(rule => rule.granted);
+  }
+
+  /**
+   * #75: the server lets the editor change a permission only when they hold it and the Grant
+   * that governs it. Without the rules loaded, leave it to the server.
+   */
+  private canGrant(key: string): boolean {
+    const grantKey = this.permissionRules().grantKeys[key];
+    if (!grantKey) {
+      return true;
+    }
+    return this.holds(key) && this.holds(grantKey);
+  }
+
+  private holds(key: string): boolean {
+    const open = key.indexOf('[');
+    const entity = key.substring(key.lastIndexOf('.', open) + 1, open);
+    return this.permissionService.hasPermission(entity, key.substring(open + 1, key.length - 1));
+  }
+
+  /**
+   * #75: tick what a ticked permission implies, then disable what is implied or not the editor's
+   * to change. An implied permission whose implier is unticked stays ticked and becomes editable.
+   */
+  private applyPermissionRules(): void {
+    const controls = this.permissionsForm.controls;
+    const checked = new Set(Object.entries(controls).filter(([, c]) => c.value).map(([k]) => k));
+    let added = true;
+    while (added) {
+      added = false;
+      for (const rule of this.permissionRules().implied) {
+        if (checked.has(rule.granted) && controls[rule.implied] && !checked.has(rule.implied)) {
+          controls[rule.implied].setValue(true, { emitEvent: false });
+          checked.add(rule.implied);
+          added = true;
+        }
+      }
+    }
+    this.checkedKeys.set(checked);
+    for (const [key, control] of Object.entries(controls)) {
+      const locked = this.activeImpliers(key).length > 0 || !this.canGrant(key);
+      if (locked && control.enabled) {
+        control.disable({ emitEvent: false });
+      } else if (!locked && control.disabled) {
+        control.enable({ emitEvent: false });
+      }
+    }
+  }
 
   /** Issue #264: what granting AssistantDefinition[Edit] lets someone do. */
   readonly definitionRisk = 'AI definitions: lets this person write the instructions the AI'
@@ -405,6 +558,9 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
   ) {}
 
   ngOnInit(): void {
+    // #75: keep implied, flagged and locked checkboxes in step with what is ticked
+    this.permissionsForm.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.applyPermissionRules());
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async params => {
       this.projectName = params.get('name') ?? '';
       await this.permissionService.loadForProject(this.projectName);
@@ -683,7 +839,13 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
 
   private async loadPermissions(selectedKeys: string[]): Promise<void> {
     try {
-      const available = await this.stakeholderService.getAvailablePermissions();
+      const [available, rules] = await Promise.all([
+        this.stakeholderService.getAvailablePermissions(),
+        // #75: without the rules the grid still works; the server enforces them on save
+        this.stakeholderService.getPermissionRules()
+          .catch(() => ({ implied: [], ownedDeletes: [], grantKeys: {} })),
+      ]);
+      this.permissionRules.set(rules);
       const selectedSet = new Set(selectedKeys);
 
       // Group by entity type
@@ -714,6 +876,7 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
           { emitEvent: false }
         );
       }
+      this.applyPermissionRules();
       this.permissionsForm.markAsPristine();
     } catch {
       this.showError('Failed to load permissions.');
@@ -828,6 +991,8 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       // access. Cheap and idempotent: a no-op when nothing is loaded.
       if (isUser) {
         await this.permissionService.refresh();
+        // #75: the editor's own grants may have changed what they can change
+        this.applyPermissionRules();
       }
       this.messageService.add({ severity: 'success', summary: 'Saved', detail: 'Stakeholder saved.' });
 

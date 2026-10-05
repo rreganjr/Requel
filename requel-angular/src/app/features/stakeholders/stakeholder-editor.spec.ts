@@ -35,6 +35,28 @@ const MOCK_STAKEHOLDER_NONUSER = {
   nonUserDetails: { text: 'Financial authority' }
 };
 
+const NO_RULES = { implied: [], ownedDeletes: [], grantKeys: {} };
+
+// #75: real keys, so the rules can name them
+const UC = 'com.rreganjr.requel.project.UseCase';
+const SC = 'com.rreganjr.requel.project.Scenario';
+const RULE_PERMISSIONS = [
+  { entityType: 'Scenario', permissionKey: `${SC}[Edit]`, permissionType: 'Edit' },
+  { entityType: 'Scenario', permissionKey: `${SC}[Delete]`, permissionType: 'Delete' },
+  { entityType: 'UseCase', permissionKey: `${UC}[Edit]`, permissionType: 'Edit' },
+  { entityType: 'UseCase', permissionKey: `${UC}[Delete]`, permissionType: 'Delete' },
+];
+const RULES = {
+  implied: [{ granted: `${UC}[Edit]`, implied: `${SC}[Edit]`,
+    reason: 'Editing a use case creates and edits its primary scenario.' }],
+  ownedDeletes: [{ granted: `${UC}[Delete]`, flagged: `${SC}[Delete]`,
+    note: 'Deleting a use case deletes the scenarios only it uses.' }],
+  grantKeys: {
+    [`${SC}[Edit]`]: `${SC}[Grant]`, [`${SC}[Delete]`]: `${SC}[Grant]`,
+    [`${UC}[Edit]`]: `${UC}[Grant]`, [`${UC}[Delete]`]: `${UC}[Grant]`,
+  },
+};
+
 const flush = () => new Promise(r => setTimeout(r, 0));
 
 describe('StakeholderEditorComponent', () => {
@@ -42,10 +64,14 @@ describe('StakeholderEditorComponent', () => {
   let stakeholderServiceMock: {
     getStakeholder: ReturnType<typeof vi.fn>;
     getAvailablePermissions: ReturnType<typeof vi.fn>;
+    getPermissionRules: ReturnType<typeof vi.fn>;
   };
   let userServiceMock: { listUsers: ReturnType<typeof vi.fn> };
   let commandServiceMock: { execute: ReturnType<typeof vi.fn> };
-  let permissionServiceMock: { loadForProject: ReturnType<typeof vi.fn>; canDelete: ReturnType<typeof vi.fn>; canEdit: ReturnType<typeof vi.fn> };
+  let permissionServiceMock: {
+    loadForProject: ReturnType<typeof vi.fn>; canDelete: ReturnType<typeof vi.fn>;
+    canEdit: ReturnType<typeof vi.fn>; hasPermission: ReturnType<typeof vi.fn>; refresh: ReturnType<typeof vi.fn>;
+  };
   let eventStreamServiceMock: { events$: typeof EMPTY; addSubscription: ReturnType<typeof vi.fn>; removeSubscription: ReturnType<typeof vi.fn> };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fixture: any;
@@ -57,7 +83,8 @@ describe('StakeholderEditorComponent', () => {
 
     stakeholderServiceMock = {
       getStakeholder: vi.fn().mockResolvedValue(MOCK_STAKEHOLDER_USER),
-      getAvailablePermissions: vi.fn().mockResolvedValue(MOCK_AVAILABLE_PERMISSIONS)
+      getAvailablePermissions: vi.fn().mockResolvedValue(MOCK_AVAILABLE_PERMISSIONS),
+      getPermissionRules: vi.fn().mockResolvedValue(NO_RULES)
     };
     userServiceMock = { listUsers: vi.fn().mockResolvedValue(MOCK_USERS) };
     commandServiceMock = {
@@ -66,7 +93,9 @@ describe('StakeholderEditorComponent', () => {
     permissionServiceMock = {
       loadForProject: vi.fn().mockResolvedValue(undefined),
       canDelete: vi.fn().mockReturnValue(true),
-      canEdit: vi.fn().mockReturnValue(true)
+      canEdit: vi.fn().mockReturnValue(true),
+      hasPermission: vi.fn().mockReturnValue(true),
+      refresh: vi.fn().mockResolvedValue(undefined)
     };
     eventStreamServiceMock = {
       events$: EMPTY,
@@ -172,6 +201,103 @@ describe('StakeholderEditorComponent', () => {
       expect(comp.detailsForm.dirty).toBe(false);
       expect(comp.hasUnsavedChanges()).toBe(true);
       expect(comp.getSelectedPermissionKeys().sort()).toEqual(['delete_goal', 'edit_goal']);
+    });
+  });
+
+  describe('permission rules (#75)', () => {
+    async function openWith(keys: string[]) {
+      stakeholderServiceMock.getAvailablePermissions.mockResolvedValue(RULE_PERMISSIONS);
+      stakeholderServiceMock.getPermissionRules.mockResolvedValue(RULES);
+      stakeholderServiceMock.getStakeholder.mockResolvedValue({
+        ...MOCK_STAKEHOLDER_USER,
+        userDetails: { ...MOCK_STAKEHOLDER_USER.userDetails, permissionKeys: keys },
+      });
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+      fixture.detectChanges();
+      await flush();
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('ticks and disables what a ticked permission implies, and says why', async () => {
+      const el = await openWith([`${UC}[Edit]`]);
+
+      const implied = comp.permissionControl(`${SC}[Edit]`);
+      expect(implied.value).toBe(true);
+      expect(implied.disabled).toBe(true);
+      expect(comp.permissionTitle(`${SC}[Edit]`)).toBe('included with UseCase Edit');
+      expect(el.querySelector('[data-testid="stakeholder-implied-notes"]')?.textContent)
+        .toContain('creates and edits its primary scenario');
+      // loading applied the rules; it is not a user edit
+      expect(comp.hasUnsavedChanges()).toBe(false);
+    });
+
+    it('ticks the implied permission when the user ticks the one that implies it', async () => {
+      await openWith([]);
+
+      comp.permissionControl(`${UC}[Edit]`).setValue(true);
+
+      expect(comp.permissionControl(`${SC}[Edit]`).value).toBe(true);
+      expect(comp.permissionControl(`${SC}[Edit]`).disabled).toBe(true);
+      expect(comp.getSelectedPermissionKeys().sort()).toEqual([`${SC}[Edit]`, `${UC}[Edit]`]);
+    });
+
+    it('leaves the implied permission ticked and editable when its implier is unticked', async () => {
+      await openWith([`${UC}[Edit]`]);
+
+      comp.permissionControl(`${UC}[Edit]`).setValue(false);
+
+      const implied = comp.permissionControl(`${SC}[Edit]`);
+      expect(implied.value).toBe(true);
+      expect(implied.enabled).toBe(true);
+    });
+
+    it('asterisks an owned delete and explains it in the notes', async () => {
+      const el = await openWith([`${UC}[Delete]`]);
+
+      expect(comp.isOwnedFlagged(`${SC}[Delete]`)).toBe(true);
+      expect(el.querySelector(`[data-testid="stakeholder-owned-${SC}[Delete]"]`)?.textContent)
+        .toContain('*');
+      expect(el.querySelector('[data-testid="stakeholder-owned-notes"]')?.textContent)
+        .toContain('Scenario Delete: Deleting a use case deletes the scenarios only it uses.');
+      // the asterisk flags, it doesn't grant
+      expect(comp.permissionControl(`${SC}[Delete]`).value).toBe(false);
+      expect(comp.permissionControl(`${SC}[Delete]`).enabled).toBe(true);
+    });
+
+    it('drops the asterisk once the flagged permission is ticked', async () => {
+      await openWith([`${UC}[Delete]`, `${SC}[Delete]`]);
+
+      expect(comp.isOwnedFlagged(`${SC}[Delete]`)).toBe(false);
+      expect(comp.ownedNotes()).toEqual([]);
+    });
+
+    it('disables what the editor can\'t grant', async () => {
+      permissionServiceMock.hasPermission.mockImplementation(
+        (entity: string, type: string) => !(entity === 'UseCase' && type === 'Grant'));
+      await openWith([]);
+
+      expect(comp.permissionControl(`${UC}[Delete]`).disabled).toBe(true);
+      expect(comp.permissionTitle(`${UC}[Delete]`))
+        .toBe('you can\'t change this: it needs UseCase Delete and UseCase Grant');
+      expect(comp.permissionControl(`${SC}[Delete]`).enabled).toBe(true);
+    });
+
+    it('explains the permissions under the grid', async () => {
+      const el = await openWith([]);
+      expect(el.querySelector('[data-testid="stakeholder-permissions-about"]')?.textContent?.trim())
+        .toBe(comp.permissionsAbout);
+    });
+
+    it('still loads the grid when the rules can\'t be fetched', async () => {
+      stakeholderServiceMock.getPermissionRules.mockRejectedValue(new Error('down'));
+      stakeholderServiceMock.getAvailablePermissions.mockResolvedValue(RULE_PERMISSIONS);
+      paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+      fixture.detectChanges();
+      await flush();
+
+      expect(comp.permissionControl(`${SC}[Edit]`).enabled).toBe(true);
+      expect(comp.impliedNotes()).toEqual([]);
     });
   });
 

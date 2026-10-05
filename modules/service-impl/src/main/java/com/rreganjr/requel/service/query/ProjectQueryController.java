@@ -95,6 +95,8 @@ import com.rreganjr.requel.service.api.dto.ProjectPermissionsDto;
 import com.rreganjr.requel.service.api.dto.ProjectTreeNodeDto;
 import com.rreganjr.requel.service.api.dto.StakeholderDto;
 import com.rreganjr.requel.service.api.dto.StakeholderPermissionDto;
+import com.rreganjr.requel.service.api.dto.StakeholderPermissionRulesDto;
+import com.rreganjr.requel.project.StakeholderPermissionRules;
 import com.rreganjr.requel.service.api.dto.StoryDto;
 import com.rreganjr.requel.service.api.dto.UserStakeholderDetails;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
@@ -203,6 +205,32 @@ public class ProjectQueryController {
                         p.getEntityType().getSimpleName(),
                         p.getPermissionType().name()))
                 .toList();
+    }
+
+    /**
+     * GET /api/projects/stakeholder-permission-rules — issue #75: the permissions each permission
+     * implies, the owned deletes it covers, and the Grant that governs it, so the stakeholder page
+     * can disable, flag and explain. The same for every project, so no project access check.
+     * Declared before /{name} like /stakeholder-permissions.
+     */
+    @GetMapping("/stakeholder-permission-rules")
+    public StakeholderPermissionRulesDto getStakeholderPermissionRules() {
+        java.util.List<String> catalog = projectRepository.findAvailableStakeholderPermissions()
+                .stream().map(p -> p.getPermissionKey()).toList();
+        java.util.Map<String, String> grantKeys = new java.util.LinkedHashMap<>();
+        for (String key : catalog) {
+            grantKeys.put(key, StakeholderPermissionRules.grantKeyFor(key, catalog));
+        }
+        return new StakeholderPermissionRulesDto(
+                StakeholderPermissionRules.IMPLIED.stream()
+                        .map(r -> new StakeholderPermissionRulesDto.Implied(r.granted(),
+                                r.implied(), r.reason()))
+                        .toList(),
+                StakeholderPermissionRules.OWNED_DELETES.stream()
+                        .map(r -> new StakeholderPermissionRulesDto.OwnedDelete(r.granted(),
+                                r.flagged(), r.note()))
+                        .toList(),
+                grantKeys);
     }
 
     /**

@@ -87,7 +87,8 @@ import org.springframework.util.StringUtils;
 @Controller("importProjectCommand")
 @Scope("prototype")
 public class ImportProjectStreamingCommandImpl extends AbstractEditProjectCommand
-        implements ImportProjectCommand, ProjectScopedCommand, ProjectAnalysisRequestSource {
+        implements ImportProjectCommand, ProjectScopedCommand, ProjectAnalysisRequestSource,
+        com.rreganjr.platform.command.AuthorizableCommand {
 
     private final ActorStaxImporter actorStaxImporter;
     private final com.rreganjr.requel.utils.jaxb.imports.GoalStaxImporter goalStaxImporter;
@@ -599,6 +600,16 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
      * ({@link #getAnalysisProject()}, #268). The old {@code AssistantFacade.analyzeProject}
      * path no longer runs.
      */
+    /**
+     * #75: importing creates a project, so it needs the createProjects role permission, as
+     * EditProject does when creating one.
+     */
+    @Override
+    public com.rreganjr.platform.command.AuthorizationRequirement getAuthorizationRequirement() {
+        return new com.rreganjr.platform.command.AuthorizationRequirement.RequiresRolePermission(
+                com.rreganjr.requel.project.ProjectUserRole.createProjects.getName());
+    }
+
     @Override
     public void invokeAnalysis() {
     }

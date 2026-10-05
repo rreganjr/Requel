@@ -50,11 +50,10 @@ import com.rreganjr.platform.identity.User;
  * subclasses inherit this requirement; those that edit a project entity additionally run
  * that entity's own {@code Edit*Command}, which is authorized in its own right.
  * <p>
- * Those nested commands are deliberately <em>not</em> marked authorization-exempt.
- * {@link com.rreganjr.requel.annotation.impl.command.AbstractEditCommand} implements
- * {@code AuthorizationExemptable} and {@code AuthorizingCommandHandler} short-circuits on
- * that flag <em>before</em> the {@code AuthorizableCommand} check, so exempting a resolve's
- * sub-commands would silently reopen the hole this class closes.
+ * Those nested commands are deliberately <em>not</em> cascade steps
+ * ({@link com.rreganjr.platform.command.CascadeAuthorizable}, #75): a step is authorized by its
+ * parent's permission, so making a resolve's entity edits steps would let Annotation[Edit] edit
+ * any entity - the hole this class closes.
  *
  * @author ron
  */

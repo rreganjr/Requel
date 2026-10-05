@@ -20,6 +20,7 @@
  */
 package com.rreganjr.requel.project.impl.command;
 
+import com.rreganjr.platform.command.CascadeAuthorizable;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -96,8 +97,8 @@ public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand im
 		GlossaryTerm glossaryTerm = getRepository().get(getGlossaryTerm());
 		Set<Annotation> annotations = new HashSet<Annotation>(glossaryTerm.getAnnotations());
 		for (Annotation annotation : annotations) {
-			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = getAnnotationCommandFactory()
-					.newRemoveAnnotationFromAnnotatableCommand();
+			RemoveAnnotationFromAnnotatableCommand removeAnnotationFromAnnotatableCommand = CascadeAuthorizable.cascade(this,
+					getAnnotationCommandFactory().newRemoveAnnotationFromAnnotatableCommand());
 			removeAnnotationFromAnnotatableCommand.setEditedBy(getEditedBy());
 			removeAnnotationFromAnnotatableCommand.setAnnotatable(glossaryTerm);
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
@@ -117,10 +118,8 @@ public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand im
 					.newDeletePositionCommand();
 			deletePositionCommand.setEditedBy(getEditedBy());
 			deletePositionCommand.setPosition(addGlossaryTermPosition);
-			// #69/#75: this DeletePosition is an intrinsic sub-step of deleting the parent
-			// entity; exempt it so a Delete-only stakeholder isn't re-checked for Annotation[Delete].
-			((com.rreganjr.platform.command.AuthorizationExemptable) deletePositionCommand)
-					.setAuthorizationExempt(true);
+			// #75: a step of this operation, authorized by its permission (CascadeAuthorizable).
+			CascadeAuthorizable.cascade(this, deletePositionCommand);
 			getCommandHandler().execute(deletePositionCommand);
 		} catch (NoSuchEntityException e) {
 

@@ -72,6 +72,7 @@ class AuthorizingCommandHandlerTest {
     // Local interfaces for multi-interface commands
     interface AuthCmd extends AuthorizableCommand {}
     interface ProjectAuthCmd extends AuthorizableCommand, ProjectScopedCommand {}
+    interface StepCmd extends AuthorizableCommand, com.rreganjr.platform.command.CascadeAuthorizable {}
 
     private CommandHandler delegate;
     private AuthorizingCommandHandler handler;
@@ -377,5 +378,115 @@ class AuthorizingCommandHandlerTest {
     /** Concrete Role subtype for use in RequiresSystemRole constructor. */
     static class SystemAdminRole implements Role {
         @Override public String getName() { return "SystemAdminUserRole"; }
+    }
+
+    // -------------------------------------------------------------------------
+    // #75: cascade steps are authorized by the executing command that hands them on
+    // -------------------------------------------------------------------------
+
+    private com.rreganjr.platform.identity.User user(long id) {
+        com.rreganjr.platform.identity.User user = mock(com.rreganjr.platform.identity.User.class);
+        when(user.getId()).thenReturn(id);
+        when(user.hasRole(SystemAdminRole.class)).thenReturn(true);
+        when(user.getUsername()).thenReturn("u" + id);
+        return user;
+    }
+
+    /** A parent the user may run (system role), and a step whose own requirement they lack. */
+    private AuthCmd parent(com.rreganjr.platform.identity.User user) {
+        AuthCmd parent = mock(AuthCmd.class);
+        when(parent.getAuthorizationRequirement())
+                .thenReturn(new RequiresSystemRole(SystemAdminRole.class));
+        when(parent.getEditedBy()).thenReturn(user);
+        return parent;
+    }
+
+    private StepCmd step(AuthorizableCommand authorizer, com.rreganjr.platform.identity.User user) {
+        StepCmd step = mock(StepCmd.class);
+        when(step.getAuthorizingCommand()).thenReturn(authorizer);
+        when(step.getEditedBy()).thenReturn(user);
+        // its own requirement would refuse: the stakeholder check needs project context
+        when(step.getAuthorizationRequirement())
+                .thenReturn(new RequiresStakeholderPermission(Project.class, "Edit"));
+        return step;
+    }
+
+    @Test
+    void aStepIsAuthorizedWhileItsAuthorizerIsExecuting() throws Exception {
+        com.rreganjr.platform.identity.User user = user(1L);
+        AuthCmd parent = parent(user);
+        StepCmd step = step(parent, user);
+        StepCmd nested = step(parent, user);
+        when(delegate.execute(parent)).thenAnswer(inv -> {
+            handler.execute(step);
+            handler.execute(nested);
+            return parent;
+        });
+
+        handler.execute(parent);
+
+        verify(delegate).execute(step);
+        verify(delegate).execute(nested);
+        verify(step, never()).getAuthorizationRequirement();
+    }
+
+    @Test
+    void aStepIsRefusedWhenItsAuthorizerIsNotExecuting() throws Exception {
+        com.rreganjr.platform.identity.User user = user(1L);
+        AuthCmd parent = parent(user);
+        handler.execute(parent);
+        StepCmd late = step(parent, user);
+
+        assertThatThrownBy(() -> handler.execute(late))
+                .isInstanceOf(AuthorizationException.class)
+                .hasMessageContaining("not executing");
+        verify(delegate, never()).execute(late);
+    }
+
+    @Test
+    void aStepRunAsAnotherUserIsRefused() throws Exception {
+        com.rreganjr.platform.identity.User user = user(1L);
+        AuthCmd parent = parent(user);
+        StepCmd step = step(parent, user(2L));
+        when(delegate.execute(parent)).thenAnswer(inv -> handler.execute(step));
+
+        assertThatThrownBy(() -> handler.execute(parent))
+                .isInstanceOf(AuthorizationException.class)
+                .hasMessageContaining("different user");
+        verify(delegate, never()).execute(step);
+    }
+
+    @Test
+    void aParentThatFailsItsCheckAuthorizesNoStep() throws Exception {
+        com.rreganjr.platform.identity.User user = user(1L);
+        when(user.hasRole(SystemAdminRole.class)).thenReturn(false);
+        AuthCmd parent = parent(user);
+
+        assertThatThrownBy(() -> handler.execute(parent)).isInstanceOf(AuthorizationException.class);
+        StepCmd step = step(parent, user);
+        assertThatThrownBy(() -> handler.execute(step)).isInstanceOf(AuthorizationException.class);
+    }
+
+    @Test
+    void cascadeHandsOnTheRootAndNothingFromAnUnauthorizedParent() {
+        AuthCmd root = mock(AuthCmd.class);
+        when(root.getAuthorizationRequirement())
+                .thenReturn(new RequiresSystemRole(SystemAdminRole.class));
+        StepCmd child = mock(StepCmd.class);
+        com.rreganjr.platform.command.CascadeAuthorizable.cascade(root, child);
+        verify(child).setAuthorizingCommand(root);
+
+        StepCmd grandchild = mock(StepCmd.class);
+        when(child.getAuthorizingCommand()).thenReturn(root);
+        com.rreganjr.platform.command.CascadeAuthorizable.cascade(child, grandchild);
+        verify(grandchild).setAuthorizingCommand(root);
+
+        AuthCmd internal = mock(AuthCmd.class); // no requirement
+        StepCmd orphan = mock(StepCmd.class);
+        com.rreganjr.platform.command.CascadeAuthorizable.cascade(internal, orphan);
+        verify(orphan).setAuthorizingCommand(null);
+
+        assertThatThrownBy(() -> com.rreganjr.platform.command.CascadeAuthorizable.cascade(root,
+                mock(AuthCmd.class))).isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -197,6 +197,9 @@ public class EntityProvenanceIT extends AbstractIntegrationTestCase {
 			Issue issue = getAnnotationRepository().findById(Issue.class, conflict.issueId());
 			assertTrue(issue.getText().contains("jira " + key + " AC-2"), issue.getText());
 			assertFalse(issue.getText().contains(LOCATOR), "the locator never enters annotation text");
+			// #75: raised by the assistant, so the editor needs no Annotation[Edit] for it
+			assertEquals(com.rreganjr.platform.identity.User.ASSISTANT_USERNAME,
+					issue.getCreatedBy().getUsername());
 			List<String> positions = issue.getPositions().stream().map(Position::getText).toList();
 			assertTrue(positions.contains("Source now reads: Any admin can end a room"), "" + positions);
 			assertTrue(positions.contains("Source now reads: Any admin can end or pause a room"),
