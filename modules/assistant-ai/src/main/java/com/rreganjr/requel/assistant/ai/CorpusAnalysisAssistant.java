@@ -44,6 +44,7 @@ import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
 import com.rreganjr.requel.assistant.core.AssistantRunWorker;
 import com.rreganjr.requel.assistant.core.CommandBackedAssistantResultApplicator;
+import com.rreganjr.requel.assistant.core.StagedAssistant;
 import com.rreganjr.requel.assistant.core.corpus.CorpusCandidateFinder;
 import com.rreganjr.requel.assistant.core.corpus.CorpusCandidateFinder.ScoredPair;
 import com.rreganjr.requel.assistant.core.corpus.CorpusCandidateFinder.Settings;
@@ -82,7 +83,8 @@ import com.rreganjr.requel.project.UseCase;
  * <li>The finder's advisory issues on the pairs this run judged are replaced.</li>
  * </ul>
  */
-public class CorpusAnalysisAssistant implements RequelAssistant<Object>, DefinitionBacked {
+public class CorpusAnalysisAssistant
+		implements RequelAssistant<Object>, DefinitionBacked, StagedAssistant {
 
 	private static final Logger log = LoggerFactory.getLogger(CorpusAnalysisAssistant.class);
 
@@ -143,10 +145,20 @@ public class CorpusAnalysisAssistant implements RequelAssistant<Object>, Definit
 	@Override
 	public AssistantResult analyze(AssistantContext context, Object target)
 			throws AssistantException {
+		return prepare(context, target).complete().get(0);
+	}
+
+	/**
+	 * #363: build the set, find the candidates and build the pack inside the analyze transaction;
+	 * the stage makes the call and maps the findings from that detached data.
+	 */
+	@Override
+	public Stage prepare(AssistantContext context, Object target) throws AssistantException {
 		String skipReason = base.skipReason(context);
 		if (skipReason != null) {
-			return AssistantResult.builder().assistantId(assistantId()).runId(context.runId())
-					.summary(skipReason).build();
+			AssistantResult skipped = AssistantResult.builder().assistantId(assistantId())
+					.runId(context.runId()).summary(skipReason).build();
+			return () -> List.of(skipped);
 		}
 		Project project = projectOf(target);
 		if (project == null || runtime.corpusPackBuilder == null) {
@@ -189,16 +201,19 @@ public class CorpusAnalysisAssistant implements RequelAssistant<Object>, Definit
 				List.of(pack), definition.outputSchemaName(), definition.outputSchemaVersion(),
 				outputSchema(set), base.dataHandlingFlags(context.projectRef()),
 				base.attributes(context), base.instructions());
-		AiAnalysisResponse response;
-		try {
-			response = runtime.aiAnalysisClient.analyze(request);
-		} catch (AiAnalysisException e) {
-			log.warn("Corpus analysis {} failed for run {}: {}", definition.key(), context.runId(),
-					e.getMessage(), e);
-			throw new AssistantException("AI corpus analysis failed: " + e.getMessage(), e);
-		}
-		base.persistUsage(context.runId(), response.usage());
-		return map(context, set, pack, built.sentText(), candidates, response);
+		Map<EntityRef, String> sentText = built.sentText();
+		return () -> {
+			AiAnalysisResponse response;
+			try {
+				response = runtime.aiAnalysisClient.analyze(request);
+			} catch (AiAnalysisException e) {
+				log.warn("Corpus analysis {} failed for run {}: {}", definition.key(),
+						context.runId(), e.getMessage(), e);
+				throw new AssistantException("AI corpus analysis failed: " + e.getMessage(), e);
+			}
+			base.persistUsage(context.runId(), response.usage());
+			return List.of(map(context, set, pack, sentText, candidates, response));
+		};
 	}
 
 	AssistantResult map(AssistantContext context, CorpusSet set, CorpusPack pack,

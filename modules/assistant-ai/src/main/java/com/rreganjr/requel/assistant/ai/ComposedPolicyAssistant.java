@@ -40,6 +40,7 @@ import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.CleanupPolicy;
 import com.rreganjr.requel.assistant.api.RequelAssistant;
 import com.rreganjr.requel.assistant.core.ComposedAssistant;
+import com.rreganjr.requel.assistant.core.StagedAssistant;
 import com.rreganjr.requel.assistant.core.definition.AssistantDefinition;
 import com.rreganjr.requel.assistant.core.definition.DefinitionKind;
 import com.rreganjr.requel.assistant.core.definition.DefinitionSource;
@@ -60,7 +61,8 @@ import com.rreganjr.requel.project.TextEntity;
  * miss; one using a type outside its policy's vocabulary is kept and counted, as for reviews.</li>
  * </ul>
  */
-public class ComposedPolicyAssistant implements RequelAssistant<TextEntity>, ComposedAssistant {
+public class ComposedPolicyAssistant
+		implements RequelAssistant<TextEntity>, ComposedAssistant, StagedAssistant {
 
 	private static final Logger log = LoggerFactory.getLogger(ComposedPolicyAssistant.class);
 
@@ -120,6 +122,15 @@ public class ComposedPolicyAssistant implements RequelAssistant<TextEntity>, Com
 	@Override
 	public List<AssistantResult> analyzeAll(AssistantContext context, Object target)
 			throws AssistantException {
+		return prepare(context, target).complete();
+	}
+
+	/**
+	 * #363: choose the policies, check the ceiling and build the one request inside the analyze
+	 * transaction; the stage makes the call and attributes the findings.
+	 */
+	@Override
+	public Stage prepare(AssistantContext context, Object target) throws AssistantException {
 		TextEntity entity = (TextEntity) target;
 		List<String> notes = new ArrayList<>();
 		List<DefinitionExecutorAssistant> running = new ArrayList<>();
@@ -140,11 +151,24 @@ public class ComposedPolicyAssistant implements RequelAssistant<TextEntity>, Com
 					+ " (requel.ai.policies.max-composed). No policy ran.");
 		}
 		if (running.isEmpty()) {
-			return List.of(AssistantResult.builder().assistantId(ASSISTANT_ID)
-					.runId(context.runId()).summary(String.join(" ", notes)).build());
+			AssistantResult nothing = AssistantResult.builder().assistantId(ASSISTANT_ID)
+					.runId(context.runId()).summary(String.join(" ", notes)).build();
+			return () -> List.of(nothing);
 		}
 
-		DefinitionExecutorAssistant.Call call = composedExecutor(running).call(context, entity);
+		DefinitionExecutorAssistant.Prepared prepared = composedExecutor(running)
+				.prepareCall(context, entity);
+		Map<String, List<String>> retires = new LinkedHashMap<>();
+		for (DefinitionExecutorAssistant member : running) {
+			retires.put(member.definition().key(), member.retiredBy(context));
+		}
+		return () -> results(context, notes, running, prepared.call(), retires);
+	}
+
+	/** One result per policy that ran, from the pass's single call. */
+	private List<AssistantResult> results(AssistantContext context, List<String> notes,
+			List<DefinitionExecutorAssistant> running, DefinitionExecutorAssistant.Call call,
+			Map<String, List<String>> retires) {
 		if (call.skipped != null) {
 			return List.of(call.skipped);
 		}
@@ -203,7 +227,8 @@ public class ComposedPolicyAssistant implements RequelAssistant<TextEntity>, Com
 				}
 				first = false;
 			}
-			byKey.get(entry.getKey()).finish(builder, context, memberCounts[0], misses);
+			byKey.get(entry.getKey()).finish(builder, retires.get(entry.getKey()), memberCounts[0],
+					misses);
 			results.add(builder.build());
 		}
 		return results;

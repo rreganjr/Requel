@@ -23,10 +23,12 @@ package com.rreganjr.requel.assistant.ai;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -54,11 +56,15 @@ import com.rreganjr.requel.assistant.core.context.GoalSnapshot;
 import com.rreganjr.requel.assistant.core.context.PackSpec;
 import com.rreganjr.requel.assistant.core.context.RelatedEntity;
 import com.rreganjr.requel.assistant.core.context.EntityContextPackBuilder;
+import com.rreganjr.requel.assistant.core.AssistantRunWorker;
+import com.rreganjr.requel.assistant.core.StagedAssistant;
 import com.rreganjr.requel.assistant.core.definition.AssistantDefinition;
+import com.rreganjr.requel.assistant.core.definition.AssistantDefinitionStore;
 import com.rreganjr.requel.assistant.core.definition.AssistantDefinitionValidator;
 import com.rreganjr.requel.assistant.core.definition.BundledDefinitions;
 import com.rreganjr.requel.assistant.core.definition.DefinitionSource;
 import com.rreganjr.requel.assistant.core.persistence.AssistantUsageRepository;
+import com.rreganjr.requel.project.ProjectAssistantSettingsStore;
 import com.rreganjr.requel.project.TextEntity;
 
 class DefinitionExecutorAssistantTest {
@@ -322,6 +328,51 @@ class DefinitionExecutorAssistantTest {
 			assertThat(r.getKey()).isEqualTo(2);
 			assertThat(r.getValue()).containsExactly("CREDENTIALS", "EMAIL");
 		});
+	}
+
+	/**
+	 * #363: prepare reads everything the call needs; the stage, made with no transaction open,
+	 * calls the provider and maps the findings without touching the target or reading a store.
+	 */
+	@Test
+	void theStageTouchesNoEntityAndReadsNoStore() throws Exception {
+		when(packBuilder.build(any(), any())).thenReturn(mock(EntityContextPack.class));
+		aiClient.response = new AiAnalysisResponse("one issue", NullNode.getInstance(),
+				List.of(new AiFindingDraft("AMBIGUOUS", "HIGH", 0.9,
+						List.of("Members love the library"), "Requirement is ambiguous", null,
+						List.of("Clarify the actor"), Map.of())),
+				List.of(), AiUsage.noop("noop", Duration.ZERO), Map.of());
+		List<AssistantDefinition> reviews = BundledDefinitions.load(objectMapper,
+				new AssistantDefinitionValidator(16000)).stream()
+				.filter(d -> "REQUIREMENTS_REVIEW".equals(d.taskType())).toList();
+		AssistantDefinitionStore definitions = mock(AssistantDefinitionStore.class);
+		when(definitions.definitionsFor(2L, "REQUIREMENTS_REVIEW")).thenReturn(reviews);
+		ProjectAssistantSettingsStore settings = mock(ProjectAssistantSettingsStore.class);
+		DefinitionExecutorAssistant assistant = newAssistant(enabledProperties());
+		factory.setDefinitionStore(definitions);
+		factory.setSettingsStore(settings);
+		TextEntity target = goalTarget();
+
+		StagedAssistant.Stage stage = assistant.prepare(context("REQUIREMENTS_REVIEW"), target);
+
+		assertThat(aiClient.calls).isZero();
+		verify(packBuilder).build(any(), any());
+		verify(definitions).definitionsFor(2L, "REQUIREMENTS_REVIEW");
+		clearInvocations(target, packBuilder, definitions, settings);
+
+		List<AssistantResult> results = stage.complete();
+
+		assertThat(aiClient.calls).isEqualTo(1);
+		verifyNoInteractions(target, packBuilder, definitions, settings);
+		assertThat(results).singleElement().satisfies(result -> {
+			assertThat(result.annotationActions()).hasSize(2); // the issue and its position
+			assertThat(result.metadata()).containsEntry(AssistantRunWorker.EVIDENCE_UNVERIFIED, 0);
+			@SuppressWarnings("unchecked")
+			List<String> retires = (List<String>) result.metadata()
+					.get(AssistantRunWorker.RETIRES_ASSISTANTS);
+			assertThat(retires).isNotEmpty().doesNotContain(RequirementsReview.ASSISTANT_ID);
+		});
+		verify(usageRepository).save(any());
 	}
 
 	@Test

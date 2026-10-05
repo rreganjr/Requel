@@ -23,8 +23,10 @@ package com.rreganjr.requel.assistant.ai;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -46,6 +48,7 @@ import com.rreganjr.requel.assistant.api.AssistantResult;
 import com.rreganjr.requel.assistant.api.EntityRef;
 import com.rreganjr.requel.assistant.api.UserRef;
 import com.rreganjr.requel.assistant.core.AssistantRunWorker;
+import com.rreganjr.requel.assistant.core.StagedAssistant;
 import com.rreganjr.requel.assistant.core.context.EntityContextPack;
 import com.rreganjr.requel.assistant.core.context.EntityContextPackBuilder;
 import com.rreganjr.requel.assistant.core.context.PackSpec;
@@ -56,6 +59,7 @@ import com.rreganjr.requel.assistant.core.definition.DefinitionKind;
 import com.rreganjr.requel.assistant.core.definition.DefinitionSource;
 import com.rreganjr.requel.assistant.core.definition.VocabularyEntry;
 import com.rreganjr.requel.assistant.core.persistence.AssistantUsageRepository;
+import com.rreganjr.requel.project.ProjectAssistantSettingsStore;
 import com.rreganjr.requel.project.TextEntity;
 
 /**
@@ -124,6 +128,34 @@ class ComposedPolicyAssistantTest {
 		assertThat(b.metadata()).containsEntry(AssistantRunWorker.VOCABULARY_MISSES, 1);
 		// Policies never retire one another's findings.
 		assertThat(a.metadata()).containsEntry(AssistantRunWorker.RETIRES_ASSISTANTS, List.of());
+	}
+
+	/**
+	 * #363: the policies are chosen and the request built in prepare; the stage makes the one call
+	 * and attributes the findings without touching the target or the pack builder.
+	 */
+	@Test
+	void theStageTouchesNoEntity() throws Exception {
+		aiClient.response = new AiAnalysisResponse("one policy fired", NullNode.getInstance(),
+				List.of(finding("p-b", "RULE_BROKEN", "B is broken")), List.of(),
+				AiUsage.noop("noop", Duration.ZERO), Map.of());
+		ProjectAssistantSettingsStore settings = mock(ProjectAssistantSettingsStore.class);
+		factory.setSettingsStore(settings);
+		TextEntity target = target();
+
+		StagedAssistant.Stage stage = composed(policy("p-a", "Rule A.", false),
+				policy("p-b", "Rule B.", false)).prepare(context(), target);
+
+		assertThat(aiClient.calls).isZero();
+		clearInvocations(target, packBuilder, settings);
+
+		List<AssistantResult> results = stage.complete();
+
+		assertThat(aiClient.calls).isEqualTo(1);
+		verifyNoInteractions(target, packBuilder, settings);
+		assertThat(results).extracting(AssistantResult::assistantId).containsExactly("p-a", "p-b");
+		assertThat(issues(results.get(1))).extracting(AnnotationAction::text)
+				.containsExactly("B is broken");
 	}
 
 	@Test

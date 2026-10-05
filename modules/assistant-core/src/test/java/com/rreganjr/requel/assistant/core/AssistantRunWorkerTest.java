@@ -175,6 +175,85 @@ class AssistantRunWorkerTest {
 		assertThat(applicator.appliedResults).hasSize(1);
 	}
 
+	/**
+	 * #363: a staged assistant prepares inside the analyze transaction and makes its call after
+	 * that transaction has committed and before apply begins, with no transaction open.
+	 */
+	@Test
+	void aStagedAssistantsCallRunsBetweenTheTransactions() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		List<String> phases = new java.util.ArrayList<>();
+		RecordingApplicator applicator = new RecordingApplicator();
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(new Staged(phases))), applicator,
+				List.of(new StringTargetLoader()), java.time.Clock.systemUTC(),
+				phaseRecorder(phases, "analyze"), phaseRecorder(phases, "apply"));
+
+		worker.run(record.runId());
+
+		assertThat(phases).containsExactly("analyze-begin", "prepare", "analyze-commit", "call",
+				"apply-begin", "apply-commit");
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> assertThat(
+				updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED));
+		assertThat(applicator.appliedResults).extracting(AssistantResult::summary)
+				.containsExactly("called with target");
+	}
+
+	/** #363: a call that fails, alone in its run, fails the run and applies nothing. */
+	@Test
+	void aStagedCallThatThrowsFailsARunItWasAloneIn() {
+		InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+		AssistantRunRecord record = runStore.queueRun(request());
+		Staged staged = new Staged(new java.util.ArrayList<>());
+		staged.callFailure = "model timed out";
+		RecordingApplicator applicator = new RecordingApplicator();
+		AssistantRunWorker worker = new AssistantRunWorker(runStore,
+				new SimpleAssistantRegistry(List.of(staged)), applicator,
+				List.of(new StringTargetLoader()));
+
+		worker.run(record.runId());
+
+		assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> {
+			assertThat(updated.status()).isEqualTo(AssistantRunStatus.FAILED);
+			assertThat(updated.errorSummary()).contains("staged-assistant failed")
+					.contains("model timed out");
+		});
+		assertThat(applicator.appliedResults).isEmpty();
+	}
+
+	/**
+	 * #363: a staged assistant that fails, in prepare or in its call, leaves the others' results
+	 * applied and the run partial: it succeeded, and the summary names what failed.
+	 */
+	@Test
+	void aFailingStagedAssistantBesideAnotherIsPartial() {
+		for (boolean inPrepare : new boolean[] { true, false }) {
+			InMemoryAssistantRunStore runStore = new InMemoryAssistantRunStore();
+			AssistantRunRecord record = runStore.queueRun(request());
+			Staged staged = new Staged(new java.util.ArrayList<>());
+			if (inPrepare) {
+				staged.prepareFailure = "no context";
+			} else {
+				staged.callFailure = "model timed out";
+			}
+			RecordingApplicator applicator = new RecordingApplicator();
+			AssistantRunWorker worker = new AssistantRunWorker(runStore,
+					new SimpleAssistantRegistry(List.of(staged, new StringAssistant())), applicator,
+					List.of(new StringTargetLoader()));
+
+			worker.run(record.runId());
+
+			assertThat(runStore.findRun(record.runId())).hasValueSatisfying(updated -> {
+				assertThat(updated.status()).isEqualTo(AssistantRunStatus.SUCCEEDED);
+				assertThat(updated.errorSummary())
+						.contains(inPrepare ? "no context" : "model timed out");
+			});
+			assertThat(applicator.appliedResults).extracting(AssistantResult::assistantId)
+					.containsExactly("string-assistant");
+		}
+	}
+
 	/** #355: the run keeps the assistants' own summary; a failed assistant contributes none. */
 	@Test
 	void theRunRecordsTheResultSummaryOfTheAssistantsThatRan() {
@@ -936,6 +1015,54 @@ class AssistantRunWorkerTest {
 				CleanupPolicy cleanupPolicy, EntityRef dispatchTarget) {
 			appliedResults.add(result);
 			return new AppliedAssistantResult(0, List.of());
+		}
+	}
+
+	/** #363: records when it prepares and when it calls; either can be made to fail. */
+	private static final class Staged implements RequelAssistant<String>, StagedAssistant {
+		private final List<String> phases;
+		private String prepareFailure;
+		private String callFailure;
+
+		Staged(List<String> phases) {
+			this.phases = phases;
+		}
+
+		@Override
+		public String assistantId() {
+			return "staged-assistant";
+		}
+
+		@Override
+		public Class<String> targetType() {
+			return String.class;
+		}
+
+		@Override
+		public boolean handlesTask(String taskType) {
+			return true;
+		}
+
+		@Override
+		public AssistantResult analyze(AssistantContext context, String target) {
+			throw new AssertionError("the worker runs a staged assistant through prepare");
+		}
+
+		@Override
+		public Stage prepare(AssistantContext context, Object target) {
+			phases.add("prepare");
+			if (prepareFailure != null) {
+				throw new IllegalStateException(prepareFailure);
+			}
+			String text = (String) target;
+			return () -> {
+				phases.add("call");
+				if (callFailure != null) {
+					throw new com.rreganjr.requel.assistant.api.AssistantException(callFailure);
+				}
+				return List.of(AssistantResult.builder().assistantId(assistantId())
+						.runId(context.runId()).summary("called with " + text).build());
+			};
 		}
 	}
 }
