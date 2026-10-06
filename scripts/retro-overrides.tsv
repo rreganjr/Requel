@@ -27,3 +27,6 @@
 241	3	recorded by judgment; the commit history under-counts the work
 242	2	recorded by judgment; the commit history under-counts the work
 247	5	recorded by judgment; the commit history under-counts the work
+359	1	commit message lacked the issue URL line, so the calc saw no commits (one day of work)
+363	1	commit message lacked the issue URL line, so the calc saw no commits (one day of work)
+379	1	commit message lacked the issue URL line, so the calc saw no commits (one day of work)

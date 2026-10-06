@@ -68,6 +68,11 @@ services:
       - "SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/requel?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC"
       - "SPRING_DATASOURCE_USERNAME=root"
       - "SPRING_DATASOURCE_PASSWORD=pa33w0rd"
+      # Required unless SPRING_PROFILES_ACTIVE includes dev (#376): the key that signs login
+      # tokens. Set it once in a .env file next to this file, for example
+      #   echo "REQUEL_JWT_SECRET=$(openssl rand -base64 48)" > .env
+      # Listed without a value so it is passed through only when set.
+      - "REQUEL_JWT_SECRET"
       - "SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-}"
       # --- AI assistant, pointed at the local Ollama container -----------------------------
       # These are hardcoded on purpose: this file is tied to the bundled Ollama service, so the

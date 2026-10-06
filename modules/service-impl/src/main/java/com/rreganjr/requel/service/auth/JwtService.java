@@ -26,11 +26,14 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -44,11 +47,45 @@ public class JwtService {
     private final SecretKey signingKey;
     private final long expiryMs;
 
+    /** The secret {@code application.properties} falls back to when REQUEL_JWT_SECRET is unset. */
+    public static final String BUILT_IN_SECRET = "requel-dev-secret-change-in-production-min-32-chars";
+
+    /** HS256 needs a key of at least 256 bits. */
+    public static final int MIN_SECRET_BYTES = 32;
+
+    /**
+     * Issue #376: outside the {@code dev} and {@code test} profiles, refuse to start on the
+     * built-in secret (anyone could sign a token with it) or on a blank one; in any profile,
+     * refuse a secret too short for HS256 with a message instead of a {@code WeakKeyException}.
+     */
+    @Autowired
     public JwtService(
-            @Value("${requel.jwt.secret:requel-dev-secret-change-in-production-min-32-chars!!}") String secret,
-            @Value("${requel.jwt.expiry-hours:8}") int expiryHours) {
+            @Value("${requel.jwt.secret}") String secret,
+            @Value("${requel.jwt.expiry-hours:8}") int expiryHours,
+            Environment environment) {
+        this(checkedSecret(secret, environment.getActiveProfiles()), expiryHours);
+    }
+
+    /** For tests: no profile check. */
+    public JwtService(String secret, int expiryHours) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expiryMs = expiryHours * 3600L * 1000L;
+    }
+
+    static String checkedSecret(String secret, String[] activeProfiles) {
+        boolean devOrTest = Arrays.stream(activeProfiles).anyMatch(p -> p.equals("dev") || p.equals("test"));
+        if (secret == null || secret.isBlank() || secret.equals(BUILT_IN_SECRET)) {
+            if (!devOrTest) {
+                throw new InsecureJwtSecretException("REQUEL_JWT_SECRET is not set, so tokens would be"
+                        + " signed with Requel's built-in secret, which anyone can read.");
+            }
+            return BUILT_IN_SECRET;
+        }
+        if (secret.getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
+            throw new InsecureJwtSecretException("REQUEL_JWT_SECRET is " + secret.getBytes(StandardCharsets.UTF_8).length
+                    + " bytes; it needs at least " + MIN_SECRET_BYTES + ".");
+        }
+        return secret;
     }
 
     /**

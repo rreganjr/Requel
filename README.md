@@ -3,11 +3,11 @@
 [![CI](https://github.com/rreganjr/Requel/actions/workflows/ci.yml/badge.svg)](https://github.com/rreganjr/Requel/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/rreganjr/Requel/branch/master/graph/badge.svg)](https://codecov.io/gh/rreganjr/Requel)
 [![License](https://img.shields.io/github/license/rreganjr/Requel)](LICENSE)
-[![Release](https://img.shields.io/badge/Release-2.0%20pending-yellow)](https://github.com/rreganjr/Requel/releases)
+[![Release](https://img.shields.io/github/v/release/rreganjr/Requel)](https://github.com/rreganjr/Requel/releases)
 [![Last commit](https://img.shields.io/github/last-commit/rreganjr/Requel)](https://github.com/rreganjr/Requel/commits/master)
 [![Docker Pulls](https://img.shields.io/docker/pulls/rreganjr/requel)](https://hub.docker.com/r/rreganjr/requel)
 [![Java](https://img.shields.io/badge/Java-17-007396?logo=openjdk)](https://openjdk.org/projects/jdk/17/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
 [![Angular](https://img.shields.io/badge/Angular-21-DD0031?logo=angular)](https://angular.dev/)
 
 Requel is a web-based requirements management system that supports collaboration among all
@@ -22,117 +22,53 @@ covers the core concepts; note that Chapter 5 (_Requel Setup_) describes the old
 and is no longer relevant.
 
 An example project file that can be imported:
-[Requel.xml](https://raw.githubusercontent.com/rreganjr/Requel/v1.0.1-beta/doc/samples/Requel.xml)
+[Requel.xml](https://raw.githubusercontent.com/rreganjr/Requel/master/doc/samples/Requel.xml)
 
 ---
 
 ### What's new in 2.0 (2026)
 
-Version 2.0 replaces the Echo2 server-side Java UI with a modern Angular 17+ single-page
-application. The Angular SPA is built as part of the Maven build and bundled directly into the
-Spring Boot JAR, so there is no separate web server to run or configure.
-
-Key changes from 1.2:
-
-- **Angular SPA** — full rewrite of the UI in Angular 17 with PrimeNG components. All
-  requirements editing screens, the IBIS annotation/discussion layer, and the project sidebar
-  are now client-side with SSE-based live refresh when background NLP analysis updates entities.
-- **CQRS API** — a clean REST API backs the SPA: `POST /api/commands/{type}` for writes,
-  `GET /api/...` for reads. The same API is available for integration or scripting.
-- **Command audit log** — every API-dispatched command is recorded in `command_audit_log`
-  (user, timestamp, command type, project). Background NLP commands are excluded.
-- **Actors on stories** — stories now support a primary actor and a set of additional actors,
-  consistent with use-cases.
-- **JWT authentication** — the Angular client uses JWT tokens; sessions are enforced per-user
-  on the SSE stream.
+- **A new web UI.** The Echo2 server-side UI is replaced by an Angular single-page app, bundled
+  into the same jar, with live refresh when other people or the assistants change something.
+- **An API.** Everything the UI does goes through `POST /api/commands/{type}` and `GET /api/...`,
+  with personal API tokens for scripts.
+- **AI requirements review.** Assistants review goals, stories, use cases and scenarios and
+  raise issues you can discuss and resolve. Use OpenAI, Anthropic, Gemini or a local model
+  (Ollama); projects can write their own review definitions. See
+  [AI assistant setup](doc/guides/AI_ASSISTANT_SETUP.md).
+- **MCP server and `requel-cli`.** AI clients (Claude, VS Code and others) can read and edit a
+  project over MCP with OAuth sign-in; the CLI does the same from a terminal.
+- **Stakeholder permissions that hang together.** Permissions granted together are shown
+  together, deletes that remove owned items are explained, and granting needs Grant.
+- **Also:** tags, report generators, project delete, links from entities to their sources
+  (tickets, documents), actors on stories, and an audit log of every command.
 
 ---
 
-### Quickstart with Docker Compose (recommended)
+### Running Requel
 
-The easiest way to run Requel is with the included `docker-compose.yml`, which starts MySQL 8.4
-and the Requel server together:
-
-```bash
-docker-compose up
-```
-
-Then open http://localhost:8080/ and log in as **admin** with password **admin**.
-
-MySQL is available on host port 3307 if you need direct access.
-
-To stop and remove containers:
+The quickest way is Docker Compose:
 
 ```bash
-docker-compose down
+curl -fsSLO https://raw.githubusercontent.com/rreganjr/Requel/v2.0.0/docker-compose.yml
+echo "REQUEL_JWT_SECRET=$(openssl rand -base64 48)" > .env
+docker compose up -d
 ```
 
----
+The first start takes a few minutes while the dictionary loads. Then open
+http://localhost:8080/, log in as **admin** / **admin** and change the password.
 
-### Running the JAR directly
-
-Requires **Java 17** and a running **MySQL 8.4** instance.
-
-```bash
-# macOS
-JAVA_HOME=$(/usr/libexec/java_home -v 17) PATH="$JAVA_HOME/bin:$PATH" \
-java -jar modules/requel-app/target/requel-app-2.0.0.jar \
-  --spring.profiles.active=dev \
-  '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
-  --spring.datasource.username=root \
-  --spring.datasource.password=password \
-  --server.port=8080
-
-# Linux
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-export PATH="$JAVA_HOME/bin:$PATH"
-java -jar modules/requel-app/target/requel-app-2.0.0.jar \
-  --spring.profiles.active=dev \
-  '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC' \
-  --spring.datasource.username=root \
-  --spring.datasource.password=password \
-  --server.port=8080
-```
-
-Then open http://localhost:8080/ and log in as **admin** / **admin**.
-
-`--spring.profiles.active=dev` activates [`application-dev.properties`](modules/requel-app/src/main/resources/application-dev.properties) which:
-
-- allows the Angular dev server on `:4200` to reach the API (CORS),
-- registers `/api/dev/reset-admin` and `/api/dev/reset-project` endpoints used by the Playwright E2E global-setup to put built-in users back to canonical state before each run.
-
-The reset endpoints are unauthenticated and destructive, so leaving the `dev` profile off (the default, what Docker Compose runs with) keeps them out of the running server.
-
-> **zsh users:** quote the JDBC URL (contains `?`) or prefix the command with `noglob`.
-
----
-
-### Running with Docker (manual)
-
-```bash
-docker network create requel-net || true
-
-# MySQL 8.4
-docker run --name requelDB --net=requel-net -p 3307:3306 \
-  -e MYSQL_ROOT_PASSWORD=pa33w0rd -d mysql:8.4
-
-# Requel 2.0.0
-docker run --name requel --net=requel-net -p 8080:8080 -d \
-  rreganjr/requel:2.0.0 \
-  --spring.datasource.url=jdbc:mysql://requelDB:3306/requel?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC \
-  --spring.datasource.username=root \
-  --spring.datasource.password=pa33w0rd
-```
-
-Then open http://localhost:8080/
-
+[Installing and running Requel](doc/guides/INSTALL.md) covers Compose, plain Docker and the
+jar, upgrading from 1.x, every setting, and what to check before anyone else can reach it.
 Docker images: https://hub.docker.com/r/rreganjr/requel/
 
 ---
 
 ### Building from source
 
-Requires **Java 17**, **Maven 3.6.3+**, and **Node 22+**.
+Requires **Java 17**, **Maven 3.6.3+** and **Node 22+**. The first build downloads the NLP data
+jar from this repository's GitHub Releases, so it needs to reach github.com (see
+[NLP data](doc/guides/NLP_DATA.md)).
 
 ```bash
 # Full build (Java + Angular)
@@ -145,32 +81,20 @@ mvn -pl modules/requel-app -am package -DskipAngularBuild=true -DskipTests=true
 mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests
 ```
 
+To run a development build with the Angular dev server and the reset endpoints the e2e tests
+use, add `--spring.profiles.active=dev`
+([`application-dev.properties`](modules/requel-app/src/main/resources/application-dev.properties)).
+Never run a reachable server with `dev`: its reset endpoints are unauthenticated.
+
 ---
 
-### Database initialization and upgrades
+### Database migrations
 
-On a **fresh database** nothing extra is needed. Flyway runs all migrations automatically on
-startup.
-
-A **1.2 database** already has Flyway history, so 2.0 migrates it in place on first start.
-Back it up first.
-
-A **1.0 or 1.1 database** (no `flyway_schema_history` table) can't be upgraded in place: 2.0
-refuses to start on it and leaves it untouched. Export each project to XML in the old version,
-start 2.0 on a new, empty database and import the files. Upgrading in place is
-[#380](https://github.com/rreganjr/Requel/issues/380).
-
-#### Migrations
-
-| Version | Description |
-|---------|-------------|
-| V1 | Initial schema (projects, goals, actors, stories, use-cases, scenarios, annotations) |
-| V2 | Identity cleanup — drop legacy `*_seq` tables, set PKs to `AUTO_INCREMENT` |
-| V3 | User preferences (sidebar project limit and staleness filter) |
-| V4 | Command audit log table |
-| V5 | Use-case additional scenarios join table |
-| V6 | Fix `proposed_word` column spelling in dictionary |
-| V7 | Story primary actor (`primary_actor_id` column on `stories` table) |
+Flyway applies the migrations in
+[`modules/requel-app/src/main/resources/db/migration`](modules/requel-app/src/main/resources/db/migration)
+on startup. A fresh database needs nothing extra. A 1.2 database is migrated in place; a 1.0 or
+1.1 database is refused, and its projects move by XML export and import
+([Upgrading](doc/guides/INSTALL.md#upgrading)).
 
 ---
 
@@ -178,9 +102,9 @@ start 2.0 on a new, empty database and import the files. Upgrading in place is
 
 #### 2.0 (2026) — Angular SPA, CQRS API
 
-Complete replacement of the Echo2 server-side UI with an Angular 17 SPA. The server-side
-rendering model is gone; the backend now exposes a clean CQRS API. The Angular build is
-bundled into the JAR by Maven so the deployment model is unchanged — one JAR, one database.
+Complete replacement of the Echo2 server-side UI with an Angular SPA backed by a CQRS API,
+plus AI requirements review, an MCP server and `requel-cli`. The Angular build is bundled into
+the JAR by Maven so the deployment model is unchanged: one JAR, one database.
 
 #### 1.2 (2025) — Java 17, Spring Boot 3
 
