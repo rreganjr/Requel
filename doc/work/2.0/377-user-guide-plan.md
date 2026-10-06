@@ -27,6 +27,9 @@ A user guide for 2.0 as static pages on the GitHub Pages site
 5. All eight topic pages in one change.
 6. The 2009 User Guide PDF stays under Background, labelled as the 1.0 guide; the README links
    the new guide.
+7. `requel-cli` ships with 2.0: `release.yml` builds it and attaches its jar next to the app's,
+   and the guide says to download it. CI builds and tests it too; until now `-pl
+   modules/requel-app -am` left it out, since requel-app doesn't depend on it.
 
 ## Screenshot script
 
@@ -65,7 +68,6 @@ and testing the candidate includes retaking the screenshots and setting the site
 - Per-item AI review has no button in the UI or tool in MCP; the guide shows the API call.
 - The resolve button on a hand-written position reads "Ignore" (`resolveLabel` default).
 - Exports carry user password hashes; the guide says so.
-- `requel-cli` is not attached to releases; the guide says to build it.
 - Deleting the imported sample project fails on a `scenarios_annotations` foreign key.
 - Re-running analysis on the sample adds a second "Ignore this word." position to issues that
   already had one.

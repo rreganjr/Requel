@@ -109,9 +109,10 @@ jobs:
       # to the root pom alongside this workflow) runs the *IT.java integration
       # tests during the `integration-test`/`verify` phases. JaCoCo writes a
       # combined HTML+XML coverage report to **/target/site/jacoco/.
+      # requel-cli is listed too: requel-app doesn't depend on it, so -am alone skips its tests.
       - name: Maven build, unit + integration tests, Angular bundle
         run: >
-          mvn -pl modules/requel-app -am verify
+          mvn -pl modules/requel-app,modules/requel-cli -am verify
           --batch-mode --no-transfer-progress
           -Dstyle.color=always
 

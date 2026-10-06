@@ -99,9 +99,12 @@
 
   <section id="cli">
     <h2><code>requel-cli</code></h2>
-    <p>A command-line client for the same queries and commands. In 2.0 it is built from source:</p>
-<pre><code>mvn -pl modules/requel-cli -am package -DskipTests
-alias requel='java -jar modules/requel-cli/target/requel-cli-2.0.0.jar'</code></pre>
+    <p>A command-line client for the same queries and commands. Download
+      <code>requel-cli-2.0.0.jar</code> from the
+      <a href="https://github.com/rreganjr/Requel/releases/tag/v2.0.0">2.0.0 release</a>; it needs
+      Java 17 or later.</p>
+<pre><code>alias requel='java -jar ~/Downloads/requel-cli-2.0.0.jar'
+requel --version</code></pre>
     <p>Sign in once per server; the CLI remembers it:</p>
 <pre><code>export REQUEL_URL=http://localhost:8080
 requel login --token reqpat_...      # or: requel login --oauth

@@ -161,8 +161,8 @@ notes that don't belong to one ticket.
    script's header says how) and commit any that changed, with the site's status banner in
    `website/index.html` set for the release.
 5. **Final release.** Same as step 3 with `./scripts/set-version.sh 2.1.0`, the message
-   `Version 2.1.0` and the tag `v2.1.0`. This publishes the GitHub Release with the jar
-   attached, and pushes `rreganjr/requel:2.1.0` and `:latest`.
+   `Version 2.1.0` and the tag `v2.1.0`. This publishes the GitHub Release with the app and
+   `requel-cli` jars attached, and pushes `rreganjr/requel:2.1.0` and `:latest`.
 6. **Promote to `master`** with a merge commit:
    ```bash
    gh pr create --repo rreganjr/Requel --base master --head release/2.1 --title "Release 2.1.0" --body "Promote release/2.1 (v2.1.0) to master."
@@ -255,7 +255,7 @@ move forward.
 | Workflow | Runs on | Does |
 |---|---|---|
 | `ci.yml` | every push and PR to `master` and `release/**`, except ones that only touch `doc/**/*.md`, root `*.md`, `scripts/**` or the website's pages, styles and images | full Maven build, unit + integration tests, Angular lint + unit tests, e2e |
-| `release.yml` | a `v*` tag | full build + tests, then a GitHub Release with generated notes and the jar attached; `-rc` tags are pre-releases |
+| `release.yml` | a `v*` tag | full build + tests, then a GitHub Release with generated notes and the app and `requel-cli` jars attached; `-rc` tags are pre-releases |
 | `container-publish.yml` | a `v*` tag | build + tests, docker-compose smoke test, push `rreganjr/requel:<version>`; final tags (no `-` suffix) also push `:latest` |
 | `pages.yml` | pushes touching `website/**` | publishes `website/`, which hosts the project XSD that exports point to |
 
