@@ -152,15 +152,13 @@ mvn -pl modules/requel-app -am package -Pdocker-image -DskipTests
 On a **fresh database** nothing extra is needed. Flyway runs all migrations automatically on
 startup.
 
-On an **existing pre-2.0 database** (no `flyway_schema_history` table), start once with:
+A **1.2 database** already has Flyway history, so 2.0 migrates it in place on first start.
+Back it up first.
 
-```
--e SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
--e SPRING_FLYWAY_BASELINE_VERSION=1
-```
-
-This registers the existing schema as version 1 and applies newer migrations. Remove these
-flags after the first successful start.
+A **1.0 or 1.1 database** (no `flyway_schema_history` table) can't be upgraded in place: 2.0
+refuses to start on it and leaves it untouched. Export each project to XML in the old version,
+start 2.0 on a new, empty database and import the files. Upgrading in place is
+[#380](https://github.com/rreganjr/Requel/issues/380).
 
 #### Migrations
 

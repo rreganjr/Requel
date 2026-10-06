@@ -199,6 +199,40 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
                 "an imported assistant holds exactly the assistant set, not the full matrix");
     }
 
+    /**
+     * Issue #379: with no rename, the project takes the file's {@code <name>}; a taken name gets
+     * " (1)"; a rename wins over the file; a file without a name falls back to "Imported Project".
+     * The name in the sample comes after {@code <actors>}, as in the 1.0.x exports.
+     */
+    @Test
+    public void importTakesTheProjectNameFromTheFile() throws Exception {
+        projectUserInitializer.initialize();
+        ensureAssistantHasProjectRole();
+        String sample = Files.readString(resolveSampleXml());
+        String fileName = "Named In File " + System.currentTimeMillis();
+        String named = sample.replaceFirst("\n    <name>Requel</name>", "\n    <name>" + fileName + "</name>");
+        assertNotEquals(sample, named, "the sample's project-level <name> was found");
+
+        assertEquals(fileName, importXml(named, null).getName());
+        assertEquals(fileName + " (1)", importXml(named, null).getName(), "a taken name gets a suffix");
+        String rename = "Renamed " + System.currentTimeMillis();
+        assertEquals(rename, importXml(named, rename).getName(), "the rename wins");
+        assertEquals(fileName + " (2)", importXml(named, "  ").getName(), "a blank rename is no rename");
+
+        String unnamed = sample.replaceFirst("\n    <name>Requel</name>", "");
+        assertTrue(importXml(unnamed, null).getName().startsWith("Imported Project"),
+                "no name in the file falls back to Imported Project");
+    }
+
+    private Project importXml(String xml, String rename) throws Exception {
+        ImportProjectCommand command = (ImportProjectCommand) applicationContext.getBean("importProjectCommand");
+        command.setEditedBy(getUserRepository().findUserByUsername("project"));
+        command.setAnalysisEnabled(false);
+        command.setName(rename);
+        command.setInputStream(new java.io.ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        return getCommandHandler().execute(command).getProject();
+    }
+
     private void ensureAssistantHasProjectRole() throws Exception {
         User assistant = getUserRepository().findUserByUsername("assistant");
         boolean hasRole = assistant.getUserRoles().stream()
