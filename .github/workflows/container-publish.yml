@@ -120,13 +120,14 @@ jobs:
             docker tag "${DOCKER_IMAGE}:${POM_VERSION}" "${DOCKER_IMAGE}:2.0.0-dev"
           fi
 
-      # Bring up the compose stack and probe /actuator/health. MySQL
-      # boot + Spring context + Flyway migrations can take 60–120s on
-      # cold caches; allow up to ~3 minutes before giving up.
+      # Bring up the compose stack and probe /actuator/health. The port opens only after
+      # Flyway and the first-start dictionary load (#379), several minutes on a fresh
+      # database; allow up to ~10 minutes. The app refuses the built-in JWT secret outside
+      # the dev profile (#376), so give it a throwaway one.
       - name: Smoke test (docker-compose up + health probe)
         run: |
-          docker compose up -d
-          for i in $(seq 1 36); do
+          REQUEL_JWT_SECRET="$(openssl rand -base64 48)" docker compose up -d
+          for i in $(seq 1 120); do
             if curl -fsS http://localhost:8080/actuator/health > /dev/null 2>&1; then
               echo "Health check passed on attempt ${i}"
               exit 0
@@ -134,7 +135,7 @@ jobs:
             echo "Attempt ${i}: not ready yet, sleeping 5s..."
             sleep 5
           done
-          echo "Health check never succeeded after 36 attempts. Dumping compose logs:"
+          echo "Health check never succeeded after 120 attempts. Dumping compose logs:"
           docker compose logs
           exit 1
 

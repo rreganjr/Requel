@@ -141,19 +141,20 @@ notes that don't belong to one ticket.
    ```bash
    git switch release/2.1
    git pull origin release/2.1
-   mvn versions:set -DnewVersion=2.1.0-rc1 -DgenerateBackupPoms=false
-   git ls-files '*pom.xml' | xargs git add
+   ./scripts/set-version.sh 2.1.0-rc1
+   git add $(git ls-files '*pom.xml') docker-compose.yml docker-compose.local-ai.yml modules/requel-cli/src/main/java/com/rreganjr/requel/cli/RequelCli.java
    git commit -m "https://github.com/rreganjr/Requel/issues/<release-issue>" -m "Version 2.1.0-rc1"
    git push origin release/2.1
    git tag -a v2.1.0-rc1 -m "Requel 2.1.0-rc1"
    git push origin v2.1.0-rc1
    ```
    The tag publishes a pre-release on GitHub and the `rreganjr/requel:2.1.0-rc1` image.
-   `:latest` does not move.
+   `:latest` does not move. `set-version.sh` also sets the compose files' image tags and
+   `requel-cli --version`, which `versions:set` alone misses.
 4. **Test the candidate** from Docker Hub, not a local build (see
    [Verifying a published image](#verifying-a-published-image)). A problem is fixed by a
    normal ticket PR into `release/2.1`, then `-rc2`.
-5. **Final release.** Same as step 3 with `-DnewVersion=2.1.0`, the message
+5. **Final release.** Same as step 3 with `./scripts/set-version.sh 2.1.0`, the message
    `Version 2.1.0` and the tag `v2.1.0`. This publishes the GitHub Release with the jar
    attached, and pushes `rreganjr/requel:2.1.0` and `:latest`.
 6. **Promote to `master`** with a merge commit:
@@ -168,7 +169,7 @@ notes that don't belong to one ticket.
    (`./scripts/gen-doc-index.sh 2.1`). Nothing lands on `release/2.1` after this; delete
    it once the promotion is merged.
 8. **Start the next release** once there is agreed work for it: cut `release/2.2` from
-   `master`, set `2.2.0-dev`, create the `v2.2` milestone and run
+   `master`, set `2.2.0-dev` (`./scripts/set-version.sh 2.2.0-dev`), create the `v2.2` milestone and run
    `./scripts/setup-project.sh 2.2`. `doc/work/2.2/` is created by the first plan filed
    there.
 
@@ -186,7 +187,7 @@ A hotfix patches the latest shipped release. The steps below ship 2.1.1.
    ```
    The PR targets `master` (`gh pr create --base master ...`) and is squash-merged. Because
    `master` is the default branch, `Closes #<n>` closes the issue on merge.
-3. **Version bump.** Fold `mvn versions:set -DnewVersion=2.1.1 -DgenerateBackupPoms=false`
+3. **Version bump.** Fold `./scripts/set-version.sh 2.1.1`
    into the last fix's PR, so the release costs no extra CI run. When several fixes ship
    together, the bump rides with whichever merges last.
 4. **Tag on `master`:**
@@ -297,7 +298,13 @@ services:
       - "SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/requel?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC"
       - "SPRING_DATASOURCE_USERNAME=root"
       - "SPRING_DATASOURCE_PASSWORD=pa33w0rd"
+      - "REQUEL_JWT_SECRET"
 ```
+
+Start it with a secret, since Requel refuses the built-in one outside the dev profile:
+`REQUEL_JWT_SECRET="$(openssl rand -base64 48)" docker compose up`. The first start on an
+empty database takes a few minutes while the dictionary loads; the port opens when it is
+done.
 
 Then check that you can log in at http://localhost:8080/, the UI assets load, and you can
 open a project and move between its pages.

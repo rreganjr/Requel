@@ -4,10 +4,12 @@ This guide explains how to turn on Requel's AI requirements‑review assistant, 
 assumes **no prior experience** with API keys, environment variables, or Spring configuration —
 every step is spelled out. If you already know a step, skip ahead.
 
-Requel can use **one** AI provider at a time. You have two choices today: **OpenAI**, or a
-**local model you run yourself in Docker** (no account, no API key, nothing leaves your machine —
-see [Section 4](#4-run-a-local-ai-model-in-docker-no-api-key)). Everything is configured with
-**environment variables**, so there is nothing to edit inside the application's configuration files.
+Requel can use **one** AI provider at a time: a hosted one with an API key (**OpenAI**,
+**Anthropic** or **Google Gemini**), or a **local model you run yourself in Docker** (no account,
+no API key, nothing leaves your machine — see
+[Section 4](#4-run-a-local-ai-model-in-docker-no-api-key)). Everything is configured with
+**environment variables** and an optional provider profile, so there is nothing to edit inside
+the application's configuration files.
 
 > **Spring AI migration (issue #77).** Requel's provider layer was rebuilt on Spring AI's
 > `ChatClient`, replacing the hand-rolled OpenAI/Anthropic/OpenAI-compatible clients with one
@@ -31,7 +33,7 @@ see [Section 4](#4-run-a-local-ai-model-in-docker-no-api-key)). Everything is co
 
 By the end you will have:
 
-1. An account and an API key with your chosen provider (OpenAI or Anthropic).
+1. An account and an API key with your chosen provider (OpenAI, Anthropic or Gemini).
 2. That key stored safely as an environment variable on the machine that runs Requel.
 3. A small set of `REQUEL_AI_*` environment variables that turn the assistant on.
 4. A working test that confirms the assistant runs.
@@ -67,9 +69,9 @@ A few things to understand before you start:
 commit, a screenshot, or anywhere public. The steps below store it as an *environment variable*,
 which keeps it out of Requel's configuration files.
 
-Follow **2a** for OpenAI. (Anthropic — **2b** — is temporarily unavailable pending the Anthropic
-starter fast-follow; see the migration note at the top.) If you'd rather run a local model with no
-key at all, skip this section and go to [Section 4](#4-run-a-local-ai-model-in-docker-no-api-key).
+Follow **2a** for OpenAI or **2b** for Anthropic (for Gemini, create a key in Google AI Studio
+and use the `ai-gemini` profile in Section 3a). If you'd rather run a local model with no key at
+all, skip this section and go to [Section 4](#4-run-a-local-ai-model-in-docker-no-api-key).
 
 ### 2a. OpenAI
 
@@ -84,11 +86,11 @@ key at all, skip this section and go to [Section 4](#4-run-a-local-ai-model-in-d
 5. Pick a model id from **https://platform.openai.com/docs/models** (start with a smaller, cheaper
    general‑purpose model if unsure). You'll use this as `REQUEL_AI_MODEL`.
 
-### 2b. Anthropic (Claude) — *not yet available*
+### 2b. Anthropic (Claude)
 
-> Anthropic support was removed in the Spring AI port and returns as a fast-follow (adding the
-> `spring-ai-starter-model-anthropic` starter and routing `REQUEL_AI_PROVIDER=anthropic` to the same
-> adapter). The account steps below are retained for when it lands; they do nothing today.
+> Turn Anthropic on with the `ai-anthropic` profile ([Section 3a](#3a-quick-start-pick-a-provider-with-a-spring-profile)):
+> it selects the Anthropic client. The environment-variable-only route in Section 3 is shaped for
+> OpenAI-style servers.
 
 1. Go to **https://console.anthropic.com** and sign in or create an account.
 2. Add a payment method and a spending limit under the **Billing / Limits** settings. This caps
@@ -112,8 +114,8 @@ sets that provider's transport defaults (base URL, default model). You then supp
 | --- | --- | --- |
 | `ai-openai` | Hosted OpenAI | Needs `REQUEL_AI_API_KEY` (an `sk-...` key). Default model `gpt-4o-mini`. |
 | `ai-ollama` | Local Ollama | No key needed. The model must be **pulled** on the Ollama server first (`ollama pull llama3.1`); set `REQUEL_AI_MODEL` to that model. Point at a remote/container server with `REQUEL_AI_BASE_URL` (default `http://localhost:11434`). |
-| `ai-gemini` | Google Gemini | Uses Gemini's OpenAI-compatible endpoint. Needs `REQUEL_AI_API_KEY` (Google AI Studio key). Default model `gemini-2.0-flash`. |
-| `ai-anthropic` | Anthropic Claude | Native Spring AI Anthropic starter. Needs `REQUEL_AI_API_KEY` (an `sk-ant-...` key). Default model `claude-3-5-sonnet-latest`. |
+| `ai-gemini` | Google Gemini | Uses Gemini's OpenAI-compatible endpoint. Needs `REQUEL_AI_API_KEY` (Google AI Studio key). Default model `gemini-3.6-flash`. |
+| `ai-anthropic` | Anthropic Claude | Native Spring AI Anthropic starter. Needs `REQUEL_AI_API_KEY` (an `sk-ant-...` key). Default model `claude-sonnet-5-5`. |
 | `ai-cli` | Your local `claude` / `codex` CLI | **Development only.** No API key: drives the CLI you are logged in to. See [Section 10](#10-development-only-the-cli-provider). |
 
 Activate a profile alongside your normal run profile (comma-separated). For example, with the
@@ -122,7 +124,7 @@ packaged JAR:
 ```bash
 REQUEL_AI_API_KEY=sk-... \
   java -jar modules/requel-app/target/requel-app-*.jar \
-  --spring.profiles.active=dev,ai-openai --server.port=8080 \
+  --spring.profiles.active=ai-openai --server.port=8080 \
   '--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/requel?...' \
   --spring.datasource.username=root --spring.datasource.password=password
 ```
@@ -132,7 +134,7 @@ For a local model with Ollama (no key), after `ollama pull llama3.1`:
 ```bash
 REQUEL_AI_MODEL=llama3.1 \
   java -jar modules/requel-app/target/requel-app-*.jar \
-  --spring.profiles.active=dev,ai-ollama --server.port=8080 ...
+  --spring.profiles.active=ai-ollama --server.port=8080 ...
 ```
 
 Notes:
@@ -172,7 +174,7 @@ changing three values, not learning a new variable name.
 | Variable | Required? | What to set it to |
 | --- | --- | --- |
 | `REQUEL_AI_ENABLED` | yes | `true` to turn the assistant on. |
-| `REQUEL_AI_PROVIDER` | yes | `openai`, `openai-compat` (local/self-hosted, see Section 4), or `noop` (test plumbing, no network). (`anthropic` is a fast-follow — not yet available.) |
+| `REQUEL_AI_PROVIDER` | yes | `openai`, `openai-compat` (local/self-hosted, see Section 4), or `noop` (test plumbing, no network). For Anthropic or Gemini use the `ai-anthropic` / `ai-gemini` profile. |
 | `REQUEL_AI_MODEL` | yes | The model id you chose in Section 2 (or the local model name for `openai-compat`). |
 | `REQUEL_AI_API_KEY` | yes\* | Your provider API key (`sk-...`). \*Optional for a local `openai-compat` server that doesn't require one (any non-blank value works). |
 | `REQUEL_AI_BASE_URL` | no | Leave unset for hosted `openai` (the default `https://api.openai.com` is used). **Set for `openai-compat`** — the server **root** (e.g. `http://localhost:11434`); Spring AI appends `/v1/chat/completions`. |
@@ -189,8 +191,8 @@ export REQUEL_AI_MODEL=<your-openai-model-id>
 export REQUEL_AI_API_KEY="sk-your-openai-key"
 ```
 
-(Anthropic would be the same three values with `REQUEL_AI_PROVIDER=anthropic`, but it is not wired
-up yet — see the migration note at the top.)
+(For Anthropic or Gemini, use the `ai-anthropic` or `ai-gemini` profile from Section 3a and set
+only `REQUEL_AI_API_KEY`, plus `REQUEL_AI_MODEL` to override the default model.)
 
 To make them permanent, add the same `export` lines to `~/.zshrc` (modern macOS) or `~/.bashrc`
 (most Linux), then run `source ~/.zshrc`. Confirm with:
@@ -202,7 +204,7 @@ echo $REQUEL_AI_API_KEY
 
 ### Windows (PowerShell)
 
-For the current window (OpenAI shown; swap the three values for Anthropic):
+For the current window (OpenAI shown):
 
 ```powershell
 $env:REQUEL_AI_ENABLED = "true"
@@ -477,7 +479,7 @@ bridges them to the matching `spring.ai.*` setting.
 | Environment variable | Property | Default | What it does |
 | --- | --- | --- | --- |
 | `REQUEL_AI_ENABLED` | `requel.ai.enabled` | `false` | Master switch. Must be `true` to register the assistant. |
-| `REQUEL_AI_PROVIDER` | `requel.ai.provider` | `noop` | Selects the client: `openai`, `openai-compat` (local/self-hosted), `noop` (stub, no network), or `cli` (development only, [Section 10](#10-development-only-the-cli-provider)). `anthropic` is a fast-follow — not yet available. Exactly one is active. |
+| `REQUEL_AI_PROVIDER` | `requel.ai.provider` | `noop` | Selects the client: `openai`, `openai-compat` (local/self-hosted), `noop` (stub, no network), or `cli` (development only, [Section 10](#10-development-only-the-cli-provider)). `anthropic` is selected by the `ai-anthropic` profile. Exactly one is active. |
 | `REQUEL_AI_MODEL` | `requel.ai.model` | `noop` | Model id; also bridged to `spring.ai.openai.chat.options.model` so the call and the usage report stay in sync. |
 | `REQUEL_AI_MAX_INPUT_TOKENS` | `requel.ai.max-input-tokens` | `16000` | App-side safety cap on input size; oversize reviews are skipped with a warning. |
 | `REQUEL_AI_PROJECT_ALLOWLIST` | `requel.ai.project-allowlist` | *(empty = all)* | CSV of project ids permitted to use AI. |

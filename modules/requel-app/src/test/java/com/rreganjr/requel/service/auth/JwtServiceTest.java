@@ -169,4 +169,45 @@ class JwtServiceTest {
         assertThatThrownBy(() -> jwtService.parseToken(expiredToken))
                 .isInstanceOf(JwtException.class);
     }
+
+    // -------------------------------------------------------------------------
+    // #376: the secret check behind the Spring constructor
+    // -------------------------------------------------------------------------
+
+    @Test
+    void builtInSecretIsRefusedOutsideDevAndTest() {
+        assertThatThrownBy(() -> JwtService.checkedSecret(JwtService.BUILT_IN_SECRET, new String[0]))
+                .isInstanceOf(InsecureJwtSecretException.class)
+                .hasMessageContaining("REQUEL_JWT_SECRET is not set");
+        assertThatThrownBy(() -> JwtService.checkedSecret(JwtService.BUILT_IN_SECRET, new String[] { "ai-openai" }))
+                .isInstanceOf(InsecureJwtSecretException.class);
+    }
+
+    @Test
+    void blankSecretIsRefusedOutsideDevAndTest() {
+        assertThatThrownBy(() -> JwtService.checkedSecret("  ", new String[0]))
+                .isInstanceOf(InsecureJwtSecretException.class);
+        assertThatThrownBy(() -> JwtService.checkedSecret(null, new String[0]))
+                .isInstanceOf(InsecureJwtSecretException.class);
+    }
+
+    @Test
+    void builtInOrBlankSecretIsAllowedInDevAndTest() {
+        assertThat(JwtService.checkedSecret(JwtService.BUILT_IN_SECRET, new String[] { "dev" }))
+                .isEqualTo(JwtService.BUILT_IN_SECRET);
+        assertThat(JwtService.checkedSecret("", new String[] { "ai-ollama", "test" }))
+                .isEqualTo(JwtService.BUILT_IN_SECRET);
+    }
+
+    @Test
+    void shortSecretIsRefusedInEveryProfile() {
+        assertThatThrownBy(() -> JwtService.checkedSecret("too-short", new String[] { "dev" }))
+                .isInstanceOf(InsecureJwtSecretException.class)
+                .hasMessageContaining("9 bytes");
+    }
+
+    @Test
+    void longEnoughSecretIsUsedAsGiven() {
+        assertThat(JwtService.checkedSecret(SECRET, new String[0])).isEqualTo(SECRET);
+    }
 }
