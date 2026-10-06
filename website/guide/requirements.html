@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Requirements &mdash; Requel 2.0 user guide</title>
+<meta name="description" content="Write goals, stories, actors, use cases, scenarios and glossary terms in Requel 2.0, link them together and tag them." />
+<link rel="icon" type="image/png" href="../images/logo_robot.png" />
+<link rel="stylesheet" href="../site.css" />
+</head>
+<body class="guide">
+
+<header class="brand">
+  <div class="brand-inner">
+    <img src="../images/logo_robot.png" alt="" />
+    <div>
+      <h1><a href="../index.html">Requel</a></h1>
+      <p>User guide for Requel 2.0</p>
+    </div>
+  </div>
+</header>
+
+<nav class="guide-nav" aria-label="User guide">
+  <ul>
+    <li><a href="index.html">Contents</a></li>
+    <li><a href="getting-started.html">Getting started</a></li>
+    <li><a href="projects.html">Projects</a></li>
+    <li><a href="requirements.html" aria-current="page">Requirements</a></li>
+    <li><a href="stakeholders.html">Stakeholders</a></li>
+    <li><a href="issues.html">Issues and discussion</a></li>
+    <li><a href="ai-review.html">AI review</a></li>
+    <li><a href="reports.html">Reports</a></li>
+    <li><a href="integrations.html">API, MCP and CLI</a></li>
+  </ul>
+</nav>
+
+<main>
+  <h1>Requirements</h1>
+  <p class="lead">Goals, stories, actors, use cases, scenarios and the glossary, and how they link together.</p>
+  <section id="lists">
+    <h2>Lists and editors</h2>
+    <p>Each kind of requirement has a list (from the sidebar tree or the overview&rsquo;s tiles) with
+      search, sorting and a <strong>New</strong> button. Click a name to open its editor.</p>
+    <figure class="shot">
+      <img src="../images/guide/goals.png" alt="The goals list of the sample project." loading="lazy" />
+    </figure>
+    <p>Every editor works the same way:</p>
+    <ul>
+      <li>The details form at the top, with <strong>Save</strong>. Leaving with unsaved changes
+        asks first.</li>
+      <li><strong>Copy</strong> makes a duplicate to start a similar one from;
+        <strong>Delete</strong> removes it after you confirm.</li>
+      <li>Below the form, the items it links to, each with an <strong>Add</strong> button, and
+        <strong>Referenced By</strong>: the items that link to it.</li>
+      <li><strong>Tags</strong> and <strong>Annotations</strong> (<a href="issues.html">notes and
+        issues</a>) at the bottom.</li>
+    </ul>
+  </section>
+
+  <section id="goals">
+    <h2>Goals</h2>
+    <p>A goal is an outcome the system must achieve: a short name and a description. Relate goals
+      to each other with <strong>Add Relation</strong>:</p>
+    <table class="ref">
+      <thead><tr><th>Relation</th><th>Read from the other goal</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>Supports</td><td>Supported by</td><td>This goal helps the other succeed.</td></tr>
+        <tr><td>Refines</td><td>Refined by</td><td>This goal is a more concrete statement of the other.</td></tr>
+        <tr><td>Depends on</td><td>Required by</td><td>This goal can&rsquo;t be achieved until the other is.</td></tr>
+        <tr><td>Obstructs</td><td>Obstructed by</td><td>This goal makes the other harder, without making it impossible.</td></tr>
+        <tr><td>Measures</td><td>Measured by</td><td>This goal is the measurable stand-in for the other&rsquo;s outcome.</td></tr>
+        <tr><td>Conflicts</td><td>Conflicts</td><td>The two can&rsquo;t both be satisfied.</td></tr>
+        <tr><td>Duplicates</td><td>Duplicates</td><td>The two state the same requirement.</td></tr>
+      </tbody>
+    </table>
+    <p><em>This Goal&rsquo;s Relations</em> lists the ones you added here; <em>Related To This
+      Goal</em> lists the ones other goals point at it. Actors, stakeholders, stories and use cases
+      reference goals from their own editors.</p>
+    <figure class="shot">
+      <img src="../images/guide/goal-editor.png" alt="The goal editor: name and description, relations, Referenced By, tags and annotations." loading="lazy" />
+    </figure>
+  </section>
+
+  <section id="stories">
+    <h2>Stories</h2>
+    <p>A story is a short narrative of one person using the system. Its <strong>type</strong> is
+      <em>Success</em> (it works) or <em>Exception</em> (something goes wrong). Pick the
+      <strong>primary actor</strong> it is told from, add any other actors and the goals it
+      illustrates, and <strong>Add to Use Case</strong> to file it under the use case it
+      describes.</p>
+    <figure class="shot">
+      <img src="../images/guide/story-editor.png" alt="The story editor: name, type, primary actor and text, with goals, additional actors and the use case that references it." loading="lazy" />
+    </figure>
+  </section>
+
+  <section id="actors">
+    <h2>Actors</h2>
+    <p>An actor is a role that uses the system: a kind of user, another system, a device. Give it a
+      name and description and link the goals it cares about. Stories and use cases name their
+      actors; the actor&rsquo;s <em>Referenced By</em> shows where.</p>
+  </section>
+
+  <section id="use-cases">
+    <h2>Use cases</h2>
+    <p>A use case is something an actor does with the system. It needs a name and a
+      <strong>primary actor</strong>. Then:</p>
+    <ul>
+      <li><strong>Primary Scenario</strong>: the main flow. <em>Create New</em> makes one named after
+        the use case; <em>Select Existing</em> reuses a primary scenario. <em>Open in Editor</em>
+        edits its steps.</li>
+      <li><strong>Additional Scenarios</strong>: alternatives and exceptions.</li>
+      <li><strong>Goals</strong>, <strong>Stories</strong> and <strong>Additional Actors</strong>
+        it involves.</li>
+    </ul>
+    <figure class="shot">
+      <img src="../images/guide/use-case-editor.png" alt="The use case editor: name, primary actor and description, the primary scenario's steps, additional scenarios, goals and stories." loading="lazy" />
+    </figure>
+  </section>
+
+  <section id="scenarios">
+    <h2>Scenarios and steps</h2>
+    <p>A scenario is a sequence of steps. Scenarios and steps have a type that says what part they
+      play:</p>
+    <table class="ref">
+      <thead><tr><th>Type</th><th>Use it for</th></tr></thead>
+      <tbody>
+        <tr><td>Primary</td><td>The expected, successful case: the main flow of a use case.</td></tr>
+        <tr><td>Alternative</td><td>Another successful way through.</td></tr>
+        <tr><td>Exception</td><td>An interaction that fails.</td></tr>
+        <tr><td>Optional</td><td>A step that may be skipped.</td></tr>
+        <tr><td>PreCondition</td><td>What must happen first; without it the scenario can&rsquo;t begin.</td></tr>
+      </tbody>
+    </table>
+    <p>Under <strong>Steps</strong>, <em>Add step</em> adds one at the top or bottom; drag a
+      step&rsquo;s handle to reorder; its buttons edit its details, add a step below it and remove
+      it.
+      <strong>Add Sub-scenario</strong> inserts another scenario as one step, so shared flows are
+      written once. A scenario can belong to several use cases.</p>
+    <figure class="shot">
+      <img src="../images/guide/scenario-editor.png" alt="The scenario editor: name, type and description, then the steps." loading="lazy" />
+    </figure>
+  </section>
+
+  <section id="glossary">
+    <h2>Glossary</h2>
+    <p>The glossary holds the project&rsquo;s terms. Each has a definition. When two words mean the
+      same thing, pick the preferred one and set it as the other&rsquo;s <strong>Canonical
+      Term</strong>: the alternate then points at it, and the canonical term lists its
+      <em>Alternate Terms</em>. In the sample, <em>Interested Party</em> is an alternate for
+      <em>Stakeholder</em>.</p>
+    <figure class="shot">
+      <img src="../images/guide/terms.png" alt="The glossary list: Interested Party, with canonical term Stakeholder, and Stakeholder." loading="lazy" />
+    </figure>
+    <p>Terms are often added straight from an issue: the assistants spot likely terms and offer
+      <em>Add to Glossary</em> (<a href="issues.html#resolve">resolving issues</a>).</p>
+  </section>
+
+  <section id="tags">
+    <h2>Tags</h2>
+    <p>Tag any requirement, or the project itself, to group and find things: type an optional
+      category and a value and choose <strong>Add Tag</strong> (for example category
+      <code>priority</code>, value <code>must</code>). Tags are saved lower-case, with spaces and
+      punctuation turned into hyphens.</p>
+    <p>Administrators set up <em>Global Tags</em> and <em>Tag Categories</em> for every project. A
+      category can limit which kinds of item it applies to, offer a fixed list of values, and be
+      <em>exclusive</em> (one value per item).</p>
+  </section>
+
+  <section id="sources">
+    <h2>Sources</h2>
+    <p>Requirements created by a tool from a ticket or a document (through the
+      <a href="integrations.html">API or MCP</a>) show a <strong>Sources</strong> section: where each
+      came from, whether it was derived from the source or only cites it, and whether the source
+      has changed since. Requirements you write by hand don&rsquo;t have one.</p>
+  </section>
+
+  <nav class="pager" aria-label="Previous and next page">
+    <a class="prev" href="projects.html">&larr; Projects</a>
+    <a class="next" href="stakeholders.html">Stakeholders &rarr;</a>
+  </nav>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p>The screenshots show the sample project
+      (<a href="https://github.com/rreganjr/Requel/blob/master/doc/samples/Requel.xml">Requel.xml</a>)
+      and are retaken for each release by <code>scripts/guide-screenshots.mjs</code>.</p>
+    <p>Requel is free software, released under the
+      <a href="https://github.com/rreganjr/Requel/blob/master/LICENSE">GNU General Public License v3</a>.
+      Found a mistake in this guide? <a href="https://github.com/rreganjr/Requel/issues">Open an issue</a>.</p>
+  </div>
+</footer>
+
+</body>
+</html>

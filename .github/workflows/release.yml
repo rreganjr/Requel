@@ -2,7 +2,8 @@ name: Release
 
 # Fires only on tag pushes matching v* (e.g. v2.0.0-rc1, v2.0.0).
 # Builds the project, runs the full test suite, and creates a GitHub
-# Release with auto-generated notes and the Spring Boot JAR attached.
+# Release with auto-generated notes, the Spring Boot JAR and the
+# requel-cli JAR attached.
 # See doc/work/2.0/20-release-plan.md §5.4.
 
 on:
@@ -82,7 +83,7 @@ jobs:
       # cleanly and passed its tests.
       - name: Maven build, unit + integration tests, Angular bundle
         run: >
-          mvn -pl modules/requel-app -am verify
+          mvn -pl modules/requel-app,modules/requel-cli -am verify
           --batch-mode --no-transfer-progress
           -Dstyle.color=always
           -Dmaven.test.redirectTestOutputToFile=true
@@ -99,7 +100,10 @@ jobs:
           # the current "latest" release. Final tags (v2.0.0, v2.1.0)
           # do not match this pattern and post as full releases.
           prerelease: ${{ contains(github.ref_name, '-rc') }}
-          # Attach the runnable JAR as a release asset. The wildcard
-          # is intentional — finalName follows ${artifactId}-${version}
-          # which matches the Maven coordinate.
-          files: modules/requel-app/target/requel-app-*.jar
+          # Attach the runnable JARs as release assets: the app and the
+          # requel-cli fat jar. The wildcards are intentional — finalName
+          # follows ${artifactId}-${version}. They don't match the shade
+          # plugin's original-requel-cli-*.jar or Boot's *.jar.original.
+          files: |
+            modules/requel-app/target/requel-app-*.jar
+            modules/requel-cli/target/requel-cli-*.jar

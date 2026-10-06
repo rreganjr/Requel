@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Issues and discussion &mdash; Requel 2.0 user guide</title>
+<meta name="description" content="Discuss Requel 2.0 requirements with notes, issues, positions and arguments; resolve the issues the assistants raise; track what is still open." />
+<link rel="icon" type="image/png" href="../images/logo_robot.png" />
+<link rel="stylesheet" href="../site.css" />
+</head>
+<body class="guide">
+
+<header class="brand">
+  <div class="brand-inner">
+    <img src="../images/logo_robot.png" alt="" />
+    <div>
+      <h1><a href="../index.html">Requel</a></h1>
+      <p>User guide for Requel 2.0</p>
+    </div>
+  </div>
+</header>
+
+<nav class="guide-nav" aria-label="User guide">
+  <ul>
+    <li><a href="index.html">Contents</a></li>
+    <li><a href="getting-started.html">Getting started</a></li>
+    <li><a href="projects.html">Projects</a></li>
+    <li><a href="requirements.html">Requirements</a></li>
+    <li><a href="stakeholders.html">Stakeholders</a></li>
+    <li><a href="issues.html" aria-current="page">Issues and discussion</a></li>
+    <li><a href="ai-review.html">AI review</a></li>
+    <li><a href="reports.html">Reports</a></li>
+    <li><a href="integrations.html">API, MCP and CLI</a></li>
+  </ul>
+</nav>
+
+<main>
+  <h1>Issues and discussion</h1>
+  <p class="lead">Notes and issues on any requirement, how a discussion reaches a decision, and the checks that raise issues for you.</p>
+  <section id="annotations">
+    <h2>Notes and issues</h2>
+    <p>Every requirement has an <strong>Annotations</strong> section at the bottom of its
+      editor.</p>
+    <ul>
+      <li><strong>Add Note</strong> leaves a comment.</li>
+      <li><strong>Add Issue</strong> raises a problem that needs a decision. Give it a
+        <strong>severity</strong> (low, medium or high) and tick <strong>Must be resolved</strong>
+        if the requirement isn&rsquo;t finished until it is.</li>
+    </ul>
+    <p>An issue&rsquo;s badges show its state (open or resolved), its severity and <em>Must
+      Resolve</em>. <em>Also on</em> lists the other items an issue concerns, when it is about more
+      than one. <strong>Collapse all</strong> folds the issues to one line each.</p>
+  </section>
+
+  <section id="resolve">
+    <h2>Positions, arguments and resolving</h2>
+    <p>An issue is discussed in the IBIS style: possible answers, and the case for and against
+      each.</p>
+    <dl>
+      <dt>Position</dt>
+      <dd>One way to resolve the issue. Anyone may add one with <strong>Add Position</strong>.</dd>
+      <dt>Argument</dt>
+      <dd>A reason for or against a position: <strong>Add Argument</strong>, with a support level
+        from strongly for to strongly against.</dd>
+    </dl>
+    <p>When the discussion has settled, press the button on the winning position. The issue is
+      resolved by it, and shows its <em>Resolution</em> and who chose it.</p>
+    <figure class="shot">
+      <img src="../images/guide/issue.png" alt="A spelling issue on the word Automatted, with positions to ignore it, add it to the dictionary, fix the spelling, add it as an actor or add it to the glossary." loading="lazy" />
+      <figcaption>An issue the spelling check raised, with the positions it offers.</figcaption>
+    </figure>
+    <p>Issues from the assistants come with positions that also <em>do</em> something when chosen:</p>
+    <table class="ref">
+      <thead><tr><th>Button</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td>Fix Spelling</td><td>Corrects the word in every item the issue is on.</td></tr>
+        <tr><td>Add to Dictionary</td><td>Adds the word to the project&rsquo;s
+          <a href="#dictionary">dictionary</a>, so it isn&rsquo;t flagged again.</td></tr>
+        <tr><td>Add to Glossary</td><td>Creates a <a href="requirements.html#glossary">glossary term</a>
+          for the phrase.</td></tr>
+        <tr><td>Add as Actor</td><td>Creates an <a href="requirements.html#actors">actor</a> with
+          that name.</td></tr>
+        <tr><td>Ignore</td><td>Closes the issue and stops that finding being raised again on this
+          item.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="assistants">
+    <h2>The built-in checks</h2>
+    <p>When you save a requirement, Requel&rsquo;s assistants read its text in the background and
+      raise issues; the page refreshes when they finish. They also leave notes recording how they
+      parsed each sentence.</p>
+    <table class="ref">
+      <thead><tr><th>Check</th><th>Raises an issue when</th></tr></thead>
+      <tbody>
+        <tr><td>Vague words</td><td>A word such as <em>easy</em> or <em>flexible</em> can be read
+          more than one way.</td></tr>
+        <tr><td>Spelling</td><td>A word isn&rsquo;t in the dictionaries.</td></tr>
+        <tr><td>Complex sentences</td><td>A sentence is complex enough to be hard to understand.</td></tr>
+        <tr><td>Glossary candidates</td><td>A noun phrase looks like a term, actor or domain
+          object that should be defined.</td></tr>
+      </tbody>
+    </table>
+    <p>Each project turns these on or off under <strong>Assistants</strong> on its
+      <a href="projects.html#overview">overview</a>. Switching one off stops it in that project; the
+      issues it already raised stay. <strong>Re-run analysis</strong> checks every requirement
+      again.</p>
+    <p>An issue an assistant raised against text that has since changed, or that a later run no
+      longer reports, is marked <strong>May no longer apply</strong>. <strong>Hide stale</strong>
+      hides those; resolve them, or re-run the analysis.</p>
+  </section>
+
+  <section id="dictionary">
+    <h2>Dictionaries and ignored findings</h2>
+    <p>A project&rsquo;s <strong>Dictionary</strong> page lists the words its spell check accepts in
+      addition to the standard dictionaries. Add words here, or by choosing <em>Add to
+      Dictionary</em> on an issue. Administrators keep words for every project in the
+      <em>Installation Dictionary</em>.</p>
+    <p>Below it, <strong>Ignored findings</strong> lists the findings resolved with
+      <em>Ignore</em>. Stop ignoring one to have it raised again.</p>
+    <figure class="shot">
+      <img src="../images/guide/dictionary.png" alt="The project Dictionary page: add a word, the word list, and Ignored findings." loading="lazy" />
+    </figure>
+  </section>
+
+  <section id="open-issues">
+    <h2>Open issues</h2>
+    <p><strong>Open Issues</strong> (in the sidebar tree, or from the overview) lists every
+      unresolved issue in the project, with its severity, the kind of item and the item it is on,
+      and whether it must be resolved. Search it, sort it, and click an item to go and resolve
+      it.</p>
+    <figure class="shot">
+      <img src="../images/guide/open-issues.png" alt="The Open Issues page: a searchable table of severity, type, entity, issue text and whether it is required." loading="lazy" />
+    </figure>
+  </section>
+
+  <nav class="pager" aria-label="Previous and next page">
+    <a class="prev" href="stakeholders.html">&larr; Stakeholders</a>
+    <a class="next" href="ai-review.html">AI review &rarr;</a>
+  </nav>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p>The screenshots show the sample project
+      (<a href="https://github.com/rreganjr/Requel/blob/master/doc/samples/Requel.xml">Requel.xml</a>)
+      and are retaken for each release by <code>scripts/guide-screenshots.mjs</code>.</p>
+    <p>Requel is free software, released under the
+      <a href="https://github.com/rreganjr/Requel/blob/master/LICENSE">GNU General Public License v3</a>.
+      Found a mistake in this guide? <a href="https://github.com/rreganjr/Requel/issues">Open an issue</a>.</p>
+  </div>
+</footer>
+
+</body>
+</html>

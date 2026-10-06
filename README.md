@@ -15,11 +15,14 @@ stakeholders and provides automated assistance to validate requirements and sugg
 It models requirements as goals, stories, actors, scenarios, and use-cases with an IBIS-style
 annotation and discussion layer for negotiating issues and tracking decisions.
 
+**[User guide](https://rreganjr.github.io/Requel/guide/)**: how to use Requel 2.0, with
+screenshots. **[Website](https://rreganjr.github.io/Requel/)**: an overview and the published
+project schema.
+
 For background on what requirements engineering is and why it matters, see the
 [Thesis Document](https://github.com/rreganjr/Requel/raw/master/doc/archive/2009-thesis/ThesisFinalColor.pdf)
-(Harvard ALM, 2009). The [User Guide](https://github.com/rreganjr/Requel/raw/master/doc/archive/2009-thesis/UserGuide.pdf)
-covers the core concepts; note that Chapter 5 (_Requel Setup_) describes the old WAR deployment
-and is no longer relevant.
+(Harvard ALM, 2009). The [Requel 1.0 user guide](https://github.com/rreganjr/Requel/raw/master/doc/archive/2009-thesis/UserGuide.pdf)
+(2009) describes the same concepts with the 1.0 screens.
 
 An example project file that can be imported:
 [Requel.xml](https://raw.githubusercontent.com/rreganjr/Requel/master/doc/samples/Requel.xml)

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Projects &mdash; Requel 2.0 user guide</title>
+<meta name="description" content="Create, import, export, edit and delete Requel projects, and read the project overview." />
+<link rel="icon" type="image/png" href="../images/logo_robot.png" />
+<link rel="stylesheet" href="../site.css" />
+</head>
+<body class="guide">
+
+<header class="brand">
+  <div class="brand-inner">
+    <img src="../images/logo_robot.png" alt="" />
+    <div>
+      <h1><a href="../index.html">Requel</a></h1>
+      <p>User guide for Requel 2.0</p>
+    </div>
+  </div>
+</header>
+
+<nav class="guide-nav" aria-label="User guide">
+  <ul>
+    <li><a href="index.html">Contents</a></li>
+    <li><a href="getting-started.html">Getting started</a></li>
+    <li><a href="projects.html" aria-current="page">Projects</a></li>
+    <li><a href="requirements.html">Requirements</a></li>
+    <li><a href="stakeholders.html">Stakeholders</a></li>
+    <li><a href="issues.html">Issues and discussion</a></li>
+    <li><a href="ai-review.html">AI review</a></li>
+    <li><a href="reports.html">Reports</a></li>
+    <li><a href="integrations.html">API, MCP and CLI</a></li>
+  </ul>
+</nav>
+
+<main>
+  <h1>Projects</h1>
+  <p class="lead">A project holds one system's requirements, its stakeholders and their discussion.</p>
+  <section id="list">
+    <h2>The project list</h2>
+    <p><strong>Projects &rarr; List</strong> in the sidebar shows every project you can open, with
+      its organization, status, creator and how many stakeholders, goals, stories and use cases it
+      has. Search narrows it; the column headings sort it; the row menu has the project&rsquo;s
+      actions.</p>
+    <figure class="shot">
+      <img src="../images/guide/projects.png" alt="The project list with one project, Requel." loading="lazy" />
+    </figure>
+  </section>
+
+  <section id="create">
+    <h2>Create a project</h2>
+    <p>Choose <strong>New</strong> (sidebar) or <strong>New Project</strong> (list). Give it a name,
+      and optionally an organization and description, then <strong>Continue</strong> to add tags or
+      finish. You need the <code>createProjects</code> permission
+      (<a href="getting-started.html#users">users</a>).</p>
+    <figure class="shot">
+      <img src="../images/guide/project-new.png" alt="The New Project wizard: Details (name, organization, description) and an optional Tags step." loading="lazy" />
+    </figure>
+    <p>You become the project&rsquo;s first stakeholder, with every permission. The project starts
+      with two report templates, an HTML specification and a Markdown ticket
+      (<a href="reports.html">Reports</a>).</p>
+  </section>
+
+  <section id="overview">
+    <h2>The project overview</h2>
+    <p>Click a project&rsquo;s name to open its overview.</p>
+    <figure class="shot tall">
+      <img src="../images/guide/project-overview.png" alt="The Requel project overview: count tiles, open issues, next actions, assistants and corpus analysis." loading="lazy" />
+    </figure>
+    <ul>
+      <li><strong>Tiles</strong> count each kind of item; click one to open its list.</li>
+      <li><strong>Open issues</strong> counts unresolved issues and how many must be resolved, and
+        links to the <a href="issues.html#open-issues">open issues</a> page.</li>
+      <li><strong>Next actions</strong> suggests what to do: resolve blocking issues, add a first
+        goal, add a stakeholder.</li>
+      <li><strong>Assistants</strong> turns each automated check on or off for this project and
+        re-runs the analysis (<a href="issues.html#assistants">Issues and discussion</a>), and holds
+        the AI switches and data handling (<a href="ai-review.html">AI review</a>).</li>
+      <li><strong>Corpus analysis</strong> looks for requirements that overlap or conflict
+        (<a href="ai-review.html#corpus">AI review</a>).</li>
+    </ul>
+  </section>
+
+  <section id="edit">
+    <h2>Edit a project</h2>
+    <p><strong>Edit project</strong> on the overview changes the name, organization, description
+      and tags. Its <strong>Export</strong> button is how you save a copy.</p>
+    <figure class="shot">
+      <img src="../images/guide/project-settings.png" alt="The project edit page with Details and Tags tabs and an Export button." loading="lazy" />
+    </figure>
+  </section>
+
+  <section id="import-and-export">
+    <h2>Import and export</h2>
+    <p><strong>Export</strong> (on the project&rsquo;s edit page) downloads the whole project as XML:
+      requirements, stakeholders and their permissions, glossary, dictionary, tags, reports and every
+      note and issue. The file follows the published
+      <a href="../integration/2.0/project.xsd">project schema</a>.</p>
+    <div class="note">An export includes the user accounts its stakeholders and authors belong to,
+      password hashes included. Treat the file like the database it came from.</div>
+    <p><strong>Import</strong> (sidebar or list) reads such a file into a new project:</p>
+    <ul>
+      <li>The project takes the name in the file. If that name is taken, Requel adds
+        &ldquo;(1)&rdquo;, &ldquo;(2)&rdquo; and so on; rename it afterwards on its edit page.</li>
+      <li>Users the file names (stakeholders, authors) are created if no user has that username,
+        with the login details they had on the server the file came from. Users who already exist
+        are used as they are.</li>
+      <li>You are added as a stakeholder with every permission.</li>
+    </ul>
+    <p>Export and import are also how you copy a project to another Requel server, and how you move
+      projects from Requel 1.0 or 1.1
+      (<a href="https://github.com/rreganjr/Requel/blob/master/doc/guides/INSTALL.md#upgrading">Upgrading</a>).</p>
+  </section>
+
+  <section id="delete">
+    <h2>Delete a project</h2>
+    <p><strong>Delete project</strong> on the overview removes the project and everything in it.
+      The dialog offers <strong>Download backup</strong> (the XML export) first; then
+      <strong>Delete permanently</strong>. It can&rsquo;t be undone, other than by importing the
+      backup.</p>
+  </section>
+
+  <nav class="pager" aria-label="Previous and next page">
+    <a class="prev" href="getting-started.html">&larr; Getting started</a>
+    <a class="next" href="requirements.html">Requirements &rarr;</a>
+  </nav>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p>The screenshots show the sample project
+      (<a href="https://github.com/rreganjr/Requel/blob/master/doc/samples/Requel.xml">Requel.xml</a>)
+      and are retaken for each release by <code>scripts/guide-screenshots.mjs</code>.</p>
+    <p>Requel is free software, released under the
+      <a href="https://github.com/rreganjr/Requel/blob/master/LICENSE">GNU General Public License v3</a>.
+      Found a mistake in this guide? <a href="https://github.com/rreganjr/Requel/issues">Open an issue</a>.</p>
+  </div>
+</footer>
+
+</body>
+</html>
