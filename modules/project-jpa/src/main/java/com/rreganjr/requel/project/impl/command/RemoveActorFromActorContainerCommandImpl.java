@@ -103,7 +103,8 @@ public class RemoveActorFromActorContainerCommandImpl extends AbstractEditProjec
 				.getEntityManagerFactory().getPersistenceUnitUtil();
 		Long actorId = (Long) puu.getIdentifier(removedActor);
 		Long containerId = (Long) puu.getIdentifier(removingContainer);
-		jpaRepo.removeActorContainerFromActorJoinTable(actorId, containerId);
+		jpaRepo.removeActorContainerFromActorJoinTable(actorId, containerId,
+				AddActorToActorContainerCommandImpl.actorContainerDiscriminator(removingContainer));
 		jpaRepo.getEntityManager().refresh(removedActor);
 
 		// #247: inside a cascade the container may already have been removed in this

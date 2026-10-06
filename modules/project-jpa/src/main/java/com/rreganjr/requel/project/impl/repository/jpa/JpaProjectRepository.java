@@ -425,6 +425,52 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 		}
 	}
 
+	@Override
+	public void removeGlossaryTermReferer(GlossaryTerm term, ProjectOrDomainEntity referer) {
+		try {
+			Set<GlossaryTerm> affected = term != null ? Set.of(term)
+					: findGlossaryTermsForProjectOrDomainEntity(referer);
+			getEntityManager().flush();
+			Query delete = getEntityManager().createNativeQuery("DELETE FROM terms_referers"
+					+ " WHERE referer_type = :entityType AND referer_id = :entityId"
+					+ (term != null ? " AND term_id = :termId" : ""));
+			delete.setParameter("entityType",
+					referer.getProjectOrDomainEntityInterface().getName());
+			delete.setParameter("entityId", getId(referer));
+			if (term != null) {
+				delete.setParameter("termId", getId(term));
+			}
+			delete.executeUpdate();
+			refreshTerms(affected);
+		} catch (Exception e) {
+			throw convertException(e, GlossaryTerm.class, null, EntityExceptionActionType.Updating);
+		}
+	}
+
+	@Override
+	public void removeAllGlossaryTermReferers(GlossaryTerm term) {
+		try {
+			getEntityManager().flush();
+			getEntityManager().createNativeQuery("DELETE FROM terms_referers WHERE term_id = :termId")
+					.setParameter("termId", getId(term))
+					.executeUpdate();
+			refreshTerms(Set.of(term));
+		} catch (Exception e) {
+			throw convertException(e, GlossaryTerm.class, null, EntityExceptionActionType.Updating);
+		}
+	}
+
+	/** Reload managed terms so their referers match the rows just deleted. */
+	private void refreshTerms(Set<GlossaryTerm> terms) {
+		for (GlossaryTerm term : terms) {
+			Object managed = getEntityManager().contains(term) ? term
+					: getEntityManager().find(GlossaryTermImpl.class, getId(term));
+			if (managed != null) {
+				getEntityManager().refresh(managed);
+			}
+		}
+	}
+
 	public AddGlossaryTermPosition findAddGlossaryTermPosition(ProjectOrDomain projectOrDomain,
 			String term) {
 		try {
@@ -539,12 +585,15 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 	}
 
 	@Override
-	public void removeGoalContainerFromGoalJoinTable(Long goalId, Long goalContainerId) {
+	public void removeGoalContainerFromGoalJoinTable(Long goalId, Long goalContainerId,
+			String goalContainerType) {
+		// #386: by type too; goalcontainer_id is shared across container types.
 		getEntityManager()
-				.createNativeQuery(
-						"DELETE FROM goals_goalcontainers WHERE goal_id = :goalId AND goalcontainer_id = :containerId")
+				.createNativeQuery("DELETE FROM goals_goalcontainers WHERE goal_id = :goalId"
+						+ " AND goalcontainer_id = :containerId AND goalcontainer_type = :containerType")
 				.setParameter("goalId", goalId)
 				.setParameter("containerId", goalContainerId)
+				.setParameter("containerType", goalContainerType)
 				.executeUpdate();
 	}
 
@@ -560,12 +609,15 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 	}
 
 	@Override
-	public void removeActorContainerFromActorJoinTable(Long actorId, Long actorContainerId) {
+	public void removeActorContainerFromActorJoinTable(Long actorId, Long actorContainerId,
+			String actorContainerType) {
+		// #386: by type too; actorcontainer_id is shared across container types.
 		getEntityManager()
-				.createNativeQuery(
-						"DELETE FROM actor_actorcontainers WHERE actor_id = :actorId AND actorcontainer_id = :containerId")
+				.createNativeQuery("DELETE FROM actor_actorcontainers WHERE actor_id = :actorId"
+						+ " AND actorcontainer_id = :containerId AND actorcontainer_type = :containerType")
 				.setParameter("actorId", actorId)
 				.setParameter("containerId", actorContainerId)
+				.setParameter("containerType", actorContainerType)
 				.executeUpdate();
 	}
 
@@ -581,12 +633,15 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 	}
 
 	@Override
-	public void removeStoryContainerFromStoryJoinTable(Long storyId, Long storyContainerId) {
+	public void removeStoryContainerFromStoryJoinTable(Long storyId, Long storyContainerId,
+			String storyContainerType) {
+		// #386: by type too; storycontainer_id is shared across container types.
 		getEntityManager()
-				.createNativeQuery(
-						"DELETE FROM story_storycontainers WHERE story_id = :storyId AND storycontainer_id = :containerId")
+				.createNativeQuery("DELETE FROM story_storycontainers WHERE story_id = :storyId"
+						+ " AND storycontainer_id = :containerId AND storycontainer_type = :containerType")
 				.setParameter("storyId", storyId)
 				.setParameter("containerId", storyContainerId)
+				.setParameter("containerType", storyContainerType)
 				.executeUpdate();
 	}
 

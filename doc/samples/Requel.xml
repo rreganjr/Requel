@@ -5069,10 +5069,10 @@
             <arguments/>
             <text>Change the word "get" to "come into".</text>
         </changeSpellingPosition>
-        <position createdBy="USR_3" dateCreated="2025-10-14T22:50:52" id="POS_12">
+        <ignorePosition createdBy="USR_3" dateCreated="2025-10-14T22:50:52" id="POS_12">
             <arguments/>
             <text>Ignore this word.</text>
-        </position>
+        </ignorePosition>
         <changeSpellingPosition proposedWord="thing" createdBy="USR_3" dateCreated="2025-10-14T22:51:37" id="POS_148">
             <arguments/>
             <text>Change the word "entities" to "thing".</text>

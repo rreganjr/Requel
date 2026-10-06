@@ -30,6 +30,7 @@ import org.springframework.stereotype.Controller;
 import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.ProjectRepository;
@@ -108,7 +109,9 @@ public class ReplaceGlossaryTermCommandImpl extends AbstractEditProjectCommand i
 			canonicalTerm.getAlternateTerms().add(glossaryTerm);
 		}
 
-		for (ProjectOrDomainEntity entity : glossaryTerm.getReferers()) {
+		// A copy: the referers are moved to the canonical term below.
+		for (ProjectOrDomainEntity entity : new java.util.ArrayList<ProjectOrDomainEntity>(
+				glossaryTerm.getReferers())) {
 			if (entity instanceof Goal) {
 				GoalImpl goal = (GoalImpl) entity;
 				log.debug("replacing '" + glossaryTerm.getName() + "' with '"
@@ -119,7 +122,6 @@ public class ReplaceGlossaryTermCommandImpl extends AbstractEditProjectCommand i
 						+ canonicalTerm.getName() + "' in the goal text: " + goal.getText());
 				goal.setText(replaceText(goal.getText(), glossaryTerm.getName(), canonicalTerm
 						.getName()));
-				glossaryTerm.getReferers().remove(goal);
 				canonicalTerm.getReferers().add(goal);
 			} else if (entity instanceof Story) {
 				StoryImpl story = (StoryImpl) entity;
@@ -131,9 +133,8 @@ public class ReplaceGlossaryTermCommandImpl extends AbstractEditProjectCommand i
 						+ canonicalTerm.getName() + "' in the story text: " + story.getText());
 				story.setText(replaceText(story.getText(), glossaryTerm.getName(), canonicalTerm
 						.getName()));
-				glossaryTerm.getReferers().remove(story);
 				canonicalTerm.getReferers().add(story);
-			} else if (entity instanceof Story) {
+			} else if (entity instanceof Actor) {
 				ActorImpl actor = (ActorImpl) entity;
 				log.debug("replacing '" + glossaryTerm.getName() + "' with '"
 						+ canonicalTerm.getName() + "' in the actor name: " + actor.getName());
@@ -143,13 +144,14 @@ public class ReplaceGlossaryTermCommandImpl extends AbstractEditProjectCommand i
 						+ canonicalTerm.getName() + "' in the actor text: " + actor.getText());
 				actor.setText(replaceText(actor.getText(), glossaryTerm.getName(), canonicalTerm
 						.getName()));
-				glossaryTerm.getReferers().remove(actor);
 				canonicalTerm.getReferers().add(actor);
 			} else {
 				throw new RuntimeException("Unsupported entity type " + entity.getClass());
 			}
 			updatedEntities.add(entity);
 		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeAllGlossaryTermReferers(glossaryTerm);
 	}
 
 	// TODO: copied from ResolveIssueWithChangeSpellingPositionCommandImpl,

@@ -102,6 +102,9 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
+    private org.springframework.context.ApplicationContext applicationContext;
+
+    @Autowired
     protected AssistantProjectGate projectGate;
 
     @Autowired
@@ -322,6 +325,180 @@ public class DeleteProjectIT extends AbstractIntegrationTestCase {
                 "SELECT COUNT(*) FROM annotation_annotatable WHERE annotation_id IN (?, ?)",
                 Integer.class, unlinkedNoteId, danglingIssueId),
                 "no link rows may survive the annotations");
+    }
+
+    /**
+     * #386: the sample project imports and deletes. Its two use cases share one primary
+     * scenario, and some notes sit on a use case, a story and that scenario's step at once;
+     * deleting it failed on {@code scenarios_annotations} when those ids collided across
+     * types (see the next test for the cause).
+     */
+    @Test
+    void importedSampleProjectDeletes() throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        String projectName = "del-sample-" + System.currentTimeMillis();
+        byte[] sampleXml;
+        try (java.io.InputStream sample = getClass().getClassLoader()
+                .getResourceAsStream("doc/samples/Requel.xml")) {
+            sampleXml = java.util.Objects.requireNonNull(sample,
+                    "doc/samples/Requel.xml not on the test classpath").readAllBytes();
+        }
+        com.rreganjr.requel.project.command.ImportProjectCommand importCommand = applicationContext
+                .getBean("importProjectCommand",
+                        com.rreganjr.requel.project.command.ImportProjectCommand.class);
+        importCommand.setAnalysisEnabled(false);
+        importCommand.setEditedBy(admin);
+        importCommand.setName(projectName);
+        importCommand.setInputStream(new java.io.ByteArrayInputStream(sampleXml));
+        getCommandHandler().execute(importCommand);
+        Project imported = getProjectRepository().findProjectByName(projectName);
+
+        deleteProject(admin, imported, imported.getVersion());
+
+        assertThrows(NoSuchProjectException.class,
+                () -> getProjectRepository().findProjectByName(projectName));
+    }
+
+    /**
+     * #386: {@code annotation_annotatable.annotatable_id} is shared across entity types, so
+     * unlinking an annotation from one entity must leave another type's row with the same id
+     * alone. It didn't: deleting the imported sample project unlinked a note from use case 2
+     * and, with it, from step 2, then deleted the note while {@code scenarios_annotations}
+     * still referenced it. Here the other row is a Story link carrying the goal's id.
+     */
+    @Test
+    void unlinkingAnAnnotationKeepsAnotherTypesLinkWithTheSameId() throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        long ts = System.currentTimeMillis();
+        Project project = createProject(admin, "del-registry-" + ts);
+        Goal goal = createGoal(admin, project, "registry-goal-" + ts);
+        Long noteId = addNote(admin, project, goal, "shared note " + ts).getId();
+        jdbcTemplate.update("INSERT INTO annotation_annotatable (annotation_id, annotatable_type,"
+                + " annotatable_id) VALUES (?, 'Story', ?)", noteId, goal.getId());
+
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.executeWithoutResult(status -> getAnnotationRepository()
+                .removeAnnotatableFromAnnotationJoinTable(noteId, goal));
+
+        assertEquals(List.of("Story"), jdbcTemplate.queryForList(
+                "SELECT annotatable_type FROM annotation_annotatable WHERE annotation_id = ?",
+                String.class, noteId),
+                "only the goal's link goes; the Story row with the same id stays");
+        jdbcTemplate.update("DELETE FROM annotation_annotatable WHERE annotation_id = ?", noteId);
+    }
+
+    /**
+     * #386: a glossary term's referers are a {@code @ManyToAny} set, and Hibernate fails to
+     * remove an element from one ("Unable to locate parameter terms_referers.referer_id").
+     * So deleting a goal, story or actor a term refers to, deleting the term, re-pointing its
+     * referers, or deleting the project all failed once analysis had linked a term. They now
+     * delete the {@code terms_referers} rows directly.
+     */
+    @Test
+    void itemsAndTermsLinkedByGlossaryRefererDelete() throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        long ts = System.currentTimeMillis();
+        Project project = createProject(admin, "del-referers-" + ts);
+        Goal goal = createGoal(admin, project, "referer-goal-" + ts);
+        Story story = createStory(admin, project, "referer-story-" + ts);
+        Actor actor = createActor(admin, project, "referer-actor-" + ts);
+        Goal kept = createGoal(admin, project, "kept-goal-" + ts);
+        GlossaryTerm term = createGlossaryTerm(admin, project, "referer-term-" + ts);
+        GlossaryTerm second = createGlossaryTerm(admin, project, "second-term-" + ts);
+        for (ProjectOrDomainEntity referer : List.of(goal, story, actor, kept)) {
+            addReferer(admin, term, referer);
+        }
+        addReferer(admin, second, kept);
+        assertEquals(5, referers(project));
+
+        com.rreganjr.requel.project.command.DeleteGoalCommand deleteGoal =
+                getProjectCommandFactory().newDeleteGoalCommand();
+        deleteGoal.setEditedBy(admin);
+        deleteGoal.setGoal(goal);
+        getCommandHandler().execute(deleteGoal);
+        com.rreganjr.requel.project.command.DeleteStoryCommand deleteStory =
+                getProjectCommandFactory().newDeleteStoryCommand();
+        deleteStory.setEditedBy(admin);
+        deleteStory.setStory(story);
+        getCommandHandler().execute(deleteStory);
+        assertEquals(3, referers(project), "the goal's and story's referer rows go with them");
+
+        // Re-point the term's referers: the kept goal only.
+        EditGlossaryTermCommand edit = getProjectCommandFactory().newEditGlossaryTermCommand();
+        edit.setEditedBy(admin);
+        edit.setProjectOrDomain(project);
+        edit.setGlossaryTerm(getProjectRepository().get(term));
+        edit.setName(term.getName());
+        edit.setText("glossary term");
+        edit.setReferers(Set.of(kept));
+        getCommandHandler().execute(edit);
+        assertEquals(2, referers(project), "the term now refers to the kept goal only");
+
+        com.rreganjr.requel.project.command.DeleteGlossaryTermCommand deleteTerm =
+                getProjectCommandFactory().newDeleteGlossaryTermCommand();
+        deleteTerm.setEditedBy(admin);
+        deleteTerm.setGlossaryTerm(getProjectRepository().get(term));
+        getCommandHandler().execute(deleteTerm);
+        assertEquals(1, referers(project), "the deleted term's referer rows go with it");
+
+        Project current = getProjectRepository().findProjectByName(project.getName());
+        deleteProject(admin, current, current.getVersion());
+        assertThrows(NoSuchProjectException.class,
+                () -> getProjectRepository().findProjectByName(project.getName()));
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM terms_referers WHERE term_id = ?", Integer.class,
+                second.getId()));
+    }
+
+    /**
+     * #386: the other {@code @ManyToAny} referer sets an edit or delete changes: a use case's
+     * old primary actor, and a stakeholder's goals.
+     */
+    @Test
+    void changingPrimaryActorAndDeletingAStakeholderWithGoals() throws Exception {
+        User admin = getUserRepository().findUserByUsername("admin");
+        long ts = System.currentTimeMillis();
+        Project project = createProject(admin, "del-any-" + ts);
+        createActor(admin, project, "first-actor-" + ts);
+        createActor(admin, project, "second-actor-" + ts);
+        UseCase useCase = createUseCase(admin, project, "any-usecase-" + ts, "first-actor-" + ts,
+                "step-" + ts);
+        EditUseCaseCommand edit = getProjectCommandFactory().newEditUseCaseCommand();
+        edit.setEditedBy(admin);
+        edit.setProjectOrDomain(project);
+        edit.setUseCase(getProjectRepository().get(useCase));
+        edit.setName(useCase.getName());
+        edit.setText("use case");
+        edit.setPrimaryActorName("second-actor-" + ts);
+        getCommandHandler().execute(edit);
+
+        NonUserStakeholder stakeholder = createNonUserStakeholder(admin, project, "sh-" + ts);
+        Goal goal = createGoal(admin, project, "sh-goal-" + ts);
+        addGoalToContainer(admin, goal, stakeholder);
+        DeleteStakeholderCommand delete = getProjectCommandFactory().newDeleteStakeholderCommand();
+        delete.setEditedBy(admin);
+        delete.setStakeholder(getProjectRepository().get(stakeholder));
+        getCommandHandler().execute(delete);
+        assertEquals(List.of("com.rreganjr.requel.project.Project"), jdbcTemplate.queryForList(
+                "SELECT goalcontainer_type FROM goals_goalcontainers WHERE goal_id = ?",
+                String.class, goal.getId()),
+                "the goal is still in the project but no longer lists the deleted stakeholder");
+    }
+
+    private void addReferer(User actor, GlossaryTerm term, ProjectOrDomainEntity referer)
+            throws Exception {
+        com.rreganjr.requel.project.command.AddGlossaryTermRefererCommand cmd =
+                getProjectCommandFactory().newAddGlossaryTermRefererCommand();
+        cmd.setEditedBy(actor);
+        cmd.setGlossaryTerm(term);
+        cmd.setReferer(referer);
+        getCommandHandler().execute(cmd);
+    }
+
+    private int referers(Project project) {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM terms_referers tr"
+                + " JOIN terms t ON t.id = tr.term_id WHERE t.projectordomain_id = ?",
+                Integer.class, project.getId());
     }
 
     /**

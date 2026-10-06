@@ -106,8 +106,7 @@ public class RemoveAnnotationFromAnnotatableCommandImpl extends AbstractEditComm
 		jakarta.persistence.PersistenceUnitUtil puu = jpaRepo.getEntityManager()
 				.getEntityManagerFactory().getPersistenceUnitUtil();
 		Long annotationId = (Long) puu.getIdentifier(annotation);
-		Long annotatableId = (Long) puu.getIdentifier(annotatable);
-		jpaRepo.removeAnnotatableFromAnnotationJoinTable(annotationId, annotatableId);
+		jpaRepo.removeAnnotatableFromAnnotationJoinTable(annotationId, annotatable);
 		// #247: keep the annotation MANAGED after the native join-table delete instead of
 		// detaching it. Detaching left a detached IssueImpl/NoteImpl still reachable through
 		// other managed cascade-PERSIST collections during a multi-entity delete (e.g.

@@ -129,7 +129,7 @@ public class AddActorToActorContainerCommandImpl extends AbstractEditProjectComm
 		return null;
 	}
 
-	private static String actorContainerDiscriminator(ActorContainer container) {
+	static String actorContainerDiscriminator(ActorContainer container) {
 		if (container instanceof ProjectImpl)  return "com.rreganjr.requel.project.Project";
 		if (container instanceof UseCaseImpl)  return "com.rreganjr.requel.project.UseCase";
 		if (container instanceof GoalImpl)     return "com.rreganjr.requel.project.Goal";

@@ -181,10 +181,11 @@ public interface AnnotationRepository extends Repository {
 	 * native query. Required to work around a Hibernate 6.5 bug where
 	 * {@code @ManyToAny} collection removal generates invalid parameterized SQL.
 	 *
-	 * @param annotationId  the id of the annotation
-	 * @param annotatableId the id of the annotatable entity to unlink
+	 * @param annotationId the id of the annotation
+	 * @param annotatable  the annotatable entity to unlink; only its own row goes, since
+	 *                     {@code annotatable_id} is shared across entity types (#386)
 	 */
-	void removeAnnotatableFromAnnotationJoinTable(Long annotationId, Long annotatableId);
+	void removeAnnotatableFromAnnotationJoinTable(Long annotationId, Annotatable annotatable);
 
 	/**
 	 * #247: unlink an annotatable entity from <em>every</em> annotation with two

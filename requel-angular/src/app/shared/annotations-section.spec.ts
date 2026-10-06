@@ -506,7 +506,8 @@ describe('AnnotationsSectionComponent (method coverage)', () => {
     expect(comp.resolveLabel('AddActorPosition')).toBe('Add as Actor');
     expect(comp.resolveLabel('AddGlossaryTermPosition')).toBe('Add to Glossary');
     expect(comp.resolveLabel('IgnorePosition')).toBe('Ignore');
-    expect(comp.resolveLabel('UnknownPosition')).toBe('Ignore');
+    expect(comp.resolveLabel('Position')).toBe('Resolve');
+    expect(comp.resolveLabel('UnknownPosition')).toBe('Resolve');
   });
 
   it('savePosition() shows the required error and calls nothing when text is blank', async () => {

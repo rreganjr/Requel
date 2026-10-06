@@ -36,7 +36,6 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.Actor;
-import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
@@ -106,11 +105,8 @@ public class DeleteStoryCommandImpl extends AbstractDeleteProjectEntityCommand i
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		// remove this entity as a referrer to any terms
-		for (GlossaryTerm term : story.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(story)) {
-				term.getReferers().remove(story);
-			}
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeGlossaryTermReferer(null, story);
 		for (Actor actor : story.getActors()) {
 			RemoveActorFromActorContainerCommand removeActorFromActorContainerCommand = getProjectCommandFactory().newRemoveActorFromActorContainerCommand();
 			removeActorFromActorContainerCommand.setEditedBy(editedBy);
@@ -143,7 +139,7 @@ public class DeleteStoryCommandImpl extends AbstractDeleteProjectEntityCommand i
 		// loading the collection (which may contain stale rows for deleted entities).
 		if (story.getPrimaryActor() != null) {
 			getProjectRepository().removeActorContainerFromActorJoinTable(
-					story.getPrimaryActor().getId(), story.getId());
+					story.getPrimaryActor().getId(), story.getId(), "com.rreganjr.requel.project.Story");
 			// #247: like RemoveActorFromActorContainer, reload the actor after the native
 			// delete so its @ManyToAny referers no longer hold this (about to be removed) story
 			// - a stale element would make DeleteActor later merge() a removed container.

@@ -708,7 +708,8 @@ export class AnnotationsSectionComponent implements OnChanges {
       case 'AddActorPosition': return 'Add as Actor';
       case 'AddGlossaryTermPosition': return 'Add to Glossary';
       case 'IgnorePosition': return 'Ignore';
-      default: return 'Ignore';
+      // #386: a plain position (Add Position) is the resolution itself, not an ignore.
+      default: return 'Resolve';
     }
   }
 

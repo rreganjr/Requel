@@ -211,7 +211,7 @@ public class EditStoryCommandImpl extends AbstractEditProjectOrDomainEntityComma
 					// NoSuchEntityException if the collection contains stale rows for deleted
 					// entities.
 					getProjectRepository().removeActorContainerFromActorJoinTable(
-							priorActor.getId(), storyImpl.getId());
+							priorActor.getId(), storyImpl.getId(), "com.rreganjr.requel.project.Story");
 				}
 				storyImpl.setPrimaryActor(resolvedPrimaryActor);
 			}

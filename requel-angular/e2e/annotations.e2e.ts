@@ -175,7 +175,8 @@ test.describe('Annotations (IBIS)', () => {
     const positionItem = issueItem.getByTestId('annotation-position').filter({ hasText: positionText });
     await expect(positionItem).toBeVisible({ timeout: 5000 });
 
-    // Generic positions (PositionImpl.getSimpleName()) fall through to default 'Ignore' label
+    // A plain position (Add Position) resolves with "Resolve" (#386), not "Ignore".
+    await expect(positionItem.getByTestId('annotation-resolve-issue')).toContainText('Resolve');
     await Promise.all([
       page.waitForResponse(r => r.url().includes('/api/commands/ResolveIssue')),
       positionItem.getByTestId('annotation-resolve-issue').click(),
