@@ -35,7 +35,7 @@ import picocli.CommandLine.Option;
  * app that dispatches through the REST-backed gateway client; authentication is a PAT (#73) or an
  * OAuth access token (#83) supplied via {@code --token}/{@code REQUEL_TOKEN}.
  */
-@Command(name = "requel", mixinStandardHelpOptions = true, version = "requel-cli 2.0.0-dev",
+@Command(name = "requel", mixinStandardHelpOptions = true, version = "requel-cli 2.0.0-rc1",
         description = "Command-line access to a Requel server via the gateway.",
         subcommands = {RunCommand.class, UpsertGoalCommand.class, CommandsCommand.class,
                 ProjectsCommand.class, ProjectCommand.class, GlossaryCommand.class,
