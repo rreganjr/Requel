@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>API, MCP and CLI &mdash; Requel 2.0 user guide</title>
+<meta name="description" content="Work with Requel 2.0 from scripts and AI clients: personal access tokens, the REST API, the MCP server and the requel-cli command-line tool." />
+<link rel="icon" type="image/png" href="../images/logo_robot.png" />
+<link rel="stylesheet" href="../site.css" />
+</head>
+<body class="guide">
+
+<header class="brand">
+  <div class="brand-inner">
+    <img src="../images/logo_robot.png" alt="" />
+    <div>
+      <h1><a href="../index.html">Requel</a></h1>
+      <p>User guide for Requel 2.0</p>
+    </div>
+  </div>
+</header>
+
+<nav class="guide-nav" aria-label="User guide">
+  <ul>
+    <li><a href="index.html">Contents</a></li>
+    <li><a href="getting-started.html">Getting started</a></li>
+    <li><a href="projects.html">Projects</a></li>
+    <li><a href="requirements.html">Requirements</a></li>
+    <li><a href="stakeholders.html">Stakeholders</a></li>
+    <li><a href="issues.html">Issues and discussion</a></li>
+    <li><a href="ai-review.html">AI review</a></li>
+    <li><a href="reports.html">Reports</a></li>
+    <li><a href="integrations.html" aria-current="page">API, MCP and CLI</a></li>
+  </ul>
+</nav>
+
+<main>
+  <h1>API, MCP and CLI</h1>
+  <p class="lead">Everything the web UI does is available to scripts and AI clients, under the same permissions.</p>
+  <section id="how">
+    <h2>One gateway, three ways in</h2>
+    <p>The web UI, the MCP server and <code>requel-cli</code> all go through the same commands and
+      queries. Whatever signs in acts as one Requel user: that user&rsquo;s
+      <a href="stakeholders.html#permissions">stakeholder permissions</a> decide what it may read
+      and change, and every change is recorded in the audit log under their name. Give an AI client
+      or a script its own user with only the permissions it needs.</p>
+  </section>
+
+  <section id="tokens">
+    <h2>Personal access tokens</h2>
+    <p>Scripts, CI jobs and AI clients that can&rsquo;t open a browser use a personal access token.
+      An administrator first gives the user the <code>manageApiTokens</code> permission
+      (<a href="getting-started.html#users">users</a>). Then, in <strong>Menu &rarr;
+      Settings</strong>:</p>
+    <ol>
+      <li><strong>New token</strong>, give it a name (what will use it) and an expiry.</li>
+      <li>Copy the token (it starts <code>reqpat_</code>). It is shown only once.</li>
+      <li>Send it as <code>Authorization: Bearer reqpat_&hellip;</code>.</li>
+    </ol>
+    <figure class="shot">
+      <img src="../images/guide/settings.png" alt="The Settings page with the sidebar options and the Personal Access Tokens section." loading="lazy" />
+    </figure>
+    <p>The list shows when each token was last used. <strong>Revoke</strong> stops one working at
+      once.</p>
+  </section>
+
+  <section id="api">
+    <h2>The REST API</h2>
+    <ul>
+      <li><strong>Reads</strong> are <code>GET /api/&hellip;</code>, for example
+        <code>GET /api/projects</code> or <code>GET /api/projects/{name}/open-issues</code>.</li>
+      <li><strong>Changes</strong> are commands: <code>POST /api/commands/{type}</code> with a JSON
+        body, for example <code>EditGoal</code>.</li>
+      <li><strong>Log in</strong> with a token as above, or <code>POST /api/auth/login</code> with a
+        username and password for a short-lived token.</li>
+    </ul>
+<pre><code>curl -H "Authorization: Bearer $REQUEL_TOKEN" http://localhost:8080/api/projects</code></pre>
+  </section>
+
+  <section id="mcp">
+    <h2>AI clients over MCP</h2>
+    <p>Requel is an MCP server at <code>/api/mcp</code> (Streamable HTTP). Claude, Codex, VS Code
+      and other MCP clients can read a project, search it, list open issues and make changes as
+      tools. Add it to your client by URL, for example
+      <code>http://localhost:8080/api/mcp</code>; the client then signs in one of two ways:</p>
+    <ul>
+      <li><strong>OAuth</strong>, for interactive clients: a browser opens on Requel&rsquo;s login
+        and consent page, and the client keeps the token. Nothing to copy.</li>
+      <li><strong>A personal access token</strong> in the client&rsquo;s
+        <code>Authorization</code> header, for headless use.</li>
+    </ul>
+    <p>Client-by-client steps are in
+      <a href="https://github.com/rreganjr/Requel/blob/master/doc/guides/mcp_remote_connection.md">Connecting
+      an MCP client</a> and
+      <a href="https://github.com/rreganjr/Requel/blob/master/doc/guides/VS_CODE_MCP.md">VS Code</a>.
+      To run the MCP server read-only, start Requel with
+      <code>--requel.gateway.write.enabled=false</code>.</p>
+  </section>
+
+  <section id="cli">
+    <h2><code>requel-cli</code></h2>
+    <p>A command-line client for the same queries and commands. In 2.0 it is built from source:</p>
+<pre><code>mvn -pl modules/requel-cli -am package -DskipTests
+alias requel='java -jar modules/requel-cli/target/requel-cli-2.0.0.jar'</code></pre>
+    <p>Sign in once per server; the CLI remembers it:</p>
+<pre><code>export REQUEL_URL=http://localhost:8080
+requel login --token reqpat_...      # or: requel login --oauth
+requel projects
+requel open-issues Requel
+requel search Requel "project"
+requel commands                       # the commands you can run
+requel run EditGoal --input '{"projectName":"Requel","name":"A new goal"}'</code></pre>
+    <p><code>requel --help</code> lists every subcommand; <code>--output</code> switches between
+      text and JSON.</p>
+  </section>
+
+  <section id="xml">
+    <h2>Project files</h2>
+    <p>For moving whole projects, use <a href="projects.html#import-and-export">export and
+      import</a>. The XML follows the published
+      <a href="../integration/2.0/project.xsd">project schema</a>, so other tools can read and
+      write it.</p>
+  </section>
+
+  <nav class="pager" aria-label="Previous and next page">
+    <a class="prev" href="reports.html">&larr; Reports</a>
+  </nav>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <p>The screenshots show the sample project
+      (<a href="https://github.com/rreganjr/Requel/blob/master/doc/samples/Requel.xml">Requel.xml</a>)
+      and are retaken for each release by <code>scripts/guide-screenshots.mjs</code>.</p>
+    <p>Requel is free software, released under the
+      <a href="https://github.com/rreganjr/Requel/blob/master/LICENSE">GNU General Public License v3</a>.
+      Found a mistake in this guide? <a href="https://github.com/rreganjr/Requel/issues">Open an issue</a>.</p>
+  </div>
+</footer>
+
+</body>
+</html>

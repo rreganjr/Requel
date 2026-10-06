@@ -835,11 +835,11 @@ class ProjectXmlStreamingRoundTripIT {
 		Project imported = importProject(sampleXml, projectUser, importedProjectName);
 
 		GlossaryTerm alias = imported.getGlossaryTerms().stream()
-				.filter(term -> "Pee Pee Snow Cone".equals(term.getName()))
+				.filter(term -> "Interested Party".equals(term.getName()))
 				.findFirst()
 				.orElseThrow(() -> new AssertionError("Alias glossary term not imported"));
 		GlossaryTerm canonical = imported.getGlossaryTerms().stream()
-				.filter(term -> "Yellow Snow".equals(term.getName()))
+				.filter(term -> "Stakeholder".equals(term.getName()))
 				.findFirst()
 				.orElseThrow(() -> new AssertionError("Canonical glossary term not imported"));
 

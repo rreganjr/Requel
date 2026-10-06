@@ -107,24 +107,24 @@ public class ImportProjectStreamingCommandTest extends AbstractIntegrationTestCa
                 "primary actor wired");
         Scenario referencedScenario = createProject.getScenario();
         assertNotNull(referencedScenario, "scenario resolved for use case");
-        assertEquals("test top level scenario", referencedScenario.getName());
+        assertEquals("Create a new project", referencedScenario.getName());
         assertFalse(createProject.getStories().isEmpty(), "stories linked to use case");
 
         assertEquals(4, imported.getStakeholders().size(), "stakeholder count");
 
         Set<Annotation> annotations = ((ProjectImpl) imported).getAllProjectEntityAnnotations();
-        assertEquals(265, annotations.size(), "annotation count");
+        assertEquals(258, annotations.size(), "annotation count");
         long lexicalIssueCount = annotations.stream().filter(a -> a instanceof LexicalIssue).count();
-        assertEquals(145, lexicalIssueCount, "lexical issue count");
+        assertEquals(143, lexicalIssueCount, "lexical issue count");
 
-        LexicalIssue underpants = annotations.stream()
+        LexicalIssue members = annotations.stream()
                 .filter(a -> a instanceof LexicalIssue)
                 .map(a -> (LexicalIssue) a)
-                .filter(l -> "The phrase \"the underpants\" is a potential glossary term, actor, or domain object/property"
+                .filter(l -> "The phrase \"the members\" is a potential glossary term, actor, or domain object/property"
                         .equals(l.getText()))
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("missing lexical issue ANN_395"));
-        assertEquals(3, underpants.getPositions().size(), "lexical issue retains position refs");
+        assertEquals(3, members.getPositions().size(), "lexical issue retains position refs");
 
         Position glossaryPosition = getAnnotationRepository()
                 .findPosition(imported, "Add \"the project elements\" to the project glossary.");

@@ -106,14 +106,17 @@ branch forward into it until it ships.
 
 ## Commits that skip the PR
 
-Two kinds of change go straight onto a release branch or `master` with no ticket branch
-and no PR. Line 1 of the commit is still the issue URL, so the retro counts it.
+These changes go straight onto a release branch or `master` with no ticket branch and no
+PR. Line 1 of the commit is still the issue URL, so the retro counts it.
 
 - **Documentation only**: `doc/**/*.md` and markdown files at the repo root (`README.md`,
   `CLAUDE.md`). CI skips these pushes (see [What CI does](#what-ci-does)), so a PR would
   only add review overhead.
 - **Maintainer scripts**: `scripts/**`, the board, retro, issue and release helpers. Nothing
   in the build or the tests runs them, so CI skips these pushes too.
+- **Website pages**: `website/*.html`, `website/site.css`, `website/guide/**` and
+  `website/images/**`. CI skips them; `pages.yml` publishes them. The schema under
+  `website/integration/` is not in this group.
 - **Release commits**: a version bump and nothing else, as part of cutting a release
   below. CI runs on the push.
 
@@ -153,7 +156,10 @@ notes that don't belong to one ticket.
    `requel-cli --version`, which `versions:set` alone misses.
 4. **Test the candidate** from Docker Hub, not a local build (see
    [Verifying a published image](#verifying-a-published-image)). A problem is fixed by a
-   normal ticket PR into `release/2.1`, then `-rc2`.
+   normal ticket PR into `release/2.1`, then `-rc2`. While it runs on an empty database,
+   retake the user guide's screenshots against it (`node scripts/guide-screenshots.mjs`; the
+   script's header says how) and commit any that changed, with the site's status banner in
+   `website/index.html` set for the release.
 5. **Final release.** Same as step 3 with `./scripts/set-version.sh 2.1.0`, the message
    `Version 2.1.0` and the tag `v2.1.0`. This publishes the GitHub Release with the jar
    attached, and pushes `rreganjr/requel:2.1.0` and `:latest`.
@@ -248,13 +254,14 @@ move forward.
 
 | Workflow | Runs on | Does |
 |---|---|---|
-| `ci.yml` | every push and PR to `master` and `release/**`, except ones that only touch `doc/**/*.md`, root `*.md` or `scripts/**` | full Maven build, unit + integration tests, Angular lint + unit tests, e2e |
+| `ci.yml` | every push and PR to `master` and `release/**`, except ones that only touch `doc/**/*.md`, root `*.md`, `scripts/**` or the website's pages, styles and images | full Maven build, unit + integration tests, Angular lint + unit tests, e2e |
 | `release.yml` | a `v*` tag | full build + tests, then a GitHub Release with generated notes and the jar attached; `-rc` tags are pre-releases |
 | `container-publish.yml` | a `v*` tag | build + tests, docker-compose smoke test, push `rreganjr/requel:<version>`; final tags (no `-` suffix) also push `:latest` |
 | `pages.yml` | pushes touching `website/**` | publishes `website/`, which hosts the project XSD that exports point to |
 
 Markdown under `doc/` is not skipped in general: only `*.md`. `doc/samples/project.xsd` is
-read by the XML round-trip tests, so a change there runs CI.
+read by the XML round-trip tests, so a change there runs CI; so does `website/integration/**`,
+the published copy of that schema, which a test also checks.
 
 If `Build & test` is a required status check on a branch, a docs-only or scripts-only PR never
 gets that check (the workflow doesn't start), so it waits forever. That is one more reason

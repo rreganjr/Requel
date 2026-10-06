@@ -5,9 +5,9 @@ name: CI
 # workflow as the gate for merging feature branches into the integration
 # branch. See doc/work/2.0/20-release-plan.md §5.1.
 #
-# Documentation-only changes skip it: markdown is not built or tested, and docs-only
-# commits go straight onto the branch (doc/guides/RELEASE_PROCESS.md, "Commits that skip
-# the PR"). The filter is *.md, not doc/**: doc/samples/project.xsd is read by the XML
+# Documentation-only changes skip it: markdown and the website are not built or tested, and
+# docs-only commits go straight onto the branch (doc/guides/RELEASE_PROCESS.md, "Commits that
+# skip the PR"). The filter is *.md, not doc/**: doc/samples/project.xsd is read by the XML
 # round-trip tests. A push that touches anything else still runs the whole workflow.
 
 on:
@@ -21,6 +21,12 @@ on:
       # Maintainer helpers (board, retro, issue and release scripts): nothing in the build or
       # the test suites runs them.
       - "scripts/**"
+      # The GitHub Pages site (pages.yml publishes it). Not website/integration/**: the schema
+      # copy there is checked by ProjectSchemaNameLengthTest.
+      - "website/*.html"
+      - "website/*.css"
+      - "website/guide/**"
+      - "website/images/**"
   pull_request:
     branches:
       - master
@@ -31,6 +37,12 @@ on:
       # Maintainer helpers (board, retro, issue and release scripts): nothing in the build or
       # the test suites runs them.
       - "scripts/**"
+      # The GitHub Pages site (pages.yml publishes it). Not website/integration/**: the schema
+      # copy there is checked by ProjectSchemaNameLengthTest.
+      - "website/*.html"
+      - "website/*.css"
+      - "website/guide/**"
+      - "website/images/**"
 
 # Cancel earlier runs of the same workflow on the same ref. Useful when
 # someone force-pushes a feature branch and the in-flight run becomes stale.
