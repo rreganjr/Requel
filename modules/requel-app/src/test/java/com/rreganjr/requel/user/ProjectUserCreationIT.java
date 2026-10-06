@@ -47,8 +47,8 @@ class ProjectUserCreationIT {
     private ProjectUserInitializer projectUserInitializer;
 
     /**
-     * The application's {@code DatabaseInitializationRunner} (an
-     * {@code @EventListener(ApplicationReadyEvent.class)} component) runs every
+     * The application's {@code DatabaseInitializationRunner} (a {@code SmartLifecycle}
+     * that starts before the web server, #379) runs every
      * registered {@code SystemInitializer} — including this one — during
      * context startup. By the time the test method executes, the "project"
      * user has already been created. The contract we still need to hold is

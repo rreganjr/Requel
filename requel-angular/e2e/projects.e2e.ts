@@ -226,7 +226,8 @@ test.describe('Project management', () => {
     expect(importResponse.ok(), 'import command returns HTTP success').toBeTruthy();
     const importResult = await importResponse.json() as { entity?: { name?: string } };
     const importedName = importResult.entity?.name;
-    expect(importedName, 'import command returns the imported project name').toBeTruthy();
+    // #379: the import takes the file's project name; the source still exists, so " (1)".
+    expect(importedName, 'import keeps the exported project name').toBe(`${sourceName} (1)`);
     await projectsPage.expectImportSuccess();
 
     await projectsPage.expectProjectInTable(importedName!);

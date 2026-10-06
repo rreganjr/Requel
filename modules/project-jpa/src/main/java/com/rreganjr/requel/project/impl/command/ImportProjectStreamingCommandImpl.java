@@ -175,7 +175,7 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
             }
         } else {
             Organization organization = resolveProjectOrganization(createdBy, metadata.organizationName());
-            targetProject = new ProjectImpl(resolveProjectName(), createdBy, organization);
+            targetProject = new ProjectImpl(resolveProjectName(metadata.name()), createdBy, organization);
             if (metadata.description() != null) {
                 targetProject.setText(metadata.description());
             }
@@ -627,8 +627,13 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         return getEditedBy();
     }
 
-    private String resolveProjectName() {
-        String baseName = name != null ? name : "Imported Project";
+    /**
+     * The new project's name: the command's {@code name} (the rename), else the file's
+     * {@code <name>} (#379), else "Imported Project"; a taken name gets " (n)".
+     */
+    private String resolveProjectName(String fileName) {
+        String baseName = name != null && !name.isBlank() ? name
+                : fileName != null ? fileName : "Imported Project";
         String candidate = baseName;
         for (int i = 1; isProjectNameTaken(candidate); i++) {
             // Strip existing trailing number+parens: "Foo (2)" → "Foo"
@@ -705,6 +710,7 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         try {
             XMLInputFactory factory = XMLInputFactory.newFactory();
             XMLStreamReader reader = factory.createXMLStreamReader(new ByteArrayInputStream(xmlBytes));
+            String projectName = null;
             String organizationName = null;
             String description = null;
             boolean insideProject = false;
@@ -720,6 +726,11 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
                         depthWithinProject++;
                         if (depthWithinProject == 1 && "organization".equals(reader.getLocalName())) {
                             organizationName = reader.getAttributeValue(null, "name");
+                        } else if (depthWithinProject == 1 && "name".equals(reader.getLocalName())) {
+                            String text = reader.getElementText().trim();
+                            projectName = text.isEmpty() ? null : text;
+                            depthWithinProject--;
+                            continue;
                         } else if (depthWithinProject == 1 && "description".equals(reader.getLocalName())) {
                             description = reader.getElementText();
                             depthWithinProject--;
@@ -737,7 +748,7 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
                 reader.next();
             }
             reader.close();
-            return new ProjectMetadata(organizationName, description);
+            return new ProjectMetadata(projectName, organizationName, description);
         } catch (XMLStreamException e) {
             throw new ImportException("Unable to parse project metadata", e);
         }
@@ -754,7 +765,7 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         }
     }
 
-    private record ProjectMetadata(String organizationName, String description) {}
+    private record ProjectMetadata(String name, String organizationName, String description) {}
 
     private void addUserAsStakeholder(Project project, User user, User editedBy) {
         addUserAsStakeholder(project, user, editedBy,
