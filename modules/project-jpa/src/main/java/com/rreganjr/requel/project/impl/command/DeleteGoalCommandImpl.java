@@ -35,7 +35,6 @@ import com.rreganjr.platform.command.AuthorizationRequirement.RequiresStakeholde
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
-import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.GoalContainer;
 import com.rreganjr.requel.project.GoalRelation;
@@ -104,11 +103,8 @@ public class DeleteGoalCommandImpl extends AbstractDeleteProjectEntityCommand im
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		// remove this entity as a referer to any terms
-		for (GlossaryTerm term : goal.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(goal)) {
-				term.getReferers().remove(goal);
-			}
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeGlossaryTermReferer(null, goal);
 		Set<GoalContainer> goalReferers = new HashSet<GoalContainer>(goal.getReferers());
 		for (GoalContainer goalContainer : goalReferers) {
 			RemoveGoalFromGoalContainerCommand removeGoalFromGoalContainerCommand = getProjectCommandFactory()

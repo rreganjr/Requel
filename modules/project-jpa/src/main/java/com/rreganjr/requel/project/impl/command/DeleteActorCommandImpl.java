@@ -39,7 +39,6 @@ import com.rreganjr.requel.annotation.command.DeletePositionCommand;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.Actor;
 import com.rreganjr.requel.project.ActorContainer;
-import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
@@ -116,11 +115,8 @@ public class DeleteActorCommandImpl extends AbstractDeleteProjectEntityCommand i
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		// remove this entity as a referer to any terms
-		for (GlossaryTerm term : actor.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(actor)) {
-				term.getReferers().remove(actor);
-			}
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeGlossaryTermReferer(null, actor);
 		// #247: an actor is a GoalContainer (actor_goals). Detach its goals first, or each goal's
 		// @ManyToAny referers (goals_goalcontainers, no DB FK) keeps pointing at the deleted
 		// actor and a later DeleteGoal merge()s a removed container.

@@ -268,6 +268,22 @@ public interface ProjectRepository extends Repository {
 			ProjectOrDomainEntity projectOrDomainEntity);
 
 	/**
+	 * #386: remove {@code referer} from {@code term}'s referers, or from every term's when
+	 * {@code term} is null. A term's referers are a {@code @ManyToAny} set, and Hibernate fails
+	 * to remove an element from one ("Unable to locate parameter terms_referers.referer_id"), so
+	 * never call {@code getReferers().remove(..)} or {@code clear()}: this deletes the
+	 * {@code terms_referers} rows directly and refreshes the affected terms. The referer's own
+	 * {@code getGlossaryTerms()} side is the caller's to update.
+	 */
+	public void removeGlossaryTermReferer(GlossaryTerm term, ProjectOrDomainEntity referer);
+
+	/**
+	 * #386: remove every referer of {@code term}; see
+	 * {@link #removeGlossaryTermReferer(GlossaryTerm, ProjectOrDomainEntity)}.
+	 */
+	public void removeAllGlossaryTermReferers(GlossaryTerm term);
+
+	/**
 	 * @param projectOrDomain -
 	 *            the project or domain to add the term to.
 	 * @param term -
@@ -312,10 +328,12 @@ public interface ProjectRepository extends Repository {
 	 * native query. Required to work around a Hibernate 6.5 bug where
 	 * {@code @ManyToAny} collection removal generates invalid parameterized SQL.
 	 *
-	 * @param goalId          the id of the goal
-	 * @param goalContainerId the id of the goal container to unlink
+	 * @param goalId            the id of the goal
+	 * @param goalContainerId   the id of the goal container to unlink
+	 * @param goalContainerType its discriminator; the id column is shared across types (#386)
 	 */
-	void removeGoalContainerFromGoalJoinTable(Long goalId, Long goalContainerId);
+	void removeGoalContainerFromGoalJoinTable(Long goalId, Long goalContainerId,
+			String goalContainerType);
 
 	/**
 	 * Insert a single row into the goals_goalcontainers join table using a
@@ -332,7 +350,8 @@ public interface ProjectRepository extends Repository {
 	 * Remove a single row from the actor_actorcontainers join table using a native query.
 	 * Workaround for the Hibernate 6.5 {@code @ManyToAny} bug.
 	 */
-	void removeActorContainerFromActorJoinTable(Long actorId, Long actorContainerId);
+	void removeActorContainerFromActorJoinTable(Long actorId, Long actorContainerId,
+			String actorContainerType);
 
 	/**
 	 * Insert a single row into the actor_actorcontainers join table using a native query.
@@ -344,7 +363,8 @@ public interface ProjectRepository extends Repository {
 	 * Remove a single row from the story_storycontainers join table using a native query.
 	 * Workaround for the Hibernate 6.5 {@code @ManyToAny} bug.
 	 */
-	void removeStoryContainerFromStoryJoinTable(Long storyId, Long storyContainerId);
+	void removeStoryContainerFromStoryJoinTable(Long storyId, Long storyContainerId,
+			String storyContainerType);
 
 	/**
 	 * Insert a single row into the story_storycontainers join table using a native query.

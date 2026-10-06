@@ -106,7 +106,8 @@ public class RemoveGoalFromGoalContainerCommandImpl extends AbstractEditProjectC
 				.getEntityManagerFactory().getPersistenceUnitUtil();
 		Long goalId = (Long) puu.getIdentifier(removedGoal);
 		Long containerId = (Long) puu.getIdentifier(removingContainer);
-		jpaRepo.removeGoalContainerFromGoalJoinTable(goalId, containerId);
+		jpaRepo.removeGoalContainerFromGoalJoinTable(goalId, containerId,
+				AddGoalToGoalContainerCommandImpl.goalContainerDiscriminator(removingContainer));
 		jpaRepo.getEntityManager().refresh(removedGoal);
 
 		// #247: inside a cascade the container may already have been removed in this

@@ -185,7 +185,8 @@ public class EditGlossaryTermCommandImpl extends AbstractEditProjectOrDomainEnti
 				}
 			}
 			// add the referers to the term and the term to the referers
-			glossaryTermImpl.getReferers().clear();
+			// #386: by native delete; clearing the @ManyToAny referers set fails in Hibernate.
+			getProjectRepository().removeAllGlossaryTermReferers(glossaryTermImpl);
 			for (ProjectOrDomainEntity entity : getReferers()) {
 				entity = getProjectRepository().get(entity);
 				glossaryTermImpl.getReferers().add(entity);

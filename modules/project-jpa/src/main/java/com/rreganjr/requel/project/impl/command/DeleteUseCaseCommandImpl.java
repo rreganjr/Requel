@@ -33,7 +33,6 @@ import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.Actor;
-import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
@@ -116,11 +115,8 @@ public class DeleteUseCaseCommandImpl extends AbstractDeleteProjectEntityCommand
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		// remove this entity as a referer to any terms
-		for (GlossaryTerm term : usecase.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(usecase)) {
-				term.getReferers().remove(usecase);
-			}
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeGlossaryTermReferer(null, usecase);
 		Set<Actor> actors = new HashSet<Actor>(usecase.getActors());
 		actors.add(usecase.getPrimaryActor());
 		for (Actor actor : actors) {

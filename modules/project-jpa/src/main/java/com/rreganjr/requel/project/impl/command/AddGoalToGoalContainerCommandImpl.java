@@ -139,7 +139,7 @@ public class AddGoalToGoalContainerCommandImpl extends AbstractEditProjectComman
 	 * Returns the @AnyDiscriminatorValue string for the given GoalContainer instance,
 	 * matching the discriminator values declared on GoalImpl.getReferers().
 	 */
-	private static String goalContainerDiscriminator(GoalContainer container) {
+	static String goalContainerDiscriminator(GoalContainer container) {
 		if (container instanceof ProjectImpl)            return "com.rreganjr.requel.project.Project";
 		if (container instanceof UseCaseImpl)            return "com.rreganjr.requel.project.UseCase";
 		if (container instanceof ScenarioImpl)           return "com.rreganjr.requel.project.Scenario";

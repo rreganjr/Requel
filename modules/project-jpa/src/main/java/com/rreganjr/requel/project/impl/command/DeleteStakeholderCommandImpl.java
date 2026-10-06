@@ -32,7 +32,6 @@ import com.rreganjr.command.CommandHandler;
 import com.rreganjr.requel.annotation.Annotation;
 import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
-import com.rreganjr.requel.project.GlossaryTerm;
 import com.rreganjr.requel.project.Goal;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.Stakeholder;
@@ -105,17 +104,15 @@ public class DeleteStakeholderCommandImpl extends AbstractDeleteProjectEntityCom
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
 		// remove this entity as a referer to any terms
-		for (GlossaryTerm term : stakeholder.getProjectOrDomain().getGlossaryTerms()) {
-			if (term.getReferers().contains(stakeholder)) {
-				term.getReferers().remove(stakeholder);
-			}
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeGlossaryTermReferer(null, stakeholder);
 		stakeholder.removeFromProject();
-		for (GlossaryTerm term : stakeholder.getProjectOrDomain().getGlossaryTerms()) {
-			term.getReferers().remove(stakeholder);
-		}
+		// #386: by native delete; removing from the @ManyToAny referers set fails in Hibernate.
+		String stakeholderType = AddGoalToGoalContainerCommandImpl.goalContainerDiscriminator(
+				stakeholder);
 		for (Goal goal : stakeholder.getGoals()) {
-			goal.getReferers().remove(stakeholder);
+			getProjectRepository().removeGoalContainerFromGoalJoinTable(goal.getId(),
+					stakeholder.getId(), stakeholderType);
 		}
 		// #247: clear any annotation link committed since this entity was loaded.
 		removeAllAnnotationsBeforeDelete(stakeholder, getEditedBy());

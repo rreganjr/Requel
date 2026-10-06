@@ -35,6 +35,7 @@ import com.rreganjr.requel.annotation.command.AnnotationCommandFactory;
 import com.rreganjr.requel.annotation.command.DeletePositionCommand;
 import com.rreganjr.requel.annotation.command.RemoveAnnotationFromAnnotatableCommand;
 import com.rreganjr.requel.project.GlossaryTerm;
+import com.rreganjr.requel.project.ProjectOrDomainEntity;
 import com.rreganjr.requel.project.Project;
 import com.rreganjr.requel.project.ProjectRepository;
 import com.rreganjr.requel.project.ProjectScopedCommand;
@@ -104,7 +105,15 @@ public class DeleteGlossaryTermCommandImpl extends AbstractEditProjectCommand im
 			removeAnnotationFromAnnotatableCommand.setAnnotation(annotation);
 			getCommandHandler().execute(removeAnnotationFromAnnotatableCommand);
 		}
-		glossaryTerm.getReferers().clear();
+		// The referers' side (goals_glossary_terms and the like) references the term by key.
+		for (ProjectOrDomainEntity referer : new java.util.ArrayList<ProjectOrDomainEntity>(
+				glossaryTerm.getReferers())) {
+			if (referer != null) {
+				referer.getGlossaryTerms().remove(glossaryTerm);
+			}
+		}
+		// #386: by native delete; clearing the @ManyToAny referers set fails in Hibernate.
+		getProjectRepository().removeAllGlossaryTermReferers(glossaryTerm);
 		// if this is the canonical term for other glossary terms, the
 		// other terms must be updated to set the canonical term to null.
 		for (GlossaryTerm alternateTerm : glossaryTerm.getAlternateTerms()) {

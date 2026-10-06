@@ -334,12 +334,20 @@ public class JpaAnnotationRepository extends AbstractJpaRepository implements An
 	}
 
 	@Override
-	public void removeAnnotatableFromAnnotationJoinTable(Long annotationId, Long annotatableId) {
+	public void removeAnnotatableFromAnnotationJoinTable(Long annotationId, Annotatable annotatable) {
+		Object entity = attach(getEntityManager(), annotatable);
+		Long annotatableId = (Long) getEntityManager().getEntityManagerFactory()
+				.getPersistenceUnitUtil().getIdentifier(entity);
+		// #386: restricted by type, as in unlinkAllAnnotations. annotatable_id is shared across
+		// entity types, so without it removing an annotation from use case 2 also unlinked it
+		// from step 2 (and story 1 from use case 1), and the annotation was then deleted while
+		// scenarios_annotations still referenced it.
 		getEntityManager()
-				.createNativeQuery(
-						"DELETE FROM annotation_annotatable WHERE annotation_id = :annId AND annotatable_id = :aId")
+				.createNativeQuery("DELETE FROM annotation_annotatable WHERE annotation_id = :annId"
+						+ " AND annotatable_id = :aId AND annotatable_type IN (:types)")
 				.setParameter("annId", annotationId)
 				.setParameter("aId", annotatableId)
+				.setParameter("types", annotatableDiscriminators(Hibernate.getClass(entity)))
 				.executeUpdate();
 	}
 
