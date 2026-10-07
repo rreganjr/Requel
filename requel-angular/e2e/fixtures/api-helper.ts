@@ -902,15 +902,16 @@ export async function addUserStakeholder(
   projectName: string,
   username: string,
   permissionKeys: string[]
-): Promise<void> {
+): Promise<number> {
   const token = await getAdminToken(api);
-  await command(api, token, 'EditUserStakeholder', {
+  const result = await command(api, token, 'EditUserStakeholder', {
     projectName,
     username,
     teamName: null,
     permissionKeys,
     version: null,
   });
+  return (result['entity'] as { id: number }).id;
 }
 
 export interface DictionaryWordFixture {

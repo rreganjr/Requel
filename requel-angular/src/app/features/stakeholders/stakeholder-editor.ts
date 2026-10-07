@@ -42,7 +42,6 @@ import { EntityReferenceDto } from '../../models/entity-reference';
 import { StakeholderService } from '../../core/stakeholder.service';
 import { CommandService, isNetworkError } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
-import { UserService } from '../../core/user.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { EntitySelectorDialogComponent } from '../../shared/entity-selector-dialog';
@@ -549,7 +548,6 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
     private stakeholderService: StakeholderService,
     private commandService: CommandService,
     private projectService: ProjectService,
-    private userService: UserService,
     private permissionService: PermissionService,
     private confirmationService: ConfirmationService,
     private messageService: MessageService,
@@ -651,9 +649,14 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
     }
   }
 
+  /**
+   * The users the create wizard can pick from. #390: these come from the project's
+   * stakeholder-candidates, which needs Stakeholder Edit, not the admin-only user list - a
+   * non-admin who manages stakeholders got "Failed to load users." and an empty picker.
+   */
   private async loadUsers(): Promise<void> {
     try {
-      const users = await this.userService.listUsers();
+      const users = await this.stakeholderService.listCandidates(this.projectName);
       this.userOptions.set(users.map(u => ({ label: u.name || u.username, value: u.username })));
     } catch {
       this.showError('Failed to load users.');
@@ -711,7 +714,9 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       this.goals.set(s.goals ?? []);
       if (s.userDetails) {
         this.loadedUserDetails.set(s.userDetails);
-        await this.loadUsers();
+        // #390: the user can't change once the stakeholder exists (the select is disabled), so
+        // show just this one rather than loading a list.
+        this.userOptions.set([{ label: s.name, value: s.userDetails.username }]);
       }
 
       // Form state, only when the user has nothing unsaved - in either form.

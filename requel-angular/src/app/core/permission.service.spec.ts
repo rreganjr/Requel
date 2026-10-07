@@ -93,4 +93,34 @@ describe('PermissionService', () => {
     await service.refresh();
     expect(projectServiceSpy.getMyPermissions).not.toHaveBeenCalled();
   });
+
+  // #390: the stakeholder editor's save and the SSE listener both refresh for the same change.
+  it('overlapping refresh() calls share one fetch and both resolve with the new permissions', async () => {
+    await service.loadForProject('My Project');
+    let resolveFetch!: (p: unknown) => void;
+    projectServiceSpy.getMyPermissions.mockImplementation(() => new Promise(r => { resolveFetch = r; }));
+
+    const first = service.refresh();
+    const second = service.refresh();
+    // The old permissions stay in place while the fetch is in flight.
+    expect(service.canDelete('Goal')).toBe(true);
+
+    resolveFetch({ ...FULL_PERMS, permissions: { ...FULL_PERMS.permissions, Goal: ['Edit'] } });
+    await second;
+    expect(service.canDelete('Goal')).toBe(false);
+    await first;
+    expect(projectServiceSpy.getMyPermissions).toHaveBeenCalledTimes(2);
+  });
+
+  it('drops a refresh that finishes after clear()', async () => {
+    await service.loadForProject('My Project');
+    let resolveFetch!: (p: unknown) => void;
+    projectServiceSpy.getMyPermissions.mockImplementation(() => new Promise(r => { resolveFetch = r; }));
+
+    const pending = service.refresh();
+    service.clear();
+    resolveFetch(FULL_PERMS);
+    await pending;
+    expect(service.canEdit('Goal')).toBe(false);
+  });
 });

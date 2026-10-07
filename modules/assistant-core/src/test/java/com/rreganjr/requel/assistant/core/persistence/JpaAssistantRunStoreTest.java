@@ -285,6 +285,32 @@ class JpaAssistantRunStoreTest {
 		assertThat(entity.getCompletedAt()).isEqualTo(fixedNow);
 	}
 
+	/** #390: a completed run reports how long it ran, from markRunning to completion. */
+	@Test
+	void completingARunRecordsItsLatency() {
+		AssistantRunRepository repository = mock(AssistantRunRepository.class);
+		JpaAssistantRunStore store = new JpaAssistantRunStore(repository, fixedClock);
+		AssistantRunEntity succeeded = new AssistantRunEntity(UUID.randomUUID(), "test", "RUNNING",
+				fixedNow.minusSeconds(5), fixedNow.minusSeconds(5));
+		succeeded.setStartedAt(fixedNow.minusMillis(1500));
+		AssistantRunEntity failed = new AssistantRunEntity(UUID.randomUUID(), "test", "RUNNING",
+				fixedNow.minusSeconds(5), fixedNow.minusSeconds(5));
+		failed.setStartedAt(fixedNow.minusMillis(250));
+		AssistantRunEntity neverStarted = new AssistantRunEntity(UUID.randomUUID(), "test", "QUEUED",
+				fixedNow.minusSeconds(5), fixedNow.minusSeconds(5));
+		when(repository.findById(succeeded.getId())).thenReturn(Optional.of(succeeded));
+		when(repository.findById(failed.getId())).thenReturn(Optional.of(failed));
+		when(repository.findById(neverStarted.getId())).thenReturn(Optional.of(neverStarted));
+
+		store.markSucceeded(succeeded.getRunId());
+		store.markFailed(failed.getRunId(), new IllegalStateException("boom"));
+		store.markSkipped(neverStarted.getRunId(), "assistant switched off");
+
+		assertThat(succeeded.getLatencyMs()).isEqualTo(1500L);
+		assertThat(failed.getLatencyMs()).isEqualTo(250L);
+		assertThat(neverStarted.getLatencyMs()).isNull();
+	}
+
 	private static AnalysisRequest request(String taskType, long goalId, long projectId,
 			long triggeringUserId, long assistantUserId) {
 		return new AnalysisRequest(EntityRef.of("Goal", goalId), EntityRef.of("Project", projectId),

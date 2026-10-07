@@ -135,6 +135,55 @@ describe('LayoutComponent top bar (issue #154)', () => {
       .toBe('false');
   });
 
+  describe('narrow windows (#390)', () => {
+    let listeners: ((e: MediaQueryListEvent) => void)[];
+    let matches: boolean;
+    const original = window.matchMedia;
+
+    beforeEach(() => {
+      listeners = [];
+      matches = true;
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        get matches() { return matches; },
+        media: query,
+        addEventListener: (_: string, l: (e: MediaQueryListEvent) => void) => listeners.push(l),
+        removeEventListener: vi.fn()
+      })) as unknown as typeof window.matchMedia;
+    });
+    afterEach(() => { window.matchMedia = original; });
+
+    it('starts collapsed whatever the stored preference', () => {
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, 'false');
+      const el: HTMLElement = createFixture().nativeElement;
+      expect(el.querySelector<HTMLElement>('#app-sidebar')!.hidden).toBe(true);
+    });
+
+    it('does not persist a toggle made while narrow', () => {
+      const fixture = createFixture();
+      fixture.nativeElement.querySelector('[data-testid="sidebar-toggle"]').click();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('#app-sidebar').hidden).toBe(false);
+      expect(localStorage.getItem(SIDEBAR_COLLAPSED_KEY)).toBeNull();
+    });
+
+    it('collapses when the window narrows and restores the preference when it widens', () => {
+      matches = false;
+      const fixture = createFixture();
+      const aside = (): HTMLElement => fixture.nativeElement.querySelector('#app-sidebar');
+      expect(aside().hidden).toBe(false);
+
+      matches = true;
+      listeners.forEach(l => l({ matches: true } as MediaQueryListEvent));
+      fixture.detectChanges();
+      expect(aside().hidden).toBe(true);
+
+      matches = false;
+      listeners.forEach(l => l({ matches: false } as MediaQueryListEvent));
+      fixture.detectChanges();
+      expect(aside().hidden).toBe(false);
+    });
+  });
+
   it('exposes the sidebar as a landmark region the toggle controls', () => {
     const el: HTMLElement = createFixture().nativeElement;
     const toggle = el.querySelector('[data-testid="sidebar-toggle"]')!;

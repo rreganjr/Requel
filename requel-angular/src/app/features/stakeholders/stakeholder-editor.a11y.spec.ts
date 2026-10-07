@@ -7,7 +7,6 @@ import { StakeholderEditorComponent } from './stakeholder-editor';
 import { StakeholderService } from '../../core/stakeholder.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
-import { UserService } from '../../core/user.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 import { expectNoAxeViolations } from '../../shared/testing/a11y';
@@ -45,18 +44,12 @@ describe('StakeholderEditorComponent - create wizard accessibility', () => {
             getStakeholder: vi.fn().mockResolvedValue(CREATED),
             getAvailablePermissions: vi.fn().mockResolvedValue(PERMISSIONS),
             getPermissionRules: vi.fn().mockResolvedValue({ implied: [], ownedDeletes: [], grantKeys: {} }),
+            listCandidates: vi.fn().mockResolvedValue([{ username: 'alice', name: 'Alice' }]),
           } },
         { provide: CommandService, useValue: {
             execute: vi.fn().mockResolvedValue({ success: true, entity: CREATED }),
           } },
         { provide: ProjectService, useValue: { notifyTreeChanged: vi.fn() } },
-        { provide: UserService, useValue: {
-            listUsers: vi.fn().mockResolvedValue([
-              { id: 1, version: 0, username: 'alice', name: 'Alice', emailAddress: null,
-                phoneNumber: null, organizationName: null, roles: [], permissions: [],
-                permissionsByRole: null },
-            ]),
-          } },
         { provide: PermissionService, useValue: {
             loadForProject: vi.fn().mockResolvedValue(undefined),
             canEdit: vi.fn().mockReturnValue(true),

@@ -1089,4 +1089,71 @@ class ProjectQueryControllerTest {
         result.addAll(List.of(values));
         return result;
     }
+
+    // -------------------------------------------------------------------------
+    // stakeholder-candidates (#390)
+    // -------------------------------------------------------------------------
+
+    private MockMvc candidatesMvc(com.rreganjr.requel.user.UserRepository userRepository) {
+        ProjectQueryController controller = new ProjectQueryController(projectRepository,
+                projectCommandFactory, commandHandler, currentUserResolver, entityManager,
+                dictionaryRepository);
+        controller.setUserRepository(userRepository);
+        return MockMvcBuilders.standaloneSetup(controller).build();
+    }
+
+    private User candidateUser(String username, boolean projectUser, boolean assistant) {
+        User u = mock(User.class);
+        when(u.getUsername()).thenReturn(username);
+        when(u.getName()).thenReturn("Name of " + username);
+        when(u.getEmailAddress()).thenReturn(username + "@example.invalid");
+        when(u.hasRole(ProjectUserRole.class)).thenReturn(projectUser);
+        when(u.hasRole(com.rreganjr.requel.user.impl.AssistantUserRole.class)).thenReturn(assistant);
+        return u;
+    }
+
+    @Test
+    void stakeholderCandidates_listsProjectUsersNotYetStakeholders_withoutEmail() throws Exception {
+        when(stakeholder.hasPermission(com.rreganjr.requel.project.Stakeholder.class,
+                com.rreganjr.requel.project.StakeholderPermissionType.Edit)).thenReturn(true);
+        when(user.getUsername()).thenReturn("me");
+        when(stakeholder.getUser()).thenReturn(user);
+
+        com.rreganjr.requel.user.UserRepository users = mock(com.rreganjr.requel.user.UserRepository.class);
+        List<User> all = List.of(
+                user,                                       // already a stakeholder
+                candidateUser("carol", true, false),
+                candidateUser("alice", true, false),
+                candidateUser("bot", true, true),           // assistant identity
+                candidateUser(User.ASSISTANT_USERNAME, true, false),
+                candidateUser("dave", false, false));       // no ProjectUserRole
+        com.rreganjr.requel.user.UserSet userSet = mock(com.rreganjr.requel.user.UserSet.class);
+        when(userSet.stream()).thenReturn(all.stream());
+        when(users.findUsers()).thenReturn(userSet);
+
+        candidatesMvc(users).perform(get("/api/projects/TestProject/stakeholder-candidates"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].username").value("alice"))
+                .andExpect(jsonPath("$[0].name").value("Name of alice"))
+                .andExpect(jsonPath("$[1].username").value("carol"))
+                .andExpect(jsonPath("$[0].emailAddress").doesNotExist());
+    }
+
+    @Test
+    void stakeholderCandidates_withoutStakeholderEdit_is403() throws Exception {
+        when(stakeholder.hasPermission(com.rreganjr.requel.project.Stakeholder.class,
+                com.rreganjr.requel.project.StakeholderPermissionType.Edit)).thenReturn(false);
+        candidatesMvc(mock(com.rreganjr.requel.user.UserRepository.class))
+                .perform(get("/api/projects/TestProject/stakeholder-candidates"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void stakeholderCandidates_unknownProject_is404() throws Exception {
+        when(projectRepository.findProjectByName("Nope")).thenThrow(NoSuchProjectException.forName("Nope"));
+        candidatesMvc(mock(com.rreganjr.requel.user.UserRepository.class))
+                .perform(get("/api/projects/Nope/stakeholder-candidates"))
+                .andExpect(status().isNotFound());
+    }
 }

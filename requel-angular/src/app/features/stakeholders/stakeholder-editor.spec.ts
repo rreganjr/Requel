@@ -7,14 +7,10 @@ import { StakeholderEditorComponent } from './stakeholder-editor';
 import { StakeholderService } from '../../core/stakeholder.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
-import { UserService } from '../../core/user.service';
 import { PermissionService } from '../../core/permission.service';
 import { EventStreamService } from '../../core/event-stream.service';
 
-const MOCK_USERS = [
-  { id: 1, version: 0, username: 'alice', name: 'Alice', emailAddress: null,
-    phoneNumber: null, organizationName: null, roles: [], permissions: [], permissionsByRole: null }
-];
+const MOCK_CANDIDATES = [{ username: 'alice', name: 'Alice' }];
 
 const MOCK_AVAILABLE_PERMISSIONS = [
   { entityType: 'Goal', permissionKey: 'edit_goal', permissionType: 'Edit' },
@@ -65,8 +61,8 @@ describe('StakeholderEditorComponent', () => {
     getStakeholder: ReturnType<typeof vi.fn>;
     getAvailablePermissions: ReturnType<typeof vi.fn>;
     getPermissionRules: ReturnType<typeof vi.fn>;
+    listCandidates: ReturnType<typeof vi.fn>;
   };
-  let userServiceMock: { listUsers: ReturnType<typeof vi.fn> };
   let commandServiceMock: { execute: ReturnType<typeof vi.fn> };
   let permissionServiceMock: {
     loadForProject: ReturnType<typeof vi.fn>; canDelete: ReturnType<typeof vi.fn>;
@@ -84,9 +80,9 @@ describe('StakeholderEditorComponent', () => {
     stakeholderServiceMock = {
       getStakeholder: vi.fn().mockResolvedValue(MOCK_STAKEHOLDER_USER),
       getAvailablePermissions: vi.fn().mockResolvedValue(MOCK_AVAILABLE_PERMISSIONS),
-      getPermissionRules: vi.fn().mockResolvedValue(NO_RULES)
+      getPermissionRules: vi.fn().mockResolvedValue(NO_RULES),
+      listCandidates: vi.fn().mockResolvedValue(MOCK_CANDIDATES)
     };
-    userServiceMock = { listUsers: vi.fn().mockResolvedValue(MOCK_USERS) };
     commandServiceMock = {
       execute: vi.fn().mockResolvedValue({ success: true, entity: MOCK_STAKEHOLDER_USER })
     };
@@ -110,7 +106,6 @@ describe('StakeholderEditorComponent', () => {
         provideRouter([]),
         { provide: ActivatedRoute, useValue: { paramMap: paramMap$.asObservable() } },
         { provide: StakeholderService, useValue: stakeholderServiceMock },
-        { provide: UserService, useValue: userServiceMock },
         { provide: CommandService, useValue: commandServiceMock },
         { provide: ProjectService, useValue: { notifyTreeChanged: vi.fn() } },
         { provide: PermissionService, useValue: permissionServiceMock },
@@ -139,12 +134,23 @@ describe('StakeholderEditorComponent', () => {
     expect(comp.isUserType()).toBe(false);
   });
 
-  it('loadUsers() called and userOptions populated for "new-user"', async () => {
+  // #390: the picker comes from the project's stakeholder-candidates (Stakeholder Edit), not the
+  // admin-only user list, so a non-admin who manages stakeholders can add one.
+  it('fills the user picker from the project\'s stakeholder candidates for "new-user"', async () => {
     fixture.detectChanges();
     await flush();
-    expect(userServiceMock.listUsers).toHaveBeenCalled();
+    expect(stakeholderServiceMock.listCandidates).toHaveBeenCalledWith('proj1');
     expect(comp.userOptions().length).toBe(1);
     expect(comp.userOptions()[0].value).toBe('alice');
+  });
+
+  it('loads no user list when editing a user stakeholder, and shows its own user (#390)', async () => {
+    paramMap$.next(convertToParamMap({ name: 'proj1', stakeholderId: '50' }));
+    fixture.detectChanges();
+    await flush();
+    expect(stakeholderServiceMock.listCandidates).not.toHaveBeenCalled();
+    expect(comp.userOptions()).toEqual([{ label: 'Alice', value: 'alice' }]);
+    expect(comp.errorMessage()).toBeNull();
   });
 
   it('onSave calls execute("EditUserStakeholder") for user-type stakeholder', async () => {

@@ -31,6 +31,12 @@ export interface StakeholderDto {
   goals?: EntityReferenceDto[];
 }
 
+/** #390: a user who could be added as a user stakeholder (GET /projects/{name}/stakeholder-candidates). */
+export interface StakeholderCandidate {
+  username: string;
+  name: string | null;
+}
+
 export interface UserStakeholderDetails {
   username: string;
   emailAddress: string;

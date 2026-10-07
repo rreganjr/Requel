@@ -20,6 +20,7 @@
  */
 import { definePreset } from '@primeuix/themes';
 import Aura from '@primeuix/themes/aura';
+import type { Preset } from '@primeuix/themes/types';
 
 /**
  * RequelPreset — the Requel brand layer over PrimeNG's Aura preset.
@@ -49,7 +50,48 @@ import Aura from '@primeuix/themes/aura';
  * darkModeSelector hook so dark mode can be added later without re-theming;
  * surface-950 (#020617) is reserved as the eventual dark base.
  */
-export const RequelPreset = definePreset(Aura, {
+/**
+ * #390: Aura's own dark tokens (form fields, overlays, lists, menus, and the
+ * component-level dark schemes: buttons, toasts, messages, ...) are written
+ * against Aura's surface ramp, where surface.0 is white and surface.950 the
+ * darkest. Requel's dark scheme below inverts the surface ramp so app CSS that
+ * reads --p-surface-0 flips on its own, which turned every one of those Aura
+ * references inside out (white inputs and dropdown panels in dark mode). Point
+ * them at the Slate primitive with the same stop instead, so they get the colour
+ * Aura intended. Requel's explicit dark tokens (primary, surface, text, content)
+ * come in the next preset and still win.
+ */
+type Tokens = { [key: string]: unknown };
+
+function surfaceToSlate(value: unknown): unknown {
+  if (typeof value === 'string') {
+    return value.replace(/\{surface\.(\d+)\}/g, '{slate.$1}');
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, surfaceToSlate(v)]));
+  }
+  return value;
+}
+
+function auraDarkOnSlate(): Preset {
+  const aura = Aura as unknown as {
+    semantic: { colorScheme: { dark: Tokens } };
+    components: { [name: string]: { colorScheme?: { dark?: Tokens } } };
+  };
+  const components: Tokens = {};
+  for (const [name, component] of Object.entries(aura.components)) {
+    const dark = component.colorScheme?.dark;
+    if (dark) {
+      components[name] = { colorScheme: { dark: surfaceToSlate(dark) } };
+    }
+  }
+  return {
+    semantic: { colorScheme: { dark: surfaceToSlate(aura.semantic.colorScheme.dark) } },
+    components
+  } as Preset;
+}
+
+export const RequelPreset = definePreset(Aura, auraDarkOnSlate(), {
   primitive: {
     // Tailwind Blue (verbatim) — the Requel primary/accent ramp.
     // blue-900 (#1e3a8a) is the "cool blue base" accent hue.

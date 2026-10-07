@@ -384,4 +384,34 @@ test.describe('Sidebar', () => {
     await page.close();
   });
 
+  // #390: .sidebar's display: flex beat the [hidden] attribute, so the toggle
+  // flipped its label but the 280px sidebar stayed. jsdom doesn't apply the
+  // component styles, so this needs a real browser.
+  test('Hide sidebar hides it, and Show sidebar brings it back', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+    await page.goto('/projects');
+    const sidebar = page.locator('#app-sidebar');
+    const toggle = page.getByTestId('sidebar-toggle');
+    await expect(sidebar).toBeVisible();
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(sidebar).toBeHidden();
+
+    await toggle.click();
+    await expect(sidebar).toBeVisible();
+    await page.close();
+  });
+
+  test('a narrow window starts with the sidebar collapsed (#390)', async ({ adminContext }) => {
+    const page = await adminContext.newPage();
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto('/projects');
+    await expect(page.getByTestId('sidebar-toggle')).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('#app-sidebar')).toBeHidden();
+    // The page gets the width, not ~100px beside the sidebar.
+    const main = await page.locator('.main-content').boundingBox();
+    expect(main?.width ?? 0).toBeGreaterThan(350);
+    await page.close();
+  });
 });
