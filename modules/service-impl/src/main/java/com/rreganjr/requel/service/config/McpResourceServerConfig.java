@@ -46,8 +46,13 @@ import org.springframework.security.web.SecurityFilterChain;
  *
  * <p>This is chain {@code @Order(3)} in the layering documented on {@link AuthorizationServerConfig}
  * (1 = AS endpoints, 2 = login/consent, 3 = this MCP chain, 4 = the {@code /api/**} JWT chain). Its
- * matcher {@code /api/mcp/**} is more specific than the {@code /api/**} chain, so it is evaluated
- * first and fully owns MCP requests.
+ * matchers {@code /api/mcp/**} and {@code /api/gateway/**} are more specific than the {@code /api/**}
+ * chain, so it is evaluated first and fully owns MCP and gateway requests.
+ *
+ * <p>#390: {@code /api/gateway/**} is the same command/query surface over REST that
+ * {@code requel-cli} uses, and {@code requel-cli login --oauth} stores an AS-issued token. With the
+ * gateway left on the {@code /api/**} chain, which only knows login JWTs and PATs, the OAuth login
+ * succeeded and every CLI call after it was a 401.
  *
  * <p><b>Three credential kinds coexist</b> (see {@link McpBearerTokenResolver}): the existing
  * {@link JwtAuthenticationFilter} runs before the bearer filter and handles PATs and login JWTs; the
@@ -79,7 +84,7 @@ public class McpResourceServerConfig {
     @Order(3)
     public SecurityFilterChain mcpSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            .securityMatcher("/api/mcp/**")
+            .securityMatcher("/api/mcp/**", "/api/gateway/**")
             .csrf(AbstractHttpConfigurer::disable)
             .cors(Customizer.withDefaults())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

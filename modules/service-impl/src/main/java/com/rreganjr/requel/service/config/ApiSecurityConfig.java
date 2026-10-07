@@ -76,10 +76,11 @@ public class ApiSecurityConfig {
     }
 
     // @Order(4): after the OAuth chains (see AuthorizationServerConfig). This chain's matcher is
-    // /api/**, which is broader than the MCP resource-server chain's /api/mcp/** (Slice 2), so it
-    // must have a HIGHER order number (lower precedence) than that chain. Chain layering:
-    //   1 = AS endpoints, 2 = interactive login/consent, 3 = /api/mcp/** resource server (Slice 2),
-    //   4 = this /api/** JWT chain.
+    // /api/**, which is broader than the MCP resource-server chain's /api/mcp/** and /api/gateway/**
+    // (Slice 2, #390), so it must have a HIGHER order number (lower precedence) than that chain.
+    // Chain layering:
+    //   1 = AS endpoints, 2 = interactive login/consent, 3 = /api/mcp/** + /api/gateway/** resource
+    //   server (OAuth tokens as well as PATs and login JWTs), 4 = this /api/** JWT chain.
     @Bean
     @Order(4)
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {

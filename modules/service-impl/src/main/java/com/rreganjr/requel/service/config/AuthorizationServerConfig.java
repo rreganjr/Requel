@@ -99,7 +99,8 @@ import java.util.function.Consumer;
  *       {@code /.well-known/oauth-authorization-server}).</li>
  *   <li>{@code @Order(2)} — the interactive login/consent chain ({@code /login},
  *       {@code /oauth2/consent}) with form login backed by {@link RequelUserAuthenticationProvider}.</li>
- *   <li>{@code @Order(3)} — MCP resource server on {@code /api/mcp/**} (Slice 2, not yet added).</li>
+ *   <li>{@code @Order(3)} — resource server on {@code /api/mcp/**} and {@code /api/gateway/**}
+ *       ({@code McpResourceServerConfig}; the gateway since #390, for {@code requel-cli login --oauth}).</li>
  *   <li>{@code @Order(4)} — the existing stateless JWT chain on {@code /api/**}
  *       ({@code ApiSecurityConfig}).</li>
  * </ol>

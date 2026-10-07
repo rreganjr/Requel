@@ -38,6 +38,12 @@ Issue: https://github.com/rreganjr/Requel/issues/390 Â· branch `390-rc1-fixes` Â
 
 - Add `--restart unless-stopped` to the Requel `docker run` in "Docker without Compose", with one line saying why (Requel exits if MySQL isn't accepting connections yet, and Docker restarts it).
 
+## 7. `requel-cli login --oauth`, then every call is a 401 (found 2026-10-07, folded in)
+
+- `login --oauth` stores an authorization-server (RS256) token, but the CLI calls the REST gateway (`/api/gateway/**`), which sat on the `/api/**` chain that only accepts login JWTs and PATs.
+- Fix: the resource-server chain (`McpResourceServerConfig`, `@Order(3)`) matches `/api/gateway/**` as well as `/api/mcp/**`. PATs and login JWTs still work there, and OAuth tokens stay off the rest of `/api/**`.
+- Test: `OAuthGatewayAccessIT`: an AS-signed token reads `/api/gateway/query/projects` and lists `/api/gateway/commands/descriptors`; anonymous and unknown-user calls get 401; `/api/projects` still refuses an OAuth token. The two gateway tests fail without the fix.
+
 ## Not in scope
 
 - Deleting users (the #378 test users stay).
