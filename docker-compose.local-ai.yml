@@ -58,7 +58,7 @@ services:
         condition: service_healthy
       ollama:
         condition: service_healthy
-    image: rreganjr/requel:2.0.0-rc1
+    image: rreganjr/requel:2.0.0-rc2
     ports:
       - "8080:8080"
     networks:
