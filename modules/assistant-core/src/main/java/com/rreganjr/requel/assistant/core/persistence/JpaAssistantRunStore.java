@@ -21,6 +21,7 @@
 package com.rreganjr.requel.assistant.core.persistence;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Map;
@@ -124,7 +125,7 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 	@Override
 	@Transactional(propagation = Propagation.REQUIRED)
 	public void markSucceeded(UUID runId) {
-		update(runId, AssistantRunStatus.SUCCEEDED, null, entity -> entity.setCompletedAt(clock.instant()));
+		update(runId, AssistantRunStatus.SUCCEEDED, null, entity -> complete(entity));
 	}
 
 	@Override
@@ -133,21 +134,21 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 		update(runId, AssistantRunStatus.SUCCEEDED, truncate(summary, ERROR_SUMMARY_LENGTH),
 				entity -> {
 					entity.setErrorKind(PARTIAL);
-					entity.setCompletedAt(clock.instant());
+					complete(entity);
 				});
 	}
 
 	@Override
 	@Transactional(propagation = Propagation.REQUIRED)
 	public void markSkipped(UUID runId, String reason) {
-		update(runId, AssistantRunStatus.SKIPPED, reason, entity -> entity.setCompletedAt(clock.instant()));
+		update(runId, AssistantRunStatus.SKIPPED, reason, entity -> complete(entity));
 	}
 
 	@Override
 	@Transactional(propagation = Propagation.REQUIRED)
 	public void markCancelled(UUID runId, String reason) {
 		update(runId, AssistantRunStatus.CANCELLED, reason,
-				entity -> entity.setCompletedAt(clock.instant()));
+				entity -> complete(entity));
 	}
 
 	@Override
@@ -157,7 +158,7 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 		String kind = failure == null ? null : failure.getClass().getSimpleName();
 		update(runId, AssistantRunStatus.FAILED, summary, entity -> {
 			entity.setErrorKind(kind);
-			entity.setCompletedAt(clock.instant());
+			complete(entity);
 		});
 	}
 
@@ -234,6 +235,18 @@ public class JpaAssistantRunStore implements AssistantRunStore {
 
 	private static String truncate(String value, int max) {
 		return value == null || value.length() <= max ? value : value.substring(0, max - 1) + "…";
+	}
+
+	/**
+	 * Stamp the end of a run, and its latency (#390): from when it started running to now. A run
+	 * that never started (skipped or cancelled while queued) has no latency.
+	 */
+	private void complete(AssistantRunEntity entity) {
+		Instant now = clock.instant();
+		entity.setCompletedAt(now);
+		if (entity.getStartedAt() != null) {
+			entity.setLatencyMs(Math.max(0L, Duration.between(entity.getStartedAt(), now).toMillis()));
+		}
 	}
 
 	private void update(UUID runId, AssistantRunStatus status, String errorSummary,

@@ -22,7 +22,9 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { StakeholderDto, StakeholderPermissionDto, StakeholderPermissionRules } from '../models/stakeholder';
+import {
+  StakeholderCandidate, StakeholderDto, StakeholderPermissionDto, StakeholderPermissionRules
+} from '../models/stakeholder';
 
 /**
  * Service for stakeholder query endpoints.
@@ -44,6 +46,18 @@ export class StakeholderService {
     return firstValueFrom(
       this.http.get<StakeholderDto>(
         `${environment.apiBaseUrl}/projects/${encodeURIComponent(projectName)}/stakeholders/${stakeholderId}`
+      )
+    );
+  }
+
+  /**
+   * #390: users who could be added to this project as user stakeholders. Needs Stakeholder Edit on
+   * the project rather than the admin-only user list, and carries username and name only.
+   */
+  async listCandidates(projectName: string): Promise<StakeholderCandidate[]> {
+    return firstValueFrom(
+      this.http.get<StakeholderCandidate[]>(
+        `${environment.apiBaseUrl}/projects/${encodeURIComponent(projectName)}/stakeholder-candidates`
       )
     );
   }

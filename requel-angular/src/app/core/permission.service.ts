@@ -31,6 +31,10 @@ export class PermissionService {
 
   private readonly _permissions = signal<ProjectPermissions | null>(null);
   private _loadedProject: string | null = null;
+  /** Bumped by clear(), so a refresh that finishes after a project change is dropped (#390). */
+  private _generation = 0;
+  /** The refresh in flight, shared by overlapping callers (#390). */
+  private _refreshing: { projectName: string; promise: Promise<void> } | null = null;
 
   constructor(private projectService: ProjectService) {}
 
@@ -50,26 +54,49 @@ export class PermissionService {
   clear(): void {
     this._permissions.set(null);
     this._loadedProject = null;
+    this._generation++;
   }
 
   /**
    * Re-fetch permissions for the project already loaded (issue #276).
    *
    * `loadForProject` deliberately no-ops when the same project is already loaded, which is right
-   * for navigation but wrong after a grant or revoke. `clear()` resets `_loadedProject`, so clearing
-   * first makes the guard fall through — no `force` flag needed. Callers are the permission write
-   * path itself and the SSE listener that hears a permission change made by someone else.
+   * for navigation but wrong after a grant or revoke. Callers are the permission write path itself
+   * and the SSE listener that hears a permission change made by someone else.
+   *
+   * #390: the save path and the SSE listener both call this for the same change, and they overlap.
+   * It used to `clear()` and then load, so the second caller found nothing loaded and returned at
+   * once, and code awaiting it (the stakeholder editor's `applyPermissionRules`) ran with no
+   * permissions, locking every box. Now the current permissions stay in place until the new ones
+   * arrive, and an overlapping call shares the fetch already in flight.
    *
    * A no-op when nothing is loaded yet: there is no project to re-fetch for, and the next
    * `loadForProject` will do it anyway.
    */
-  async refresh(): Promise<void> {
+  refresh(): Promise<void> {
     const projectName = this._loadedProject;
     if (projectName == null) {
-      return;
+      return Promise.resolve();
     }
-    this.clear();
-    await this.loadForProject(projectName);
+    if (this._refreshing?.projectName === projectName) {
+      return this._refreshing.promise;
+    }
+    const generation = this._generation;
+    const promise = this.projectService.getMyPermissions(projectName)
+      .then(perms => {
+        // A clear() (project change) since the fetch started makes this answer stale.
+        if (generation === this._generation) {
+          this._permissions.set(perms);
+          this._loadedProject = projectName;
+        }
+      })
+      .finally(() => {
+        if (this._refreshing?.promise === promise) {
+          this._refreshing = null;
+        }
+      });
+    this._refreshing = { projectName, promise };
+    return promise;
   }
 
   get isStakeholder(): boolean {

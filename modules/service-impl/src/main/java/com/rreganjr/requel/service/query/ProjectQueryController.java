@@ -22,6 +22,7 @@ package com.rreganjr.requel.service.query;
 
 import com.rreganjr.nlp.dictionary.DictionaryRepository;
 import com.rreganjr.requel.service.api.dto.DictionaryWordDto;
+import com.rreganjr.requel.service.api.dto.StakeholderCandidateDto;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -101,6 +102,8 @@ import com.rreganjr.requel.service.api.dto.StoryDto;
 import com.rreganjr.requel.service.api.dto.UserStakeholderDetails;
 import com.rreganjr.requel.service.auth.CurrentUserResolver;
 import com.rreganjr.requel.user.User;
+import com.rreganjr.requel.user.UserRepository;
+import com.rreganjr.requel.user.impl.AssistantUserRole;
 import com.rreganjr.requel.user.impl.SystemAdminUserRole;
 
 import jakarta.persistence.EntityManager;
@@ -162,6 +165,14 @@ public class ProjectQueryController {
 
     /** #270: which issues may no longer apply; none are, without the assistant module. */
     private AnnotationFreshness annotationFreshness = AnnotationFreshness.NONE;
+
+    /** #390: the user list behind {@code /stakeholder-candidates}. */
+    private UserRepository userRepository;
+
+    @Autowired
+    public void setUserRepository(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     @Autowired(required = false)
     public void setAnnotationFreshness(AnnotationFreshness annotationFreshness) {
@@ -368,6 +379,46 @@ public class ProjectQueryController {
                     .sorted(Comparator.comparing(StakeholderDto::name))
                     .toList();
             return ResponseEntity.ok(dtos);
+        } catch (NoSuchProjectException e) {
+            return ResponseEntity.notFound().build();
+        } catch (AuthorizationException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+    }
+
+    /**
+     * GET /api/projects/{name}/stakeholder-candidates — users who could be added as user
+     * stakeholders (#390): project users who aren't stakeholders yet, minus assistant identities.
+     *
+     * <p>
+     * Gated like {@code EditUserStakeholder} ({@code Stakeholder[Edit]} on the project), so a
+     * non-admin who manages stakeholders can pick a user; {@code /api/users} stays admin-only.
+     * Returns username and name only.
+     */
+    @GetMapping("/{name}/stakeholder-candidates")
+    public ResponseEntity<List<StakeholderCandidateDto>> listStakeholderCandidates(@PathVariable String name) {
+        try {
+            Project project = projectRepository.findProjectByName(name);
+            User user = requireProjectAccess(project);
+            UserStakeholder caller = findUserStakeholder(project, user);
+            if (caller == null || !caller.hasPermission(Stakeholder.class, StakeholderPermissionType.Edit)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            Set<String> taken = new HashSet<>();
+            for (Stakeholder s : project.getStakeholders()) {
+                if (s instanceof UserStakeholder us && us.getUser() != null) {
+                    taken.add(us.getUser().getUsername());
+                }
+            }
+            List<StakeholderCandidateDto> candidates = userRepository.findUsers().stream()
+                    .filter(u -> u.hasRole(ProjectUserRole.class))
+                    .filter(u -> !u.hasRole(AssistantUserRole.class)
+                            && !User.ASSISTANT_USERNAME.equals(u.getUsername()))
+                    .filter(u -> !taken.contains(u.getUsername()))
+                    .map(u -> new StakeholderCandidateDto(u.getUsername(), u.getName()))
+                    .sorted(Comparator.comparing(StakeholderCandidateDto::username))
+                    .toList();
+            return ResponseEntity.ok(candidates);
         } catch (NoSuchProjectException e) {
             return ResponseEntity.notFound().build();
         } catch (AuthorizationException e) {

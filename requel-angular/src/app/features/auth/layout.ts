@@ -51,6 +51,20 @@ function loadSidebarCollapsed(): boolean {
   }
 }
 
+/**
+ * Below this width the sidebar starts collapsed and collapses when the window narrows past it
+ * (#390), so a phone-width window isn't left with ~100px for the page.
+ */
+const NARROW_QUERY = '(max-width: 767.98px)';
+
+function narrowQuery(): MediaQueryList | null {
+  try {
+    return typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(NARROW_QUERY) : null;
+  } catch {
+    return null;
+  }
+}
+
 function persistSidebarCollapsed(collapsed: boolean): void {
   try {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
@@ -235,6 +249,11 @@ function persistSidebarCollapsed(collapsed: boolean): void {
       overflow: hidden;
     }
 
+    /* .sidebar's display: flex would otherwise beat the hidden attribute (#390). */
+    .sidebar[hidden] {
+      display: none;
+    }
+
     .sidebar {
       width: 280px;
       flex-shrink: 0;
@@ -274,7 +293,8 @@ export class LayoutComponent implements OnInit {
   private readonly location: Location;
   private readonly router: Router;
 
-  readonly sidebarCollapsed = signal<boolean>(loadSidebarCollapsed());
+  /** Narrow windows start collapsed (#390); otherwise the stored preference. */
+  readonly sidebarCollapsed = signal<boolean>((narrowQuery()?.matches ?? false) || loadSidebarCollapsed());
 
   /** Current URL, tracked so the back button hides at the shell root. */
   private readonly currentUrl;
@@ -344,6 +364,7 @@ export class LayoutComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.watchNarrowWindow();
     // Open SSE connection, subscribed to the project broadcast channel so the
     // sidebar can reload counts whenever any project-scoped command completes,
     // and to the permission broadcast (#276) so a grant or revoke made by
@@ -366,7 +387,25 @@ export class LayoutComponent implements OnInit {
   toggleSidebar(): void {
     const next = !this.sidebarCollapsed();
     this.sidebarCollapsed.set(next);
-    persistSidebarCollapsed(next);
+    // A toggle on a narrow window is for now only; the wide-screen preference stays (#390).
+    if (!(narrowQuery()?.matches ?? false)) {
+      persistSidebarCollapsed(next);
+    }
+  }
+
+  /**
+   * #390: collapse when the window narrows past the breakpoint, and go back to the stored
+   * preference when it widens again.
+   */
+  private watchNarrowWindow(): void {
+    const query = narrowQuery();
+    if (!query) {
+      return;
+    }
+    const onChange = (event: MediaQueryListEvent) =>
+      this.sidebarCollapsed.set(event.matches || loadSidebarCollapsed());
+    query.addEventListener('change', onChange);
+    this.destroyRef.onDestroy(() => query.removeEventListener('change', onChange));
   }
 
   goBack(): void {

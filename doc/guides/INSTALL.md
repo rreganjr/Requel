@@ -57,7 +57,7 @@ docker run -d --name requel-db --network requel-net \
   -e MYSQL_ROOT_PASSWORD=change-me -e MYSQL_DATABASE=requel \
   -v requel-db:/var/lib/mysql mysql:8.4
 
-docker run -d --name requel --network requel-net -p 8080:8080 \
+docker run -d --name requel --network requel-net -p 8080:8080 --restart unless-stopped \
   -e "SPRING_DATASOURCE_URL=jdbc:mysql://requel-db:3306/requel?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC" \
   -e SPRING_DATASOURCE_USERNAME=root \
   -e SPRING_DATASOURCE_PASSWORD=change-me \
@@ -65,6 +65,10 @@ docker run -d --name requel --network requel-net -p 8080:8080 \
   -e "_JAVA_OPTIONS=-Xmx2g" \
   rreganjr/requel:2.0.0
 ```
+
+MySQL takes a few seconds to accept connections on first start. If Requel starts before it does,
+it exits ("Communications link failure"), and `--restart unless-stopped` brings it back until
+the database is ready.
 
 Generate the secret once and reuse it when you recreate the container. Then follow steps 3 and
 4 above (`docker logs -f requel`).
