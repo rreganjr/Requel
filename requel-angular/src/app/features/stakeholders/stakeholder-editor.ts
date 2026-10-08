@@ -72,6 +72,15 @@ interface PermissionGroup {
   permissions: { key: string; type: string; checked: boolean }[];
 }
 
+/**
+ * #392: a user stakeholder's name is "Display Name [username]"; the user select shows just the
+ * display name, the same label the create wizard's candidates use.
+ */
+export function userLabel(stakeholderName: string, username: string): string {
+  const suffix = ` [${username}]`;
+  return stakeholderName.endsWith(suffix) ? stakeholderName.slice(0, -suffix.length) : stakeholderName;
+}
+
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-stakeholder-editor',
@@ -715,8 +724,9 @@ export class StakeholderEditorComponent implements OnInit, OnDestroy, DirtyCheck
       if (s.userDetails) {
         this.loadedUserDetails.set(s.userDetails);
         // #390: the user can't change once the stakeholder exists (the select is disabled), so
-        // show just this one rather than loading a list.
-        this.userOptions.set([{ label: s.name, value: s.userDetails.username }]);
+        // show just this one rather than loading a list. #392: label it with the user's name, as the
+        // create wizard does - the stakeholder name carries a " [username]" suffix.
+        this.userOptions.set([{ label: userLabel(s.name, s.userDetails.username), value: s.userDetails.username }]);
       }
 
       // Form state, only when the user has nothing unsaved - in either form.

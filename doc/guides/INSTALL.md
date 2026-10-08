@@ -119,6 +119,43 @@ reset endpoints.
   Requel 1.0.x runs on MySQL 5.x only, so the new database is also your move to MySQL 8.4.
   An in-place upgrade is [#380](https://github.com/rreganjr/Requel/issues/380).
 
+## Connect the CLI or an AI client
+
+Three ways in, simplest first. All of them act as a Requel user, with that user's permissions.
+
+**A personal access token (PAT).** Works for `requel-cli`, any MCP client and scripts. Sign in,
+open **Settings** from the account menu (top right), and create one under **Personal Access
+Tokens**; it starts with `reqpat_` and is shown once. The built-in admin can do this on a new
+install; other users need the *manage API tokens* permission, which an admin grants on their user
+page.
+
+```bash
+java -jar requel-cli-2.0.0.jar login --token reqpat_...
+java -jar requel-cli-2.0.0.jar projects
+```
+
+For an MCP client, send it as a bearer token: `Authorization: Bearer reqpat_...` against
+`http://<host>:8080/api/mcp`.
+
+**`requel-cli` over OAuth.** `requel-cli login --oauth` opens your browser, you sign in and approve,
+and the CLI keeps a refreshable token. The CLI's OAuth client is registered on startup
+(`REQUEL_OAUTH_SEED_CLI_CLIENT`, on by default).
+
+**An MCP client over OAuth** (Claude Code, Codex, VS Code). These clients register themselves with
+Requel first, and registration is off by default. Turn on one of:
+
+- **Loopback registration**, for a client on the same machine as a Requel started from the jar:
+  `REQUEL_OAUTH_DCR_ALLOW_ANONYMOUS_LOOPBACK=true`. It accepts registrations only from 127.0.0.1,
+  so it does not help a Docker install: requests from the host reach the container from Docker's
+  network, not loopback.
+- **Gated registration**, for everything else: `REQUEL_OAUTH_DCR_ENABLED=true` and
+  `REQUEL_OAUTH_DCR_REGISTRAR_CLIENT_SECRET=<a random secret>`. The admin then mints a one-time
+  registration token for each client. The steps, and the recipes for Claude Code and Codex, are in
+  [MCP remote connection](mcp_remote_connection.md).
+
+Either way, registered clients get loopback-only redirects, PKCE, a consent screen and the `mcp`
+scope. If a client can't do any of this, give it a PAT.
+
 ## Configuration reference
 
 Set these as environment variables (shown) or as `--property=value` arguments.
@@ -132,6 +169,9 @@ Set these as environment variables (shown) or as `--property=value` arguments.
 | `_JAVA_OPTIONS` | JVM default | Memory, e.g. `-Xmx2g` |
 | `REQUEL_AI_*`, `SPRING_PROFILES_ACTIVE=ai-…` | assistant off | AI review provider; see [AI assistant setup](AI_ASSISTANT_SETUP.md) |
 | `REQUEL_OAUTH_ISSUER` | derived per request | Public URL when Requel is behind a proxy, for MCP clients; see [MCP remote connection](mcp_remote_connection.md) |
+| `REQUEL_OAUTH_SEED_CLI_CLIENT` | `true` | Registers the `requel-cli` OAuth client, for `requel-cli login --oauth` |
+| `REQUEL_OAUTH_DCR_ALLOW_ANONYMOUS_LOOPBACK` | `false` | Lets an MCP client on the same machine register itself over OAuth (not under Docker) |
+| `REQUEL_OAUTH_DCR_ENABLED` / `_REGISTRAR_CLIENT_SECRET` | `false` / none | Gated OAuth client registration for MCP clients; see [Connect the CLI or an AI client](#connect-the-cli-or-an-ai-client) |
 
 ## Before you expose it
 
