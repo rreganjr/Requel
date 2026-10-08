@@ -3,7 +3,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
 import { BehaviorSubject, EMPTY, Subject } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
-import { StakeholderEditorComponent } from './stakeholder-editor';
+import { StakeholderEditorComponent, userLabel } from './stakeholder-editor';
 import { StakeholderService } from '../../core/stakeholder.service';
 import { CommandService } from '../../core/command.service';
 import { ProjectService } from '../../core/project.service';
@@ -18,7 +18,7 @@ const MOCK_AVAILABLE_PERMISSIONS = [
 ];
 
 const MOCK_STAKEHOLDER_USER = {
-  id: 50, version: 0, name: 'Alice', type: 'user',
+  id: 50, version: 0, name: 'Alice [alice]', type: 'user',
   goals: [],
   userDetails: { username: 'alice', teamName: 'Dev', permissionKeys: ['edit_goal'], emailAddress: null, phoneNumber: null },
   nonUserDetails: null
@@ -667,4 +667,14 @@ describe('StakeholderEditorComponent', () => {
     });
   });
 
+});
+
+describe('userLabel (#392)', () => {
+  it('drops the " [username]" suffix from a user stakeholder name', () => {
+    expect(userLabel('Builtin Project User [project]', 'project')).toBe('Builtin Project User');
+  });
+  it('leaves a name without that suffix alone', () => {
+    expect(userLabel('Alice', 'alice')).toBe('Alice');
+    expect(userLabel('Bob [robert]', 'bob')).toBe('Bob [robert]');
+  });
 });

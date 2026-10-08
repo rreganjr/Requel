@@ -35,7 +35,10 @@ import com.rreganjr.requel.user.command.EditUserCommand;
 
 /**
  * Grants the built-in admin user ProjectUserRole + createProjects so that
- * the admin can create and manage projects without a manual setup step.
+ * the admin can create and manage projects without a manual setup step, and
+ * manageApiTokens (#392) so a fresh install's admin can mint a personal access
+ * token for the CLI or an MCP client. Existing installs where admin already has
+ * ProjectUserRole get manageApiTokens from Flyway V38.
  *
  * Runs at order 200, after AdminUserInitializer (order 100) has ensured
  * the admin account exists.
@@ -78,6 +81,8 @@ public class AdminProjectRoleInitializer extends AbstractSystemInitializer {
 			command.addUserRoleName(ProjectUserRole.getRoleName(ProjectUserRole.class));
 			command.addUserRolePermissionName(ProjectUserRole.getRoleName(ProjectUserRole.class),
 					ProjectUserRole.createProjects.getName());
+			command.addUserRolePermissionName(ProjectUserRole.getRoleName(ProjectUserRole.class),
+					ProjectUserRole.manageApiTokens.getName());
 			commandHandler.execute(command);
 		} catch (Exception e) {
 			log.error("failed to grant admin ProjectUserRole: " + e, e);

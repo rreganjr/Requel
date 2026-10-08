@@ -22,7 +22,9 @@ package com.rreganjr.requel.service.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.InputStream;
 import java.time.Duration;
+import java.util.Properties;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -61,5 +63,15 @@ class RequelCliOAuthClientTest {
         assertThat(client.getTokenSettings().getAccessTokenTimeToLive()).isEqualTo(Duration.ofHours(1));
         assertThat(client.getTokenSettings().getRefreshTokenTimeToLive()).isEqualTo(Duration.ofDays(30));
         assertThat(client.getTokenSettings().isReuseRefreshTokens()).isFalse();
+    }
+
+    /** #392: a default install seeds the client, so `requel-cli login --oauth` works out of the box. */
+    @Test
+    void isSeededByDefault() throws Exception {
+        Properties shipped = new Properties();
+        try (InputStream in = getClass().getResourceAsStream("/application.properties")) {
+            shipped.load(in);
+        }
+        assertThat(shipped.getProperty("requel.oauth.seed-cli-client")).isEqualTo("true");
     }
 }
