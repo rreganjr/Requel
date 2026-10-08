@@ -21,7 +21,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    image: rreganjr/requel:2.0.0-rc2
+    image: rreganjr/requel:2.0.0-rc3
     ports:
       - "8080:8080"
     networks:
