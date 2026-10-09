@@ -47,6 +47,12 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.OAuth2Token;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.authorization.token.DelegatingOAuth2TokenGenerator;
+import org.springframework.security.oauth2.server.authorization.token.JwtGenerator;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2AccessTokenGenerator;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -181,13 +187,20 @@ public class AuthorizationServerConfig {
     @Order(1)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http,
             RegisteredClientRepository registeredClientRepository,
-            ObjectMapper objectMapper) throws Exception {
+            ObjectMapper objectMapper,
+            OAuth2TokenGenerator<OAuth2Token> tokenGenerator) throws Exception {
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer =
                 OAuth2AuthorizationServerConfigurer.authorizationServer();
 
         http
             .securityMatcher(authorizationServerConfigurer.getEndpointsMatcher())
             .with(authorizationServerConfigurer, (authorizationServer) -> authorizationServer
+                // Refresh tokens for public clients (issue #394): issue them at login, and let a
+                // public client redeem one by client_id. See PublicClientRefreshTokens.
+                .tokenGenerator(tokenGenerator)
+                .clientAuthentication(clientAuthentication -> clientAuthentication
+                    .authenticationConverter(new PublicClientRefreshTokens.Converter())
+                    .authenticationProvider(new PublicClientRefreshTokens.Provider(registeredClientRepository)))
                 // OpenID Connect: userinfo + Dynamic Client Registration (Slice 4). The registration
                 // endpoint requires an initial access token (client_credentials + client.create),
                 // minted by the seeded registrar client; see the DCR notes in doc/work/2.0/oauth_mcp_plan.md.
@@ -403,6 +416,20 @@ public class AuthorizationServerConfig {
             builder.issuer(issuer);
         }
         return builder.build();
+    }
+
+    /**
+     * Spring's default token generators (a JWT access token signed with {@link #jwkSource()}, the
+     * opaque access-token generator, and a refresh-token generator), except that refresh tokens go
+     * to public clients too (issue #394). The clients people sign in with (requel-cli and the MCP
+     * clients) are all public, so with Spring's own refresh generator none of them ever got one.
+     */
+    @Bean
+    public OAuth2TokenGenerator<OAuth2Token> tokenGenerator(JWKSource<SecurityContext> jwkSource) {
+        return new DelegatingOAuth2TokenGenerator(
+                new JwtGenerator(new NimbusJwtEncoder(jwkSource)),
+                new OAuth2AccessTokenGenerator(),
+                new PublicClientRefreshTokens.Generator());
     }
 
     // ---- Default token policy + optional dev-client seeding -------------------------------------
