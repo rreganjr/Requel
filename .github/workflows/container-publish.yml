@@ -26,7 +26,7 @@ jobs:
   publish:
     name: Build, smoke test, push image
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     env:
       DOCKER_IMAGE: rreganjr/requel
