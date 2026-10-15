@@ -316,6 +316,15 @@ done.
 Then check that you can log in at http://localhost:8080/, the UI assets load, and you can
 open a project and move between its pages.
 
+The image is published for `linux/amd64` and `linux/arm64` (#396). Check both are there:
+
+```bash
+docker buildx imagetools inspect rreganjr/requel:2.1.0-rc1
+```
+
+On an Apple Silicon Mac, `docker compose up` should pull the arm64 image without a
+"platform … does not match" warning.
+
 Also test the upgrade path: start the previous release's image against a database, then
 the candidate against the same database. Flyway migrates it on startup, and a failure there
 is exactly what users would hit.
@@ -327,11 +336,13 @@ workstation (JDK 17, Docker, and a Docker Hub login):
 
 ```bash
 mvn -pl modules/requel-app -am clean verify
-docker build --build-arg JAR_FILE=modules/requel-app/target/requel-app-2.1.0.jar -t rreganjr/requel:2.1.0 -t rreganjr/requel:latest .
 docker login --username rreganjr
-docker push rreganjr/requel:2.1.0
-docker push rreganjr/requel:latest
+docker buildx create --use
+docker buildx build --platform linux/amd64,linux/arm64 --build-arg JAR_FILE=modules/requel-app/target/requel-app-2.1.0.jar -t rreganjr/requel:2.1.0 -t rreganjr/requel:latest --push .
 ```
+
+`buildx` builds both platforms from the one jar and pushes them under each tag; the default
+`docker build` can't push a multi-platform image.
 
 Then create the GitHub Release by hand (Releases → Draft a new release, pick the pushed
 tag, generate notes, attach the jar). Maven artifacts are not published to GitHub Packages;
