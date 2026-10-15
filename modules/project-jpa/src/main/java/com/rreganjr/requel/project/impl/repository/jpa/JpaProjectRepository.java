@@ -153,9 +153,8 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(project) from ProjectImpl as project where project.name like :name");
-			query.setParameter("name", name.trim());
-			return (Project) query.getSingleResult();
+							"select object(project) from ProjectImpl as project where project.name = :name");
+			return (Project) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchProjectException.forName(name);
 		} catch (Exception e) {
@@ -170,10 +169,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(goal) from GoalImpl as goal where goal.projectOrDomain = :projectOrDomain and goal.name like :name");
+							"select object(goal) from GoalImpl as goal where goal.projectOrDomain = :projectOrDomain and goal.name = :name");
 			query.setParameter("projectOrDomain", pod);
-			query.setParameter("name", name.trim());
-			return (Goal) query.getSingleResult();
+			return (Goal) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchEntityException.byQuery(Goal.class, new String[] { "project", "name" },
 					new Object[] { pod, name });
@@ -189,10 +187,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(scenario) from ScenarioImpl as scenario where scenario.projectOrDomain = :projectOrDomain and scenario.name like :name");
+							"select object(scenario) from ScenarioImpl as scenario where scenario.projectOrDomain = :projectOrDomain and scenario.name = :name");
 			query.setParameter("projectOrDomain", pod);
-			query.setParameter("name", name.trim());
-			return (Scenario) query.getSingleResult();
+			return (Scenario) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchEntityException.byQuery(Scenario.class, new String[] { "project", "name" },
 					new Object[] { pod, name });
@@ -214,8 +211,7 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 							// findPosition.
 							"select object(step) from StepImpl as step where step.projectOrDomain = :projectOrDomain and step.name = :name");
 			query.setParameter("projectOrDomain", pod);
-			query.setParameter("name", name.trim());
-			return (Step) query.getSingleResult();
+			return (Step) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchEntityException.byQuery(Step.class, new String[] { "project", "name" },
 					new Object[] { pod, name });
@@ -280,10 +276,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(stakeholder) from NonUserStakeholderImpl as stakeholder where stakeholder.projectOrDomain = :projectOrDomain and stakeholder.name like :name and stakeholder.user is null");
+							"select object(stakeholder) from NonUserStakeholderImpl as stakeholder where stakeholder.projectOrDomain = :projectOrDomain and stakeholder.name = :name and stakeholder.user is null");
 			query.setParameter("projectOrDomain", projectOrDomain);
-			query.setParameter("name", name.trim());
-			return (NonUserStakeholder) query.getSingleResult();
+			return (NonUserStakeholder) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchEntityException.byQuery(Scenario.class, new String[] { "project", "name" },
 					new Object[] { projectOrDomain, name });
@@ -393,9 +388,8 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 					"select object(term) from GlossaryTermImpl as term "
 							+ "where term.name = :name and "
 							+ "term.projectOrDomain = :projectOrDomain");
-			query.setParameter("name", name.trim());
 			query.setParameter("projectOrDomain", projectOrDomain);
-			return (GlossaryTerm) query.getSingleResult();
+			return (GlossaryTerm) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchGlossaryTermException.forProjectOrDomainWithName(projectOrDomain, name);
 		} catch (Exception e) {
@@ -518,10 +512,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(actor) from ActorImpl as actor where actor.projectOrDomain = :projectOrDomain and actor.name like :name");
+							"select object(actor) from ActorImpl as actor where actor.projectOrDomain = :projectOrDomain and actor.name = :name");
 			query.setParameter("projectOrDomain", projectOrDomain);
-			query.setParameter("name", name.trim());
-			return (Actor) query.getSingleResult();
+			return (Actor) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchActorException.forProjectOrDomainWithName(projectOrDomain, name);
 		} catch (Exception e) {
@@ -536,10 +529,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(story) from StoryImpl as story where story.projectOrDomain = :projectOrDomain and story.name like :name");
+							"select object(story) from StoryImpl as story where story.projectOrDomain = :projectOrDomain and story.name = :name");
 			query.setParameter("projectOrDomain", projectOrDomain);
-			query.setParameter("name", name.trim());
-			return (Story) query.getSingleResult();
+			return (Story) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchActorException.forProjectOrDomainWithName(projectOrDomain, name);
 		} catch (Exception e) {
@@ -554,10 +546,9 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 			// TODO: use named query so it can be configured externally
 			Query query = getEntityManager()
 					.createQuery(
-							"select object(usecase) from UseCaseImpl as usecase where usecase.projectOrDomain = :projectOrDomain and usecase.name like :name");
+							"select object(usecase) from UseCaseImpl as usecase where usecase.projectOrDomain = :projectOrDomain and usecase.name = :name");
 			query.setParameter("projectOrDomain", projectOrDomain);
-			query.setParameter("name", name.trim());
-			return (UseCase) query.getSingleResult();
+			return (UseCase) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchActorException.forProjectOrDomainWithName(projectOrDomain, name);
 		} catch (Exception e) {
@@ -574,8 +565,7 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 					.createQuery(
 							"select object(reportGenerator) from ReportGeneratorImpl as reportGenerator where reportGenerator.projectOrDomain = :projectOrDomain and reportGenerator.name = :name");
 			query.setParameter("projectOrDomain", projectOrDomain);
-			query.setParameter("name", name.trim());
-			return (ReportGenerator) query.getSingleResult();
+			return (ReportGenerator) singleResultByName(query, name);
 		} catch (NoResultException e) {
 			throw NoSuchEntityException.byQuery(Scenario.class, new String[] { "project", "name" },
 					new Object[] { projectOrDomain, name });
@@ -656,4 +646,28 @@ public class JpaProjectRepository extends AbstractJpaRepository implements Proje
 				.executeUpdate();
 	}
 
+
+	/**
+	 * Runs a lookup by name: the query's {@code :name} parameter is the name as given, and if
+	 * nothing matches, the name trimmed.
+	 *
+	 * <p>#398: the lookups used to trim the name and match it with LIKE. A name saved with a
+	 * trailing space ("Goal ") could then never be found, LIKE doesn't pad, so relating that goal
+	 * failed with "no goal found"; and {@code _} and {@code %} in a name were wildcards. Names
+	 * are now saved trimmed and matched with {@code =}; trying the name as given first still
+	 * finds one saved with spaces before that.
+	 */
+	private Object singleResultByName(Query query, String name) {
+		query.setParameter("name", name);
+		try {
+			return query.getSingleResult();
+		} catch (NoResultException e) {
+			String trimmed = name.trim();
+			if (trimmed.equals(name)) {
+				throw e;
+			}
+			query.setParameter("name", trimmed);
+			return query.getSingleResult();
+		}
+	}
 }

@@ -189,7 +189,8 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
         UseCaseAssembler useCaseAssembler = new UseCaseAssembler(targetProject, getUserRepository(), createdBy);
         ReportGeneratorAssembler reportAssembler = new ReportGeneratorAssembler(targetProject, createdBy);
         UserAssembler userAssembler = new UserAssembler(getUserRepository());
-        StakeholderAssembler stakeholderAssembler = new StakeholderAssembler(targetProject, getUserRepository(), createdBy);
+        StakeholderAssembler stakeholderAssembler = new StakeholderAssembler(targetProject, getUserRepository(), createdBy,
+                getProjectRepository().findAvailableStakeholderPermissions());
         com.rreganjr.requel.project.imports.ProjectPositionAssembler positionAssembler =
                 new com.rreganjr.requel.project.imports.ProjectPositionAssembler(getUserRepository(), createdBy);
         AnnotationAssembler annotationAssembler = new AnnotationAssembler(getUserRepository(), createdBy, targetProject,
@@ -828,7 +829,9 @@ public class ImportProjectStreamingCommandImpl extends AbstractEditProjectComman
 
     @Override
     public void setName(String name) {
-        this.name = name;
+        // #398: names are saved trimmed. The lookups by name trim what they are given, so a
+        // name saved with a trailing space could never be found again (e.g. to relate a goal).
+        this.name = (name == null) ? null : name.trim();
     }
 
     protected boolean isAnalysisEnabled() {

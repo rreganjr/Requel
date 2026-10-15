@@ -18,7 +18,7 @@
  * along with Requel. If not, see <http://www.gnu.org/licenses/>.
  *
  */
-import { AfterContentChecked, AfterContentInit, ContentChild, Component, Directive, ElementRef, Input, OnDestroy, inject, ChangeDetectionStrategy, ChangeDetectorRef, DestroyRef } from '@angular/core';
+import { AfterContentChecked, AfterContentInit, ContentChild, Component, Directive, DoCheck, ElementRef, Input, OnDestroy, inject, ChangeDetectionStrategy, ChangeDetectorRef, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl } from '@angular/forms';
 import { FormErrorOverrides, firstErrorMessage, isRequired } from './form-errors';
@@ -159,7 +159,7 @@ export class AppFieldControlDirective {
     }
   `],
 })
-export class AppFieldComponent implements AfterContentInit, AfterContentChecked, OnDestroy {
+export class AppFieldComponent implements AfterContentInit, AfterContentChecked, DoCheck, OnDestroy {
   /** Row label. Rendered as a real `<label for>` bound to the projected control. */
   @Input({ required: true }) label!: string;
 
@@ -245,6 +245,26 @@ export class AppFieldComponent implements AfterContentInit, AfterContentChecked,
 
   ngAfterContentInit(): void {
     this.wireControl();
+  }
+
+  /** What the row last rendered: error shown, its message, the required marker. */
+  private renderedState?: string;
+
+  /**
+   * OnPush: re-render when the control's error state changes without an event.
+   *
+   * The `control.events` subscription covers edits and blur, but not every change. A
+   * server error (`applyCommandErrors`) is attached with `emitEvent: false`, and marking an
+   * already-touched control touched again emits nothing, so a field the user had edited
+   * got `aria-invalid="true"` (the red outline) and no message (#398). The parent checks
+   * this row on every pass, so compare what the row would show with what it last rendered.
+   */
+  ngDoCheck(): void {
+    const state = `${this.showError}|${this.errorMessage ?? ''}|${this.required}`;
+    if (state !== this.renderedState) {
+      this.renderedState = state;
+      this.cdr.markForCheck();
+    }
   }
 
   ngOnDestroy(): void {

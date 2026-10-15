@@ -107,7 +107,9 @@ public class EditProjectCommandImpl extends AbstractEditProjectCommand implement
 	}
 
 	public void setName(String name) {
-		this.name = name;
+		// #398: names are saved trimmed. The lookups by name trim what they are given, so a
+		// name saved with a trailing space could never be found again (e.g. to relate a goal).
+		this.name = (name == null) ? null : name.trim();
 	}
 
 	protected String getText() {

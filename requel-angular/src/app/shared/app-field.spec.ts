@@ -1,7 +1,8 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AppFieldComponent, AppFieldControlDirective } from './app-field';
+import { applyCommandErrors } from './form-errors';
 
 @Component({
   standalone: true,
@@ -126,6 +127,26 @@ describe('AppFieldComponent (issue #158)', () => {
     const el: HTMLElement = fixture.nativeElement;
 
     expect(fieldError(el)?.textContent?.trim()).toBe('This field is required.');
+    expect(control(el)?.getAttribute('aria-invalid')).toBe('true');
+  });
+
+  it('shows a server error on a field the user already touched (#398)', () => {
+    const fixture = render(host => {
+      host.control = new FormControl('123', { nonNullable: true });
+    });
+    const host = fixture.componentInstance;
+    // The user typed and left the field: touched before the save.
+    host.control.markAsTouched();
+    fixture.detectChanges();
+
+    // The save comes back with a violation. Nothing emits: the error is attached with
+    // emitEvent false and the control was already touched.
+    applyCommandErrors(new FormGroup({ phoneNumber: host.control }),
+      [{ field: 'phoneNumber', message: 'must be a valid 10 digit phone number or empty.' }]);
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+
+    expect(fieldError(el)?.textContent?.trim()).toBe('must be a valid 10 digit phone number or empty.');
     expect(control(el)?.getAttribute('aria-invalid')).toBe('true');
   });
 

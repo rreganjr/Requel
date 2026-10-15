@@ -90,7 +90,8 @@ public class CopyActorCommandImpl extends AbstractEditProjectCommand
 	}
 
 	public void setNewActorName(String newActorName) {
-		this.newActorName = newActorName;
+		// #398: names are saved trimmed, as the lookups by name expect.
+		this.newActorName = (newActorName == null) ? null : newActorName.trim();
 	}
 
 	@Override

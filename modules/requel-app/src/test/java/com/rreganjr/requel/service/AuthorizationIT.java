@@ -1041,6 +1041,29 @@ public class AuthorizationIT extends AbstractIntegrationTestCase {
                 .andExpect(jsonPath("$.violations[0].field").value("lemma"));
     }
 
+    /**
+     * #398: a user without an organization reached the insert, failed on the NOT NULL column,
+     * and came back as "The username conflicts with an existing User".
+     */
+    @Test
+    void aNewUserWithoutAnOrganizationIsAValidationErrorOnOrganizationName() throws Exception {
+        java.util.Map<String, Object> user = new java.util.HashMap<>();
+        user.put("username", "noorg" + System.currentTimeMillis());
+        user.put("password", "Pw-12345");
+        user.put("repassword", "Pw-12345");
+        user.put("name", "No Org");
+        user.put("emailAddress", "noorg@example.com");
+        user.put("organizationName", "");
+        user.put("userRoleNames", java.util.Set.of("ProjectUserRole"));
+        mockMvc.perform(post("/api/commands/EditUser")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.violations[0].field").value("organizationName"))
+                .andExpect(jsonPath("$.violations[0].message").value("organization is required."));
+    }
+
     @Test
     void noAccessCannotListTheProjectDictionary() throws Exception {
         mockMvc.perform(get("/api/projects/" + testProjectName + "/dictionary")

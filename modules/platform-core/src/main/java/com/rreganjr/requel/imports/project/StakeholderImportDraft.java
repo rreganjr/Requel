@@ -31,9 +31,22 @@ public class StakeholderImportDraft {
     private final String type;
     private final String name;
     private final String text;
+    private final java.util.Set<String> permissionKeys;
 
     public StakeholderImportDraft(String externalId, String createdByExternalId, String userExternalId,
                                   java.util.Set<String> annotationExternalIds) {
+        this(externalId, createdByExternalId, userExternalId, annotationExternalIds, null);
+    }
+
+    /**
+     * A user stakeholder with its project permissions (#398), as permission keys:
+     * {@code entityType[permissionType]}, e.g. {@code com.rreganjr.requel.project.Goal[Edit]}.
+     */
+    public StakeholderImportDraft(String externalId, String createdByExternalId, String userExternalId,
+                                  java.util.Set<String> annotationExternalIds, java.util.Set<String> permissionKeys) {
+        this.permissionKeys = permissionKeys != null
+                ? java.util.Collections.unmodifiableSet(new java.util.LinkedHashSet<>(permissionKeys))
+                : java.util.Collections.emptySet();
         this.externalId = externalId;
         this.createdByExternalId = createdByExternalId;
         this.userExternalId = userExternalId;
@@ -54,6 +67,7 @@ public class StakeholderImportDraft {
                 ? java.util.Collections.unmodifiableSet(new java.util.HashSet<>(annotationExternalIds))
                 : java.util.Collections.emptySet();
         this.type = "NON_USER";
+        this.permissionKeys = java.util.Collections.emptySet();
         this.name = null;
         this.text = null;
     }
@@ -67,6 +81,7 @@ public class StakeholderImportDraft {
                 ? java.util.Collections.unmodifiableSet(new java.util.HashSet<>(annotationExternalIds))
                 : java.util.Collections.emptySet();
         this.type = "NON_USER";
+        this.permissionKeys = java.util.Collections.emptySet();
         this.name = name;
         this.text = text;
     }
@@ -101,5 +116,10 @@ public class StakeholderImportDraft {
 
     public String getText() {
         return text;
+    }
+
+    /** The project permission keys of a user stakeholder; empty for a non-user one. */
+    public java.util.Set<String> getPermissionKeys() {
+        return permissionKeys;
     }
 }

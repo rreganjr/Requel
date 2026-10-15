@@ -137,9 +137,10 @@ describe('EditAccountComponent', () => {
       expect(comp.form.controls.emailAddress.hasError('email')).toBe(true);
     });
 
-    it('accepts an empty email', () => {
-      patch({ emailAddress: '' });
-      expect(comp.form.controls.emailAddress.valid).toBe(true);
+    // #398: the server requires an email address and an organization.
+    it.each(['emailAddress', 'organizationName'] as const)('requires %s', field => {
+      patch({ [field]: '' });
+      expect(comp.form.controls[field].hasError('required')).toBe(true);
     });
 
     it('hasUnsavedChanges() derives from form.dirty', () => {

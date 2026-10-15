@@ -89,7 +89,8 @@ public class CopyScenarioStepCommandImpl extends AbstractEditProjectCommand impl
 	}
 
 	public void setNewScenarioStepName(String newScenarioStepName) {
-		this.newScenarioStepName = newScenarioStepName;
+		// #398: names are saved trimmed, as the lookups by name expect.
+		this.newScenarioStepName = (newScenarioStepName == null) ? null : newScenarioStepName.trim();
 	}
 
 	@Override
